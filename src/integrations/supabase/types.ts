@@ -9,7 +9,281 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      artists: {
+        Row: {
+          biography: string | null
+          birth_year: number | null
+          created_at: string | null
+          full_name: string
+          id: string
+          image_url: string | null
+          nationality: string | null
+          representation_status: string
+          updated_at: string | null
+        }
+        Insert: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          full_name: string
+          id?: string
+          image_url?: string | null
+          nationality?: string | null
+          representation_status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          image_url?: string | null
+          nationality?: string | null
+          representation_status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      artworks: {
+        Row: {
+          artist_id: string | null
+          created_at: string | null
+          dimensions: string | null
+          id: string
+          image_url: string | null
+          location_id: string | null
+          medium: string | null
+          price: number | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          year: number | null
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string | null
+          dimensions?: string | null
+          id?: string
+          image_url?: string | null
+          location_id?: string | null
+          medium?: string | null
+          price?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          year?: number | null
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string | null
+          dimensions?: string | null
+          id?: string
+          image_url?: string | null
+          location_id?: string | null
+          medium?: string | null
+          price?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          client_type: string
+          created_at: string | null
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          client_type?: string
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          client_type?: string
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      exhibition_artworks: {
+        Row: {
+          artwork_id: string
+          exhibition_id: string
+        }
+        Insert: {
+          artwork_id: string
+          exhibition_id: string
+        }
+        Update: {
+          artwork_id?: string
+          exhibition_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exhibition_artworks_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exhibition_artworks_exhibition_id_fkey"
+            columns: ["exhibition_id"]
+            isOneToOne: false
+            referencedRelation: "exhibitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exhibitions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          image_url: string | null
+          location_id: string | null
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          image_url?: string | null
+          location_id?: string | null
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          location_id?: string | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      locations: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          artwork_id: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_status: string | null
+          sale_date: string
+          sale_price: number
+          updated_at: string | null
+        }
+        Insert: {
+          artwork_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_status?: string | null
+          sale_date: string
+          sale_price: number
+          updated_at?: string | null
+        }
+        Update: {
+          artwork_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_status?: string | null
+          sale_date?: string
+          sale_price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
