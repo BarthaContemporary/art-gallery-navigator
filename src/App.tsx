@@ -8,10 +8,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Artists from "./pages/Artists";
 import Artworks from "./pages/Artworks";
-import Exhibitions from "./pages/Exhibitions";
 import Locations from "./pages/Locations";
-import Clients from "./pages/Clients";
-import Sales from "./pages/Sales";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 
@@ -28,10 +25,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/artists" element={<Artists />} />
             <Route path="/artworks" element={<Artworks />} />
-            <Route path="/exhibitions" element={<Exhibitions />} />
             <Route path="/locations" element={<Locations />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/sales" element={<Sales />} />
             <Route path="/documents" element={<Documents />} />
           </Route>
           <Route path="*" element={<NotFound />} />

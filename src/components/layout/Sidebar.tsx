@@ -1,14 +1,10 @@
-
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
   Users, 
   Palette, 
-  Calendar, 
   MapPin, 
-  User, 
-  DollarSign, 
   FileText, 
   LayoutDashboard,
   Menu,
@@ -50,10 +46,7 @@ export function Sidebar() {
     { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
     { title: "Artists", icon: <Users size={20} />, path: "/artists" },
     { title: "Artworks", icon: <Palette size={20} />, path: "/artworks" },
-    { title: "Exhibitions", icon: <Calendar size={20} />, path: "/exhibitions" },
     { title: "Locations", icon: <MapPin size={20} />, path: "/locations" },
-    { title: "Clients", icon: <User size={20} />, path: "/clients" },
-    { title: "Sales", icon: <DollarSign size={20} />, path: "/sales" },
     { title: "Documents", icon: <FileText size={20} />, path: "/documents" },
   ];
 
