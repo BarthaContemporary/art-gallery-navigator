@@ -16,7 +16,7 @@ interface CreateArtistForm {
   birth_year?: number;
   nationality?: string;
   biography?: string;
-  image?: File;
+  image?: FileList;
 }
 
 export const CreateArtistDialog = () => {
@@ -31,13 +31,15 @@ export const CreateArtistDialog = () => {
       
       let image_url = null;
       
-      if (data.image) {
-        const fileExt = data.image.name.split('.').pop();
+      // Fix: Check if FileList exists and has at least one file
+      if (data.image && data.image.length > 0) {
+        const imageFile = data.image[0];
+        const fileExt = imageFile.name.split('.').pop();
         const filePath = `${Math.random()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('gallery_images')
-          .upload(filePath, data.image);
+          .upload(filePath, imageFile);
           
         if (uploadError) throw uploadError;
         
