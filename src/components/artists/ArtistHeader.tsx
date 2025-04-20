@@ -1,6 +1,5 @@
 
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { CreateArtistDialog } from "./CreateArtistDialog";
 
 export const ArtistHeader = () => {
   return (
@@ -11,9 +10,7 @@ export const ArtistHeader = () => {
           Manage represented and non-represented artists
         </p>
       </div>
-      <Button>
-        <Plus className="mr-2 h-4 w-4" /> Add Artist
-      </Button>
+      <CreateArtistDialog />
     </div>
   );
 };
