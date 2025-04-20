@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -110,7 +111,7 @@ export function UploadDocumentDialog() {
             <FormField
               control={form.control}
               name="file"
-              render={({ field: { onChange, ...field } }) => (
+              render={({ field: { onChange, value, ...rest } }) => (
                 <FormItem>
                   <FormLabel>File</FormLabel>
                   <FormControl>
@@ -120,8 +121,7 @@ export function UploadDocumentDialog() {
                         const file = e.target.files?.[0];
                         if (file) onChange(file);
                       }}
-                      {...field}
-                      value={field.value instanceof File ? undefined : field.value}
+                      {...rest}
                     />
                   </FormControl>
                   <FormMessage />
