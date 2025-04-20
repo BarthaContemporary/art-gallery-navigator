@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { Upload } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -73,8 +73,8 @@ export const CreateArtistDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Upload className="mr-2 h-4 w-4" /> Add Artist
+        <Button variant="default" className="gap-2">
+          <UserPlus className="h-4 w-4" /> Add Artist
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
