@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 
 interface CreateLocationForm {
   name: string;
@@ -23,7 +24,15 @@ export const CreateLocationDialog = () => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateLocationForm>();
+  
+  const form = useForm<CreateLocationForm>({
+    defaultValues: {
+      name: "",
+      type: "exhibition", // Set a default value for type
+      address: "",
+      notes: ""
+    }
+  });
 
   const onSubmit = async (data: CreateLocationForm) => {
     try {
@@ -41,7 +50,7 @@ export const CreateLocationDialog = () => {
       
       toast.success("Location created successfully");
       queryClient.invalidateQueries({ queryKey: ['locations'] });
-      reset();
+      form.reset();
       setOpen(false);
     } catch (error) {
       console.error('Error creating location:', error);
@@ -62,61 +71,88 @@ export const CreateLocationDialog = () => {
         <DialogHeader>
           <DialogTitle>Add New Location</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              {...register("name", { required: "Location name is required" })}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              rules={{ required: "Location name is required" }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter location name" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
             />
-            {errors.name && (
-              <p className="text-sm text-red-500">{errors.name.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="type">Type *</Label>
-            <Select 
-              onValueChange={(value) => register("type").onChange({ target: { value } })}
-              defaultValue="exhibition"
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="exhibition">Exhibition Space</SelectItem>
-                <SelectItem value="storage">Storage</SelectItem>
-                <SelectItem value="consignment">Consignment</SelectItem>
-                <SelectItem value="external">External</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              {...register("address")}
+            
+            <FormField
+              control={form.control}
+              name="type"
+              rules={{ required: "Location type is required" }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type *</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="exhibition">Exhibition Space</SelectItem>
+                      <SelectItem value="storage">Storage</SelectItem>
+                      <SelectItem value="consignment">Consignment</SelectItem>
+                      <SelectItem value="external">External</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
             />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              {...register("notes")}
+            
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter address (optional)" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
             />
-          </div>
-          
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Location"}
-            </Button>
-          </div>
-        </form>
+            
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter additional information (optional)" 
+                      {...field} 
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" type="button" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Creating..." : "Create Location"}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
