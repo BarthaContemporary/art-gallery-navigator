@@ -134,6 +134,60 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          artist_id: string | null
+          artwork_id: string | null
+          created_at: string | null
+          date_uploaded: string | null
+          description: string | null
+          file_name: string
+          file_url: string
+          id: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          artwork_id?: string | null
+          created_at?: string | null
+          date_uploaded?: string | null
+          description?: string | null
+          file_name: string
+          file_url: string
+          id?: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          artwork_id?: string | null
+          created_at?: string | null
+          date_uploaded?: string | null
+          description?: string | null
+          file_name?: string
+          file_url?: string
+          id?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exhibition_artworks: {
         Row: {
           artwork_id: string

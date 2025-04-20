@@ -1,9 +1,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
-  Plus, 
   Search, 
   FileText, 
   Download, 
@@ -19,88 +18,8 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-
-// Mock data for documents
-const mockDocuments = [
-  {
-    id: 1,
-    artwork: {
-      id: 1,
-      title: "Abstract Composition #42",
-      artist: "Emma Johnson"
-    },
-    type: "condition report",
-    file_name: "abstract_composition_42_condition_report.pdf",
-    file_url: "/documents/abstract_composition_42_condition_report.pdf",
-    date_uploaded: "2025-03-15",
-    description: "Pre-exhibition condition assessment. Good condition with no visible damage."
-  },
-  {
-    id: 2,
-    artwork: {
-      id: 2,
-      title: "Summer Landscape",
-      artist: "Michael Chen"
-    },
-    type: "invoice",
-    file_name: "invoice_summer_landscape_apr2025.pdf",
-    file_url: "/documents/invoice_summer_landscape_apr2025.pdf",
-    date_uploaded: "2025-04-10",
-    description: "Invoice for sale to Sarah Williams."
-  },
-  {
-    id: 3,
-    artwork: {
-      id: 2,
-      title: "Summer Landscape",
-      artist: "Michael Chen"
-    },
-    type: "CoA",
-    file_name: "summer_landscape_certificate.pdf",
-    file_url: "/documents/summer_landscape_certificate.pdf",
-    date_uploaded: "2025-04-10",
-    description: "Certificate of Authenticity signed by the artist."
-  },
-  {
-    id: 4,
-    artwork: {
-      id: 5,
-      title: "Vibrant Dreams",
-      artist: "Amara Okafor"
-    },
-    type: "provenance",
-    file_name: "vibrant_dreams_provenance.pdf",
-    file_url: "/documents/vibrant_dreams_provenance.pdf",
-    date_uploaded: "2025-02-28",
-    description: "Complete ownership history from artist studio to gallery."
-  },
-  {
-    id: 5,
-    artwork: {
-      id: 6,
-      title: "Memory Fragments",
-      artist: "Jean-Pierre Dubois"
-    },
-    type: "condition report",
-    file_name: "memory_fragments_condition_feb2025.pdf",
-    file_url: "/documents/memory_fragments_condition_feb2025.pdf",
-    date_uploaded: "2025-02-10",
-    description: "Post-transportation condition report. Minor frame scratch noted."
-  },
-  {
-    id: 6,
-    artwork: {
-      id: 3,
-      title: "Urban Perspective",
-      artist: "Sophia Rodriguez"
-    },
-    type: "CoA",
-    file_name: "urban_perspective_certificate.pdf",
-    file_url: "/documents/urban_perspective_certificate.pdf",
-    date_uploaded: "2025-01-20",
-    description: "Certificate of Authenticity with artist signature and thumbprint."
-  }
-];
+import { useDocuments } from "@/hooks/use-documents";
+import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 
 // Helper function to format date
 const formatDate = (dateStr: string) => {
@@ -127,18 +46,33 @@ const getDocumentTypeInfo = (type: string) => {
 const Documents = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const { data: documents, isLoading, error } = useDocuments();
   
-  const filteredDocuments = mockDocuments.filter(doc => {
+  const filteredDocuments = documents?.filter(doc => {
     const matchesSearch = 
-      doc.artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.artwork.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (doc.description || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = typeFilter ? doc.type === typeFilter : true;
     
     return matchesSearch && matchesType;
-  });
+  }) ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <p className="text-muted-foreground">Loading documents...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <p className="text-red-500">Error loading documents. Please try again.</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -149,9 +83,7 @@ const Documents = () => {
             Manage artwork documentation, certificates, and reports
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Upload Document
-        </Button>
+        <UploadDocumentDialog />
       </div>
 
       <div className="mb-6 flex items-center gap-4">
@@ -214,20 +146,26 @@ const Documents = () => {
                         </span>
                       </div>
                       <h3 className="font-semibold">{document.file_name}</h3>
-                      <div className="flex items-start gap-2 mt-2 mb-1">
-                        <Palette className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                        <span className="text-sm">{document.artwork.title} by {document.artwork.artist}</span>
-                      </div>
                       <div className="flex items-center gap-2 mb-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Uploaded on {formatDate(document.date_uploaded)}</span>
+                        <span className="text-sm text-muted-foreground">
+                          Uploaded on {formatDate(document.date_uploaded)}
+                        </span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{document.description}</p>
+                      {document.description && (
+                        <p className="text-sm text-muted-foreground">{document.description}</p>
+                      )}
                     </div>
                     <div className="flex self-start">
-                      <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-4 w-4" /> Download
-                      </Button>
+                      <a
+                        href={document.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" /> Download
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 </CardContent>
