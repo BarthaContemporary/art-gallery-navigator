@@ -1,16 +1,8 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Search, Filter, Check, Clock, DollarSign, Briefcase } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import { SearchBar } from "@/components/artworks/SearchBar";
+import { StatusFilter } from "@/components/artworks/StatusFilter";
+import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 
 // Mock data for artworks
 const mockArtworks = [
@@ -82,14 +74,6 @@ const mockArtworks = [
   },
 ];
 
-const statusIcons = {
-  available: <Check className="h-4 w-4 text-green-500" />,
-  "on hold": <Clock className="h-4 w-4 text-amber-500" />,
-  sold: <DollarSign className="h-4 w-4 text-blue-500" />,
-  consigned: <Briefcase className="h-4 w-4 text-purple-500" />,
-  "not for sale": <Check className="h-4 w-4 text-gray-500" />,
-};
-
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -118,79 +102,11 @@ const Artworks = () => {
       </div>
 
       <div className="mb-6 flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search artworks..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              {statusFilter ? `Status: ${statusFilter}` : "Filter by status"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setStatusFilter(null)}>
-                All Statuses
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("available")}>
-                <Check className="mr-2 h-4 w-4 text-green-500" /> Available
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("on hold")}>
-                <Clock className="mr-2 h-4 w-4 text-amber-500" /> On Hold
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("sold")}>
-                <DollarSign className="mr-2 h-4 w-4 text-blue-500" /> Sold
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("consigned")}>
-                <Briefcase className="mr-2 h-4 w-4 text-purple-500" /> Consigned
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("not for sale")}>
-                <Check className="mr-2 h-4 w-4 text-gray-500" /> Not for Sale
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SearchBar value={searchTerm} onChange={setSearchTerm} />
+        <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArtworks.map((artwork) => (
-          <Card key={artwork.id} className="overflow-hidden">
-            <div className="aspect-[4/3] w-full overflow-hidden">
-              <img
-                src={artwork.image_url}
-                alt={artwork.title}
-                className="h-full w-full object-cover transition-all hover:scale-105"
-              />
-            </div>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">{artwork.title}</h3>
-                  <p className="text-sm">{artwork.artist}, {artwork.year}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{artwork.medium}</p>
-                  <p className="text-xs text-muted-foreground">{artwork.dimensions}</p>
-                </div>
-                <div className="flex flex-col items-end">
-                  <p className="font-medium">${artwork.price.toLocaleString()}</p>
-                  <div className="flex items-center mt-1">
-                    {statusIcons[artwork.status as keyof typeof statusIcons]}
-                    <span className="text-xs ml-1 capitalize">{artwork.status}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <ArtworkGrid artworks={filteredArtworks} />
     </div>
   );
 };
