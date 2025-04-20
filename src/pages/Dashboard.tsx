@@ -1,16 +1,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, Users, Calendar, Landmark, User, DollarSign } from "lucide-react";
+import { Palette, Users, Landmark } from "lucide-react";
 
 const Dashboard = () => {
-  // Mock data for initial dashboard
+  // Mock data for dashboard
   const stats = [
     { title: "Total Artworks", value: 186, icon: <Palette className="h-5 w-5" />, change: "+12% from last month" },
     { title: "Artists", value: 42, icon: <Users className="h-5 w-5" />, change: "+3 new artists" },
-    { title: "Exhibitions", value: 8, icon: <Calendar className="h-5 w-5" />, change: "2 upcoming" },
     { title: "Locations", value: 5, icon: <Landmark className="h-5 w-5" />, change: "3 active" },
-    { title: "Clients", value: 128, icon: <User className="h-5 w-5" />, change: "+5% from last month" },
-    { title: "Sales", value: "$450K", icon: <DollarSign className="h-5 w-5" />, change: "+8% from last month" }
   ];
 
   return (
@@ -63,22 +60,15 @@ const Dashboard = () => {
               <div className="flex items-center gap-4">
                 <div className="h-2 w-2 rounded-full bg-green-500"></div>
                 <div>
-                  <p className="text-sm font-medium">Sale completed: "Summer Landscape"</p>
+                  <p className="text-sm font-medium">New artist profile created</p>
                   <p className="text-xs text-muted-foreground">Yesterday at 11:15</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="h-2 w-2 rounded-full bg-purple-500"></div>
                 <div>
-                  <p className="text-sm font-medium">New exhibition created: "Modern Perspectives"</p>
+                  <p className="text-sm font-medium">Updated location: "Main Gallery"</p>
                   <p className="text-xs text-muted-foreground">April 16, 2025</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
-                <div>
-                  <p className="text-sm font-medium">Client inquiry: Regarding "Blue Reflections"</p>
-                  <p className="text-xs text-muted-foreground">April 15, 2025</p>
                 </div>
               </div>
             </div>
@@ -109,16 +99,9 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm">Consigned</span>
+                  <span className="text-sm">In Transit</span>
                 </div>
                 <span className="font-medium">17</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm">Sold</span>
-                </div>
-                <span className="font-medium">27</span>
               </div>
             </div>
           </CardContent>
