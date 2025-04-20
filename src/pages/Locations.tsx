@@ -1,9 +1,10 @@
-
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Search, Building, Warehouse, Briefcase, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Plus, Search, MapPin, Building, Warehouse, Briefcase, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { LocationHeader } from "@/components/locations/LocationHeader";
+import { Button } from "@/components/ui/button";
+import { Plus, Search, MapPin, Building, Warehouse, Briefcase, ExternalLink } from "lucide-react";
 
 // Mock data for locations
 const mockLocations = [
@@ -84,17 +85,7 @@ const Locations = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
-          <p className="text-muted-foreground">
-            Manage artwork storage and exhibition spaces
-          </p>
-        </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Add Location
-        </Button>
-      </div>
+      <LocationHeader />
 
       <div className="mb-6">
         <div className="relative max-w-sm">
