@@ -1,18 +1,9 @@
 
 import { ArtworkCard } from "./ArtworkCard";
+import { Artwork } from "@/hooks/use-artworks";
 
 interface ArtworkGridProps {
-  artworks: Array<{
-    id: number;
-    title: string;
-    artist: string;
-    year: number;
-    medium: string;
-    dimensions: string;
-    price: number;
-    status: string;
-    image_url: string;
-  }>;
+  artworks: Artwork[];
 }
 
 export function ArtworkGrid({ artworks }: ArtworkGridProps) {

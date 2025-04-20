@@ -1,24 +1,11 @@
 
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Artwork } from "@/hooks/use-artworks";
 
 interface ArtworkCardProps {
-  artwork: {
-    id: number;
-    title: string;
-    artist: string;
-    year: number;
-    medium: string;
-    dimensions: string;
-    price: number;
-    status: string;
-    image_url: string;
-  };
+  artwork: Artwork;
 }
 
 const statusIcons = {
@@ -31,12 +18,12 @@ const statusIcons = {
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
   return (
-    <Card key={artwork.id}>
+    <Card>
       <Dialog>
         <DialogTrigger asChild>
           <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
             <img
-              src={artwork.image_url}
+              src={artwork.image_url || "/placeholder.svg"}
               alt={artwork.title}
               className="h-full w-full object-cover transition-all hover:scale-105"
             />
@@ -44,7 +31,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         </DialogTrigger>
         <DialogContent className="max-w-4xl">
           <img
-            src={artwork.image_url}
+            src={artwork.image_url || "/placeholder.svg"}
             alt={artwork.title}
             className="w-full h-auto"
           />
@@ -54,16 +41,24 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-semibold text-lg">{artwork.title}</h3>
-            <p className="text-sm">{artwork.artist}, {artwork.year}</p>
-            <p className="text-xs text-muted-foreground mt-1">{artwork.medium}</p>
-            <p className="text-xs text-muted-foreground">{artwork.dimensions}</p>
+            {artwork.year && <p className="text-sm">Year: {artwork.year}</p>}
+            {artwork.medium && (
+              <p className="text-xs text-muted-foreground mt-1">{artwork.medium}</p>
+            )}
+            {artwork.dimensions && (
+              <p className="text-xs text-muted-foreground">{artwork.dimensions}</p>
+            )}
           </div>
           <div className="flex flex-col items-end">
-            <p className="font-medium">${artwork.price.toLocaleString()}</p>
-            <div className="flex items-center mt-1">
-              {statusIcons[artwork.status as keyof typeof statusIcons]}
-              <span className="text-xs ml-1 capitalize">{artwork.status}</span>
-            </div>
+            {artwork.price && (
+              <p className="font-medium">${artwork.price.toLocaleString()}</p>
+            )}
+            {artwork.status && (
+              <div className="flex items-center mt-1">
+                {statusIcons[artwork.status as keyof typeof statusIcons]}
+                <span className="text-xs ml-1 capitalize">{artwork.status}</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
