@@ -1,10 +1,10 @@
+
 import { useState } from "react";
-import { Search, Building, Warehouse, Briefcase, ExternalLink } from "lucide-react";
+import { Search, Building, Warehouse, Briefcase, ExternalLink, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LocationHeader } from "@/components/locations/LocationHeader";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, MapPin, Building, Warehouse, Briefcase, ExternalLink } from "lucide-react";
 
 // Mock data for locations
 const mockLocations = [
