@@ -1,6 +1,11 @@
 
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ArtworkCardProps {
   artwork: {
@@ -26,14 +31,25 @@ const statusIcons = {
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
   return (
-    <Card key={artwork.id} className="overflow-hidden">
-      <div className="aspect-[4/3] w-full overflow-hidden">
-        <img
-          src={artwork.image_url}
-          alt={artwork.title}
-          className="h-full w-full object-cover transition-all hover:scale-105"
-        />
-      </div>
+    <Card key={artwork.id}>
+      <Dialog>
+        <DialogTrigger asChild>
+          <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
+            <img
+              src={artwork.image_url}
+              alt={artwork.title}
+              className="h-full w-full object-cover transition-all hover:scale-105"
+            />
+          </div>
+        </DialogTrigger>
+        <DialogContent className="max-w-4xl">
+          <img
+            src={artwork.image_url}
+            alt={artwork.title}
+            className="w-full h-auto"
+          />
+        </DialogContent>
+      </Dialog>
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div>

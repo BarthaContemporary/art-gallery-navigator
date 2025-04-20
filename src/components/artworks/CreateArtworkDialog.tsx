@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ImageUploader } from "./ImageUploader";
 import {
   Form,
   FormControl,
@@ -40,6 +40,7 @@ interface FormData {
   artist_id: string;
   location_id: string;
   status: string;
+  image_url: string;
 }
 
 export function CreateArtworkDialog() {
@@ -68,6 +69,10 @@ export function CreateArtworkDialog() {
       return data;
     }
   });
+
+  const handleImageUploaded = (url: string) => {
+    form.setValue("image_url", url);
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -110,6 +115,19 @@ export function CreateArtworkDialog() {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="image_url"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Image</FormLabel>
+                  <FormControl>
+                    <ImageUploader onImageUploaded={handleImageUploaded} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="title"
