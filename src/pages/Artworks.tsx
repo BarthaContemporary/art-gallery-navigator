@@ -1,17 +1,9 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Plus, 
-  Search,
-  Filter,
-  Check,
-  Clock,
-  DollarSign, 
-  Briefcase
-} from "lucide-react";
+import { Search, Filter, Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -122,9 +114,7 @@ const Artworks = () => {
             Browse and manage your gallery inventory
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Add Artwork
-        </Button>
+        <CreateArtworkDialog />
       </div>
 
       <div className="mb-6 flex items-center gap-4">
