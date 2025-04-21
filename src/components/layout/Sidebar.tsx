@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import {
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -49,6 +51,10 @@ export function Sidebar() {
     { title: "Locations", icon: <MapPin size={20} />, path: "/locations" },
     { title: "Documents", icon: <FileText size={20} />, path: "/documents" },
   ];
+  
+  const isMobile = useIsMobile();
+  // Hide Sidebar on mobile screens (handled by MobileSidebar)
+  if (isMobile) return null;
 
   return (
     <div

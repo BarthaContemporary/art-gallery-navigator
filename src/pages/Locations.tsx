@@ -36,7 +36,7 @@ const Locations = () => {
   }, [locations, searchTerm]);
 
   return (
-    <div>
+    <div className="pt-2 pb-4 px-2 sm:px-0">
       <LocationHeader />
 
       <div className="mb-6">
@@ -57,7 +57,7 @@ const Locations = () => {
       ) : isError ? (
         <div className="text-center text-red-500 py-20">Failed to load locations. Please try again.</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLocations.length === 0 ? (
             <div className="col-span-full text-center text-muted-foreground">No locations found.</div>
           ) : (
@@ -77,7 +77,6 @@ const Locations = () => {
                       <span className="text-sm">{location.address || "No address"}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">{location.notes || ""}</p>
-                    {/* If you want to show artwork_count in the future, fetch from Supabase */}
                   </div>
                 </CardContent>
               </Card>

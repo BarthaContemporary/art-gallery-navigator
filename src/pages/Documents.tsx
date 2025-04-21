@@ -37,7 +37,7 @@ const Documents = () => {
   }
 
   return (
-    <div>
+    <div className="pt-2 pb-4 px-2 sm:px-0">
       <DocumentsHeader />
       <DocumentsSearch
         searchTerm={searchTerm}
