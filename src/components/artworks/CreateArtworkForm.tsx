@@ -1,16 +1,20 @@
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ImageUploader } from "./ImageUploader";
-import {
-  Form,
+import { Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+  FormMessage, } from "@/components/ui/form";
+import { ImageUploader } from "./ImageUploader";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Dispatch, SetStateAction } from "react";
+import { BasicInformationFields } from "./form/BasicInformationFields";
+import { PricingFields } from "./form/PricingFields";
+import { EditionFields } from "./form/EditionFields";
+import { ArtworkFormData } from "./form/types";
 import {
   Select,
   SelectContent,
@@ -18,46 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Dispatch, SetStateAction } from "react";
-
-interface FormData {
-  title: string;
-  year: number;
-  artist_id: string;
-  medium_type: 'Painting' | 'Sculpture' | 'Photography' | 'Work on Paper' | 'Installation' | 'Video' | 'Textile Arts' | 'Book';
-  materials: string;
-  classification: 'Unique' | 'Limited Edition' | 'Open Edition' | 'Unknown Edition';
-  edition_size?: number;
-  dimensions: string;
-  price: number;
-  location_id: string;
-  status: string;
-  image_url: string;
-  currency: 'GBP' | 'EUR' | 'USD' | 'CHF';
-  inventory_quantity?: number;
-  available_works?: number;
-  artist_proofs?: number;
-}
-
-const mediumTypes = [
-  'Painting',
-  'Sculpture',
-  'Photography',
-  'Work on Paper',
-  'Installation',
-  'Video',
-  'Textile Arts',
-  'Book'
-] as const;
-
-const classifications = [
-  'Unique',
-  'Limited Edition',
-  'Open Edition',
-  'Unknown Edition'
-] as const;
+import { Input } from "@/components/ui/input";
 
 export function CreateArtworkForm({
   setOpen,
@@ -65,7 +30,7 @@ export function CreateArtworkForm({
   setOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const { toast } = useToast();
-  const form = useForm<FormData>();
+  const form = useForm<ArtworkFormData>();
   const classification = form.watch('classification');
 
   const { data: artists } = useQuery({
@@ -94,7 +59,7 @@ export function CreateArtworkForm({
     form.setValue("image_url", url);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: ArtworkFormData) => {
     try {
       const { error } = await supabase
         .from('artworks')
@@ -123,62 +88,8 @@ export function CreateArtworkForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="artist_id"
-          rules={{ required: "Artist is required" }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Artist</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an artist" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {artists?.map((artist) => (
-                    <SelectItem key={artist.id} value={artist.id}>
-                      {artist.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="title"
-          rules={{ required: "Title is required" }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="year"
-          rules={{ required: "Year is required" }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Year</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
+        <BasicInformationFields form={form} artists={artists} />
+        
         <FormField
           control={form.control}
           name="medium_type"
@@ -193,7 +104,7 @@ export function CreateArtworkForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {mediumTypes.map((type) => (
+                  {['Painting', 'Sculpture', 'Photography', 'Work on Paper', 'Installation', 'Video', 'Textile Arts', 'Book'].map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -233,7 +144,7 @@ export function CreateArtworkForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {classifications.map((type) => (
+                  {['Unique', 'Limited Edition', 'Open Edition', 'Unknown Edition'].map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -245,107 +156,8 @@ export function CreateArtworkForm({
           )}
         />
 
-        <div className="flex gap-4">
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="currency"
-            rules={{ required: "Currency is required" }}
-            render={({ field }) => (
-              <FormItem className="w-32">
-                <FormLabel>Currency</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {['USD', 'EUR', 'GBP', 'CHF'].map((currency) => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {form.watch('classification') !== 'Unique' && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="edition_size"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Edition Size</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="inventory_quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Inventory Quantity</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="available_works"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Available Works</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="artist_proofs"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Artist Proofs</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
+        <PricingFields form={form} />
+        <EditionFields form={form} show={classification !== 'Unique'} />
 
         <FormField
           control={form.control}
@@ -408,7 +220,7 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
-
+        
         <FormField
           control={form.control}
           name="image_url"
