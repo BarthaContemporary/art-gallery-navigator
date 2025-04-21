@@ -64,11 +64,16 @@ export function Sidebar() {
       )}
     >
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+        {/* BARTHA LOGO start */}
         {!isCollapsed && (
-          <h1 className="text-xl font-semibold text-sidebar-foreground">
-            Gallery Admin
-          </h1>
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 120 }}
+          />
         )}
+        {/* BARTHA LOGO end */}
         <Button 
           variant="ghost" 
           size="icon" 
@@ -99,3 +104,4 @@ export function Sidebar() {
     </div>
   );
 }
+

@@ -28,7 +28,13 @@ export function MobileSidebar() {
       </div>
       <DrawerContent className="p-0">
         <div className="flex items-center justify-between border-b px-4 py-4">
-          <span className="text-lg font-semibold">Gallery Admin</span>
+          {/* BARTHA LOGO for mobile */}
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 120 }}
+          />
           <Button
             variant="ghost"
             size="icon"
