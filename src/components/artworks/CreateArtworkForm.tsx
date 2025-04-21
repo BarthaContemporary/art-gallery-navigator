@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,10 @@ interface FormData {
   location_id: string;
   status: string;
   image_url: string;
+  currency: 'GBP' | 'EUR' | 'USD' | 'CHF';
+  inventory_quantity?: number;
+  available_works?: number;
+  artist_proofs?: number;
 }
 
 const mediumTypes = [
@@ -242,26 +245,106 @@ export function CreateArtworkForm({
           )}
         />
 
-        {classification && classification !== 'Unique' && (
+        <div className="flex gap-4">
           <FormField
             control={form.control}
-            name="edition_size"
-            rules={{ 
-              min: {
-                value: 1,
-                message: "Edition size must be at least 1"
-              }
-            }}
+            name="price"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Edition Size</FormLabel>
+              <FormItem className="flex-1">
+                <FormLabel>Price</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} min={1} />
+                  <Input type="number" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="currency"
+            rules={{ required: "Currency is required" }}
+            render={({ field }) => (
+              <FormItem className="w-32">
+                <FormLabel>Currency</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {['USD', 'EUR', 'GBP', 'CHF'].map((currency) => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {form.watch('classification') !== 'Unique' && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="edition_size"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Edition Size</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="inventory_quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Inventory Quantity</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="available_works"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Available Works</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="artist_proofs"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Artist Proofs</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         )}
 
         <FormField
@@ -272,20 +355,6 @@ export function CreateArtworkForm({
               <FormLabel>Dimensions</FormLabel>
               <FormControl>
                 <Input {...field} placeholder="e.g., 100 x 80 cm" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price</FormLabel>
-              <FormControl>
-                <Input type="number" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

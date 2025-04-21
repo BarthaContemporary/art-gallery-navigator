@@ -51,12 +51,16 @@ export type Database = {
       artworks: {
         Row: {
           artist_id: string | null
+          artist_proofs: number | null
+          available_works: number | null
           classification: string
           created_at: string | null
+          currency: string
           dimensions: string | null
           edition_size: number | null
           id: string
           image_url: string | null
+          inventory_quantity: number | null
           location_id: string | null
           material: string | null
           materials: string | null
@@ -69,12 +73,16 @@ export type Database = {
         }
         Insert: {
           artist_id?: string | null
+          artist_proofs?: number | null
+          available_works?: number | null
           classification: string
           created_at?: string | null
+          currency: string
           dimensions?: string | null
           edition_size?: number | null
           id?: string
           image_url?: string | null
+          inventory_quantity?: number | null
           location_id?: string | null
           material?: string | null
           materials?: string | null
@@ -87,12 +95,16 @@ export type Database = {
         }
         Update: {
           artist_id?: string | null
+          artist_proofs?: number | null
+          available_works?: number | null
           classification?: string
           created_at?: string | null
+          currency?: string
           dimensions?: string | null
           edition_size?: number | null
           id?: string
           image_url?: string | null
+          inventory_quantity?: number | null
           location_id?: string | null
           material?: string | null
           materials?: string | null
