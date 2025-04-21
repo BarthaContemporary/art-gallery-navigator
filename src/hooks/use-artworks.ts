@@ -7,11 +7,15 @@ export interface Artwork {
   title: string;
   artist_id: string | null;
   year: number | null;
-  medium: string | null;
+  medium_type: string;
+  materials: string | null;
+  classification: string;
+  edition_size: number | null;
   dimensions: string | null;
   price: number | null;
   status: string | null;
   image_url: string | null;
+  location_id: string | null;
 }
 
 export function useArtworks() {

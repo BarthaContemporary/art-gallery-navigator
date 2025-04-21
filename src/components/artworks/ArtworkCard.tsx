@@ -42,8 +42,8 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           <div>
             <h3 className="font-semibold text-lg">{artwork.title}</h3>
             {artwork.year && <p className="text-sm">Year: {artwork.year}</p>}
-            {artwork.medium && (
-              <p className="text-xs text-muted-foreground mt-1">{artwork.medium}</p>
+            {artwork.materials && (
+              <p className="text-xs text-muted-foreground mt-1">{artwork.materials}</p>
             )}
             {artwork.dimensions && (
               <p className="text-xs text-muted-foreground">{artwork.dimensions}</p>

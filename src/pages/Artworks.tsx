@@ -14,7 +14,7 @@ const Artworks = () => {
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = 
       artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (artwork.medium || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter ? artwork.status === statusFilter : true;
     
