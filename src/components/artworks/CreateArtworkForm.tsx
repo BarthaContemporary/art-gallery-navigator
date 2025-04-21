@@ -12,7 +12,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -27,14 +26,35 @@ import { Dispatch, SetStateAction } from "react";
 interface FormData {
   title: string;
   year: number;
-  medium: string;
+  artist_id: string;
+  medium_type: 'Painting' | 'Sculpture' | 'Photography' | 'Work on Paper' | 'Installation' | 'Video' | 'Textile Arts' | 'Book';
+  materials: string;
+  classification: 'Unique' | 'Limited Edition' | 'Open Edition' | 'Unknown Edition';
+  edition_size?: number;
   dimensions: string;
   price: number;
-  artist_id: string;
   location_id: string;
   status: string;
   image_url: string;
 }
+
+const mediumTypes = [
+  'Painting',
+  'Sculpture',
+  'Photography',
+  'Work on Paper',
+  'Installation',
+  'Video',
+  'Textile Arts',
+  'Book'
+] as const;
+
+const classifications = [
+  'Unique',
+  'Limited Edition',
+  'Open Edition',
+  'Unknown Edition'
+] as const;
 
 export function CreateArtworkForm({
   setOpen,
@@ -43,6 +63,7 @@ export function CreateArtworkForm({
 }) {
   const { toast } = useToast();
   const form = useForm<FormData>();
+  const classification = form.watch('classification');
 
   const { data: artists } = useQuery({
     queryKey: ['artists'],
@@ -77,7 +98,8 @@ export function CreateArtworkForm({
         .insert([{
           ...data,
           price: Number(data.price),
-          year: Number(data.year)
+          year: Number(data.year),
+          edition_size: data.edition_size ? Number(data.edition_size) : null
         }]);
       if (error) throw error;
       toast({
@@ -100,33 +122,8 @@ export function CreateArtworkForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="image_url"
-          render={() => (
-            <FormItem>
-              <FormLabel>Image</FormLabel>
-              <FormControl>
-                <ImageUploader onImageUploaded={handleImageUploaded} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="artist_id"
+          rules={{ required: "Artist is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Artist</FormLabel>
@@ -148,40 +145,14 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="year"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Year</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+
         <FormField
           control={form.control}
-          name="medium"
+          name="title"
+          rules={{ required: "Title is required" }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Medium</FormLabel>
+              <FormLabel>Title</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -189,6 +160,110 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="year"
+          rules={{ required: "Year is required" }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Year</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="medium_type"
+          rules={{ required: "Medium type is required" }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Medium Type</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select medium type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {mediumTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="materials"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Materials</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="e.g., Oil on canvas" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="classification"
+          rules={{ required: "Classification is required" }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Classification</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select classification" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {classifications.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {classification && classification !== 'Unique' && (
+          <FormField
+            control={form.control}
+            name="edition_size"
+            rules={{ 
+              min: {
+                value: 1,
+                message: "Edition size must be at least 1"
+              }
+            }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Edition Size</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} min={1} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         <FormField
           control={form.control}
           name="dimensions"
@@ -202,6 +277,21 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Price</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="location_id"
@@ -226,6 +316,7 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="status"
@@ -248,6 +339,21 @@ export function CreateArtworkForm({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="image_url"
+          render={() => (
+            <FormItem>
+              <FormLabel>Image</FormLabel>
+              <FormControl>
+                <ImageUploader onImageUploaded={handleImageUploaded} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" className="w-full">
           Create Artwork
         </Button>
