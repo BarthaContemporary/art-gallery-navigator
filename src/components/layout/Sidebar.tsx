@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Users,
@@ -27,7 +26,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import React from "react";
 
-// Navigation items array for easier editing and active state
 const NAV_ITEMS = [
   {
     name: "Dashboard",
@@ -59,6 +57,11 @@ const NAV_ITEMS = [
     icon: File,
     href: "/documents",
   },
+  {
+    name: "Profile",
+    icon: User,
+    href: "/profile",
+  },
 ];
 
 export function Sidebar() {
@@ -66,7 +69,6 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Optionally, use your own logo or branding here
   const LOGO_SRC =
     "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
 
@@ -84,7 +86,6 @@ export function Sidebar() {
           alt="Gallery Logo"
           style={{ maxWidth: 120 }}
         />
-        {/* Optional: Replace with your logo or text */}
       </div>
       <nav className="flex-1 flex flex-col px-3 py-2 gap-2">
         <div className="font-medium text-xs text-muted-foreground px-2 pt-1 pb-2 tracking-wide uppercase">
@@ -113,7 +114,6 @@ export function Sidebar() {
         })}
         <div className="flex-1" />
       </nav>
-      {/* User Section */}
       <div className="border-t px-4 py-4 mt-auto bg-white/60 dark:bg-[#181b21]/80">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
