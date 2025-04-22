@@ -48,7 +48,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         <Button 
           size="icon" 
           variant="ghost" 
-          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white"
+          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm" // Added shadow-sm for better visibility
         >
           <Edit className="h-4 w-4" />
           <span className="sr-only">Edit {artwork.title}</span>

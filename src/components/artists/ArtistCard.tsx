@@ -27,6 +27,16 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
           className="h-full w-full object-cover transition-all hover:scale-105"
         />
       </div>
+      {isAdmin && (
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm"
+        >
+          <Edit className="h-4 w-4" />
+          <span className="sr-only">Edit {artist.full_name}</span>
+        </Button>
+      )}
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div>
@@ -35,13 +45,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
               {artist.nationality}, {artist.birth_year ? `b. ${artist.birth_year}` : 'Year unknown'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Button size="icon" variant="ghost" className="h-8 w-8 visible opacity-100 hover:bg-gray-100">
-                <Edit className="h-4 w-4" />
-                <span className="sr-only">Edit {artist.full_name}</span>
-              </Button>
-            )}
+          <div>
             <span className={`text-xs px-2 py-1 rounded-full ${
               artist.representation_status === "represented" 
                 ? "bg-green-100 text-green-800" 

@@ -66,22 +66,22 @@ const Locations = () => {
           ) : (
             filteredLocations.map((location) => (
               <Card key={location.id} className="group relative">
+                {isAdmin && (
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Edit {location.name}</span>
+                  </Button>
+                )}
                 <CardHeader className="flex flex-row items-center gap-4 pb-2">
                   {getLocationIcon(location.type)}
                   <div>
                     <h3 className="font-semibold text-lg">{location.name}</h3>
                     <p className="text-sm text-muted-foreground capitalize">{location.type}</p>
                   </div>
-                  {isAdmin && (
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="absolute top-2 right-2 h-8 w-8 hover:bg-gray-100"
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit {location.name}</span>
-                    </Button>
-                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
