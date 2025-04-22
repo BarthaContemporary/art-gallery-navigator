@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import UserSignup from "./pages/UserSignup";
+import Collections from "./pages/Collections";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/artists" element={<Artists />} />
               <Route path="/artworks" element={<Artworks />} />
+              <Route path="/collections" element={<Collections />} />
               <Route path="/locations" element={<Locations />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/signup" element={<UserSignup />} />

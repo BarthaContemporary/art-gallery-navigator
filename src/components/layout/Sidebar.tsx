@@ -1,121 +1,95 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { 
-  Users, 
-  Palette, 
-  MapPin, 
-  FileText, 
+import {
+  Home,
   LayoutDashboard,
-  Menu,
-  X,
-  LogOut,
-  Shield
+  Users,
+  Image,
+  MapPin,
+  File,
+  Settings,
+  User,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
-
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  title: string;
-  path: string;
-  isCollapsed: boolean;
-}
-
-const SidebarItem = ({ icon, title, path, isCollapsed }: SidebarItemProps) => (
-  <NavLink
-    to={path}
-    className={({ isActive }) =>
-      cn(
-        "flex items-center py-3 px-4 rounded-md transition-colors",
-        isActive
-          ? "bg-primary text-primary-foreground"
-          : "hover:bg-secondary hover:text-secondary-foreground",
-        isCollapsed ? "justify-center" : ""
-      )
-    }
-  >
-    <div className="flex items-center">
-      <div className={cn("h-5 w-5", !isCollapsed && "mr-3")}>{icon}</div>
-      {!isCollapsed && <span>{title}</span>}
-    </div>
-  </NavLink>
-);
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { List } from "lucide-react"; // for collection icon
 
 export function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const { signOut, isAdmin } = useAuth();
-  
-  const navigationItems = [
-    { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
-    { title: "Artists", icon: <Users size={20} />, path: "/artists" },
-    { title: "Artworks", icon: <Palette size={20} />, path: "/artworks" },
-    { title: "Locations", icon: <MapPin size={20} />, path: "/locations" },
-    { title: "Documents", icon: <FileText size={20} />, path: "/documents" },
-  ];
-  
-  const isMobile = useIsMobile();
-  if (isMobile) return null;
-
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   return (
-    <div
-      className={cn(
-        "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
-      )}
-    >
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        {!isCollapsed && (
-          <img
-            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-            alt="Bartha Logo"
-            className="h-7 w-auto"
-            style={{ maxWidth: 120 }}
-          />
-        )}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="ml-auto"
+    <aside className="hidden sm:flex sm:flex-col w-56 h-full border-r bg-muted/70">
+      <nav className="flex-1 flex flex-col space-y-1 p-4">
+        <a
+          href="/"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
         >
-          {isCollapsed ? <Menu size={20} /> : <X size={20} />}
-        </Button>
-      </div>
-      <nav className="flex-1 pt-4 px-2">
-        {navigationItems.map((item) => (
-          <SidebarItem
-            key={item.path}
-            icon={item.icon}
-            title={item.title}
-            path={item.path}
-            isCollapsed={isCollapsed}
-          />
-        ))}
-        {isAdmin && (
-          <SidebarItem
-            icon={<Shield size={20} />}
-            title="User Signup"
-            path="/signup"
-            isCollapsed={isCollapsed}
-          />
-        )}
+          {/* dashboard icon */}
+          Dashboard
+        </a>
+        <a
+          href="/artists"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
+        >
+          {/* artist icon */}
+          Artists
+        </a>
+        <a
+          href="/artworks"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
+        >
+          {/* artwork icon */}
+          Artworks
+        </a>
+        <a
+          href="/collections"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent font-semibold"
+        >
+          <List className="w-5 h-5 mr-2" /> Collections
+        </a>
+        <a
+          href="/locations"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
+        >
+          {/* location icon */}
+          Locations
+        </a>
+        <a
+          href="/documents"
+          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
+        >
+          {/* document icon */}
+          Documents
+        </a>
       </nav>
-      <div className="p-4 border-t border-sidebar-border">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={signOut}
-          className={cn(
-            "w-full gap-2 justify-start",
-            isCollapsed && "justify-center px-0"
-          )}
-        >
-          <LogOut size={20} />
-          {!isCollapsed && <span>Logout</span>}
-        </Button>
+      <div className="p-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex h-8 w-full items-center justify-between rounded-md px-3">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.user_metadata.avatar_url} />
+                  <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm">{user?.email}</span>
+              </div>
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/signup")}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()}>
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </div>
+    </aside>
   );
 }

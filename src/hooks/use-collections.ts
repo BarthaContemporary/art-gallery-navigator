@@ -1,0 +1,76 @@
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Artwork } from "@/hooks/use-artworks";
+
+export interface Collection {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  artworks?: Artwork[];
+}
+
+// Fetch all collections with attached artworks
+export function useCollections() {
+  return useQuery({
+    queryKey: ["collections"],
+    queryFn: async (): Promise<Collection[]> => {
+      const { data, error } = await supabase
+        .from("collections")
+        .select("*, collection_artworks(artwork_id), collection_artworks(artwork_id, artworks(*))")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Flatten artwork info
+      return (
+        data?.map((col: any) => ({
+          ...col,
+          artworks: (col.collection_artworks || []).map((ca: any) => ca.artworks).filter(Boolean),
+        })) || []
+      );
+    },
+  });
+}
+
+// Create a new collection (optionally attaching artworks)
+export function useCreateCollection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      description,
+      artworkIds,
+    }: {
+      name: string;
+      description?: string;
+      artworkIds?: string[];
+    }) => {
+      // 1. Create collection
+      const { data: colData, error } = await supabase
+        .from("collections")
+        .insert({ name, description })
+        .select("*")
+        .single();
+
+      if (error || !colData) throw error;
+
+      // 2. Link artworks if provided
+      if (artworkIds && artworkIds.length > 0) {
+        const { error: linkErr } = await supabase.from("collection_artworks").insert(
+          artworkIds.map((artwork_id) => ({
+            collection_id: colData.id,
+            artwork_id,
+          }))
+        );
+        if (linkErr) throw linkErr;
+      }
+      return colData;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+    },
+  });
+}

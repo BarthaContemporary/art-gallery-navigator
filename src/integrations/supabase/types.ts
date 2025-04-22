@@ -256,6 +256,60 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_artworks: {
+        Row: {
+          artwork_id: string
+          collection_id: string
+        }
+        Insert: {
+          artwork_id: string
+          collection_id: string
+        }
+        Update: {
+          artwork_id?: string
+          collection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_artworks_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_artworks_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           artist_id: string | null
