@@ -1,3 +1,4 @@
+
 import {
   Home,
   LayoutDashboard,
@@ -13,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { List } from "lucide-react"; // for collection icon
+import { Button } from "@/components/ui/button"; // Add this import
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
