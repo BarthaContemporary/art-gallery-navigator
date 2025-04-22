@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +20,12 @@ export interface Artwork {
   inventory_quantity: number | null;
   available_works: number | null;
   artist_proofs: number | null;
+  signature_type: string | null;
+  condition: string | null;
+  signature_details: string | null;
+  provenance: string | null;
+  story: string | null;
+  exhibition_history: string | null;
 }
 
 export function useArtworks() {

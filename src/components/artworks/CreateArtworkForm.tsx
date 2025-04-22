@@ -27,14 +27,19 @@ interface CreateArtworkFormProps {
 export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormProps) {
   const { toast } = useToast();
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+  
+  // Safely cast the currency to the correct type
+  const currencyValue = initialData?.currency as "USD" | "GBP" | "EUR" | "CHF" | undefined;
+  
   const form = useForm<ArtworkFormData>({
     defaultValues: {
-      currency: (initialData?.currency as "USD" | "GBP" | "EUR" | "CHF") || 'USD',
+      currency: currencyValue || 'USD',
       status: initialData?.status || 'available',
-      signature_type: initialData?.signature_type as ArtworkFormData['signature_type'] || 'not signed',
+      signature_type: (initialData?.signature_type as ArtworkFormData['signature_type']) || 'not signed',
       ...initialData
     }
   });
+  
   const classification = form.watch('classification');
 
   const { data: artists } = useQuery({
