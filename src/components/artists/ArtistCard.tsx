@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,12 +22,10 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
   const { isAdmin } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
 
-  // Format the representation status safely
   const formattedStatus = artist.representation_status
     ? artist.representation_status.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
     : "Unknown";
 
-  // Determine badge color based on status
   const getBadgeColor = () => {
     if (!artist.representation_status) return "bg-gray-100 text-gray-800";
     if (artist.representation_status === "represented") {
@@ -39,7 +37,6 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
     }
   };
 
-  // Open edit only for admins
   const handleCardClick = () => {
     if (isAdmin) {
       setEditOpen(true);
@@ -80,7 +77,21 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
         <CardContent className="p-4">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-semibold text-lg">{artist.full_name}</h3>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditOpen(true);
+                  }}
+                  className="font-semibold text-lg text-primary underline focus:outline-none hover:text-primary/80"
+                  aria-label={`Edit ${artist.full_name}`}
+                >
+                  {artist.full_name}
+                </button>
+              ) : (
+                <h3 className="font-semibold text-lg">{artist.full_name}</h3>
+              )}
               <p className="text-sm text-muted-foreground">
                 {artist.nationality}, {artist.birth_year ? `b. ${artist.birth_year}` : 'Year unknown'}
               </p>
