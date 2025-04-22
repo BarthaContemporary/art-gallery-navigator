@@ -1,0 +1,180 @@
+
+import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { ArtworkFormData } from "./types";
+import { Artwork } from "@/hooks/use-artworks";
+
+export type UseCreateArtworkFormProps = {
+  setOpen: (open: boolean) => void;
+  initialData?: Artwork;
+};
+
+export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkFormProps) {
+  const { toast } = useToast();
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+
+  // Safely cast the currency and signature_type to the correct type for the form default values
+  const currencyValue = 
+    initialData?.currency && ["USD", "GBP", "EUR", "CHF"].includes(initialData.currency)
+      ? initialData.currency as ArtworkFormData["currency"]
+      : "USD";
+
+  const signatureTypeValue = 
+    initialData?.signature_type && 
+    [
+      "not signed",
+      "hand-signed by artist",
+      "signed on plate",
+      "stamped by artist's estate",
+      "sticker label",
+      "other"
+    ].includes(initialData.signature_type)
+      ? initialData.signature_type as ArtworkFormData["signature_type"]
+      : "not signed";
+
+  const form = useForm<ArtworkFormData>({
+    defaultValues: {
+      currency: currencyValue,
+      status: initialData?.status || 'available',
+      signature_type: signatureTypeValue,
+      ...initialData
+    }
+  });
+
+  const classification = form.watch('classification');
+
+  const { data: artists } = useQuery({
+    queryKey: ['artists'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, full_name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: locations } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const handleImagesUploaded = (urls: string[]) => {
+    if (urls.length > 0) {
+      form.setValue("image_url", urls[0]);
+      setUploadedImageUrls(urls);
+    }
+  };
+
+  const onSubmit = async (data: ArtworkFormData) => {
+    try {
+      const dimensions = [
+        data.height ? `${data.height}cm H` : '',
+        data.width ? `${data.width}cm W` : '',
+        data.depth ? `${data.depth}cm D` : ''
+      ].filter(Boolean).join(' x ');
+
+      const formattedData = {
+        ...data,
+        dimensions: dimensions || null,
+        price: data.price ? Number(data.price) : null,
+        year: data.year ? Number(data.year) : null,
+        height: data.height ? Number(data.height) : null,
+        width: data.width ? Number(data.width) : null,
+        depth: data.depth ? Number(data.depth) : null,
+        edition_size: data.edition_size ? Number(data.edition_size) : null,
+        inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
+        available_works: data.available_works ? Number(data.available_works) : null,
+        artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
+      };
+
+      if (initialData) {
+        // Update existing artwork
+        const { error } = await supabase
+          .from('artworks')
+          .update(formattedData)
+          .eq('id', initialData.id)
+          .select();
+        if (error) throw error;
+      } else {
+        // Create new artwork
+        const { error } = await supabase
+          .from('artworks')
+          .insert([formattedData])
+          .select();
+        if (error) throw error;
+      }
+
+      // Add uploaded images logic
+      if (uploadedImageUrls.length > 0) {
+        let artworkId: string | undefined = initialData?.id;
+
+        if (!artworkId) {
+          // Get the new artwork ID after creation
+          const { data: artworks, error: fetchError } = await supabase
+            .from('artworks')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (fetchError) throw fetchError;
+          artworkId = artworks && artworks.length > 0 ? artworks[0].id : undefined;
+        }
+
+        if (artworkId) {
+          const imagesToInsert = uploadedImageUrls.map((url, index) => ({
+            artwork_id: artworkId,
+            image_url: url,
+            is_primary: index === 0,
+            display_order: index
+          }));
+
+          const { error: imageError } = await supabase
+            .from('artwork_images')
+            .insert(imagesToInsert);
+
+          if (imageError) throw imageError;
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: initialData 
+          ? "Artwork has been updated successfully"
+          : "Artwork has been created successfully",
+      });
+
+      setOpen(false);
+      form.reset();
+      setUploadedImageUrls([]);
+    } catch (error) {
+      console.error("Form submission error:", error);
+      toast({
+        title: "Error",
+        description: initialData
+          ? "There was an error updating the artwork"
+          : "There was an error creating the artwork",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return {
+    form,
+    classification,
+    artists,
+    locations,
+    onSubmit,
+    handleImagesUploaded,
+    uploadedImageUrls,
+    initialData
+  };
+}
