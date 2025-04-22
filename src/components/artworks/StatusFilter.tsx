@@ -1,5 +1,5 @@
 
-import { Filter, Check, Clock, DollarSign, Briefcase } from "lucide-react";
+import { Filter, Check, Clock, DollarSign, Briefcase, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,6 +42,9 @@ export function StatusFilter({ value, onChange }: StatusFilterProps) {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onChange("not for sale")}>
             <Check className="mr-2 h-4 w-4 text-gray-500" /> Not for Sale
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onChange("returned")}>
+            <ArrowDown className="mr-2 h-4 w-4 text-black" /> Returned
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

@@ -1,8 +1,8 @@
 
-import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
+import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Add this import
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
@@ -19,6 +19,7 @@ const statusIcons = {
   sold: <DollarSign className="h-4 w-4 text-blue-500" />,
   consigned: <Briefcase className="h-4 w-4 text-purple-500" />,
   "not for sale": <Check className="h-4 w-4 text-gray-500" />,
+  returned: <ArrowDown className="h-4 w-4 text-black" />,
 };
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
@@ -30,7 +31,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     e?.stopPropagation();
     setEditDialogOpen(true);
   };
-  
+
   const handleCardClick = () => {
     setOverviewDialogOpen(true);
   };

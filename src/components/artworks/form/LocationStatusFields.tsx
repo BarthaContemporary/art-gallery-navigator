@@ -53,6 +53,9 @@ export function LocationStatusFields({ form, locations }: LocationStatusFieldsPr
                 <SelectItem value="available">Available</SelectItem>
                 <SelectItem value="on hold">On Hold</SelectItem>
                 <SelectItem value="sold">Sold</SelectItem>
+                <SelectItem value="consigned">Consigned</SelectItem>
+                <SelectItem value="not for sale">Not for Sale</SelectItem>
+                <SelectItem value="returned">Returned</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
