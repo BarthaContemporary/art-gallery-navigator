@@ -1,21 +1,21 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Download, FileText, Edit, Trash2 } from "lucide-react";
 import { Document } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DocumentCardProps {
   document: Document;
+  onDelete?: (id: string) => void;
 }
 
-// Helper function to format date
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// Helper function for document type styles
 const getDocumentTypeInfo = (type: string) => {
   switch (type) {
     case "condition report":
@@ -33,14 +33,14 @@ const getDocumentTypeInfo = (type: string) => {
   }
 };
 
-export function DocumentCard({ document }: DocumentCardProps) {
+export function DocumentCard({ document, onDelete }: DocumentCardProps) {
   const { color } = getDocumentTypeInfo(document.type);
   const { toast } = useToast();
-  
+  const [deleting, setDeleting] = useState(false);
+
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
-      // Create a temporary anchor element
       const link = window.document.createElement('a');
       link.href = document.file_url;
       link.target = '_blank';
@@ -58,7 +58,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
     }
   };
 
-  // Placeholder handlers for edit and delete
   const handleEdit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     toast({
@@ -67,15 +66,33 @@ export function DocumentCard({ document }: DocumentCardProps) {
     });
   };
 
-  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    if (deleting) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("documents")
+      .delete()
+      .eq("id", document.id);
+    setDeleting(false);
+
+    if (error) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
     toast({
-      title: "Delete",
-      description: "Delete functionality not yet implemented.",
-      variant: "destructive"
+      title: "Document deleted",
+      description: `${document.file_name} was deleted.`,
     });
+
+    if (onDelete) onDelete(document.id);
   };
-  
+
   return (
     <Card>
       <div className="flex flex-col sm:flex-row">
@@ -101,7 +118,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
                 <p className="text-sm text-muted-foreground">{document.description}</p>
               )}
             </div>
-            {/* Action Buttons: Download, then Edit/Delete below */}
             <div className="flex flex-col items-start gap-2 self-start">
               <Button 
                 variant="outline" 
@@ -121,6 +137,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
                     borderColor: "#9b87f5",
                     color: "#9b87f5"
                   }}
+                  aria-label="Edit"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -128,11 +145,13 @@ export function DocumentCard({ document }: DocumentCardProps) {
                   variant="outline"
                   size="icon"
                   onClick={handleDelete}
+                  disabled={deleting}
                   className="border-red-500 text-red-600 hover:bg-red-50"
                   style={{
                     borderColor: "#ea384c",
                     color: "#ea384c"
                   }}
+                  aria-label="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
