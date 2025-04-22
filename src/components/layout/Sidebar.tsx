@@ -4,8 +4,6 @@ import {
   Image,
   MapPin,
   File,
-  Settings,
-  User,
   List,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -56,11 +54,6 @@ const NAV_ITEMS = [
     name: "Documents",
     icon: File,
     href: "/documents",
-  },
-  {
-    name: "Profile",
-    icon: User,
-    href: "/profile",
   },
 ];
 
