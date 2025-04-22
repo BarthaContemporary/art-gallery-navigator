@@ -1,10 +1,12 @@
 
 import { useState, useMemo } from "react";
-import { Search, Building, Warehouse, Briefcase, ExternalLink, MapPin } from "lucide-react";
+import { Search, Building, Warehouse, Briefcase, ExternalLink, MapPin, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { LocationHeader } from "@/components/locations/LocationHeader";
 import { useLocations } from "@/hooks/use-locations";
+import { useAuth } from "@/hooks/use-auth";
 
 // Helper function for location type icons
 const getLocationIcon = (type: string) => {
@@ -25,6 +27,7 @@ const getLocationIcon = (type: string) => {
 const Locations = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: locations, isLoading, isError } = useLocations();
+  const { isAdmin } = useAuth();
 
   const filteredLocations = useMemo(() => {
     if (!locations) return [];
@@ -36,10 +39,10 @@ const Locations = () => {
   }, [locations, searchTerm]);
 
   return (
-    <div className="pt-2 pb-4 px-2 sm:px-0">
+    <div className="pt-6 pb-6 px-6">
       <LocationHeader />
 
-      <div className="mb-6">
+      <div className="mb-8 mt-6">
         <div className="relative max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -62,13 +65,23 @@ const Locations = () => {
             <div className="col-span-full text-center text-muted-foreground">No locations found.</div>
           ) : (
             filteredLocations.map((location) => (
-              <Card key={location.id}>
+              <Card key={location.id} className="group relative">
                 <CardHeader className="flex flex-row items-center gap-4 pb-2">
                   {getLocationIcon(location.type)}
                   <div>
                     <h3 className="font-semibold text-lg">{location.name}</h3>
                     <p className="text-sm text-muted-foreground capitalize">{location.type}</p>
                   </div>
+                  {isAdmin && (
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="absolute top-2 right-2 h-8 w-8 hover:bg-gray-100"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="sr-only">Edit {location.name}</span>
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">

@@ -37,7 +37,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button size="icon" variant="ghost" className="h-8 w-8 visible opacity-100 hover:bg-gray-100">
                 <Edit className="h-4 w-4" />
                 <span className="sr-only">Edit {artist.full_name}</span>
               </Button>

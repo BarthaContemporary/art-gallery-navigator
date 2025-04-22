@@ -23,7 +23,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const { isAdmin } = useAuth();
 
   return (
-    <Card className="group">
+    <Card className="group relative">
       <Dialog>
         <DialogTrigger asChild>
           <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
@@ -41,19 +41,19 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
               alt={artwork.title}
               className="w-full h-auto"
             />
-            {isAdmin && (
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
-              >
-                <Edit className="h-4 w-4" />
-                <span className="sr-only">Edit {artwork.title}</span>
-              </Button>
-            )}
           </div>
         </DialogContent>
       </Dialog>
+      {isAdmin && (
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white"
+        >
+          <Edit className="h-4 w-4" />
+          <span className="sr-only">Edit {artwork.title}</span>
+        </Button>
+      )}
       <CardContent className="p-4">
         <ScrollArea className="h-[200px] pr-4">
           <div className="flex flex-col space-y-4">

@@ -38,9 +38,11 @@ const Artists = () => {
   ) ?? [];
 
   return (
-    <div className="pt-2 pb-4 px-2 sm:px-0">
+    <div className="pt-6 pb-6 px-6">
       <ArtistHeader />
-      <SearchBar value={searchTerm} onChange={setSearchTerm} />
+      <div className="mt-6 mb-8">
+        <SearchBar value={searchTerm} onChange={setSearchTerm} />
+      </div>
       
       {isLoading ? (
         <LoadingSkeleton />

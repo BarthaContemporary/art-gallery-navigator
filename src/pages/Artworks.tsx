@@ -38,7 +38,7 @@ const Artworks = () => {
   }
 
   return (
-    <div className="pt-2 pb-4 px-2 sm:px-0">
+    <div className="pt-6 pb-6 px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Artworks</h1>
@@ -49,7 +49,7 @@ const Artworks = () => {
         <CreateArtworkDialog />
       </div>
 
-      <div className="mb-6 flex flex-col sm:flex-row items-stretch gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row items-stretch gap-4">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       </div>
