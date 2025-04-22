@@ -1,12 +1,11 @@
 import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { EditArtworkDialog } from "./EditArtworkDialog";
+import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -23,10 +22,15 @@ const statusIcons = {
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const { isAdmin } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
 
   const handleEdit = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditDialogOpen(true);
+  };
+  
+  const handleCardClick = () => {
+    setOverviewDialogOpen(true);
   };
 
   return (
@@ -42,29 +46,19 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           <span className="sr-only">Edit {artwork.title}</span>
         </Button>
       )}
-      <Dialog>
-        <DialogTrigger asChild>
-          <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
-            <img
-              src={artwork.image_url || "/placeholder.svg"}
-              alt={artwork.title}
-              className="h-full w-full object-cover transition-all hover:scale-105"
-            />
-          </div>
-        </DialogTrigger>
-        <DialogContent className="max-w-4xl">
-          <div className="relative">
-            <img
-              src={artwork.image_url || "/placeholder.svg"}
-              alt={artwork.title}
-              className="w-full h-auto"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <div 
+        className="aspect-[4/3] w-full overflow-hidden cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <img
+          src={artwork.image_url || "/placeholder.svg"}
+          alt={artwork.title}
+          className="h-full w-full object-cover transition-all hover:scale-105"
+        />
+      </div>
       <CardContent 
         className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={handleEdit}
+        onClick={handleCardClick}
       >
         <ScrollArea className="h-[200px] pr-4">
           <div className="flex flex-col space-y-4">
@@ -116,6 +110,12 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         artwork={artwork}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+      />
+      
+      <ArtworkOverviewDialog
+        artwork={artwork}
+        open={overviewDialogOpen}
+        onOpenChange={setOverviewDialogOpen}
       />
     </Card>
   );
