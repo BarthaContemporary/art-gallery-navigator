@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { LocationStatusFields } from "./form/LocationStatusFields";
 import { ConditionSignatureFields } from "./form/ConditionSignatureFields";
 import { ProvenanceStoryFields } from "./form/ProvenanceStoryFields";
 import { ArtworkFormData } from "./form/types";
+import { Artwork } from "@/hooks/use-artworks";
 
 interface CreateArtworkFormProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
@@ -89,7 +91,7 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
 
       if (initialData) {
         // Update existing artwork
-        const { data: artwork, error } = await supabase
+        const { data: updatedArtwork, error } = await supabase
           .from('artworks')
           .update(formattedData)
           .eq('id', initialData.id)
@@ -99,7 +101,7 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
         if (error) throw error;
       } else {
         // Create new artwork
-        const { data: artwork, error } = await supabase
+        const { data: newArtwork, error } = await supabase
           .from('artworks')
           .insert([formattedData])
           .select()
@@ -108,10 +110,11 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
         if (error) throw error;
       }
 
-      if (artwork && uploadedImageUrls.length > 0) {
-        // Insert all uploaded images to artwork_images table
+      // Check if we have a record and there are uploaded images
+      if (initialData && uploadedImageUrls.length > 0) {
+        // Insert all uploaded images to artwork_images table for existing artwork
         const imagesToInsert = uploadedImageUrls.map((url, index) => ({
-          artwork_id: artwork.id,
+          artwork_id: initialData.id,
           image_url: url,
           is_primary: index === 0, // First image is primary
           display_order: index
@@ -122,6 +125,33 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
           .insert(imagesToInsert);
             
         if (imageError) throw imageError;
+      } else if (uploadedImageUrls.length > 0) {
+        // For new artwork, we need to get the ID from the response
+        const { data: artworks, error: fetchError } = await supabase
+          .from('artworks')
+          .select('id')
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (fetchError) throw fetchError;
+        
+        if (artworks && artworks.length > 0) {
+          const newArtworkId = artworks[0].id;
+          
+          // Insert all uploaded images to artwork_images table
+          const imagesToInsert = uploadedImageUrls.map((url, index) => ({
+            artwork_id: newArtworkId,
+            image_url: url,
+            is_primary: index === 0, // First image is primary
+            display_order: index
+          }));
+
+          const { error: imageError } = await supabase
+            .from('artwork_images')
+            .insert(imagesToInsert);
+              
+          if (imageError) throw imageError;
+        }
       }
       
       toast({
@@ -173,7 +203,7 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
         />
 
         <Button type="submit" className="w-full">
-          Create Artwork
+          {initialData ? "Update Artwork" : "Create Artwork"}
         </Button>
       </form>
     </Form>
