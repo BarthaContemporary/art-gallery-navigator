@@ -14,6 +14,7 @@ export type Database = {
           biography: string | null
           birth_year: number | null
           created_at: string | null
+          email: string | null
           full_name: string
           id: string
           image_url: string | null
@@ -26,6 +27,7 @@ export type Database = {
           biography?: string | null
           birth_year?: number | null
           created_at?: string | null
+          email?: string | null
           full_name: string
           id?: string
           image_url?: string | null
@@ -38,6 +40,7 @@ export type Database = {
           biography?: string | null
           birth_year?: number | null
           created_at?: string | null
+          email?: string | null
           full_name?: string
           id?: string
           image_url?: string | null

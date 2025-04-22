@@ -21,6 +21,7 @@ interface ArtistCardProps {
     representation_status: string | null;
     biography: string | null;
     image_url: string | null;
+    email?: string | null; // Add email
   };
 }
 
@@ -147,6 +148,18 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
             )}
             {!artist.nationality && !artist.birth_year && <span>—</span>}
           </div>
+          {/* Artist email display, only if provided */}
+          {artist.email && (
+            <div className="text-xs text-[#910000] mt-1 break-all" title={artist.email}>
+              <span className="font-medium">Email: </span>
+              <a
+                href={`mailto:${artist.email}`}
+                className="underline hover:text-[#18465a] transition-colors"
+              >
+                {artist.email}
+              </a>
+            </div>
+          )}
           {artist.biography && (
             <p className="mt-2 text-xs text-[#555] leading-snug line-clamp-2">
               {artist.biography}
@@ -163,5 +176,4 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
       )}
     </>
   );
-};
-
+}

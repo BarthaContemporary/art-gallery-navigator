@@ -17,6 +17,7 @@ interface CreateArtistForm {
   nationality?: string;
   biography?: string;
   image?: FileList;
+  email?: string;
 }
 
 export const CreateArtistDialog = () => {
@@ -28,38 +29,39 @@ export const CreateArtistDialog = () => {
   const onSubmit = async (data: CreateArtistForm) => {
     try {
       setIsLoading(true);
-      
+
       let image_url = null;
-      
+
       // Fix: Check if FileList exists and has at least one file
       if (data.image && data.image.length > 0) {
         const imageFile = data.image[0];
         const fileExt = imageFile.name.split('.').pop();
         const filePath = `${Math.random()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('gallery_images')
           .upload(filePath, imageFile);
-          
+
         if (uploadError) throw uploadError;
-        
+
         const { data: { publicUrl } } = supabase.storage
           .from('gallery_images')
           .getPublicUrl(filePath);
-          
+
         image_url = publicUrl;
       }
-      
+
       const { error } = await supabase.from('artists').insert({
         full_name: data.full_name,
         birth_year: data.birth_year || null,
         nationality: data.nationality || null,
         biography: data.biography || null,
+        email: data.email || null,
         image_url
       });
-      
+
       if (error) throw error;
-      
+
       toast.success("Artist created successfully");
       queryClient.invalidateQueries({ queryKey: ['artists'] });
       reset();
@@ -94,7 +96,24 @@ export const CreateArtistDialog = () => {
               <p className="text-sm text-red-500">{errors.full_name.message}</p>
             )}
           </div>
-          
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              {...register("email", {
+                pattern: {
+                  value: /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/,
+                  message: "Invalid email address"
+                }
+              })}
+            />
+            {errors.email && (
+              <p className="text-sm text-red-500">{errors.email.message as string}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="birth_year">Birth Year</Label>
             <Input
@@ -102,8 +121,8 @@ export const CreateArtistDialog = () => {
               type="number"
               {...register("birth_year", {
                 valueAsNumber: true,
-                validate: (value) => 
-                  !value || (value > 1800 && value <= new Date().getFullYear()) || 
+                validate: (value) =>
+                  !value || (value > 1800 && value <= new Date().getFullYear()) ||
                   "Please enter a valid year"
               })}
             />
@@ -111,7 +130,7 @@ export const CreateArtistDialog = () => {
               <p className="text-sm text-red-500">{errors.birth_year.message}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="nationality">Nationality</Label>
             <Input
@@ -119,7 +138,7 @@ export const CreateArtistDialog = () => {
               {...register("nationality")}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="biography">Biography</Label>
             <Textarea
@@ -127,7 +146,7 @@ export const CreateArtistDialog = () => {
               {...register("biography")}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="image">Profile Image</Label>
             <Input
@@ -137,7 +156,7 @@ export const CreateArtistDialog = () => {
               {...register("image")}
             />
           </div>
-          
+
           <div className="flex justify-end space-x-2">
             <Button variant="outline" type="button" onClick={() => setOpen(false)}>
               Cancel

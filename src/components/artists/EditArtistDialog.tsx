@@ -20,6 +20,7 @@ interface EditArtistDialogProps {
     biography: string | null;
     image_url: string | null;
     representation_status: string | null;
+    email?: string | null;
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,6 +41,7 @@ interface EditArtistForm {
   biography?: string;
   image?: FileList;
   representation_status: RepresentationStatus;
+  email?: string;
 }
 
 export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialogProps) {
@@ -53,6 +55,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
       nationality: artist.nationality || "",
       biography: artist.biography || "",
       representation_status: (artist.representation_status as RepresentationStatus) || "not represented",
+      email: artist.email || "",
     },
   });
 
@@ -88,6 +91,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
         biography: data.biography ?? null,
         representation_status: data.representation_status,
         image_url,
+        email: data.email || null,
       }).eq('id', artist.id);
 
       if (error) throw error;
@@ -113,6 +117,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
         nationality: artist.nationality || "",
         biography: artist.biography || "",
         representation_status: (artist.representation_status as RepresentationStatus) || "not represented",
+        email: artist.email || "",
       });
     }
   }, [open, artist, reset]);
@@ -132,6 +137,22 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
             />
             {errors.full_name && (
               <span className="text-red-500 text-xs">{errors.full_name.message}</span>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              {...register("email", {
+                pattern: {
+                  value: /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/,
+                  message: "Invalid email address"
+                }
+              })}
+            />
+            {errors.email && (
+              <span className="text-red-500 text-xs">{errors.email.message as string}</span>
             )}
           </div>
           <div className="space-y-2">

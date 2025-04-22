@@ -15,6 +15,7 @@ interface Artist {
   representation_status: string;
   biography: string | null;
   image_url: string | null;
+  email?: string | null;
 }
 
 const Artists = () => {
@@ -27,15 +28,16 @@ const Artists = () => {
         .from('artists')
         .select('*')
         .order('full_name');
-      
+
       if (error) throw error;
       return data as Artist[];
     }
   });
 
-  const filteredArtists = artists?.filter(artist => 
+  const filteredArtists = artists?.filter(artist =>
     artist.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (artist.nationality && artist.nationality.toLowerCase().includes(searchTerm.toLowerCase()))
+    (artist.nationality && artist.nationality.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase()))
   ) ?? [];
 
   return (
@@ -44,7 +46,7 @@ const Artists = () => {
       <div className="mt-6 mb-8">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
       </div>
-      
+
       {isLoading ? (
         <LoadingSkeleton />
       ) : (
@@ -59,4 +61,3 @@ const Artists = () => {
 };
 
 export default Artists;
-
