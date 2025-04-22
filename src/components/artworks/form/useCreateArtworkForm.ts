@@ -42,6 +42,7 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         data.depth ? `${data.depth}cm D` : ''
       ].filter(Boolean).join(' x ');
 
+      // Cast the data to the expected types before sending to Supabase
       const formattedData = {
         ...data,
         dimensions: dimensions || null,
@@ -66,16 +67,18 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
       };
 
       if (initialData) {
+        // Use type casting to resolve the type mismatch
         const { error } = await supabase
           .from('artworks')
-          .update(formattedData)
+          .update(formattedData as any)
           .eq('id', initialData.id)
           .select();
         if (error) throw error;
       } else {
+        // Use type casting to resolve the type mismatch
         const { error } = await supabase
           .from('artworks')
-          .insert([formattedData])
+          .insert([formattedData as any])
           .select();
         if (error) throw error;
       }

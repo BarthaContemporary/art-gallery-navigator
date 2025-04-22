@@ -54,7 +54,8 @@ export function useArtworks() {
         throw error;
       }
 
-      return data as Artwork[];
+      // Cast the data to Artwork[] to ensure TypeScript sees it as the correct type
+      return data as unknown as Artwork[];
     },
   });
 }

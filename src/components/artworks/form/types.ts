@@ -11,7 +11,7 @@ export interface ArtworkFormData {
   price: number;
   currency: 'GBP' | 'EUR' | 'USD' | 'CHF';
   inventory_quantity?: number;
-  available_works?: string;
+  available_works?: string; // Changed from number to string
   artist_proofs?: number;
   height?: number;
   width?: number;
