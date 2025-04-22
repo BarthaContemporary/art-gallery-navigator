@@ -139,7 +139,7 @@ export function Sidebar() {
             <DropdownMenuLabel className="text-xs">My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/profile")}
               className="cursor-pointer"
             >
               <User className="mr-2 h-4 w-4" />
