@@ -1,15 +1,14 @@
-
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut } from "lucide-react";
+import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
 
   const navigationItems = [
     { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
@@ -18,6 +17,14 @@ export function MobileSidebar() {
     { title: "Locations", icon: <MapPin size={20} />, path: "/locations" },
     { title: "Documents", icon: <FileText size={20} />, path: "/documents" },
   ];
+
+  if (isAdmin) {
+    navigationItems.push({
+      title: "User Signup",
+      icon: <Shield size={20} />,
+      path: "/signup",
+    });
+  }
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>

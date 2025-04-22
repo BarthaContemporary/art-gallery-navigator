@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -10,7 +9,8 @@ import {
   LayoutDashboard,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -45,7 +45,7 @@ const SidebarItem = ({ icon, title, path, isCollapsed }: SidebarItemProps) => (
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   
   const navigationItems = [
     { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
@@ -93,6 +93,14 @@ export function Sidebar() {
             isCollapsed={isCollapsed}
           />
         ))}
+        {isAdmin && (
+          <SidebarItem
+            icon={<Shield size={20} />}
+            title="User Signup"
+            path="/signup"
+            isCollapsed={isCollapsed}
+          />
+        )}
       </nav>
       <div className="p-4 border-t border-sidebar-border">
         <Button 
