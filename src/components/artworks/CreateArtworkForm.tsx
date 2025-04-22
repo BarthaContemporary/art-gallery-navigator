@@ -12,9 +12,11 @@ import { MaterialsFields } from "./form/MaterialsFields";
 import { ClassificationFields } from "./form/ClassificationFields";
 import { PricingFields } from "./form/PricingFields";
 import { EditionFields } from "./form/EditionFields";
-import { DimensionsField } from "./form/DimensionsField";
+import { DimensionsFields } from "./form/DimensionsFields";
 import { LocationStatusFields } from "./form/LocationStatusFields";
-import { ArtworkFormData } from "./form/types";
+import { ConditionSignatureFields } from "./form/ConditionSignatureFields";
+import { ProvenanceStoryFields } from "./form/ProvenanceStoryFields";
+import { ArtworkFormData } from "./types";
 
 export function CreateArtworkForm({
   setOpen,
@@ -59,6 +61,9 @@ export function CreateArtworkForm({
           ...data,
           price: Number(data.price),
           year: Number(data.year),
+          height: data.height ? Number(data.height) : null,
+          width: data.width ? Number(data.width) : null,
+          depth: data.depth ? Number(data.depth) : null,
           edition_size: data.edition_size ? Number(data.edition_size) : null
         }]);
       if (error) throw error;
@@ -79,14 +84,16 @@ export function CreateArtworkForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <BasicInformationFields form={form} artists={artists} />
         <MaterialsFields form={form} />
         <ClassificationFields form={form} />
         <PricingFields form={form} />
         <EditionFields form={form} show={classification !== 'Unique'} />
-        <DimensionsField form={form} />
+        <DimensionsFields form={form} />
         <LocationStatusFields form={form} locations={locations} />
+        <ConditionSignatureFields form={form} />
+        <ProvenanceStoryFields form={form} />
         
         <FormField
           control={form.control}
