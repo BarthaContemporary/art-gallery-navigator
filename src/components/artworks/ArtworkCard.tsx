@@ -1,4 +1,3 @@
-
 import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -24,6 +23,16 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
   return (
     <Card className="group relative">
+      {isAdmin && (
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+        >
+          <Edit className="h-4 w-4" />
+          <span className="sr-only">Edit {artwork.title}</span>
+        </Button>
+      )}
       <Dialog>
         <DialogTrigger asChild>
           <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
@@ -44,16 +53,6 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           </div>
         </DialogContent>
       </Dialog>
-      {isAdmin && (
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm" // Added shadow-sm for better visibility
-        >
-          <Edit className="h-4 w-4" />
-          <span className="sr-only">Edit {artwork.title}</span>
-        </Button>
-      )}
       <CardContent className="p-4">
         <ScrollArea className="h-[200px] pr-4">
           <div className="flex flex-col space-y-4">

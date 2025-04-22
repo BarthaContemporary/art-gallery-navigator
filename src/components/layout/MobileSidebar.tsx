@@ -2,12 +2,14 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard } from "lucide-react";
+import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { signOut } = useAuth();
 
   const navigationItems = [
     { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
@@ -26,9 +28,8 @@ export function MobileSidebar() {
           </Button>
         </DrawerTrigger>
       </div>
-      <DrawerContent className="p-0">
+      <DrawerContent className="p-0 flex flex-col h-[96vh]">
         <div className="flex items-center justify-between border-b px-4 py-4">
-          {/* BARTHA LOGO for mobile */}
           <img
             src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
             alt="Bartha Logo"
@@ -44,7 +45,7 @@ export function MobileSidebar() {
             <X />
           </Button>
         </div>
-        <nav className="py-6 px-4 flex flex-col gap-2">
+        <nav className="flex-1 py-6 px-4 flex flex-col gap-2">
           {navigationItems.map((item) => (
             <NavLink
               to={item.path}
@@ -63,6 +64,17 @@ export function MobileSidebar() {
             </NavLink>
           ))}
         </nav>
+        <div className="border-t p-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={signOut}
+            className="w-full gap-2 justify-start"
+          >
+            <LogOut size={20} />
+            <span>Logout</span>
+          </Button>
+        </div>
       </DrawerContent>
     </Drawer>
   );

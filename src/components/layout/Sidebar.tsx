@@ -9,10 +9,12 @@ import {
   FileText, 
   LayoutDashboard,
   Menu,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -43,7 +45,8 @@ const SidebarItem = ({ icon, title, path, isCollapsed }: SidebarItemProps) => (
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  const { signOut } = useAuth();
+  
   const navigationItems = [
     { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
     { title: "Artists", icon: <Users size={20} />, path: "/artists" },
@@ -53,7 +56,6 @@ export function Sidebar() {
   ];
   
   const isMobile = useIsMobile();
-  // Hide Sidebar on mobile screens (handled by MobileSidebar)
   if (isMobile) return null;
 
   return (
@@ -64,7 +66,6 @@ export function Sidebar() {
       )}
     >
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        {/* BARTHA LOGO start */}
         {!isCollapsed && (
           <img
             src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
@@ -73,7 +74,6 @@ export function Sidebar() {
             style={{ maxWidth: 120 }}
           />
         )}
-        {/* BARTHA LOGO end */}
         <Button 
           variant="ghost" 
           size="icon" 
@@ -95,13 +95,19 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="p-4 border-t border-sidebar-border">
-        {!isCollapsed && (
-          <p className="text-xs text-sidebar-foreground opacity-60">
-            Art Gallery Inventory
-          </p>
-        )}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={signOut}
+          className={cn(
+            "w-full gap-2 justify-start",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          <LogOut size={20} />
+          {!isCollapsed && <span>Logout</span>}
+        </Button>
       </div>
     </div>
   );
 }
-
