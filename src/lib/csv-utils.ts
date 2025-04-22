@@ -126,6 +126,23 @@ export const parseCSVtoArtworks = async (file: File): Promise<Partial<Artwork>[]
             }
           });
           
+          // Ensure required fields have at least default values
+          if (!artwork.classification) {
+            artwork.classification = 'Unique';
+          }
+          
+          if (!artwork.medium_type) {
+            artwork.medium_type = 'Painting';
+          }
+          
+          if (!artwork.title) {
+            artwork.title = 'Untitled';
+          }
+          
+          if (!artwork.currency) {
+            artwork.currency = 'USD';
+          }
+          
           artworks.push(artwork as Partial<Artwork>);
         }
         

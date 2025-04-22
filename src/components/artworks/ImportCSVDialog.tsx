@@ -59,7 +59,17 @@ export function ImportCSVDialog() {
         // Remove id if present (for insert operation)
         const { id, ...artworkData } = artwork;
 
-        const { error } = await supabase.from("artworks").insert(artworkData);
+        // Ensure required fields have default values if missing
+        const dataToInsert = {
+          ...artworkData,
+          // Set default values for required fields if they're missing
+          classification: artworkData.classification || 'Unique',
+          medium_type: artworkData.medium_type || 'Painting',
+          title: artworkData.title || 'Untitled',
+          currency: artworkData.currency || 'USD'
+        };
+
+        const { error } = await supabase.from("artworks").insert(dataToInsert);
 
         if (error) {
           console.error("Error importing artwork:", error);
