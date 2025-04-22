@@ -39,22 +39,39 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
     }
   };
 
+  // Open edit only for admins
+  const handleCardClick = () => {
+    if (isAdmin) {
+      setEditOpen(true);
+    }
+  };
+
   return (
     <>
-      <Card key={artist.id} className="overflow-hidden group relative">
+      <button
+        type="button"
+        className="w-full text-left group relative rounded-lg overflow-hidden shadow-sm transition border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
+        onClick={handleCardClick}
+        tabIndex={isAdmin ? 0 : -1}
+        disabled={!isAdmin}
+        aria-label={isAdmin ? `Edit ${artist.full_name}` : undefined}
+      >
         <div className="aspect-[3/2] w-full overflow-hidden">
           <img
             src={artist.image_url || 'https://images.unsplash.com/photo-1506863530036-1efeddceb993?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'}
             alt={artist.full_name}
-            className="h-full w-full object-cover transition-all hover:scale-105"
+            className="h-full w-full object-cover transition-all group-hover:scale-105"
           />
         </div>
         {isAdmin && (
           <Button
             size="icon"
             variant="ghost"
-            className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm"
-            onClick={() => setEditOpen(true)}
+            className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+            onClick={e => {
+              e.stopPropagation();
+              setEditOpen(true);
+            }}
           >
             <Edit className="h-4 w-4" />
             <span className="sr-only">Edit {artist.full_name}</span>
@@ -75,7 +92,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </button>
       {isAdmin && (
         <EditArtistDialog artist={artist} open={editOpen} onOpenChange={setEditOpen} />
       )}
