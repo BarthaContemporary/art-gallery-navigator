@@ -23,17 +23,21 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
   const [editOpen, setEditOpen] = useState(false);
 
   const formattedStatus = artist.representation_status
-    ? artist.representation_status.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+    ? artist.representation_status
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
     : "Unknown";
 
+  // Badge color per status (soft green, yellow, or gray by status)
   const getBadgeColor = () => {
-    if (!artist.representation_status) return "bg-gray-100 text-gray-800";
+    if (!artist.representation_status) return "bg-[#F1F1F1] text-[#18465a]";
     if (artist.representation_status === "represented") {
-      return "bg-green-100 text-green-800";
+      return "bg-[#F2FCE2] text-[#18465a]";
     } else if (artist.representation_status === "formerly represented") {
-      return "bg-amber-100 text-amber-800";
+      return "bg-[#FEF7CD] text-[#18465a]";
     } else {
-      return "bg-gray-100 text-gray-800";
+      return "bg-[#F1F1F1] text-[#18465a]";
     }
   };
 
@@ -45,69 +49,88 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
 
   return (
     <>
-      <button
-        type="button"
-        className="w-full text-left group relative rounded-lg overflow-hidden shadow-sm transition border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 h-[400px] flex flex-col" // Adjusted height from 500px to 400px
-        onClick={handleCardClick}
+      <div
+        data-testid="ArtistCard"
+        className="w-full rounded-xl border bg-card shadow hover:shadow-md transition group flex flex-col overflow-hidden h-[340px] cursor-pointer focus-within:ring-2 focus-within:ring-[#18465a]/50"
         tabIndex={isAdmin ? 0 : -1}
-        disabled={!isAdmin}
+        onClick={handleCardClick}
         aria-label={isAdmin ? `Edit ${artist.full_name}` : undefined}
+        style={{ background: "#fff" }}
       >
-        <div className="aspect-[3/2] w-full overflow-hidden">
+        {/* Artist image */}
+        <div className="relative w-full h-[168px] bg-[#F1F1F1] flex items-center justify-center overflow-hidden">
           <img
-            src={artist.image_url || 'https://images.unsplash.com/photo-1506863530036-1efeddceb993?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'}
+            src={
+              artist.image_url ||
+              "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=60"
+            }
             alt={artist.full_name}
-            className="h-full w-full object-cover transition-all group-hover:scale-105"
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
+          {isAdmin && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute top-3 right-3 z-10 rounded-full bg-white/80 hover:bg-[#18465a] hover:text-white text-[#18465a] p-2 border border-[#18465a] shadow"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditOpen(true);
+              }}
+              style={{
+                boxShadow: "0 2px 10px 0 rgba(24,70,90,0.06)",
+              }}
+            >
+              <Edit className="h-5 w-5" />
+            </Button>
+          )}
         </div>
-        {isAdmin && (
-          <Button
-            size="sm" // Changed from default to small size
-            variant="ghost"
-            className="absolute top-4 right-4 bg-white/80 hover:bg-white shadow-md z-10" 
-            onClick={e => {
-              e.stopPropagation();
-              setEditOpen(true);
-            }}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-        )}
-        <CardContent className="p-4 mt-auto flex-grow flex flex-col justify-end"> 
-          <div className="flex items-start justify-between">
-            <div>
-              {isAdmin ? (
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setEditOpen(true);
-                  }}
-                  className="font-semibold text-lg text-primary underline focus:outline-none hover:text-primary/80" // Slightly reduced text size
-                  aria-label={`Edit ${artist.full_name}`}
-                >
-                  {artist.full_name}
-                </button>
-              ) : (
-                <h3 className="font-semibold text-lg">{artist.full_name}</h3>
-              )}
-              <p className="text-sm text-muted-foreground"> {/* Reduced text size */}
-                {artist.nationality}, {artist.birth_year ? `b. ${artist.birth_year}` : 'Year unknown'}
-              </p>
-            </div>
-            <div>
-              <span className={`text-xs px-2 py-1 rounded-full ${getBadgeColor()}`}>
+        {/* Card content */}
+        <CardContent className="flex flex-col flex-1 justify-between p-4">
+          <div className="flex flex-col gap-2 flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditOpen(true);
+                    }}
+                    className="text-lg font-bold transition-colors underline text-[#18465a] hover:text-[#455118]/90 focus:outline-none"
+                    aria-label={`Edit ${artist.full_name}`}
+                    style={{ textDecorationThickness: "2px", textUnderlineOffset: "3px" }}
+                  >
+                    {artist.full_name}
+                  </button>
+                ) : (
+                  <h3 className="font-bold text-lg text-[#18465a]">{artist.full_name}</h3>
+                )}
+              </div>
+              <span
+                className={`ml-2 text-xs px-2 py-1 rounded-full font-semibold transition ${getBadgeColor()}`}
+              >
                 {formattedStatus}
               </span>
             </div>
+            <div className="text-sm text-muted-foreground text-[#8E9196] mt-1">
+              <span>
+                {artist.nationality}
+                {artist.nationality && artist.birth_year ? ", " : ""}
+                {artist.birth_year && (
+                  <span className="text-[#18465a] font-medium">b. {artist.birth_year}</span>
+                )}
+                {!artist.nationality && !artist.birth_year && "—"}
+              </span>
+            </div>
+            {artist.biography && (
+              <p className="mt-2 text-xs line-clamp-2 text-[#555]">{artist.biography}</p>
+            )}
           </div>
         </CardContent>
-      </button>
+      </div>
       {isAdmin && (
         <EditArtistDialog artist={artist} open={editOpen} onOpenChange={setEditOpen} />
       )}
     </>
   );
 };
-
