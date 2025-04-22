@@ -1,3 +1,4 @@
+
 import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -28,6 +29,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           size="icon" 
           variant="ghost" 
           className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Edit functionality will be implemented here
+          }}
         >
           <Edit className="h-4 w-4" />
           <span className="sr-only">Edit {artwork.title}</span>
@@ -53,7 +58,12 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           </div>
         </DialogContent>
       </Dialog>
-      <CardContent className="p-4">
+      <CardContent 
+        className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+        onClick={() => {
+          // Edit functionality will be implemented here
+        }}
+      >
         <ScrollArea className="h-[200px] pr-4">
           <div className="flex flex-col space-y-4">
             <div className="flex items-start justify-between">
