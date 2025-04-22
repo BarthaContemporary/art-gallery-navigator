@@ -1,28 +1,19 @@
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage, } from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { ImageUploader } from "./ImageUploader";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dispatch, SetStateAction } from "react";
 import { BasicInformationFields } from "./form/BasicInformationFields";
+import { MaterialsFields } from "./form/MaterialsFields";
+import { ClassificationFields } from "./form/ClassificationFields";
 import { PricingFields } from "./form/PricingFields";
 import { EditionFields } from "./form/EditionFields";
+import { DimensionsField } from "./form/DimensionsField";
+import { LocationStatusFields } from "./form/LocationStatusFields";
 import { ArtworkFormData } from "./form/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 
 export function CreateArtworkForm({
   setOpen,
@@ -89,137 +80,12 @@ export function CreateArtworkForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <BasicInformationFields form={form} artists={artists} />
-        
-        <FormField
-          control={form.control}
-          name="medium_type"
-          rules={{ required: "Medium type is required" }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Medium Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select medium type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {['Painting', 'Sculpture', 'Photography', 'Work on Paper', 'Installation', 'Video', 'Textile Arts', 'Book'].map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="materials"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Materials</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="e.g., Oil on canvas" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="classification"
-          rules={{ required: "Classification is required" }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Classification</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select classification" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {['Unique', 'Limited Edition', 'Open Edition', 'Unknown Edition'].map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
+        <MaterialsFields form={form} />
+        <ClassificationFields form={form} />
         <PricingFields form={form} />
         <EditionFields form={form} show={classification !== 'Unique'} />
-
-        <FormField
-          control={form.control}
-          name="dimensions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dimensions</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="e.g., 100 x 80 cm" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="location_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Location</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a location" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {locations?.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="on hold">On Hold</SelectItem>
-                  <SelectItem value="sold">Sold</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <DimensionsField form={form} />
+        <LocationStatusFields form={form} locations={locations} />
         
         <FormField
           control={form.control}
