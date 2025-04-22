@@ -12,9 +12,10 @@ import { LocationStatusFields } from "./LocationStatusFields";
 import { ConditionSignatureFields } from "./ConditionSignatureFields";
 import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { ArtworkFormData } from "./types";
+import { UseFormReturn } from "react-hook-form";
 
 interface CreateArtworkFormViewProps {
-  form: ReturnType<typeof import("react-hook-form")["useForm"]>;
+  form: UseFormReturn<ArtworkFormData>;
   classification: string;
   artists: { id: string; full_name: string; }[] | undefined;
   locations: { id: string; name: string; }[] | undefined;

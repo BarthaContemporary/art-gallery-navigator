@@ -13,19 +13,22 @@ export interface Artwork {
   edition_size: number | null;
   dimensions: string | null;
   price: number | null;
-  currency: string;
+  currency: "USD" | "GBP" | "EUR" | "CHF";
   status: string | null;
   image_url: string | null;
   location_id: string | null;
   inventory_quantity: number | null;
   available_works: number | null;
   artist_proofs: number | null;
-  signature_type: string | null;
+  signature_type: "not signed" | "hand-signed by artist" | "signed on plate" | "stamped by artist's estate" | "sticker label" | "other" | null;
   condition: string | null;
   signature_details: string | null;
   provenance: string | null;
   story: string | null;
   exhibition_history: string | null;
+  height?: number | null;
+  width?: number | null;
+  depth?: number | null;
 }
 
 export function useArtworks() {

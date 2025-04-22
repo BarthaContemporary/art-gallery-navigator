@@ -1,3 +1,4 @@
+
 export interface ArtworkFormData {
   title: string;
   artist_id: string;
@@ -19,7 +20,7 @@ export interface ArtworkFormData {
   width?: number;
   depth?: number;
   condition: string;
-  signature_type: 'not signed' | 'hand-signed by artist' | 'signed on plate' | 'stamped by artist\'s estate' | 'sticker label' | 'other';
+  signature_type: 'not signed' | 'hand-signed by artist' | 'signed on plate' | "stamped by artist's estate" | 'sticker label' | 'other';
   signature_details?: string;
   provenance?: string;
   story?: string;
