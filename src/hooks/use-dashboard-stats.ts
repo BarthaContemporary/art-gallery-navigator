@@ -12,11 +12,7 @@ interface DashboardStats {
     timestamp: string;
     color: 'blue' | 'green' | 'purple';
   }>;
-  inventory_status: {
-    available: number;
-    on_hold: number;
-    in_transit: number;
-  };
+  inventory_statuses: Record<string, number>;
 }
 
 export function useDashboardStats() {
@@ -37,23 +33,27 @@ export function useDashboardStats() {
         .order('created_at', { ascending: false })
         .limit(3);
 
-      // Fetch inventory status
+      // Fetch inventory statuses (excluding sold, as per the old logic)
       const { data: inventoryStatus } = await supabase
         .from('artworks')
         .select('status')
         .not('status', 'eq', 'sold');
 
-      // Calculate inventory stats
-      const available = inventoryStatus?.filter(item => item.status === 'available').length || 0;
-      const on_hold = inventoryStatus?.filter(item => item.status === 'on hold').length || 0;
-      const in_transit = inventoryStatus?.filter(item => item.status === 'in transit').length || 0;
+      // Tally count for each distinct artwork status
+      const statuses: Record<string, number> = {};
+      if (Array.isArray(inventoryStatus)) {
+        for (const item of inventoryStatus) {
+          const status = item.status ?? 'unknown';
+          statuses[status] = (statuses[status] || 0) + 1;
+        }
+      }
 
       // Format recent activities
       const recent_activities = (recentArtworks || []).map(artwork => ({
         type: 'artwork' as const,
         title: artwork.title,
         timestamp: new Date(artwork.created_at).toISOString(),
-        color: 'blue' as const
+        color: 'blue' as const,
       }));
 
       return {
@@ -61,11 +61,7 @@ export function useDashboardStats() {
         artists_count: artistsResult.count || 0,
         locations_count: locationsResult.count || 0,
         recent_activities,
-        inventory_status: {
-          available,
-          on_hold,
-          in_transit
-        }
+        inventory_statuses: statuses,
       };
     }
   });

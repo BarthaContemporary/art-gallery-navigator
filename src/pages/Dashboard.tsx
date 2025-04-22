@@ -1,8 +1,25 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Palette, Users, Landmark } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { format } from "date-fns";
+
+const STATUS_COLORS: Record<string, string> = {
+  "available": "bg-green-500",
+  "on hold": "bg-amber-500",
+  "in transit": "bg-blue-500",
+  "sold": "bg-blue-500",
+  "consigned": "bg-purple-500",
+  "not for sale": "bg-gray-500",
+  "returned": "bg-black",
+  "unknown": "bg-gray-300",
+};
+
+function getStatusLabel(status: string) {
+  return status
+    .split(' ')
+    .map(str => str.charAt(0).toUpperCase() + str.slice(1))
+    .join(' ');
+}
 
 const Dashboard = () => {
   const { data: stats, isLoading } = useDashboardStats();
@@ -27,6 +44,10 @@ const Dashboard = () => {
       change: "Gallery spaces" 
     },
   ];
+
+  const orderedStatuses = stats
+    ? Object.entries(stats.inventory_statuses).sort((a, b) => a[0].localeCompare(b[0]))
+    : [];
 
   return (
     <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
@@ -90,27 +111,16 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm">Available</span>
+              {orderedStatuses.map(([status, count]) => (
+                <div key={status} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-3 w-3 rounded-full ${STATUS_COLORS[status] || "bg-gray-400"}`}></div>
+                    <span className="text-sm">{getStatusLabel(status)}</span>
+                  </div>
+                  <span className="font-medium">{count}</span>
                 </div>
-                <span className="font-medium">{stats?.inventory_status.available || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-amber-500"></div>
-                  <span className="text-sm">On Hold</span>
-                </div>
-                <span className="font-medium">{stats?.inventory_status.on_hold || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm">In Transit</span>
-                </div>
-                <span className="font-medium">{stats?.inventory_status.in_transit || 0}</span>
-              </div>
+              ))}
+              {orderedStatuses.length === 0 && <div className="text-muted-foreground text-sm">No inventory works found.</div>}
             </div>
           </CardContent>
         </Card>
