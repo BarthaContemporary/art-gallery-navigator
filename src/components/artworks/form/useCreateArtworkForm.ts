@@ -1,6 +1,6 @@
 
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -15,6 +15,8 @@ export type UseCreateArtworkFormProps = {
 export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkFormProps) {
   const { toast } = useToast();
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+  // Add QueryClient access
+  const queryClient = useQueryClient();
 
   // Safely cast the currency and signature_type to the correct type for the form default values
   const currencyValue = 
@@ -217,6 +219,9 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         }
       }
 
+      // Invalidate and refetch artworks list after successful change
+      await queryClient.invalidateQueries({ queryKey: ['artworks'] });
+
       toast({
         title: "Success",
         description: initialData 
@@ -250,3 +255,4 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
     initialData
   };
 }
+
