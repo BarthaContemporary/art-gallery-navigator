@@ -47,7 +47,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
     <>
       <button
         type="button"
-        className="w-full text-left group relative rounded-lg overflow-hidden shadow-sm transition border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="w-full text-left group relative rounded-lg overflow-hidden shadow-sm transition border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 h-[500px] flex flex-col" // Increased height and made it a flex container
         onClick={handleCardClick}
         tabIndex={isAdmin ? 0 : -1}
         disabled={!isAdmin}
@@ -62,19 +62,19 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
         </div>
         {isAdmin && (
           <Button
-            size="icon"
+            size="default" // Changed from icon to default size
             variant="ghost"
-            className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+            className="absolute top-4 right-4 bg-white/80 hover:bg-white shadow-md z-10 px-4 py-2" // Increased padding and adjusted positioning
             onClick={e => {
               e.stopPropagation();
               setEditOpen(true);
             }}
           >
-            <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit {artist.full_name}</span>
+            <Edit className="mr-2 h-4 w-4" /> {/* Added margin to separate icon from text */}
+            Edit
           </Button>
         )}
-        <CardContent className="p-4">
+        <CardContent className="p-4 mt-auto flex-grow flex flex-col justify-end"> {/* Added mt-auto and flex properties */}
           <div className="flex items-start justify-between">
             <div>
               {isAdmin ? (
@@ -84,20 +84,20 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
                     e.stopPropagation();
                     setEditOpen(true);
                   }}
-                  className="font-semibold text-lg text-primary underline focus:outline-none hover:text-primary/80"
+                  className="font-semibold text-xl text-primary underline focus:outline-none hover:text-primary/80" // Increased text size
                   aria-label={`Edit ${artist.full_name}`}
                 >
                   {artist.full_name}
                 </button>
               ) : (
-                <h3 className="font-semibold text-lg">{artist.full_name}</h3>
+                <h3 className="font-semibold text-xl">{artist.full_name}</h3>
               )}
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground"> {/* Increased text size */}
                 {artist.nationality}, {artist.birth_year ? `b. ${artist.birth_year}` : 'Year unknown'}
               </p>
             </div>
             <div>
-              <span className={`text-xs px-2 py-1 rounded-full ${getBadgeColor()}`}>
+              <span className={`text-sm px-2 py-1 rounded-full ${getBadgeColor()}`}>
                 {formattedStatus}
               </span>
             </div>
