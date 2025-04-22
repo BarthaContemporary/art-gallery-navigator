@@ -1,11 +1,13 @@
-
 import { useForm } from "react-hook-form";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
+import { useArtists } from "./useArtists";
+import { useLocations } from "./useLocations";
+import { useImageUpload } from "./useImageUpload";
+import { getArtworkInitialValues } from "./getArtworkInitialValues";
 
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
@@ -14,129 +16,22 @@ export type UseCreateArtworkFormProps = {
 
 export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkFormProps) {
   const { toast } = useToast();
-  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
-  // Add QueryClient access
   const queryClient = useQueryClient();
 
-  // Safely cast the currency and signature_type to the correct type for the form default values
-  const currencyValue = 
-    initialData?.currency && ["USD", "GBP", "EUR", "CHF"].includes(initialData.currency)
-      ? initialData.currency as ArtworkFormData["currency"]
-      : "USD";
-
-  const signatureTypeValue = 
-    initialData?.signature_type && 
-    [
-      "not signed",
-      "hand-signed by artist",
-      "signed on plate",
-      "stamped by artist's estate",
-      "sticker label",
-      "other"
-    ].includes(initialData.signature_type)
-      ? initialData.signature_type as ArtworkFormData["signature_type"]
-      : "not signed";
-
-  // Cast medium_type to the correct ArtworkFormData type
-  const mediumTypeValue = 
-    initialData?.medium_type && 
-    [
-      "Painting",
-      "Sculpture", 
-      "Photography", 
-      "Work on Paper", 
-      "Installation", 
-      "Video", 
-      "Textile Arts", 
-      "Book"
-    ].includes(initialData.medium_type)
-      ? initialData.medium_type as ArtworkFormData["medium_type"]
-      : "Painting";
-
-  // Cast classification to the correct ArtworkFormData type
-  const classificationValue = 
-    initialData?.classification &&
-    [
-      "Unique", 
-      "Limited Edition", 
-      "Open Edition", 
-      "Unknown Edition"
-    ].includes(initialData.classification)
-      ? initialData.classification as ArtworkFormData["classification"]
-      : "Unique";
-
   const form = useForm<ArtworkFormData>({
-    defaultValues: {
-      // ... Basic fields
-      title: initialData?.title || "",
-      artist_id: initialData?.artist_id || "",
-      year: initialData?.year || undefined,
-      medium_type: mediumTypeValue,
-      materials: initialData?.materials || "",
-      classification: classificationValue,
-      edition_size: initialData?.edition_size || undefined,
-      dimensions: initialData?.dimensions || "",
-      price: initialData?.price || undefined,
-      currency: currencyValue,
-      inventory_quantity: initialData?.inventory_quantity || undefined,
-      available_works: initialData?.available_works || undefined,
-      artist_proofs: initialData?.artist_proofs || undefined,
-      height: initialData?.height || undefined,
-      width: initialData?.width || undefined,
-      depth: initialData?.depth || undefined,
-      // NEW FIELDS for framing / crate / weight
-      is_framed: initialData?.is_framed ?? false,
-      frame_height: initialData?.frame_height || undefined,
-      frame_width: initialData?.frame_width || undefined,
-      frame_depth: initialData?.frame_depth || undefined,
-      weight: initialData?.weight || undefined,
-      has_crate: initialData?.has_crate ?? false,
-      crate_height: initialData?.crate_height || undefined,
-      crate_width: initialData?.crate_width || undefined,
-      crate_depth: initialData?.crate_depth || undefined,
-      // Rest fields
-      location_id: initialData?.location_id || "",
-      status: initialData?.status || 'available',
-      image_url: initialData?.image_url || "",
-      condition: initialData?.condition || "",
-      signature_type: signatureTypeValue,
-      signature_details: initialData?.signature_details || "",
-      provenance: initialData?.provenance || "",
-      story: initialData?.story || "",
-      exhibition_history: initialData?.exhibition_history || ""
-    }
+    defaultValues: getArtworkInitialValues(initialData),
   });
 
   const classification = form.watch('classification');
 
-  const { data: artists } = useQuery({
-    queryKey: ['artists'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('artists')
-        .select('id, full_name');
-      if (error) throw error;
-      return data;
-    }
-  });
+  const { data: artists } = useArtists();
+  const { data: locations } = useLocations();
 
-  const { data: locations } = useQuery({
-    queryKey: ['locations'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('locations')
-        .select('id, name');
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  const handleImagesUploaded = (urls: string[]) => {
-    if (urls.length > 0) {
-      form.setValue("image_url", urls[0]);
-      setUploadedImageUrls(urls);
-    }
-  };
+  const {
+    uploadedImageUrls,
+    handleImagesUploaded,
+    resetUploaded
+  } = useImageUpload(form);
 
   const onSubmit = async (data: ArtworkFormData) => {
     try {
@@ -146,7 +41,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         data.depth ? `${data.depth}cm D` : ''
       ].filter(Boolean).join(' x ');
 
-      // Compose formattedData to include new fields!
       const formattedData = {
         ...data,
         dimensions: dimensions || null,
@@ -159,7 +53,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
         available_works: data.available_works ? Number(data.available_works) : null,
         artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
-        // New framing/crate/weight fields
         is_framed: !!data.is_framed,
         frame_height: data.frame_height ? Number(data.frame_height) : null,
         frame_width: data.frame_width ? Number(data.frame_width) : null,
@@ -172,7 +65,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
       };
 
       if (initialData) {
-        // Update existing artwork
         const { error } = await supabase
           .from('artworks')
           .update(formattedData)
@@ -180,7 +72,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
           .select();
         if (error) throw error;
       } else {
-        // Create new artwork
         const { error } = await supabase
           .from('artworks')
           .insert([formattedData])
@@ -188,12 +79,10 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         if (error) throw error;
       }
 
-      // Add uploaded images logic
       if (uploadedImageUrls.length > 0) {
         let artworkId: string | undefined = initialData?.id;
 
         if (!artworkId) {
-          // Get the new artwork ID after creation
           const { data: artworks, error: fetchError } = await supabase
             .from('artworks')
             .select('id')
@@ -219,7 +108,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         }
       }
 
-      // Invalidate and refetch artworks list after successful change
       await queryClient.invalidateQueries({ queryKey: ['artworks'] });
 
       toast({
@@ -231,7 +119,7 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
 
       setOpen(false);
       form.reset();
-      setUploadedImageUrls([]);
+      resetUploaded();
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
@@ -255,4 +143,3 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
     initialData
   };
 }
-
