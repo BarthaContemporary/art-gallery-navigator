@@ -3,7 +3,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { ArtworkFormData } from "./types";
-import { Height, Width, Depth } from "lucide-react";
+import { RulerIcon, ArrowLeftRight, ArrowUpDown } from "lucide-react";
 
 interface DimensionsFieldsProps {
   form: UseFormReturn<ArtworkFormData>;
@@ -18,7 +18,7 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center gap-2">
-              <Height className="h-4 w-4" />
+              <ArrowUpDown className="h-4 w-4" />
               Height (cm)
             </FormLabel>
             <FormControl>
@@ -34,7 +34,7 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center gap-2">
-              <Width className="h-4 w-4" />
+              <ArrowLeftRight className="h-4 w-4" />
               Width (cm)
             </FormLabel>
             <FormControl>
@@ -50,7 +50,7 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center gap-2">
-              <Depth className="h-4 w-4" />
+              <RulerIcon className="h-4 w-4" />
               Depth (cm)
             </FormLabel>
             <FormControl>

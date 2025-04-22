@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ import { DimensionsFields } from "./form/DimensionsFields";
 import { LocationStatusFields } from "./form/LocationStatusFields";
 import { ConditionSignatureFields } from "./form/ConditionSignatureFields";
 import { ProvenanceStoryFields } from "./form/ProvenanceStoryFields";
-import { ArtworkFormData } from "./types";
+import { ArtworkFormData } from "./form/types";
 
 export function CreateArtworkForm({
   setOpen,
