@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,7 +52,7 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         depth: data.depth ? Number(data.depth) : null,
         edition_size: data.edition_size ? Number(data.edition_size) : null,
         inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
-        available_works: data.available_works || null,
+        available_works: data.available_works || null, // Keep as string
         artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
         is_framed: !!data.is_framed,
         frame_height: data.frame_height ? Number(data.frame_height) : null,
