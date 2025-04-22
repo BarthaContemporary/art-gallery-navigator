@@ -18,7 +18,7 @@ export interface Artwork {
   image_url: string | null;
   location_id: string | null;
   inventory_quantity: number | null;
-  available_works: number | null;
+  available_works: string | null;
   artist_proofs: number | null;
   signature_type: "not signed" | "hand-signed by artist" | "signed on plate" | "stamped by artist's estate" | "sticker label" | "other" | null;
   condition: string | null;

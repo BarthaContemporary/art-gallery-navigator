@@ -41,7 +41,7 @@ export function ArtworkDetailsSection({ artwork, artist, artistLoading }: Artwor
             </div>
             <div className="flex flex-col">
               <dt className="text-sm font-medium text-muted-foreground">Available Works</dt>
-              <dd>{artwork.available_works || 0}</dd>
+              <dd>{artwork.available_works || 'N/A'}</dd>
             </div>
             <div className="flex flex-col">
               <dt className="text-sm font-medium text-muted-foreground">Inventory Quantity</dt>

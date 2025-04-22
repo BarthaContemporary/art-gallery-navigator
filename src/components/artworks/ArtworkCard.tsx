@@ -99,7 +99,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                 <h4 className="text-sm font-medium mb-2">Edition Details</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <p>Edition Size: {artwork.edition_size || 'N/A'}</p>
-                  <p>Available: {artwork.available_works || 0}</p>
+                  <p>Available: {artwork.available_works || 'N/A'}</p>
                   <p>Inventory: {artwork.inventory_quantity || 0}</p>
                   <p>Artist Proofs: {artwork.artist_proofs || 0}</p>
                 </div>
