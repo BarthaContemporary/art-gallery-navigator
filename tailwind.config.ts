@@ -23,22 +23,23 @@ export default {
 				sans: ['"Source Sans 3"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
 			},
 			colors: {
+				// The main blue is now #18465a
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: '#18465a',                     // hex for the main blue
+					foreground: '#fff',
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))'
+					DEFAULT: '#910000',                     // hex for red (links/destructive)
+					foreground: '#fff',
 				},
 				muted: {
 					DEFAULT: 'hsl(var(--muted))',
@@ -59,13 +60,16 @@ export default {
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+					primary: '#18465a',
+					'primary-foreground': '#fff',
 					accent: 'hsl(var(--sidebar-accent))',
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				}
+					ring: '#18465a'
+				},
+				// Add custom hover color utility
+				hover: '#455118',
+				link: '#910000'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -98,3 +102,4 @@ export default {
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+
