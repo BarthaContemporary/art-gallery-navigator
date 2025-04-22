@@ -54,10 +54,14 @@ export type Database = {
           artist_proofs: number | null
           available_works: number | null
           classification: string
+          condition: string | null
           created_at: string | null
           currency: string
+          depth: number | null
           dimensions: string | null
           edition_size: number | null
+          exhibition_history: string | null
+          height: number | null
           id: string
           image_url: string | null
           inventory_quantity: number | null
@@ -66,9 +70,14 @@ export type Database = {
           materials: string | null
           medium_type: string
           price: number | null
+          provenance: string | null
+          signature_details: string | null
+          signature_type: string | null
           status: string | null
+          story: string | null
           title: string
           updated_at: string | null
+          width: number | null
           year: number | null
         }
         Insert: {
@@ -76,10 +85,14 @@ export type Database = {
           artist_proofs?: number | null
           available_works?: number | null
           classification: string
+          condition?: string | null
           created_at?: string | null
           currency: string
+          depth?: number | null
           dimensions?: string | null
           edition_size?: number | null
+          exhibition_history?: string | null
+          height?: number | null
           id?: string
           image_url?: string | null
           inventory_quantity?: number | null
@@ -88,9 +101,14 @@ export type Database = {
           materials?: string | null
           medium_type: string
           price?: number | null
+          provenance?: string | null
+          signature_details?: string | null
+          signature_type?: string | null
           status?: string | null
+          story?: string | null
           title: string
           updated_at?: string | null
+          width?: number | null
           year?: number | null
         }
         Update: {
@@ -98,10 +116,14 @@ export type Database = {
           artist_proofs?: number | null
           available_works?: number | null
           classification?: string
+          condition?: string | null
           created_at?: string | null
           currency?: string
+          depth?: number | null
           dimensions?: string | null
           edition_size?: number | null
+          exhibition_history?: string | null
+          height?: number | null
           id?: string
           image_url?: string | null
           inventory_quantity?: number | null
@@ -110,9 +132,14 @@ export type Database = {
           materials?: string | null
           medium_type?: string
           price?: number | null
+          provenance?: string | null
+          signature_details?: string | null
+          signature_type?: string | null
           status?: string | null
+          story?: string | null
           title?: string
           updated_at?: string | null
+          width?: number | null
           year?: number | null
         }
         Relationships: [

@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,13 @@ export function CreateArtworkForm({
   setOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const { toast } = useToast();
-  const form = useForm<ArtworkFormData>();
+  const form = useForm<ArtworkFormData>({
+    defaultValues: {
+      currency: 'USD',
+      status: 'available',
+      signature_type: 'not signed'
+    }
+  });
   const classification = form.watch('classification');
 
   const { data: artists } = useQuery({
@@ -54,18 +61,34 @@ export function CreateArtworkForm({
 
   const onSubmit = async (data: ArtworkFormData) => {
     try {
+      // Format dimensions string
+      const dimensions = [
+        data.height ? `${data.height}cm H` : '',
+        data.width ? `${data.width}cm W` : '',
+        data.depth ? `${data.depth}cm D` : ''
+      ].filter(Boolean).join(' x ');
+
       const { error } = await supabase
         .from('artworks')
         .insert([{
           ...data,
-          price: Number(data.price),
-          year: Number(data.year),
+          dimensions: dimensions || null,
+          price: data.price ? Number(data.price) : null,
+          year: data.year ? Number(data.year) : null,
           height: data.height ? Number(data.height) : null,
           width: data.width ? Number(data.width) : null,
           depth: data.depth ? Number(data.depth) : null,
-          edition_size: data.edition_size ? Number(data.edition_size) : null
+          edition_size: data.edition_size ? Number(data.edition_size) : null,
+          inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
+          available_works: data.available_works ? Number(data.available_works) : null,
+          artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
         }]);
-      if (error) throw error;
+        
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
       toast({
         title: "Success",
         description: "Artwork has been created successfully",
@@ -73,6 +96,7 @@ export function CreateArtworkForm({
       setOpen(false);
       form.reset();
     } catch (error) {
+      console.error("Form submission error:", error);
       toast({
         title: "Error",
         description: "There was an error creating the artwork",
