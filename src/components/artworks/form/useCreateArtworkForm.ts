@@ -65,6 +65,7 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
 
   const form = useForm<ArtworkFormData>({
     defaultValues: {
+      // ... Basic fields
       title: initialData?.title || "",
       artist_id: initialData?.artist_id || "",
       year: initialData?.year || undefined,
@@ -74,9 +75,6 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
       edition_size: initialData?.edition_size || undefined,
       dimensions: initialData?.dimensions || "",
       price: initialData?.price || undefined,
-      location_id: initialData?.location_id || "",
-      status: initialData?.status || 'available',
-      image_url: initialData?.image_url || "",
       currency: currencyValue,
       inventory_quantity: initialData?.inventory_quantity || undefined,
       available_works: initialData?.available_works || undefined,
@@ -84,6 +82,20 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
       height: initialData?.height || undefined,
       width: initialData?.width || undefined,
       depth: initialData?.depth || undefined,
+      // NEW FIELDS for framing / crate / weight
+      is_framed: initialData?.is_framed ?? false,
+      frame_height: initialData?.frame_height || undefined,
+      frame_width: initialData?.frame_width || undefined,
+      frame_depth: initialData?.frame_depth || undefined,
+      weight: initialData?.weight || undefined,
+      has_crate: initialData?.has_crate ?? false,
+      crate_height: initialData?.crate_height || undefined,
+      crate_width: initialData?.crate_width || undefined,
+      crate_depth: initialData?.crate_depth || undefined,
+      // Rest fields
+      location_id: initialData?.location_id || "",
+      status: initialData?.status || 'available',
+      image_url: initialData?.image_url || "",
       condition: initialData?.condition || "",
       signature_type: signatureTypeValue,
       signature_details: initialData?.signature_details || "",
@@ -132,6 +144,7 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         data.depth ? `${data.depth}cm D` : ''
       ].filter(Boolean).join(' x ');
 
+      // Compose formattedData to include new fields!
       const formattedData = {
         ...data,
         dimensions: dimensions || null,
@@ -143,7 +156,17 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         edition_size: data.edition_size ? Number(data.edition_size) : null,
         inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
         available_works: data.available_works ? Number(data.available_works) : null,
-        artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
+        artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
+        // New framing/crate/weight fields
+        is_framed: !!data.is_framed,
+        frame_height: data.frame_height ? Number(data.frame_height) : null,
+        frame_width: data.frame_width ? Number(data.frame_width) : null,
+        frame_depth: data.frame_depth ? Number(data.frame_depth) : null,
+        weight: data.weight ? Number(data.weight) : null,
+        has_crate: !!data.has_crate,
+        crate_height: data.crate_height ? Number(data.crate_height) : null,
+        crate_width: data.crate_width ? Number(data.crate_width) : null,
+        crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
       };
 
       if (initialData) {

@@ -5,12 +5,13 @@ import { MultipleImageUploader } from "../MultipleImageUploader";
 import { BasicInformationFields } from "./BasicInformationFields";
 import { MaterialsFields } from "./MaterialsFields";
 import { ClassificationFields } from "./ClassificationFields";
-import { PricingFields } from "./PricingFields";
 import { EditionFields } from "./EditionFields";
 import { DimensionsFields } from "./DimensionsFields";
+import { PricingFields } from "./PricingFields";
 import { LocationStatusFields } from "./LocationStatusFields";
 import { ConditionSignatureFields } from "./ConditionSignatureFields";
 import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
+import { FramingCrateFields } from "./FramingCrateFields";
 import { ArtworkFormData } from "./types";
 import { UseFormReturn } from "react-hook-form";
 
@@ -39,10 +40,11 @@ export function CreateArtworkFormView({
         <BasicInformationFields form={form} artists={artists} />
         <MaterialsFields form={form} />
         <ClassificationFields form={form} />
-        <PricingFields form={form} />
         <EditionFields form={form} show={classification !== 'Unique'} />
         <DimensionsFields form={form} />
-        <LocationStatusFields form={form} locations={locations} />
+        {/* Moved price, then add new fields here */}
+        <PricingFields form={form} />
+        <FramingCrateFields form={form} />
         <ConditionSignatureFields form={form} />
         <ProvenanceStoryFields form={form} />
 
@@ -59,6 +61,9 @@ export function CreateArtworkFormView({
             </FormItem>
           )}
         />
+
+        {/* Move Location and Status to the very end */}
+        <LocationStatusFields form={form} locations={locations} />
 
         <Button type="submit" className="w-full">
           {initialData ? "Update Artwork" : "Create Artwork"}
