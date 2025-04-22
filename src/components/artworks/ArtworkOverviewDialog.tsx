@@ -9,6 +9,8 @@ import { EditArtworkDialog } from "./EditArtworkDialog";
 import { useToast } from "@/hooks/use-toast";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { supabase } from "@/integrations/supabase/client";
+import { useArtist } from "@/hooks/use-artist";
+import { useLocation } from "@/hooks/use-location";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -19,6 +21,8 @@ interface ArtworkOverviewDialogProps {
 export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOverviewDialogProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
+  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
   const handleCreatePDF = async () => {
     try {
@@ -70,7 +74,7 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
                   <dl className="space-y-2">
                     <div className="flex flex-col">
                       <dt className="text-sm font-medium text-muted-foreground">Artist</dt>
-                      <dd>{artwork.artist_id}</dd>
+                      <dd>{artistLoading ? "Loading..." : artist?.full_name || "No artist specified"}</dd>
                     </div>
                     <div className="flex flex-col">
                       <dt className="text-sm font-medium text-muted-foreground">Year</dt>
@@ -202,7 +206,7 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
                 <dl className="space-y-2">
                   <div className="flex flex-col">
                     <dt className="text-sm font-medium text-muted-foreground">Location</dt>
-                    <dd>{artwork.location_id || 'N/A'}</dd>
+                    <dd>{locationLoading ? "Loading..." : location?.name || 'N/A'}</dd>
                   </div>
                   <div className="flex flex-col">
                     <dt className="text-sm font-medium text-muted-foreground">Status</dt>
