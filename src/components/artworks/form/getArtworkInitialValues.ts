@@ -59,7 +59,7 @@ export function getArtworkInitialValues(initialData?: Artwork): ArtworkFormData 
     price: initialData?.price || undefined,
     currency: currencyValue,
     inventory_quantity: initialData?.inventory_quantity || undefined,
-    available_works: initialData?.available_works || undefined,
+    available_works: initialData?.available_works || "",
     artist_proofs: initialData?.artist_proofs || undefined,
     height: initialData?.height || undefined,
     width: initialData?.width || undefined,
