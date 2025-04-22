@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { MultipleImageUploader } from "./MultipleImageUploader";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import { BasicInformationFields } from "./form/BasicInformationFields";
 import { MaterialsFields } from "./form/MaterialsFields";
 import { ClassificationFields } from "./form/ClassificationFields";
@@ -23,6 +24,7 @@ export function CreateArtworkForm({
   setOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const { toast } = useToast();
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const form = useForm<ArtworkFormData>({
     defaultValues: {
       currency: 'USD',
@@ -54,34 +56,11 @@ export function CreateArtworkForm({
     }
   });
 
-  const handleImagesUploaded = async (urls: string[]) => {
+  const handleImagesUploaded = (urls: string[]) => {
     if (urls.length > 0) {
+      // Set the first image as the main artwork image
       form.setValue("image_url", urls[0]);
-      
-      const artworkId = form.getValues("id");
-      if (artworkId) {
-        try {
-          const images = urls.map((url, index) => ({
-            artwork_id: artworkId,
-            image_url: url,
-            is_primary: index === 0,
-            display_order: index
-          }));
-
-          const { error } = await supabase
-            .from('artwork_images')
-            .insert(images);
-
-          if (error) throw error;
-        } catch (error) {
-          console.error("Error saving additional images:", error);
-          toast({
-            title: "Error",
-            description: "Failed to save additional images",
-            variant: "destructive",
-          });
-        }
-      }
+      setUploadedImageUrls(urls);
     }
   };
 
@@ -113,20 +92,20 @@ export function CreateArtworkForm({
         
       if (error) throw error;
 
-      if (artwork) {
-        const imageUrl = form.getValues("image_url");
-        if (imageUrl) {
-          const { error: imageError } = await supabase
-            .from('artwork_images')
-            .insert([{
-              artwork_id: artwork.id,
-              image_url: imageUrl,
-              is_primary: true,
-              display_order: 0
-            }]);
+      if (artwork && uploadedImageUrls.length > 0) {
+        // Insert all uploaded images to artwork_images table
+        const imagesToInsert = uploadedImageUrls.map((url, index) => ({
+          artwork_id: artwork.id,
+          image_url: url,
+          is_primary: index === 0, // First image is primary
+          display_order: index
+        }));
+
+        const { error: imageError } = await supabase
+          .from('artwork_images')
+          .insert(imagesToInsert);
             
-          if (imageError) throw imageError;
-        }
+        if (imageError) throw imageError;
       }
       
       toast({
@@ -135,6 +114,7 @@ export function CreateArtworkForm({
       });
       setOpen(false);
       form.reset();
+      setUploadedImageUrls([]);
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
