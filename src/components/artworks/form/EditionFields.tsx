@@ -49,7 +49,7 @@ export function EditionFields({ form, show }: EditionFieldsProps) {
           <FormItem>
             <FormLabel>Available Works</FormLabel>
             <FormControl>
-              <Input type="number" {...field} />
+              <Input type="text" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
