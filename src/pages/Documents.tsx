@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDocuments } from "@/hooks/use-documents";
 import { DocumentsHeader } from "@/components/documents/DocumentsHeader";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
