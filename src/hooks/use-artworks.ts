@@ -7,7 +7,7 @@ export interface Artwork {
   title: string;
   artist_id: string | null;
   year: number | null;
-  medium_type: string;
+  medium_type: "Painting" | "Sculpture" | "Photography" | "Work on Paper" | "Installation" | "Video" | "Textile Arts" | "Book";
   materials: string | null;
   classification: string;
   edition_size: number | null;
@@ -44,7 +44,7 @@ export function useArtworks() {
         throw error;
       }
 
-      return data;
+      return data as Artwork[];
     },
   });
 }

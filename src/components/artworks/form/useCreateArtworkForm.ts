@@ -35,12 +35,61 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
       ? initialData.signature_type as ArtworkFormData["signature_type"]
       : "not signed";
 
+  // Cast medium_type to the correct ArtworkFormData type
+  const mediumTypeValue = 
+    initialData?.medium_type && 
+    [
+      "Painting",
+      "Sculpture", 
+      "Photography", 
+      "Work on Paper", 
+      "Installation", 
+      "Video", 
+      "Textile Arts", 
+      "Book"
+    ].includes(initialData.medium_type)
+      ? initialData.medium_type as ArtworkFormData["medium_type"]
+      : "Painting";
+
+  // Cast classification to the correct ArtworkFormData type
+  const classificationValue = 
+    initialData?.classification &&
+    [
+      "Unique", 
+      "Limited Edition", 
+      "Open Edition", 
+      "Unknown Edition"
+    ].includes(initialData.classification)
+      ? initialData.classification as ArtworkFormData["classification"]
+      : "Unique";
+
   const form = useForm<ArtworkFormData>({
     defaultValues: {
-      currency: currencyValue,
+      title: initialData?.title || "",
+      artist_id: initialData?.artist_id || "",
+      year: initialData?.year || undefined,
+      medium_type: mediumTypeValue,
+      materials: initialData?.materials || "",
+      classification: classificationValue,
+      edition_size: initialData?.edition_size || undefined,
+      dimensions: initialData?.dimensions || "",
+      price: initialData?.price || undefined,
+      location_id: initialData?.location_id || "",
       status: initialData?.status || 'available',
+      image_url: initialData?.image_url || "",
+      currency: currencyValue,
+      inventory_quantity: initialData?.inventory_quantity || undefined,
+      available_works: initialData?.available_works || undefined,
+      artist_proofs: initialData?.artist_proofs || undefined,
+      height: initialData?.height || undefined,
+      width: initialData?.width || undefined,
+      depth: initialData?.depth || undefined,
+      condition: initialData?.condition || "",
       signature_type: signatureTypeValue,
-      ...initialData
+      signature_details: initialData?.signature_details || "",
+      provenance: initialData?.provenance || "",
+      story: initialData?.story || "",
+      exhibition_history: initialData?.exhibition_history || ""
     }
   });
 
