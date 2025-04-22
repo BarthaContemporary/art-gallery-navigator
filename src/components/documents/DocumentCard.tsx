@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Download, FileText } from "lucide-react";
 import { Document } from "@/hooks/use-documents";
+import { useToast } from "@/hooks/use-toast";
 
 interface DocumentCardProps {
   document: Document;
@@ -25,6 +26,8 @@ const getDocumentTypeInfo = (type: string) => {
       return { color: "bg-purple-100 text-purple-800 border-purple-200" };
     case "CoA":
       return { color: "bg-amber-100 text-amber-800 border-amber-200" };
+    case "artwork_overview":
+      return { color: "bg-sky-100 text-sky-800 border-sky-200" };
     default:
       return { color: "bg-gray-100 text-gray-800 border-gray-200" };
   }
@@ -32,6 +35,29 @@ const getDocumentTypeInfo = (type: string) => {
 
 export function DocumentCard({ document }: DocumentCardProps) {
   const { color } = getDocumentTypeInfo(document.type);
+  const { toast } = useToast();
+  
+  const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    
+    try {
+      // Create a temporary anchor element
+      const link = document.createElement('a');
+      link.href = document.file_url;
+      link.target = '_blank';
+      link.download = document.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "There was an error downloading the document",
+        variant: "destructive"
+      });
+    }
+  };
   
   return (
     <Card>
@@ -44,7 +70,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`text-xs px-2 py-1 rounded-full capitalize ${color}`}>
-                  {document.type}
+                  {document.type === "artwork_overview" ? "Artwork Overview" : document.type}
                 </span>
               </div>
               <h3 className="font-semibold">{document.file_name}</h3>
@@ -59,15 +85,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
               )}
             </div>
             <div className="flex self-start">
-              <a
-                href={document.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="outline" size="sm">
-                  <Download className="mr-2 h-4 w-4" /> Download
-                </Button>
-              </a>
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" /> Download
+              </Button>
             </div>
           </div>
         </CardContent>
