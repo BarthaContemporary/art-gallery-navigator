@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Download, FileText } from "lucide-react";
+import { Calendar, Download, FileText, Edit, Trash2 } from "lucide-react";
 import { Document } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,7 +39,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
   
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
     try {
       // Create a temporary anchor element
       const link = window.document.createElement('a');
@@ -57,6 +56,24 @@ export function DocumentCard({ document }: DocumentCardProps) {
         variant: "destructive"
       });
     }
+  };
+
+  // Placeholder handlers for edit and delete
+  const handleEdit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    toast({
+      title: "Edit",
+      description: "Edit functionality not yet implemented.",
+    });
+  };
+
+  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    toast({
+      title: "Delete",
+      description: "Delete functionality not yet implemented.",
+      variant: "destructive"
+    });
   };
   
   return (
@@ -84,10 +101,42 @@ export function DocumentCard({ document }: DocumentCardProps) {
                 <p className="text-sm text-muted-foreground">{document.description}</p>
               )}
             </div>
-            <div className="flex self-start">
-              <Button variant="outline" size="sm" onClick={handleDownload}>
+            {/* Action Buttons: Download, then Edit/Delete below */}
+            <div className="flex flex-col items-start gap-2 self-start">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDownload}
+                className="w-32 flex items-center justify-center"
+              >
                 <Download className="mr-2 h-4 w-4" /> Download
               </Button>
+              <div className="flex gap-2 mt-1 w-32">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="flex-1 flex items-center justify-center border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
+                  style={{
+                    borderColor: "#9b87f5",
+                    color: "#9b87f5"
+                  }}
+                >
+                  <Edit className="mr-1 h-4 w-4" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  className="flex-1 flex items-center justify-center border-red-500 text-red-600 hover:bg-red-50"
+                  style={{
+                    borderColor: "#ea384c",
+                    color: "#ea384c"
+                  }}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
