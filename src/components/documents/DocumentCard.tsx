@@ -42,13 +42,13 @@ export function DocumentCard({ document }: DocumentCardProps) {
     
     try {
       // Create a temporary anchor element
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = document.file_url;
       link.target = '_blank';
       link.download = document.file_name;
-      document.body.appendChild(link);
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
     } catch (error) {
       console.error('Download error:', error);
       toast({
