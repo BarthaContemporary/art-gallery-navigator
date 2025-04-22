@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 interface EditArtistDialogProps {
   artist: {
@@ -104,7 +105,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   };
 
   // Reset form when the artist or dialog open state changes
-  useState(() => {
+  useEffect(() => {
     if (open) {
       reset({
         full_name: artist.full_name,

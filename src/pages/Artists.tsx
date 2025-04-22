@@ -13,6 +13,7 @@ interface Artist {
   birth_year: number | null;
   nationality: string | null;
   representation_status: string;
+  biography: string | null;
   image_url: string | null;
 }
 
