@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Download, FileText, Edit, Trash2 } from "lucide-react";
@@ -8,12 +9,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface DocumentCardProps {
   document: Document;
+  // onDelete is now unused but preserved for future extension
   onDelete?: (id: string) => void;
 }
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 const getDocumentTypeInfo = (type: string) => {
@@ -33,7 +39,7 @@ const getDocumentTypeInfo = (type: string) => {
   }
 };
 
-export function DocumentCard({ document, onDelete }: DocumentCardProps) {
+export function DocumentCard({ document }: DocumentCardProps) {
   const { color } = getDocumentTypeInfo(document.type);
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
@@ -41,19 +47,19 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
-      const link = window.document.createElement('a');
+      const link = window.document.createElement("a");
       link.href = document.file_url;
-      link.target = '_blank';
+      link.target = "_blank";
       link.download = document.file_name;
       window.document.body.appendChild(link);
       link.click();
       window.document.body.removeChild(link);
     } catch (error) {
-      console.error('Download error:', error);
+      console.error("Download error:", error);
       toast({
         title: "Download failed",
         description: "There was an error downloading the document",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -70,6 +76,7 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
     e.preventDefault();
     if (deleting) return;
     setDeleting(true);
+
     const { error } = await supabase
       .from("documents")
       .delete()
@@ -80,7 +87,7 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
       toast({
         title: "Delete failed",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -89,8 +96,6 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
       title: "Document deleted",
       description: `${document.file_name} was deleted.`,
     });
-
-    if (onDelete) onDelete(document.id);
   };
 
   return (
@@ -118,44 +123,42 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
                 <p className="text-sm text-muted-foreground">{document.description}</p>
               )}
             </div>
-            <div className="flex flex-col items-start gap-2 self-start">
-              <Button 
-                variant="outline" 
-                size="sm" 
+            <div className="flex gap-2 mt-1 self-start">
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={handleDownload}
-                className="w-32 flex items-center justify-center"
+                aria-label="Download"
               >
-                <Download className="mr-2 h-4 w-4" /> Download
+                <Download className="h-4 w-4" />
               </Button>
-              <div className="flex gap-2 mt-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleEdit}
-                  className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
-                  style={{
-                    borderColor: "#9b87f5",
-                    color: "#9b87f5"
-                  }}
-                  aria-label="Edit"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="border-red-500 text-red-600 hover:bg-red-50"
-                  style={{
-                    borderColor: "#ea384c",
-                    color: "#ea384c"
-                  }}
-                  aria-label="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleEdit}
+                className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
+                style={{
+                  borderColor: "#9b87f5",
+                  color: "#9b87f5",
+                }}
+                aria-label="Edit"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="border-red-500 text-red-600 hover:bg-red-50"
+                style={{
+                  borderColor: "#ea384c",
+                  color: "#ea384c",
+                }}
+                aria-label="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </CardContent>
