@@ -111,30 +111,30 @@ export function DocumentCard({ document }: DocumentCardProps) {
               >
                 <Download className="mr-2 h-4 w-4" /> Download
               </Button>
-              <div className="flex gap-2 mt-1 w-32">
+              <div className="flex gap-2 mt-1">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="icon"
                   onClick={handleEdit}
-                  className="flex-1 flex items-center justify-center border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
+                  className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
                   style={{
                     borderColor: "#9b87f5",
                     color: "#9b87f5"
                   }}
                 >
-                  <Edit className="mr-1 h-4 w-4" /> Edit
+                  <Edit className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="icon"
                   onClick={handleDelete}
-                  className="flex-1 flex items-center justify-center border-red-500 text-red-600 hover:bg-red-50"
+                  className="border-red-500 text-red-600 hover:bg-red-50"
                   style={{
                     borderColor: "#ea384c",
                     color: "#ea384c"
                   }}
                 >
-                  <Trash2 className="mr-1 h-4 w-4" /> Delete
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
