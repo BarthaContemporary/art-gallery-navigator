@@ -1,4 +1,3 @@
-
 import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -6,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
+import { EditArtworkDialog } from "./EditArtworkDialog";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -21,6 +22,12 @@ const statusIcons = {
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const { isAdmin } = useAuth();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const handleEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditDialogOpen(true);
+  };
 
   return (
     <Card className="group relative">
@@ -29,10 +36,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           size="icon" 
           variant="ghost" 
           className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Edit functionality will be implemented here
-          }}
+          onClick={handleEdit}
         >
           <Edit className="h-4 w-4" />
           <span className="sr-only">Edit {artwork.title}</span>
@@ -60,9 +64,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
       </Dialog>
       <CardContent 
         className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={() => {
-          // Edit functionality will be implemented here
-        }}
+        onClick={handleEdit}
       >
         <ScrollArea className="h-[200px] pr-4">
           <div className="flex flex-col space-y-4">
@@ -109,6 +111,12 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           </div>
         </ScrollArea>
       </CardContent>
+      
+      <EditArtworkDialog
+        artwork={artwork}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
     </Card>
   );
 }

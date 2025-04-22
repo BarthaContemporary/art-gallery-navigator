@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -18,18 +17,20 @@ import { ConditionSignatureFields } from "./form/ConditionSignatureFields";
 import { ProvenanceStoryFields } from "./form/ProvenanceStoryFields";
 import { ArtworkFormData } from "./form/types";
 
-export function CreateArtworkForm({
-  setOpen,
-}: {
+interface CreateArtworkFormProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
-}) {
+  initialData?: Artwork;
+}
+
+export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormProps) {
   const { toast } = useToast();
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const form = useForm<ArtworkFormData>({
     defaultValues: {
-      currency: 'USD',
-      status: 'available',
-      signature_type: 'not signed'
+      currency: initialData?.currency || 'USD',
+      status: initialData?.status || 'available',
+      signature_type: initialData?.signature_type || 'not signed',
+      ...initialData
     }
   });
   const classification = form.watch('classification');
@@ -72,25 +73,40 @@ export function CreateArtworkForm({
         data.depth ? `${data.depth}cm D` : ''
       ].filter(Boolean).join(' x ');
 
-      const { data: artwork, error } = await supabase
-        .from('artworks')
-        .insert([{
-          ...data,
-          dimensions: dimensions || null,
-          price: data.price ? Number(data.price) : null,
-          year: data.year ? Number(data.year) : null,
-          height: data.height ? Number(data.height) : null,
-          width: data.width ? Number(data.width) : null,
-          depth: data.depth ? Number(data.depth) : null,
-          edition_size: data.edition_size ? Number(data.edition_size) : null,
-          inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
-          available_works: data.available_works ? Number(data.available_works) : null,
-          artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
-        }])
-        .select()
-        .single();
-        
-      if (error) throw error;
+      const formattedData = {
+        ...data,
+        dimensions: dimensions || null,
+        price: data.price ? Number(data.price) : null,
+        year: data.year ? Number(data.year) : null,
+        height: data.height ? Number(data.height) : null,
+        width: data.width ? Number(data.width) : null,
+        depth: data.depth ? Number(data.depth) : null,
+        edition_size: data.edition_size ? Number(data.edition_size) : null,
+        inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
+        available_works: data.available_works ? Number(data.available_works) : null,
+        artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
+      };
+
+      if (initialData) {
+        // Update existing artwork
+        const { data: artwork, error } = await supabase
+          .from('artworks')
+          .update(formattedData)
+          .eq('id', initialData.id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+      } else {
+        // Create new artwork
+        const { data: artwork, error } = await supabase
+          .from('artworks')
+          .insert([formattedData])
+          .select()
+          .single();
+          
+        if (error) throw error;
+      }
 
       if (artwork && uploadedImageUrls.length > 0) {
         // Insert all uploaded images to artwork_images table
@@ -110,7 +126,9 @@ export function CreateArtworkForm({
       
       toast({
         title: "Success",
-        description: "Artwork has been created successfully",
+        description: initialData 
+          ? "Artwork has been updated successfully"
+          : "Artwork has been created successfully",
       });
       setOpen(false);
       form.reset();
@@ -119,7 +137,9 @@ export function CreateArtworkForm({
       console.error("Form submission error:", error);
       toast({
         title: "Error",
-        description: "There was an error creating the artwork",
+        description: initialData
+          ? "There was an error updating the artwork"
+          : "There was an error creating the artwork",
         variant: "destructive",
       });
     }
