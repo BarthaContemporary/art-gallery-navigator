@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   Users,
@@ -5,6 +6,8 @@ import {
   MapPin,
   File,
   List,
+  Settings,
+  User,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
