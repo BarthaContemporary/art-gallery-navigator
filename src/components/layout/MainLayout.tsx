@@ -1,9 +1,10 @@
 
+import { Outlet } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
-export function MainLayout({ children }: { children: React.ReactNode }) {
+export function MainLayout() {
   const { signOut } = useAuth();
 
   return (
@@ -21,7 +22,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </header>
         <main className="flex-1 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
