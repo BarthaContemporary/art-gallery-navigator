@@ -1,6 +1,5 @@
 
 import {
-  Home,
   LayoutDashboard,
   Users,
   Image,
@@ -8,85 +7,149 @@ import {
   File,
   Settings,
   User,
+  List,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useNavigate } from "react-router-dom";
-import { List } from "lucide-react"; // for collection icon
-import { Button } from "@/components/ui/button"; // Add this import
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import React from "react";
+
+// Navigation items array for easier editing and active state
+const NAV_ITEMS = [
+  {
+    name: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/",
+  },
+  {
+    name: "Artists",
+    icon: Users,
+    href: "/artists",
+  },
+  {
+    name: "Artworks",
+    icon: Image,
+    href: "/artworks",
+  },
+  {
+    name: "Collections",
+    icon: List,
+    href: "/collections",
+  },
+  {
+    name: "Locations",
+    icon: MapPin,
+    href: "/locations",
+  },
+  {
+    name: "Documents",
+    icon: File,
+    href: "/documents",
+  },
+];
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Optionally, use your own logo or branding here
+  const LOGO_SRC =
+    "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
+
   return (
-    <aside className="hidden sm:flex sm:flex-col w-56 h-full border-r bg-muted/70">
-      <nav className="flex-1 flex flex-col space-y-1 p-4">
-        <a
-          href="/"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
-        >
-          {/* dashboard icon */}
-          Dashboard
-        </a>
-        <a
-          href="/artists"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
-        >
-          {/* artist icon */}
-          Artists
-        </a>
-        <a
-          href="/artworks"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
-        >
-          {/* artwork icon */}
-          Artworks
-        </a>
-        <a
-          href="/collections"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent font-semibold"
-        >
-          <List className="w-5 h-5 mr-2" /> Collections
-        </a>
-        <a
-          href="/locations"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
-        >
-          {/* location icon */}
-          Locations
-        </a>
-        <a
-          href="/documents"
-          className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent"
-        >
-          {/* document icon */}
-          Documents
-        </a>
+    <aside
+      className="hidden sm:flex flex-col w-60 h-full border-r bg-gradient-to-b from-[#f9fafb] via-[#edf0f4] to-[#e3e6ed] dark:from-sidebar-background dark:via-sidebar-background dark:to-[#1f232d] shadow-md"
+      style={{
+        minHeight: "100vh",
+      }}
+    >
+      <div className="flex items-center gap-2 justify-center h-16 border-b mb-2">
+        <img
+          className="h-9 w-auto"
+          src={LOGO_SRC}
+          alt="Gallery Logo"
+          style={{ maxWidth: 120 }}
+        />
+        {/* Optional: Replace with your logo or text */}
+      </div>
+      <nav className="flex-1 flex flex-col px-3 py-2 gap-2">
+        <div className="font-medium text-xs text-muted-foreground px-2 pt-1 pb-2 tracking-wide uppercase">
+          Menu
+        </div>
+        {NAV_ITEMS.map((item) => {
+          const isActive =
+            location.pathname === item.href ||
+            (item.href !== "/" && location.pathname.startsWith(item.href));
+          return (
+            <a
+              href={item.href}
+              key={item.name}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-colors
+              ${
+                isActive
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "hover:bg-accent hover:text-accent-foreground text-gray-800 dark:text-sidebar-foreground"
+              }`}
+              style={{ fontWeight: isActive ? 600 : 500 }}
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              <span>{item.name}</span>
+            </a>
+          );
+        })}
+        <div className="flex-1" />
       </nav>
-      <div className="p-4">
+      {/* User Section */}
+      <div className="border-t px-4 py-4 mt-auto bg-white/60 dark:bg-[#181b21]/80">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex h-8 w-full items-center justify-between rounded-md px-3">
+            <Button
+              variant="ghost"
+              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 hover:bg-accent"
+            >
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.user_metadata.avatar_url} />
-                  <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>
+                    {user?.email?.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
-                <span className="text-sm">{user?.email}</span>
+                <span className="text-xs font-semibold truncate max-w-[100px]">
+                  {user?.email}
+                </span>
               </div>
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 text-muted-foreground ml-1" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white dark:bg-[#232630]">
+            <DropdownMenuLabel className="text-xs">My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/signup")}>
+            <DropdownMenuItem
+              onClick={() => navigate("/signup")}
+              className="cursor-pointer"
+            >
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut()}>
+            <DropdownMenuItem
+              onClick={() => signOut()}
+              className="cursor-pointer text-destructive"
+            >
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
