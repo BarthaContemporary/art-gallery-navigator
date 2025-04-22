@@ -103,23 +103,18 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     }
   };
 
-  // Reset form fields if artist data changes or dialog is closed
-  // (So new edit always reflects latest db state)
-  // Note: you may choose to fine-tune this for perf or field preservation
-  // right now we reset all fields on open/close
-  // React hook form does NOT reset by default with changing defaultValues!
-  // Reset manually on dialog open/close:
-  // eslint-disable-next-line
-  // @ts-ignore
+  // Reset form when the artist or dialog open state changes
   useState(() => {
-    if (open) reset({
-      full_name: artist.full_name,
-      birth_year: artist.birth_year || undefined,
-      nationality: artist.nationality || "",
-      biography: artist.biography || "",
-      representation_status: (artist.representation_status as RepresentationStatus) || "not represented",
-    });
-  }, [open, artist]);
+    if (open) {
+      reset({
+        full_name: artist.full_name,
+        birth_year: artist.birth_year || undefined,
+        nationality: artist.nationality || "",
+        biography: artist.biography || "",
+        representation_status: (artist.representation_status as RepresentationStatus) || "not represented",
+      });
+    }
+  }, [open, artist, reset]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

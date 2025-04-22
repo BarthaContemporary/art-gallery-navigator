@@ -13,7 +13,7 @@ interface ArtistCardProps {
     birth_year: number | null;
     nationality: string | null;
     representation_status: string | null;
-    biography?: string | null;
+    biography: string | null;
     image_url: string | null;
   };
 }
