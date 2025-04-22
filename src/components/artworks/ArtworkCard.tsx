@@ -1,9 +1,11 @@
 
-import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
+import { Check, Clock, DollarSign, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { Artwork } from "@/hooks/use-artworks";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -18,8 +20,10 @@ const statusIcons = {
 };
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
+  const { isAdmin } = useAuth();
+
   return (
-    <Card>
+    <Card className="group">
       <Dialog>
         <DialogTrigger asChild>
           <div className="aspect-[4/3] w-full overflow-hidden cursor-pointer">
@@ -31,11 +35,23 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           </div>
         </DialogTrigger>
         <DialogContent className="max-w-4xl">
-          <img
-            src={artwork.image_url || "/placeholder.svg"}
-            alt={artwork.title}
-            className="w-full h-auto"
-          />
+          <div className="relative">
+            <img
+              src={artwork.image_url || "/placeholder.svg"}
+              alt={artwork.title}
+              className="w-full h-auto"
+            />
+            {isAdmin && (
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="sr-only">Edit {artwork.title}</span>
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
       <CardContent className="p-4">
