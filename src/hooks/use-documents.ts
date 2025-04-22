@@ -34,14 +34,16 @@ export function useDocuments() {
 
   // Real-time subscription for live updates
   useEffect(() => {
-    const channel = supabase.channel("documents-liveview")
+    const channel = supabase
+      .channel("documents-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "documents" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["documents"] });
         }
-      ).subscribe();
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);

@@ -6,11 +6,10 @@ import { Document } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface DocumentCardProps {
   document: Document;
-  // onDelete is now unused but preserved for future extension
-  onDelete?: (id: string) => void;
 }
 
 const formatDate = (dateStr: string) => {
@@ -43,6 +42,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
   const { color } = getDocumentTypeInfo(document.type);
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -81,6 +81,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
       .from("documents")
       .delete()
       .eq("id", document.id);
+    
     setDeleting(false);
 
     if (error) {
@@ -96,6 +97,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
       title: "Document deleted",
       description: `${document.file_name} was deleted.`,
     });
+    
+    // Invalidate the query to refresh the documents list
+    queryClient.invalidateQueries({ queryKey: ["documents"] });
   };
 
   return (
