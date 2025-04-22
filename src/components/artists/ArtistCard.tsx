@@ -10,13 +10,31 @@ interface ArtistCardProps {
     full_name: string;
     birth_year: number | null;
     nationality: string | null;
-    representation_status: string;
+    representation_status: string | null;
     image_url: string | null;
   };
 }
 
 export const ArtistCard = ({ artist }: ArtistCardProps) => {
   const { isAdmin } = useAuth();
+  
+  // Format the representation status safely
+  const formattedStatus = artist.representation_status 
+    ? artist.representation_status.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+    : "Unknown";
+  
+  // Determine badge color based on status
+  const getBadgeColor = () => {
+    if (!artist.representation_status) return "bg-gray-100 text-gray-800";
+    
+    if (artist.representation_status === "represented") {
+      return "bg-green-100 text-green-800";
+    } else if (artist.representation_status === "formerly represented") {
+      return "bg-amber-100 text-amber-800";
+    } else {
+      return "bg-gray-100 text-gray-800";
+    }
+  };
 
   return (
     <Card key={artist.id} className="overflow-hidden group relative">
@@ -46,14 +64,8 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
             </p>
           </div>
           <div>
-            <span className={`text-xs px-2 py-1 rounded-full ${
-              artist.representation_status === "represented" 
-                ? "bg-green-100 text-green-800" 
-                : artist.representation_status === "formerly represented" 
-                ? "bg-amber-100 text-amber-800"
-                : "bg-gray-100 text-gray-800"
-            }`}>
-              {artist.representation_status.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+            <span className={`text-xs px-2 py-1 rounded-full ${getBadgeColor()}`}>
+              {formattedStatus}
             </span>
           </div>
         </div>

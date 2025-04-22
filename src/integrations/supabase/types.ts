@@ -90,7 +90,7 @@ export type Database = {
         Row: {
           artist_id: string | null
           artist_proofs: number | null
-          available_works: number | null
+          available_works: string | null
           classification: string
           condition: string | null
           crate_depth: number | null
@@ -130,7 +130,7 @@ export type Database = {
         Insert: {
           artist_id?: string | null
           artist_proofs?: number | null
-          available_works?: number | null
+          available_works?: string | null
           classification: string
           condition?: string | null
           crate_depth?: number | null
@@ -170,7 +170,7 @@ export type Database = {
         Update: {
           artist_id?: string | null
           artist_proofs?: number | null
-          available_works?: number | null
+          available_works?: string | null
           classification?: string
           condition?: string | null
           crate_depth?: number | null
