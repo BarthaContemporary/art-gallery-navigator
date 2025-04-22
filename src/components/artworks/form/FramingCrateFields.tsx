@@ -4,7 +4,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { ArtworkFormData } from "./types";
-import { RulerIcon, Weight, SquareDashed } from "lucide-react";
+import { RulerIcon, Weight, SquareDashed, Box } from "lucide-react";
 
 interface FramingCrateFieldsProps {
   form: UseFormReturn<ArtworkFormData>;
@@ -104,7 +104,7 @@ export function FramingCrateFields({ form }: FramingCrateFieldsProps) {
         render={({ field }) => (
           <FormItem className="flex items-center gap-4">
             <FormLabel className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
+              <Box className="h-4 w-4" />
               Is there a Crate?
             </FormLabel>
             <FormControl>

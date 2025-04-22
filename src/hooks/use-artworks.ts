@@ -29,6 +29,16 @@ export interface Artwork {
   height?: number | null;
   width?: number | null;
   depth?: number | null;
+  // New properties for framing, crate and weight
+  is_framed?: boolean | null;
+  frame_height?: number | null;
+  frame_width?: number | null;
+  frame_depth?: number | null;
+  weight?: number | null;
+  has_crate?: boolean | null;
+  crate_height?: number | null;
+  crate_width?: number | null;
+  crate_depth?: number | null;
 }
 
 export function useArtworks() {
