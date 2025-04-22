@@ -1,10 +1,16 @@
 
 import { useState } from "react";
-import { CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
+
+// Color theme constants for easy updates and CSS consistency
+const ARTIST_COLOR = "#18465a";
+const LINK_COLOR = "#910000";
+const HOVER_COLOR = "#455118";
+const BG_GRAY = "#F1F1F1";
 
 interface ArtistCardProps {
   artist: {
@@ -18,47 +24,63 @@ interface ArtistCardProps {
   };
 }
 
+// Badge color and label for artist's status
+function getBadgeProps(status: string | null) {
+  if (!status)
+    return {
+      color: "bg-[#F1F1F1] text-[#18465a]",
+      label: "Unknown",
+    };
+  if (status === "represented")
+    return {
+      color: "bg-[#F2FCE2] text-[#18465a]",
+      label: "Represented",
+    };
+  if (status === "formerly represented")
+    return {
+      color: "bg-[#FEF7CD] text-[#18465a]",
+      label: "Formerly Represented",
+    };
+  return {
+    color: "bg-[#F1F1F1] text-[#18465a]",
+    label: status
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" "),
+  };
+}
+
 export const ArtistCard = ({ artist }: ArtistCardProps) => {
   const { isAdmin } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
 
-  const formattedStatus = artist.representation_status
-    ? artist.representation_status
-        .split(" ")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ")
-    : "Unknown";
+  const badge = getBadgeProps(artist.representation_status);
 
-  // Badge color per status (soft green, yellow, or gray by status)
-  const getBadgeColor = () => {
-    if (!artist.representation_status) return "bg-[#F1F1F1] text-[#18465a]";
-    if (artist.representation_status === "represented") {
-      return "bg-[#F2FCE2] text-[#18465a]";
-    } else if (artist.representation_status === "formerly represented") {
-      return "bg-[#FEF7CD] text-[#18465a]";
-    } else {
-      return "bg-[#F1F1F1] text-[#18465a]";
-    }
-  };
-
-  const handleCardClick = () => {
-    if (isAdmin) {
-      setEditOpen(true);
-    }
+  // For admin overlay button
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditOpen(true);
   };
 
   return (
     <>
-      <div
+      <Card
         data-testid="ArtistCard"
-        className="w-full rounded-xl border bg-card shadow hover:shadow-md transition group flex flex-col overflow-hidden h-[340px] cursor-pointer focus-within:ring-2 focus-within:ring-[#18465a]/50"
+        onClick={isAdmin ? () => setEditOpen(true) : undefined}
         tabIndex={isAdmin ? 0 : -1}
-        onClick={handleCardClick}
+        className={
+          [
+            "relative group flex flex-col overflow-hidden cursor-pointer transition-shadow h-[340px] bg-white outline-none",
+            "border border-[#EEE]",
+            "hover:shadow-lg",
+            "focus-within:ring-2 focus-within:ring-[#18465a]/50",
+          ].join(" ")
+        }
         aria-label={isAdmin ? `Edit ${artist.full_name}` : undefined}
         style={{ background: "#fff" }}
       >
         {/* Artist image */}
-        <div className="relative w-full h-[168px] bg-[#F1F1F1] flex items-center justify-center overflow-hidden">
+        <div className="relative w-full h-[168px] bg-[#F1F1F1] overflow-hidden flex items-center justify-center">
           <img
             src={
               artist.image_url ||
@@ -66,71 +88,80 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
             }
             alt={artist.full_name}
             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+            draggable={false}
+            loading="lazy"
           />
           {isAdmin && (
             <Button
               size="icon"
               variant="ghost"
-              className="absolute top-3 right-3 z-10 rounded-full bg-white/80 hover:bg-[#18465a] hover:text-white text-[#18465a] p-2 border border-[#18465a] shadow"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditOpen(true);
-              }}
-              style={{
-                boxShadow: "0 2px 10px 0 rgba(24,70,90,0.06)",
-              }}
+              className="absolute top-2 right-2 z-10 h-8 w-8 bg-white/80 border border-[#18465a] shadow hover:bg-[#18465a] hover:text-white text-[#18465a] transition"
+              onClick={handleEditClick}
+              tabIndex={0}
+              style={{ boxShadow: "0 2px 10px 0 rgba(24,70,90,0.07)" }}
+              aria-label={`Edit ${artist.full_name}`}
             >
-              <Edit className="h-5 w-5" />
+              <Edit className="h-4 w-4" />
             </Button>
           )}
         </div>
         {/* Card content */}
-        <CardContent className="flex flex-col flex-1 justify-between p-4">
-          <div className="flex flex-col gap-2 flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditOpen(true);
-                    }}
-                    className="text-lg font-bold transition-colors underline text-[#18465a] hover:text-[#455118]/90 focus:outline-none"
-                    aria-label={`Edit ${artist.full_name}`}
-                    style={{ textDecorationThickness: "2px", textUnderlineOffset: "3px" }}
-                  >
-                    {artist.full_name}
-                  </button>
-                ) : (
-                  <h3 className="font-bold text-lg text-[#18465a]">{artist.full_name}</h3>
-                )}
-              </div>
-              <span
-                className={`ml-2 text-xs px-2 py-1 rounded-full font-semibold transition ${getBadgeColor()}`}
+        <CardContent
+          className="w-full flex-1 flex flex-col px-4 pt-4 pb-3.5"
+        >
+          <div className="flex items-start justify-between">
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={handleEditClick}
+                className="text-base font-bold leading-tight underline text-[#18465a] hover:text-[#455118] transition-colors focus:outline-none"
+                aria-label={`Edit ${artist.full_name}`}
+                style={{
+                  textDecorationThickness: 2,
+                  textUnderlineOffset: 3,
+                }}
               >
-                {formattedStatus}
-              </span>
-            </div>
-            <div className="text-sm text-muted-foreground text-[#8E9196] mt-1">
-              <span>
-                {artist.nationality}
-                {artist.nationality && artist.birth_year ? ", " : ""}
-                {artist.birth_year && (
-                  <span className="text-[#18465a] font-medium">b. {artist.birth_year}</span>
-                )}
-                {!artist.nationality && !artist.birth_year && "—"}
-              </span>
-            </div>
-            {artist.biography && (
-              <p className="mt-2 text-xs line-clamp-2 text-[#555]">{artist.biography}</p>
+                {artist.full_name}
+              </button>
+            ) : (
+              <h3
+                className="font-bold text-base text-[#18465a] leading-tight"
+                style={{ lineHeight: 1.3 }}
+              >
+                {artist.full_name}
+              </h3>
             )}
+            <span
+              className={`ml-2 text-xs px-2 py-0.5 rounded-full font-medium border ${badge.color} border-[#EEE]`}
+            >
+              {badge.label}
+            </span>
           </div>
+          <div className="text-xs text-[#8E9196] mt-2">
+            {artist.nationality}
+            {artist.nationality && artist.birth_year ? ", " : ""}
+            {artist.birth_year && (
+              <span className="text-[#18465a] font-medium">
+                b. {artist.birth_year}
+              </span>
+            )}
+            {!artist.nationality && !artist.birth_year && <span>—</span>}
+          </div>
+          {artist.biography && (
+            <p className="mt-2 text-xs text-[#555] leading-snug line-clamp-2">
+              {artist.biography}
+            </p>
+          )}
         </CardContent>
-      </div>
+      </Card>
       {isAdmin && (
-        <EditArtistDialog artist={artist} open={editOpen} onOpenChange={setEditOpen} />
+        <EditArtistDialog
+          artist={artist}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
       )}
     </>
   );
 };
+
