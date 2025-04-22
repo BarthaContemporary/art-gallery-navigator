@@ -1,9 +1,8 @@
-
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { ImageUploader } from "./ImageUploader";
+import { MultipleImageUploader } from "./MultipleImageUploader";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dispatch, SetStateAction } from "react";
@@ -55,20 +54,46 @@ export function CreateArtworkForm({
     }
   });
 
-  const handleImageUploaded = (url: string) => {
-    form.setValue("image_url", url);
+  const handleImagesUploaded = async (urls: string[]) => {
+    if (urls.length > 0) {
+      form.setValue("image_url", urls[0]);
+      
+      const artworkId = form.getValues("id");
+      if (artworkId) {
+        try {
+          const images = urls.map((url, index) => ({
+            artwork_id: artworkId,
+            image_url: url,
+            is_primary: index === 0,
+            display_order: index
+          }));
+
+          const { error } = await supabase
+            .from('artwork_images')
+            .insert(images);
+
+          if (error) throw error;
+        } catch (error) {
+          console.error("Error saving additional images:", error);
+          toast({
+            title: "Error",
+            description: "Failed to save additional images",
+            variant: "destructive",
+          });
+        }
+      }
+    }
   };
 
   const onSubmit = async (data: ArtworkFormData) => {
     try {
-      // Format dimensions string
       const dimensions = [
         data.height ? `${data.height}cm H` : '',
         data.width ? `${data.width}cm W` : '',
         data.depth ? `${data.depth}cm D` : ''
       ].filter(Boolean).join(' x ');
 
-      const { error } = await supabase
+      const { data: artwork, error } = await supabase
         .from('artworks')
         .insert([{
           ...data,
@@ -82,11 +107,26 @@ export function CreateArtworkForm({
           inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
           available_works: data.available_works ? Number(data.available_works) : null,
           artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null
-        }]);
+        }])
+        .select()
+        .single();
         
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (error) throw error;
+
+      if (artwork) {
+        const imageUrl = form.getValues("image_url");
+        if (imageUrl) {
+          const { error: imageError } = await supabase
+            .from('artwork_images')
+            .insert([{
+              artwork_id: artwork.id,
+              image_url: imageUrl,
+              is_primary: true,
+              display_order: 0
+            }]);
+            
+          if (imageError) throw imageError;
+        }
       }
       
       toast({
@@ -123,9 +163,9 @@ export function CreateArtworkForm({
           name="image_url"
           render={() => (
             <FormItem>
-              <FormLabel>Image</FormLabel>
+              <FormLabel>Images</FormLabel>
               <FormControl>
-                <ImageUploader onImageUploaded={handleImageUploaded} />
+                <MultipleImageUploader onImagesUploaded={handleImagesUploaded} />
               </FormControl>
               <FormMessage />
             </FormItem>
