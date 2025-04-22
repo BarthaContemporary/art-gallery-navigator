@@ -47,7 +47,7 @@ export default function UserSignup() {
       if (userId) {
         const { error: roleError } = await supabase
           .from("user_roles")
-          .insert({ user_id: userId, role: role });
+          .insert({ user_id: userId, role });
         if (roleError) {
           throw roleError;
         }
