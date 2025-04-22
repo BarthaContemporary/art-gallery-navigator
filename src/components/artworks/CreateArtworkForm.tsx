@@ -29,9 +29,9 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const form = useForm<ArtworkFormData>({
     defaultValues: {
-      currency: initialData?.currency || 'USD',
+      currency: (initialData?.currency as "USD" | "GBP" | "EUR" | "CHF") || 'USD',
       status: initialData?.status || 'available',
-      signature_type: initialData?.signature_type || 'not signed',
+      signature_type: initialData?.signature_type as ArtworkFormData['signature_type'] || 'not signed',
       ...initialData
     }
   });
