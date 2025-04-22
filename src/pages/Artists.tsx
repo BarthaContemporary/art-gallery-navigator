@@ -6,6 +6,9 @@ import { ArtistHeader } from "@/components/artists/ArtistHeader";
 import { SearchBar } from "@/components/artists/SearchBar";
 import { ArtistCard } from "@/components/artists/ArtistCard";
 import { LoadingSkeleton } from "@/components/artists/LoadingSkeleton";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface Artist {
   id: string;
@@ -40,9 +43,90 @@ const Artists = () => {
     (artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase()))
   ) ?? [];
 
+  // Helper function to format CSV values
+  const formatCSVValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return String(value);
+  };
+
+  // Export artists to CSV
+  const exportArtistsToCSV = (artistsToExport: Artist[], filename: string = 'artists.csv') => {
+    if (!artistsToExport.length) {
+      toast.error("No artists to export");
+      return;
+    }
+
+    // Define headers
+    const headers = ['id', 'full_name', 'email', 'birth_year', 'nationality', 'representation_status', 'biography', 'image_url'];
+    
+    // Create the CSV header row
+    const csvHeader = headers.map(formatCSVValue).join(',');
+    
+    // Create CSV rows for each artist
+    const csvRows = artistsToExport.map(artist => {
+      return headers.map(header => {
+        const value = artist[header as keyof Artist];
+        return formatCSVValue(value);
+      }).join(',');
+    });
+    
+    // Combine header and data rows
+    const csvContent = [csvHeader, ...csvRows].join('\n');
+    
+    // Create a blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`Exported ${artistsToExport.length} artists to CSV`);
+  };
+
+  const handleExportAll = () => {
+    if (artists) {
+      exportArtistsToCSV(artists, 'all_artists.csv');
+    }
+  };
+
+  const handleExportFiltered = () => {
+    if (filteredArtists.length) {
+      exportArtistsToCSV(filteredArtists, 'filtered_artists.csv');
+    }
+  };
+
   return (
     <div className="pt-6 pb-6 px-6">
-      <ArtistHeader />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <ArtistHeader />
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            className="flex gap-2"
+            onClick={handleExportFiltered}
+            disabled={!filteredArtists.length}
+          >
+            <Download className="h-4 w-4" />
+            Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
+          </Button>
+          {filteredArtists.length !== artists?.length && artists?.length > 0 && (
+            <Button 
+              variant="outline" 
+              className="flex gap-2"
+              onClick={handleExportAll}
+            >
+              <Download className="h-4 w-4" />
+              Export All ({artists.length})
+            </Button>
+          )}
+        </div>
+      </div>
       <div className="mt-6 mb-8">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
       </div>

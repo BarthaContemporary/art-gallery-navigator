@@ -1,5 +1,5 @@
 
-import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown } from "lucide-react";
+import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,6 +8,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { EditArtworkDialog } from "./EditArtworkDialog";
 import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
+import { exportArtworksToCSV } from "@/lib/csv-utils";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -36,18 +43,37 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     setOverviewDialogOpen(true);
   };
 
+  const handleExport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    exportArtworksToCSV([artwork], `artwork_${artwork.id}.csv`);
+  };
+
   return (
     <Card className="group relative">
       {isAdmin && (
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
-          onClick={handleEdit}
-        >
-          <Edit className="h-4 w-4" />
-          <span className="sr-only">Edit {artwork.title}</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Edit className="h-4 w-4" />
+              <span className="sr-only">Actions for {artwork.title}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleEdit}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export as CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       <div 
         className="aspect-[4/3] w-full overflow-hidden cursor-pointer"

@@ -5,6 +5,10 @@ import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { useArtworks } from "@/hooks/use-artworks";
+import { Button } from "@/components/ui/button";
+import { Download, FileUp } from "lucide-react";
+import { exportArtworksToCSV } from "@/lib/csv-utils";
+import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,6 +24,18 @@ const Artworks = () => {
     
     return matchesSearch && matchesStatus;
   }) ?? [];
+
+  const handleExportAll = () => {
+    if (artworks) {
+      exportArtworksToCSV(artworks, 'all_artworks.csv');
+    }
+  };
+
+  const handleExportFiltered = () => {
+    if (filteredArtworks.length) {
+      exportArtworksToCSV(filteredArtworks, 'filtered_artworks.csv');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -46,7 +62,29 @@ const Artworks = () => {
             Browse and manage your gallery inventory
           </p>
         </div>
-        <CreateArtworkDialog />
+        <div className="flex flex-wrap gap-2">
+          <ImportCSVDialog />
+          <Button 
+            variant="outline" 
+            className="flex gap-2"
+            onClick={handleExportFiltered}
+            disabled={!filteredArtworks.length}
+          >
+            <Download className="h-4 w-4" />
+            Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
+          </Button>
+          {filteredArtworks.length !== artworks?.length && artworks?.length > 0 && (
+            <Button 
+              variant="outline" 
+              className="flex gap-2"
+              onClick={handleExportAll}
+            >
+              <Download className="h-4 w-4" />
+              Export All ({artworks.length})
+            </Button>
+          )}
+          <CreateArtworkDialog />
+        </div>
       </div>
 
       <div className="mb-8 flex flex-col sm:flex-row items-stretch gap-4">
