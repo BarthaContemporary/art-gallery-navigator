@@ -19,7 +19,7 @@ export default function UserSignup() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState<"gallery_admin" | "artist">("artist");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -44,10 +44,10 @@ export default function UserSignup() {
       // Add admin role if selected
       // This requires an RPC or insert into user_roles. We use user id from the sign up result.
       const userId = data.user?.id;
-      if (userId && role === "admin") {
+      if (userId) {
         const { error: roleError } = await supabase
           .from("user_roles")
-          .insert([{ user_id: userId, role: "admin" }]);
+          .insert({ user_id: userId, role: role });
         if (roleError) {
           throw roleError;
         }
@@ -60,7 +60,7 @@ export default function UserSignup() {
       });
       setEmail("");
       setPassword("");
-      setRole("user");
+      setRole("artist");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -114,11 +114,11 @@ export default function UserSignup() {
               <select
                 id="user-role"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => setRole(e.target.value as "gallery_admin" | "artist")}
                 className="w-full border rounded-md px-3 py-2 text-base bg-white"
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="artist">Artist</option>
+                <option value="gallery_admin">Admin</option>
               </select>
             </div>
             <Button 
