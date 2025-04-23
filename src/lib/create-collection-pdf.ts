@@ -7,19 +7,45 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
   console.log("Creating PDF for collection:", collection.name);
   
   try {
-    // Ensure a valid file name
-    const fileName = `collection_${collection.id}_${Date.now()}.html`;
+    // First check if the bucket exists
+    const { data: bucketData, error: bucketError } = await supabase
+      .storage
+      .getBucket('documents');
     
-    // Create a simple HTML string to represent collection data
+    if (bucketError) {
+      console.error("Storage bucket error:", bucketError);
+      
+      if (bucketError.message.includes("not found")) {
+        toast.error("Storage bucket 'documents' not found. Please contact the administrator.");
+        throw new Error("Storage bucket not found. Please set up the documents bucket in Supabase.");
+      }
+      
+      toast.error("Storage error: " + bucketError.message);
+      throw bucketError;
+    }
+    
+    console.log("Bucket exists:", bucketData);
+    
+    // Ensure a valid file name
+    const fileName = `collection_${collection.id}_${Date.now()}.pdf`;
+    const htmlFileName = `collection_${collection.id}_${Date.now()}.html`;
+    
+    // Create HTML content to represent collection data
     const htmlContent = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Collection: ${collection.name}</title>
+          <meta charset="UTF-8">
           <style>
             body { font-family: Arial, sans-serif; margin: 30px; }
             h1 { color: #333; }
             .artwork { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
             .artwork:last-child { border-bottom: none; }
+            @media print {
+              body { margin: 0; }
+              .page-break { page-break-after: always; }
+            }
           </style>
         </head>
         <body>
@@ -42,29 +68,34 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     const blob = new Blob([htmlContent], { type: 'text/html' });
     
     // Upload to Supabase storage
+    console.log("Uploading HTML to storage...");
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("documents")
-      .upload(fileName, blob, {
+      .upload(htmlFileName, blob, {
         contentType: 'text/html',
         upsert: true
       });
     
     if (uploadError) {
-      console.error("Error uploading PDF:", uploadError);
-      toast.error("Failed to upload document");
+      console.error("Error uploading document:", uploadError);
+      toast.error("Failed to upload document: " + uploadError.message);
       throw uploadError;
     }
+    
+    console.log("Upload successful:", uploadData);
     
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from("documents")
-      .getPublicUrl(fileName);
+      .getPublicUrl(htmlFileName);
+    
+    console.log("Public URL:", publicUrl);
     
     // Create a document record in the database
     const { error: documentError } = await supabase
       .from("documents")
       .insert({
-        file_name: fileName,
+        file_name: htmlFileName,
         file_url: publicUrl,
         type: "collection_overview",
         description: `Overview document for ${collection.name}`,
@@ -72,16 +103,21 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     
     if (documentError) {
       console.error("Error creating document record:", documentError);
-      toast.error("Failed to create document record");
+      toast.error("Failed to create document record: " + documentError.message);
     }
     
-    // Open the PDF in a new tab
-    window.open(publicUrl, '_blank');
+    // Create a link element to trigger download
+    const downloadLink = document.createElement("a");
+    downloadLink.href = publicUrl;
+    downloadLink.target = "_blank";
+    downloadLink.rel = "noopener noreferrer";
+    downloadLink.click();
     
+    toast.success("Document ready for viewing");
     return publicUrl;
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    toast.error("Failed to generate PDF");
+    console.error("Error generating document:", error);
+    toast.error("Failed to generate document: " + (error as Error).message);
     throw error;
   }
 }

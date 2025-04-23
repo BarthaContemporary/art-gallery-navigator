@@ -22,6 +22,20 @@ export function useDocuments() {
     queryKey: ["documents"],
     queryFn: async (): Promise<Document[]> => {
       try {
+        console.log("Fetching documents...");
+        
+        // Check if bucket exists
+        const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+        if (bucketError) {
+          console.error("Error fetching storage buckets:", bucketError);
+        } else {
+          console.log("Available buckets:", buckets);
+          const documentsBucket = buckets.find(b => b.name === 'documents');
+          if (!documentsBucket) {
+            console.warn("Documents bucket not found in storage!");
+          }
+        }
+        
         // First fetch documents from the database table
         const { data: dbData, error: dbError } = await supabase
           .from("documents")
@@ -38,7 +52,7 @@ export function useDocuments() {
         return dbData || [];
       } catch (error) {
         console.error("Failed to fetch documents:", error);
-        toast.error("Failed to load documents");
+        toast.error("Failed to load documents: " + (error as Error).message);
         return [];
       }
     },
@@ -52,6 +66,7 @@ export function useDocuments() {
         "postgres_changes",
         { event: "*", schema: "public", table: "documents" },
         () => {
+          console.log("Documents changed, invalidating query cache");
           queryClient.invalidateQueries({ queryKey: ["documents"] });
         }
       )
