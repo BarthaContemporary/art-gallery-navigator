@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Download, FileText, Edit, Trash2 } from "lucide-react";
+import { Calendar, Download, FileText, Trash2 } from "lucide-react";
 import { Document } from "@/hooks/use-documents";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -74,14 +74,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
     }
   };
 
-  const handleEdit = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    toast({
-      title: "Edit",
-      description: "Edit functionality not yet implemented.",
-    });
-  };
-
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -145,19 +137,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
                   aria-label="Download"
                 >
                   <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleEdit}
-                  className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
-                  style={{
-                    borderColor: "#9b87f5",
-                    color: "#9b87f5",
-                  }}
-                  aria-label="Edit"
-                >
-                  <Edit className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
