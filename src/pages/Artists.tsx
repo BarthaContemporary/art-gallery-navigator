@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +6,9 @@ import { SearchBar } from "@/components/artists/SearchBar";
 import { ArtistCard } from "@/components/artists/ArtistCard";
 import { LoadingSkeleton } from "@/components/artists/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
+import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
 
 interface Artist {
   id: string;
@@ -23,6 +23,7 @@ interface Artist {
 
 const Artists = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [createArtistDialogOpen, setCreateArtistDialogOpen] = useState(false);
 
   const { data: artists, isLoading } = useQuery({
     queryKey: ['artists'],
@@ -43,7 +44,6 @@ const Artists = () => {
     (artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase()))
   ) ?? [];
 
-  // Helper function to format CSV values
   const formatCSVValue = (value: any): string => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
@@ -52,20 +52,16 @@ const Artists = () => {
     return String(value);
   };
 
-  // Export artists to CSV
   const exportArtistsToCSV = (artistsToExport: Artist[], filename: string = 'artists.csv') => {
     if (!artistsToExport.length) {
       toast.error("No artists to export");
       return;
     }
 
-    // Define headers
     const headers = ['id', 'full_name', 'email', 'birth_year', 'nationality', 'representation_status', 'biography', 'image_url'];
     
-    // Create the CSV header row
     const csvHeader = headers.map(formatCSVValue).join(',');
     
-    // Create CSV rows for each artist
     const csvRows = artistsToExport.map(artist => {
       return headers.map(header => {
         const value = artist[header as keyof Artist];
@@ -73,10 +69,8 @@ const Artists = () => {
       }).join(',');
     });
     
-    // Combine header and data rows
     const csvContent = [csvHeader, ...csvRows].join('\n');
     
-    // Create a blob and download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -125,8 +119,22 @@ const Artists = () => {
               Export All ({artists.length})
             </Button>
           )}
+          <Button 
+            variant="default" 
+            className="flex gap-2"
+            onClick={() => setCreateArtistDialogOpen(true)}
+          >
+            <PlusCircle className="h-4 w-4" />
+            Create Artist
+          </Button>
         </div>
       </div>
+      
+      <CreateArtistDialog 
+        open={createArtistDialogOpen} 
+        onOpenChange={setCreateArtistDialogOpen} 
+      />
+
       <div className="mt-6 mb-8">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
       </div>
