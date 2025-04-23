@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Download, FileText, Edit, Trash2 } from "lucide-react";
@@ -7,6 +6,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DocumentCardProps {
   document: Document;
@@ -42,6 +51,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
   const { color } = getDocumentTypeInfo(document.type);
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
 
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -72,8 +82,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
     });
   };
 
-  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
 
@@ -83,6 +92,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
       .eq("id", document.id);
     
     setDeleting(false);
+    setShowDeleteDialog(false);
 
     if (error) {
       toast({
@@ -98,75 +108,96 @@ export function DocumentCard({ document }: DocumentCardProps) {
       description: `${document.file_name} was deleted.`,
     });
     
-    // Invalidate the query to refresh the documents list
     queryClient.invalidateQueries({ queryKey: ["documents"] });
   };
 
   return (
-    <Card>
-      <div className="flex flex-col sm:flex-row">
-        <div className="w-16 sm:w-20 flex items-center justify-center py-6 px-4 bg-muted">
-          <FileText className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <CardContent className="flex-1 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs px-2 py-1 rounded-full capitalize ${color}`}>
-                  {document.type === "artwork_overview" ? "Artwork Overview" : document.type}
-                </span>
-              </div>
-              <h3 className="font-semibold">{document.file_name}</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Uploaded on {formatDate(document.date_uploaded)}
-                </span>
-              </div>
-              {document.description && (
-                <p className="text-sm text-muted-foreground">{document.description}</p>
-              )}
-            </div>
-            <div className="flex gap-2 mt-1 self-start">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleDownload}
-                aria-label="Download"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleEdit}
-                className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
-                style={{
-                  borderColor: "#9b87f5",
-                  color: "#9b87f5",
-                }}
-                aria-label="Edit"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="border-red-500 text-red-600 hover:bg-red-50"
-                style={{
-                  borderColor: "#ea384c",
-                  color: "#ea384c",
-                }}
-                aria-label="Delete"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+    <>
+      <Card>
+        <div className="flex flex-col sm:flex-row">
+          <div className="w-16 sm:w-20 flex items-center justify-center py-6 px-4 bg-muted">
+            <FileText className="h-8 w-8 text-muted-foreground" />
           </div>
-        </CardContent>
-      </div>
-    </Card>
+          <CardContent className="flex-1 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs px-2 py-1 rounded-full capitalize ${color}`}>
+                    {document.type === "artwork_overview" ? "Artwork Overview" : document.type}
+                  </span>
+                </div>
+                <h3 className="font-semibold">{document.file_name}</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Uploaded on {formatDate(document.date_uploaded)}
+                  </span>
+                </div>
+                {document.description && (
+                  <p className="text-sm text-muted-foreground">{document.description}</p>
+                )}
+              </div>
+              <div className="flex gap-2 mt-1 self-start">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleDownload}
+                  aria-label="Download"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleEdit}
+                  className="border-primary-purple-500 text-primary-purple-700 hover:bg-primary-purple-50"
+                  style={{
+                    borderColor: "#9b87f5",
+                    color: "#9b87f5",
+                  }}
+                  aria-label="Edit"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={deleting}
+                  className="border-red-500 text-red-600 hover:bg-red-50"
+                  style={{
+                    borderColor: "#ea384c",
+                    color: "#ea384c",
+                  }}
+                  aria-label="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {document.file_name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
