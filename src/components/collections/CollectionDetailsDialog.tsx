@@ -1,4 +1,3 @@
-
 import { Collection } from "@/hooks/use-collections";
 import {
   Dialog,
@@ -27,7 +26,9 @@ export function CollectionDetailsDialog({
 }: CollectionDetailsDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
     if (isGenerating) return;
     
     try {
