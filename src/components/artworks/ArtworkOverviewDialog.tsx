@@ -29,7 +29,9 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
-  const handleCreatePDF = async () => {
+  const handleCreatePDF = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
     if (isCreatingPDF) return;
     
     try {
