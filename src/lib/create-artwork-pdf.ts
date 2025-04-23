@@ -3,18 +3,11 @@ import { Artwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// This is a placeholder function that would generate a PDF in a real implementation
-// In a complete implementation, you would use a library like jsPDF or pdfmake
-// or call a backend service to generate the PDF
 export async function createArtworkPDF(artwork: Artwork): Promise<string> {
   console.log("Creating PDF for artwork:", artwork.title);
   
   try {
-    // In a real implementation, this would create a PDF file
-    // For now, we'll just simulate the creation process with a delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Generate a PDF filename
+    // Ensure a valid file name
     const fileName = `artwork_${artwork.id}_${Date.now()}.html`;
     
     // Create a simple HTML string to represent artwork data
@@ -43,40 +36,48 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     // Convert HTML content to Blob
     const blob = new Blob([htmlContent], { type: 'text/html' });
     
-    // Check if the bucket exists before uploading
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const documentsBucketExists = buckets?.some(bucket => bucket.name === "documents");
-    
-    if (!documentsBucketExists) {
-      console.error("Documents bucket not found");
-      toast.error("Storage bucket not found. Please contact an administrator.");
-      throw new Error("Documents bucket not found");
-    }
-    
     // Upload to Supabase storage
-    const { data, error } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from("documents")
       .upload(fileName, blob, {
         contentType: 'text/html',
         upsert: true
       });
-        
-    if (error) {
-      console.error("Error uploading PDF:", error);
-      throw error;
+    
+    if (uploadError) {
+      console.error("Error uploading PDF:", uploadError);
+      toast.error("Failed to upload document");
+      throw uploadError;
     }
-      
+    
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from("documents")
       .getPublicUrl(fileName);
-        
+    
+    // Create a document record in the database
+    const { error: documentError } = await supabase
+      .from("documents")
+      .insert({
+        file_name: fileName,
+        file_url: publicUrl,
+        type: "artwork_overview",
+        description: `Overview document for ${artwork.title}`,
+        artwork_id: artwork.id
+      });
+    
+    if (documentError) {
+      console.error("Error creating document record:", documentError);
+      toast.error("Failed to create document record");
+    }
+    
     // Open the PDF in a new tab
     window.open(publicUrl, '_blank');
-      
+    
     return publicUrl;
   } catch (error) {
     console.error("Error generating PDF:", error);
+    toast.error("Failed to generate PDF");
     throw error;
   }
 }
