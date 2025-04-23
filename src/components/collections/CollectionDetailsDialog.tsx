@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download } from "lucide-react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
+import { useState } from "react";
 
 interface CollectionDetailsDialogProps {
   collection: Collection;
@@ -24,16 +25,19 @@ export function CollectionDetailsDialog({
   open,
   onOpenChange,
 }: CollectionDetailsDialogProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  
   const handleDownloadPDF = async () => {
+    if (isGenerating) return;
+    
     try {
-      toast.promise(createCollectionPDF(collection), {
-        loading: "Generating PDF...",
-        success: "PDF ready for download",
-        error: "Failed to generate PDF",
-      });
+      setIsGenerating(true);
+      await createCollectionPDF(collection);
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Failed to generate PDF");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -46,9 +50,10 @@ export function CollectionDetailsDialog({
             variant="outline" 
             className="flex items-center gap-2" 
             onClick={handleDownloadPDF}
+            disabled={isGenerating}
           >
             <Download className="h-4 w-4" />
-            Download PDF
+            {isGenerating ? "Creating PDF..." : "Download PDF"}
           </Button>
         </DialogHeader>
         {collection.description && (

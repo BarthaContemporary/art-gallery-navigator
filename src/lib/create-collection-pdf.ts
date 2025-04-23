@@ -3,6 +3,8 @@ import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export async function createCollectionPDF(collection: Collection): Promise<string> {
   console.log("Creating PDF for collection:", collection.name);
@@ -29,9 +31,9 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const safeCollectionName = collection.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const htmlFileName = `collection_${safeCollectionName}_${timestamp}_${randomStr}.html`;
+    const pdfFileName = `collection_${safeCollectionName}_${timestamp}_${randomStr}.pdf`;
     
-    console.log("Generated filename:", htmlFileName);
+    console.log("Generated filename:", pdfFileName);
     
     // Create HTML content to represent collection data with proper escaping
     const htmlContent = `
@@ -67,15 +69,52 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       </html>
     `;
     
-    // Convert HTML content to Blob
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    // Create an invisible div to render the HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '-9999px';
+    tempDiv.innerHTML = htmlContent;
+    document.body.appendChild(tempDiv);
+    
+    // Create a PDF document and add the rendered HTML content
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: 'a4'
+    });
+    
+    // Convert the HTML content to canvas and then to PDF
+    toast.loading("Generating PDF, please wait...");
+    
+    // Convert HTML to canvas
+    const canvas = await html2canvas(tempDiv, {
+      scale: 1.5, // Higher quality rendering
+      useCORS: true,
+      logging: false,
+      allowTaint: true
+    });
+    
+    // Remove the temporary div
+    document.body.removeChild(tempDiv);
+    
+    // Add canvas to PDF
+    const imgData = canvas.toDataURL('image/png');
+    const imgProps = doc.getImageProperties(imgData);
+    const pdfWidth = doc.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    
+    // Convert PDF to Blob
+    const pdfBlob = doc.output('blob');
     
     // Upload to Supabase storage
-    console.log("Uploading HTML to storage...");
+    console.log("Uploading PDF to storage...");
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("documents")
-      .upload(htmlFileName, blob, {
-        contentType: 'text/html',
+      .upload(pdfFileName, pdfBlob, {
+        contentType: 'application/pdf',
         upsert: true
       });
     
@@ -98,7 +137,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from("documents")
-      .getPublicUrl(htmlFileName);
+      .getPublicUrl(pdfFileName);
     
     console.log("Public URL:", publicUrl);
     
@@ -119,7 +158,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       const { error: updateError } = await supabase
         .from("documents")
         .update({
-          file_name: htmlFileName,
+          file_name: pdfFileName,
           file_url: publicUrl,
           description: `Overview document for ${collection.name} (updated)`,
           date_uploaded: new Date().toISOString() // Update timestamp
@@ -138,7 +177,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       const { data: newDoc, error: documentError } = await supabase
         .from("documents")
         .insert({
-          file_name: htmlFileName,
+          file_name: pdfFileName,
           file_url: publicUrl,
           type: "collection_overview",
           description: `Overview document for ${collection.name}`,
@@ -154,14 +193,16 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       }
     }
     
-    // Create a link element to trigger download and navigate to file in new tab
+    // Create a download link element to trigger download
     const downloadLink = document.createElement("a");
     downloadLink.href = publicUrl;
-    downloadLink.target = "_blank";
+    downloadLink.download = `${collection.name}.pdf`;
     downloadLink.rel = "noopener noreferrer";
+    document.body.appendChild(downloadLink);
     downloadLink.click();
+    document.body.removeChild(downloadLink);
     
-    toast.success("Document ready for viewing");
+    toast.success("Document ready for download");
     return publicUrl;
   } catch (error) {
     console.error("Error generating document:", error);
