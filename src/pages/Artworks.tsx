@@ -4,15 +4,17 @@ import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
+import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
 import { Button } from "@/components/ui/button";
-import { Download, FileUp } from "lucide-react";
+import { Download } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState<string>();
   const { data: artworks, isLoading, error } = useArtworks();
   
   const filteredArtworks = artworks?.filter(artwork => {
@@ -24,6 +26,14 @@ const Artworks = () => {
     
     return matchesSearch && matchesStatus;
   }) ?? [];
+
+  // Get unique first letters of artist names
+  const letters = Array.from(new Set(
+    filteredArtworks.map(artwork => {
+      const artistName = artwork.artist_id ? "Unknown Artist" : "Unknown Artist";
+      return artistName.charAt(0).toUpperCase();
+    })
+  )).sort();
 
   const handleExportAll = () => {
     if (artworks) {
@@ -92,7 +102,15 @@ const Artworks = () => {
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
       </div>
 
-      <ArtworkGrid artworks={filteredArtworks} />
+      {letters.length > 0 && (
+        <AlphabeticalIndex
+          letters={letters}
+          onLetterClick={setActiveIndex}
+          activeLetter={activeIndex}
+        />
+      )}
+
+      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} />
     </div>
   );
 };
