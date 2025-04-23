@@ -1,3 +1,4 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,7 +16,8 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       throw new Error("Authentication required");
     }
     
-    // Simplified bucket check
+    // Check if bucket exists
+    console.log("Checking for documents bucket...");
     const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
     
     if (bucketError) {
@@ -24,19 +26,23 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       throw bucketError;
     }
 
-    const hasDocumentsBucket = buckets.some(bucket => bucket.name === 'documents');
+    const documentsBucket = buckets.find(bucket => bucket.name === 'documents');
     
-    if (!hasDocumentsBucket) {
-      console.error("Documents bucket not found");
-      toast.error("Documents storage not configured");
+    if (!documentsBucket) {
+      console.error("Documents bucket not found, available buckets:", buckets.map(b => b.name).join(", "));
+      toast.error("Documents storage not configured properly");
       throw new Error("Documents bucket is missing");
     }
+    
+    console.log("Documents bucket found:", documentsBucket.id);
     
     // Ensure a valid file name with timestamp and random string to prevent overwrites
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const safeCollectionName = collection.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const htmlFileName = `collection_${safeCollectionName}_${timestamp}_${randomStr}.html`;
+    
+    console.log("Generated filename:", htmlFileName);
     
     // Create HTML content to represent collection data with proper escaping
     const htmlContent = `

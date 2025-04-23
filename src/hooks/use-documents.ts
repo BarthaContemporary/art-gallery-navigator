@@ -29,7 +29,7 @@ export function useDocuments() {
         // Check if user is authenticated
         if (!session || !user) {
           console.warn("User not authenticated, cannot fetch documents");
-          toast.error("You must be logged in to view documents");
+          // Using warn instead of error to avoid showing error toast on initial load
           return [];
         }
         
@@ -40,16 +40,19 @@ export function useDocuments() {
           toast.error("Error accessing document storage");
           throw bucketError;
         } else {
-          console.log("Available buckets:", buckets);
+          console.log("Available buckets:", buckets.map(b => b.name).join(", "));
           const documentsBucket = buckets.find(b => b.name === 'documents');
           if (!documentsBucket) {
-            console.warn("Documents bucket not found in storage!");
+            console.warn("Documents bucket not found in storage! Available buckets:", 
+              buckets.map(b => b.name).join(", "));
             toast.error("Document storage not configured properly");
             return [];
           }
+          console.log("Documents bucket found with ID:", documentsBucket.id);
         }
         
         // Fetch documents from the database table
+        console.log("Fetching documents from database...");
         const { data: dbData, error: dbError } = await supabase
           .from("documents")
           .select("*")
@@ -62,7 +65,7 @@ export function useDocuments() {
         }
         
         // Check if we have actual data
-        console.log("Documents fetched:", dbData);
+        console.log(`Documents fetched: ${dbData?.length || 0} records found`);
         return dbData || [];
       } catch (error) {
         console.error("Failed to fetch documents:", error);
@@ -77,19 +80,24 @@ export function useDocuments() {
   useEffect(() => {
     if (!session) return;
     
+    console.log("Setting up real-time subscription for documents table");
     const channel = supabase
       .channel("documents-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "documents" },
-        () => {
-          console.log("Documents changed, invalidating query cache");
+        (payload) => {
+          console.log("Documents changed, received payload:", payload);
+          console.log("Invalidating documents query cache");
           queryClient.invalidateQueries({ queryKey: ["documents"] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Documents subscription status:", status);
+      });
 
     return () => {
+      console.log("Cleaning up documents subscription");
       supabase.removeChannel(channel);
     };
   }, [queryClient, session]);
