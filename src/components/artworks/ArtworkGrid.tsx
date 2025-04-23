@@ -2,6 +2,7 @@
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
 import { useEffect, useRef } from "react";
+import { useArtists } from "@/components/artworks/form/useArtists";
 
 interface ArtworksByArtist {
   [key: string]: Artwork[];
@@ -14,11 +15,21 @@ interface ArtworkGridProps {
 
 export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
+  const { data: artists } = useArtists();
+  
   // Group artworks by artist's first letter
   const groupedArtworks = artworks.reduce((acc: ArtworksByArtist, artwork) => {
     // Get artist name from the artwork, fallback to "Unknown Artist"
-    const artistName = artwork.artist_id ? "Unknown Artist" : "Unknown Artist";
+    let artistName = "Unknown Artist";
+    
+    // Find artist name in the artists data if artist_id exists
+    if (artwork.artist_id && artists) {
+      const artist = artists.find(a => a.id === artwork.artist_id);
+      if (artist) {
+        artistName = artist.full_name;
+      }
+    }
+    
     const firstLetter = artistName.charAt(0).toUpperCase();
     
     if (!acc[firstLetter]) {

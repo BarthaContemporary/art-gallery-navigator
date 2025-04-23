@@ -9,6 +9,7 @@ import { useState } from "react";
 import { EditArtworkDialog } from "./EditArtworkDialog";
 import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
+import { useArtists } from "../artworks/form/useArtists";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const { isAdmin } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
+  const { data: artists } = useArtists();
 
   const handleEdit = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -46,6 +48,15 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const handleExport = (e: React.MouseEvent) => {
     e.stopPropagation();
     exportArtworksToCSV([artwork], `artwork_${artwork.id}.csv`);
+  };
+
+  // Get artist name
+  const getArtistName = () => {
+    if (artwork.artist_id && artists) {
+      const artist = artists.find(a => a.id === artwork.artist_id);
+      return artist ? artist.full_name : "Unknown Artist";
+    }
+    return "Unknown Artist";
   };
 
   return (
@@ -94,6 +105,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-semibold text-lg">{artwork.title}</h3>
+                <p className="text-sm text-muted-foreground">{getArtistName()}</p>
                 {artwork.year && <p className="text-sm">Year: {artwork.year}</p>}
                 {artwork.materials && (
                   <p className="text-xs text-muted-foreground mt-1">{artwork.materials}</p>
