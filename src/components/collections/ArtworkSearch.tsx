@@ -28,7 +28,10 @@ export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: A
     return artist ? artist.full_name : "Unknown Artist";
   };
 
-  const filteredArtworks = artworks.filter((artwork) => {
+  // Make sure artworks is defined before filtering
+  const artworksToFilter = Array.isArray(artworks) ? artworks : [];
+  
+  const filteredArtworks = artworksToFilter.filter((artwork) => {
     const searchLower = search.toLowerCase();
     const artistName = getArtistName(artwork.artist_id).toLowerCase();
     return (

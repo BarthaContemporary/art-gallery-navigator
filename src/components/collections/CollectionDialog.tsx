@@ -89,13 +89,11 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
             {artworksLoading ? (
               <span className="text-xs text-muted-foreground">Loading artworks…</span>
             ) : (
-              artworks && (
-                <ArtworkSearch
-                  artworks={artworks}
-                  selectedArtworks={selectedArtworks}
-                  onToggleArtwork={toggleArtwork}
-                />
-              )
+              <ArtworkSearch
+                artworks={artworks || []}
+                selectedArtworks={selectedArtworks}
+                onToggleArtwork={toggleArtwork}
+              />
             )}
           </div>
         </div>
