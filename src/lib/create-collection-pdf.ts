@@ -1,4 +1,3 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -43,26 +42,106 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
           <title>Collection: ${escapeHtml(collection.name)}</title>
           <meta charset="UTF-8">
           <style>
-            body { font-family: Arial, sans-serif; margin: 30px; }
-            h1 { color: #333; }
-            .artwork { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-            .artwork:last-child { border-bottom: none; }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 40px;
+              color: #333;
+              line-height: 1.6;
+            }
+            h1 { 
+              color: #18465a;
+              font-size: 28px;
+              margin-bottom: 20px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #18465a;
+            }
+            h2 {
+              color: #18465a;
+              font-size: 22px;
+              margin: 30px 0 20px;
+            }
+            .collection-description {
+              font-size: 16px;
+              color: #666;
+              margin-bottom: 30px;
+              padding: 15px;
+              background: #f8f9fa;
+              border-radius: 6px;
+            }
+            .artwork { 
+              margin-bottom: 25px; 
+              padding: 20px;
+              background: #fff;
+              border: 1px solid #e1e4e8;
+              border-radius: 8px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .artwork:last-child { 
+              margin-bottom: 0; 
+            }
+            .artwork h3 {
+              color: #18465a;
+              font-size: 18px;
+              margin: 0 0 15px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #e1e4e8;
+            }
+            .artwork p {
+              margin: 8px 0;
+              color: #555;
+            }
+            .artwork-detail {
+              font-size: 14px;
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            }
+            .detail-label {
+              font-weight: bold;
+              color: #18465a;
+              min-width: 80px;
+            }
             @media print {
-              body { margin: 0; }
-              .page-break { page-break-after: always; }
+              body { margin: 20px; }
+              .artwork { 
+                break-inside: avoid;
+                box-shadow: none;
+              }
+              .collection-description {
+                background: #fff;
+                border: 1px solid #eee;
+              }
             }
           </style>
         </head>
         <body>
           <h1>Collection: ${escapeHtml(collection.name)}</h1>
-          ${collection.description ? `<p>${escapeHtml(collection.description)}</p>` : ''}
-          <h2>Artworks:</h2>
+          ${collection.description ? `
+            <div class="collection-description">
+              ${escapeHtml(collection.description)}
+            </div>
+          ` : ''}
+          
+          <h2>Artworks</h2>
           ${collection.artworks?.map(artwork => `
             <div class="artwork">
               <h3>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h3>
-              <p>Medium: ${escapeHtml(artwork.medium_type || 'N/A')}</p>
-              ${artwork.materials ? `<p>Materials: ${escapeHtml(artwork.materials)}</p>` : ''}
-              ${artwork.dimensions ? `<p>Dimensions: ${escapeHtml(artwork.dimensions)}</p>` : ''}
+              <div class="artwork-detail">
+                <span class="detail-label">Medium:</span>
+                ${escapeHtml(artwork.medium_type || 'N/A')}
+              </div>
+              ${artwork.materials ? `
+                <div class="artwork-detail">
+                  <span class="detail-label">Materials:</span>
+                  ${escapeHtml(artwork.materials)}
+                </div>
+              ` : ''}
+              ${artwork.dimensions ? `
+                <div class="artwork-detail">
+                  <span class="detail-label">Dimensions:</span>
+                  ${escapeHtml(artwork.dimensions)}
+                </div>
+              ` : ''}
             </div>
           `).join('') || '<p>No artworks in this collection</p>'}
         </body>
