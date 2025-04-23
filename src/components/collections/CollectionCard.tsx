@@ -5,6 +5,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { CollectionDetailsDialog } from "./CollectionDetailsDialog";
+import { EditCollectionDialog } from "./EditCollectionDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useDeleteCollection } from "@/hooks/use-collections";
+import { toast } from "sonner";
 
 interface CollectionCardProps {
   collection: Collection;
@@ -12,17 +25,30 @@ interface CollectionCardProps {
 
 export function CollectionCard({ collection }: CollectionCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { mutate: deleteCollection, isPending: isDeleting } = useDeleteCollection();
   
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Edit functionality will be implemented later
-    console.log("Edit collection:", collection.id);
+    setShowEdit(true);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Delete functionality will be implemented later
-    console.log("Delete collection:", collection.id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    deleteCollection(collection.id, {
+      onSuccess: () => {
+        toast.success("Collection deleted successfully");
+        setShowDeleteConfirm(false);
+      },
+      onError: (error) => {
+        toast.error("Failed to delete collection: " + error.message);
+      },
+    });
   };
   
   return (
@@ -46,6 +72,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               size="icon"
               className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
               onClick={handleDelete}
+              disabled={isDeleting}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -68,6 +95,33 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         open={showDetails}
         onOpenChange={setShowDetails}
       />
+
+      <EditCollectionDialog
+        collection={collection}
+        open={showEdit}
+        onOpenChange={setShowEdit}
+      />
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the collection "{collection.name}" and remove all artwork associations.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Collection"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

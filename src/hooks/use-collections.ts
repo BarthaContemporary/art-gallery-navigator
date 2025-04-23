@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Artwork } from "@/hooks/use-artworks";
@@ -67,6 +66,56 @@ export function useCreateCollection() {
         if (linkErr) throw linkErr;
       }
       return colData;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+    },
+  });
+}
+
+// Update collection mutation
+export function useUpdateCollection() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
+      const { data, error } = await supabase
+        .from("collections")
+        .update({ name, description })
+        .eq("id", id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+    },
+  });
+}
+
+// Delete collection mutation
+export function useDeleteCollection() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // First delete the collection_artworks entries
+      const { error: linkError } = await supabase
+        .from("collection_artworks")
+        .delete()
+        .eq("collection_id", id);
+        
+      if (linkError) throw linkError;
+      
+      // Then delete the collection
+      const { error } = await supabase
+        .from("collections")
+        .delete()
+        .eq("id", id);
+        
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collections"] });
