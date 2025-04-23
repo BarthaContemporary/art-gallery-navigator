@@ -19,18 +19,16 @@ export function useCollections() {
     queryFn: async (): Promise<Collection[]> => {
       const { data, error } = await supabase
         .from("collections")
-        .select("*, collection_artworks(artwork_id), collection_artworks(artwork_id, artworks(*))")
+        .select("*, collection_artworks(artwork_id, artworks(*))")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Flatten artwork info
-      return (
-        data?.map((col: any) => ({
-          ...col,
-          artworks: (col.collection_artworks || []).map((ca: any) => ca.artworks).filter(Boolean),
-        })) || []
-      );
+      // Transform the data structure to get artworks from collection_artworks
+      return data?.map((collection: any) => ({
+        ...collection,
+        artworks: collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [],
+      })) || [];
     },
   });
 }
@@ -38,6 +36,7 @@ export function useCollections() {
 // Create a new collection (optionally attaching artworks)
 export function useCreateCollection() {
   const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: async ({
       name,

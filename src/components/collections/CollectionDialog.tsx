@@ -44,7 +44,8 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           setSelectedArtworks([]);
           afterCreate && afterCreate();
         },
-        onError: () => {
+        onError: (error) => {
+          console.error("Error creating collection:", error);
           toast.error("Failed to create collection.");
         },
       }
@@ -80,7 +81,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           </div>
           <div>
             <p className="text-sm font-medium mb-2">Select Artworks</p>
-            <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted">
+            <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/50">
               {artworksLoading ? (
                 <span className="text-xs text-muted-foreground">Loading artworks…</span>
               ) : (
