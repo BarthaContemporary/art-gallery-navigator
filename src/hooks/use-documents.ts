@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,34 +36,59 @@ export async function ensureDocumentsBucketExists(): Promise<boolean> {
       return true;
     }
     
+    // If we reach here, the bucket doesn't exist
     console.log("Documents bucket not found, attempting to create it...");
     
-    // Create the bucket if it doesn't exist
-    const { data: newBucket, error: createError } = await supabase.storage.createBucket('documents', {
-      public: true,
-      fileSizeLimit: 10485760, // 10MB
-    });
-    
-    if (createError) {
-      console.error("Failed to create documents bucket:", createError);
-      return false;
-    }
-    
-    console.log("Successfully created documents bucket:", newBucket);
-    
-    // Update bucket policies through RLS instead of using the non-existent setAccessControl method
     try {
-      // Using updateBucket to ensure public access is enabled
-      await supabase.storage.updateBucket('documents', {
+      // Try to create the bucket
+      const { data: newBucket, error: createError } = await supabase.storage.createBucket('documents', {
         public: true,
         fileSizeLimit: 10485760, // 10MB
       });
-      console.log("Updated bucket settings for public access");
-    } catch (policyError) {
-      console.warn("Could not update bucket settings - may already be public:", policyError);
+      
+      if (createError) {
+        console.error("Failed to create documents bucket:", createError);
+        
+        // Special handling for RLS policy violation
+        if (createError.message && createError.message.includes("violates row-level security policy")) {
+          console.warn("RLS policy prevents bucket creation. This likely requires admin privileges.");
+          
+          // Since we can't create the bucket, let's check if it exists anyway (it might have been created by admin)
+          const { data: recheckedBuckets } = await supabase.storage.listBuckets();
+          const existingBucket = recheckedBuckets?.find(bucket => bucket.name === 'documents');
+          
+          if (existingBucket) {
+            console.log("Found existing documents bucket on recheck:", existingBucket.id);
+            return true;
+          }
+          
+          toast.error("Cannot create document storage. Please contact your administrator.", {
+            description: "Your account doesn't have permission to create storage buckets",
+            duration: 5000
+          });
+        }
+        
+        return false;
+      }
+      
+      console.log("Successfully created documents bucket:", newBucket);
+      
+      // Update bucket policies to ensure public access
+      try {
+        await supabase.storage.updateBucket('documents', {
+          public: true,
+          fileSizeLimit: 10485760, // 10MB
+        });
+        console.log("Updated bucket settings for public access");
+      } catch (policyError) {
+        console.warn("Could not update bucket settings - may already be public:", policyError);
+      }
+      
+      return true;
+    } catch (createError) {
+      console.error("Exception during bucket creation:", createError);
+      return false;
     }
-    
-    return true;
   } catch (error) {
     console.error("Error ensuring documents bucket exists:", error);
     return false;
@@ -110,18 +136,8 @@ export function useDocuments() {
           return [];
         }
         
-        // Verify bucket exists before fetching documents
-        const bucketExists = await ensureDocumentsBucketExists();
-        if (!bucketExists) {
-          console.warn("Documents bucket not available, documents cannot be loaded");
-          toast.error("Document storage not configured properly", {
-            action: {
-              label: "Fix Storage",
-              onClick: () => verifyBucketMutation.mutate(),
-            },
-          });
-          return [];
-        }
+        // We'll proceed with fetching documents even if bucket creation failed
+        // This allows viewing existing documents even if the user can't create new ones
         
         // Fetch documents from the database table
         console.log("Fetching documents from database...");
@@ -145,7 +161,7 @@ export function useDocuments() {
         return [];
       }
     },
-    enabled: !!session && bucketQuery.isSuccess, // Only run query when user is authenticated and bucket check completed
+    enabled: !!session, // Only run query when user is authenticated (don't depend on bucketQuery anymore)
   });
 
   // Real-time subscription for live updates
@@ -178,6 +194,8 @@ export function useDocuments() {
     ...documentsQuery,
     bucketStatus: bucketQuery.status,
     isBucketLoading: bucketQuery.isLoading,
+    bucketError: bucketQuery.error,
+    bucketData: bucketQuery.data,
     verifyBucket: () => verifyBucketMutation.mutate(),
     isVerifying: verifyBucketMutation.isPending,
   };

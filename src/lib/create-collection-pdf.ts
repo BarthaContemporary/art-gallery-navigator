@@ -1,3 +1,4 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,14 +17,12 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       throw new Error("Authentication required");
     }
     
-    // Ensure documents bucket exists
+    // Ensure documents bucket exists - but proceed even if it fails
     console.log("Ensuring documents bucket exists...");
     const bucketExists = await ensureDocumentsBucketExists();
     
     if (!bucketExists) {
-      console.error("Failed to configure documents storage bucket");
-      toast.error("Document storage setup failed");
-      throw new Error("Document storage configuration failed");
+      console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
     }
     
     // Ensure a valid file name with timestamp and random string to prevent overwrites
@@ -82,7 +81,15 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     
     if (uploadError) {
       console.error("Error uploading document:", uploadError);
-      toast.error("Failed to upload document: " + uploadError.message);
+      
+      if (uploadError.message.includes("buckets")) {
+        toast.error("Document storage not available. Contact administrator.", {
+          description: "You don't have permission to use document storage"
+        });
+      } else {
+        toast.error("Failed to upload document: " + uploadError.message);
+      }
+      
       throw uploadError;
     }
     
