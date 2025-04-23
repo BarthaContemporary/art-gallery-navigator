@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,24 +15,22 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
       throw new Error("Authentication required");
     }
     
-    // Check if the bucket exists
-    const { data: bucketData, error: bucketError } = await supabase
-      .storage
-      .getBucket('documents');
+    // Simplified bucket check
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
     
     if (bucketError) {
       console.error("Storage bucket error:", bucketError);
-      
-      if (bucketError.message.includes("not found")) {
-        toast.error("Storage bucket 'documents' not found. Please contact the administrator.");
-        throw new Error("Storage bucket not found. Please set up the documents bucket in Supabase.");
-      }
-      
-      toast.error("Storage error: " + bucketError.message);
+      toast.error("Failed to retrieve storage buckets");
       throw bucketError;
     }
+
+    const hasDocumentsBucket = buckets.some(bucket => bucket.name === 'documents');
     
-    console.log("Bucket exists:", bucketData);
+    if (!hasDocumentsBucket) {
+      console.error("Documents bucket not found");
+      toast.error("Documents storage not configured");
+      throw new Error("Documents bucket is missing");
+    }
     
     // Ensure a valid file name with timestamp and random string to prevent overwrites
     const timestamp = Date.now();
