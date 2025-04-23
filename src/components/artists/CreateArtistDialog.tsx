@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,8 +20,12 @@ interface CreateArtistForm {
   email?: string;
 }
 
-export const CreateArtistDialog = () => {
-  const [open, setOpen] = useState(false);
+interface CreateArtistDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateArtistForm>();
@@ -65,7 +69,7 @@ export const CreateArtistDialog = () => {
       toast.success("Artist created successfully");
       queryClient.invalidateQueries({ queryKey: ['artists'] });
       reset();
-      setOpen(false);
+      onOpenChange(false);
     } catch (error) {
       console.error('Error creating artist:', error);
       toast.error("Failed to create artist");
@@ -75,12 +79,7 @@ export const CreateArtistDialog = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default" className="gap-2">
-          <UserPlus className="h-4 w-4" /> Add Artist
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Artist</DialogTitle>
@@ -158,7 +157,7 @@ export const CreateArtistDialog = () => {
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
