@@ -8,7 +8,7 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/lovable-uploads/app-logo.png",
+      "src": "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/646396eeff0a8d87406f178c_B_c_Logo_Site_256.png",
       "sizes": "256x256",
       "type": "image/png"
     }
