@@ -13,8 +13,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Generate a PDF filename
-  const fileName = `collection_${collection.id}_${Date.now()}.pdf`;
-  const filePath = `${fileName}`;
+  const fileName = `collection_${collection.id}_${Date.now()}.html`;
   
   // Create a simple HTML string to represent collection data
   const htmlContent = `
@@ -51,7 +50,10 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     // Upload to Supabase storage
     const { data, error } = await supabase.storage
       .from("documents")
-      .upload(filePath, blob);
+      .upload(fileName, blob, {
+        contentType: 'text/html',
+        upsert: true
+      });
       
     if (error) {
       console.error("Error uploading PDF:", error);
@@ -61,7 +63,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from("documents")
-      .getPublicUrl(filePath);
+      .getPublicUrl(fileName);
       
     // Open the PDF in a new tab
     window.open(publicUrl, '_blank');

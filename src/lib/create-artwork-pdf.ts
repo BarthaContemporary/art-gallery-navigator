@@ -13,8 +13,7 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Generate a PDF filename
-  const fileName = `artwork_${artwork.id}_${Date.now()}.pdf`;
-  const filePath = `${fileName}`;
+  const fileName = `artwork_${artwork.id}_${Date.now()}.html`;
   
   // Create a simple HTML string to represent artwork data
   const htmlContent = `
@@ -46,7 +45,10 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     // Upload to Supabase storage
     const { data, error } = await supabase.storage
       .from("documents")
-      .upload(filePath, blob);
+      .upload(fileName, blob, {
+        contentType: 'text/html',
+        upsert: true
+      });
       
     if (error) {
       console.error("Error uploading PDF:", error);
@@ -56,7 +58,7 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     // Get the public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from("documents")
-      .getPublicUrl(filePath);
+      .getPublicUrl(fileName);
       
     // Open the PDF in a new tab
     window.open(publicUrl, '_blank');

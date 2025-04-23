@@ -20,17 +20,18 @@ export function useDocuments() {
   const query = useQuery({
     queryKey: ["documents"],
     queryFn: async (): Promise<Document[]> => {
-      const { data, error } = await supabase
+      // First fetch documents from the database table
+      const { data: dbData, error: dbError } = await supabase
         .from("documents")
         .select("*")
         .order("date_uploaded", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching documents:", error);
-        throw error;
+      if (dbError) {
+        console.error("Error fetching documents from database:", dbError);
+        throw dbError;
       }
       
-      return data || [];
+      return dbData || [];
     },
   });
 
