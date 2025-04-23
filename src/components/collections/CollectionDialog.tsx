@@ -64,7 +64,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button>
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Collection
         </Button>
