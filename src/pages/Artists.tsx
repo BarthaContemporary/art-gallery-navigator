@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,7 +126,7 @@ const Artists = () => {
             onClick={() => setCreateArtistDialogOpen(true)}
           >
             <PlusCircle className="h-4 w-4" />
-            Create Artist
+            Add Artist
           </Button>
         </div>
       </div>

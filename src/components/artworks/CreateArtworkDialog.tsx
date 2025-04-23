@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { CreateArtworkForm } from "./CreateArtworkForm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -13,7 +13,7 @@ export function CreateArtworkDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="h-4 w-4 mr-2" />
+          <PlusCircle className="h-4 w-4 mr-2" />
           Add Artwork
         </Button>
       </DialogTrigger>

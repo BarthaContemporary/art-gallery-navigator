@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArtworkSearch } from "./ArtworkSearch";
+import { PlusCircle } from "lucide-react";
 
 export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -63,7 +64,10 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">New Collection</Button>
+        <Button variant="outline">
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Add Collection
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

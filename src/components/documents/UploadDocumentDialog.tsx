@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Upload } from "lucide-react";
+import { PlusCircle, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -99,7 +99,7 @@ export function UploadDocumentDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" /> Upload Document
+          <PlusCircle className="mr-2 h-4 w-4" /> Upload Document
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

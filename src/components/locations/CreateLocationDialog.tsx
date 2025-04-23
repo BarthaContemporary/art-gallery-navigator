@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export const CreateLocationDialog = () => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" /> Add Location
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Location
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
