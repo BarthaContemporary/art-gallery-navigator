@@ -16,6 +16,7 @@ import { RequireAuth } from "./components/auth/RequireAuth";
 import UserSignup from "./pages/UserSignup";
 import Collections from "./pages/Collections";
 import Profile from "./pages/Profile";
+import EmailConfirmation from "./pages/EmailConfirmation";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/email-confirmation" element={<EmailConfirmation />} />
             <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/artists" element={<Artists />} />
