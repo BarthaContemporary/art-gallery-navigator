@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Edit, FileText } from "lucide-react";
@@ -23,26 +24,19 @@ interface ArtworkOverviewDialogProps {
 
 export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOverviewDialogProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [isCreatingPDF, setIsCreatingPDF] = useState(false);
   const { toast } = useToast();
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
   const handleCreatePDF = async () => {
+    if (isCreatingPDF) return;
+    
     try {
+      setIsCreatingPDF(true);
       toast({ title: "Creating PDF...", description: "Please wait a moment" });
+      
       const pdfUrl = await createArtworkPDF(artwork);
-      
-      // Save to documents table
-      const { error } = await supabase.from("documents").insert({
-        file_name: `${artwork.title} - Overview.pdf`,
-        file_url: pdfUrl,
-        type: "artwork_overview",
-        description: `Overview document for ${artwork.title}`,
-        artwork_id: artwork.id
-      });
-
-      if (error) throw error;
-      
       toast({ 
         title: "PDF Created Successfully", 
         description: "The document has been saved to your documents library" 
@@ -54,6 +48,8 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
         description: "Please try again later", 
         variant: "destructive" 
       });
+    } finally {
+      setIsCreatingPDF(false);
     }
   };
   
@@ -97,9 +93,9 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
-              <Button onClick={handleCreatePDF}>
+              <Button onClick={handleCreatePDF} disabled={isCreatingPDF}>
                 <FileText className="mr-2 h-4 w-4" />
-                Create PDF
+                {isCreatingPDF ? "Creating PDF..." : "Create PDF"}
               </Button>
             </div>
           </div>

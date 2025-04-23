@@ -97,20 +97,57 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     
     console.log("Public URL:", publicUrl);
     
-    // Create a document record in the database
-    const { error: documentError } = await supabase
+    // Create a document record in the database - but first check if a similar one already exists
+    const { data: existingDocs } = await supabase
       .from("documents")
-      .insert({
-        file_name: htmlFileName,
-        file_url: publicUrl,
-        type: "artwork_overview",
-        description: `Overview document for ${artwork.title}`,
-        artwork_id: artwork.id
-      });
+      .select("*")
+      .eq("artwork_id", artwork.id)
+      .eq("type", "artwork_overview")
+      .order("date_uploaded", { ascending: false })
+      .limit(1);
+      
+    // If a document already exists, update it rather than creating a new one
+    let documentId;
     
-    if (documentError) {
-      console.error("Error creating document record:", documentError);
-      toast.error("Failed to create document record: " + documentError.message);
+    if (existingDocs && existingDocs.length > 0) {
+      // Update the existing document
+      const { error: updateError } = await supabase
+        .from("documents")
+        .update({
+          file_name: htmlFileName,
+          file_url: publicUrl,
+          description: `Overview document for ${artwork.title} (updated)`,
+          date_uploaded: new Date().toISOString() // Update timestamp
+        })
+        .eq("id", existingDocs[0].id);
+        
+      if (updateError) {
+        console.error("Error updating document record:", updateError);
+        toast.error("Failed to update document record: " + updateError.message);
+      } else {
+        documentId = existingDocs[0].id;
+        console.log("Updated existing document record:", documentId);
+      }
+    } else {
+      // Create a new document record
+      const { data: newDoc, error: documentError } = await supabase
+        .from("documents")
+        .insert({
+          file_name: htmlFileName,
+          file_url: publicUrl,
+          type: "artwork_overview",
+          description: `Overview document for ${artwork.title}`,
+          artwork_id: artwork.id
+        })
+        .select();
+      
+      if (documentError) {
+        console.error("Error creating document record:", documentError);
+        toast.error("Failed to create document record: " + documentError.message);
+      } else if (newDoc) {
+        documentId = newDoc[0].id;
+        console.log("Created new document record:", documentId);
+      }
     }
     
     // Create a link element to trigger download and navigate to file in new tab
