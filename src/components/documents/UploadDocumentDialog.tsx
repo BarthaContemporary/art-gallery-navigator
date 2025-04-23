@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Upload } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -28,7 +28,7 @@ import { z } from "zod";
 
 const uploadFormSchema = z.object({
   file: z.instanceof(File),
-  type: z.string().min(1),
+  type: z.string().min(1, "Document type is required"),
   description: z.string().optional(),
   artwork_id: z.string().optional(),
   artist_id: z.string().optional(),
@@ -38,30 +38,45 @@ type UploadFormData = z.infer<typeof uploadFormSchema>;
 
 export function UploadDocumentDialog() {
   const [open, setOpen] = useState(false);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: artworks } = useArtworks();
   
-  const form = useForm<UploadFormData>();
+  const form = useForm<UploadFormData>({
+    defaultValues: {
+      description: "",
+      artwork_id: "",
+      artist_id: "",
+    }
+  });
   
   const handleUpload = async (data: UploadFormData) => {
     try {
       const file = data.file;
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const fileName = `${timestamp}_${randomStr}.${fileExt}`;
 
       // Upload file to storage
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('documents')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        if (uploadError.message.includes("buckets")) {
+          toast.error("Document storage not available. Contact administrator.", {
+            description: "You don't have permission to use document storage"
+          });
+        } else {
+          toast.error("Upload failed: " + uploadError.message);
+        }
+        throw uploadError;
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       // Create document record
       const { error: insertError } = await supabase
@@ -70,28 +85,24 @@ export function UploadDocumentDialog() {
           file_name: file.name,
           file_url: publicUrl,
           type: data.type,
-          description: data.description,
+          description: data.description || null,
           artwork_id: data.artwork_id || null,
           artist_id: data.artist_id || null,
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        toast.error("Failed to save document record: " + insertError.message);
+        throw insertError;
+      }
 
-      toast({
-        title: "Success",
-        description: "Document uploaded successfully",
-      });
-
+      toast.success("Document uploaded successfully");
       setOpen(false);
+      form.reset();
       queryClient.invalidateQueries({ queryKey: ["documents"] });
 
     } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload document",
-        variant: "destructive",
-      });
+      // Toast is already shown in the error handling above
     }
   };
 

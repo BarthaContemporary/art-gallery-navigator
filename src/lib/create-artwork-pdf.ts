@@ -17,8 +17,8 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
       throw new Error("Authentication required");
     }
     
-    // Ensure documents bucket exists - but proceed even if it fails
-    console.log("Ensuring documents bucket exists...");
+    // Try to ensure documents bucket exists - but proceed even if it fails
+    console.log("Checking document storage availability...");
     const bucketExists = await ensureDocumentsBucketExists();
     
     if (!bucketExists) {
