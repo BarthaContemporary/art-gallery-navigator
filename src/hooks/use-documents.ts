@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,17 +50,16 @@ export async function ensureDocumentsBucketExists(): Promise<boolean> {
     
     console.log("Successfully created documents bucket:", newBucket);
     
-    // Set up bucket-level policies for authenticated users
-    // These calls may fail if policies already exist, but we'll try anyway
+    // Update bucket policies through RLS instead of using the non-existent setAccessControl method
     try {
-      await supabase.storage.from('documents').setAccessControl(
-        { "Content-Type": "*" },
-        "*",
-        "read"
-      );
-      console.log("Set read access control for documents bucket");
+      // Using updateBucket to ensure public access is enabled
+      await supabase.storage.updateBucket('documents', {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+      });
+      console.log("Updated bucket settings for public access");
     } catch (policyError) {
-      console.warn("Could not set access control - may already exist:", policyError);
+      console.warn("Could not update bucket settings - may already be public:", policyError);
     }
     
     return true;

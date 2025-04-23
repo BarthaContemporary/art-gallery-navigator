@@ -1,4 +1,3 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
