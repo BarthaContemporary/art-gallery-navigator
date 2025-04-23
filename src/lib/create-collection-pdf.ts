@@ -2,6 +2,7 @@
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
 
 export async function createCollectionPDF(collection: Collection): Promise<string> {
   console.log("Creating PDF for collection:", collection.name);
@@ -16,25 +17,15 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       throw new Error("Authentication required");
     }
     
-    // Check if bucket exists
-    console.log("Checking for documents bucket...");
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    // Ensure documents bucket exists
+    console.log("Ensuring documents bucket exists...");
+    const bucketExists = await ensureDocumentsBucketExists();
     
-    if (bucketError) {
-      console.error("Storage bucket error:", bucketError);
-      toast.error("Failed to retrieve storage buckets");
-      throw bucketError;
+    if (!bucketExists) {
+      console.error("Failed to configure documents storage bucket");
+      toast.error("Document storage setup failed");
+      throw new Error("Document storage configuration failed");
     }
-
-    const documentsBucket = buckets.find(bucket => bucket.name === 'documents');
-    
-    if (!documentsBucket) {
-      console.error("Documents bucket not found, available buckets:", buckets.map(b => b.name).join(", "));
-      toast.error("Documents storage not configured properly");
-      throw new Error("Documents bucket is missing");
-    }
-    
-    console.log("Documents bucket found:", documentsBucket.id);
     
     // Ensure a valid file name with timestamp and random string to prevent overwrites
     const timestamp = Date.now();

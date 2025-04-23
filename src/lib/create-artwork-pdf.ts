@@ -2,6 +2,7 @@
 import { Artwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
 
 export async function createArtworkPDF(artwork: Artwork): Promise<string> {
   console.log("Creating PDF for artwork:", artwork.title);
@@ -16,21 +17,14 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
       throw new Error("Authentication required");
     }
     
-    // Simplified bucket check
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    // Ensure documents bucket exists
+    console.log("Ensuring documents bucket exists...");
+    const bucketExists = await ensureDocumentsBucketExists();
     
-    if (bucketError) {
-      console.error("Storage bucket error:", bucketError);
-      toast.error("Failed to retrieve storage buckets");
-      throw bucketError;
-    }
-
-    const hasDocumentsBucket = buckets.some(bucket => bucket.name === 'documents');
-    
-    if (!hasDocumentsBucket) {
-      console.error("Documents bucket not found");
-      toast.error("Documents storage not configured");
-      throw new Error("Documents bucket is missing");
+    if (!bucketExists) {
+      console.error("Failed to configure documents storage bucket");
+      toast.error("Document storage setup failed");
+      throw new Error("Document storage configuration failed");
     }
     
     // Ensure a valid file name with timestamp and random string to prevent overwrites
@@ -38,6 +32,8 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     const randomStr = Math.random().toString(36).substring(2, 8);
     const safeArtworkTitle = artwork.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const htmlFileName = `artwork_${safeArtworkTitle}_${timestamp}_${randomStr}.html`;
+    
+    console.log("Generated filename:", htmlFileName);
     
     // Create HTML content to represent artwork data with proper escaping
     const htmlContent = `
