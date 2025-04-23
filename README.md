@@ -1,4 +1,8 @@
-# Welcome to your Lovable project
+# Bartha Contemporary App
+
+## Project Description
+
+A comprehensive art gallery management application for Bartha Contemporary.
 
 ## Project info
 
