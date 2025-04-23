@@ -49,41 +49,26 @@ export async function ensureDocumentsBucketExists(): Promise<boolean> {
       if (createError) {
         console.error("Failed to create documents bucket:", createError);
         
-        // Special handling for RLS policy violation
-        if (createError.message && createError.message.includes("violates row-level security policy")) {
-          console.warn("RLS policy prevents bucket creation. This likely requires admin privileges.");
-          
-          // Since we can't create the bucket, let's check if it exists anyway (it might have been created by admin)
-          const { data: recheckedBuckets } = await supabase.storage.listBuckets();
-          const existingBucket = recheckedBuckets?.find(bucket => bucket.name === 'documents');
-          
-          if (existingBucket) {
-            console.log("Found existing documents bucket on recheck:", existingBucket.id);
-            return true;
-          }
-          
-          toast.error("Cannot create document storage. Please contact your administrator.", {
-            description: "Your account doesn't have permission to create storage buckets",
+        // Since we can't create the bucket, let's check if it exists anyway after running the SQL
+        const { data: recheckedBuckets } = await supabase.storage.listBuckets();
+        const existingBucket = recheckedBuckets?.find(bucket => bucket.name === 'documents');
+        
+        if (existingBucket) {
+          console.log("Found existing documents bucket on recheck:", existingBucket.id);
+          return true;
+        }
+        
+        // Only show error if we can't find the bucket at all
+        if (!existingBucket) {
+          toast.error("Document storage configuration issue. Please refresh and try again.", {
             duration: 5000
           });
         }
         
-        return false;
+        return !!existingBucket;
       }
       
       console.log("Successfully created documents bucket:", newBucket);
-      
-      // Update bucket policies to ensure public access
-      try {
-        await supabase.storage.updateBucket('documents', {
-          public: true,
-          fileSizeLimit: 10485760, // 10MB
-        });
-        console.log("Updated bucket settings for public access");
-      } catch (policyError) {
-        console.warn("Could not update bucket settings - may already be public:", policyError);
-      }
-      
       return true;
     } catch (createError) {
       console.error("Exception during bucket creation:", createError);
@@ -117,7 +102,7 @@ export function useDocuments() {
         // Refresh documents list
         queryClient.invalidateQueries({ queryKey: ["documents"] });
       } else {
-        toast.error("Failed to configure document storage");
+        toast.error("Failed to verify document storage status");
       }
     },
   });
@@ -136,8 +121,8 @@ export function useDocuments() {
           return [];
         }
         
-        // We'll proceed with fetching documents even if bucket creation failed
-        // This allows viewing existing documents even if the user can't create new ones
+        // We'll proceed with fetching documents even if bucket verification failed
+        // This allows viewing existing documents even if there are storage issues
         
         // Fetch documents from the database table
         console.log("Fetching documents from database...");
@@ -161,7 +146,7 @@ export function useDocuments() {
         return [];
       }
     },
-    enabled: !!session, // Only run query when user is authenticated (don't depend on bucketQuery anymore)
+    enabled: !!session, // Only run query when user is authenticated
   });
 
   // Real-time subscription for live updates

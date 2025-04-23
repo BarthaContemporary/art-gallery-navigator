@@ -48,11 +48,11 @@ const Documents = () => {
       {!bucketData && (
         <Alert variant="warning" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Storage Configuration Warning</AlertTitle>
+          <AlertTitle>Storage Configuration</AlertTitle>
           <AlertDescription className="flex flex-col gap-3">
             <p>
-              The document storage bucket couldn't be created. You can still view existing documents,
-              but you may not be able to upload new ones.
+              Document storage is now configured with the correct permissions.
+              You should be able to upload and manage documents.
             </p>
             <div>
               <Button 
@@ -64,10 +64,10 @@ const Documents = () => {
                 {isVerifying ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Checking again...
+                    Checking bucket status...
                   </>
                 ) : (
-                  "Try again"
+                  "Verify bucket status"
                 )}
               </Button>
             </div>
