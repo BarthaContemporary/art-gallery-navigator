@@ -26,9 +26,11 @@ export function useDocuments() {
         .order("date_uploaded", { ascending: false });
 
       if (error) {
+        console.error("Error fetching documents:", error);
         throw error;
       }
-      return data;
+      
+      return data || [];
     },
   });
 
