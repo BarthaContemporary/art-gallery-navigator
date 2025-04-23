@@ -13,7 +13,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { ArtworkSearch } from "./ArtworkSearch";
 
 export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -77,32 +79,24 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Description</label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
           <div>
             <p className="text-sm font-medium mb-2">Select Artworks</p>
-            <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/50">
-              {artworksLoading ? (
-                <span className="text-xs text-muted-foreground">Loading artworks…</span>
-              ) : (
-                artworks &&
-                artworks.length > 0 &&
-                artworks.map((artwork) => (
-                  <label key={artwork.id} className="flex items-center gap-2 text-sm cursor-pointer border-b last:border-b-0 py-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedArtworks.includes(artwork.id)}
-                      onChange={() => toggleArtwork(artwork.id)}
-                      className="accent-primary"
-                    />
-                    {artwork.title}
-                  </label>
-                ))
-              )}
-              {artworks && artworks.length === 0 && (
-                <span className="text-xs text-muted-foreground">No artworks available</span>
-              )}
-            </div>
+            {artworksLoading ? (
+              <span className="text-xs text-muted-foreground">Loading artworks…</span>
+            ) : (
+              artworks && (
+                <ArtworkSearch
+                  artworks={artworks}
+                  selectedArtworks={selectedArtworks}
+                  onToggleArtwork={toggleArtwork}
+                />
+              )
+            )}
           </div>
         </div>
         <DialogFooter>
