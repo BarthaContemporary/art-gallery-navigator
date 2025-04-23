@@ -75,7 +75,7 @@ export function Sidebar() {
         minHeight: "100vh",
       }}
     >
-      <div className="flex items-center gap-2 justify-center h-16 border-b mb-2">
+      <div className="flex items-center pl-4 h-16 border-b mb-2">
         <img
           className="h-9 w-auto"
           src={LOGO_SRC}

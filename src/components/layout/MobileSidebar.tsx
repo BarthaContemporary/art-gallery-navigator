@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -28,13 +29,6 @@ export function MobileSidebar() {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <div className="absolute top-3 left-3 z-40">
-        <DrawerTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open menu">
-            <Menu />
-          </Button>
-        </DrawerTrigger>
-      </div>
       <DrawerContent className="p-0 flex flex-col h-[96vh]">
         <div className="flex items-center justify-between border-b px-4 py-4">
           <img
@@ -83,6 +77,13 @@ export function MobileSidebar() {
           </Button>
         </div>
       </DrawerContent>
+      <div className="absolute top-3 left-3 z-40">
+        <DrawerTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Open menu">
+            <Menu />
+          </Button>
+        </DrawerTrigger>
+      </div>
     </Drawer>
   );
 }
