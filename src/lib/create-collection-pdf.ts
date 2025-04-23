@@ -7,7 +7,16 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
   console.log("Creating PDF for collection:", collection.name);
   
   try {
-    // First check if the bucket exists
+    // First check if the user is authenticated
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !sessionData.session) {
+      console.error("Authentication error:", sessionError || "No active session");
+      toast.error("You must be logged in to generate documents");
+      throw new Error("Authentication required");
+    }
+    
+    // Check if the bucket exists
     const { data: bucketData, error: bucketError } = await supabase
       .storage
       .getBucket('documents');
@@ -26,16 +35,18 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     
     console.log("Bucket exists:", bucketData);
     
-    // Ensure a valid file name
-    const fileName = `collection_${collection.id}_${Date.now()}.pdf`;
-    const htmlFileName = `collection_${collection.id}_${Date.now()}.html`;
+    // Ensure a valid file name with timestamp and random string to prevent overwrites
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const safeCollectionName = collection.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const htmlFileName = `collection_${safeCollectionName}_${timestamp}_${randomStr}.html`;
     
-    // Create HTML content to represent collection data
+    // Create HTML content to represent collection data with proper escaping
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Collection: ${collection.name}</title>
+          <title>Collection: ${escapeHtml(collection.name)}</title>
           <meta charset="UTF-8">
           <style>
             body { font-family: Arial, sans-serif; margin: 30px; }
@@ -49,15 +60,15 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
           </style>
         </head>
         <body>
-          <h1>Collection: ${collection.name}</h1>
-          ${collection.description ? `<p>${collection.description}</p>` : ''}
+          <h1>Collection: ${escapeHtml(collection.name)}</h1>
+          ${collection.description ? `<p>${escapeHtml(collection.description)}</p>` : ''}
           <h2>Artworks:</h2>
           ${collection.artworks?.map(artwork => `
             <div class="artwork">
-              <h3>${artwork.title} ${artwork.year ? `(${artwork.year})` : ''}</h3>
-              <p>Medium: ${artwork.medium_type || 'N/A'}</p>
-              ${artwork.materials ? `<p>Materials: ${artwork.materials}</p>` : ''}
-              ${artwork.dimensions ? `<p>Dimensions: ${artwork.dimensions}</p>` : ''}
+              <h3>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h3>
+              <p>Medium: ${escapeHtml(artwork.medium_type || 'N/A')}</p>
+              ${artwork.materials ? `<p>Materials: ${escapeHtml(artwork.materials)}</p>` : ''}
+              ${artwork.dimensions ? `<p>Dimensions: ${escapeHtml(artwork.dimensions)}</p>` : ''}
             </div>
           `).join('') || '<p>No artworks in this collection</p>'}
         </body>
@@ -106,7 +117,7 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
       toast.error("Failed to create document record: " + documentError.message);
     }
     
-    // Create a link element to trigger download
+    // Create a link element to trigger download and navigate to file in new tab
     const downloadLink = document.createElement("a");
     downloadLink.href = publicUrl;
     downloadLink.target = "_blank";
@@ -120,4 +131,15 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     toast.error("Failed to generate document: " + (error as Error).message);
     throw error;
   }
+}
+
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (!unsafe) return '';
+  return unsafe
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

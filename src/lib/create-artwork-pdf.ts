@@ -7,7 +7,16 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
   console.log("Creating PDF for artwork:", artwork.title);
   
   try {
-    // First check if the bucket exists
+    // First check if the user is authenticated
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !sessionData.session) {
+      console.error("Authentication error:", sessionError || "No active session");
+      toast.error("You must be logged in to generate documents");
+      throw new Error("Authentication required");
+    }
+    
+    // Check if the bucket exists
     const { data: bucketData, error: bucketError } = await supabase
       .storage
       .getBucket('documents');
@@ -26,15 +35,18 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     
     console.log("Bucket exists:", bucketData);
     
-    // Ensure a valid file name
-    const htmlFileName = `artwork_${artwork.id}_${Date.now()}.html`;
+    // Ensure a valid file name with timestamp and random string to prevent overwrites
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const safeArtworkTitle = artwork.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const htmlFileName = `artwork_${safeArtworkTitle}_${timestamp}_${randomStr}.html`;
     
-    // Create HTML content to represent artwork data
+    // Create HTML content to represent artwork data with proper escaping
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Artwork: ${artwork.title}</title>
+          <title>Artwork: ${escapeHtml(artwork.title)}</title>
           <meta charset="UTF-8">
           <style>
             body { font-family: Arial, sans-serif; margin: 30px; }
@@ -47,13 +59,13 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
           </style>
         </head>
         <body>
-          <h1>${artwork.title} ${artwork.year ? `(${artwork.year})` : ''}</h1>
-          <div class="detail">Medium: ${artwork.medium_type || 'N/A'}</div>
-          ${artwork.materials ? `<div class="detail">Materials: ${artwork.materials}</div>` : ''}
-          ${artwork.dimensions ? `<div class="detail">Dimensions: ${artwork.dimensions}</div>` : ''}
-          ${artwork.status ? `<div class="detail">Status: ${artwork.status}</div>` : ''}
-          ${artwork.story ? `<div class="detail">Story: ${artwork.story}</div>` : ''}
-          ${artwork.provenance ? `<div class="detail">Provenance: ${artwork.provenance}</div>` : ''}
+          <h1>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h1>
+          <div class="detail">Medium: ${escapeHtml(artwork.medium_type || 'N/A')}</div>
+          ${artwork.materials ? `<div class="detail">Materials: ${escapeHtml(artwork.materials)}</div>` : ''}
+          ${artwork.dimensions ? `<div class="detail">Dimensions: ${escapeHtml(artwork.dimensions)}</div>` : ''}
+          ${artwork.status ? `<div class="detail">Status: ${escapeHtml(artwork.status)}</div>` : ''}
+          ${artwork.story ? `<div class="detail">Story: ${escapeHtml(artwork.story)}</div>` : ''}
+          ${artwork.provenance ? `<div class="detail">Provenance: ${escapeHtml(artwork.provenance)}</div>` : ''}
         </body>
       </html>
     `;
@@ -101,7 +113,7 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
       toast.error("Failed to create document record: " + documentError.message);
     }
     
-    // Create a link element to trigger download
+    // Create a link element to trigger download and navigate to file in new tab
     const downloadLink = document.createElement("a");
     downloadLink.href = publicUrl;
     downloadLink.target = "_blank";
@@ -115,4 +127,15 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     toast.error("Failed to generate document: " + (error as Error).message);
     throw error;
   }
+}
+
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (!unsafe) return '';
+  return unsafe
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
