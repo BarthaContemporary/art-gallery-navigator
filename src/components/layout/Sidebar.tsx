@@ -8,6 +8,8 @@ import {
   List,
   Settings,
   User,
+  Shield,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -61,9 +63,21 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Create a mutable copy of the nav items array
+  const sidebarNavItems = [...NAV_ITEMS];
+  
+  // Add User Signup item for admins
+  if (isAdmin) {
+    sidebarNavItems.push({
+      name: "User Signup",
+      icon: Shield,
+      href: "/signup",
+    });
+  }
 
   const LOGO_SRC =
     "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
@@ -87,7 +101,7 @@ export function Sidebar() {
         <div className="font-medium text-xs text-muted-foreground px-2 pt-1 pb-2 tracking-wide uppercase">
           Menu
         </div>
-        {NAV_ITEMS.map((item) => {
+        {sidebarNavItems.map((item) => {
           const isActive =
             location.pathname === item.href ||
             (item.href !== "/" && location.pathname.startsWith(item.href));
