@@ -78,8 +78,19 @@ export function useUpdateCollection() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ 
+      id, 
+      name, 
+      description,
+      artworkIds 
+    }: { 
+      id: string; 
+      name: string; 
+      description?: string;
+      artworkIds?: string[];
+    }) => {
+      // 1. Update collection details
+      const { data: colData, error } = await supabase
         .from("collections")
         .update({ name, description })
         .eq("id", id)
@@ -87,7 +98,33 @@ export function useUpdateCollection() {
         .single();
         
       if (error) throw error;
-      return data;
+
+      // 2. If artworkIds provided, update collection_artworks
+      if (artworkIds !== undefined) {
+        // First delete existing artwork links
+        const { error: deleteError } = await supabase
+          .from("collection_artworks")
+          .delete()
+          .eq("collection_id", id);
+          
+        if (deleteError) throw deleteError;
+
+        // Then insert new artwork links if there are any
+        if (artworkIds.length > 0) {
+          const { error: insertError } = await supabase
+            .from("collection_artworks")
+            .insert(
+              artworkIds.map(artwork_id => ({
+                collection_id: id,
+                artwork_id,
+              }))
+            );
+            
+          if (insertError) throw insertError;
+        }
+      }
+
+      return colData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collections"] });
