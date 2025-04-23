@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useDocuments } from "@/hooks/use-documents";
 import { DocumentsHeader } from "@/components/documents/DocumentsHeader";
@@ -33,7 +32,6 @@ const Documents = () => {
     return matchesSearch && matchesType;
   }) ?? [];
 
-  // Handle initial loading state
   if (isLoading || isBucketLoading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -42,13 +40,10 @@ const Documents = () => {
     );
   }
 
-  // Look at documents without checking bucket status
-  // This allows viewing documents even if bucket creation fails
   return (
     <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
       <DocumentsHeader />
       
-      {/* Display bucket status warning if needed */}
       {!bucketData && (
         <Alert variant="warning" className="mb-6">
           <AlertCircle className="h-4 w-4" />
@@ -79,7 +74,6 @@ const Documents = () => {
         </Alert>
       )}
       
-      {/* Display general error if any */}
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
