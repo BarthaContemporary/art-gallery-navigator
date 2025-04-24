@@ -1,40 +1,37 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Updated colors based on your specs */
-    --background: 0 0% 100%;
-    --foreground: 220 20% 20%;
+    /* Pure white backgrounds for all key areas */
+    --background: 0 0% 100%; /* Pure white */
+    --foreground: 0 0% 0%; /* Black text for contrast */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 20%;
+    --card: 0 0% 100%; /* White card background */
+    --card-foreground: 0 0% 0%; /* Black text */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 20%;
+    --popover: 0 0% 100%; /* White popover background */
+    --popover-foreground: 0 0% 0%; /* Black text */
 
-    /* PRIMARY: update blue to #18465a */
-    --primary: 200 66% 22%;                  /* hsl(200,66%,22%) ~ #18465a */
-    --primary-foreground: 0 0% 100%;
+    --primary: 200 66% 22%; /* Keeping existing primary color */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 20%;
+    --secondary: 220 14% 96%; /* Light gray for secondary elements */
+    --secondary-foreground: 220 20% 20%; 
 
-    --muted: 220 14% 96%;
+    --muted: 220 14% 96%; /* Light gray for muted elements */
     --muted-foreground: 220 10% 56%;
 
-    --accent: 266 80% 70%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 0 0% 98%; /* Very light gray for accents */
+    --accent-foreground: 220 20% 20%;
 
-    /* DESTRUCTIVE (red/links): #910000 */
-    --destructive: 0 100% 28%;               /* hsl(0,100%,28%) ~ #910000 */
+    --destructive: 0 100% 28%; /* Keeping existing destructive color */
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 200 66% 22%;                     /* Use same as primary for outer focus ring */
+    --ring: 200 66% 22%;
 
     --radius: 0.25rem;
 
@@ -52,17 +49,17 @@
     --sidebar-ring: 200 66% 22%;
   }
 
+  /* Dark mode with slightly off-white backgrounds */
   .dark {
-    --background: 220 25% 15%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 98%; /* Very light gray for dark mode */
+    --foreground: 0 0% 0%; 
 
-    --card: 220 25% 17%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 98%; /* Very light gray card */
+    --card-foreground: 0 0% 0%;
 
-    --popover: 220 25% 15%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 98%; /* Very light gray popover */
+    --popover-foreground: 0 0% 0%;
 
-    /* PRIMARY: update blue to #18465a (keep slightly brighter in dark mode) */
     --primary: 200 66% 32%;                  /* hsl(200,66%,32%) ≈ slightly lighter #235d7e */
     --primary-foreground: 0 0% 100%;
 
@@ -123,4 +120,45 @@
   }
 }
 
-/* ... keep existing code (animations and .logo etc) the same ... */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
