@@ -110,7 +110,7 @@ export default function PDFTemplates() {
                       {artwork ? artwork.title : collection ? collection.name : "Document Title"}
                     </h1>
                   </div>
-                  {artwork && <ArtworkPDFPreview artwork={artwork} />}
+                  {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basic" />}
                   {collection && <CollectionPDFPreview collection={collection} />}
                   {!artwork && !collection && (
                     <p>Select an artwork or collection to preview</p>
@@ -125,7 +125,7 @@ export default function PDFTemplates() {
                     <div className="w-24 h-1 bg-primary"></div>
                   </div>
                   <div className="pl-6 border-l-4 border-primary">
-                    {artwork && <ArtworkPDFPreview artwork={artwork} />}
+                    {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basicWithPrice" />}
                     {collection && <CollectionPDFPreview collection={collection} />}
                     {!artwork && !collection && (
                       <p>Select an artwork or collection to preview</p>
@@ -138,7 +138,7 @@ export default function PDFTemplates() {
                     {artwork ? artwork.title : collection ? collection.name : "Document Title"}
                   </h1>
                   <div className="grid grid-cols-1 gap-6">
-                    {artwork && <ArtworkPDFPreview artwork={artwork} />}
+                    {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="complete" />}
                     {collection && <CollectionPDFPreview collection={collection} />}
                     {!artwork && !collection && (
                       <p>Select an artwork or collection to preview</p>
