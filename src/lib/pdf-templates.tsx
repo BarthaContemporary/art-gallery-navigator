@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { Collection } from "@/hooks/use-collections";
@@ -105,9 +104,17 @@ export function generateArtworkHTML(
   // Stationery background
   const stationeryStyle = useStationery ? `
     body {
-      background-image: url('/stationery-template.png');
-      background-size: cover;
+      background-image: url('/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png');
+      background-size: contain;
       background-repeat: no-repeat;
+      background-position: center;
+      position: relative;
+    }
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 40px;
     }
   ` : '';
   
@@ -124,7 +131,7 @@ export function generateArtworkHTML(
         </style>
       </head>
       <body>
-        <div style="padding: 40px;">
+        <div class="content-wrapper">
           <h1>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h1>
           
           <div class="section">
@@ -322,9 +329,17 @@ export function generateCollectionHTML(
   // Stationery background
   const stationeryStyle = useStationery ? `
     body {
-      background-image: url('/stationery-template.png');
-      background-size: cover;
+      background-image: url('/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png');
+      background-size: contain;
       background-repeat: no-repeat;
+      background-position: center;
+      position: relative;
+    }
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 40px;
     }
   ` : '';
   
@@ -341,7 +356,7 @@ export function generateCollectionHTML(
         </style>
       </head>
       <body>
-        <div style="padding: 40px;">
+        <div class="content-wrapper">
           <h1>Collection: ${escapeHtml(collection.name)}</h1>
           
           ${collection.description ? `
