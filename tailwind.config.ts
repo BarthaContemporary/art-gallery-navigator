@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -22,8 +23,12 @@ export default {
         sans: ['"Source Sans 3"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
         // Adjusting colors to pure white backgrounds
         background: '#ffffff',
+        foreground: '#000000',
         card: {
           DEFAULT: '#ffffff',
           foreground: '#000000',
