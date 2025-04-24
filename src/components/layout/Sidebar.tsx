@@ -84,7 +84,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden sm:flex flex-col w-60 h-full border-r bg-gradient-to-b from-[#f9fafb] via-[#edf0f4] to-[#e3e6ed] dark:from-sidebar-background dark:via-sidebar-background dark:to-[#1f232d] shadow-md"
+      className="hidden sm:flex flex-col w-60 h-full border-r bg-white" // Changed background to pure white
       style={{
         minHeight: "100vh",
       }}
@@ -124,7 +124,7 @@ export function Sidebar() {
         })}
         <div className="flex-1" />
       </nav>
-      <div className="border-t px-4 py-4 mt-auto bg-white/60 dark:bg-[#181b21]/80">
+      <div className="border-t px-4 py-4 mt-auto bg-white"> {/* Explicitly set to white */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -145,7 +145,7 @@ export function Sidebar() {
               <Settings className="h-4 w-4 text-muted-foreground ml-1" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white dark:bg-[#232630]">
+          <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white">
             <DropdownMenuLabel className="text-xs">My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
