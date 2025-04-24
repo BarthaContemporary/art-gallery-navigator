@@ -22,19 +22,19 @@ export function generateCollectionHTML(
           
           /* Additional collection styles */
           .collection-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
-            margin-bottom: 1cm;
+            margin-bottom: 0.5cm;
           }
           
           .collection-header {
-            margin-bottom: 1cm;
+            margin-bottom: 0.5cm;
           }
           
           h2 {
-            font-size: 14px;
-            margin-top: 0.5cm;
-            margin-bottom: 0.3cm;
+            font-size: 12px;
+            margin-top: 0.3cm;
+            margin-bottom: 0.2cm;
           }
         </style>
       </head>

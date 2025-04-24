@@ -86,6 +86,7 @@ export const stationeryStyles = `
     padding-bottom: 3.5cm;
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
+    font-size: 12px;
   }
   
   .artwork-image {
@@ -139,38 +140,38 @@ export const stationeryStyles = `
     top: 6cm;
     left: 4cm;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 14px;
     font-family: 'Source Sans 3', sans-serif;
   }
   
   .collection-items {
-    margin-top: 1.5cm;
-    font-size: 14px;
+    margin-top: 1cm;
+    font-size: 12px;
   }
   
   .collection-description {
-    margin-bottom: 1.5cm;
-    font-size: 14px;
+    margin-bottom: 1cm;
+    font-size: 12px;
   }
   
   .collection-item {
     display: flex;
-    margin-bottom: 0.8cm;
+    margin-bottom: 0.6cm;
     border-bottom: 1px solid #eee;
-    padding-bottom: 0.6cm;
-    font-size: 12px;
+    padding-bottom: 0.4cm;
+    font-size: 11px;
   }
   
   .collection-item-image {
-    width: 2.5cm;
-    height: 2.5cm;
+    width: 2cm;
+    height: 2cm;
     object-fit: cover;
-    margin-right: 0.8cm;
+    margin-right: 0.6cm;
   }
   
   .collection-item-details {
     flex: 1;
-    font-size: 12px;
+    font-size: 11px;
   }
 `;
 
@@ -183,6 +184,7 @@ export function getStationeryStyle(useStationery: boolean): string {
       background-repeat: no-repeat;
       background-position: center;
       position: relative;
+      /* Using opacity 1 (100%) */
     }
   ` : '';
 }

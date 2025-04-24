@@ -84,18 +84,6 @@ export default function PDFTemplates() {
               <Label htmlFor="stationery-mode">Use Company Stationery</Label>
             </div>
           )}
-          
-          {/* For collections, stationery is always on */}
-          {type === "collection" && (
-            <Button 
-              onClick={handleGeneratePDF}
-              disabled={!collection || isGenerating}
-              className="flex items-center gap-2"
-            >
-              {isGenerating ? "Generating..." : "Export PDF"}
-              <Download className="h-4 w-4" />
-            </Button>
-          )}
         </div>
         
         {type === "artwork" ? (
@@ -115,7 +103,7 @@ export default function PDFTemplates() {
                       <img 
                         src="/stationery-template.png" 
                         alt="Company Stationery" 
-                        className="w-full h-full object-cover opacity-100"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   )}
@@ -124,41 +112,38 @@ export default function PDFTemplates() {
                   <TabsContent value="classic" className="p-12 m-0 border-none h-full">
                     <div className="border-b-2 border-primary pb-6 mb-6">
                       <h1 className="text-3xl font-bold text-primary">
-                        {artwork ? artwork.title : collection ? collection.name : "Document Title"}
+                        {artwork ? artwork.title : "Document Title"}
                       </h1>
                     </div>
                     {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basic" />}
-                    {collection && <CollectionPDFPreview collection={collection} />}
-                    {!artwork && !collection && (
-                      <p>Select an artwork or collection to preview</p>
+                    {!artwork && (
+                      <p>Select an artwork to preview</p>
                     )}
                   </TabsContent>
                   
                   <TabsContent value="modern" className="p-12 m-0 border-none h-full">
                     <div className="flex items-center justify-between mb-8">
                       <h1 className="text-3xl font-light">
-                        {artwork ? artwork.title : collection ? collection.name : "Document Title"}
+                        {artwork ? artwork.title : "Document Title"}
                       </h1>
                       <div className="w-24 h-1 bg-primary"></div>
                     </div>
                     <div className="pl-6 border-l-4 border-primary">
                       {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basicWithPrice" />}
-                      {collection && <CollectionPDFPreview collection={collection} />}
-                      {!artwork && !collection && (
-                        <p>Select an artwork or collection to preview</p>
+                      {!artwork && (
+                        <p>Select an artwork to preview</p>
                       )}
                     </div>
                   </TabsContent>
                   
                   <TabsContent value="minimal" className="p-12 m-0 border-none h-full">
                     <h1 className="text-2xl uppercase tracking-widest mb-8">
-                      {artwork ? artwork.title : collection ? collection.name : "Document Title"}
+                        {artwork ? artwork.title : "Document Title"}
                     </h1>
                     <div className="grid grid-cols-1 gap-6">
                       {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="complete" />}
-                      {collection && <CollectionPDFPreview collection={collection} />}
-                      {!artwork && !collection && (
-                        <p>Select an artwork or collection to preview</p>
+                      {!artwork && (
+                        <p>Select an artwork to preview</p>
                       )}
                     </div>
                   </TabsContent>
@@ -168,7 +153,7 @@ export default function PDFTemplates() {
             
             <div className="mt-6 flex justify-end">
               <Button 
-                disabled={!(artwork || collection) || isGenerating}
+                disabled={!artwork || isGenerating}
                 onClick={handleGeneratePDF}
                 className="flex items-center gap-2"
               >
@@ -179,28 +164,41 @@ export default function PDFTemplates() {
           </Tabs>
         ) : (
           /* Collection PDF Preview - Simplified, no tabs needed */
-          <div className="bg-gray-100 p-6 rounded-lg">
-            <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
-              <div className="bg-white shadow-lg h-full overflow-auto">
-                <div className="absolute inset-0 pointer-events-none">
-                  <img 
-                    src="/stationery-template.png" 
-                    alt="Company Stationery" 
-                    className="w-full h-full object-cover opacity-100"
-                  />
-                </div>
-                
-                <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative">
-                  <div className="absolute top-[6cm] left-[4cm] font-bold font-sans text-lg">
-                    {collection ? collection.name : "Collection Name"}
+          <div>
+            <div className="bg-gray-100 p-6 rounded-lg">
+              <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
+                <div className="bg-white shadow-lg h-full overflow-auto">
+                  <div className="absolute inset-0 pointer-events-none">
+                    <img 
+                      src="/stationery-template.png" 
+                      alt="Company Stationery" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   
-                  {collection && <CollectionPDFPreview collection={collection} />}
-                  {!collection && (
-                    <p className="text-sm">No collection selected to preview</p>
-                  )}
+                  <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative">
+                    <div className="absolute top-[6cm] left-[4cm] font-bold font-sans text-sm">
+                      {collection ? collection.name : "Collection Name"}
+                    </div>
+                    
+                    {collection && <CollectionPDFPreview collection={collection} />}
+                    {!collection && (
+                      <p className="text-xs">No collection selected to preview</p>
+                    )}
+                  </div>
                 </div>
               </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <Button 
+                onClick={handleGeneratePDF}
+                disabled={!collection || isGenerating}
+                className="flex items-center gap-2"
+              >
+                {isGenerating ? "Generating..." : "Export PDF"}
+                <Download className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
