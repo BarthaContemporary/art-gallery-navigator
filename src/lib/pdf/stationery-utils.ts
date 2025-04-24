@@ -8,7 +8,7 @@ export function getStationeryStyle(useStationery: boolean): string {
       background-repeat: no-repeat;
       background-position: center;
       position: relative;
+      z-index: -1;
     }
   ` : '';
 }
-

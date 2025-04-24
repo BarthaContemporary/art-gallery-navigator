@@ -12,7 +12,7 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
         <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
           {title}
         </div>
-        <div className="text-[7px]">
+        <div className="text-[10px]">
           <p className="mb-1">Collection description text...</p>
           
           <h3 className="font-bold text-[9px] my-1">Artworks in this Collection:</h3>
@@ -24,7 +24,7 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
                 alt="Artwork" 
                 className="w-6 h-6 object-cover mr-1"
               />
-              <div className="text-[7px] leading-tight">
+              <div className="text-[10px] leading-tight">
                 <p className="font-bold">Artist Name</p>
                 <p className="italic">Artwork Title, 2023</p>
                 <p>Materials</p>

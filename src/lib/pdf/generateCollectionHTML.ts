@@ -26,6 +26,14 @@ export function generateCollectionHTML(
           ${getStationeryStyle(true)}
           
           /* Additional collection styles */
+          .content-wrapper {
+            background-image: url('/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            position: relative;
+          }
+          
           .collection-title {
             font-size: 10px;
             font-weight: bold;
@@ -46,11 +54,13 @@ export function generateCollectionHTML(
             margin-top: 0;
             margin-bottom: 0.05cm;
             line-height: 1.2;
+            font-size: 10px;
           }
           
           .collection-description {
             margin-bottom: 0.1cm;
             line-height: 1.2;
+            font-size: 10px;
           }
         </style>
       </head>
