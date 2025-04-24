@@ -1,7 +1,11 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { escapeHtml } from "./utils";
-import { baseStyles, stationeryStyles, getStationeryStyle, cmToInchFraction } from "./styles";
+import { 
+  baseStyles, 
+  stationeryStyles, 
+  getStationeryStyle, 
+  cmToInchFraction 
+} from "./styles";
 
 export function generateCollectionHTML(
   collection: Collection,

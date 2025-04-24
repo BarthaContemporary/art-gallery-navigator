@@ -1,7 +1,12 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { escapeHtml } from "./utils";
-import { baseStyles, plainPaperStyles, stationeryStyles, getStationeryStyle, cmToInchFraction } from "./styles";
+import { 
+  baseStyles, 
+  plainPaperStyles, 
+  stationeryStyles, 
+  getStationeryStyle, 
+  cmToInchFraction 
+} from "./styles";
 
 export function generateArtworkHTML(
   artwork: Artwork, 
