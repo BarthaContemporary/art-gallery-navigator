@@ -7,15 +7,17 @@ import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Save } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
+import { useNavigate } from "react-router-dom";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
   const { data: artworks, isLoading, error } = useArtworks();
+  const navigate = useNavigate();
   
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = 
@@ -45,6 +47,10 @@ const Artworks = () => {
     if (filteredArtworks.length) {
       exportArtworksToCSV(filteredArtworks, 'filtered_artworks.csv');
     }
+  };
+
+  const handleGeneratePDF = (artwork) => {
+    navigate(`/pdf-templates/artwork/${artwork.id}`);
   };
 
   if (isLoading) {

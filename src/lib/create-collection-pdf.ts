@@ -1,3 +1,4 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,7 +10,7 @@ import { generateCollectionHTML } from './pdf/generateCollectionHTML';
 export async function createCollectionPDF(
   collection: Collection,
   templateStyle: string = 'classic',
-  useStationery: boolean = false
+  useStationery: boolean = true
 ): Promise<string> {
   console.log("Creating PDF for collection:", collection.name);
   
@@ -60,18 +61,19 @@ export async function createCollectionPDF(
     // Convert the HTML content to canvas and then to PDF
     toast.loading("Generating PDF, please wait...");
     
-    // Convert HTML to canvas
+    // Convert HTML to canvas with improved settings
     const canvas = await html2canvas(tempDiv, {
-      scale: 1.5, // Higher quality rendering
+      scale: 2.0, // Higher quality rendering
       useCORS: true,
       logging: false,
-      allowTaint: true
+      allowTaint: true,
+      backgroundColor: null
     });
     
     // Remove the temporary div
     document.body.removeChild(tempDiv);
     
-    // Add canvas to PDF
+    // Add canvas to PDF with correct dimensions
     const imgData = canvas.toDataURL('image/png');
     const imgProps = doc.getImageProperties(imgData);
     const pdfWidth = doc.internal.pageSize.getWidth();

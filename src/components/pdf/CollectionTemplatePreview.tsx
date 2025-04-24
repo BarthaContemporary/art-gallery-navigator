@@ -16,7 +16,7 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
         <div className="text-[10px]">
           <p className="mb-1">Collection description text...</p>
           
-          <h3 className="font-bold text-[9px] my-1">Artworks in this Collection:</h3>
+          <h3 className="font-bold text-[9px] mt-2 mb-1">Artworks in this Collection:</h3>
           
           <div className="space-y-2">
             <div className="flex border-b pb-1">

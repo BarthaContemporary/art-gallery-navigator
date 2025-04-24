@@ -23,17 +23,9 @@ export function generateCollectionHTML(
         <style>
           ${baseStyles}
           ${stationeryStyles}
-          ${getStationeryStyle(true)}
+          ${getStationeryStyle(useStationery)}
           
           /* Additional collection styles */
-          .content-wrapper {
-            background-image: url('/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png');
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center;
-            position: relative;
-          }
-          
           .collection-title {
             font-size: 10px;
             font-weight: bold;
@@ -63,11 +55,46 @@ export function generateCollectionHTML(
             font-size: 10px;
           }
           
-          .collection-item-image {
+          .collection-item {
+            display: flex;
+            margin-bottom: 0.1cm;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.1cm;
+          }
+          
+          .collection-item-image-container {
             width: 1.5cm;
             height: 1.5cm;
-            object-fit: contain;
             margin-right: 0.3cm;
+            flex-shrink: 0;
+          }
+          
+          .collection-item-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+          }
+          
+          .content-wrapper {
+            padding-top: 8cm;
+            padding-left: 4cm;
+            padding-right: 3cm;
+            padding-bottom: 3.5cm;
+            position: relative;
+            height: 100%;
+          }
+          
+          .collection-name {
+            position: absolute;
+            top: 6cm;
+            left: 4cm;
+            font-weight: 700;
+            font-size: 10px;
+            font-family: 'Source Sans 3', sans-serif;
+          }
+          
+          .collection-items {
+            margin-top: 0.5cm;
           }
         </style>
       </head>
@@ -104,11 +131,13 @@ export function generateCollectionHTML(
               
               return `
                 <div class="collection-item">
-                  <img 
-                    src="${artwork.image_url || '/placeholder.svg'}" 
-                    alt="${escapeHtml(artwork.title)}" 
-                    class="collection-item-image"
-                  />
+                  <div class="collection-item-image-container">
+                    <img 
+                      src="${artwork.image_url || '/placeholder.svg'}" 
+                      alt="${escapeHtml(artwork.title)}" 
+                      class="collection-item-image"
+                    />
+                  </div>
                   <div class="collection-item-details">
                     <p class="artist-name">Artist Name</p>
                     <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? `, ${artwork.year}` : ''}</p>

@@ -14,7 +14,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
         </div>
       )}
       
-      <h2 className="text-[9px] font-semibold my-1">Artworks in this Collection</h2>
+      <h2 className="text-[9px] font-semibold mt-2 mb-1">Artworks in this Collection</h2>
       
       {collection.artworks && collection.artworks.length > 0 ? (
         <div className="space-y-1">

@@ -80,7 +80,7 @@ export const stationeryStyles = `
   }
   
   .collection-items {
-    margin-top: 0.1cm;
+    margin-top: 0.5cm;
     font-size: 10px;
   }
   
@@ -92,11 +92,17 @@ export const stationeryStyles = `
     font-size: 10px;
   }
   
-  .collection-item-image {
+  .collection-item-image-container {
     width: 1.5cm;
     height: 1.5cm;
-    object-fit: contain;
+    flex-shrink: 0;
     margin-right: 0.3cm;
+  }
+  
+  .collection-item-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
   
   .collection-item-details {
@@ -114,6 +120,6 @@ export const stationeryStyles = `
     font-size: 9px;
     margin-bottom: 0.1cm;
     font-weight: 600;
-    margin-top: 0;
+    margin-top: 0.5cm;
   }
 `;
