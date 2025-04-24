@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -56,13 +55,12 @@ export function PDFPreviewDialog({
           <ScrollArea className="flex-1">
             <div className="bg-gray-100 p-4 rounded flex items-center justify-center">
               <div className="bg-white shadow-lg" style={{ width: '595px', height: '842px', position: 'relative' }}>
-                {/* A4 ratio container (595x842 pixels @ 72dpi) */}
                 {useStationery && (
                   <div className="absolute inset-0 pointer-events-none">
                     <img 
-                      src="/stationery-template.png" 
-                      alt="Company Stationery" 
-                      className="w-full h-full object-cover opacity-20"
+                      src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
+                      alt="Bartha Contemporary Stationery"
+                      className="w-full h-full object-contain opacity-90"
                     />
                   </div>
                 )}
