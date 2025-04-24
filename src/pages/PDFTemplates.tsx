@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +21,6 @@ export default function PDFTemplates() {
   const { data: artworks } = useArtworks();
   const { data: collections } = useCollections();
   
-  // Get the entity based on the type and ID
   const artwork = type === "artwork" && id ? 
     artworks?.find(a => a.id === id) : undefined;
     
@@ -73,7 +71,6 @@ export default function PDFTemplates() {
             </p>
           </div>
           
-          {/* Only show stationery switch for artwork PDFs */}
           {type === "artwork" && (
             <div className="flex items-center space-x-2">
               <Switch
@@ -96,7 +93,6 @@ export default function PDFTemplates() {
             
             <div className="bg-gray-100 p-6 rounded-lg">
               <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
-                {/* A4 container (595x842 pixels @ 72dpi) */}
                 <div className="bg-white shadow-lg h-full overflow-auto">
                   {useStationery && (
                     <div className="absolute inset-0 pointer-events-none">
@@ -108,7 +104,6 @@ export default function PDFTemplates() {
                     </div>
                   )}
                   
-                  {/* Template content */}
                   <TabsContent value="classic" className="p-12 m-0 border-none h-full">
                     <div className="border-b-2 border-primary pb-6 mb-6">
                       <h1 className="text-3xl font-bold text-primary">
@@ -163,21 +158,29 @@ export default function PDFTemplates() {
             </div>
           </Tabs>
         ) : (
-          /* Collection PDF Preview - Simplified, no tabs needed */
           <div>
-            <div className="bg-gray-100 p-6 rounded-lg">
+            <div className="bg-gray-100 p-6 rounded-lg relative">
+              <Button 
+                onClick={handleGeneratePDF}
+                disabled={!collection || isGenerating}
+                className="absolute top-8 right-8 z-10 flex items-center gap-2"
+              >
+                {isGenerating ? "Generating..." : "Save as PDF"}
+                <Download className="h-4 w-4" />
+              </Button>
+              
               <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
                 <div className="bg-white shadow-lg h-full overflow-auto">
                   <div className="absolute inset-0 pointer-events-none">
                     <img 
-                      src="/stationery-template.png" 
-                      alt="Company Stationery" 
-                      className="w-full h-full object-cover"
+                      src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
+                      alt="Bartha Contemporary Stationery"
+                      className="w-full h-full object-contain"
                     />
                   </div>
                   
-                  <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative">
-                    <div className="absolute top-[6cm] left-[4cm] font-bold font-sans text-sm">
+                  <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
+                    <div className="absolute top-[6cm] left-[4cm] font-bold text-sm">
                       {collection ? collection.name : "Collection Name"}
                     </div>
                     
@@ -188,17 +191,6 @@ export default function PDFTemplates() {
                   </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <Button 
-                onClick={handleGeneratePDF}
-                disabled={!collection || isGenerating}
-                className="flex items-center gap-2"
-              >
-                {isGenerating ? "Generating..." : "Export PDF"}
-                <Download className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         )}

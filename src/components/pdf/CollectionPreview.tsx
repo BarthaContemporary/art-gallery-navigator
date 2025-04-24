@@ -7,17 +7,17 @@ interface CollectionPreviewProps {
 
 export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   return (
-    <div className="space-y-2 text-xs">
+    <div className="space-y-1 text-[10px]">
       {collection.description && (
-        <div className="mb-2">
-          <p className="text-xs">{collection.description}</p>
+        <div className="mt-1 mb-3">
+          <p className="text-[10px]">{collection.description}</p>
         </div>
       )}
       
-      <h2 className="text-sm font-medium mb-1">Artworks in this Collection</h2>
+      <h2 className="text-xs font-medium mb-2">Artworks in this Collection</h2>
       
       {collection.artworks && collection.artworks.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {collection.artworks.map((artwork) => (
             <div key={artwork.id} className="flex border-b pb-2">
               <img
@@ -25,7 +25,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 alt={artwork.title}
                 className="w-8 h-8 object-cover mr-2"
               />
-              <div className="text-xs">
+              <div className="text-[10px]">
                 <p className="font-bold">Artist Name</p>
                 <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                 {artwork.medium_type && <p>{artwork.medium_type}</p>}
@@ -50,7 +50,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
           ))}
         </div>
       ) : (
-        <p className="text-xs">No artworks in this collection</p>
+        <p className="text-[10px]">No artworks in this collection</p>
       )}
     </div>
   );

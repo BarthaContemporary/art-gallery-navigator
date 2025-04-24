@@ -86,7 +86,7 @@ export const stationeryStyles = `
     padding-bottom: 3.5cm;
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
-    font-size: 12px;
+    font-size: 10px;
   }
   
   .artwork-image {
@@ -140,26 +140,26 @@ export const stationeryStyles = `
     top: 6cm;
     left: 4cm;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 12px;
     font-family: 'Source Sans 3', sans-serif;
   }
   
-  .collection-items {
-    margin-top: 1cm;
-    font-size: 12px;
+  .collection-description {
+    margin-bottom: 0.5cm;
+    font-size: 10px;
   }
   
-  .collection-description {
-    margin-bottom: 1cm;
-    font-size: 12px;
+  .collection-items {
+    margin-top: 0.5cm;
+    font-size: 10px;
   }
   
   .collection-item {
     display: flex;
-    margin-bottom: 0.6cm;
+    margin-bottom: 0.4cm;
     border-bottom: 1px solid #eee;
-    padding-bottom: 0.4cm;
-    font-size: 11px;
+    padding-bottom: 0.3cm;
+    font-size: 10px;
   }
   
   .collection-item-image {
@@ -171,7 +171,7 @@ export const stationeryStyles = `
   
   .collection-item-details {
     flex: 1;
-    font-size: 11px;
+    font-size: 10px;
   }
 `;
 
