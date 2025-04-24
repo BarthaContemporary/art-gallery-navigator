@@ -19,6 +19,23 @@ export function generateCollectionHTML(
           ${baseStyles}
           ${stationeryStyles}
           ${getStationeryStyle(true)}
+          
+          /* Additional collection styles */
+          .collection-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 1cm;
+          }
+          
+          .collection-header {
+            margin-bottom: 1cm;
+          }
+          
+          h2 {
+            font-size: 14px;
+            margin-top: 0.5cm;
+            margin-bottom: 0.3cm;
+          }
         </style>
       </head>
       <body>

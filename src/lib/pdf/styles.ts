@@ -1,4 +1,3 @@
-
 interface TemplateStyles {
   basic: string;
   basicWithPrice: string;
@@ -36,6 +35,7 @@ export const baseStyles = `
 export const plainPaperStyles = `
   .content-wrapper {
     padding: 3cm 3cm 3.5cm 3cm;
+    font-family: 'Source Sans 3', sans-serif;
   }
   
   .artwork-image {
@@ -85,6 +85,7 @@ export const stationeryStyles = `
     padding-right: 3cm;
     padding-bottom: 3.5cm;
     position: relative;
+    font-family: 'Source Sans 3', sans-serif;
   }
   
   .artwork-image {
@@ -138,29 +139,38 @@ export const stationeryStyles = `
     top: 6cm;
     left: 4cm;
     font-weight: 700;
-    font-size: 20px;
+    font-size: 16px;
+    font-family: 'Source Sans 3', sans-serif;
   }
   
   .collection-items {
-    margin-top: 2cm;
+    margin-top: 1.5cm;
+    font-size: 14px;
+  }
+  
+  .collection-description {
+    margin-bottom: 1.5cm;
+    font-size: 14px;
   }
   
   .collection-item {
     display: flex;
-    margin-bottom: 1cm;
+    margin-bottom: 0.8cm;
     border-bottom: 1px solid #eee;
-    padding-bottom: 0.8cm;
+    padding-bottom: 0.6cm;
+    font-size: 12px;
   }
   
   .collection-item-image {
-    width: 3cm;
-    height: 3cm;
+    width: 2.5cm;
+    height: 2.5cm;
     object-fit: cover;
-    margin-right: 1cm;
+    margin-right: 0.8cm;
   }
   
   .collection-item-details {
     flex: 1;
+    font-size: 12px;
   }
 `;
 
