@@ -48,6 +48,8 @@ export async function createCollectionPDF(
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-9999px';
     tempDiv.style.top = '-9999px';
+    tempDiv.style.width = '595px'; // A4 width in pixels at 72dpi
+    tempDiv.style.height = '842px'; // A4 height in pixels at 72dpi
     tempDiv.innerHTML = htmlContent;
     document.body.appendChild(tempDiv);
     
@@ -55,31 +57,39 @@ export async function createCollectionPDF(
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'px',
-      format: 'a4'
+      format: 'a4',
+      hotfixes: ['px_scaling']
     });
     
     // Convert the HTML content to canvas and then to PDF
     toast.loading("Generating PDF, please wait...");
     
+    // Add 100ms delay to ensure fonts are loaded
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Convert HTML to canvas with improved settings
     const canvas = await html2canvas(tempDiv, {
-      scale: 2.0, // Higher quality rendering
+      scale: 3.0, // Higher quality rendering (increased from 2.0)
       useCORS: true,
       logging: false,
       allowTaint: true,
-      backgroundColor: null
+      backgroundColor: null,
+      onclone: (clonedDoc) => {
+        // Make sure fonts are loaded in the clone
+        const style = clonedDoc.createElement('style');
+        style.innerHTML = `
+          @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+        `;
+        clonedDoc.head.appendChild(style);
+      }
     });
     
     // Remove the temporary div
     document.body.removeChild(tempDiv);
     
-    // Add canvas to PDF with correct dimensions
+    // Add canvas to PDF with exact A4 dimensions
     const imgData = canvas.toDataURL('image/png');
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    doc.addImage(imgData, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
     
     // Convert PDF to Blob
     const pdfBlob = doc.output('blob');
@@ -154,8 +164,9 @@ export async function createCollectionPDF(
         .insert({
           file_name: pdfFileName,
           file_url: publicUrl,
-          type: "collection_overview",
+          type: "collection_overview", 
           description: `Overview document for ${collection.name}`,
+          date_uploaded: new Date().toISOString()
         })
         .select();
       

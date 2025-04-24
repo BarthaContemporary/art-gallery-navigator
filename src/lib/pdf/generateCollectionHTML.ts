@@ -25,76 +25,17 @@ export function generateCollectionHTML(
           ${stationeryStyles}
           ${getStationeryStyle(useStationery)}
           
-          /* Additional collection styles */
-          .collection-title {
+          /* Additional PDF-specific fixes */
+          body {
+            margin: 0;
+            padding: 0;
             font-size: 10px;
-            font-weight: bold;
-            margin-bottom: 0.1cm;
-          }
-          
-          .collection-header {
-            margin-bottom: 0.1cm;
-          }
-          
-          h2 {
-            font-size: 9px;
-            margin-top: 0.1cm;
-            margin-bottom: 0.1cm;
-          }
-
-          .collection-item-details p {
-            margin-top: 0;
-            margin-bottom: 0.05cm;
             line-height: 1.2;
-            font-size: 10px;
-          }
-          
-          .collection-description {
-            margin-bottom: 0.1cm;
-            line-height: 1.2;
-            font-size: 10px;
-          }
-          
-          .collection-item {
-            display: flex;
-            margin-bottom: 0.1cm;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 0.1cm;
-          }
-          
-          .collection-item-image-container {
-            width: 1.5cm;
-            height: 1.5cm;
-            margin-right: 0.3cm;
-            flex-shrink: 0;
-          }
-          
-          .collection-item-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-          }
-          
-          .content-wrapper {
-            padding-top: 8cm;
-            padding-left: 4cm;
-            padding-right: 3cm;
-            padding-bottom: 3.5cm;
-            position: relative;
-            height: 100%;
-          }
-          
-          .collection-name {
-            position: absolute;
-            top: 6cm;
-            left: 4cm;
-            font-weight: 700;
-            font-size: 10px;
             font-family: 'Source Sans 3', sans-serif;
           }
           
-          .collection-items {
-            margin-top: 0.5cm;
+          * {
+            box-sizing: border-box;
           }
         </style>
       </head>

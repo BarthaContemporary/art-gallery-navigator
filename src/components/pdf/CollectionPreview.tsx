@@ -20,11 +20,11 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
         <div className="space-y-1">
           {collection.artworks.map((artwork) => (
             <div key={artwork.id} className="flex border-b pb-1">
-              <div className="w-6 h-6 mr-1 flex-shrink-0">
+              <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                 <img
                   src={artwork.image_url || "/placeholder.svg"}
                   alt={artwork.title}
-                  className="w-full h-full object-contain"
+                  className="max-w-full max-h-full object-contain"
                 />
               </div>
               <div className="text-[10px] leading-tight">

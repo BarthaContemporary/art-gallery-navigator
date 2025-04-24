@@ -1,6 +1,5 @@
 
 import { TabsContent } from "@/components/ui/tabs";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface CollectionTemplatePreviewProps {
   title: string;
@@ -20,11 +19,11 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
           
           <div className="space-y-2">
             <div className="flex border-b pb-1">
-              <div className="w-6 h-6 mr-1 flex-shrink-0">
+              <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                 <img 
                   src="/placeholder.svg" 
                   alt="Artwork" 
-                  className="w-full h-full object-contain"
+                  className="max-w-full max-h-full object-contain"
                 />
               </div>
               <div className="text-[10px] leading-tight">

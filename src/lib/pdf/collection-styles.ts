@@ -8,6 +8,7 @@ export const stationeryStyles = `
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
     font-size: 10px;
+    box-sizing: border-box;
   }
   
   .artwork-image {
@@ -15,12 +16,14 @@ export const stationeryStyles = `
     width: auto;
     display: block;
     margin-bottom: 1.5cm;
+    object-fit: contain;
   }
   
   .artist-name {
     font-weight: 700;
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .artist-name-header {
@@ -29,38 +32,45 @@ export const stationeryStyles = `
     right: 4cm;
     font-weight: 700;
     text-transform: uppercase;
+    font-size: 10px;
   }
   
   .artwork-title {
     font-style: italic;
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .materials {
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .edition-details {
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .dimensions {
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .frame-dimensions {
     margin-bottom: 0.05cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .price {
     font-weight: 600;
     margin-top: 0.1cm;
     line-height: 1.2;
+    font-size: 10px;
   }
   
   .collection-name {
@@ -97,11 +107,14 @@ export const stationeryStyles = `
     height: 1.5cm;
     flex-shrink: 0;
     margin-right: 0.3cm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .collection-item-image {
-    width: 100%;
-    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
   
@@ -114,6 +127,7 @@ export const stationeryStyles = `
   .collection-item-details p {
     margin-top: 0;
     margin-bottom: 0.05cm;
+    font-size: 10px;
   }
 
   h2 {
