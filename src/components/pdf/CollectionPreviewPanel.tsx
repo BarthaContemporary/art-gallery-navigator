@@ -37,7 +37,7 @@ export function CollectionPreviewPanel({
               />
             </div>
             
-            <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
+            <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
               <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
                 {collection ? collection.name : "Collection Name"}
               </div>

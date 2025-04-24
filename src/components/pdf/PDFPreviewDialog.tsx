@@ -37,11 +37,20 @@ export function PDFPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>PDF Template Preview</DialogTitle>
-          <DialogDescription>
-            Select a template style for your {type === "artwork" ? "artwork" : "collection"} PDF
-          </DialogDescription>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>PDF Template Preview</DialogTitle>
+            <DialogDescription>
+              {type === "artwork" ? "Select a template style for your artwork PDF" : "Collection PDF preview"}
+            </DialogDescription>
+          </div>
+          
+          {type === "collection" && (
+            <Button onClick={handleApply} className="flex items-center gap-2">
+              <Save className="h-4 w-4" />
+              Save and Generate PDF
+            </Button>
+          )}
         </DialogHeader>
         
         <Tabs 
@@ -80,15 +89,25 @@ export function PDFPreviewDialog({
           </ScrollArea>
         </Tabs>
         
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleApply} className="flex items-center gap-2">
-            <Save className="h-4 w-4" />
-            Save and Generate PDF
-          </Button>
-        </div>
+        {type === "artwork" && (
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApply} className="flex items-center gap-2">
+              <Save className="h-4 w-4" />
+              Save and Generate PDF
+            </Button>
+          </div>
+        )}
+        
+        {type === "collection" && (
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

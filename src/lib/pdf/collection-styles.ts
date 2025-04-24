@@ -1,7 +1,7 @@
 
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 11cm;
+    padding-top: 8cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;
@@ -59,7 +59,7 @@ export const stationeryStyles = `
   
   .price {
     font-weight: 600;
-    margin-top: 0.3cm;
+    margin-top: 0.2cm;
     line-height: 1.2;
   }
   
