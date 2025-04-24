@@ -15,6 +15,8 @@ import { ArtworkDetailsSection } from "./overview/ArtworkDetailsSection";
 import { DimensionsSection } from "./overview/DimensionsSection";
 import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
 import { LocationStatusSection } from "./overview/LocationStatusSection";
+import { PDFPreviewDialog } from "@/components/pdf/PDFPreviewDialog";
+import { ArtworkPDFPreview } from "@/lib/pdf-templates";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -24,35 +26,36 @@ interface ArtworkOverviewDialogProps {
 
 export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOverviewDialogProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const [isCreatingPDF, setIsCreatingPDF] = useState(false);
   const { toast } = useToast();
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
-  const handleCreatePDF = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    
+  const handleCreatePDF = (templateStyle: string, useStationery: boolean) => {
     if (isCreatingPDF) return;
     
-    try {
-      setIsCreatingPDF(true);
-      toast({ title: "Creating PDF...", description: "Please wait a moment" });
-      
-      const pdfUrl = await createArtworkPDF(artwork);
-      toast({ 
-        title: "PDF Created Successfully", 
-        description: "The document has been saved to your documents library" 
+    setIsCreatingPDF(true);
+    toast({ title: "Creating PDF...", description: "Please wait a moment" });
+    
+    createArtworkPDF(artwork, templateStyle, useStationery)
+      .then(() => {
+        toast({ 
+          title: "PDF Created Successfully", 
+          description: "The document has been saved to your documents library" 
+        });
+      })
+      .catch(error => {
+        console.error("Error creating PDF:", error);
+        toast({ 
+          title: "Error Creating PDF", 
+          description: "Please try again later", 
+          variant: "destructive" 
+        });
+      })
+      .finally(() => {
+        setIsCreatingPDF(false);
       });
-    } catch (error) {
-      console.error("Error creating PDF:", error);
-      toast({ 
-        title: "Error Creating PDF", 
-        description: "Please try again later", 
-        variant: "destructive" 
-      });
-    } finally {
-      setIsCreatingPDF(false);
-    }
   };
   
   return (
@@ -67,7 +70,7 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
             {/* Carousel */}
             <ArtworkCarousel artworkId={artwork.id} />
 
-            {/* Artwork Details Sections (refactored) */}
+            {/* Artwork Details Sections */}
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ArtworkDetailsSection
@@ -95,9 +98,9 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
-              <Button onClick={handleCreatePDF} disabled={isCreatingPDF}>
+              <Button onClick={() => setPDFPreviewOpen(true)}>
                 <FileText className="mr-2 h-4 w-4" />
-                {isCreatingPDF ? "Creating PDF..." : "Create PDF"}
+                Create PDF
               </Button>
             </div>
           </div>
@@ -108,6 +111,14 @@ export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOv
         artwork={artwork}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+      />
+      
+      <PDFPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPDFPreviewOpen}
+        onApply={handleCreatePDF}
+        title={artwork.title}
+        content={<ArtworkPDFPreview artwork={artwork} />}
       />
     </>
   );

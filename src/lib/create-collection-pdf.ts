@@ -1,11 +1,17 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { generateCollectionHTML } from './pdf-templates';
 
-export async function createCollectionPDF(collection: Collection): Promise<string> {
+export async function createCollectionPDF(
+  collection: Collection,
+  templateStyle: string = 'classic',
+  useStationery: boolean = false
+): Promise<string> {
   console.log("Creating PDF for collection:", collection.name);
   
   try {
@@ -34,119 +40,8 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     
     console.log("Generated filename:", pdfFileName);
     
-    // Create HTML content to represent collection data with proper escaping
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Collection: ${escapeHtml(collection.name)}</title>
-          <meta charset="UTF-8">
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 40px;
-              color: #333;
-              line-height: 1.6;
-            }
-            h1 { 
-              color: #18465a;
-              font-size: 28px;
-              margin-bottom: 20px;
-              padding-bottom: 10px;
-              border-bottom: 2px solid #18465a;
-            }
-            h2 {
-              color: #18465a;
-              font-size: 22px;
-              margin: 30px 0 20px;
-            }
-            .collection-description {
-              font-size: 16px;
-              color: #666;
-              margin-bottom: 30px;
-              padding: 15px;
-              background: #f8f9fa;
-              border-radius: 6px;
-            }
-            .artwork { 
-              margin-bottom: 25px; 
-              padding: 20px;
-              background: #fff;
-              border: 1px solid #e1e4e8;
-              border-radius: 8px;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .artwork:last-child { 
-              margin-bottom: 0; 
-            }
-            .artwork h3 {
-              color: #18465a;
-              font-size: 18px;
-              margin: 0 0 15px;
-              padding-bottom: 8px;
-              border-bottom: 1px solid #e1e4e8;
-            }
-            .artwork p {
-              margin: 8px 0;
-              color: #555;
-            }
-            .artwork-detail {
-              font-size: 14px;
-              display: flex;
-              gap: 10px;
-              align-items: center;
-            }
-            .detail-label {
-              font-weight: bold;
-              color: #18465a;
-              min-width: 80px;
-            }
-            @media print {
-              body { margin: 20px; }
-              .artwork { 
-                break-inside: avoid;
-                box-shadow: none;
-              }
-              .collection-description {
-                background: #fff;
-                border: 1px solid #eee;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Collection: ${escapeHtml(collection.name)}</h1>
-          ${collection.description ? `
-            <div class="collection-description">
-              ${escapeHtml(collection.description)}
-            </div>
-          ` : ''}
-          
-          <h2>Artworks</h2>
-          ${collection.artworks?.map(artwork => `
-            <div class="artwork">
-              <h3>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h3>
-              <div class="artwork-detail">
-                <span class="detail-label">Medium:</span>
-                ${escapeHtml(artwork.medium_type || 'N/A')}
-              </div>
-              ${artwork.materials ? `
-                <div class="artwork-detail">
-                  <span class="detail-label">Materials:</span>
-                  ${escapeHtml(artwork.materials)}
-                </div>
-              ` : ''}
-              ${artwork.dimensions ? `
-                <div class="artwork-detail">
-                  <span class="detail-label">Dimensions:</span>
-                  ${escapeHtml(artwork.dimensions)}
-                </div>
-              ` : ''}
-            </div>
-          `).join('') || '<p>No artworks in this collection</p>'}
-        </body>
-      </html>
-    `;
+    // Generate HTML content from template
+    const htmlContent = generateCollectionHTML(collection, templateStyle, useStationery);
     
     // Create an invisible div to render the HTML content
     const tempDiv = document.createElement('div');
@@ -288,15 +183,4 @@ export async function createCollectionPDF(collection: Collection): Promise<strin
     toast.error("Failed to generate document: " + (error as Error).message);
     throw error;
   }
-}
-
-function escapeHtml(unsafe: string | null | undefined): string {
-  if (!unsafe) return '';
-  return unsafe
-    .toString()
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }

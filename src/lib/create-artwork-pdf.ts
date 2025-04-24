@@ -1,11 +1,17 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { generateArtworkHTML } from './pdf-templates';
 
-export async function createArtworkPDF(artwork: Artwork): Promise<string> {
+export async function createArtworkPDF(
+  artwork: Artwork, 
+  templateStyle: string = 'classic',
+  useStationery: boolean = false
+): Promise<string> {
   console.log("Creating PDF for artwork:", artwork.title);
   
   try {
@@ -34,101 +40,8 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     
     console.log("Generated filename:", pdfFileName);
     
-    // Create HTML content to represent artwork data with proper escaping
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Artwork: ${escapeHtml(artwork.title)}</title>
-          <meta charset="UTF-8">
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 40px;
-              color: #333;
-              line-height: 1.6;
-            }
-            h1 { 
-              color: #18465a;
-              font-size: 24px;
-              margin-bottom: 20px;
-              padding-bottom: 10px;
-              border-bottom: 2px solid #18465a;
-            }
-            .detail { 
-              margin-bottom: 15px;
-              padding: 12px;
-              background: #f8f9fa;
-              border-radius: 6px;
-            }
-            .detail-label {
-              font-weight: bold;
-              color: #18465a;
-              margin-right: 8px;
-            }
-            .section {
-              margin-bottom: 30px;
-            }
-            @media print {
-              body { margin: 20px; }
-              .detail { 
-                background: #fff;
-                border: 1px solid #eee;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h1>
-          
-          <div class="section">
-            <div class="detail">
-              <span class="detail-label">Medium:</span>
-              ${escapeHtml(artwork.medium_type || 'N/A')}
-            </div>
-            
-            ${artwork.materials ? `
-              <div class="detail">
-                <span class="detail-label">Materials:</span>
-                ${escapeHtml(artwork.materials)}
-              </div>
-            ` : ''}
-            
-            ${artwork.dimensions ? `
-              <div class="detail">
-                <span class="detail-label">Dimensions:</span>
-                ${escapeHtml(artwork.dimensions)}
-              </div>
-            ` : ''}
-            
-            ${artwork.status ? `
-              <div class="detail">
-                <span class="detail-label">Status:</span>
-                ${escapeHtml(artwork.status)}
-              </div>
-            ` : ''}
-          </div>
-
-          ${artwork.story || artwork.provenance ? `
-            <div class="section">
-              ${artwork.story ? `
-                <div class="detail">
-                  <span class="detail-label">Story:</span>
-                  ${escapeHtml(artwork.story)}
-                </div>
-              ` : ''}
-              
-              ${artwork.provenance ? `
-                <div class="detail">
-                  <span class="detail-label">Provenance:</span>
-                  ${escapeHtml(artwork.provenance)}
-                </div>
-              ` : ''}
-            </div>
-          ` : ''}
-        </body>
-      </html>
-    `;
+    // Generate HTML content from template
+    const htmlContent = generateArtworkHTML(artwork, templateStyle, useStationery);
     
     // Create a temporary container to render the HTML
     const container = document.createElement('div');
@@ -258,15 +171,4 @@ export async function createArtworkPDF(artwork: Artwork): Promise<string> {
     toast.error("Failed to generate document: " + (error as Error).message);
     throw error;
   }
-}
-
-function escapeHtml(unsafe: string | null | undefined): string {
-  if (!unsafe) return '';
-  return unsafe
-    .toString()
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
