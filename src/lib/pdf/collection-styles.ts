@@ -7,7 +7,7 @@ export const stationeryStyles = `
     padding-bottom: 3.5cm;
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
-    font-size: 7px;
+    font-size: 10px;
   }
   
   .artwork-image {
@@ -75,13 +75,13 @@ export const stationeryStyles = `
   .collection-description {
     margin-top: 0;
     margin-bottom: 0.1cm;
-    font-size: 7px;
+    font-size: 10px;
     line-height: 1.2;
   }
   
   .collection-items {
     margin-top: 0.1cm;
-    font-size: 7px;
+    font-size: 10px;
   }
   
   .collection-item {
@@ -89,19 +89,19 @@ export const stationeryStyles = `
     margin-bottom: 0.1cm;
     border-bottom: 1px solid #eee;
     padding-bottom: 0.1cm;
-    font-size: 7px;
+    font-size: 10px;
   }
   
   .collection-item-image {
     width: 1.5cm;
     height: 1.5cm;
-    object-fit: cover;
+    object-fit: contain;
     margin-right: 0.3cm;
   }
   
   .collection-item-details {
     flex: 1;
-    font-size: 7px;
+    font-size: 10px;
     line-height: 1.2;
   }
   

@@ -33,7 +33,7 @@ export function CollectionPreviewPanel({
               <img 
                 src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
                 alt="Bartha Contemporary Stationery"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
             
@@ -44,7 +44,7 @@ export function CollectionPreviewPanel({
               
               {collection && <CollectionPDFPreview collection={collection} />}
               {!collection && (
-                <p className="text-[7px]">No collection selected to preview</p>
+                <p className="text-[10px]">No collection selected to preview</p>
               )}
             </div>
           </div>

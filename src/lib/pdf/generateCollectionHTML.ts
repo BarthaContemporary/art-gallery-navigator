@@ -28,7 +28,7 @@ export function generateCollectionHTML(
           /* Additional collection styles */
           .content-wrapper {
             background-image: url('/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png');
-            background-size: contain;
+            background-size: cover;
             background-repeat: no-repeat;
             background-position: center;
             position: relative;
@@ -61,6 +61,13 @@ export function generateCollectionHTML(
             margin-bottom: 0.1cm;
             line-height: 1.2;
             font-size: 10px;
+          }
+          
+          .collection-item-image {
+            width: 1.5cm;
+            height: 1.5cm;
+            object-fit: contain;
+            margin-right: 0.3cm;
           }
         </style>
       </head>
