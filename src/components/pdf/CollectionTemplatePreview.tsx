@@ -9,22 +9,22 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
   return (
     <TabsContent value="collection" className="m-0 p-0 h-full">
       <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
-        <div className="absolute top-[6cm] left-[4cm] font-bold text-lg">
+        <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
           {title}
         </div>
-        <div>
-          <p className="mb-3">Collection description text...</p>
+        <div className="text-[7px]">
+          <p className="mb-1">Collection description text...</p>
           
-          <h3 className="font-bold mb-2">Artworks in this Collection:</h3>
+          <h3 className="font-bold text-[9px] my-1">Artworks in this Collection:</h3>
           
-          <div className="space-y-4">
-            <div className="flex border-b pb-3">
+          <div className="space-y-2">
+            <div className="flex border-b pb-1">
               <img 
                 src="/placeholder.svg" 
                 alt="Artwork" 
-                className="w-[2.5cm] h-[2.5cm] object-cover mr-3"
+                className="w-6 h-6 object-cover mr-1"
               />
-              <div className="text-sm">
+              <div className="text-[7px] leading-tight">
                 <p className="font-bold">Artist Name</p>
                 <p className="italic">Artwork Title, 2023</p>
                 <p>Materials</p>
@@ -32,7 +32,7 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
                 <p>100 x 80 x 5 cm</p>
                 <p>Frame: 105 x 85 x 7 cm</p>
                 <p>Location: London Gallery</p>
-                <p className="mt-1 font-semibold">£ 10,000</p>
+                <p className="mt-0.5 font-semibold">£ 10,000</p>
               </div>
             </div>
           </div>

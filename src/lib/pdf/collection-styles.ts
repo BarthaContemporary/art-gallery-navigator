@@ -19,7 +19,7 @@ export const stationeryStyles = `
   
   .artist-name {
     font-weight: 700;
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
@@ -33,33 +33,33 @@ export const stationeryStyles = `
   
   .artwork-title {
     font-style: italic;
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
   .materials {
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
   .edition-details {
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
   .dimensions {
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
   .frame-dimensions {
-    margin-bottom: 0.1cm;
+    margin-bottom: 0.05cm;
     line-height: 1.2;
   }
   
   .price {
     font-weight: 600;
-    margin-top: 0.2cm;
+    margin-top: 0.1cm;
     line-height: 1.2;
   }
   

@@ -7,19 +7,19 @@ interface CollectionPreviewProps {
 
 export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   return (
-    <div className="space-y-0.5 text-[7px]">
+    <div className="space-y-1 text-[7px]">
       {collection.description && (
-        <div className="mt-0 mb-0.5">
-          <p className="text-[7px]">{collection.description}</p>
+        <div className="mt-0 mb-1">
+          <p className="text-[7px] leading-tight">{collection.description}</p>
         </div>
       )}
       
-      <h2 className="text-[9px] font-semibold mb-0.5">Artworks in this Collection</h2>
+      <h2 className="text-[9px] font-semibold my-1">Artworks in this Collection</h2>
       
       {collection.artworks && collection.artworks.length > 0 ? (
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {collection.artworks.map((artwork) => (
-            <div key={artwork.id} className="flex border-b pb-0.5">
+            <div key={artwork.id} className="flex border-b pb-1">
               <img
                 src={artwork.image_url || "/placeholder.svg"}
                 alt={artwork.title}

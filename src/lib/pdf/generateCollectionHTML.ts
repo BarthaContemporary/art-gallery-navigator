@@ -47,6 +47,11 @@ export function generateCollectionHTML(
             margin-bottom: 0.05cm;
             line-height: 1.2;
           }
+          
+          .collection-description {
+            margin-bottom: 0.1cm;
+            line-height: 1.2;
+          }
         </style>
       </head>
       <body>
