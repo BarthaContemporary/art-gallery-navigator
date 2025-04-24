@@ -33,18 +33,19 @@ export function generateCollectionHTML(
           }
           
           .collection-header {
-            margin-bottom: 0.2cm;
+            margin-bottom: 0.1cm;
           }
           
           h2 {
             font-size: 9px;
             margin-top: 0.1cm;
-            margin-bottom: 0.2cm;
+            margin-bottom: 0.1cm;
           }
 
           .collection-item-details p {
             margin-top: 0;
-            margin-bottom: 0.1cm;
+            margin-bottom: 0.05cm;
+            line-height: 1.2;
           }
         </style>
       </head>
@@ -89,10 +90,10 @@ export function generateCollectionHTML(
                   <div class="collection-item-details">
                     <p class="artist-name">Artist Name</p>
                     <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? `, ${artwork.year}` : ''}</p>
-                    ${artwork.materials ? `<p>${escapeHtml(artwork.materials)}</p>` : ''}
-                    ${editionInfo ? `<p>${editionInfo}</p>` : ''}
-                    ${dimensionsDisplay ? `<p>${dimensionsDisplay}</p>` : ''}
-                    ${frameDimensionsDisplay ? `<p>${frameDimensionsDisplay}</p>` : ''}
+                    ${artwork.materials ? `<p class="materials">${escapeHtml(artwork.materials)}</p>` : ''}
+                    ${editionInfo ? `<p class="edition-details">${editionInfo}</p>` : ''}
+                    ${dimensionsDisplay ? `<p class="dimensions">${dimensionsDisplay}</p>` : ''}
+                    ${frameDimensionsDisplay ? `<p class="frame-dimensions">${frameDimensionsDisplay}</p>` : ''}
                     ${artwork.location_id ? `<p>Location: Location Name</p>` : ''}
                     ${artwork.price ? `<p class="price">${artwork.currency} ${artwork.price.toLocaleString()}</p>` : ''}
                   </div>

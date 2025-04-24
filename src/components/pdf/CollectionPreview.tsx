@@ -9,23 +9,23 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   return (
     <div className="space-y-0.5 text-[7px]">
       {collection.description && (
-        <div className="mt-0 mb-1">
+        <div className="mt-0 mb-0.5">
           <p className="text-[7px]">{collection.description}</p>
         </div>
       )}
       
-      <h2 className="text-[9px] font-medium mb-1">Artworks in this Collection</h2>
+      <h2 className="text-[9px] font-semibold mb-0.5">Artworks in this Collection</h2>
       
       {collection.artworks && collection.artworks.length > 0 ? (
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {collection.artworks.map((artwork) => (
-            <div key={artwork.id} className="flex border-b pb-1">
+            <div key={artwork.id} className="flex border-b pb-0.5">
               <img
                 src={artwork.image_url || "/placeholder.svg"}
                 alt={artwork.title}
                 className="w-6 h-6 object-cover mr-1"
               />
-              <div className="text-[7px]">
+              <div className="text-[7px] leading-tight">
                 <p className="font-bold">Artist Name</p>
                 <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                 {artwork.medium_type && <p>{artwork.medium_type}</p>}
