@@ -1,3 +1,4 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { escapeHtml } from "./utils";
 import { 
@@ -26,18 +27,18 @@ export function generateCollectionHTML(
           
           /* Additional collection styles */
           .collection-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 0.2cm;
+            margin-bottom: 0.1cm;
           }
           
           .collection-header {
-            margin-bottom: 0.3cm;
+            margin-bottom: 0.2cm;
           }
           
           h2 {
-            font-size: 10px;
-            margin-top: 0.2cm;
+            font-size: 9px;
+            margin-top: 0.1cm;
             margin-bottom: 0.2cm;
           }
 

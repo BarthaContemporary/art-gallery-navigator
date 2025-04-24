@@ -181,13 +181,13 @@ export default function PDFTemplates() {
                   </div>
                   
                   <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
-                    <div className="absolute top-[6cm] left-[4cm] font-bold text-xs">
+                    <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
                       {collection ? collection.name : "Collection Name"}
                     </div>
                     
                     {collection && <CollectionPDFPreview collection={collection} />}
                     {!collection && (
-                      <p className="text-[8px]">No collection selected to preview</p>
+                      <p className="text-[7px]">No collection selected to preview</p>
                     )}
                   </div>
                 </div>
