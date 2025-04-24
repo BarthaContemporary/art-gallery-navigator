@@ -9,6 +9,7 @@ export const stationeryStyles = `
     font-family: 'Source Sans 3', sans-serif;
     font-size: 10px;
     box-sizing: border-box;
+    z-index: 1;
   }
   
   .artwork-image {

@@ -40,8 +40,8 @@ export async function createCollectionPDF(
     
     console.log("Generated filename:", pdfFileName);
     
-    // Generate HTML content from template
-    const htmlContent = generateCollectionHTML(collection, templateStyle, useStationery);
+    // Generate HTML content from template - now async
+    const htmlContent = await generateCollectionHTML(collection, templateStyle, useStationery);
     
     // Create an invisible div to render the HTML content
     const tempDiv = document.createElement('div');
@@ -64,23 +64,31 @@ export async function createCollectionPDF(
     // Convert the HTML content to canvas and then to PDF
     toast.loading("Generating PDF, please wait...");
     
-    // Add 100ms delay to ensure fonts are loaded
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Add 300ms delay to ensure fonts and images are loaded
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Convert HTML to canvas with improved settings
     const canvas = await html2canvas(tempDiv, {
-      scale: 3.0, // Higher quality rendering (increased from 2.0)
+      scale: 4.0, // Higher quality rendering (increased from 3.0)
       useCORS: true,
       logging: false,
       allowTaint: true,
       backgroundColor: null,
       onclone: (clonedDoc) => {
-        // Make sure fonts are loaded in the clone
+        // Make sure fonts and images are loaded in the clone
         const style = clonedDoc.createElement('style');
         style.innerHTML = `
           @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
         `;
         clonedDoc.head.appendChild(style);
+        
+        // Ensure images have time to load
+        const imgs = clonedDoc.querySelectorAll('img');
+        imgs.forEach(img => {
+          if (!img.complete) {
+            img.style.visibility = 'visible';
+          }
+        });
       }
     });
     

@@ -29,16 +29,16 @@ export function CollectionPreviewPanel({
         
         <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
           <div className="bg-white shadow-lg h-full overflow-auto">
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
               <img 
                 src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
                 alt="Bartha Contemporary Stationery"
-                className="w-full h-full object-contain"
+                className="w-full h-full"
                 style={{ objectFit: 'cover' }}
               />
             </div>
             
-            <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
+            <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative" style={{ zIndex: 1 }}>
               <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
                 {collection ? collection.name : "Collection Name"}
               </div>

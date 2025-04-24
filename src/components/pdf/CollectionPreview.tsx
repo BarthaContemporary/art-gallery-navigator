@@ -1,5 +1,7 @@
 
 import { Collection } from "@/hooks/use-collections";
+import { useArtist } from "@/hooks/use-artist";
+import { useLocation } from "@/hooks/use-location";
 
 interface CollectionPreviewProps {
   collection: Collection;
@@ -18,38 +20,44 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       
       {collection.artworks && collection.artworks.length > 0 ? (
         <div className="space-y-1">
-          {collection.artworks.map((artwork) => (
-            <div key={artwork.id} className="flex border-b pb-1">
-              <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
-                <img
-                  src={artwork.image_url || "/placeholder.svg"}
-                  alt={artwork.title}
-                  className="max-w-full max-h-full object-contain"
-                />
+          {collection.artworks.map((artwork) => {
+            // Use these hooks to get artist and location data
+            const { data: artist } = useArtist(artwork.artist_id);
+            const { data: location } = useLocation(artwork.location_id);
+            
+            return (
+              <div key={artwork.id} className="flex border-b pb-1">
+                <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
+                  <img
+                    src={artwork.image_url || "/placeholder.svg"}
+                    alt={artwork.title}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+                <div className="text-[10px] leading-tight">
+                  <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
+                  <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
+                  {artwork.medium_type && <p>{artwork.medium_type}</p>}
+                  {artwork.materials && <p>{artwork.materials}</p>}
+                  
+                  {artwork.edition_size && artwork.edition_size > 1 && (
+                    <p>Edition of {artwork.edition_size}
+                      {artwork.artist_proofs ? ` + ${artwork.artist_proofs} AP` : ''}
+                    </p>
+                  )}
+                  
+                  {artwork.dimensions && <p>{artwork.dimensions}</p>}
+                  
+                  {artwork.is_framed && artwork.frame_height && artwork.frame_width && (
+                    <p>Frame: {artwork.frame_height} x {artwork.frame_width}{artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</p>
+                  )}
+                  
+                  {artwork.location_id && <p>Location: {location?.name || "Location Name"}</p>}
+                  {artwork.price && <p className="font-semibold mt-0.5">{artwork.currency} {artwork.price.toLocaleString()}</p>}
+                </div>
               </div>
-              <div className="text-[10px] leading-tight">
-                <p className="font-bold">Artist Name</p>
-                <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
-                {artwork.medium_type && <p>{artwork.medium_type}</p>}
-                {artwork.materials && <p>{artwork.materials}</p>}
-                
-                {artwork.edition_size && artwork.edition_size > 1 && (
-                  <p>Edition of {artwork.edition_size}
-                    {artwork.artist_proofs ? ` + ${artwork.artist_proofs} AP` : ''}
-                  </p>
-                )}
-                
-                {artwork.dimensions && <p>{artwork.dimensions}</p>}
-                
-                {artwork.is_framed && artwork.frame_height && artwork.frame_width && (
-                  <p>Frame: {artwork.frame_height} x {artwork.frame_width}{artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</p>
-                )}
-                
-                {artwork.location_id && <p>Location: Location Name</p>}
-                {artwork.price && <p className="font-semibold mt-0.5">{artwork.currency} {artwork.price.toLocaleString()}</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="text-[10px]">No artworks in this collection</p>

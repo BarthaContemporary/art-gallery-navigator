@@ -27,7 +27,7 @@ export function CollectionTemplatePreview({ title }: CollectionTemplatePreviewPr
                 />
               </div>
               <div className="text-[10px] leading-tight">
-                <p className="font-bold">Artist Name</p>
+                <p className="font-bold">Martin Smith</p>
                 <p className="italic">Artwork Title, 2023</p>
                 <p>Materials</p>
                 <p>Edition of 10</p>

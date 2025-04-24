@@ -8,11 +8,13 @@ import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { ArtworkPreviewPanel } from "@/components/pdf/ArtworkPreviewPanel";
 import { CollectionPreviewPanel } from "@/components/pdf/CollectionPreviewPanel";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function PDFTemplates() {
   const { type, id } = useParams();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
-  const [useStationery, setUseStationery] = useState<boolean>(false);
+  const [useStationery, setUseStationery] = useState<boolean>(type === "collection" ? true : false);
   const [isGenerating, setIsGenerating] = useState(false);
   
   const { data: artworks } = useArtworks();
@@ -67,6 +69,17 @@ export default function PDFTemplates() {
               Select a template style and stationery option
             </p>
           </div>
+          
+          {type === "artwork" && (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="stationery-mode"
+                checked={useStationery}
+                onCheckedChange={setUseStationery}
+              />
+              <Label htmlFor="stationery-mode">Use Company Stationery</Label>
+            </div>
+          )}
         </div>
         
         {type === "artwork" ? (
