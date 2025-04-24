@@ -1,140 +1,170 @@
 
 interface TemplateStyles {
-  classic: string;
-  modern: string;
-  minimal: string;
-  elegant: string;
-  professional: string;
+  basic: string;
+  basicWithPrice: string;
+  complete: string;
+  collection: string;
 }
 
 export const baseStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+  
   body { 
-    font-family: Arial, sans-serif; 
+    font-family: 'Source Sans 3', sans-serif; 
     margin: 0;
     padding: 0;
     color: #333;
     line-height: 1.6;
   }
+  
   .detail-label {
-    font-weight: bold;
+    font-weight: 600;
     color: #18465a;
     margin-right: 8px;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  
   @media print {
     body { margin: 0; padding: 0; }
   }
 `;
 
-export const templateStyles: TemplateStyles = {
-  classic: `
-    h1 { 
-      color: #18465a;
-      font-size: 24px;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #18465a;
-    }
-    .detail { 
-      margin-bottom: 15px;
-      padding: 12px;
-      background: #f8f9fa;
-      border-radius: 6px;
-    }
-    .section {
-      margin-bottom: 30px;
-    }
-  `,
-  modern: `
-    h1 { 
-      color: #18465a;
-      font-size: 28px;
-      font-weight: 300;
-      margin-bottom: 30px;
-    }
-    .detail { 
-      margin-bottom: 20px;
-      padding-left: 15px;
-      border-left: 3px solid #18465a;
-    }
-    .section {
-      margin-bottom: 40px;
-    }
-  `,
-  minimal: `
-    h1 { 
-      text-transform: uppercase;
-      letter-spacing: 3px;
-      font-size: 20px;
-      margin-bottom: 30px;
-      font-weight: normal;
-    }
-    .detail { 
-      margin-bottom: 15px;
-      padding-bottom: 15px;
-      border-bottom: 1px solid #eee;
-    }
-    .detail-label {
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 1px;
-      display: block;
-      margin-bottom: 5px;
-    }
-    .section {
-      margin-bottom: 30px;
-    }
-  `,
-  elegant: `
-    h1 { 
-      font-family: "Times New Roman", serif;
-      color: #18465a;
-      font-size: 32px;
-      margin-bottom: 25px;
-      text-align: center;
-      font-style: italic;
-    }
-    .detail { 
-      margin-bottom: 20px;
-      padding: 15px;
-      border: 1px solid #dee2e6;
-      background: #fff;
-    }
-    .detail-label {
-      color: #18465a;
-      font-family: "Times New Roman", serif;
-      font-style: italic;
-    }
-    .section {
-      margin-bottom: 35px;
-      padding: 0 20px;
-    }
-  `,
-  professional: `
-    h1 { 
-      color: #18465a;
-      font-size: 26px;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 3px double #18465a;
-    }
-    .detail { 
-      margin-bottom: 18px;
-      padding: 12px 15px;
-      background: linear-gradient(to right, #f8f9fa, white);
-      border-radius: 4px;
-    }
-    .detail-label {
-      color: #18465a;
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.9em;
-    }
-    .section {
-      margin-bottom: 35px;
-    }
-  `
-};
+// Plain paper styles with specified margins
+export const plainPaperStyles = `
+  .content-wrapper {
+    padding: 3cm 3cm 3.5cm 3cm;
+  }
+  
+  .artwork-image {
+    max-height: 6cm;
+    width: auto;
+    display: block;
+    margin-bottom: 1.5cm;
+  }
+  
+  .artist-name {
+    font-weight: 700;
+    margin-bottom: 0.5cm;
+  }
+  
+  .artwork-title {
+    font-style: italic;
+    margin-bottom: 0.5cm;
+  }
+  
+  .materials {
+    margin-bottom: 0.5cm;
+  }
+  
+  .edition-details {
+    margin-bottom: 0.5cm;
+  }
+  
+  .dimensions {
+    margin-bottom: 0.3cm;
+  }
+  
+  .frame-dimensions {
+    margin-bottom: 0.5cm;
+  }
+  
+  .price {
+    font-weight: 600;
+    margin-top: 1cm;
+  }
+`;
 
+// Stationery styles with adjusted positioning
+export const stationeryStyles = `
+  .content-wrapper {
+    padding-top: 11cm;
+    padding-left: 4cm;
+    padding-right: 3cm;
+    padding-bottom: 3.5cm;
+    position: relative;
+  }
+  
+  .artwork-image {
+    max-height: 6cm;
+    width: auto;
+    display: block;
+    margin-bottom: 1.5cm;
+  }
+  
+  .artist-name {
+    font-weight: 700;
+    margin-bottom: 0.5cm;
+  }
+  
+  .artist-name-header {
+    position: absolute;
+    top: 6cm;
+    right: 4cm;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .artwork-title {
+    font-style: italic;
+    margin-bottom: 0.5cm;
+  }
+  
+  .materials {
+    margin-bottom: 0.5cm;
+  }
+  
+  .edition-details {
+    margin-bottom: 0.5cm;
+  }
+  
+  .dimensions {
+    margin-bottom: 0.3cm;
+  }
+  
+  .frame-dimensions {
+    margin-bottom: 0.5cm;
+  }
+  
+  .price {
+    font-weight: 600;
+    margin-top: 1cm;
+  }
+  
+  .collection-name {
+    position: absolute;
+    top: 6cm;
+    left: 4cm;
+    font-weight: 700;
+    font-size: 20px;
+  }
+  
+  .collection-items {
+    margin-top: 2cm;
+  }
+  
+  .collection-item {
+    display: flex;
+    margin-bottom: 1cm;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.8cm;
+  }
+  
+  .collection-item-image {
+    width: 3cm;
+    height: 3cm;
+    object-fit: cover;
+    margin-right: 1cm;
+  }
+  
+  .collection-item-details {
+    flex: 1;
+  }
+`;
+
+// Create background stationery style with 100% opacity
 export function getStationeryStyle(useStationery: boolean): string {
   return useStationery ? `
     body {
@@ -144,11 +174,36 @@ export function getStationeryStyle(useStationery: boolean): string {
       background-position: center;
       position: relative;
     }
-    .content-wrapper {
-      position: relative;
-      z-index: 1;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 40px;
-    }
   ` : '';
+}
+
+// Helper function to convert centimeters to inches with fractions
+export function cmToInchFraction(cm: number): string {
+  if (!cm) return '';
+  
+  const inches = cm / 2.54;
+  const wholeInches = Math.floor(inches);
+  const fraction = inches - wholeInches;
+  
+  // Convert to closest 1/8th fraction
+  const denominator = 8;
+  const nearestFraction = Math.round(fraction * denominator);
+  
+  if (nearestFraction === 0) {
+    return `${wholeInches}"`;
+  } else if (nearestFraction === denominator) {
+    return `${wholeInches + 1}"`;
+  } else {
+    // Simplify the fraction
+    let num = nearestFraction;
+    let den = denominator;
+    
+    const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+    const divisor = gcd(num, den);
+    
+    num = num / divisor;
+    den = den / divisor;
+    
+    return `${wholeInches} ${num}/${den}"`;
+  }
 }

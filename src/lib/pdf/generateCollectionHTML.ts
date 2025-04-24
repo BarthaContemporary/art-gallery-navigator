@@ -1,12 +1,12 @@
 
 import { Collection } from "@/hooks/use-collections";
 import { escapeHtml } from "./utils";
-import { baseStyles, templateStyles, getStationeryStyle } from "./styles";
+import { baseStyles, stationeryStyles, getStationeryStyle, cmToInchFraction } from "./styles";
 
 export function generateCollectionHTML(
   collection: Collection,
-  templateStyle: string = 'classic',
-  useStationery: boolean = false
+  templateStyle: string = 'collection',
+  useStationery: boolean = true // Collections are always on stationery
 ): string {
   return `
     <!DOCTYPE html>
@@ -14,15 +14,16 @@ export function generateCollectionHTML(
       <head>
         <title>Collection: ${escapeHtml(collection.name)}</title>
         <meta charset="UTF-8">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap">
         <style>
           ${baseStyles}
-          ${templateStyles[templateStyle as keyof typeof templateStyles]}
-          ${getStationeryStyle(useStationery)}
+          ${stationeryStyles}
+          ${getStationeryStyle(true)}
         </style>
       </head>
       <body>
         <div class="content-wrapper">
-          <h1>Collection: ${escapeHtml(collection.name)}</h1>
+          <div class="collection-name">${escapeHtml(collection.name)}</div>
           
           ${collection.description ? `
             <div class="collection-description">
@@ -30,32 +31,50 @@ export function generateCollectionHTML(
             </div>
           ` : ''}
           
-          <h2>Artworks</h2>
-          
-          ${collection.artworks?.map(artwork => `
-            <div class="artwork">
-              <h3>${escapeHtml(artwork.title)} ${artwork.year ? `(${artwork.year})` : ''}</h3>
-              <div class="artwork-detail">
-                <span class="detail-label">Medium:</span>
-                ${escapeHtml(artwork.medium_type || 'N/A')}
-              </div>
-              ${artwork.materials ? `
-                <div class="artwork-detail">
-                  <span class="detail-label">Materials:</span>
-                  ${escapeHtml(artwork.materials)}
+          <div class="collection-items">
+            <h2>Artworks in this Collection</h2>
+            
+            ${collection.artworks?.map(artwork => {
+              // Format edition information
+              let editionInfo = '';
+              if (artwork.edition_size && artwork.edition_size > 1) {
+                editionInfo = `Edition of ${artwork.edition_size}`;
+                if (artwork.artist_proofs) {
+                  editionInfo += ` + ${artwork.artist_proofs} AP`;
+                }
+              }
+              
+              // Format dimensions
+              let dimensionsDisplay = artwork.dimensions || '';
+              let frameDimensionsDisplay = '';
+              
+              if (artwork.is_framed && artwork.frame_height && artwork.frame_width) {
+                frameDimensionsDisplay = `Frame: ${artwork.frame_height} x ${artwork.frame_width}${artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm`;
+              }
+              
+              return `
+                <div class="collection-item">
+                  <img 
+                    src="${artwork.image_url || '/placeholder.svg'}" 
+                    alt="${escapeHtml(artwork.title)}" 
+                    class="collection-item-image"
+                  />
+                  <div class="collection-item-details">
+                    <p class="artist-name">Artist Name</p>
+                    <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? `, ${artwork.year}` : ''}</p>
+                    ${artwork.materials ? `<p>${escapeHtml(artwork.materials)}</p>` : ''}
+                    ${editionInfo ? `<p>${editionInfo}</p>` : ''}
+                    ${dimensionsDisplay ? `<p>${dimensionsDisplay}</p>` : ''}
+                    ${frameDimensionsDisplay ? `<p>${frameDimensionsDisplay}</p>` : ''}
+                    ${artwork.location_id ? `<p>Location: Location Name</p>` : ''}
+                    ${artwork.price ? `<p class="price">${artwork.currency} ${artwork.price.toLocaleString()}</p>` : ''}
+                  </div>
                 </div>
-              ` : ''}
-              ${artwork.dimensions ? `
-                <div class="artwork-detail">
-                  <span class="detail-label">Dimensions:</span>
-                  ${escapeHtml(artwork.dimensions)}
-                </div>
-              ` : ''}
-            </div>
-          `).join('') || '<p>No artworks in this collection</p>'}
+              `;
+            }).join('') || '<p>No artworks in this collection</p>'}
+          </div>
         </div>
       </body>
     </html>
   `;
 }
-

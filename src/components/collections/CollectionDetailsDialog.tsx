@@ -5,16 +5,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download } from "lucide-react";
+import { Save } from "lucide-react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { useState } from "react";
 import { PDFPreviewDialog } from "@/components/pdf/PDFPreviewDialog";
-import { CollectionPDFPreview } from "@/lib/pdf-templates";
+import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
 
 interface CollectionDetailsDialogProps {
   collection: Collection;
@@ -52,14 +53,17 @@ export function CollectionDetailsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex justify-between">
-            <DialogTitle className="text-xl">{collection.name}</DialogTitle>
+            <div>
+              <DialogTitle className="text-xl">{collection.name}</DialogTitle>
+              <DialogDescription>Collection overview and artwork list</DialogDescription>
+            </div>
             <Button 
               variant="outline" 
               className="flex items-center gap-2" 
               onClick={() => setPDFPreviewOpen(true)}
               disabled={isGenerating}
             >
-              <Download className="h-4 w-4" />
+              <Save className="h-4 w-4" />
               {isGenerating ? "Creating PDF..." : "Create PDF"}
             </Button>
           </DialogHeader>
@@ -111,6 +115,7 @@ export function CollectionDetailsDialog({
         onApply={handleGeneratePDF}
         title={collection.name}
         content={<CollectionPDFPreview collection={collection} />}
+        type="collection"
       />
     </>
   );

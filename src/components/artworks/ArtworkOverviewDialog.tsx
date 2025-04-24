@@ -1,22 +1,18 @@
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { X, Edit, FileText } from "lucide-react";
-import { Artwork } from "@/hooks/use-artworks";
-import { ArtworkCarousel } from "./ArtworkCarousel";
 import { useState } from "react";
-import { EditArtworkDialog } from "./EditArtworkDialog";
-import { useToast } from "@/hooks/use-toast";
+import { Artwork } from "@/hooks/use-artworks";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
-import { supabase } from "@/integrations/supabase/client";
-import { useArtist } from "@/hooks/use-artist";
-import { useLocation } from "@/hooks/use-location";
-import { ArtworkDetailsSection } from "./overview/ArtworkDetailsSection";
-import { DimensionsSection } from "./overview/DimensionsSection";
-import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
-import { LocationStatusSection } from "./overview/LocationStatusSection";
-import { PDFPreviewDialog } from "@/components/pdf/PDFPreviewDialog";
-import { ArtworkPDFPreview } from "@/lib/pdf-templates";
+import { toast } from "sonner";
+import { Download, Save } from "lucide-react";
+import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
+import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -24,101 +20,124 @@ interface ArtworkOverviewDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ArtworkOverviewDialog({ artwork, open, onOpenChange }: ArtworkOverviewDialogProps) {
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+export function ArtworkOverviewDialog({
+  artwork,
+  open,
+  onOpenChange,
+}: ArtworkOverviewDialogProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
-  const [isCreatingPDF, setIsCreatingPDF] = useState(false);
-  const { toast } = useToast();
-  const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
-  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
-
-  const handleCreatePDF = (templateStyle: string, useStationery: boolean) => {
-    if (isCreatingPDF) return;
+  
+  const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
+    if (isGenerating) return;
     
-    setIsCreatingPDF(true);
-    toast({ title: "Creating PDF...", description: "Please wait a moment" });
-    
+    setIsGenerating(true);
     createArtworkPDF(artwork, templateStyle, useStationery)
       .then(() => {
-        toast({ 
-          title: "PDF Created Successfully", 
-          description: "The document has been saved to your documents library" 
-        });
+        // Success handling is done by the PDF generator
       })
-      .catch(error => {
-        console.error("Error creating PDF:", error);
-        toast({ 
-          title: "Error Creating PDF", 
-          description: "Please try again later", 
-          variant: "destructive" 
-        });
+      .catch((error) => {
+        console.error("Error generating PDF:", error);
+        toast.error("Failed to generate PDF");
       })
       .finally(() => {
-        setIsCreatingPDF(false);
+        setIsGenerating(false);
       });
   };
-  
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle className="text-2xl">{artwork.title}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-8">
-            {/* Carousel */}
-            <ArtworkCarousel artworkId={artwork.id} />
-
-            {/* Artwork Details Sections */}
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ArtworkDetailsSection
-                  artwork={artwork}
-                  artist={artist}
-                  artistLoading={artistLoading}
-                />
-                <DimensionsSection artwork={artwork} />
-              </div>
-              <AdditionalInfoSection artwork={artwork} />
-              <LocationStatusSection
-                artwork={artwork}
-                location={location}
-                locationLoading={locationLoading}
-              />
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <DialogTitle className="text-xl">
+                {artwork.title}
+                {artwork.year ? ` (${artwork.year})` : ""}
+              </DialogTitle>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => setPDFPreviewOpen(true)}
+                disabled={isGenerating}
+              >
+                <Save className="h-4 w-4" />
+                {isGenerating ? "Creating PDF..." : "Create PDF"}
+              </Button>
             </div>
-            
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4 justify-end">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                <X className="mr-2 h-4 w-4" />
-                Close
-              </Button>
-              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-              <Button onClick={() => setPDFPreviewOpen(true)}>
-                <FileText className="mr-2 h-4 w-4" />
-                Create PDF
-              </Button>
+            <DialogDescription>
+              Overview of artwork details and information
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+              <div>
+                <div className="w-full h-64 overflow-hidden rounded-md">
+                  <img
+                    src={artwork.image_url || "/placeholder.svg"}
+                    alt={artwork.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Uploaded on{" "}
+                  {new Date().toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Title</h4>
+                    <p className="text-sm text-muted-foreground">{artwork.title}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">
+                      Year
+                    </h4>
+                    <p className="text-sm text-muted-foreground">{artwork.year}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Medium</h4>
+                    <p className="text-sm text-muted-foreground">{artwork.medium_type}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Materials</h4>
+                    <p className="text-sm text-muted-foreground">{artwork.materials}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Dimensions</h4>
+                    <p className="text-sm text-muted-foreground">{artwork.dimensions}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Price</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {artwork.price} {artwork.currency}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Status</h4>
+                    <p className="text-sm text-muted-foreground">{artwork.status}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
       
-      <EditArtworkDialog 
-        artwork={artwork}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-      />
-      
       <PDFPreviewDialog
         open={pdfPreviewOpen}
         onOpenChange={setPDFPreviewOpen}
-        onApply={handleCreatePDF}
+        onApply={handleGeneratePDF}
         title={artwork.title}
-        content={<ArtworkPDFPreview artwork={artwork} />}
+        content={<ArtworkPDFPreview artwork={artwork} templateStyle="basic" />}
+        type="artwork"
       />
     </>
   );
