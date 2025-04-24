@@ -1,3 +1,4 @@
+
 interface TemplateStyles {
   basic: string;
   basicWithPrice: string;
@@ -13,7 +14,7 @@ export const baseStyles = `
     margin: 0;
     padding: 0;
     color: #333;
-    line-height: 1.6;
+    line-height: 1.4;
   }
   
   .detail-label {
@@ -77,7 +78,7 @@ export const plainPaperStyles = `
   }
 `;
 
-// Stationery styles with adjusted positioning
+// Stationery styles with adjusted positioning and smaller fonts
 export const stationeryStyles = `
   .content-wrapper {
     padding-top: 11cm;
@@ -86,7 +87,7 @@ export const stationeryStyles = `
     padding-bottom: 3.5cm;
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .artwork-image {
@@ -98,7 +99,7 @@ export const stationeryStyles = `
   
   .artist-name {
     font-weight: 700;
-    margin-bottom: 0.5cm;
+    margin-bottom: 0.4cm;
   }
   
   .artist-name-header {
@@ -111,28 +112,28 @@ export const stationeryStyles = `
   
   .artwork-title {
     font-style: italic;
-    margin-bottom: 0.5cm;
+    margin-bottom: 0.4cm;
   }
   
   .materials {
-    margin-bottom: 0.5cm;
+    margin-bottom: 0.4cm;
   }
   
   .edition-details {
-    margin-bottom: 0.5cm;
+    margin-bottom: 0.4cm;
   }
   
   .dimensions {
-    margin-bottom: 0.3cm;
+    margin-bottom: 0.2cm;
   }
   
   .frame-dimensions {
-    margin-bottom: 0.5cm;
+    margin-bottom: 0.4cm;
   }
   
   .price {
     font-weight: 600;
-    margin-top: 1cm;
+    margin-top: 0.8cm;
   }
   
   .collection-name {
@@ -140,38 +141,47 @@ export const stationeryStyles = `
     top: 6cm;
     left: 4cm;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     font-family: 'Source Sans 3', sans-serif;
+    margin-bottom: 0.2cm;
   }
   
   .collection-description {
-    margin-bottom: 0.5cm;
-    font-size: 10px;
+    margin-top: 0.1cm;
+    margin-bottom: 0.3cm;
+    font-size: 8px;
   }
   
   .collection-items {
-    margin-top: 0.5cm;
-    font-size: 10px;
+    margin-top: 0.3cm;
+    font-size: 8px;
   }
   
   .collection-item {
     display: flex;
-    margin-bottom: 0.4cm;
+    margin-bottom: 0.3cm;
     border-bottom: 1px solid #eee;
-    padding-bottom: 0.3cm;
-    font-size: 10px;
+    padding-bottom: 0.2cm;
+    font-size: 8px;
   }
   
   .collection-item-image {
-    width: 2cm;
-    height: 2cm;
+    width: 1.8cm;
+    height: 1.8cm;
     object-fit: cover;
-    margin-right: 0.6cm;
+    margin-right: 0.5cm;
   }
   
   .collection-item-details {
     flex: 1;
+    font-size: 8px;
+    line-height: 1.3;
+  }
+
+  h2 {
     font-size: 10px;
+    margin-bottom: 0.3cm;
+    font-weight: 600;
   }
 `;
 

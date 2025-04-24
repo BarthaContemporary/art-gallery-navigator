@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -163,7 +164,7 @@ export default function PDFTemplates() {
               <Button 
                 onClick={handleGeneratePDF}
                 disabled={!collection || isGenerating}
-                className="absolute top-8 right-8 z-10 flex items-center gap-2"
+                className="absolute top-4 right-4 z-10 flex items-center gap-2"
               >
                 {isGenerating ? "Generating..." : "Save as PDF"}
                 <Download className="h-4 w-4" />
@@ -180,13 +181,13 @@ export default function PDFTemplates() {
                   </div>
                   
                   <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
-                    <div className="absolute top-[6cm] left-[4cm] font-bold text-sm">
+                    <div className="absolute top-[6cm] left-[4cm] font-bold text-xs">
                       {collection ? collection.name : "Collection Name"}
                     </div>
                     
                     {collection && <CollectionPDFPreview collection={collection} />}
                     {!collection && (
-                      <p className="text-xs">No collection selected to preview</p>
+                      <p className="text-[8px]">No collection selected to preview</p>
                     )}
                   </div>
                 </div>
