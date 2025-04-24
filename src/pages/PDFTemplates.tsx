@@ -1,17 +1,13 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { useParams } from "react-router-dom";
 import { useArtworks } from "@/hooks/use-artworks";
 import { useCollections } from "@/hooks/use-collections";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
-import { ArtworkPDFPreview, CollectionPDFPreview } from "@/lib/pdf-templates";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { ArtworkPreviewPanel } from "@/components/pdf/ArtworkPreviewPanel";
+import { CollectionPreviewPanel } from "@/components/pdf/CollectionPreviewPanel";
 
 export default function PDFTemplates() {
   const { type, id } = useParams();
@@ -71,129 +67,24 @@ export default function PDFTemplates() {
               Select a template style and stationery option
             </p>
           </div>
-          
-          {type === "artwork" && (
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="stationery-mode"
-                checked={useStationery}
-                onCheckedChange={setUseStationery}
-              />
-              <Label htmlFor="stationery-mode">Use Company Stationery</Label>
-            </div>
-          )}
         </div>
         
         {type === "artwork" ? (
-          <Tabs defaultValue="classic" value={selectedTemplate} onValueChange={setSelectedTemplate}>
-            <TabsList className="grid grid-cols-3 mb-6 w-full max-w-md mx-auto">
-              <TabsTrigger value="classic">Classic</TabsTrigger>
-              <TabsTrigger value="modern">Modern</TabsTrigger>
-              <TabsTrigger value="minimal">Minimal</TabsTrigger>
-            </TabsList>
-            
-            <div className="bg-gray-100 p-6 rounded-lg">
-              <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
-                <div className="bg-white shadow-lg h-full overflow-auto">
-                  {useStationery && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      <img 
-                        src="/stationery-template.png" 
-                        alt="Company Stationery" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  
-                  <TabsContent value="classic" className="p-12 m-0 border-none h-full">
-                    <div className="border-b-2 border-primary pb-6 mb-6">
-                      <h1 className="text-3xl font-bold text-primary">
-                        {artwork ? artwork.title : "Document Title"}
-                      </h1>
-                    </div>
-                    {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basic" />}
-                    {!artwork && (
-                      <p>Select an artwork to preview</p>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="modern" className="p-12 m-0 border-none h-full">
-                    <div className="flex items-center justify-between mb-8">
-                      <h1 className="text-3xl font-light">
-                        {artwork ? artwork.title : "Document Title"}
-                      </h1>
-                      <div className="w-24 h-1 bg-primary"></div>
-                    </div>
-                    <div className="pl-6 border-l-4 border-primary">
-                      {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="basicWithPrice" />}
-                      {!artwork && (
-                        <p>Select an artwork to preview</p>
-                      )}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="minimal" className="p-12 m-0 border-none h-full">
-                    <h1 className="text-2xl uppercase tracking-widest mb-8">
-                        {artwork ? artwork.title : "Document Title"}
-                    </h1>
-                    <div className="grid grid-cols-1 gap-6">
-                      {artwork && <ArtworkPDFPreview artwork={artwork} templateStyle="complete" />}
-                      {!artwork && (
-                        <p>Select an artwork to preview</p>
-                      )}
-                    </div>
-                  </TabsContent>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <Button 
-                disabled={!artwork || isGenerating}
-                onClick={handleGeneratePDF}
-                className="flex items-center gap-2"
-              >
-                {isGenerating ? "Generating PDF..." : "Generate PDF"}
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
-          </Tabs>
+          <ArtworkPreviewPanel
+            artwork={artwork}
+            selectedTemplate={selectedTemplate}
+            useStationery={useStationery}
+            isGenerating={isGenerating}
+            onTemplateChange={setSelectedTemplate}
+            onStationeryChange={setUseStationery}
+            onGeneratePDF={handleGeneratePDF}
+          />
         ) : (
-          <div>
-            <div className="bg-gray-100 p-6 rounded-lg relative">
-              <Button 
-                onClick={handleGeneratePDF}
-                disabled={!collection || isGenerating}
-                className="absolute top-4 right-4 z-10 flex items-center gap-2"
-              >
-                {isGenerating ? "Generating..." : "Save as PDF"}
-                <Download className="h-4 w-4" />
-              </Button>
-              
-              <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
-                <div className="bg-white shadow-lg h-full overflow-auto">
-                  <div className="absolute inset-0 pointer-events-none">
-                    <img 
-                      src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
-                      alt="Bartha Contemporary Stationery"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  
-                  <div className="pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto">
-                    <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
-                      {collection ? collection.name : "Collection Name"}
-                    </div>
-                    
-                    {collection && <CollectionPDFPreview collection={collection} />}
-                    {!collection && (
-                      <p className="text-[7px]">No collection selected to preview</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CollectionPreviewPanel
+            collection={collection}
+            isGenerating={isGenerating}
+            onGeneratePDF={handleGeneratePDF}
+          />
         )}
       </div>
     </div>
