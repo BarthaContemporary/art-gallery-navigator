@@ -3,6 +3,8 @@ interface TemplateStyles {
   classic: string;
   modern: string;
   minimal: string;
+  elegant: string;
+  professional: string;
 }
 
 export const baseStyles = `
@@ -81,6 +83,55 @@ export const templateStyles: TemplateStyles = {
     .section {
       margin-bottom: 30px;
     }
+  `,
+  elegant: `
+    h1 { 
+      font-family: "Times New Roman", serif;
+      color: #18465a;
+      font-size: 32px;
+      margin-bottom: 25px;
+      text-align: center;
+      font-style: italic;
+    }
+    .detail { 
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #dee2e6;
+      background: #fff;
+    }
+    .detail-label {
+      color: #18465a;
+      font-family: "Times New Roman", serif;
+      font-style: italic;
+    }
+    .section {
+      margin-bottom: 35px;
+      padding: 0 20px;
+    }
+  `,
+  professional: `
+    h1 { 
+      color: #18465a;
+      font-size: 26px;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 3px double #18465a;
+    }
+    .detail { 
+      margin-bottom: 18px;
+      padding: 12px 15px;
+      background: linear-gradient(to right, #f8f9fa, white);
+      border-radius: 4px;
+    }
+    .detail-label {
+      color: #18465a;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+    .section {
+      margin-bottom: 35px;
+    }
   `
 };
 
@@ -101,4 +152,3 @@ export function getStationeryStyle(useStationery: boolean): string {
     }
   ` : '';
 }
-

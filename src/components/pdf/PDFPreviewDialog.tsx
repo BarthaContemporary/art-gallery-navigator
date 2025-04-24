@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,10 +47,12 @@ export function PDFPreviewDialog({
         </div>
         
         <Tabs defaultValue="classic" className="flex-1 flex flex-col" onValueChange={setSelectedTemplate}>
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="classic">Classic</TabsTrigger>
             <TabsTrigger value="modern">Modern</TabsTrigger>
             <TabsTrigger value="minimal">Minimal</TabsTrigger>
+            <TabsTrigger value="elegant">Elegant</TabsTrigger>
+            <TabsTrigger value="professional">Professional</TabsTrigger>
           </TabsList>
           
           <ScrollArea className="flex-1">
@@ -90,6 +93,26 @@ export function PDFPreviewDialog({
                   <div className="p-12 h-full overflow-auto">
                     <h1 className="text-2xl uppercase tracking-widest mb-8">{title}</h1>
                     <div className="grid grid-cols-1 gap-6">
+                      {content}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="elegant" className="m-0 p-0 h-full">
+                  <div className="p-12 h-full overflow-auto">
+                    <h1 className="text-3xl font-serif italic text-center mb-8">{title}</h1>
+                    <div className="px-8">
+                      {content}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="professional" className="m-0 p-0 h-full">
+                  <div className="p-12 h-full overflow-auto">
+                    <div className="border-b-2 border-double border-primary pb-4 mb-8">
+                      <h1 className="text-2xl font-semibold">{title}</h1>
+                    </div>
+                    <div className="space-y-6">
                       {content}
                     </div>
                   </div>
