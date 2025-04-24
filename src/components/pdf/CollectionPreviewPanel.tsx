@@ -33,8 +33,7 @@ export function CollectionPreviewPanel({
               <img 
                 src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
                 alt="Bartha Contemporary Stationery"
-                className="w-full h-full"
-                style={{ objectFit: 'cover' }}
+                className="w-full h-full object-cover"
               />
             </div>
             

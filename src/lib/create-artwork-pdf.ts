@@ -50,8 +50,20 @@ export async function createArtworkPDF(
     tempDiv.style.top = '-9999px';
     tempDiv.style.width = '595px'; // A4 width in pixels at 72dpi
     tempDiv.style.height = '842px'; // A4 height in pixels at 72dpi
+    tempDiv.style.backgroundColor = 'white';
     tempDiv.innerHTML = htmlContent;
     document.body.appendChild(tempDiv);
+    
+    // Pre-load stationery image if used
+    if (useStationery) {
+      const stationeryImg = new Image();
+      stationeryImg.src = '/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png';
+      await new Promise((resolve) => {
+        stationeryImg.onload = resolve;
+        // If image fails to load, resolve anyway after 2 seconds
+        setTimeout(resolve, 2000);
+      });
+    }
     
     // Create a PDF document and add the rendered HTML content
     const doc = new jsPDF({
@@ -64,23 +76,36 @@ export async function createArtworkPDF(
     // Convert the HTML content to canvas and then to PDF
     toast.loading("Generating PDF, please wait...");
     
-    // Add 100ms delay to ensure fonts are loaded
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Add delay to ensure fonts and images are loaded
+    await new Promise(resolve => setTimeout(resolve, 800));
     
     // Convert HTML to canvas with improved settings
     const canvas = await html2canvas(tempDiv, {
-      scale: 3.0, // Higher quality rendering
+      scale: 4.0, // Higher quality rendering (increased from 3.0)
       useCORS: true,
       logging: false,
       allowTaint: true,
       backgroundColor: null,
+      imageTimeout: 0, // Wait for images indefinitely
       onclone: (clonedDoc) => {
-        // Make sure fonts are loaded in the clone
+        // Make sure fonts and images are loaded in the clone
         const style = clonedDoc.createElement('style');
         style.innerHTML = `
           @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+          body::before {
+            content: none !important;
+          }
         `;
         clonedDoc.head.appendChild(style);
+        
+        // Force all images to be visible
+        const imgs = clonedDoc.querySelectorAll('img');
+        imgs.forEach(img => {
+          img.style.visibility = 'visible';
+          // Pre-load images
+          const newImg = new Image();
+          newImg.src = img.src;
+        });
       }
     });
     

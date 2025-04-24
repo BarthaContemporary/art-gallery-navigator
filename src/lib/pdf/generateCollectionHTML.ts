@@ -4,8 +4,7 @@ import { escapeHtml } from "./utils";
 import { 
   baseStyles, 
   stationeryStyles, 
-  getStationeryStyle, 
-  cmToInchFraction 
+  getStationeryStyle,
 } from "./styles";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,6 +53,8 @@ export async function generateCollectionHTML(
   
   const artworksWithData = await Promise.all(artworkDataPromises);
   
+  const stationeryImagePath = '/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png';
+  
   return `
     <!DOCTYPE html>
     <html>
@@ -73,6 +74,7 @@ export async function generateCollectionHTML(
             font-size: 10px;
             line-height: 1.2;
             font-family: 'Source Sans 3', sans-serif;
+            position: relative;
           }
           
           * {
@@ -87,6 +89,16 @@ export async function generateCollectionHTML(
         </style>
       </head>
       <body>
+        ${useStationery ? `
+          <!-- Add stationery as an actual image element for PDF capture -->
+          <img 
+            src="${stationeryImagePath}" 
+            alt="Stationery" 
+            class="stationery-background"
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; object-fit: cover;"
+          />
+        ` : ''}
+        
         <div class="content-wrapper">
           <div class="collection-name">${escapeHtml(collection.name)}</div>
           
@@ -133,7 +145,7 @@ export async function generateCollectionHTML(
                     ${editionInfo ? `<p class="edition-details">${editionInfo}</p>` : ''}
                     ${dimensionsDisplay ? `<p class="dimensions">${dimensionsDisplay}</p>` : ''}
                     ${frameDimensionsDisplay ? `<p class="frame-dimensions">${frameDimensionsDisplay}</p>` : ''}
-                    ${artwork.location_id ? `<p>Location: ${escapeHtml(artwork.locationName)}</p>` : ''}
+                    ${artwork.locationName ? `<p>Location: ${escapeHtml(artwork.locationName)}</p>` : ''}
                     ${artwork.price ? `<p class="price">${artwork.currency} ${artwork.price.toLocaleString()}</p>` : ''}
                   </div>
                 </div>
