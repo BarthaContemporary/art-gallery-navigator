@@ -98,7 +98,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   
   return (
     <div className="relative">
-      <Carousel className="w-full">
+      <div className="carousel-container">
         <div className="overflow-hidden" ref={emblaRef}>
           <CarouselContent>
             {displayImages.map((image) => (
@@ -114,13 +114,18 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
             ))}
           </CarouselContent>
         </div>
+        
         {displayImages.length > 1 && (
           <>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+              <CarouselPrevious />
+            </div>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+              <CarouselNext />
+            </div>
           </>
         )}
-      </Carousel>
+      </div>
       
       {displayImages.length > 1 && (
         <div className="flex justify-center gap-2 mt-4">
