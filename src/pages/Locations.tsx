@@ -8,6 +8,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { EditLocationDialog } from "@/components/locations/EditLocationDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,8 @@ const Locations = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editLocation, setEditLocation] = useState<typeof locations[0] | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const filteredLocations = useMemo(() => {
     if (!locations) return [];
@@ -119,7 +122,12 @@ const Locations = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditLocation(location);
+                          setEditDialogOpen(true);
+                        }}
+                      >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
@@ -156,6 +164,17 @@ const Locations = () => {
             ))
           )}
         </div>
+      )}
+
+      {editLocation && (
+        <EditLocationDialog
+          location={editLocation}
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setEditLocation(null);
+          }}
+        />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
