@@ -53,6 +53,17 @@ export function useDocumentUpload() {
         .from('documents')
         .getPublicUrl(fileName);
 
+      // Process form data to make sure we have valid values
+      const finalArtworkId = data.artwork_id && data.artwork_id !== "_none" ? data.artwork_id : null;
+      const finalCollectionId = data.collection_id && data.collection_id !== "_none" ? data.collection_id : null;
+      const finalArtistId = data.artist_id && data.artist_id !== "_none" ? data.artist_id : null;
+
+      console.log("Inserting document with:", { 
+        finalArtworkId, 
+        finalCollectionId,
+        finalArtistId
+      });
+
       // Insert record in database
       const insertResult = await supabase
         .from('documents')
@@ -61,9 +72,9 @@ export function useDocumentUpload() {
           file_url: publicUrl,
           type: data.type,
           description: data.description || null,
-          artwork_id: data.artwork_id || null,
-          collection_id: data.collection_id || null,
-          artist_id: data.artist_id || null,
+          artwork_id: finalArtworkId,
+          collection_id: finalCollectionId,
+          artist_id: finalArtistId,
         });
 
       if (insertResult.error) {
