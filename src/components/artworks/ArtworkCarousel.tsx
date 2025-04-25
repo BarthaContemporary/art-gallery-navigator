@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { 
   Carousel, 
@@ -28,7 +29,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
-  
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setCurrentIndex(emblaApi.selectedScrollSnap());
@@ -118,12 +119,13 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
       {displayImages.length > 1 && (
         <div className="flex justify-center gap-2 mt-4">
           {displayImages.map((_, index) => (
-            <div
+            <button
               key={index}
-              className={`h-2 w-2 rounded-full transition-colors cursor-pointer ${
+              className={`h-2 w-2 rounded-full transition-colors ${
                 index === currentIndex ? "bg-primary" : "bg-secondary"
               }`}
               onClick={() => emblaApi?.scrollTo(index)}
+              aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
