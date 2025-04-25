@@ -1,8 +1,6 @@
-
 import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
@@ -50,7 +48,6 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     exportArtworksToCSV([artwork], `artwork_${artwork.id}.csv`);
   };
 
-  // Get artist name
   const getArtistName = () => {
     if (artwork.artist_id && artists) {
       const artist = artists.find(a => a.id === artwork.artist_id);
@@ -86,6 +83,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      
       <div 
         className="aspect-[4/3] w-full overflow-hidden cursor-pointer"
         onClick={handleCardClick}
@@ -96,55 +94,25 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           className="h-full w-full object-cover transition-all hover:scale-105"
         />
       </div>
+      
       <CardContent 
-        className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+        className="p-4 cursor-pointer space-y-1"
         onClick={handleCardClick}
       >
-        <ScrollArea className="h-[200px] pr-4">
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-lg">{artwork.title}</h3>
-                <p className="text-sm text-muted-foreground">{getArtistName()}</p>
-                {artwork.year && <p className="text-sm">Year: {artwork.year}</p>}
-                {artwork.materials && (
-                  <p className="text-xs text-muted-foreground mt-1">{artwork.materials}</p>
-                )}
-                {artwork.dimensions && (
-                  <p className="text-xs text-muted-foreground">{artwork.dimensions}</p>
-                )}
-                {artwork.medium_type && (
-                  <p className="text-xs text-muted-foreground">Medium: {artwork.medium_type}</p>
-                )}
-              </div>
-              <div className="flex flex-col items-end">
-                {artwork.price && (
-                  <p className="font-medium">
-                    {artwork.currency} {artwork.price.toLocaleString()}
-                  </p>
-                )}
-                {artwork.status && (
-                  <div className="flex items-center mt-1">
-                    {statusIcons[artwork.status as keyof typeof statusIcons]}
-                    <span className="text-xs ml-1 capitalize">{artwork.status}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {artwork.classification !== 'Unique' && (
-              <div className="border-t pt-3">
-                <h4 className="text-sm font-medium mb-2">Edition Details</h4>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <p>Edition Size: {artwork.edition_size || 'N/A'}</p>
-                  <p>Available: {artwork.available_works || 'N/A'}</p>
-                  <p>Inventory: {artwork.inventory_quantity || 0}</p>
-                  <p>Artist Proofs: {artwork.artist_proofs || 0}</p>
-                </div>
-              </div>
-            )}
+        <h3 className="font-medium text-lg leading-tight">{artwork.title}</h3>
+        <p className="text-muted-foreground">{getArtistName()}</p>
+        <p className="text-sm">{artwork.medium_type}</p>
+        {artwork.price && (
+          <p className="font-medium">
+            {artwork.currency} {artwork.price.toLocaleString()}
+          </p>
+        )}
+        {artwork.status && (
+          <div className="flex items-center">
+            {statusIcons[artwork.status as keyof typeof statusIcons]}
+            <span className="text-sm ml-1 capitalize">{artwork.status}</span>
           </div>
-        </ScrollArea>
+        )}
       </CardContent>
       
       <EditArtworkDialog
