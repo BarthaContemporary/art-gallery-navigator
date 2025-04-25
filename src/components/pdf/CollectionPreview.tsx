@@ -14,9 +14,12 @@ interface CollectionPreviewProps {
 export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   const { data: documents } = useCollectionDocuments(collection.id);
   
-  const handleDocumentClick = (url: string, e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleOpenDocument = (url: string) => {
     window.open(url, '_blank');
+  };
+  
+  const handleOpenArtwork = (artworkId: string) => {
+    window.open(`/artworks/${artworkId}`, '_blank');
   };
   
   return (
@@ -38,13 +41,10 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             return (
               <div
                 key={artwork.id}
-                className="flex border-b pb-1 hover:bg-gray-50 relative block group"
+                className="flex border-b pb-1 hover:bg-gray-50 relative block group cursor-pointer"
+                onClick={() => handleOpenArtwork(artwork.id)}
               >
-                <Link
-                  to={`/artworks/${artwork.id}`}
-                  className="w-full flex"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="w-full flex">
                   <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                     <img
                       src={artwork.image_url || "/placeholder.svg"}
@@ -78,7 +78,6 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                   <div className="absolute right-1 top-1">
                     <Button 
                       onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
                         window.open(`/artworks/${artwork.id}`, '_blank');
                       }}
@@ -89,7 +88,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                       <ArrowUpRight className="h-3 w-3" />
                     </Button>
                   </div>
-                </Link>
+                </div>
               </div>
             );
           })}
@@ -104,15 +103,10 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8 group block"
+              className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8 group cursor-pointer"
+              onClick={() => handleOpenDocument(doc.file_url)}
             >
-              <a
-                href={doc.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full"
-                onClick={(e) => handleDocumentClick(doc.file_url, e)}
-              >
+              <div className="flex w-full">
                 <div className="flex items-center gap-1 flex-grow">
                   <FileText className="h-3 w-3 text-gray-500" />
                   <span>{doc.file_name}</span>
@@ -120,7 +114,6 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 <div className="absolute right-1 top-0">
                   <Button 
                     onClick={(e) => {
-                      e.preventDefault();
                       e.stopPropagation();
                       window.open(doc.file_url, '_blank');
                     }}
@@ -131,7 +124,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                     <ArrowUpRight className="h-3 w-3" />
                   </Button>
                 </div>
-              </a>
+              </div>
             </div>
           ))}
         </div>
