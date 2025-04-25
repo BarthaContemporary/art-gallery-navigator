@@ -1,8 +1,9 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
-import { Link, FileText } from "lucide-react";
+import { ArrowUpRight, FileText } from "lucide-react";
 
 interface CollectionPreviewProps {
   collection: Collection;
@@ -34,11 +35,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             const { data: location } = useLocation(artwork.location_id);
             
             return (
-              <div 
-                key={artwork.id} 
-                className="flex border-b pb-1 cursor-pointer hover:bg-gray-50"
-                onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-              >
+              <div key={artwork.id} className="flex border-b pb-1">
                 <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                   <img
                     src={artwork.image_url || "/placeholder.svg"}
@@ -49,14 +46,13 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 <div className="text-[10px] leading-tight flex-grow">
                   <div className="flex items-center justify-between">
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
-                    <a 
-                      href={`/artworks/${artwork.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 flex items-center"
+                    <button 
+                      onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
+                      className="text-blue-600 hover:text-blue-800 flex items-center bg-transparent border-none cursor-pointer p-0"
+                      aria-label="View artwork details"
                     >
-                      <Link className="h-3 w-3" />
-                    </a>
+                      <ArrowUpRight className="h-3 w-3" />
+                    </button>
                   </div>
                   <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                   {artwork.medium_type && <p>{artwork.medium_type}</p>}
@@ -89,16 +85,18 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
-            <div 
-              key={doc.id} 
-              className="flex items-center justify-between border-b pb-1 cursor-pointer hover:bg-gray-50"
-              onClick={(e) => handleClick(doc.file_url, e)}
-            >
+            <div key={doc.id} className="flex items-center justify-between border-b pb-1">
               <div className="flex items-center gap-1">
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
               </div>
-              <Link className="h-3 w-3 text-blue-600" />
+              <button 
+                onClick={(e) => handleClick(doc.file_url, e)}
+                className="text-blue-600 hover:text-blue-800 flex items-center bg-transparent border-none cursor-pointer p-0"
+                aria-label="View document"
+              >
+                <ArrowUpRight className="h-3 w-3" />
+              </button>
             </div>
           ))}
         </div>
