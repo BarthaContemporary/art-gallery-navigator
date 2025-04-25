@@ -98,23 +98,24 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   
   return (
     <div className="relative">
-      <div className="carousel-container">
-        <div className="overflow-hidden" ref={emblaRef}>
-          <CarouselContent>
-            {displayImages.map((image) => (
-              <CarouselItem key={image.id}>
-                <AspectRatio ratio={4/3} className="bg-secondary/20">
-                  <img
-                    src={image.image_url || "/placeholder.svg"}
-                    alt="Artwork image"
-                    className="w-full h-full object-contain"
-                  />
-                </AspectRatio>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </div>
-        
+      <Carousel
+        opts={{ loop: true }}
+        orientation="horizontal"
+      >
+        <CarouselContent className="overflow-hidden" ref={emblaRef}>
+          {displayImages.map((image) => (
+            <CarouselItem key={image.id}>
+              <AspectRatio ratio={4/3} className="bg-secondary/20">
+                <img
+                  src={image.image_url || "/placeholder.svg"}
+                  alt="Artwork image"
+                  className="w-full h-full object-contain"
+                />
+              </AspectRatio>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+
         {displayImages.length > 1 && (
           <>
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
@@ -125,7 +126,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
             </div>
           </>
         )}
-      </div>
+      </Carousel>
       
       {displayImages.length > 1 && (
         <div className="flex justify-center gap-2 mt-4">
