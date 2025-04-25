@@ -24,6 +24,7 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
     >
       <a 
         href={href}
+        className="no-underline hover:no-underline active:no-underline focus:no-underline"
         style={{ fontWeight: isActive ? 600 : 500 }}
       >
         <Icon className="w-5 h-5 shrink-0" />
