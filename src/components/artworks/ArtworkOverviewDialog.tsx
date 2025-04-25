@@ -11,10 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
-import { Download, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
 import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
 import { ArtworkCarousel } from "./ArtworkCarousel";
+import { ArtworkDetailsSection } from "./overview/ArtworkDetailsSection";
+import { DimensionsSection } from "./overview/DimensionsSection";
+import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -29,7 +32,7 @@ export function ArtworkOverviewDialog({
 }: ArtworkOverviewDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
-  const { data: artist } = useArtist(artwork.artist_id);
+  const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
     if (isGenerating) return;
@@ -37,7 +40,7 @@ export function ArtworkOverviewDialog({
     setIsGenerating(true);
     createArtworkPDF(artwork, templateStyle, useStationery)
       .then(() => {
-        // Success handling is done by the PDF generator
+        // Success is handled by the PDF generator
       })
       .catch((error) => {
         console.error("Error generating PDF:", error);
@@ -56,7 +59,6 @@ export function ArtworkOverviewDialog({
             <div className="flex justify-between items-center">
               <DialogTitle className="text-2xl font-bold">
                 {artwork.title}
-                {artwork.year ? ` (${artwork.year})` : ""}
               </DialogTitle>
               <Button
                 variant="outline"
@@ -76,62 +78,12 @@ export function ArtworkOverviewDialog({
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6">
-              <div>
-                <dl className="space-y-4">
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Artist</dt>
-                    <dd className="text-lg">{artist?.full_name || "Unknown Artist"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Year</dt>
-                    <dd>{artwork.year || "Not specified"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Medium Type</dt>
-                    <dd>{artwork.medium_type}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Materials</dt>
-                    <dd>{artwork.materials || "Not specified"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Dimensions</dt>
-                    <dd>{artwork.dimensions || "Not specified"}</dd>
-                  </div>
-                </dl>
+              <div className="space-y-8">
+                <ArtworkDetailsSection artwork={artwork} artist={artist} artistLoading={artistLoading} />
+                <DimensionsSection artwork={artwork} />
               </div>
-              
               <div>
-                <dl className="space-y-4">
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Status</dt>
-                    <dd>{artwork.status || "Not specified"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Price</dt>
-                    <dd>
-                      {artwork.price
-                        ? `${artwork.currency} ${artwork.price.toLocaleString()}`
-                        : "Not specified"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Classification</dt>
-                    <dd>{artwork.classification}</dd>
-                  </div>
-                  {artwork.classification !== "Unique" && (
-                    <>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">Edition Size</dt>
-                        <dd>{artwork.edition_size || "Not specified"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">Available Works</dt>
-                        <dd>{artwork.available_works || "Not specified"}</dd>
-                      </div>
-                    </>
-                  )}
-                </dl>
+                <AdditionalInfoSection artwork={artwork} />
               </div>
             </div>
           </div>
