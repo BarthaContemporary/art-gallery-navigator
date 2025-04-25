@@ -45,11 +45,11 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                   />
                 </div>
                 <div className="text-[10px] leading-tight flex-grow">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between relative">
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
                     <Button 
                       onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                      className="h-4 min-h-0 p-0.5 text-blue-600 bg-blue-100 hover:bg-blue-200 z-50"
+                      className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 relative z-[60]"
                       variant="outline"
                       size="icon"
                     >
@@ -94,7 +94,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
               </div>
               <Button 
                 onClick={(e) => handleClick(doc.file_url, e)}
-                className="h-4 min-h-0 p-0.5 text-blue-600 bg-blue-100 hover:bg-blue-200 z-50"
+                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 relative z-[60]"
                 variant="outline"
                 size="icon"
               >
