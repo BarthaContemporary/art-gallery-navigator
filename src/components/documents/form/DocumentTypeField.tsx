@@ -9,6 +9,14 @@ import {
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { 
+  FileText, 
+  FileSpreadsheet, 
+  FileImage, 
+  FileArchive, 
+  FileCheck, 
+  FileQuestion 
+} from "lucide-react";
 
 interface DocumentTypeFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -16,13 +24,41 @@ interface DocumentTypeFieldProps {
 }
 
 const DOCUMENT_TYPES = [
-  { value: "condition report", label: "Condition Report" },
-  { value: "invoice", label: "Invoice" },
-  { value: "provenance", label: "Provenance" },
-  { value: "CoA", label: "Certificate of Authenticity" },
-  { value: "loan agreement", label: "Loan Agreement" },
-  { value: "image zip", label: "Image ZIP" },
-  { value: "related file", label: "Related File" },
+  { 
+    value: "condition report", 
+    label: "Condition Report", 
+    icon: FileText 
+  },
+  { 
+    value: "invoice", 
+    label: "Invoice", 
+    icon: FileSpreadsheet 
+  },
+  { 
+    value: "provenance", 
+    label: "Provenance", 
+    icon: FileCheck 
+  },
+  { 
+    value: "CoA", 
+    label: "Certificate of Authenticity", 
+    icon: FileText 
+  },
+  { 
+    value: "loan agreement", 
+    label: "Loan Agreement", 
+    icon: FileText 
+  },
+  { 
+    value: "image zip", 
+    label: "Image ZIP", 
+    icon: FileImage 
+  },
+  { 
+    value: "related file", 
+    label: "Related File", 
+    icon: FileArchive 
+  },
 ];
 
 export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
@@ -38,7 +74,11 @@ export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
           <FormLabel>Document Type</FormLabel>
           <FormControl>
             <SearchableSelect
-              options={DOCUMENT_TYPES}
+              options={DOCUMENT_TYPES.map(type => ({
+                value: type.value,
+                label: type.label,
+                icon: type.icon
+              }))}
               value={field.value || "_none"}
               onChange={(value) => {
                 // Only set actual values, not placeholder

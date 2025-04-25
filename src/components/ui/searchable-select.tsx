@@ -19,6 +19,7 @@ import {
 interface Option {
   value: string;
   label: string;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 interface SearchableSelectProps {
@@ -57,7 +58,12 @@ export function SearchableSelect({
           className="w-full justify-between"
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          <div className="flex items-center">
+            {selectedOption?.icon && (
+              <selectedOption.icon className="mr-2 h-4 w-4" />
+            )}
+            {selectedOption ? selectedOption.label : placeholder}
+          </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -97,6 +103,7 @@ export function SearchableSelect({
                     safeValue === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
+                {option.icon && <option.icon className="mr-2 h-4 w-4" />}
                 {option.label}
               </CommandItem>
             ))}
