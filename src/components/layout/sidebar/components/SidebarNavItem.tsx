@@ -3,6 +3,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { getSidebarLinkClasses } from "@/lib/sidebar-utils";
 
 interface SidebarNavItemProps {
   href: string;
@@ -18,9 +19,7 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
   return (
     <SidebarMenuButton
       asChild
-      className={`flex items-center gap-3 w-full no-underline font-medium
-        ${isActive ? "bg-primary text-primary-foreground shadow" : "text-gray-800"}
-      `}
+      className={getSidebarLinkClasses(isActive)}
     >
       <a 
         href={href}
@@ -33,3 +32,4 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
     </SidebarMenuButton>
   );
 }
+
