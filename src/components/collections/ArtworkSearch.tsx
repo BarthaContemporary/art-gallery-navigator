@@ -19,7 +19,7 @@ interface ArtworkSearchProps {
   onToggleArtwork: (id: string) => void;
 }
 
-export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: ArtworkSearchProps) {
+export function ArtworkSearch({ artworks = [], selectedArtworks = [], onToggleArtwork }: ArtworkSearchProps) {
   const [search, setSearch] = useState("");
   const { data: artists } = useArtists();
 
@@ -28,14 +28,8 @@ export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: A
     const artist = artists.find((a) => a.id === artistId);
     return artist ? artist.full_name : "Unknown Artist";
   };
-
-  // Ensure artworks is always an array
-  const artworksArray = Array.isArray(artworks) ? artworks : [];
   
-  // Ensure selectedArtworks is always an array
-  const selectedArtworksArray = Array.isArray(selectedArtworks) ? selectedArtworks : [];
-  
-  const filteredArtworks = artworksArray.filter((artwork) => {
+  const filteredArtworks = artworks.filter((artwork) => {
     const searchLower = search.toLowerCase();
     const artistName = getArtistName(artwork.artist_id).toLowerCase();
     return (
@@ -65,12 +59,12 @@ export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: A
                   <div className="flex items-center gap-2 flex-1">
                     <div
                       className={`flex h-4 w-4 items-center justify-center rounded-sm border ${
-                        selectedArtworksArray.includes(artwork.id)
+                        selectedArtworks.includes(artwork.id)
                           ? "bg-primary border-primary"
                           : "border-input"
                       }`}
                     >
-                      {selectedArtworksArray.includes(artwork.id) && (
+                      {selectedArtworks.includes(artwork.id) && (
                         <Check className="h-3 w-3 text-primary-foreground" />
                       )}
                     </div>

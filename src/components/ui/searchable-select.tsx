@@ -89,7 +89,7 @@ export function SearchableSelect({
               />
               None
             </CommandItem>
-            {/* Map through safe options with fallback for empty array */}
+            {/* Map through safe options */}
             {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
