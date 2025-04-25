@@ -49,9 +49,9 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
                     <Button 
                       onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                      className="h-4 min-h-0 p-0.5 text-blue-600 bg-transparent hover:bg-blue-50"
-                      variant="ghost"
-                      size="sm"
+                      className="h-4 min-h-0 p-0.5 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                      variant="outline"
+                      size="icon"
                     >
                       <ArrowUpRight className="h-3 w-3" />
                     </Button>
@@ -94,9 +94,9 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
               </div>
               <Button 
                 onClick={(e) => handleClick(doc.file_url, e)}
-                className="h-4 min-h-0 p-0.5 text-blue-600 bg-transparent hover:bg-blue-50"
-                variant="ghost"
-                size="sm"
+                className="h-4 min-h-0 p-0.5 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                variant="outline"
+                size="icon"
               >
                 <ArrowUpRight className="h-3 w-3" />
               </Button>
