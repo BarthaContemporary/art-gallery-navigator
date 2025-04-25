@@ -43,9 +43,17 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       if (isEditing) {
+        // Fix: Ensure that name and type are always provided for update operation
+        const updateData = {
+          name: values.name,  // Name is required by the schema
+          type: values.type,  // Type is required by the schema
+          address: values.address,
+          notes: values.notes,
+        };
+
         const { error } = await supabase
           .from("locations")
-          .update(values)
+          .update(updateData)
           .eq("id", initialData.id);
 
         if (error) throw error;
