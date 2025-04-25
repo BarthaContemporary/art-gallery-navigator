@@ -11,6 +11,12 @@ interface CollectionPreviewProps {
 export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   const { data: documents } = useCollectionDocuments(collection.id);
   
+  const handleClick = (url: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(url, '_blank');
+  };
+  
   return (
     <div className="space-y-1 text-[10px]">
       {collection.description && (
@@ -28,7 +34,11 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             const { data: location } = useLocation(artwork.location_id);
             
             return (
-              <div key={artwork.id} className="flex border-b pb-1">
+              <div 
+                key={artwork.id} 
+                className="flex border-b pb-1 cursor-pointer hover:bg-gray-50"
+                onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
+              >
                 <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                   <img
                     src={artwork.image_url || "/placeholder.svg"}
@@ -79,19 +89,16 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between border-b pb-1">
+            <div 
+              key={doc.id} 
+              className="flex items-center justify-between border-b pb-1 cursor-pointer hover:bg-gray-50"
+              onClick={(e) => handleClick(doc.file_url, e)}
+            >
               <div className="flex items-center gap-1">
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
               </div>
-              <a 
-                href={doc.file_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 flex items-center"
-              >
-                <Link className="h-3 w-3" />
-              </a>
+              <Link className="h-3 w-3 text-blue-600" />
             </div>
           ))}
         </div>
