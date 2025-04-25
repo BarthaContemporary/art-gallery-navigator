@@ -36,7 +36,7 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
                 <SelectValue placeholder="Select collection..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
                 {collections?.map((collection) => (
                   <SelectItem key={collection.id} value={collection.id}>
                     {collection.name}

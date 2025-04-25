@@ -36,7 +36,7 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
                 <SelectValue placeholder="Select artwork..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
                 {artworks?.map((artwork) => (
                   <SelectItem key={artwork.id} value={artwork.id}>
                     {artwork.title}
