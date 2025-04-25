@@ -1,7 +1,7 @@
 
 import React from "react";
-import { SidebarLogo } from "./sidebar/SidebarLogo";
-import { SidebarNav } from "./sidebar/SidebarNav";
+import { SidebarNavLogo } from "./sidebar/components/SidebarNavLogo";
+import { SidebarNavList } from "./sidebar/components/SidebarNavList";
 import { SidebarUserMenu } from "./sidebar/SidebarUserMenu";
 
 export function Sidebar() {
@@ -13,8 +13,8 @@ export function Sidebar() {
         textAlign: "left"
       }}
     >
-      <SidebarLogo />
-      <SidebarNav />
+      <SidebarNavLogo />
+      <SidebarNavList />
       <SidebarUserMenu />
     </aside>
   );

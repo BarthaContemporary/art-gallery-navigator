@@ -31,4 +31,3 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
     </a>
   );
 }
-

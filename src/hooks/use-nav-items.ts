@@ -1,5 +1,4 @@
 
-import React from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -9,10 +8,15 @@ import {
   List,
   Shield,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { SidebarNavItem } from './SidebarNavItem';
+import { useAuth } from "./use-auth";
 
-const NAV_ITEMS = [
+export type NavItem = {
+  name: string;
+  icon: any;
+  href: string;
+};
+
+const BASE_NAV_ITEMS: NavItem[] = [
   {
     name: "Dashboard",
     icon: LayoutDashboard,
@@ -45,9 +49,10 @@ const NAV_ITEMS = [
   },
 ];
 
-export function SidebarNav() {
+export function useNavItems() {
   const { isAdmin } = useAuth();
-  const navItems = [...NAV_ITEMS];
+  
+  const navItems = [...BASE_NAV_ITEMS];
   
   if (isAdmin) {
     navItems.push({
@@ -57,18 +62,5 @@ export function SidebarNav() {
     });
   }
 
-  return (
-    <nav className="flex-1 flex flex-col px-3 py-2 gap-2">
-      {navItems.map((item) => (
-        <SidebarNavItem
-          key={item.name}
-          href={item.href}
-          icon={item.icon}
-          name={item.name}
-        />
-      ))}
-      <div className="flex-1" />
-    </nav>
-  );
+  return navItems;
 }
-
