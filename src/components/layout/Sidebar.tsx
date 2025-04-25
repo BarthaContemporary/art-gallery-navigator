@@ -1,12 +1,13 @@
 
 import React from "react";
+import { Sidebar as SidebarComponent, SidebarContent } from "@/components/ui/sidebar";
 import { SidebarNavLogo } from "./sidebar/components/SidebarNavLogo";
 import { SidebarNavList } from "./sidebar/components/SidebarNavList";
 import { SidebarUserMenu } from "./sidebar/SidebarUserMenu";
 
 export function Sidebar() {
   return (
-    <aside
+    <SidebarComponent
       className="hidden sm:flex flex-col w-60 h-full border-r bg-white"
       style={{
         minHeight: "100vh",
@@ -14,8 +15,10 @@ export function Sidebar() {
       }}
     >
       <SidebarNavLogo />
-      <SidebarNavList />
+      <SidebarContent>
+        <SidebarNavList />
+      </SidebarContent>
       <SidebarUserMenu />
-    </aside>
+    </SidebarComponent>
   );
 }
