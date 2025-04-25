@@ -59,12 +59,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     },
   });
 
-  const onSubmit = async (data: EditArtistForm, e?: React.BaseSyntheticEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
+  const onSubmit = async (data: EditArtistForm) => {
     try {
       setIsLoading(true);
 
@@ -127,20 +122,25 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     }
   }, [open, artist, reset]);
 
-  const handleDialogInteraction = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]" onClick={handleDialogInteraction}>
+      <DialogContent 
+        className="sm:max-w-[425px]" 
+        onClick={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle>Edit Artist</DialogTitle>
           <DialogDescription>
             Make changes to artist details. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} onClick={(e) => e.stopPropagation()}>
+        <form 
+          className="space-y-4" 
+          onSubmit={(e) => {
+            e.stopPropagation();
+            handleSubmit(onSubmit)(e);
+          }}
+        >
           <div className="space-y-2">
             <Label htmlFor="full_name">Full Name *</Label>
             <Input
@@ -231,7 +231,6 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
               type="button" 
               variant="outline" 
               onClick={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
                 onOpenChange(false);
               }} 
@@ -242,9 +241,6 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
             <Button 
               type="submit" 
               disabled={isLoading}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
             >
               {isLoading ? "Saving..." : "Save Changes"}
             </Button>
