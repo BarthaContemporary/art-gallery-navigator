@@ -32,6 +32,22 @@ export function useDocumentUpload() {
         return;
       }
       
+      // Validate that exactly one of artwork_id or collection_id is provided
+      const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
+      const hasCollection = !!data.collection_id && data.collection_id !== "_none";
+      
+      if (!hasArtwork && !hasCollection) {
+        toast.error("Please attach document to either an artwork or a collection");
+        setIsUploading(false);
+        return;
+      }
+      
+      if (hasArtwork && hasCollection) {
+        toast.error("Document cannot be attached to both an artwork and a collection");
+        setIsUploading(false);
+        return;
+      }
+      
       const file = data.file;
       const fileExt = file.name.split('.').pop();
       const timestamp = Date.now();
@@ -58,12 +74,6 @@ export function useDocumentUpload() {
       const finalArtworkId = data.artwork_id && data.artwork_id !== "_none" ? data.artwork_id : null;
       const finalCollectionId = data.collection_id && data.collection_id !== "_none" ? data.collection_id : null;
       const finalArtistId = data.artist_id && data.artist_id !== "_none" ? data.artist_id : null;
-      
-      // Ensure either artwork_id OR collection_id is set (not both, not neither)
-      if ((!finalArtworkId && !finalCollectionId) || (finalArtworkId && finalCollectionId)) {
-        toast.error("Document must be attached to either an artwork or a collection, not both or neither");
-        throw new Error("Document must be attached to either an artwork or a collection");
-      }
 
       console.log("Inserting document with:", { 
         finalArtworkId, 
