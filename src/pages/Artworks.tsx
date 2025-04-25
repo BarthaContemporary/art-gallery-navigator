@@ -6,8 +6,9 @@ import { StatusFilter } from "@/components/artworks/StatusFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
+import { useArtists } from "@/components/artworks/form/useArtists";
 import { Button } from "@/components/ui/button";
-import { Download, Save } from "lucide-react";
+import { Download } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ const Artworks = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
   const { data: artworks, isLoading, error } = useArtworks();
+  const { data: artists } = useArtists();
   const navigate = useNavigate();
   
   const filteredArtworks = artworks?.filter(artwork => {
@@ -32,7 +34,8 @@ const Artworks = () => {
   // Get unique first letters of artist names
   const letters = Array.from(new Set(
     filteredArtworks.map(artwork => {
-      const artistName = artwork.artist_id ? "Unknown Artist" : "Unknown Artist";
+      const artist = artists?.find(a => a.id === artwork.artist_id);
+      const artistName = artist ? artist.full_name : "Unknown Artist";
       return artistName.charAt(0).toUpperCase();
     })
   )).sort();

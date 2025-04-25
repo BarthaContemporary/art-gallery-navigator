@@ -19,7 +19,7 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
   
   // Group artworks by artist's first letter
   const groupedArtworks = artworks.reduce((acc: ArtworksByArtist, artwork) => {
-    // Get artist name from the artwork, fallback to "Unknown Artist"
+    // Get artist name from the artwork
     let artistName = "Unknown Artist";
     
     // Find artist name in the artists data if artist_id exists
@@ -39,12 +39,18 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
     return acc;
   }, {});
 
-  // Sort artworks within each group
+  // Sort artworks within each group by artist name first, then by title
   Object.keys(groupedArtworks).forEach(letter => {
     groupedArtworks[letter].sort((a, b) => {
-      const titleA = a.title.toLowerCase();
-      const titleB = b.title.toLowerCase();
-      return titleA.localeCompare(titleB);
+      const artistA = artists?.find(artist => artist.id === a.artist_id)?.full_name || "Unknown Artist";
+      const artistB = artists?.find(artist => artist.id === b.artist_id)?.full_name || "Unknown Artist";
+      
+      // First sort by artist name
+      const artistCompare = artistA.localeCompare(artistB);
+      if (artistCompare !== 0) return artistCompare;
+      
+      // If same artist, sort by title
+      return a.title.localeCompare(b.title);
     });
   });
 
