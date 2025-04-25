@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { 
   Carousel, 
@@ -28,15 +27,13 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [emblaRef, emblaApi] = useEmblaCarousel();
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   
-  // Set up the onSelect callback
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setCurrentIndex(emblaApi.selectedScrollSnap());
   }, [emblaApi]);
 
-  // Initialize Embla event listeners
   useEffect(() => {
     if (!emblaApi) return;
     
@@ -47,7 +44,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi, onSelect]);
-  
+
   useEffect(() => {
     async function fetchArtworkImages() {
       try {
@@ -74,7 +71,6 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
     fetchArtworkImages();
   }, [artworkId]);
   
-  // If there are no images, use the main artwork image
   const displayImages = images.length > 0 ? images : [{ id: "main", artwork_id: artworkId, image_url: "", is_primary: true, display_order: 0 }];
   
   if (loading) {
@@ -124,9 +120,10 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
           {displayImages.map((_, index) => (
             <div
               key={index}
-              className={`h-2 w-2 rounded-full transition-colors ${
+              className={`h-2 w-2 rounded-full transition-colors cursor-pointer ${
                 index === currentIndex ? "bg-primary" : "bg-secondary"
               }`}
+              onClick={() => emblaApi?.scrollTo(index)}
             />
           ))}
         </div>

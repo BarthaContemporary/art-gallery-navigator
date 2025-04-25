@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { Artist } from "@/hooks/use-artist";
 
@@ -13,6 +12,10 @@ export function ArtworkDetailsSection({ artwork, artist, artistLoading }: Artwor
     <div>
       <h3 className="text-lg font-medium mb-4">Artwork Information</h3>
       <dl className="space-y-2">
+        <div className="flex flex-col">
+          <dt className="text-sm font-medium text-muted-foreground">Title</dt>
+          <dd>{artwork.title}</dd>
+        </div>
         <div className="flex flex-col">
           <dt className="text-sm font-medium text-muted-foreground">Artist</dt>
           <dd>{artistLoading ? "Loading..." : artist?.full_name || "No artist specified"}</dd>
@@ -33,6 +36,14 @@ export function ArtworkDetailsSection({ artwork, artist, artistLoading }: Artwor
           <dt className="text-sm font-medium text-muted-foreground">Classification</dt>
           <dd>{artwork.classification}</dd>
         </div>
+        {artwork.is_framed && (
+          <div className="flex flex-col">
+            <dt className="text-sm font-medium text-muted-foreground">Frame Dimensions (H×W×D)</dt>
+            <dd>
+              {artwork.frame_height || 'N/A'} × {artwork.frame_width || 'N/A'} × {artwork.frame_depth || 'N/A'} cm
+            </dd>
+          </div>
+        )}
         {artwork.classification !== 'Unique' && (
           <>
             <div className="flex flex-col">
