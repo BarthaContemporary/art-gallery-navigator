@@ -1,4 +1,3 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
@@ -83,7 +82,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
         <p className="text-[10px]">No artworks in this collection</p>
       )}
 
-      <h2 className="text-[9px] font-semibold mt-3 mb-1">Related Documents</h2>
+      <h2 className="text-[9px] font-semibold mt-3 mb-1">Attached Files</h2>
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
@@ -94,7 +93,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
               </div>
               <Button 
                 onClick={(e) => handleClick(doc.file_url, e)}
-                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 relative z-[60]"
+                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20"
                 variant="outline"
                 size="icon"
               >
@@ -104,7 +103,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
           ))}
         </div>
       ) : (
-        <p className="text-[10px]">No documents attached to this collection</p>
+        <p className="text-[10px]">No files attached to this collection</p>
       )}
     </div>
   );
