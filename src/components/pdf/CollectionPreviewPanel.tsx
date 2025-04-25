@@ -16,24 +16,24 @@ export function CollectionPreviewPanel({
   onGeneratePDF
 }: CollectionPreviewPanelProps) {
   return (
-    <div>
-      <div className="bg-gray-100 p-6 rounded-lg">
-        {/* Preview Container */}
-        <div className="mx-auto relative" style={{ width: '595px', height: '842px' }}>
-          {/* PDF Generation Button - Positioned absolutely on top */}
-          <div className="absolute -top-2 right-0 z-[100]">
-            <Button 
-              onClick={onGeneratePDF}
-              disabled={!collection || isGenerating}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90"
-            >
-              {isGenerating ? "Generating..." : "Save as PDF"}
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="space-y-4">
+      {/* PDF Generation Button in separate box */}
+      <div className="bg-white p-4 shadow rounded-lg">
+        <Button 
+          onClick={onGeneratePDF}
+          disabled={!collection || isGenerating}
+          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
+        >
+          {isGenerating ? "Generating..." : "Save as PDF"}
+          <Download className="h-4 w-4" />
+        </Button>
+      </div>
 
+      {/* Preview Container with shorter right padding */}
+      <div className="bg-white p-6 shadow rounded-lg">
+        <div className="mx-auto relative" style={{ width: '595px', height: '842px' }}>
           {/* PDF Preview Area */}
-          <div className="bg-white shadow-lg h-full relative">
+          <div className="bg-white h-full relative">
             {/* Stationery Background */}
             <div className="absolute inset-0">
               <img 
@@ -50,8 +50,8 @@ export function CollectionPreviewPanel({
                 {collection ? collection.name : "Collection Name"}
               </div>
               
-              {/* Main Content Area */}
-              <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative">
+              {/* Main Content Area with reduced right padding */}
+              <div className="pt-[8cm] pl-[4cm] pr-[2cm] pb-[3.5cm] h-full overflow-auto relative">
                 <div className="relative">
                   {collection && <CollectionPDFPreview collection={collection} />}
                   {!collection && (
