@@ -6,26 +6,26 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useArtworks } from "@/hooks/use-artworks";
+import { useCollections } from "@/hooks/use-collections";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface ArtworkFieldProps {
+interface CollectionFieldProps {
   form: UseFormReturn<UploadFormData>;
   disabled?: boolean;
 }
 
-export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
-  const { data: artworks } = useArtworks();
+export function CollectionField({ form, disabled }: CollectionFieldProps) {
+  const { data: collections } = useCollections();
 
   return (
     <FormField
       control={form.control}
-      name="artwork_id"
+      name="collection_id"
       render={({ field }) => (
         <FormItem>
-          <FormLabel>Related Artwork</FormLabel>
+          <FormLabel>Related Collection</FormLabel>
           <FormControl>
             <Select
               disabled={disabled}
@@ -33,13 +33,13 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
               onValueChange={field.onChange}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select artwork..." />
+                <SelectValue placeholder="Select collection..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
-                {artworks?.map((artwork) => (
-                  <SelectItem key={artwork.id} value={artwork.id}>
-                    {artwork.title}
+                {collections?.map((collection) => (
+                  <SelectItem key={collection.id} value={collection.id}>
+                    {collection.name}
                   </SelectItem>
                 ))}
               </SelectContent>

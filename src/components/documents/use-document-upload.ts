@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,6 +52,7 @@ export function useDocumentUpload() {
           type: data.type,
           description: data.description || null,
           artwork_id: data.artwork_id || null,
+          collection_id: data.collection_id || null,
           artist_id: data.artist_id || null,
         });
 
