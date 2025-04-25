@@ -29,10 +29,13 @@ export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: A
     return artist ? artist.full_name : "Unknown Artist";
   };
 
-  // Make sure artworks is defined before filtering
-  const artworksToFilter = Array.isArray(artworks) ? artworks : [];
+  // Ensure artworks is always an array
+  const artworksArray = Array.isArray(artworks) ? artworks : [];
   
-  const filteredArtworks = artworksToFilter.filter((artwork) => {
+  // Ensure selectedArtworks is always an array
+  const selectedArtworksArray = Array.isArray(selectedArtworks) ? selectedArtworks : [];
+  
+  const filteredArtworks = artworksArray.filter((artwork) => {
     const searchLower = search.toLowerCase();
     const artistName = getArtistName(artwork.artist_id).toLowerCase();
     return (
@@ -62,12 +65,12 @@ export function ArtworkSearch({ artworks, selectedArtworks, onToggleArtwork }: A
                   <div className="flex items-center gap-2 flex-1">
                     <div
                       className={`flex h-4 w-4 items-center justify-center rounded-sm border ${
-                        selectedArtworks.includes(artwork.id)
+                        selectedArtworksArray.includes(artwork.id)
                           ? "bg-primary border-primary"
                           : "border-input"
                       }`}
                     >
-                      {selectedArtworks.includes(artwork.id) && (
+                      {selectedArtworksArray.includes(artwork.id) && (
                         <Check className="h-3 w-3 text-primary-foreground" />
                       )}
                     </div>
