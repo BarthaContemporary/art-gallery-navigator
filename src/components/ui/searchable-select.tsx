@@ -38,17 +38,17 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   
-  // Get the display value
-  const selectedOption = options.find((option) => option.value === value);
-  
-  // Make sure options is always an array
+  // Ensure options is always a valid array
   const safeOptions = Array.isArray(options) ? options : [];
   
-  // Get the last 5 items for quick access - only if we have options
+  // Get the display value (safely)
+  const selectedOption = safeOptions.find((option) => option.value === value);
+  
+  // Get up to 5 items for quick access
   const recentOptions = safeOptions.slice(0, 5);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -67,10 +67,12 @@ export function SearchableSelect({
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup>
             <CommandItem
+              key="_none"
               onSelect={() => {
                 onChange("_none");
                 setOpen(false);
               }}
+              value="_none"
             >
               <Check
                 className={cn(
@@ -87,6 +89,7 @@ export function SearchableSelect({
                   onChange(option.value);
                   setOpen(false);
                 }}
+                value={option.value}
               >
                 <Check
                   className={cn(
