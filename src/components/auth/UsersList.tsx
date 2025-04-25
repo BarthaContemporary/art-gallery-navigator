@@ -10,13 +10,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { User } from "@supabase/supabase-js";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 // Interface for profiles from our database
 interface ProfileData {
   id: string;
   display_name: string;
   created_at: string;
+  email_confirmed: boolean;
 }
 
 // Interface for user roles from our database
@@ -60,6 +61,7 @@ export function UsersList() {
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
+            <TableHead>Email Status</TableHead>
             <TableHead>Roles</TableHead>
             <TableHead>Created At</TableHead>
           </TableRow>
@@ -68,6 +70,19 @@ export function UsersList() {
           {profiles?.map((profile) => (
             <TableRow key={profile.id}>
               <TableCell>{profile.display_name}</TableCell>
+              <TableCell>
+                {profile.email_confirmed ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Confirmed</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-yellow-600">
+                    <XCircle className="h-4 w-4" />
+                    <span>Pending</span>
+                  </div>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex gap-2">
                   {getUserRoles(profile.id).map((role) => (
