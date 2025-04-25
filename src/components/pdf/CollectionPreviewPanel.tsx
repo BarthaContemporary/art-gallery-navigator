@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { Collection } from "@/hooks/use-collections";
-import { CollectionPDFPreview } from "@/lib/pdf-templates";
+import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
 
 interface CollectionPreviewPanelProps {
   collection: Collection | undefined;
@@ -42,10 +42,12 @@ export function CollectionPreviewPanel({
                 {collection ? collection.name : "Collection Name"}
               </div>
               
-              {collection && <CollectionPDFPreview collection={collection} />}
-              {!collection && (
-                <p className="text-[10px]">No collection selected to preview</p>
-              )}
+              <div className="relative z-10 pointer-events-auto">
+                {collection && <CollectionPDFPreview collection={collection} />}
+                {!collection && (
+                  <p className="text-[10px]">No collection selected to preview</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
