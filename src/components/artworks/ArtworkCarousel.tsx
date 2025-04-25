@@ -90,10 +90,16 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
     );
   }
   
+  const handleDotClick = (index: number) => {
+    if (emblaApi) {
+      emblaApi.scrollTo(index);
+    }
+  };
+  
   return (
     <div className="relative">
-      <div className="overflow-hidden" ref={emblaRef}>
-        <Carousel className="w-full">
+      <Carousel className="w-full">
+        <div className="overflow-hidden" ref={emblaRef}>
           <CarouselContent>
             {displayImages.map((image) => (
               <CarouselItem key={image.id}>
@@ -107,14 +113,14 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
               </CarouselItem>
             ))}
           </CarouselContent>
-          {displayImages.length > 1 && (
-            <>
-              <CarouselPrevious className="left-2" />
-              <CarouselNext className="right-2" />
-            </>
-          )}
-        </Carousel>
-      </div>
+        </div>
+        {displayImages.length > 1 && (
+          <>
+            <CarouselPrevious className="left-2" />
+            <CarouselNext className="right-2" />
+          </>
+        )}
+      </Carousel>
       
       {displayImages.length > 1 && (
         <div className="flex justify-center gap-2 mt-4">
@@ -124,7 +130,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
               className={`h-2 w-2 rounded-full transition-colors ${
                 index === currentIndex ? "bg-primary" : "bg-secondary"
               }`}
-              onClick={() => emblaApi?.scrollTo(index)}
+              onClick={() => handleDotClick(index)}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
