@@ -41,14 +41,12 @@ export function SearchableSelect({
   // Ensure options is always a valid array
   const safeOptions = Array.isArray(options) ? options : [];
   
-  // Get the display value (safely)
-  const selectedOption = safeOptions.find((option) => option.value === value);
+  // Ensure value is always a string
+  const safeValue = typeof value === 'string' ? value : '_none';
   
-  // For Command component, make sure we always have items to render
-  const displayOptions = safeOptions.length > 0 
-    ? safeOptions.slice(0, 10) // Limit to 10 items for better performance
-    : [];
-
+  // Get the display value (safely)
+  const selectedOption = safeOptions.find((option) => option.value === safeValue);
+  
   return (
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
@@ -79,12 +77,12 @@ export function SearchableSelect({
               <Check
                 className={cn(
                   "mr-2 h-4 w-4",
-                  value === "_none" ? "opacity-100" : "opacity-0"
+                  safeValue === "_none" ? "opacity-100" : "opacity-0"
                 )}
               />
               None
             </CommandItem>
-            {displayOptions.map((option) => (
+            {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
                 value={option.value}
@@ -96,7 +94,7 @@ export function SearchableSelect({
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    value === option.value ? "opacity-100" : "opacity-0"
+                    safeValue === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
                 {option.label}
