@@ -18,7 +18,11 @@ export function CreateArtworkForm({ setOpen, initialData, preventFreeze = false 
     onSubmit,
     handleImagesUploaded,
     initialData: _initialData,
-  } = useCreateArtworkForm({ setOpen, initialData, preventFreeze });
+  } = useCreateArtworkForm({ 
+    setOpen, 
+    initialData, 
+    preventFreeze 
+  });
 
   return (
     <CreateArtworkFormView

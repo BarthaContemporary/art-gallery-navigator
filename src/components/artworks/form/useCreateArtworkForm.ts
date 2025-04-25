@@ -128,13 +128,15 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
       resetUploaded();
       form.reset();
       
-      // Close the dialog with timeout to allow React to process state changes
-      const timeout = preventFreeze ? 200 : 100; // Increased timeout for edit dialog
-      
-      // Detach from the current execution context to allow UI to update
-      setTimeout(() => {
-        setOpen(false);
-      }, timeout);
+      // Use requestAnimationFrame for smoother state transitions and prevent freeze
+      requestAnimationFrame(() => {
+        // Use a longer timeout for edit dialog to ensure all state has settled
+        const timeout = preventFreeze ? 250 : 150;
+        
+        setTimeout(() => {
+          setOpen(false);
+        }, timeout);
+      });
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
