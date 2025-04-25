@@ -112,8 +112,10 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
         }
       }
 
+      // Important: Invalidate query before UI state updates
       await queryClient.invalidateQueries({ queryKey: ['artworks'] });
 
+      // Show success toast
       toast({
         title: "Success",
         description: initialData 
@@ -121,9 +123,14 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
           : "Artwork has been created successfully",
       });
 
-      setOpen(false);
-      form.reset();
+      // Reset form and close dialog
       resetUploaded();
+      form.reset();
+      
+      // Close the dialog last to prevent UI freezing
+      setTimeout(() => {
+        setOpen(false);
+      }, 100);
     } catch (error) {
       console.error("Form submission error:", error);
       toast({

@@ -11,6 +11,10 @@ interface ImageUploadFieldProps {
 }
 
 export function ImageUploadField({ register, currentImageUrl, artistName }: ImageUploadFieldProps) {
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event from propagating up
+  };
+
   return (
     <div className="space-y-2">
       <Label htmlFor="image">Profile Image</Label>
@@ -18,6 +22,7 @@ export function ImageUploadField({ register, currentImageUrl, artistName }: Imag
         id="image"
         type="file"
         accept="image/*"
+        onClick={(e) => e.stopPropagation()}
         {...register("image")}
       />
       {currentImageUrl && (
@@ -25,6 +30,7 @@ export function ImageUploadField({ register, currentImageUrl, artistName }: Imag
           src={currentImageUrl}
           alt={artistName}
           className="w-16 h-16 rounded-md mt-2 object-cover"
+          onClick={handleImageClick}
         />
       )}
     </div>
