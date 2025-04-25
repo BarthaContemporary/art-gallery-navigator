@@ -12,6 +12,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface DocumentTypeFieldProps {
   form: UseFormReturn<UploadFormData>;
+  disabled?: boolean;
 }
 
 const DOCUMENT_TYPES = [
@@ -24,7 +25,7 @@ const DOCUMENT_TYPES = [
   { value: "related file", label: "Related File" },
 ];
 
-export function DocumentTypeField({ form }: DocumentTypeFieldProps) {
+export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
   return (
     <FormField
       control={form.control}
@@ -35,9 +36,10 @@ export function DocumentTypeField({ form }: DocumentTypeFieldProps) {
           <FormControl>
             <SearchableSelect
               options={DOCUMENT_TYPES}
-              value={field.value || ""}
+              value={field.value || "_none"}
               onChange={field.onChange}
               placeholder="Select type..."
+              disabled={disabled}
             />
           </FormControl>
           <FormMessage />

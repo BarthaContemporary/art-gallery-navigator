@@ -10,6 +10,7 @@ import { useArtworks } from "@/hooks/use-artworks";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ArtworkFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -17,9 +18,10 @@ interface ArtworkFieldProps {
 }
 
 export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
-  const { data: artworks = [] } = useArtworks();
+  const { data: artworks, isLoading } = useArtworks();
 
-  const options = artworks.map((artwork) => ({
+  // Create options only when artworks are loaded
+  const options = (artworks || []).map((artwork) => ({
     value: artwork.id,
     label: artwork.title || "Untitled artwork",
   }));
@@ -32,13 +34,17 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
         <FormItem>
           <FormLabel>Related Artwork</FormLabel>
           <FormControl>
-            <SearchableSelect
-              options={options}
-              value={field.value || "_none"}
-              onChange={field.onChange}
-              placeholder="Select artwork..."
-              disabled={disabled}
-            />
+            {isLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <SearchableSelect
+                options={options}
+                value={field.value || "_none"}
+                onChange={field.onChange}
+                placeholder="Select artwork..."
+                disabled={disabled}
+              />
+            )}
           </FormControl>
           <FormMessage />
         </FormItem>

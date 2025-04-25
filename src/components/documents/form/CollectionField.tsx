@@ -10,6 +10,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CollectionFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -17,9 +18,10 @@ interface CollectionFieldProps {
 }
 
 export function CollectionField({ form, disabled }: CollectionFieldProps) {
-  const { data: collections = [] } = useCollections();
+  const { data: collections, isLoading } = useCollections();
 
-  const options = collections.map((collection) => ({
+  // Create options only when collections are loaded
+  const options = (collections || []).map((collection) => ({
     value: collection.id,
     label: collection.name || "Untitled collection",
   }));
@@ -32,13 +34,17 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
         <FormItem>
           <FormLabel>Related Collection</FormLabel>
           <FormControl>
-            <SearchableSelect
-              options={options}
-              value={field.value || "_none"}
-              onChange={field.onChange}
-              placeholder="Select collection..."
-              disabled={disabled}
-            />
+            {isLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <SearchableSelect
+                options={options}
+                value={field.value || "_none"}
+                onChange={field.onChange}
+                placeholder="Select collection..."
+                disabled={disabled}
+              />
+            )}
           </FormControl>
           <FormMessage />
         </FormItem>

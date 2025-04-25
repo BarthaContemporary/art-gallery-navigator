@@ -44,8 +44,10 @@ export function SearchableSelect({
   // Get the display value (safely)
   const selectedOption = safeOptions.find((option) => option.value === value);
   
-  // Get up to 5 items for quick access
-  const recentOptions = safeOptions.slice(0, 5);
+  // For Command component, make sure we always have items to render
+  const displayOptions = safeOptions.length > 0 
+    ? safeOptions.slice(0, 10) // Limit to 10 items for better performance
+    : [];
 
   return (
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
@@ -68,11 +70,11 @@ export function SearchableSelect({
           <CommandGroup>
             <CommandItem
               key="_none"
+              value="_none"
               onSelect={() => {
                 onChange("_none");
                 setOpen(false);
               }}
-              value="_none"
             >
               <Check
                 className={cn(
@@ -82,14 +84,14 @@ export function SearchableSelect({
               />
               None
             </CommandItem>
-            {recentOptions.map((option) => (
+            {displayOptions.map((option) => (
               <CommandItem
                 key={option.value}
+                value={option.value}
                 onSelect={() => {
                   onChange(option.value);
                   setOpen(false);
                 }}
-                value={option.value}
               >
                 <Check
                   className={cn(
