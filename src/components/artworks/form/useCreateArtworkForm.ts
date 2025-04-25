@@ -13,9 +13,10 @@ import { getArtworkInitialValues } from "./getArtworkInitialValues";
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
   initialData?: Artwork;
+  preventFreeze?: boolean;
 };
 
-export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkFormProps) {
+export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = false }: UseCreateArtworkFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -123,14 +124,17 @@ export function useCreateArtworkForm({ setOpen, initialData }: UseCreateArtworkF
           : "Artwork has been created successfully",
       });
 
-      // Reset form and close dialog
+      // Reset form state
       resetUploaded();
       form.reset();
       
-      // Close the dialog last to prevent UI freezing
+      // Close the dialog with timeout to allow React to process state changes
+      const timeout = preventFreeze ? 200 : 100; // Increased timeout for edit dialog
+      
+      // Detach from the current execution context to allow UI to update
       setTimeout(() => {
         setOpen(false);
-      }, 100);
+      }, timeout);
     } catch (error) {
       console.error("Form submission error:", error);
       toast({

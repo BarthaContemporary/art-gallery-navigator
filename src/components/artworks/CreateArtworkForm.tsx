@@ -6,9 +6,10 @@ import { Artwork } from "@/hooks/use-artworks";
 interface CreateArtworkFormProps {
   setOpen: (open: boolean) => void;
   initialData?: Artwork;
+  preventFreeze?: boolean;
 }
 
-export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormProps) {
+export function CreateArtworkForm({ setOpen, initialData, preventFreeze = false }: CreateArtworkFormProps) {
   const {
     form,
     classification,
@@ -17,7 +18,7 @@ export function CreateArtworkForm({ setOpen, initialData }: CreateArtworkFormPro
     onSubmit,
     handleImagesUploaded,
     initialData: _initialData,
-  } = useCreateArtworkForm({ setOpen, initialData });
+  } = useCreateArtworkForm({ setOpen, initialData, preventFreeze });
 
   return (
     <CreateArtworkFormView

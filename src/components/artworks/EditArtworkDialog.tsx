@@ -32,6 +32,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           <CreateArtworkForm 
             setOpen={onOpenChange} 
             initialData={artwork} 
+            preventFreeze={true}
           />
         </ScrollArea>
       </DialogContent>
