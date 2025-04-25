@@ -78,7 +78,7 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
                     className="mb-2"
                   />
                 </div>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
                 {options.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

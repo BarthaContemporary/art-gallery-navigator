@@ -74,7 +74,7 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
                     className="mb-2"
                   />
                 </div>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="_none">None</SelectItem>
                 {filteredCollections.map((collection) => (
                   <SelectItem key={collection.id} value={collection.id}>
                     {collection.name || "Untitled collection"}
