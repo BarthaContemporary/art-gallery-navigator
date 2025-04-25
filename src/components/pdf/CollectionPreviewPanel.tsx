@@ -37,7 +37,7 @@ export function CollectionPreviewPanel({
               />
             </div>
             
-            <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative" style={{ zIndex: 1 }}>
+            <div className="pt-[8cm] pl-[4cm] pr-[3cm] pb-[3.5cm] h-full overflow-auto relative">
               <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
                 {collection ? collection.name : "Collection Name"}
               </div>
