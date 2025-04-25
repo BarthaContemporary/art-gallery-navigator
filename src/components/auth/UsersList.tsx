@@ -12,6 +12,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { User } from "@supabase/supabase-js";
 
+// Interface for profiles from our database
+interface ProfileData {
+  id: string;
+  display_name: string;
+  created_at: string;
+}
+
 // Interface for user roles from our database
 interface UserRoleData {
   user_id: string;
@@ -19,12 +26,14 @@ interface UserRoleData {
 }
 
 export function UsersList() {
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['users'],
+  const { data: profiles, isLoading } = useQuery({
+    queryKey: ['profiles'],
     queryFn: async () => {
-      const { data: users, error } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
       if (error) throw error;
-      return users.users;
+      return data as ProfileData[];
     },
   });
 
@@ -50,18 +59,18 @@ export function UsersList() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Email</TableHead>
+            <TableHead>User</TableHead>
             <TableHead>Roles</TableHead>
             <TableHead>Created At</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users?.map((user: User) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.email}</TableCell>
+          {profiles?.map((profile) => (
+            <TableRow key={profile.id}>
+              <TableCell>{profile.display_name}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
-                  {getUserRoles(user.id).map((role) => (
+                  {getUserRoles(profile.id).map((role) => (
                     <Badge key={role} variant="secondary">
                       {role}
                     </Badge>
@@ -69,7 +78,7 @@ export function UsersList() {
                 </div>
               </TableCell>
               <TableCell>
-                {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
               </TableCell>
             </TableRow>
           ))}
