@@ -1,9 +1,8 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
-import { Link } from "lucide-react";
+import { Link, FileText } from "lucide-react";
 
 interface CollectionPreviewProps {
   collection: Collection;
