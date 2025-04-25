@@ -10,14 +10,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { User } from "@supabase/supabase-js";
 
-interface User {
-  id: string;
-  email: string;
-  created_at: string;
-}
-
-interface UserRole {
+// Interface for user roles from our database
+interface UserRoleData {
+  user_id: string;
   role: string;
 }
 
@@ -38,7 +35,7 @@ export function UsersList() {
         .from('user_roles')
         .select('user_id, role');
       if (error) throw error;
-      return data;
+      return data as UserRoleData[];
     },
   });
 
@@ -72,7 +69,7 @@ export function UsersList() {
                 </div>
               </TableCell>
               <TableCell>
-                {new Date(user.created_at).toLocaleDateString()}
+                {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
               </TableCell>
             </TableRow>
           ))}
