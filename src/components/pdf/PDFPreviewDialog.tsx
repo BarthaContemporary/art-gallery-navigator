@@ -37,7 +37,7 @@ export function PDFPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
+        <DialogHeader className="flex flex-row items-center justify-between relative pr-10">
           <div>
             <DialogTitle>PDF Template Preview</DialogTitle>
             <DialogDescription>
