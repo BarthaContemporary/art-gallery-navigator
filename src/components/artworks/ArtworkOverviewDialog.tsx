@@ -56,13 +56,13 @@ export function ArtworkOverviewDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center relative">
               <DialogTitle className="text-2xl font-bold">
                 {artwork.title}
               </DialogTitle>
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 absolute right-0"
                 onClick={() => setPDFPreviewOpen(true)}
                 disabled={isGenerating}
               >
@@ -101,3 +101,4 @@ export function ArtworkOverviewDialog({
     </>
   );
 }
+
