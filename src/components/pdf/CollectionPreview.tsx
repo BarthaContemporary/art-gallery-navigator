@@ -4,6 +4,7 @@ import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 import { ArrowUpRight, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CollectionPreviewProps {
   collection: Collection;
@@ -46,13 +47,14 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 <div className="text-[10px] leading-tight flex-grow">
                   <div className="flex items-center justify-between">
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
-                    <button 
+                    <Button 
                       onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                      className="text-blue-600 hover:text-blue-800 flex items-center bg-transparent border-none cursor-pointer p-0"
-                      aria-label="View artwork details"
+                      className="h-4 min-h-0 p-0.5 text-blue-600 bg-transparent hover:bg-blue-50"
+                      variant="ghost"
+                      size="sm"
                     >
                       <ArrowUpRight className="h-3 w-3" />
-                    </button>
+                    </Button>
                   </div>
                   <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                   {artwork.medium_type && <p>{artwork.medium_type}</p>}
@@ -90,13 +92,14 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
               </div>
-              <button 
+              <Button 
                 onClick={(e) => handleClick(doc.file_url, e)}
-                className="text-blue-600 hover:text-blue-800 flex items-center bg-transparent border-none cursor-pointer p-0"
-                aria-label="View document"
+                className="h-4 min-h-0 p-0.5 text-blue-600 bg-transparent hover:bg-blue-50"
+                variant="ghost"
+                size="sm"
               >
                 <ArrowUpRight className="h-3 w-3" />
-              </button>
+              </Button>
             </div>
           ))}
         </div>
