@@ -1,14 +1,30 @@
-
 import { useState, useMemo } from "react";
-import { Search, Building, Warehouse, Briefcase, ExternalLink, MapPin, Edit } from "lucide-react";
+import { Search, Building, Warehouse, Briefcase, ExternalLink, MapPin, Edit, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LocationHeader } from "@/components/locations/LocationHeader";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-// Helper function for location type icons
 const getLocationIcon = (type: string) => {
   switch (type) {
     case "exhibition":
@@ -28,6 +44,9 @@ const Locations = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: locations, isLoading, isError } = useLocations();
   const { isAdmin } = useAuth();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredLocations = useMemo(() => {
     if (!locations) return [];
@@ -37,6 +56,27 @@ const Locations = () => {
       (location.address || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [locations, searchTerm]);
+
+  const handleDelete = async (locationId: string) => {
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('locations')
+        .delete()
+        .eq('id', locationId);
+
+      if (error) throw error;
+
+      toast.success("Location deleted successfully");
+      setDeleteDialogOpen(false);
+      setLocationToDelete(null);
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      toast.error("Failed to delete location");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="pt-6 pb-6 px-6">
@@ -67,14 +107,34 @@ const Locations = () => {
             filteredLocations.map((location) => (
               <Card key={location.id} className="group relative">
                 {isAdmin && (
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="sr-only">Edit {location.name}</span>
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Actions for {location.name}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setLocationToDelete(location.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
                 <CardHeader className="flex flex-row items-center gap-4 pb-2">
                   {getLocationIcon(location.type)}
@@ -97,6 +157,28 @@ const Locations = () => {
           )}
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this location
+              and may affect any artworks associated with it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => locationToDelete && handleDelete(locationToDelete)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
