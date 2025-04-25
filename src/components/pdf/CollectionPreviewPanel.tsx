@@ -29,7 +29,7 @@ export function CollectionPreviewPanel({
         
         <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
           <div className="bg-white shadow-lg h-full overflow-auto">
-            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <div className="absolute inset-0" style={{ zIndex: 1 }}>
               <img 
                 src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
                 alt="Bartha Contemporary Stationery"
@@ -42,7 +42,7 @@ export function CollectionPreviewPanel({
                 {collection ? collection.name : "Collection Name"}
               </div>
               
-              <div className="relative z-10 pointer-events-auto">
+              <div className="relative" style={{ zIndex: 50 }}>
                 {collection && <CollectionPDFPreview collection={collection} />}
                 {!collection && (
                   <p className="text-[10px]">No collection selected to preview</p>
