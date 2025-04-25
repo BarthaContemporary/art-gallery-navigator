@@ -24,7 +24,10 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
             ? "bg-primary text-primary-foreground shadow"
             : "hover:bg-accent hover:text-accent-foreground text-gray-800"
         }`}
-      style={{ fontWeight: isActive ? 600 : 500 }}
+      style={{ 
+        fontWeight: isActive ? 600 : 500,
+        textDecoration: 'none'  // Explicitly remove underline
+      }}
     >
       <Icon className="w-5 h-5 shrink-0" />
       <span>{name}</span>
