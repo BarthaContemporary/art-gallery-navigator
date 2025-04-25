@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -62,7 +61,7 @@ export function ArtworkOverviewDialog({
               </DialogTitle>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 absolute right-0"
+                className="flex items-center gap-2 absolute right-8"
                 onClick={() => setPDFPreviewOpen(true)}
                 disabled={isGenerating}
               >
@@ -101,4 +100,3 @@ export function ArtworkOverviewDialog({
     </>
   );
 }
-
