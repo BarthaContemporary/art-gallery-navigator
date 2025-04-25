@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,12 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     },
   });
 
-  const onSubmit = async (data: EditArtistForm) => {
+  const onSubmit = async (data: EditArtistForm, e?: React.BaseSyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     try {
       setIsLoading(true);
 
@@ -122,13 +127,20 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     }
   }, [open, artist, reset]);
 
+  const handleDialogInteraction = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" onClick={handleDialogInteraction}>
         <DialogHeader>
           <DialogTitle>Edit Artist</DialogTitle>
+          <DialogDescription>
+            Make changes to artist details. Click save when you're done.
+          </DialogDescription>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} onClick={(e) => e.stopPropagation()}>
           <div className="space-y-2">
             <Label htmlFor="full_name">Full Name *</Label>
             <Input
@@ -215,10 +227,25 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
             )}
           </div>
           <div className="flex gap-2 justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenChange(false);
+              }} 
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
               {isLoading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
