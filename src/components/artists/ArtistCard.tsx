@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Check, Clock, Edit } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
 
