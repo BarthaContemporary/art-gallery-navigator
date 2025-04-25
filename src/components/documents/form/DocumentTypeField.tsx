@@ -62,7 +62,7 @@ const DOCUMENT_TYPES = [
 ];
 
 export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
-  // Ensure we have a value to work with
+  // Get the current value or default to "_none" if empty
   const currentValue = form.watch("type") || "_none";
   
   return (

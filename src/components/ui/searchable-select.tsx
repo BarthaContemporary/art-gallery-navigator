@@ -39,7 +39,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   
-  // Ensure options is always a valid array
+  // Use empty array as fallback for options
   const safeOptions = Array.isArray(options) ? options : [];
   
   // Ensure value is always a string
@@ -72,6 +72,7 @@ export function SearchableSelect({
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup>
+            {/* The "_none" option is always available */}
             <CommandItem
               key="_none"
               value="_none"
@@ -88,6 +89,7 @@ export function SearchableSelect({
               />
               None
             </CommandItem>
+            {/* Map through safe options with fallback for empty array */}
             {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
