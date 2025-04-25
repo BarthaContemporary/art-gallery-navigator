@@ -9,7 +9,7 @@ import {
 import { useCollections } from "@/hooks/use-collections";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface CollectionFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -19,6 +19,11 @@ interface CollectionFieldProps {
 export function CollectionField({ form, disabled }: CollectionFieldProps) {
   const { data: collections } = useCollections();
 
+  const options = collections?.map((collection) => ({
+    value: collection.id,
+    label: collection.name,
+  })) || [];
+
   return (
     <FormField
       control={form.control}
@@ -27,23 +32,13 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
         <FormItem>
           <FormLabel>Related Collection</FormLabel>
           <FormControl>
-            <Select
+            <SearchableSelect
+              options={options}
+              value={field.value || "_none"}
+              onChange={field.onChange}
+              placeholder="Select collection..."
               disabled={disabled}
-              value={field.value || ""}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select collection..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">None</SelectItem>
-                {collections?.map((collection) => (
-                  <SelectItem key={collection.id} value={collection.id}>
-                    {collection.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </FormControl>
           <FormMessage />
         </FormItem>

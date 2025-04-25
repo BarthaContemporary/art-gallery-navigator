@@ -9,7 +9,7 @@ import {
 import { useArtworks } from "@/hooks/use-artworks";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface ArtworkFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -19,6 +19,11 @@ interface ArtworkFieldProps {
 export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
   const { data: artworks } = useArtworks();
 
+  const options = artworks?.map((artwork) => ({
+    value: artwork.id,
+    label: artwork.title,
+  })) || [];
+
   return (
     <FormField
       control={form.control}
@@ -27,23 +32,13 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
         <FormItem>
           <FormLabel>Related Artwork</FormLabel>
           <FormControl>
-            <Select
+            <SearchableSelect
+              options={options}
+              value={field.value || "_none"}
+              onChange={field.onChange}
+              placeholder="Select artwork..."
               disabled={disabled}
-              value={field.value || ""}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select artwork..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">None</SelectItem>
-                {artworks?.map((artwork) => (
-                  <SelectItem key={artwork.id} value={artwork.id}>
-                    {artwork.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
