@@ -24,6 +24,7 @@ interface ArtworkCarouselProps {
 
 export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -58,7 +59,7 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   
   if (loading) {
     return (
-      <div className="w-full h-64 flex items-center justify-center bg-secondary/20">
+      <div className="w-full h-96 flex items-center justify-center bg-secondary/20">
         <p className="text-muted-foreground">Loading images...</p>
       </div>
     );
@@ -66,33 +67,51 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   
   if (error) {
     return (
-      <div className="w-full h-64 flex items-center justify-center bg-secondary/20">
+      <div className="w-full h-96 flex items-center justify-center bg-secondary/20">
         <p className="text-red-500">{error}</p>
       </div>
     );
   }
   
   return (
-    <Carousel className="w-full">
-      <CarouselContent>
-        {displayImages.map((image) => (
-          <CarouselItem key={image.id}>
-            <AspectRatio ratio={4/3} className="bg-secondary/20">
-              <img
-                src={image.image_url || "/placeholder.svg"}
-                alt="Artwork image"
-                className="w-full h-full object-contain"
-              />
-            </AspectRatio>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
+    <div className="relative">
+      <Carousel 
+        className="w-full"
+        onSelect={(api) => setCurrentIndex(api?.selectedScrollSnap() || 0)}
+      >
+        <CarouselContent>
+          {displayImages.map((image) => (
+            <CarouselItem key={image.id}>
+              <AspectRatio ratio={4/3} className="bg-secondary/20">
+                <img
+                  src={image.image_url || "/placeholder.svg"}
+                  alt="Artwork image"
+                  className="w-full h-full object-contain"
+                />
+              </AspectRatio>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {displayImages.length > 1 && (
+          <>
+            <CarouselPrevious className="left-2" />
+            <CarouselNext className="right-2" />
+          </>
+        )}
+      </Carousel>
+      
       {displayImages.length > 1 && (
-        <>
-          <CarouselPrevious className="left-2" />
-          <CarouselNext className="right-2" />
-        </>
+        <div className="flex justify-center gap-2 mt-4">
+          {displayImages.map((_, index) => (
+            <div
+              key={index}
+              className={`h-2 w-2 rounded-full transition-colors ${
+                index === currentIndex ? "bg-primary" : "bg-secondary"
+              }`}
+            />
+          ))}
+        </div>
       )}
-    </Carousel>
+    </div>
   );
 }

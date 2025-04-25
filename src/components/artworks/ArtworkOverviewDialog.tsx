@@ -1,11 +1,12 @@
+
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
+import { useArtist } from "@/hooks/use-artist";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { Download, Save } from "lucide-react";
 import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
 import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
+import { ArtworkCarousel } from "./ArtworkCarousel";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -27,6 +29,7 @@ export function ArtworkOverviewDialog({
 }: ArtworkOverviewDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
+  const { data: artist } = useArtist(artwork.artist_id);
   
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
     if (isGenerating) return;
@@ -48,10 +51,10 @@ export function ArtworkOverviewDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <div className="flex justify-between items-center">
-              <DialogTitle className="text-xl">
+              <DialogTitle className="text-2xl font-bold">
                 {artwork.title}
                 {artwork.year ? ` (${artwork.year})` : ""}
               </DialogTitle>
@@ -65,66 +68,70 @@ export function ArtworkOverviewDialog({
                 {isGenerating ? "Creating PDF..." : "Create PDF"}
               </Button>
             </div>
-            <DialogDescription>
-              Overview of artwork details and information
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+          <div className="flex-1 overflow-auto">
+            <div className="mb-8">
+              <ArtworkCarousel artworkId={artwork.id} />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6">
               <div>
-                <div className="w-full h-64 overflow-hidden rounded-md">
-                  <img
-                    src={artwork.image_url || "/placeholder.svg"}
-                    alt={artwork.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  Uploaded on{" "}
-                  {new Date().toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </div>
+                <dl className="space-y-4">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Artist</dt>
+                    <dd className="text-lg">{artist?.full_name || "Unknown Artist"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Year</dt>
+                    <dd>{artwork.year || "Not specified"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Medium Type</dt>
+                    <dd>{artwork.medium_type}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Materials</dt>
+                    <dd>{artwork.materials || "Not specified"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Dimensions</dt>
+                    <dd>{artwork.dimensions || "Not specified"}</dd>
+                  </div>
+                </dl>
               </div>
-
+              
               <div>
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Title</h4>
-                    <p className="text-sm text-muted-foreground">{artwork.title}</p>
+                <dl className="space-y-4">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Status</dt>
+                    <dd>{artwork.status || "Not specified"}</dd>
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">
-                      Year
-                    </h4>
-                    <p className="text-sm text-muted-foreground">{artwork.year}</p>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Price</dt>
+                    <dd>
+                      {artwork.price
+                        ? `${artwork.currency} ${artwork.price.toLocaleString()}`
+                        : "Not specified"}
+                    </dd>
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Medium</h4>
-                    <p className="text-sm text-muted-foreground">{artwork.medium_type}</p>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Classification</dt>
+                    <dd>{artwork.classification}</dd>
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Materials</h4>
-                    <p className="text-sm text-muted-foreground">{artwork.materials}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Dimensions</h4>
-                    <p className="text-sm text-muted-foreground">{artwork.dimensions}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Price</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {artwork.price} {artwork.currency}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Status</h4>
-                    <p className="text-sm text-muted-foreground">{artwork.status}</p>
-                  </div>
-                </div>
+                  {artwork.classification !== "Unique" && (
+                    <>
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">Edition Size</dt>
+                        <dd>{artwork.edition_size || "Not specified"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">Available Works</dt>
+                        <dd>{artwork.available_works || "Not specified"}</dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
               </div>
             </div>
           </div>
