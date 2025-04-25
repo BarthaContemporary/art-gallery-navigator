@@ -1,4 +1,4 @@
-import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown, Download, Trash2 } from "lucide-react";
+import { Check, Clock, DollarSign, Briefcase, Edit, ArrowDown, Download, Trash2, Copy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Artwork } from "@/hooks/use-artworks";
@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -47,6 +48,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { data: artists } = useArtists();
+  const queryClient = useQueryClient();
 
   const handleEdit = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -68,6 +70,31 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
       return artist ? artist.full_name : "Unknown Artist";
     }
     return "Unknown Artist";
+  };
+
+  const handleDuplicate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const artworkCopy = { ...artwork };
+      delete artworkCopy.id;
+      delete artworkCopy.created_at;
+      delete artworkCopy.updated_at;
+      
+      artworkCopy.title = `${artworkCopy.title} (Copy)`;
+
+      const { error } = await supabase
+        .from('artworks')
+        .insert([artworkCopy]);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['artworks'] });
+      
+      toast.success("Artwork duplicated successfully");
+    } catch (error) {
+      console.error('Error duplicating artwork:', error);
+      toast.error("Failed to duplicate artwork");
+    }
   };
 
   const handleDelete = async () => {
@@ -110,6 +137,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
               <DropdownMenuItem onClick={handleEdit}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
