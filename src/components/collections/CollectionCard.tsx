@@ -38,11 +38,13 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const { isAdmin } = useAuth();
   
   const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setShowEdit(true);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setShowDeleteConfirm(true);
   };
@@ -57,6 +59,11 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         toast.error("Failed to delete collection: " + error.message);
       },
     });
+  };
+  
+  const preventPropagation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
   
   return (
@@ -74,13 +81,13 @@ export function CollectionCard({ collection }: CollectionCardProps) {
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={preventPropagation}
                   >
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Actions for {collection.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" onClick={preventPropagation}>
                   <DropdownMenuItem onClick={handleEdit}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit

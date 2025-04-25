@@ -1,5 +1,5 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { LocationForm } from "./LocationForm";
 import { Location } from "@/hooks/use-locations";
 
@@ -15,6 +15,9 @@ export function EditLocationDialog({ location, open, onOpenChange }: EditLocatio
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Location</DialogTitle>
+          <DialogDescription>
+            Make changes to location details. Click save when you're done.
+          </DialogDescription>
         </DialogHeader>
         <LocationForm initialData={location} setOpen={onOpenChange} />
       </DialogContent>

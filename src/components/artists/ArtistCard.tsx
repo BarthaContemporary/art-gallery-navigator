@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,11 +36,13 @@ export function ArtistCard({ artist }: { artist: any }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleEdit = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     e?.stopPropagation();
     setEditDialogOpen(true);
   };
 
   const handleDelete = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     e?.stopPropagation();
     setShowDeleteConfirm(true);
   };
@@ -70,6 +73,11 @@ export function ArtistCard({ artist }: { artist: any }) {
     }
   };
 
+  const preventPropagation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <Card className="group relative w-full">
       {isAdmin && (
@@ -79,15 +87,13 @@ export function ArtistCard({ artist }: { artist: any }) {
               size="icon" 
               variant="ghost" 
               className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+              onClick={preventPropagation}
             >
               <Edit className="h-4 w-4" />
               <span className="sr-only">Actions for {artist.full_name}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={preventPropagation}>
             <DropdownMenuItem onClick={handleEdit}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
