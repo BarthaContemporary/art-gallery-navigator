@@ -18,7 +18,7 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
   return (
     <a
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-colors
+      className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-colors no-underline
         ${
           isActive
             ? "bg-primary text-primary-foreground shadow"
@@ -31,3 +31,4 @@ export function SidebarNavItem({ href, icon: Icon, name }: SidebarNavItemProps) 
     </a>
   );
 }
+
