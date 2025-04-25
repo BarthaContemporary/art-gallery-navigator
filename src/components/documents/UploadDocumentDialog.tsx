@@ -12,10 +12,18 @@ import { UploadDocumentForm } from "./UploadDocumentForm";
 import { useDocumentUpload } from "./use-document-upload";
 
 export function UploadDocumentDialog() {
-  const { form, open, setOpen, handleUpload } = useDocumentUpload();
+  const { form, open, setOpen, handleUpload, isUploading } = useDocumentUpload();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!isUploading) {
+        setOpen(newOpen);
+        if (!newOpen) {
+          // Reset form when dialog is closed
+          form.reset();
+        }
+      }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" /> Upload Document

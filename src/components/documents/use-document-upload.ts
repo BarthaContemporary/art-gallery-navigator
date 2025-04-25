@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 export function useDocumentUpload() {
   const [open, setOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
   
   const form = useForm<UploadFormData>({
@@ -24,32 +25,36 @@ export function useDocumentUpload() {
 
   const handleUpload = async (data: UploadFormData) => {
     try {
+      setIsUploading(true);
+      
+      if (!data.file) {
+        toast.error("Please select a file to upload");
+        return;
+      }
+      
       const file = data.file;
       const fileExt = file.name.split('.').pop();
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const fileName = `${timestamp}_${randomStr}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      // Upload file to storage
+      const uploadResult = await supabase.storage
         .from('documents')
         .upload(fileName, file);
-
-      if (uploadError) {
-        if (uploadError.message.includes("buckets")) {
-          toast.error("Document storage not available. Contact administrator.", {
-            description: "You don't have permission to use document storage"
-          });
-        } else {
-          toast.error("Upload failed: " + uploadError.message);
-        }
-        throw uploadError;
+        
+      if (uploadResult.error) {
+        handleUploadError(uploadResult.error);
+        return;
       }
 
+      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(fileName);
 
-      const { error: insertError } = await supabase
+      // Insert record in database
+      const insertResult = await supabase
         .from('documents')
         .insert({
           file_name: file.name,
@@ -61,9 +66,9 @@ export function useDocumentUpload() {
           artist_id: data.artist_id || null,
         });
 
-      if (insertError) {
-        toast.error("Failed to save document record: " + insertError.message);
-        throw insertError;
+      if (insertResult.error) {
+        toast.error("Failed to save document record: " + insertResult.error.message);
+        throw insertResult.error;
       }
 
       toast.success("Document uploaded successfully");
@@ -73,6 +78,18 @@ export function useDocumentUpload() {
 
     } catch (error) {
       console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const handleUploadError = (error: Error) => {
+    if (error.message.includes("buckets")) {
+      toast.error("Document storage not available. Contact administrator.", {
+        description: "You don't have permission to use document storage"
+      });
+    } else {
+      toast.error("Upload failed: " + error.message);
     }
   };
 
@@ -81,5 +98,6 @@ export function useDocumentUpload() {
     open,
     setOpen,
     handleUpload,
+    isUploading
   };
 }

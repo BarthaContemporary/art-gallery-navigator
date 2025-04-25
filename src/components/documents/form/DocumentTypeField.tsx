@@ -8,14 +8,19 @@ import {
 } from "@/components/ui/form";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
-import { SearchableSelect } from "@/components/ui/searchable-select";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { 
   FileText, 
   FileSpreadsheet, 
   FileImage, 
   FileArchive, 
-  FileCheck, 
-  FileQuestion 
+  FileCheck 
 } from "lucide-react";
 
 interface DocumentTypeFieldProps {
@@ -62,9 +67,6 @@ const DOCUMENT_TYPES = [
 ];
 
 export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
-  // Get the current value or default to "_none" if empty
-  const currentValue = form.watch("type") || "_none";
-  
   return (
     <FormField
       control={form.control}
@@ -73,20 +75,28 @@ export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
         <FormItem>
           <FormLabel>Document Type</FormLabel>
           <FormControl>
-            <SearchableSelect
-              options={DOCUMENT_TYPES.map(type => ({
-                value: type.value,
-                label: type.label,
-                icon: type.icon
-              }))}
-              value={field.value || "_none"}
-              onChange={(value) => {
-                // Only set actual values, not placeholder
-                field.onChange(value === "_none" ? "" : value);
-              }}
-              placeholder="Select type..."
+            <Select
               disabled={disabled}
-            />
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select document type" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{type.label}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </FormControl>
           <FormMessage />
         </FormItem>

@@ -9,8 +9,16 @@ import {
 import { useCollections } from "@/hooks/use-collections";
 import { UseFormReturn } from "react-hook-form";
 import { UploadFormData } from "../upload-document-schema";
-import { SearchableSelect } from "@/components/ui/searchable-select";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
 
 interface CollectionFieldProps {
   form: UseFormReturn<UploadFormData>;
@@ -19,12 +27,25 @@ interface CollectionFieldProps {
 
 export function CollectionField({ form, disabled }: CollectionFieldProps) {
   const { data: collections, isLoading } = useCollections();
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // Filter collections based on search term
+  const filteredCollections = (collections || [])
+    .filter(collection => 
+      !searchTerm || 
+      collection.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  
+  // Reset search when reopening
+  useEffect(() => {
+    if (!disabled) {
+      setSearchTerm("");
+    }
+  }, [disabled]);
 
-  // Create options only when collections are loaded
-  const options = (collections || []).map((collection) => ({
-    value: collection.id,
-    label: collection.name || "Untitled collection",
-  }));
+  if (isLoading) {
+    return <Skeleton className="h-10 w-full" />;
+  }
 
   return (
     <FormField
@@ -34,20 +55,33 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
         <FormItem>
           <FormLabel>Related Collection</FormLabel>
           <FormControl>
-            {isLoading ? (
-              <Skeleton className="h-10 w-full" />
-            ) : (
-              <SearchableSelect
-                options={options}
-                value={field.value || "_none"}
-                onChange={(value) => {
-                  // Only set actual values, not placeholder
-                  field.onChange(value === "_none" ? "" : value);
-                }}
-                placeholder="Select collection..."
-                disabled={disabled}
-              />
-            )}
+            <Select
+              disabled={disabled}
+              value={field.value || ""}
+              onValueChange={(value) => {
+                field.onChange(value);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select collection" />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2">
+                  <Input
+                    placeholder="Search collections..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="mb-2"
+                  />
+                </div>
+                <SelectItem value="">None</SelectItem>
+                {filteredCollections.map((collection) => (
+                  <SelectItem key={collection.id} value={collection.id}>
+                    {collection.name || "Untitled collection"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormControl>
           <FormMessage />
         </FormItem>

@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const uploadFormSchema = z.object({
-  file: z.instanceof(File),
+  file: z.instanceof(File, { message: "File is required" }),
   type: z.string().min(1, "Document type is required"),
   description: z.string().optional(),
   artwork_id: z.string().optional(),
