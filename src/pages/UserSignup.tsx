@@ -12,7 +12,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { UsersList } from "@/components/auth/UsersList";
 
 export default function UserSignup() {
   const { isAdmin } = useAuth();
@@ -21,12 +21,13 @@ export default function UserSignup() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"gallery_admin" | "artist">("artist");
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
 
   if (!isAdmin) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-xl font-semibold text-muted-foreground">You do not have permission to view this page.</p>
+        <p className="text-xl font-semibold text-muted-foreground">
+          You do not have permission to view this page.
+        </p>
       </div>
     );
   }
@@ -73,64 +74,75 @@ export default function UserSignup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-2 sm:px-4">
-      <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md shadow-lg border border-border/60">
-        <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
-          <CardTitle className="text-2xl sm:text-3xl md:text-4xl">User Signup</CardTitle>
-          <CardDescription className="text-base sm:text-lg">
-            Admins can create new users here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-6 pb-8 pt-4 sm:pt-2">
-          <form onSubmit={handleSignup} className="space-y-6">
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                autoFocus
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="text-base sm:text-sm py-3"
-                inputMode="email"
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="text-base sm:text-sm py-3"
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="user-role" className="block text-sm font-medium">
-                Role
-              </label>
-              <select
-                id="user-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as "gallery_admin" | "artist")}
-                className="w-full border rounded-md px-3 py-2 text-base bg-white"
+    <div className="p-6">
+      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8">
+        <Card className="shadow-lg border border-border/60">
+          <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
+            <CardTitle className="text-2xl sm:text-3xl md:text-4xl">
+              User Signup
+            </CardTitle>
+            <CardDescription className="text-base sm:text-lg">
+              Admins can create new users here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-6 pb-8 pt-4 sm:pt-2">
+            <form onSubmit={handleSignup} className="space-y-6">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  autoFocus
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  inputMode="email"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="user-role" className="block text-sm font-medium">
+                  Role
+                </label>
+                <select
+                  id="user-role"
+                  value={role}
+                  onChange={(e) =>
+                    setRole(e.target.value as "gallery_admin" | "artist")
+                  }
+                  className="w-full border rounded-md px-3 py-2 text-base bg-white"
+                >
+                  <option value="artist">Artist</option>
+                  <option value="gallery_admin">Admin</option>
+                </select>
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-12 sm:h-10 text-lg sm:text-base"
+                disabled={isLoading}
               >
-                <option value="artist">Artist</option>
-                <option value="gallery_admin">Admin</option>
-              </select>
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full h-12 sm:h-10 text-lg sm:text-base"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating..." : "Create User"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                {isLoading ? "Creating..." : "Create User"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-2xl font-semibold mb-4">Registered Users</h2>
+        <UsersList />
+      </div>
     </div>
   );
 }
