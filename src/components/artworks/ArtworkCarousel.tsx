@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { 
   Carousel, 
   CarouselContent, 
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import useEmblaCarousel from "embla-carousel-react";
 
 interface ArtworkImage {
   id: string;
@@ -27,6 +28,25 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emblaRef, emblaApi] = useEmblaCarousel();
+  
+  // Set up the onSelect callback
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCurrentIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  // Initialize Embla event listeners
+  useEffect(() => {
+    if (!emblaApi) return;
+    
+    onSelect();
+    emblaApi.on("select", onSelect);
+    
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, onSelect]);
   
   useEffect(() => {
     async function fetchArtworkImages() {
@@ -75,30 +95,29 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
   
   return (
     <div className="relative">
-      <Carousel 
-        className="w-full"
-        onSelect={(api) => setCurrentIndex(api?.selectedScrollSnap() || 0)}
-      >
-        <CarouselContent>
-          {displayImages.map((image) => (
-            <CarouselItem key={image.id}>
-              <AspectRatio ratio={4/3} className="bg-secondary/20">
-                <img
-                  src={image.image_url || "/placeholder.svg"}
-                  alt="Artwork image"
-                  className="w-full h-full object-contain"
-                />
-              </AspectRatio>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        {displayImages.length > 1 && (
-          <>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
-          </>
-        )}
-      </Carousel>
+      <div className="overflow-hidden" ref={emblaRef}>
+        <Carousel className="w-full">
+          <CarouselContent>
+            {displayImages.map((image) => (
+              <CarouselItem key={image.id}>
+                <AspectRatio ratio={4/3} className="bg-secondary/20">
+                  <img
+                    src={image.image_url || "/placeholder.svg"}
+                    alt="Artwork image"
+                    className="w-full h-full object-contain"
+                  />
+                </AspectRatio>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {displayImages.length > 1 && (
+            <>
+              <CarouselPrevious className="left-2" />
+              <CarouselNext className="right-2" />
+            </>
+          )}
+        </Carousel>
+      </div>
       
       {displayImages.length > 1 && (
         <div className="flex justify-center gap-2 mt-4">
