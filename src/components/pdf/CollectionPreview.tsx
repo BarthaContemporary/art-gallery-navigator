@@ -36,7 +36,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             const { data: location } = useLocation(artwork.location_id);
             
             return (
-              <div key={artwork.id} className="flex border-b pb-1 group relative">
+              <div key={artwork.id} className="flex border-b pb-1 hover:bg-gray-50 relative">
                 <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                   <img
                     src={artwork.image_url || "/placeholder.svg"}
@@ -44,17 +44,9 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                     className="max-w-full max-h-full object-contain"
                   />
                 </div>
-                <div className="text-[10px] leading-tight flex-grow">
+                <div className="text-[10px] leading-tight flex-grow pr-8">
                   <div className="flex items-center justify-between">
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
-                    <Button 
-                      onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                      className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                      variant="outline"
-                      size="icon"
-                    >
-                      <ArrowUpRight className="h-3 w-3" />
-                    </Button>
                   </div>
                   <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                   {artwork.medium_type && <p>{artwork.medium_type}</p>}
@@ -75,6 +67,16 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                   {artwork.location_id && <p>Location: {location?.name || "Location Name"}</p>}
                   {artwork.price && <p className="font-semibold mt-0.5">{artwork.currency} {artwork.price.toLocaleString()}</p>}
                 </div>
+                <div className="absolute right-0 top-1">
+                  <Button 
+                    onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
+                    className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white"
+                    variant="default"
+                    size="icon"
+                  >
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -87,19 +89,21 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between border-b pb-1 group relative">
-              <div className="flex items-center gap-1">
+            <div key={doc.id} className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8">
+              <div className="flex items-center gap-1 flex-grow">
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
               </div>
-              <Button 
-                onClick={(e) => handleClick(doc.file_url, e)}
-                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                variant="outline"
-                size="icon"
-              >
-                <ArrowUpRight className="h-3 w-3" />
-              </Button>
+              <div className="absolute right-0 top-0">
+                <Button 
+                  onClick={(e) => handleClick(doc.file_url, e)}
+                  className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white"
+                  variant="default"
+                  size="icon"
+                >
+                  <ArrowUpRight className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
