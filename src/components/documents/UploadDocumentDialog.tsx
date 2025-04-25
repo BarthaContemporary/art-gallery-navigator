@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Upload } from "lucide-react";
+import { PlusCircle, Upload, FileText, FileArchive, File } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -155,6 +154,9 @@ export function UploadDocumentDialog() {
                       <option value="invoice">Invoice</option>
                       <option value="provenance">Provenance</option>
                       <option value="CoA">Certificate of Authenticity</option>
+                      <option value="loan agreement">Loan Agreement</option>
+                      <option value="image zip">Image ZIP</option>
+                      <option value="related file">Related File</option>
                     </select>
                   </FormControl>
                   <FormMessage />
