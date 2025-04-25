@@ -16,8 +16,8 @@ export function useDocumentUpload() {
     resolver: zodResolver(uploadFormSchema),
     defaultValues: {
       description: "",
-      artwork_id: "",
-      collection_id: "",
+      artwork_id: "_none",
+      collection_id: "_none",
       artist_id: "",
       type: "",
     }
@@ -54,14 +54,23 @@ export function useDocumentUpload() {
         .getPublicUrl(fileName);
 
       // Process form data to make sure we have valid values
+      // Important: Convert "_none" to null to satisfy the database constraint
       const finalArtworkId = data.artwork_id && data.artwork_id !== "_none" ? data.artwork_id : null;
       const finalCollectionId = data.collection_id && data.collection_id !== "_none" ? data.collection_id : null;
       const finalArtistId = data.artist_id && data.artist_id !== "_none" ? data.artist_id : null;
+      
+      // Ensure either artwork_id OR collection_id is set (not both, not neither)
+      if ((!finalArtworkId && !finalCollectionId) || (finalArtworkId && finalCollectionId)) {
+        toast.error("Document must be attached to either an artwork or a collection, not both or neither");
+        throw new Error("Document must be attached to either an artwork or a collection");
+      }
 
       console.log("Inserting document with:", { 
         finalArtworkId, 
         finalCollectionId,
-        finalArtistId
+        finalArtistId,
+        type: data.type,
+        description: data.description || null
       });
 
       // Insert record in database
@@ -78,13 +87,20 @@ export function useDocumentUpload() {
         });
 
       if (insertResult.error) {
+        console.error('Upload error:', insertResult.error);
         toast.error("Failed to save document record: " + insertResult.error.message);
         throw insertResult.error;
       }
 
       toast.success("Document uploaded successfully");
       setOpen(false);
-      form.reset();
+      form.reset({
+        description: "",
+        artwork_id: "_none",
+        collection_id: "_none",
+        artist_id: "",
+        type: "",
+      });
       queryClient.invalidateQueries({ queryKey: ["documents"] });
 
     } catch (error) {

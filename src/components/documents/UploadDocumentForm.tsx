@@ -29,14 +29,14 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
   // Reset other field when one is selected
   useEffect(() => {
     if (artworkId && artworkId !== "_none") {
-      form.setValue("collection_id", "");
+      form.setValue("collection_id", "_none");
       setValidationError(null);
     }
   }, [artworkId, form]);
 
   useEffect(() => {
     if (collectionId && collectionId !== "_none") {
-      form.setValue("artwork_id", "");
+      form.setValue("artwork_id", "_none");
       setValidationError(null);
     }
   }, [collectionId, form]);
