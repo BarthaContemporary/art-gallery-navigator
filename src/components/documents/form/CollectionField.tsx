@@ -40,7 +40,10 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
               <SearchableSelect
                 options={options}
                 value={field.value || "_none"}
-                onChange={field.onChange}
+                onChange={(value) => {
+                  // Only set actual values, not placeholder
+                  field.onChange(value === "_none" ? "" : value);
+                }}
                 placeholder="Select collection..."
                 disabled={disabled}
               />

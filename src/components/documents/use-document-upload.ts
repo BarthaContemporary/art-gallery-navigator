@@ -1,19 +1,24 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UploadFormData, uploadFormSchema } from "./upload-document-schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 export function useDocumentUpload() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   
   const form = useForm<UploadFormData>({
+    resolver: zodResolver(uploadFormSchema),
     defaultValues: {
       description: "",
       artwork_id: "",
+      collection_id: "",
       artist_id: "",
+      type: "",
     }
   });
 

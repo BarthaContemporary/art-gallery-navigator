@@ -40,7 +40,10 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
               <SearchableSelect
                 options={options}
                 value={field.value || "_none"}
-                onChange={field.onChange}
+                onChange={(value) => {
+                  // Only set actual values, not placeholder
+                  field.onChange(value === "_none" ? "" : value);
+                }}
                 placeholder="Select artwork..."
                 disabled={disabled}
               />

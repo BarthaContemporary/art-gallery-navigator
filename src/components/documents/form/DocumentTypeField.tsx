@@ -26,6 +26,9 @@ const DOCUMENT_TYPES = [
 ];
 
 export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
+  // Ensure we have a value to work with
+  const currentValue = form.watch("type") || "_none";
+  
   return (
     <FormField
       control={form.control}
@@ -37,7 +40,10 @@ export function DocumentTypeField({ form, disabled }: DocumentTypeFieldProps) {
             <SearchableSelect
               options={DOCUMENT_TYPES}
               value={field.value || "_none"}
-              onChange={field.onChange}
+              onChange={(value) => {
+                // Only set actual values, not placeholder
+                field.onChange(value === "_none" ? "" : value);
+              }}
               placeholder="Select type..."
               disabled={disabled}
             />
