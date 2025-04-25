@@ -7,7 +7,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { UseFormReturn } from "react-hook-form";
-import { UploadFormData } from "../upload-document-schema";
+import { UploadFormData } from "./upload-document-schema";
 import { 
   Select,
   SelectContent,
@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { useArtists } from "@/hooks/use-artist";
+import { useArtists } from "@/hooks/useArtists";
 
 interface ArtistFieldProps {
   form: UseFormReturn<UploadFormData>;
