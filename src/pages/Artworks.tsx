@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
+import { TypeFilter } from "@/components/artworks/TypeFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -16,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
   const { data: artworks, isLoading, error } = useArtworks();
   const { data: artists } = useArtists();
@@ -27,8 +29,9 @@ const Artworks = () => {
       (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter ? artwork.status === statusFilter : true;
+    const matchesType = typeFilter ? artwork.medium_type === typeFilter : true;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesType;
   }) ?? [];
 
   // Get unique first letters of artist names
@@ -108,7 +111,10 @@ const Artworks = () => {
 
       <div className="mb-8 flex flex-col sm:flex-row items-stretch gap-4">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        <div className="flex gap-2">
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          <TypeFilter value={typeFilter} onChange={setTypeFilter} />
+        </div>
       </div>
 
       {letters.length > 0 && (
