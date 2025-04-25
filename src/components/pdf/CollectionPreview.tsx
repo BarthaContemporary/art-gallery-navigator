@@ -2,12 +2,16 @@
 import { Collection } from "@/hooks/use-collections";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
+import { useCollectionDocuments } from "@/hooks/use-collection-documents";
+import { Link } from "lucide-react";
 
 interface CollectionPreviewProps {
   collection: Collection;
 }
 
 export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
+  const { data: documents } = useCollectionDocuments(collection.id);
+  
   return (
     <div className="space-y-1 text-[10px]">
       {collection.description && (
@@ -21,7 +25,6 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {collection.artworks && collection.artworks.length > 0 ? (
         <div className="space-y-1">
           {collection.artworks.map((artwork) => {
-            // Use these hooks to get artist and location data
             const { data: artist } = useArtist(artwork.artist_id);
             const { data: location } = useLocation(artwork.location_id);
             
@@ -34,8 +37,18 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                     className="max-w-full max-h-full object-contain"
                   />
                 </div>
-                <div className="text-[10px] leading-tight">
-                  <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
+                <div className="text-[10px] leading-tight flex-grow">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
+                    <a 
+                      href={`/artworks/${artwork.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 flex items-center"
+                    >
+                      <Link className="h-3 w-3" />
+                    </a>
+                  </div>
                   <p className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</p>
                   {artwork.medium_type && <p>{artwork.medium_type}</p>}
                   {artwork.materials && <p>{artwork.materials}</p>}
@@ -61,6 +74,30 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
         </div>
       ) : (
         <p className="text-[10px]">No artworks in this collection</p>
+      )}
+
+      <h2 className="text-[9px] font-semibold mt-3 mb-1">Related Documents</h2>
+      {documents && documents.length > 0 ? (
+        <div className="space-y-1">
+          {documents.map((doc) => (
+            <div key={doc.id} className="flex items-center justify-between border-b pb-1">
+              <div className="flex items-center gap-1">
+                <FileText className="h-3 w-3 text-gray-500" />
+                <span>{doc.file_name}</span>
+              </div>
+              <a 
+                href={doc.file_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 flex items-center"
+              >
+                <Link className="h-3 w-3" />
+              </a>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[10px]">No documents attached to this collection</p>
       )}
     </div>
   );
