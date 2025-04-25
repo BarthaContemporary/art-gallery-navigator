@@ -1,3 +1,4 @@
+
 import { Collection } from "@/hooks/use-collections";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
@@ -35,7 +36,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             const { data: location } = useLocation(artwork.location_id);
             
             return (
-              <div key={artwork.id} className="flex border-b pb-1">
+              <div key={artwork.id} className="flex border-b pb-1 group relative">
                 <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                   <img
                     src={artwork.image_url || "/placeholder.svg"}
@@ -44,11 +45,11 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                   />
                 </div>
                 <div className="text-[10px] leading-tight flex-grow">
-                  <div className="flex items-center justify-between relative">
+                  <div className="flex items-center justify-between">
                     <p className="font-bold">{artist?.full_name || "Artist Name"}</p>
                     <Button 
                       onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                      className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 relative z-[60]"
+                      className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
                       variant="outline"
                       size="icon"
                     >
@@ -86,14 +87,14 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between border-b pb-1">
+            <div key={doc.id} className="flex items-center justify-between border-b pb-1 group relative">
               <div className="flex items-center gap-1">
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
               </div>
               <Button 
                 onClick={(e) => handleClick(doc.file_url, e)}
-                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20"
+                className="h-4 min-h-0 p-0.5 bg-primary/10 hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"
                 variant="outline"
                 size="icon"
               >
