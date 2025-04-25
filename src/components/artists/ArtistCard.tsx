@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
         onClick={isAdmin ? () => setEditOpen(true) : undefined}
         tabIndex={isAdmin ? 0 : -1}
         className={[
-          "relative group flex flex-col overflow-hidden cursor-pointer transition-shadow h-[340px] bg-white outline-none",
+          "relative group flex flex-col overflow-hidden cursor-pointer transition-shadow h-full bg-white outline-none",
           "border border-[#EEE]",
           "hover:shadow-lg",
           "focus-within:ring-2 focus-within:ring-[#18465a]/50",
@@ -74,7 +75,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
         aria-label={isAdmin ? `Edit ${artist.full_name}` : undefined}
         style={{ background: "#fff" }}
       >
-        <div className="relative w-full h-[168px] bg-[#F1F1F1] overflow-hidden flex items-center justify-center">
+        <div className="relative aspect-[4/3] w-full bg-[#F1F1F1] overflow-hidden flex items-center justify-center">
           <img
             src={artist.image_url || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=60"}
             alt={artist.full_name}
@@ -98,7 +99,7 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
         </div>
 
         <CardContent className="w-full flex-1 flex flex-col px-4 pt-4 pb-3.5">
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 flex-grow">
             {isAdmin ? (
               <button
                 type="button"
@@ -164,3 +165,4 @@ export const ArtistCard = ({ artist }: ArtistCardProps) => {
     </>
   );
 };
+
