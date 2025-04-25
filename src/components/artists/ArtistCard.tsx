@@ -27,7 +27,7 @@ export function ArtistCard({ artist }: { artist: any }) {
   };
 
   return (
-    <Card className="group relative">
+    <Card className="group relative w-full">
       {isAdmin && (
         <Button 
           size="icon" 
