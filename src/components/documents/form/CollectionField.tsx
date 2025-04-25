@@ -21,7 +21,7 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
 
   const options = collections.map((collection) => ({
     value: collection.id,
-    label: collection.name,
+    label: collection.name || "Untitled collection",
   }));
 
   return (

@@ -21,7 +21,7 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
 
   const options = artworks.map((artwork) => ({
     value: artwork.id,
-    label: artwork.title,
+    label: artwork.title || "Untitled artwork",
   }));
 
   return (
