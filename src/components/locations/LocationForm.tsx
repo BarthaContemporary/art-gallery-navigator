@@ -43,10 +43,15 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       if (isEditing) {
-        // Fix: Ensure that name and type are always provided for update operation
-        const updateData = {
-          name: values.name,  // Name is required by the schema
-          type: values.type,  // Type is required by the schema
+        // Fix: Create a properly typed update object with required fields
+        const updateData: {
+          name: string;
+          type: string;
+          address?: string;
+          notes?: string;
+        } = {
+          name: values.name,  // Name is required
+          type: values.type,  // Type is required
           address: values.address,
           notes: values.notes,
         };
@@ -60,7 +65,15 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
         
         toast.success("Location updated successfully");
       } else {
-        const { error } = await supabase.from("locations").insert(values);
+        // For new locations, make sure we have the required fields
+        const insertData = {
+          name: values.name,
+          type: values.type,
+          address: values.address,
+          notes: values.notes,
+        };
+        
+        const { error } = await supabase.from("locations").insert(insertData);
         
         if (error) throw error;
         
