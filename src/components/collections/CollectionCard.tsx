@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { CollectionDetailsDialog } from "./CollectionDetailsDialog";
 import { EditCollectionDialog } from "./EditCollectionDialog";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useDeleteCollection } from "@/hooks/use-collections";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CollectionCardProps {
   collection: Collection;
@@ -28,6 +35,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { mutate: deleteCollection, isPending: isDeleting } = useDeleteCollection();
+  const { isAdmin } = useAuth();
   
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -58,25 +66,36 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         onClick={() => setShowDetails(true)}
       >
         <CardContent className="p-4">
-          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleEdit}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Actions for {collection.name}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleEdit}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleDelete}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           <h2 className="font-semibold text-lg">{collection.name}</h2>
           {collection.description && (
             <p className="text-sm text-muted-foreground mt-1">{collection.description}</p>
