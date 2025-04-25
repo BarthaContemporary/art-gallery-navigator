@@ -10,12 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Save } from "lucide-react";
+import { Save, FileText } from "lucide-react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { useState } from "react";
 import { PDFPreviewDialog } from "@/components/pdf/PDFPreviewDialog";
 import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
+import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 
 interface CollectionDetailsDialogProps {
   collection: Collection;
@@ -30,6 +31,7 @@ export function CollectionDetailsDialog({
 }: CollectionDetailsDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
+  const { data: documents, isLoading: isLoadingDocuments } = useCollectionDocuments(collection.id);
   
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
     if (isGenerating) return;
@@ -101,6 +103,34 @@ export function CollectionDetailsDialog({
                         )}
                       </CardContent>
                     </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          <div className="text-base font-medium mt-4">
+            Related Documents:
+          </div>
+
+          {isLoadingDocuments ? (
+            <p className="text-sm text-muted-foreground">Loading documents...</p>
+          ) : documents?.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No documents attached to this collection</p>
+          ) : (
+            <ScrollArea className="mt-2 pr-4 max-h-[200px]">
+              <div className="grid grid-cols-1 gap-2">
+                {documents?.map((doc) => (
+                  <Card key={doc.id} className="overflow-hidden">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{doc.file_name}</p>
+                        {doc.description && (
+                          <p className="text-xs text-muted-foreground truncate">{doc.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
