@@ -1,7 +1,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, FileText, FileImage, FileCheck, FileBox, FileClock, FileKey, FilePlus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,19 +46,36 @@ export function DocumentsSearch({
         <DropdownMenuContent className="w-56">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => onTypeFilterChange(null)}>
+              <FileBox className="mr-2 h-4 w-4" />
               All Document Types
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("condition report")}>
+              <FileCheck className="mr-2 h-4 w-4" />
               Condition Reports
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("invoice")}>
+              <FileText className="mr-2 h-4 w-4" />
               Invoices
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("provenance")}>
+              <FileKey className="mr-2 h-4 w-4" />
               Provenance Documents
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("CoA")}>
+              <FileCheck className="mr-2 h-4 w-4" />
               Certificates of Authenticity
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onTypeFilterChange("loan agreement")}>
+              <FileText className="mr-2 h-4 w-4" />
+              Loan Agreement
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onTypeFilterChange("image zip")}>
+              <FileImage className="mr-2 h-4 w-4" />
+              Image ZIP
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onTypeFilterChange("related file")}>
+              <FilePlus className="mr-2 h-4 w-4" />
+              Related File
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
