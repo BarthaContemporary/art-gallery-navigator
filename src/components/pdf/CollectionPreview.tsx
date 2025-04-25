@@ -5,7 +5,7 @@ import { useLocation } from "@/hooks/use-location";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 import { ArrowUpRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { useMemo } from "react";
 
 interface CollectionPreviewProps {
   collection: Collection;
@@ -22,6 +22,9 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
     window.open(`/artworks/${artworkId}`, '_blank');
   };
   
+  // Memoize the processed collection to prevent unnecessary re-renders
+  const artworks = useMemo(() => collection.artworks || [], [collection.artworks]);
+  
   return (
     <div className="space-y-1 text-[10px]">
       {collection.description && (
@@ -32,9 +35,9 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       
       <h2 className="text-[9px] font-semibold mt-2 mb-1">Artworks in this Collection</h2>
       
-      {collection.artworks && collection.artworks.length > 0 ? (
+      {artworks.length > 0 ? (
         <div className="space-y-1">
-          {collection.artworks.map((artwork) => {
+          {artworks.map((artwork) => {
             const { data: artist } = useArtist(artwork.artist_id);
             const { data: location } = useLocation(artwork.location_id);
             
