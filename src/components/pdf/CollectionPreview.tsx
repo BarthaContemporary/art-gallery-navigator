@@ -100,6 +100,10 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8 group block"
+              onClick={(e) => {
+                // Let the natural link behavior work, but stop propagation
+                e.stopPropagation();
+              }}
             >
               <div className="flex items-center gap-1 flex-grow">
                 <FileText className="h-3 w-3 text-gray-500" />

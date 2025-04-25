@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +18,7 @@ import UserSignup from "./pages/UserSignup";
 import Collections from "./pages/Collections";
 import Profile from "./pages/Profile";
 import EmailConfirmation from "./pages/EmailConfirmation";
+import PDFTemplates from "./pages/PDFTemplates";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,7 @@ const App = () => (
               <Route path="/documents" element={<Documents />} />
               <Route path="/signup" element={<UserSignup />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
