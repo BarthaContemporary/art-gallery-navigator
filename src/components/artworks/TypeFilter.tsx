@@ -1,5 +1,5 @@
 
-import { ListFilter } from "lucide-react";
+import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ export function TypeFilter({ value, onChange }: TypeFilterProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline">
-          <ListFilter className="mr-2 h-4 w-4" />
+          <Filter className="mr-2 h-4 w-4" />
           {value ? `Type: ${value}` : "Filter by type"}
         </Button>
       </DropdownMenuTrigger>
