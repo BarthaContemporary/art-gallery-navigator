@@ -17,12 +17,12 @@ interface ArtworkFieldProps {
 }
 
 export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
-  const { data: artworks } = useArtworks();
+  const { data: artworks = [] } = useArtworks();
 
-  const options = artworks?.map((artwork) => ({
+  const options = artworks.map((artwork) => ({
     value: artwork.id,
     label: artwork.title,
-  })) || [];
+  }));
 
   return (
     <FormField

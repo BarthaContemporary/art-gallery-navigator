@@ -35,7 +35,7 @@ export function DocumentTypeField({ form }: DocumentTypeFieldProps) {
           <FormControl>
             <SearchableSelect
               options={DOCUMENT_TYPES}
-              value={field.value}
+              value={field.value || ""}
               onChange={field.onChange}
               placeholder="Select type..."
             />

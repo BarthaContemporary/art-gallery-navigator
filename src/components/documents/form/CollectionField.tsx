@@ -17,12 +17,12 @@ interface CollectionFieldProps {
 }
 
 export function CollectionField({ form, disabled }: CollectionFieldProps) {
-  const { data: collections } = useCollections();
+  const { data: collections = [] } = useCollections();
 
-  const options = collections?.map((collection) => ({
+  const options = collections.map((collection) => ({
     value: collection.id,
     label: collection.name,
-  })) || [];
+  }));
 
   return (
     <FormField

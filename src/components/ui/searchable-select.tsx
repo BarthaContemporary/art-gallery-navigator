@@ -41,8 +41,11 @@ export function SearchableSelect({
   // Get the display value
   const selectedOption = options.find((option) => option.value === value);
   
-  // Get the last 5 items for quick access
-  const recentOptions = options.slice(0, 5);
+  // Make sure options is always an array
+  const safeOptions = Array.isArray(options) ? options : [];
+  
+  // Get the last 5 items for quick access - only if we have options
+  const recentOptions = safeOptions.slice(0, 5);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
