@@ -17,6 +17,7 @@ export function useLocations() {
       const { data, error } = await supabase
         .from("locations")
         .select("id, name, type, address, notes")
+        .order("type", { ascending: true })
         .order("created_at", { ascending: false });
 
       if (error) {
