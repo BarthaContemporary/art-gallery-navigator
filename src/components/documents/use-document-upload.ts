@@ -99,7 +99,8 @@ export function useDocumentUpload() {
       if (insertResult.error) {
         console.error('Upload error:', insertResult.error);
         toast.error("Failed to save document record: " + insertResult.error.message);
-        throw insertResult.error;
+        setIsUploading(false);
+        return;
       }
 
       toast.success("Document uploaded successfully");
@@ -115,6 +116,7 @@ export function useDocumentUpload() {
 
     } catch (error) {
       console.error('Upload error:', error);
+      setIsUploading(false);
     } finally {
       setIsUploading(false);
     }

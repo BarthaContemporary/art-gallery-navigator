@@ -8,6 +8,7 @@ import { FileUploadField } from "./form/FileUploadField";
 import { DocumentTypeField } from "./form/DocumentTypeField";
 import { ArtworkField } from "./form/ArtworkField";
 import { CollectionField } from "./form/CollectionField";
+import { ArtistField } from "./ArtistField";
 import { DescriptionField } from "./form/DescriptionField";
 import { useWatch } from "react-hook-form";
 import { useState, useEffect } from "react";
@@ -89,6 +90,7 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         <div className="space-y-4">
           <ArtworkField form={form} disabled={!!hasCollectionSelected} />
           <CollectionField form={form} disabled={!!hasArtworkSelected} />
+          <ArtistField form={form} />
         </div>
         
         <DescriptionField form={form} />
