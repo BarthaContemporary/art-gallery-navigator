@@ -5,6 +5,7 @@ import { useLocation } from "@/hooks/use-location";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 import { ArrowUpRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface CollectionPreviewProps {
   collection: Collection;
@@ -36,7 +37,11 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
             const { data: location } = useLocation(artwork.location_id);
             
             return (
-              <div key={artwork.id} className="flex border-b pb-1 hover:bg-gray-50 relative">
+              <Link
+                key={artwork.id}
+                to={`/artworks/${artwork.id}`}
+                className="flex border-b pb-1 hover:bg-gray-50 relative block group"
+              >
                 <div className="w-6 h-6 mr-1 flex-shrink-0 flex items-center justify-center">
                   <img
                     src={artwork.image_url || "/placeholder.svg"}
@@ -70,14 +75,14 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
                 <div className="absolute right-0 top-1">
                   <Button 
                     onClick={(e) => handleClick(`/artworks/${artwork.id}`, e)}
-                    className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white"
+                    className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                     variant="default"
                     size="icon"
                   >
                     <ArrowUpRight className="h-3 w-3" />
                   </Button>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -89,7 +94,13 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
       {documents && documents.length > 0 ? (
         <div className="space-y-1">
           {documents.map((doc) => (
-            <div key={doc.id} className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8">
+            <a
+              key={doc.id}
+              href={doc.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center hover:bg-gray-50 border-b pb-1 relative pr-8 group block"
+            >
               <div className="flex items-center gap-1 flex-grow">
                 <FileText className="h-3 w-3 text-gray-500" />
                 <span>{doc.file_name}</span>
@@ -97,14 +108,14 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
               <div className="absolute right-0 top-0">
                 <Button 
                   onClick={(e) => handleClick(doc.file_url, e)}
-                  className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white"
+                  className="h-5 w-5 min-h-0 p-1 bg-primary hover:bg-primary/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   variant="default"
                   size="icon"
                 >
                   <ArrowUpRight className="h-3 w-3" />
                 </Button>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       ) : (
