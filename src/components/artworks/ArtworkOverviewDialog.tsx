@@ -35,6 +35,7 @@ export function ArtworkOverviewDialog({
 }: ArtworkOverviewDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const navigate = useNavigate();
   
@@ -141,6 +142,51 @@ export function ArtworkOverviewDialog({
     }
   };
 
+  const handleDownloadSingleFile = async (doc: any) => {
+    try {
+      const response = await fetch(doc.file_url);
+      const blob = await response.blob();
+      const zip = new JSZip();
+      const fileName = `B_c-FileDownload_${doc.file_name}`;
+      
+      zip.file(fileName, blob);
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = fileName + '.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+      toast.success("File downloaded successfully");
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      toast.error("Failed to download file");
+    }
+  };
+
+  React.useEffect(() => {
+    if (open && artwork.id) {
+      const fetchDocuments = async () => {
+        const { data, error } = await supabase
+          .from("documents")
+          .select("*")
+          .eq("artwork_id", artwork.id);
+
+        if (error) {
+          console.error("Error fetching documents:", error);
+          return;
+        }
+
+        setDocuments(data || []);
+      };
+
+      fetchDocuments();
+    }
+  }, [open, artwork.id]);
+
   const handleViewDocuments = () => {
     navigate(`/documents?artwork=${artwork.id}`);
     onOpenChange(false);
@@ -167,13 +213,26 @@ export function ArtworkOverviewDialog({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem onClick={handleDownloadAllFiles}>
-                      Download All Files
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleViewDocuments}>
-                      View All Documents
-                    </DropdownMenuItem>
+                    {documents.length > 0 ? (
+                      <>
+                        <DropdownMenuItem onClick={handleDownloadAllFiles}>
+                          Download All Files
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {documents.map((doc) => (
+                          <DropdownMenuItem
+                            key={doc.id}
+                            onClick={() => handleDownloadSingleFile(doc)}
+                          >
+                            {doc.file_name}
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No files available
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button
