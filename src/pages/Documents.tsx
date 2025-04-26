@@ -1,13 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDocuments } from "@/hooks/use-documents";
 import { DocumentsHeader } from "@/components/documents/DocumentsHeader";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, InfoIcon, RefreshCw } from "lucide-react";
+import { AlertCircle, InfoIcon, RefreshCw, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Documents = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const { 
@@ -32,6 +34,10 @@ const Documents = () => {
     return matchesSearch && matchesType;
   }) ?? [];
 
+  const handleGoBack = () => {
+    navigate(-1); // Go back to the previous page
+  };
+
   if (isLoading || isBucketLoading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -42,7 +48,18 @@ const Documents = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <DocumentsHeader />
+      <div className="flex items-center mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mr-4"
+          onClick={handleGoBack}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Go Back
+        </Button>
+        <DocumentsHeader />
+      </div>
       
       {!bucketData && (
         <Alert variant="warning" className="mb-6">
