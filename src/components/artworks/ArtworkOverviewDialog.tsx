@@ -20,6 +20,7 @@ import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
 import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
 import { useNavigate } from "react-router-dom";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -100,6 +101,46 @@ export function ArtworkOverviewDialog({
     }
   };
 
+  const handleDownloadAllFiles = async () => {
+    try {
+      const { data: documents, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("artwork_id", artwork.id);
+
+      if (error) throw error;
+
+      if (!documents || documents.length === 0) {
+        toast.error("No files available to download");
+        return;
+      }
+
+      const zip = new JSZip();
+      const baseFileName = formatFileName(artist?.full_name || 'Unknown_Artist', artwork.title);
+
+      for (let i = 0; i < documents.length; i++) {
+        const doc = documents[i];
+        const response = await fetch(doc.file_url);
+        const blob = await response.blob();
+        zip.file(`${baseFileName}-${doc.file_name}`, blob);
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `${baseFileName}-Files.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast.success("All files downloaded successfully");
+    } catch (error) {
+      console.error("Error downloading files:", error);
+      toast.error("Failed to download files");
+    }
+  };
+
   const handleViewDocuments = () => {
     navigate(`/documents?artwork=${artwork.id}`);
     onOpenChange(false);
@@ -115,14 +156,26 @@ export function ArtworkOverviewDialog({
                 {artwork.title}
               </DialogTitle>
               <div className="flex gap-2 absolute right-8">
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={handleViewDocuments}
-                >
-                  <Files className="h-4 w-4" />
-                  View Files
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Files className="h-4 w-4" />
+                      Download Files
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={handleDownloadAllFiles}>
+                      Download All Files
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleViewDocuments}>
+                      View All Documents
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
