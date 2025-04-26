@@ -93,7 +93,7 @@ async function preloadImages(document: Document): Promise<void> {
  * @param document The document to configure canvas options for
  * @returns Canvas configuration options
  */
-function configureCanvas(document: Document): html2canvas.Options {
+function configureCanvas(document: Document): Parameters<typeof html2canvas>[1] {
   return {
     scale: 2,
     useCORS: true,
