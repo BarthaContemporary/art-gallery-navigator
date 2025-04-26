@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,6 +38,8 @@ export interface Artwork {
   crate_height?: number | null;
   crate_width?: number | null;
   crate_depth?: number | null;
+  // Add the artist_name property for use in PDF generation and previews
+  artist_name?: string;
 }
 
 export function useArtworks() {
