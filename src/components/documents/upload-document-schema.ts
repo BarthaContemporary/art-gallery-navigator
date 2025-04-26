@@ -9,15 +9,19 @@ export const uploadFormSchema = z.object({
   collection_id: z.string().optional(),
   artist_id: z.string().optional(),
 }).refine((data) => {
-  // Ensure exactly one of artwork_id or collection_id is set
+  // Get the states of each entity selection
   const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
   const hasCollection = !!data.collection_id && data.collection_id !== "_none";
+  const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
   
-  // We need exactly one of them to be true
-  return (hasArtwork && !hasCollection) || (!hasArtwork && hasCollection);
+  // Count how many entities are selected
+  const selectedCount = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
+  
+  // We need exactly one entity to be selected
+  return selectedCount === 1;
 }, {
-  message: "Document must be attached to either an artwork or a collection, not both or neither",
-  path: ["artwork_id", "collection_id"], // This highlights both fields when validation fails
+  message: "Document must be attached to exactly one of: artwork, collection, or artist",
+  path: ["artwork_id", "collection_id", "artist_id"], 
 });
 
 export type UploadFormData = z.infer<typeof uploadFormSchema>;

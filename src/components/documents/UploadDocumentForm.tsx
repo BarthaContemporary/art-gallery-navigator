@@ -23,14 +23,16 @@ interface UploadDocumentFormProps {
 export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) {
   const artworkId = useWatch({ control: form.control, name: "artwork_id" });
   const collectionId = useWatch({ control: form.control, name: "collection_id" });
+  const artistId = useWatch({ control: form.control, name: "artist_id" });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Reset other field when one is selected
+  // Reset other fields when one is selected
   useEffect(() => {
     if (artworkId && artworkId !== "_none") {
       form.setValue("collection_id", "_none");
+      form.setValue("artist_id", "");
       setValidationError(null);
     }
   }, [artworkId, form]);
@@ -38,24 +40,35 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
   useEffect(() => {
     if (collectionId && collectionId !== "_none") {
       form.setValue("artwork_id", "_none");
+      form.setValue("artist_id", "");
       setValidationError(null);
     }
   }, [collectionId, form]);
 
+  useEffect(() => {
+    if (artistId && artistId !== "_none" && artistId !== "") {
+      form.setValue("artwork_id", "_none");
+      form.setValue("collection_id", "_none");
+      setValidationError(null);
+    }
+  }, [artistId, form]);
+
   // Process form data before submission
   const handleSubmit = async (data: UploadFormData) => {
     try {
-      // Validate that one and only one of artwork_id or collection_id is set
+      // Validate that one and only one of artwork_id, collection_id or artist_id is set
       const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
       const hasCollection = !!data.collection_id && data.collection_id !== "_none";
+      const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
-      if (!hasArtwork && !hasCollection) {
-        setValidationError("Please attach document to either an artwork or a collection");
+      if (!hasArtwork && !hasCollection && !hasArtist) {
+        setValidationError("Please attach document to either an artwork, collection, or artist");
         return;
       }
 
-      if (hasArtwork && hasCollection) {
-        setValidationError("Document cannot be attached to both artwork and collection");
+      const attachedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
+      if (attachedEntities > 1) {
+        setValidationError("Document can only be attached to one entity: artwork, collection, or artist");
         return;
       }
 
@@ -70,9 +83,10 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
     }
   };
 
-  // Check if either field has a non-none value
+  // Check if any field has a non-none value
   const hasArtworkSelected = artworkId && artworkId !== "_none";
   const hasCollectionSelected = collectionId && collectionId !== "_none";
+  const hasArtistSelected = artistId && artistId !== "_none" && artistId !== "";
 
   return (
     <Form {...form}>
@@ -88,9 +102,9 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         )}
         
         <div className="space-y-4">
-          <ArtworkField form={form} disabled={!!hasCollectionSelected} />
-          <CollectionField form={form} disabled={!!hasArtworkSelected} />
-          <ArtistField form={form} />
+          <ArtworkField form={form} disabled={!!hasCollectionSelected || !!hasArtistSelected} />
+          <CollectionField form={form} disabled={!!hasArtworkSelected || !!hasArtistSelected} />
+          <ArtistField form={form} disabled={!!hasArtworkSelected || !!hasCollectionSelected} />
         </div>
         
         <DescriptionField form={form} />

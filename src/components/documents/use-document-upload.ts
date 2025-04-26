@@ -35,6 +35,7 @@ export function useDocumentUpload() {
       // Validate that exactly one of artwork_id or collection_id is provided
       const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
       const hasCollection = !!data.collection_id && data.collection_id !== "_none";
+      const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
       if (!hasArtwork && !hasCollection) {
         toast.error("Please attach document to either an artwork or a collection");
@@ -42,8 +43,10 @@ export function useDocumentUpload() {
         return;
       }
       
-      if (hasArtwork && hasCollection) {
-        toast.error("Document cannot be attached to both an artwork and a collection");
+      if ((hasArtwork && hasCollection) || 
+          (hasArtwork && hasArtist) || 
+          (hasCollection && hasArtist)) {
+        toast.error("Document can only be attached to one entity: artwork, collection, or artist");
         setIsUploading(false);
         return;
       }
@@ -71,9 +74,9 @@ export function useDocumentUpload() {
 
       // Process form data to make sure we have valid values
       // Important: Convert "_none" to null to satisfy the database constraint
-      const finalArtworkId = data.artwork_id && data.artwork_id !== "_none" ? data.artwork_id : null;
-      const finalCollectionId = data.collection_id && data.collection_id !== "_none" ? data.collection_id : null;
-      const finalArtistId = data.artist_id && data.artist_id !== "_none" ? data.artist_id : null;
+      const finalArtworkId = hasArtwork ? data.artwork_id : null;
+      const finalCollectionId = hasCollection ? data.collection_id : null;
+      const finalArtistId = hasArtist ? data.artist_id : null;
 
       console.log("Inserting document with:", { 
         finalArtworkId, 
