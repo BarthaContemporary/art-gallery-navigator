@@ -4,6 +4,12 @@ import { Download } from "lucide-react";
 import { Collection } from "@/hooks/use-collections";
 import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CollectionPreviewPanelProps {
   collection: Collection | undefined;
@@ -18,18 +24,56 @@ export function CollectionPreviewPanel({
 }: CollectionPreviewPanelProps) {
   const { data: documents } = useCollectionDocuments(collection?.id);
 
+  const handleDocumentDownload = (url: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-4">
-      {/* PDF Generation Button in separate box */}
+      {/* PDF Generation Buttons in separate box */}
       <div className="bg-white p-4 shadow rounded-lg">
-        <Button 
-          onClick={onGeneratePDF}
-          disabled={!collection || isGenerating}
-          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
-        >
-          {isGenerating ? "Generating..." : "Save as PDF"}
-          <Download className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-4">
+          <Button 
+            onClick={onGeneratePDF}
+            disabled={!collection || isGenerating}
+            className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
+          >
+            {isGenerating ? "Generating..." : "Download Artwork List"}
+            <Download className="h-4 w-4" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                className="flex-1 flex items-center justify-center gap-2"
+                disabled={!documents?.length}
+              >
+                Download Related Documents
+                <Download className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {documents?.map((doc) => (
+                <DropdownMenuItem
+                  key={doc.id}
+                  onClick={() => handleDocumentDownload(doc.file_url, doc.file_name)}
+                >
+                  {doc.file_name}
+                </DropdownMenuItem>
+              ))}
+              {!documents?.length && (
+                <DropdownMenuItem disabled>
+                  No documents available
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Preview Container */}
