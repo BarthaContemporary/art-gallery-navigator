@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -33,6 +34,12 @@ export function CollectionPreviewPanel({
     document.body.removeChild(link);
   };
 
+  const handleDownloadAll = () => {
+    documents?.forEach(doc => {
+      handleDocumentDownload(doc.file_url, doc.file_name);
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* PDF Generation Buttons in separate box */}
@@ -43,7 +50,7 @@ export function CollectionPreviewPanel({
             disabled={!collection || isGenerating}
             className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
           >
-            {isGenerating ? "Generating..." : "Download Artwork List"}
+            {isGenerating ? "Generating..." : "Create Artworks PDF"}
             <Download className="h-4 w-4" />
           </Button>
 
@@ -53,11 +60,19 @@ export function CollectionPreviewPanel({
                 className="flex-1 flex items-center justify-center gap-2"
                 disabled={!documents?.length}
               >
-                Download Related Documents
+                Download Documents
                 <Download className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
+              {documents?.length > 0 && (
+                <>
+                  <DropdownMenuItem onClick={handleDownloadAll}>
+                    Download All Documents
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {documents?.map((doc) => (
                 <DropdownMenuItem
                   key={doc.id}
