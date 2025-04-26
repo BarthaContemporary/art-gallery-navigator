@@ -1,125 +1,101 @@
 
 import { Artwork } from "@/hooks/use-artworks";
-import { escapeHtml } from "./utils";
-import { 
-  baseStyles, 
-  plainPaperStyles, 
-  stationeryStyles, 
-  getStationeryStyle, 
-  cmToInchFraction 
-} from "./styles";
-import { useArtist } from "@/hooks/use-artist";
+import { baseStyles, plainPaperStyles, getStationeryStyle } from "./styles";
+import { cmToInchFraction } from "./unit-conversion";
 
 export function generateArtworkHTML(
-  artwork: Artwork, 
-  templateStyle: string = 'basic',
+  artwork: Artwork,
+  templateStyle: string = "basic",
   useStationery: boolean = false
 ): string {
-  // Get artist name if available
-  const artistName = artwork.artist_name || "Unknown Artist";
+  // Generate CSS for the template
+  const stationeryStyle = getStationeryStyle(useStationery);
+  const templateStyles = useStationery ? stationeryStyle : plainPaperStyles;
   
-  // Calculate dimensions in inches if height, width, depth are available
-  let dimensionsInInches = '';
-  if (artwork.height && artwork.width) {
-    const heightInInches = cmToInchFraction(artwork.height);
-    const widthInInches = cmToInchFraction(artwork.width);
-    dimensionsInInches = artwork.depth 
-      ? `${heightInInches} x ${widthInInches} x ${cmToInchFraction(artwork.depth)}`
-      : `${heightInInches} x ${widthInInches}`;
-  }
+  // The path to the stationery image - used for direct image inclusion
+  const stationeryImagePath = '/lovable-uploads/daab986c-42d2-4558-97df-8b286b5cb911.png';
   
-  // Calculate frame dimensions in inches if they exist
-  let frameDimensionsInInches = '';
-  if (artwork.is_framed && artwork.frame_height && artwork.frame_width) {
-    const frameHeightInInches = cmToInchFraction(artwork.frame_height);
-    const frameWidthInInches = cmToInchFraction(artwork.frame_width);
-    frameDimensionsInInches = artwork.frame_depth 
-      ? `${frameHeightInInches} x ${frameWidthInInches} x ${cmToInchFraction(artwork.frame_depth)}`
-      : `${frameHeightInInches} x ${frameWidthInInches}`;
-  }
-  
-  // Format edition information
-  let editionInfo = '';
-  if (artwork.edition_size && artwork.edition_size > 1) {
-    editionInfo = `Edition of ${artwork.edition_size}`;
-    if (artwork.artist_proofs) {
-      editionInfo += ` + ${artwork.artist_proofs} AP`;
-    }
-  } else {
-    editionInfo = 'Unique';
-  }
-
-  // Create stationery image element for PDF generators that don't support CSS backgrounds
-  const stationeryImageHTML = useStationery ? 
-    `<img src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png" class="stationery-background-image" alt="Stationery" />` : '';
-  
+  // Generate HTML content based on artwork data
   return `
     <!DOCTYPE html>
     <html>
-      <head>
-        <title>Artwork: ${escapeHtml(artwork.title)}</title>
-        <meta charset="UTF-8">
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap">
-        <style>
-          ${baseStyles}
-          ${useStationery ? stationeryStyles : plainPaperStyles}
-          ${getStationeryStyle(useStationery)}
-        </style>
-      </head>
-      <body>
-        ${stationeryImageHTML}
-        <div class="content-wrapper">
-          ${useStationery ? `<div class="artist-name-header">${escapeHtml(artistName)}</div>` : ''}
-          
-          ${artwork.image_url ? `<img src="${escapeHtml(artwork.image_url)}" class="artwork-image" alt="${escapeHtml(artwork.title)}" />` : ''}
-          
-          <div class="artist-name">${escapeHtml(artistName)}</div>
-          <div class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? `, ${artwork.year}` : ''}</div>
-          
-          ${artwork.materials ? `<div class="materials">${escapeHtml(artwork.materials)}</div>` : ''}
-          ${artwork.edition_size && artwork.edition_size > 1 ? `<div class="edition-details">${editionInfo}</div>` : ''}
-          
-          ${artwork.dimensions ? `
-            <div class="dimensions">${escapeHtml(artwork.dimensions)}</div>
-            ${dimensionsInInches ? `<div class="dimensions">${dimensionsInInches}</div>` : ''}
-          ` : ''}
-          
-          ${artwork.is_framed && artwork.frame_height && artwork.frame_width ? `
-            <div class="frame-dimensions">Frame: ${artwork.frame_height} x ${artwork.frame_width}${artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</div>
-            ${frameDimensionsInInches ? `<div class="frame-dimensions">Frame: ${frameDimensionsInInches}</div>` : ''}
-          ` : ''}
-          
-          ${(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price ? `
-            <div class="price">${artwork.currency} ${artwork.price.toLocaleString()}</div>
-          ` : ''}
-          
-          ${templateStyle === 'complete' ? `
-            ${artwork.status ? `<div class="status">Status: ${escapeHtml(artwork.status)}</div>` : ''}
-            ${artwork.location_id ? `<div class="location">Location: Location Name</div>` : ''}
-            
-            ${artwork.story ? `
-              <div class="story">
-                <h3>Story:</h3>
-                <div>${escapeHtml(artwork.story)}</div>
-              </div>
-            ` : ''}
-            
-            ${artwork.provenance ? `
-              <div class="provenance">
-                <h3>Provenance:</h3>
-                <div>${escapeHtml(artwork.provenance)}</div>
-              </div>
-            ` : ''}
-            
-            ${artwork.exhibition_history ? `
-              <div class="exhibition-history">
-                <h3>Exhibition History:</h3>
-                <div>${escapeHtml(artwork.exhibition_history)}</div>
-              </div>
-            ` : ''}
-          ` : ''}
-        </div>
-      </body>
+    <head>
+      <meta charset="utf-8">
+      <title>${artwork.title || "Artwork"}</title>
+      <style>
+        ${baseStyles}
+        ${templateStyles}
+      </style>
+    </head>
+    <body>
+      ${useStationery ? `<img src="${stationeryImagePath}" alt="Stationery" class="stationery-background-image" />` : ''}
+      
+      <div class="content-wrapper">
+        <img src="${artwork.image_url || '/placeholder.svg'}" alt="${artwork.title || 'Artwork'}" class="artwork-image" />
+        
+        <p class="artist-name">${artwork.artist_name || 'Artist Name'}</p>
+        <p class="artwork-title">${artwork.title}${artwork.year ? ', ' + artwork.year : ''}</p>
+        
+        ${artwork.materials ? `<p class="materials">${artwork.materials}</p>` : ''}
+        
+        ${artwork.edition_size && artwork.edition_size > 1 
+          ? `<p class="edition-details">Edition of ${artwork.edition_size}${artwork.artist_proofs 
+              ? ' + ' + artwork.artist_proofs + ' AP'
+              : ''}</p>`
+          : '<p class="edition-details">Unique</p>'}
+        
+        ${artwork.dimensions 
+          ? `<p class="dimensions">${artwork.dimensions}</p>`
+          : ''}
+        
+        ${artwork.height && artwork.width 
+          ? `<p class="dimensions">${artwork.height} x ${artwork.width}${artwork.depth ? ' x ' + artwork.depth : ''} cm</p>` 
+          : ''}
+        
+        ${artwork.height && artwork.width 
+          ? `<p class="dimensions">${cmToInchFraction(artwork.height)} x ${cmToInchFraction(artwork.width)}${artwork.depth 
+              ? ' x ' + cmToInchFraction(artwork.depth)
+              : ''}"</p>` 
+          : ''}
+        
+        ${artwork.is_framed && artwork.frame_height && artwork.frame_width 
+          ? `<p class="frame-dimensions">Frame: ${artwork.frame_height} x ${artwork.frame_width}${artwork.frame_depth 
+              ? ' x ' + artwork.frame_depth 
+              : ''} cm</p>` 
+          : ''}
+        
+        ${artwork.is_framed && artwork.frame_height && artwork.frame_width 
+          ? `<p class="frame-dimensions">Frame: ${cmToInchFraction(artwork.frame_height)} x ${cmToInchFraction(artwork.frame_width)}${artwork.frame_depth 
+              ? ' x ' + cmToInchFraction(artwork.frame_depth)
+              : ''}"</p>` 
+          : ''}
+        
+        ${(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price 
+          ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>`
+          : ''}
+        
+        ${templateStyle === 'complete' && artwork.story 
+          ? `
+          <h2>Story</h2>
+          <p class="artwork-story">${artwork.story}</p>
+          `
+          : ''}
+        
+        ${templateStyle === 'complete' && artwork.provenance 
+          ? `
+          <h2>Provenance</h2>
+          <p class="artwork-provenance">${artwork.provenance}</p>
+          `
+          : ''}
+        
+        ${templateStyle === 'complete' && artwork.exhibition_history 
+          ? `
+          <h2>Exhibition History</h2>
+          <p class="artwork-exhibition-history">${artwork.exhibition_history}</p>
+          `
+          : ''}
+      </div>
+    </body>
     </html>
   `;
 }
