@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
@@ -35,6 +36,9 @@ export async function generatePDFFromHTML({
     console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
   }
 
+  // Load images for reference
+  const stationeryUrl = '/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png';
+
   // Create temporary iframe for rendering with proper dimensions
   const iframe = document.createElement('iframe');
   iframe.style.position = 'absolute';
@@ -45,6 +49,9 @@ export async function generatePDFFromHTML({
   iframe.style.border = 'none';
   document.body.appendChild(iframe);
   
+  // Display loading message
+  toast.loading("Preparing PDF document...");
+
   // Wait for iframe to load before accessing its document
   await new Promise((resolve) => {
     iframe.onload = resolve;
@@ -54,6 +61,7 @@ export async function generatePDFFromHTML({
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>${entityTitle} - PDF</title>
           <style>
             @page { size: A4; margin: 0; }
             @media print { body { -webkit-print-color-adjust: exact; } }
@@ -74,42 +82,51 @@ export async function generatePDFFromHTML({
 
   try {
     toast.loading("Generating PDF, please wait...");
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Access the document inside the iframe
+    
+    // Important: Wait for all images to load
     const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
     if (!iframeDocument) throw new Error("Could not access iframe document");
     
-    // Wait for images to load within the iframe
-    await Promise.all(
-      Array.from(iframeDocument.images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if some images fail
-        });
-      })
-    );
-    
-    // Add explicit load event for stationery background
-    const stationeryImg = iframeDocument.querySelector('.stationery-background-image') as HTMLImageElement;
-    if (stationeryImg) {
-      await new Promise(resolve => {
-        if (stationeryImg.complete) resolve(true);
-        else stationeryImg.onload = () => resolve(true);
+    // Pre-load stationery image to ensure it's in the cache
+    if (html.includes(stationeryUrl)) {
+      const preloadStationery = new Image();
+      preloadStationery.src = stationeryUrl;
+      await new Promise((resolve) => {
+        preloadStationery.onload = resolve;
+        preloadStationery.onerror = resolve; // Continue even if it fails
       });
     }
-
-    // Generate canvas from iframe content
+    
+    // Wait for all images in the iframe to load
+    const imgPromises = Array.from(iframeDocument.images).map(img => {
+      return new Promise((resolve) => {
+        if (img.complete) {
+          resolve(true);
+        } else {
+          img.onload = () => resolve(true);
+          img.onerror = () => {
+            console.warn(`Failed to load image: ${img.src}`);
+            resolve(false);
+          };
+        }
+      });
+    });
+    
+    await Promise.all(imgPromises);
+    
+    // Additional delay to ensure everything is rendered
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Generate canvas from iframe content with high quality settings
     const canvas = await html2canvas(iframeDocument.body, {
-      scale: 2,
+      scale: 2, // Higher scale for better quality
       useCORS: true,
       allowTaint: true,
       logging: false,
       width: 210 * 3.78, // A4 width in pixels (210mm) at 72 DPI
       height: 297 * 3.78, // A4 height in pixels (297mm) at 72 DPI
       backgroundColor: null, // Transparent background
-      imageTimeout: 30000,
+      imageTimeout: 30000, // Longer timeout for images
       onclone: (clonedDoc) => {
         // Ensure all images are properly set to visible in the cloned document
         const imgs = clonedDoc.querySelectorAll('img');
@@ -117,6 +134,18 @@ export async function generatePDFFromHTML({
           img.style.visibility = 'visible';
           img.style.opacity = '1';
           img.crossOrigin = "Anonymous";
+          
+          // Force image dimensions if they aren't already set
+          if (img.classList.contains('stationery-background-image')) {
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+          }
+          
+          if (img.classList.contains('artwork-image')) {
+            img.style.maxHeight = '15cm';
+            img.style.maxWidth = '100%';
+          }
         });
       }
     });
@@ -162,7 +191,7 @@ export async function generatePDFFromHTML({
 
     // Create download link
     const downloadLink = document.createElement("a");
-    downloadLink.href = publicUrl;
+    downloadLink.href = URL.createObjectURL(doc.output('blob'));
     downloadLink.download = `${entityTitle}.pdf`;
     downloadLink.rel = "noopener noreferrer";
     document.body.appendChild(downloadLink);
@@ -175,13 +204,7 @@ export async function generatePDFFromHTML({
   } catch (error) {
     console.error("Error generating document:", error);
     if (error instanceof Error) {
-      if (error.message.includes("buckets")) {
-        toast.error("Document storage not available. Contact administrator.", {
-          description: "You don't have permission to use document storage"
-        });
-      } else {
-        toast.error("Failed to generate document: " + error.message);
-      }
+      toast.error("Failed to generate document: " + error.message);
     }
     throw error;
   } finally {

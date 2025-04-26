@@ -33,6 +33,9 @@ export function generateArtworkHTML(
           position: relative;
           margin: 0;
           padding: 0;
+          width: 210mm;
+          height: 297mm;
+          background-color: white;
         }
         
         .stationery-container {
@@ -41,35 +44,64 @@ export function generateArtworkHTML(
           left: 0;
           width: 100%;
           height: 100%;
-          z-index: -1;
+          z-index: 0;
           pointer-events: none;
-        }
-        
-        .stationery-background-image {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
         }
         
         .content-wrapper {
           position: relative;
           z-index: 10;
-          padding: 3cm 3cm 3.5cm 3cm;
+          padding: 3cm;
+          min-height: 297mm;
+          box-sizing: border-box;
+          font-family: Arial, sans-serif;
         }
         
         .artwork-image {
           max-width: 100%;
           max-height: 15cm;
           display: block;
+          margin-bottom: 2cm;
+          border: 1px solid #eee;
+        }
+        
+        .artist-name {
+          font-weight: bold;
+          font-size: 14pt;
+          margin-bottom: 0.5cm;
+        }
+        
+        .artwork-title {
+          font-style: italic;
+          font-size: 12pt;
           margin-bottom: 1cm;
+        }
+        
+        p {
+          margin-bottom: 0.5cm;
+          line-height: 1.5;
+        }
+        
+        h2 {
+          margin-top: 2cm;
+          margin-bottom: 0.5cm;
+          font-size: 14pt;
         }
       </style>
     </head>
     <body>
-      ${useStationery ? `<div class="stationery-container"><img src="${stationeryImagePath}" alt="Stationery" class="stationery-background-image" /></div>` : ''}
+      ${useStationery ? `
+      <div class="stationery-container">
+        <img src="${stationeryImagePath}" alt="Stationery" style="width: 100%; height: 100%; object-fit: cover;" />
+      </div>
+      ` : ''}
       
       <div class="content-wrapper">
-        ${artwork.image_url ? `<img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />` : ''}
+        ${artwork.image_url ? `
+          <div style="text-align: center; margin-bottom: 2cm;">
+            <img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />
+          </div>
+        ` : ''}
         
         <p class="artist-name">${escapeHtml(artwork.artist_name || 'Artist Name')}</p>
         <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? ', ' + escapeHtml(artwork.year.toString()) : ''}</p>

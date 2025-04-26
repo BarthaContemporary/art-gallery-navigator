@@ -3,8 +3,6 @@
 export function getStationeryStyle(useStationery: boolean): string {
   if (!useStationery) return '';
   
-  const stationeryImagePath = '/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png';
-  
   return `
     @page {
       margin: 0;
@@ -21,15 +19,21 @@ export function getStationeryStyle(useStationery: boolean): string {
       background-color: white;
     }
     
-    /* Stationery background handled via HTML for better compatibility */
+    /* Stationery background handled via HTML */
     .stationery-container {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -1;
+      z-index: 0;
       pointer-events: none;
+    }
+    
+    .stationery-container img {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
   `;
 }

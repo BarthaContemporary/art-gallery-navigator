@@ -27,6 +27,7 @@ export function PDFPreviewContent({
       defaultValue={type === "artwork" ? "basic" : "collection"} 
       className="flex-1 flex flex-col" 
       onValueChange={setSelectedTemplate}
+      value={selectedTemplate}
     >
       <PDFTemplateControls 
         type={type}
@@ -38,6 +39,7 @@ export function PDFPreviewContent({
         <PDFPreviewDocument
           type={type}
           useStationery={useStationery}
+          template={selectedTemplate}
           title={title}
         />
       </ScrollArea>
@@ -48,25 +50,25 @@ export function PDFPreviewContent({
 interface PDFPreviewDocumentProps {
   type: "artwork" | "collection";
   useStationery: boolean;
+  template: string;
   title: string;
 }
 
-function PDFPreviewDocument({ type, useStationery, title }: PDFPreviewDocumentProps) {
+function PDFPreviewDocument({ type, useStationery, template, title }: PDFPreviewDocumentProps) {
   return (
     <div className="bg-gray-100 p-4 rounded flex items-center justify-center">
-      <div className="bg-white shadow-lg" style={{ 
+      <div className="bg-white shadow-lg relative overflow-hidden" style={{ 
         width: '100%', 
         maxWidth: '595px',
         height: '842px', 
         transform: 'scale(0.8)',
         transformOrigin: 'center center',
-        position: 'relative' 
       }}>
-        <StationeryBackground show={useStationery} />
+        {useStationery && <StationeryBackground />}
         
-        <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
+        <div style={{ position: 'relative', zIndex: 5, height: '100%', padding: '3rem' }}>
           {type === "artwork" ? (
-            <ArtworkTemplatePreview useStationery={useStationery} title={title} />
+            <ArtworkTemplatePreview useStationery={useStationery} template={template} title={title} />
           ) : (
             <CollectionTemplatePreview title={title} />
           )}
@@ -76,19 +78,16 @@ function PDFPreviewDocument({ type, useStationery, title }: PDFPreviewDocumentPr
   );
 }
 
-interface StationeryBackgroundProps {
-  show: boolean;
-}
-
-function StationeryBackground({ show }: StationeryBackgroundProps) {
-  if (!show) return null;
-  
+function StationeryBackground() {
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+    <div 
+      className="absolute inset-0 pointer-events-none" 
+      style={{ zIndex: 1 }}
+    >
       <img 
         src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png"
         alt="Bartha Contemporary Stationery"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
       />
     </div>
   );

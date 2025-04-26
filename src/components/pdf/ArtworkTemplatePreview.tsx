@@ -1,119 +1,74 @@
 
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { TabsContent } from "@/components/ui/tabs";
+import React from "react";
 
 interface ArtworkTemplatePreviewProps {
   useStationery: boolean;
+  template: string;
   title: string;
 }
 
-export function ArtworkTemplatePreview({ useStationery, title }: ArtworkTemplatePreviewProps) {
-  const previewStyles = `
-    ${useStationery ? 'pt-[7cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'}
-    h-full overflow-auto text-[12px]
-  `;
-
-  const headerArtistStyle = useStationery ? 'absolute top-[6cm] left-[4cm] font-bold uppercase' : '';
-
+export function ArtworkTemplatePreview({ 
+  useStationery, 
+  template,
+  title 
+}: ArtworkTemplatePreviewProps) {
   return (
-    <>
-      <TabsContent value="basic" className="m-0 p-0 h-full">
-        <div className={previewStyles}>
-          {useStationery && (
-            <div className={headerArtistStyle}>
-              ARTIST NAME
-            </div>
-          )}
-          <div>
-            <div className="mb-6">
-              <img 
-                src="/placeholder.svg" 
-                alt="Artwork" 
-                className="max-h-[6cm] w-auto mb-6"
-              />
-              <h2 className="text-lg font-bold mb-2">Artist Name</h2>
-              <h3 className="text-lg font-normal italic mb-2">
-                {title}, 2023
-              </h3>
-              <p className="mb-2">Materials description</p>
-              <p className="mb-2">Edition of 10</p>
-              <p className="mb-1">100 x 80 x 5 cm</p>
-              <p className="mb-1">39 3/8 x 31 1/2 x 2"</p>
-              <p className="mb-1">Frame: 105 x 85 x 7 cm</p>
-              <p className="mb-1">Frame: 41 3/8 x 33 1/2 x 2 3/4"</p>
-            </div>
-          </div>
+    <div className="h-full overflow-auto">
+      {/* Preview header based on template */}
+      {template === "classic" && (
+        <div className="border-b-2 border-primary pb-4 mb-6">
+          <h2 className="text-3xl font-bold text-primary">{title}</h2>
         </div>
-      </TabsContent>
+      )}
       
-      <TabsContent value="basicWithPrice" className="m-0 p-0 h-full">
-        <div className={previewStyles}>
-          {useStationery && (
-            <div className={headerArtistStyle}>
-              ARTIST NAME
-            </div>
-          )}
-          <div className="mb-6">
-            <img 
-              src="/placeholder.svg" 
-              alt="Artwork" 
-              className="max-h-[6cm] w-auto mb-6"
-            />
-            <h2 className="text-lg font-bold mb-2">Artist Name</h2>
-            <h3 className="text-lg font-normal italic mb-2">
-              {title}, 2023
-            </h3>
-            <p className="mb-2">Materials description</p>
-            <p className="mb-2">Edition of 10</p>
-            <p className="mb-1">100 x 80 x 5 cm</p>
-            <p className="mb-1">39 3/8 x 31 1/2 x 2"</p>
-            <p className="mb-1">Frame: 105 x 85 x 7 cm</p>
-            <p className="mb-1">Frame: 41 3/8 x 33 1/2 x 2 3/4"</p>
-            <p className="mt-4 font-semibold">£ 10,000</p>
-          </div>
+      {template === "modern" && (
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-3xl font-light">{title}</h2>
+          <div className="w-24 h-1 bg-primary"></div>
         </div>
-      </TabsContent>
+      )}
       
-      <TabsContent value="complete" className="m-0 p-0 h-full">
-        <div className={previewStyles}>
-          {useStationery && (
-            <div className={headerArtistStyle}>
-              ARTIST NAME
+      {template === "minimal" && (
+        <h2 className="text-2xl uppercase tracking-widest mb-8">{title}</h2>
+      )}
+      
+      {/* Artwork image placeholder */}
+      <div className="mb-6 text-center">
+        <div className="w-full h-48 bg-gray-100 border flex items-center justify-center mb-4">
+          <span className="text-gray-400">Artwork Image</span>
+        </div>
+      </div>
+      
+      {/* Artwork details preview */}
+      <div className={template === "modern" ? "pl-4 border-l-4 border-primary" : ""}>
+        <p className="font-bold mb-1">Artist Name</p>
+        <p className="italic mb-4">{title}, 2023</p>
+        <p className="mb-2">Oil on canvas</p>
+        <p className="mb-2">Edition of 10 + 2 AP</p>
+        <p className="mb-2">120 x 80 cm</p>
+        <p className="mb-2">47 1/4 x 31 1/2"</p>
+        
+        {/* Additional info based on template */}
+        {template === "basicWithPrice" && (
+          <p className="font-semibold mt-6">£ 5,000</p>
+        )}
+        
+        {template === "minimal" && (
+          <>
+            <p className="font-semibold mt-6">£ 5,000</p>
+            
+            <div className="mt-8">
+              <h3 className="font-semibold text-lg mb-2">Story</h3>
+              <p className="text-sm">Sample story text about the artwork and its creation.</p>
             </div>
-          )}
-          <div className="mb-6">
-            <img 
-              src="/placeholder.svg" 
-              alt="Artwork" 
-              className="max-h-[6cm] w-auto mb-6"
-            />
-            <h2 className="text-lg font-bold mb-2">Artist Name</h2>
-            <h3 className="text-lg font-normal italic mb-2">
-              {title}, 2023
-            </h3>
-            <p className="mb-2">Materials description</p>
-            <p className="mb-2">Edition of 10</p>
-            <p className="mb-1">100 x 80 x 5 cm</p>
-            <p className="mb-1">39 3/8 x 31 1/2 x 2"</p>
-            <p className="mb-1">Frame: 105 x 85 x 7 cm</p>
-            <p className="mb-1">Frame: 41 3/8 x 33 1/2 x 2 3/4"</p>
-            <p className="mt-4 font-semibold">£ 10,000</p>
-            <p className="mt-2">Location: London Gallery</p>
-            <p className="mt-2">Status: Available</p>
             
             <div className="mt-6">
-              <p className="font-bold">Story:</p>
-              <p className="mt-1">Artwork story goes here...</p>
+              <h3 className="font-semibold text-lg mb-2">Provenance</h3>
+              <p className="text-sm">Gallery collection, London</p>
             </div>
-            
-            <div className="mt-4">
-              <p className="font-bold">Provenance:</p>
-              <p className="mt-1">Artwork provenance goes here...</p>
-            </div>
-          </div>
-        </div>
-      </TabsContent>
-    </>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

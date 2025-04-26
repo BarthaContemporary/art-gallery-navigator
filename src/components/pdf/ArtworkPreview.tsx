@@ -18,8 +18,8 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
     const heightInInches = cmToInchFraction(artwork.height);
     const widthInInches = cmToInchFraction(artwork.width);
     dimensionsInInches = artwork.depth 
-      ? `${heightInInches} x ${widthInInches} x ${cmToInchFraction(artwork.depth)}`
-      : `${heightInInches} x ${widthInInches}`;
+      ? `${heightInInches} x ${widthInInches} x ${cmToInchFraction(artwork.depth)}"` 
+      : `${heightInInches} x ${widthInInches}"`;
   }
   
   // Calculate frame dimensions in inches if they exist
@@ -28,8 +28,8 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
     const frameHeightInInches = cmToInchFraction(artwork.frame_height);
     const frameWidthInInches = cmToInchFraction(artwork.frame_width);
     frameDimensionsInInches = artwork.frame_depth 
-      ? `${frameHeightInInches} x ${frameWidthInInches} x ${cmToInchFraction(artwork.frame_depth)}`
-      : `${frameHeightInInches} x ${frameWidthInInches}`;
+      ? `${frameHeightInInches} x ${frameWidthInInches} x ${cmToInchFraction(artwork.frame_depth)}"` 
+      : `${frameHeightInInches} x ${frameWidthInInches}"`;
   }
   
   // Format edition information
@@ -44,70 +44,73 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
   }
   
   return (
-    <div className="space-y-4">
-      <div className="mb-6">
-        <img 
-          src={artwork.image_url || "/placeholder.svg"} 
-          alt={artwork.title} 
-          className="max-h-24 w-auto mb-4"
-        />
-        <h2 className="font-bold">{artistName}</h2>
-        <h3 className="italic">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</h3>
-        
-        {artwork.materials && <p>{artwork.materials}</p>}
-        
-        {artwork.edition_size && artwork.edition_size > 1 && (
-          <p>{editionInfo}</p>
-        )}
-        
-        {artwork.dimensions && (
-          <p>{artwork.dimensions}</p>
-        )}
-        
-        {dimensionsInInches && (
-          <p>{dimensionsInInches}</p>
-        )}
-        
-        {artwork.is_framed && artwork.frame_height && artwork.frame_width && (
-          <p>Frame: {artwork.frame_height} x {artwork.frame_width}{artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</p>
-        )}
-        
-        {frameDimensionsInInches && (
-          <p>Frame: {frameDimensionsInInches}</p>
-        )}
-        
-        {(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price && (
-          <p className="mt-4 font-semibold">{artwork.currency} {artwork.price.toLocaleString()}</p>
-        )}
-        
-        {templateStyle === 'complete' && (
-          <>
-            {artwork.location_id && <p className="mt-3">Location: Location Name</p>}
-            {artwork.status && <p>Status: {artwork.status}</p>}
-            
-            {artwork.story && (
-              <div className="mt-4">
-                <p className="font-semibold">Story:</p>
-                <p>{artwork.story}</p>
-              </div>
-            )}
-            
-            {artwork.provenance && (
-              <div className="mt-4">
-                <p className="font-semibold">Provenance:</p>
-                <p>{artwork.provenance}</p>
-              </div>
-            )}
-            
-            {artwork.exhibition_history && (
-              <div className="mt-4">
-                <p className="font-semibold">Exhibition History:</p>
-                <p>{artwork.exhibition_history}</p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+    <div className="space-y-4 p-4">
+      {artwork.image_url && (
+        <div className="flex justify-center mb-6">
+          <img 
+            src={artwork.image_url} 
+            alt={artwork.title} 
+            className="max-h-64 w-auto object-contain"
+            style={{ border: '1px solid #eee' }}
+          />
+        </div>
+      )}
+      
+      <h2 className="font-bold text-lg">{artistName}</h2>
+      <h3 className="italic text-md">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</h3>
+      
+      {artwork.materials && <p>{artwork.materials}</p>}
+      
+      <p>{editionInfo}</p>
+      
+      {artwork.dimensions && (
+        <p>{artwork.dimensions}</p>
+      )}
+      
+      {artwork.height && artwork.width && (
+        <p>{artwork.height} x {artwork.width}{artwork.depth ? ` x ${artwork.depth}` : ''} cm</p>
+      )}
+      
+      {dimensionsInInches && (
+        <p>{dimensionsInInches}</p>
+      )}
+      
+      {artwork.is_framed && artwork.frame_height && artwork.frame_width && (
+        <p>Frame: {artwork.frame_height} x {artwork.frame_width}{artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</p>
+      )}
+      
+      {frameDimensionsInInches && (
+        <p>Frame: {frameDimensionsInInches}</p>
+      )}
+      
+      {(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price && (
+        <p className="mt-4 font-semibold">{artwork.currency} {artwork.price.toLocaleString()}</p>
+      )}
+      
+      {templateStyle === 'complete' && (
+        <>
+          {artwork.story && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-lg mb-2">Story</h3>
+              <p className="text-sm">{artwork.story}</p>
+            </div>
+          )}
+          
+          {artwork.provenance && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-lg mb-2">Provenance</h3>
+              <p className="text-sm">{artwork.provenance}</p>
+            </div>
+          )}
+          
+          {artwork.exhibition_history && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-lg mb-2">Exhibition History</h3>
+              <p className="text-sm">{artwork.exhibition_history}</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
