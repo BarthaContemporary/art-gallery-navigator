@@ -159,7 +159,7 @@ export function useDeleteCollection() {
         
       if (linkError) throw linkError;
       
-      // Then delete the collection
+      // Then delete the collection, but do NOT delete any documents
       const { error } = await supabase
         .from("collections")
         .delete()
