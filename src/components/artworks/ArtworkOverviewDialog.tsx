@@ -132,7 +132,11 @@ export function ArtworkOverviewDialog({
 
           <div className="flex-1 overflow-auto">
             <div className="mb-8">
-              <ArtworkCarousel artworkId={artwork.id} />
+              <ArtworkCarousel 
+                artworkId={artwork.id} 
+                artistName={artist?.full_name || "Unknown_Artist"} 
+                artworkTitle={artwork.title} 
+              />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6">
