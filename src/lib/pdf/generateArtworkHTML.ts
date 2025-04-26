@@ -28,19 +28,40 @@ export function generateArtworkHTML(
         ${baseStyles}
         ${templateStyles}
         
-        /* Additional styles to ensure content appears over background */
-        .stationery-background-image {
+        /* Fixed positioning for content to ensure it appears correctly */
+        body {
+          position: relative;
+          margin: 0;
+          padding: 0;
+        }
+        
+        .stationery-container {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          z-index: 0;
+          z-index: -1;
+          pointer-events: none;
+        }
+        
+        .stationery-background-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         
         .content-wrapper {
           position: relative;
-          z-index: 1;
+          z-index: 10;
+          padding: 3cm 3cm 3.5cm 3cm;
+        }
+        
+        .artwork-image {
+          max-width: 100%;
+          max-height: 15cm;
+          display: block;
+          margin-bottom: 1cm;
         }
       </style>
     </head>
