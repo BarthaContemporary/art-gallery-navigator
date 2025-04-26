@@ -47,6 +47,10 @@ export function generateArtworkHTML(
   } else {
     editionInfo = 'Unique';
   }
+
+  // Create stationery image element for PDF generators that don't support CSS backgrounds
+  const stationeryImageHTML = useStationery ? 
+    `<img src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png" class="stationery-background-image" alt="Stationery" />` : '';
   
   return `
     <!DOCTYPE html>
@@ -62,6 +66,7 @@ export function generateArtworkHTML(
         </style>
       </head>
       <body>
+        ${stationeryImageHTML}
         <div class="content-wrapper">
           ${useStationery ? `<div class="artist-name-header">${escapeHtml(artistName)}</div>` : ''}
           
@@ -117,4 +122,3 @@ export function generateArtworkHTML(
     </html>
   `;
 }
-

@@ -1,7 +1,7 @@
 
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 8cm;
+    padding-top: 11cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;
@@ -30,7 +30,7 @@ export const stationeryStyles = `
   .artist-name-header {
     position: absolute;
     top: 6cm;
-    right: 4cm;
+    left: 4cm;
     font-weight: 700;
     text-transform: uppercase;
     font-size: 10px;
@@ -139,7 +139,7 @@ export const stationeryStyles = `
   }
   
   /* Ensure stationery image is visible */
-  .stationery-background {
+  .stationery-background-image {
     position: absolute;
     top: 0;
     left: 0;
@@ -148,4 +148,3 @@ export const stationeryStyles = `
     z-index: -1;
   }
 `;
-
