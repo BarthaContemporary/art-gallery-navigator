@@ -10,7 +10,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Trash2, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 // Interface for profiles from our database
 interface ProfileData {
@@ -27,7 +41,10 @@ interface UserRoleData {
 }
 
 export function UsersList() {
-  const { data: profiles, isLoading } = useQuery({
+  const { toast } = useToast();
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
+  const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -49,6 +66,35 @@ export function UsersList() {
     },
   });
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      // Delete the user from auth
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(
+        userToDelete
+      );
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "User deleted",
+        description: "The user has been successfully deleted.",
+      });
+
+      // Refresh the users list
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    } finally {
+      setUserToDelete(null);
+    }
+  };
+
   if (isLoading) return <div>Loading users...</div>;
 
   const getUserRoles = (userId: string) => {
@@ -64,6 +110,7 @@ export function UsersList() {
             <TableHead>Email Status</TableHead>
             <TableHead>Roles</TableHead>
             <TableHead>Created At</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -94,6 +141,38 @@ export function UsersList() {
               </TableCell>
               <TableCell>
                 {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
+              </TableCell>
+              <TableCell>
+                <AlertDialog open={userToDelete === profile.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setUserToDelete(profile.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the user
+                        account and remove all associated data.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={handleDeleteUser}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </TableCell>
             </TableRow>
           ))}
