@@ -1,22 +1,19 @@
-
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Collection } from "@/hooks/use-collections";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Save, FileText } from "lucide-react";
+import { Download } from "lucide-react";
+import { useCollectionDocuments } from "@/hooks/use-collection-documents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
+import { useState } from "react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
-import { useState } from "react";
-import { PDFPreviewDialog } from "@/components/pdf/PDFPreviewDialog";
-import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
-import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 
 interface CollectionDetailsDialogProps {
   collection: Collection;
@@ -29,124 +26,126 @@ export function CollectionDetailsDialog({
   open,
   onOpenChange,
 }: CollectionDetailsDialogProps) {
+  const { data: documents } = useCollectionDocuments(collection?.id);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
-  const { data: documents, isLoading: isLoadingDocuments } = useCollectionDocuments(collection.id);
-  
-  const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
-    if (isGenerating) return;
-    
+
+  const handleDocumentDownload = (url: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadAll = () => {
+    documents?.forEach(doc => {
+      handleDocumentDownload(doc.file_url, doc.file_name);
+    });
+  };
+
+  const handleGeneratePDF = async () => {
     setIsGenerating(true);
-    createCollectionPDF(collection, templateStyle, useStationery)
-      .then(() => {
-        // Success is handled by the PDF generator
-      })
-      .catch((error) => {
-        console.error("Error generating PDF:", error);
-        toast.error("Failed to generate PDF");
-      })
-      .finally(() => {
-        setIsGenerating(false);
-      });
+    try {
+      if (collection) {
+        await createCollectionPDF(collection, "classic", true);
+        toast.success("Collection PDF created successfully");
+      } else {
+        toast.error("No collection selected to create PDF");
+      }
+      setIsGenerating(false);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setIsGenerating(false);
+    }
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex justify-between">
-            <div>
-              <DialogTitle className="text-xl">{collection.name}</DialogTitle>
-              <DialogDescription>Collection overview and artwork list</DialogDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl">
+        <div className="space-y-4">
+          {/* PDF Generation Buttons */}
+          <div className="bg-white p-4 shadow rounded-lg">
+            <div className="flex gap-4">
+              <Button 
+                onClick={handleGeneratePDF}
+                disabled={!collection || isGenerating}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
+              >
+                {isGenerating ? "Generating..." : "Create Artworks PDF"}
+                <Download className="h-4 w-4" />
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    className="flex-1 flex items-center justify-center gap-2"
+                    disabled={!documents?.length}
+                  >
+                    Download Documents
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {documents?.length > 0 && (
+                    <>
+                      <DropdownMenuItem onClick={handleDownloadAll}>
+                        Download All Documents
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {documents?.map((doc) => (
+                    <DropdownMenuItem
+                      key={doc.id}
+                      onClick={() => handleDocumentDownload(doc.file_url, doc.file_name)}
+                    >
+                      {doc.file_name}
+                    </DropdownMenuItem>
+                  )}
+                  {!documents?.length && (
+                    <DropdownMenuItem disabled>
+                      No documents available
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2" 
-              onClick={() => setPDFPreviewOpen(true)}
-              disabled={isGenerating}
-            >
-              <Save className="h-4 w-4" />
-              {isGenerating ? "Creating PDF..." : "Create PDF"}
-            </Button>
-          </DialogHeader>
-          {collection.description && (
-            <p className="text-muted-foreground">{collection.description}</p>
-          )}
-
-          <div className="text-base font-medium mt-2">
-            Artworks in this collection:
           </div>
 
-          {collection.artworks?.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No artworks in this collection</p>
-          ) : (
-            <ScrollArea className="flex-1 mt-2 pr-4">
-              <div className="grid grid-cols-1 gap-4">
-                {collection.artworks?.map((artwork) => (
-                  <Card key={artwork.id} className="overflow-hidden">
-                    <div className="flex">
-                      <div className="w-24 h-24 shrink-0">
-                        <img
-                          src={artwork.image_url || "/placeholder.svg"}
-                          alt={artwork.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <CardContent className="p-3">
-                        <h3 className="font-medium">{artwork.title}</h3>
-                        {artwork.year && <p className="text-sm">Year: {artwork.year}</p>}
-                        {artwork.medium_type && (
-                          <p className="text-xs text-muted-foreground">Medium: {artwork.medium_type}</p>
-                        )}
-                        {artwork.materials && (
-                          <p className="text-xs text-muted-foreground">{artwork.materials}</p>
-                        )}
-                      </CardContent>
+          {/* Preview Container */}
+          <div className="bg-white p-6 shadow rounded-lg">
+            <div className="mx-auto relative" style={{ width: '595px', height: '842px' }}>
+              {/* PDF Preview Area */}
+              <div className="bg-white h-full relative">
+                {/* Stationery Background */}
+                <div className="absolute inset-0">
+                  <img 
+                    src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
+                    alt="Bartha Contemporary Stationery"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                
+                {/* Content Container */}
+                <div className="relative h-full">
+                  {/* Collection Name Header */}
+                  <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
+                    {collection ? collection.name : "Collection Name"}
+                  </div>
+                  
+                  {/* Main Content Area */}
+                  <div className="pt-[8cm] pl-[4cm] pr-[2cm] pb-[3.5cm] h-full overflow-auto relative">
+                    <div className="relative">
+                      <CollectionPDFPreview collection={collection} />
                     </div>
-                  </Card>
-                ))}
+                  </div>
+                </div>
               </div>
-            </ScrollArea>
-          )}
-
-          <div className="text-base font-medium mt-4">
-            Related Documents:
+            </div>
           </div>
-
-          {isLoadingDocuments ? (
-            <p className="text-sm text-muted-foreground">Loading documents...</p>
-          ) : documents?.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No documents attached to this collection</p>
-          ) : (
-            <ScrollArea className="mt-2 pr-4 max-h-[200px]">
-              <div className="grid grid-cols-1 gap-2">
-                {documents?.map((doc) => (
-                  <Card key={doc.id} className="overflow-hidden">
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{doc.file_name}</p>
-                        {doc.description && (
-                          <p className="text-xs text-muted-foreground truncate">{doc.description}</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      <PDFPreviewDialog
-        open={pdfPreviewOpen}
-        onOpenChange={setPDFPreviewOpen}
-        onApply={handleGeneratePDF}
-        title={collection.name}
-        content={<CollectionPDFPreview collection={collection} />}
-        type="collection"
-      />
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
