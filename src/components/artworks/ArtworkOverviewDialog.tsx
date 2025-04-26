@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
 import {
@@ -167,7 +167,7 @@ export function ArtworkOverviewDialog({
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && artwork.id) {
       const fetchDocuments = async () => {
         const { data, error } = await supabase
