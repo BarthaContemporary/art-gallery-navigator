@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Collection } from "@/hooks/use-collections";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CollectionPDFPreview } from "@/components/pdf/CollectionPreview";
 import { useState } from "react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
@@ -53,9 +53,10 @@ export function CollectionDetailsDialog({
       } else {
         toast.error("No collection selected to create PDF");
       }
-      setIsGenerating(false);
     } catch (error) {
       console.error('Error generating PDF:', error);
+      toast.error("Failed to generate PDF");
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -63,14 +64,15 @@ export function CollectionDetailsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
-        <div className="space-y-4">
-          {/* PDF Generation Buttons */}
-          <div className="bg-white p-4 shadow rounded-lg">
-            <div className="flex gap-4">
+        <div className="space-y-6">
+          {/* Header with buttons */}
+          <div className="flex items-center justify-between border-b pb-4">
+            <h2 className="text-2xl font-semibold">{collection.name}</h2>
+            <div className="flex gap-3">
               <Button 
                 onClick={handleGeneratePDF}
                 disabled={!collection || isGenerating}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90"
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90"
               >
                 {isGenerating ? "Generating..." : "Create Artworks PDF"}
                 <Download className="h-4 w-4" />
@@ -79,7 +81,7 @@ export function CollectionDetailsDialog({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex items-center gap-2"
                     disabled={!documents?.length}
                   >
                     Download Documents
@@ -113,34 +115,45 @@ export function CollectionDetailsDialog({
             </div>
           </div>
 
-          {/* Preview Container */}
-          <div className="bg-white p-6 shadow rounded-lg">
-            <div className="mx-auto relative" style={{ width: '595px', height: '842px' }}>
-              {/* PDF Preview Area */}
-              <div className="bg-white h-full relative">
-                {/* Stationery Background */}
-                <div className="absolute inset-0">
-                  <img 
-                    src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
-                    alt="Bartha Contemporary Stationery"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Content Container */}
-                <div className="relative h-full">
-                  {/* Collection Name Header */}
-                  <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
-                    {collection ? collection.name : "Collection Name"}
+          {/* Collection Content */}
+          <div className="space-y-6">
+            {/* Artworks List */}
+            <div>
+              <h3 className="text-lg font-medium mb-3">Artworks</h3>
+              <div className="border rounded-lg divide-y">
+                {collection.artworks?.map((artwork) => (
+                  <div key={artwork.id} className="p-4">
+                    <h4 className="font-medium">{artwork.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {artwork.artist_name} • {artwork.year}
+                    </p>
                   </div>
-                  
-                  {/* Main Content Area */}
-                  <div className="pt-[8cm] pl-[4cm] pr-[2cm] pb-[3.5cm] h-full overflow-auto relative">
-                    <div className="relative">
-                      <CollectionPDFPreview collection={collection} />
-                    </div>
+                ))}
+                {(!collection.artworks || collection.artworks.length === 0) && (
+                  <p className="p-4 text-muted-foreground">No artworks in this collection</p>
+                )}
+              </div>
+            </div>
+
+            {/* Documents List */}
+            <div>
+              <h3 className="text-lg font-medium mb-3">Documents</h3>
+              <div className="border rounded-lg divide-y">
+                {documents?.map((doc) => (
+                  <div key={doc.id} className="p-4 flex items-center justify-between">
+                    <span>{doc.file_name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDocumentDownload(doc.file_url, doc.file_name)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
+                ))}
+                {(!documents || documents.length === 0) && (
+                  <p className="p-4 text-muted-foreground">No documents attached</p>
+                )}
               </div>
             </div>
           </div>
