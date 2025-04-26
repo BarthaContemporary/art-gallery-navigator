@@ -43,6 +43,7 @@ interface UserRoleData {
 export function UsersList() {
   const { toast } = useToast();
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
@@ -68,14 +69,15 @@ export function UsersList() {
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-
+    
+    setIsDeleting(true);
     try {
-      // Delete the user from auth
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(
-        userToDelete
-      );
+      // Use the Supabase Functions API to delete the user instead of the admin API
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete }
+      });
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
 
       toast({
         title: "User deleted",
@@ -85,6 +87,7 @@ export function UsersList() {
       // Refresh the users list
       refetch();
     } catch (error: any) {
+      console.error('Error deleting user:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",
@@ -92,6 +95,7 @@ export function UsersList() {
       });
     } finally {
       setUserToDelete(null);
+      setIsDeleting(false);
     }
   };
 
@@ -167,8 +171,9 @@ export function UsersList() {
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         onClick={handleDeleteUser}
+                        disabled={isDeleting}
                       >
-                        Delete
+                        {isDeleting ? "Deleting..." : "Delete"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
