@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useDocuments } from "@/hooks/use-documents";
 import { DocumentsHeader } from "@/components/documents/DocumentsHeader";
@@ -42,7 +41,7 @@ const Documents = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <DocumentsHeader />
       
       {!bucketData && (
