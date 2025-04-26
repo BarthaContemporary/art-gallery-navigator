@@ -1,9 +1,8 @@
-
 // Use direct image path and better background handling to ensure stationery appears
 export function getStationeryStyle(useStationery: boolean): string {
   if (!useStationery) return '';
   
-  const stationeryImagePath = '/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png';
+  const stationeryImagePath = '/lovable-uploads/daab986c-42d2-4558-97df-8b286b5cb911.png';
   
   return `
     @page {
