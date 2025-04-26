@@ -13,7 +13,7 @@ export function generateArtworkHTML(
   const templateStyles = useStationery ? stationeryStyle : plainPaperStyles;
   
   // The path to the stationery image - used for direct image inclusion
-  const stationeryImagePath = '/lovable-uploads/daab986c-42d2-4558-97df-8b286b5cb911.png';
+  const stationeryImagePath = '/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png';
   
   // Generate HTML content based on artwork data
   return `

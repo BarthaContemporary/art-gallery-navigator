@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { Collection } from "@/hooks/use-collections";
@@ -98,7 +99,7 @@ export function CollectionPreviewPanel({
             {/* Stationery Background */}
             <div className="absolute inset-0">
               <img 
-                src="/lovable-uploads/daab986c-42d2-4558-97df-8b286b5cb911.png"
+                src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png"
                 alt="Bartha Contemporary Stationery"
                 className="w-full h-full object-cover"
               />

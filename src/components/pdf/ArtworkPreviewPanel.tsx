@@ -50,7 +50,7 @@ export function ArtworkPreviewPanel({
               {useStationery && (
                 <div className="absolute inset-0 pointer-events-none">
                   <img 
-                    src="/lovable-uploads/daab986c-42d2-4558-97df-8b286b5cb911.png" 
+                    src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png" 
                     alt="Company Stationery" 
                     className="w-full h-full object-cover"
                   />
