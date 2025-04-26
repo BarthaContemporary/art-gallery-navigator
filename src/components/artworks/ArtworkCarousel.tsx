@@ -1,6 +1,7 @@
 
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
+import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
 
 interface ArtworkCarouselProps {
@@ -87,12 +88,21 @@ export function ArtworkCarousel({
           </>
         )}
       </div>
-      
-      <CarouselNavigation
-        currentIndex={currentIndex}
-        totalImages={displayImages.length}
-        onDotClick={handleDotClick}
-      />
+
+      <div className="mt-4 flex justify-between items-center">
+        <CarouselNavigation
+          currentIndex={currentIndex}
+          totalImages={displayImages.length}
+          onDotClick={handleDotClick}
+        />
+        {displayImages.length > 0 && (
+          <CarouselDownloadMenu 
+            images={displayImages}
+            artistName={artistName}
+            artworkTitle={artworkTitle}
+          />
+        )}
+      </div>
     </div>
   );
 }
