@@ -24,6 +24,7 @@ export function generateArtworkHTML(
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>${escapeHtml(artwork.title || "Artwork")}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
       <style>
         ${baseStyles}
         ${templateStyles}
@@ -36,6 +37,7 @@ export function generateArtworkHTML(
           width: 210mm;
           height: 297mm;
           background-color: white;
+          font-family: 'Source Sans 3', sans-serif;
         }
         
         .stationery-container {
@@ -51,20 +53,20 @@ export function generateArtworkHTML(
         .content-wrapper {
           position: relative;
           z-index: 10;
-          padding-top: 7cm; /* Increased top padding to move content down */
+          padding-top: 4cm; /* Adjusted top padding to move content lower */
           padding-left: 3cm;
           padding-right: 3cm;
           padding-bottom: 3cm;
           min-height: 297mm;
           box-sizing: border-box;
-          font-family: Arial, sans-serif;
+          font-family: 'Source Sans 3', sans-serif;
         }
         
         .artwork-image {
           max-width: 100%;
           max-height: 15cm;
           display: block;
-          margin-bottom: 2cm;
+          margin: 0 auto 2cm auto;
           border: 1px solid #eee;
         }
         
@@ -72,23 +74,27 @@ export function generateArtworkHTML(
           font-weight: bold;
           font-size: 14pt;
           margin-bottom: 0.5cm;
+          font-family: 'Source Sans 3', sans-serif;
         }
         
         .artwork-title {
           font-style: italic;
           font-size: 12pt;
           margin-bottom: 1cm;
+          font-family: 'Source Sans 3', sans-serif;
         }
         
         p {
           margin-bottom: 0.5cm;
           line-height: 1.5;
+          font-family: 'Source Sans 3', sans-serif;
         }
         
         h2 {
           margin-top: 2cm;
           margin-bottom: 0.5cm;
           font-size: 14pt;
+          font-family: 'Source Sans 3', sans-serif;
         }
       </style>
     </head>

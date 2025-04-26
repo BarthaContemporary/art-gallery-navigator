@@ -13,9 +13,9 @@ export function ArtworkTemplatePreview({
   title 
 }: ArtworkTemplatePreviewProps) {
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto font-sans">
       {/* Preview content with increased top padding to move content down */}
-      <div style={{ paddingTop: '4rem' }}>
+      <div style={{ paddingTop: '2.5rem' }}>
         {/* Preview header based on template */}
         {template === "classic" && (
           <div className="border-b-2 border-primary pb-4 mb-6">

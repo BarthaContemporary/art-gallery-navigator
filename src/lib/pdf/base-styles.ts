@@ -2,6 +2,12 @@
 export const baseStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
   
+  @font-face {
+    font-family: 'Source Sans 3';
+    src: url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+    font-display: swap;
+  }
+  
   body { 
     font-family: 'Source Sans 3', sans-serif; 
     margin: 0;
@@ -24,4 +30,3 @@ export const baseStyles = `
     body { margin: 0; padding: 0; }
   }
 `;
-
