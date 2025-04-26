@@ -38,3 +38,4 @@ export function getStationeryStyle(useStationery: boolean): string {
     }
   ` : '';
 }
+

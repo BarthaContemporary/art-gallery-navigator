@@ -29,3 +29,4 @@ export async function createCollectionPDF(
     description: `Overview document for ${collection.name}`
   });
 }
+

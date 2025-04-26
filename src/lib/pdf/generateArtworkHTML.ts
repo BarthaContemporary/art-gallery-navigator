@@ -1,3 +1,4 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 import { escapeHtml } from "./utils";
 import { 
@@ -116,3 +117,4 @@ export function generateArtworkHTML(
     </html>
   `;
 }
+
