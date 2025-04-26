@@ -1,6 +1,4 @@
 
-import { UploadDocumentDialog } from "./UploadDocumentDialog";
-
 export function DocumentsHeader() {
   return (
     <div className="flex items-center justify-between mb-8">
@@ -10,7 +8,6 @@ export function DocumentsHeader() {
           Manage artwork documentation, certificates, and reports
         </p>
       </div>
-      <UploadDocumentDialog />
     </div>
   );
 }
