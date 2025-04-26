@@ -109,14 +109,7 @@ export function ArtworkOverviewDialog({
                 {artwork.title}
               </DialogTitle>
               <div className="flex gap-2 absolute right-8">
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={handleDownloadAllImages}
-                >
-                  <Download className="h-4 w-4" />
-                  Download All Images
-                </Button>
+                {/* Swapped the order of buttons and ensured they are on the same line */}
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
@@ -125,6 +118,14 @@ export function ArtworkOverviewDialog({
                 >
                   <Save className="h-4 w-4" />
                   {isGenerating ? "Creating PDF..." : "Create PDF"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={handleDownloadAllImages}
+                >
+                  <Download className="h-4 w-4" />
+                  Download All Images
                 </Button>
               </div>
             </div>
