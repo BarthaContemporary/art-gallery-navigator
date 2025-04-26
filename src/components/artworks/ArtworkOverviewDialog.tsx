@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -202,6 +203,15 @@ export function ArtworkOverviewDialog({
                 {artwork.title}
               </DialogTitle>
               <div className="flex gap-2 absolute right-8">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setPDFPreviewOpen(true)}
+                  disabled={isGenerating}
+                >
+                  <Save className="h-4 w-4" />
+                  {isGenerating ? "Creating PDF..." : "Create PDF"}
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -235,15 +245,6 @@ export function ArtworkOverviewDialog({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={() => setPDFPreviewOpen(true)}
-                  disabled={isGenerating}
-                >
-                  <Save className="h-4 w-4" />
-                  {isGenerating ? "Creating PDF..." : "Create PDF"}
-                </Button>
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
