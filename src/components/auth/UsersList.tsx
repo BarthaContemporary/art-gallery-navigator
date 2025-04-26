@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -131,10 +132,25 @@ export function UsersList() {
 
       if (updateError) throw updateError;
 
-      const { error: deleteError } = await supabase
-        .from(itemType)
-        .delete()
-        .eq('id', itemId);
+      // Handle the deletion based on item type
+      let deleteError;
+      
+      // Type assertion to narrow the itemType to valid table names only
+      if (itemType === 'artworks') {
+        const { error } = await supabase.from('artworks').delete().eq('id', itemId);
+        deleteError = error;
+      } else if (itemType === 'documents') {
+        const { error } = await supabase.from('documents').delete().eq('id', itemId);
+        deleteError = error;
+      } else if (itemType === 'collections') {
+        const { error } = await supabase.from('collections').delete().eq('id', itemId);
+        deleteError = error;
+      } else if (itemType === 'locations') {
+        const { error } = await supabase.from('locations').delete().eq('id', itemId);
+        deleteError = error;
+      } else {
+        throw new Error(`Unsupported item type: ${itemType}`);
+      }
 
       if (deleteError) throw deleteError;
 
