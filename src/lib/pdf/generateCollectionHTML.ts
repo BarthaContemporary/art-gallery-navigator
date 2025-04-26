@@ -43,7 +43,8 @@ export async function generateCollectionHTML(
   // Format artworks for display
   const artworkItems = artworks?.map((item) => {
     const artwork = item.artworks;
-    const artist = item.artists ? item.artists.full_name : 'Unknown Artist';
+    // Correctly access the artist name from the nested structure
+    const artist = item.artists && item.artists.artist_id ? item.artists.artist_id.full_name : 'Unknown Artist';
     
     return `
       <div class="collection-item">
