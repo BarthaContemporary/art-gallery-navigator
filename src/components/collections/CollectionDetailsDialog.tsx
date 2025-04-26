@@ -133,11 +133,20 @@ export function CollectionDetailsDialog({
               <h3 className="text-lg font-medium mb-3">Artworks</h3>
               <div className="border rounded-lg divide-y">
                 {collection.artworks?.map((artwork) => (
-                  <div key={artwork.id} className="p-4">
-                    <h4 className="font-medium">{artwork.title}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {getArtistName(artwork.artist_id)} • {artwork.year}
-                    </p>
+                  <div key={artwork.id} className="p-4 flex items-center gap-4">
+                    <div className="flex-shrink-0 w-16 h-16 rounded overflow-hidden">
+                      <img
+                        src={artwork.image_url || "/placeholder.svg"}
+                        alt={artwork.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-grow">
+                      <h4 className="font-medium">{artwork.title}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {getArtistName(artwork.artist_id)} • {artwork.year}
+                      </p>
+                    </div>
                   </div>
                 ))}
                 {(!collection.artworks || collection.artworks.length === 0) && (
