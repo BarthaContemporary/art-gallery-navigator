@@ -10,6 +10,7 @@ import { useUpdateCollection } from "@/hooks/use-collections";
 import { useArtworks } from "@/hooks/use-artworks";
 import { toast } from "sonner";
 import { ArtworkSearch } from "./ArtworkSearch";
+import { X } from "lucide-react";
 
 interface EditCollectionDialogProps {
   collection: Collection;
@@ -23,17 +24,25 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
   const [selectedArtworks, setSelectedArtworks] = useState<string[]>(
     collection.artworks?.map(artwork => artwork.id) || []
   );
+  const [emails, setEmails] = useState<string[]>(collection.external_emails || []);
+  const [currentEmail, setCurrentEmail] = useState("");
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
   const { mutate: updateCollection, isPending } = useUpdateCollection();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Please enter a name for the collection.");
+      return;
+    }
+
     updateCollection(
       { 
         id: collection.id, 
         name, 
         description,
-        artworkIds: selectedArtworks
+        artworkIds: selectedArtworks,
+        externalEmails: emails.length > 0 ? emails : undefined
       },
       {
         onSuccess: () => {
@@ -51,6 +60,23 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
     setSelectedArtworks((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  };
+
+  const handleAddEmail = () => {
+    if (currentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentEmail)) {
+      if (!emails.includes(currentEmail)) {
+        setEmails([...emails, currentEmail]);
+        setCurrentEmail("");
+      } else {
+        toast.error("Email already added");
+      }
+    } else if (currentEmail) {
+      toast.error("Please enter a valid email address");
+    }
+  };
+
+  const removeEmail = (emailToRemove: string) => {
+    setEmails(emails.filter(email => email !== emailToRemove));
   };
 
   return (
@@ -88,6 +114,45 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
                 selectedArtworks={selectedArtworks}
                 onToggleArtwork={toggleArtwork}
               />
+            )}
+          </div>
+          <div>
+            <Label htmlFor="email">External Users (Optional)</Label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                id="email"
+                type="email"
+                value={currentEmail}
+                onChange={(e) => setCurrentEmail(e.target.value)}
+                placeholder="Enter email address"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddEmail();
+                  }
+                }}
+              />
+              <Button type="button" onClick={handleAddEmail} variant="secondary">
+                Add
+              </Button>
+            </div>
+            {emails.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {emails.map((email) => (
+                  <div key={email} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                    <span className="text-sm">{email}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0"
+                      onClick={() => removeEmail(email)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex justify-end gap-2">

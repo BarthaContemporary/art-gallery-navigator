@@ -89,17 +89,23 @@ export function useUpdateCollection() {
       id, 
       name, 
       description,
-      artworkIds 
+      artworkIds,
+      externalEmails
     }: { 
       id: string; 
       name: string; 
       description?: string;
       artworkIds?: string[];
+      externalEmails?: string[];
     }) => {
       // 1. Update collection details
       const { data: colData, error } = await supabase
         .from("collections")
-        .update({ name, description })
+        .update({ 
+          name, 
+          description,
+          external_emails: externalEmails 
+        })
         .eq("id", id)
         .select()
         .single();
