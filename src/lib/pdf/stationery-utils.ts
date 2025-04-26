@@ -9,12 +9,16 @@ export function getStationeryStyle(useStationery: boolean): string {
     @page {
       margin: 0;
       padding: 0;
+      size: A4;
     }
     
     body {
       margin: 0;
       padding: 0;
       position: relative;
+      width: 210mm;
+      height: 297mm;
+      background-color: white;
     }
     
     /* Use both background methods for maximum compatibility */
@@ -30,6 +34,7 @@ export function getStationeryStyle(useStationery: boolean): string {
       right: 0;
       bottom: 0;
       z-index: -1;
+      opacity: 1;
     }
     
     /* Also include the image directly in HTML for PDF generators that don't support CSS backgrounds */
@@ -40,6 +45,12 @@ export function getStationeryStyle(useStationery: boolean): string {
       width: 100%;
       height: 100%;
       z-index: -1;
+      opacity: 1;
+    }
+    
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
     }
   `;
 }

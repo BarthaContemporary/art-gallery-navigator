@@ -41,17 +41,17 @@ export async function generatePDFFromHTML({
   tempDiv.style.position = 'absolute';
   tempDiv.style.left = '-9999px';
   tempDiv.style.top = '-9999px';
-  tempDiv.style.width = '595px';
-  tempDiv.style.height = '842px';
+  tempDiv.style.width = '595px'; // A4 width in pixels at 72 DPI
+  tempDiv.style.height = '842px'; // A4 height in pixels at 72 DPI
   tempDiv.style.backgroundColor = 'white';
   tempDiv.innerHTML = html;
   document.body.appendChild(tempDiv);
 
   try {
-    // Generate PDF
+    // Generate PDF with correct A4 dimensions
     const doc = new jsPDF({
       orientation: 'portrait',
-      unit: 'px',
+      unit: 'mm',
       format: 'a4',
       hotfixes: ['px_scaling']
     });
@@ -60,32 +60,43 @@ export async function generatePDFFromHTML({
     await new Promise(resolve => setTimeout(resolve, 800));
 
     const canvas = await html2canvas(tempDiv, {
-      scale: 4.0,
+      scale: 2.0, // Higher resolution
       useCORS: true,
       logging: false,
       allowTaint: true,
-      backgroundColor: null,
+      backgroundColor: null, // Transparent background to let stationery show
       imageTimeout: 0,
       onclone: (clonedDoc) => {
         const style = clonedDoc.createElement('style');
         style.innerHTML = `
           @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-          body::before { content: none !important; }
+          body { margin: 0; padding: 0; }
+          .stationery-background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+          }
         `;
         clonedDoc.head.appendChild(style);
         
+        // Ensure images are loaded and visible
         const imgs = clonedDoc.querySelectorAll('img');
         imgs.forEach(img => {
           img.style.visibility = 'visible';
+          img.style.opacity = '1';
           const newImg = new Image();
+          newImg.crossOrigin = "Anonymous";
           newImg.src = img.src;
         });
       }
     });
 
-    // Add canvas to PDF
+    // Add canvas to PDF at correct dimensions
     const imgData = canvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+    doc.addImage(imgData, 'PNG', 0, 0, 210, 297); // A4 dimensions in mm (210x297)
 
     // Upload PDF
     const pdfBlob = doc.output('blob');

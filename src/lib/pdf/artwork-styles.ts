@@ -1,8 +1,17 @@
 
 export const plainPaperStyles = `
+  body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
+  }
+
   .content-wrapper {
     padding: 3cm 3cm 3.5cm 3cm;
     font-family: 'Source Sans 3', sans-serif;
+    position: relative;
+    z-index: 1;
   }
   
   .artwork-image {
@@ -43,4 +52,3 @@ export const plainPaperStyles = `
     margin-top: 1cm;
   }
 `;
-
