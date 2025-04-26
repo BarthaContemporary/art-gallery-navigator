@@ -20,6 +20,7 @@ export function ArtworkCarousel({
     loading,
     error,
     emblaRef,
+    emblaApi,
     handleDotClick,
   } = useArtworkCarousel(artworkId);
   
