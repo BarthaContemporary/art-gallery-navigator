@@ -74,7 +74,7 @@ export default function UserSignup() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto text-left">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
@@ -82,17 +82,17 @@ export default function UserSignup() {
         </div>
       </div>
 
-      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8">
-        <Card className="shadow-lg border border-border/60">
-          <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
-            <CardTitle className="text-2xl sm:text-3xl md:text-4xl">
+      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8 text-left">
+        <Card className="shadow-lg border border-border/60 text-left">
+          <CardHeader className="px-6 pt-8 pb-2 sm:pt-10 text-left">
+            <CardTitle className="text-2xl sm:text-3xl md:text-4xl text-left">
               User Signup
             </CardTitle>
-            <CardDescription className="text-base sm:text-lg">
+            <CardDescription className="text-base sm:text-lg text-left">
               Admins can create new users here.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-6 pb-8 pt-4 sm:pt-2">
+          <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="space-y-2">
                 <Input
@@ -146,7 +146,7 @@ export default function UserSignup() {
         </Card>
       </div>
 
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto text-left">
         <h2 className="text-2xl font-semibold mb-4">Registered Users</h2>
         <UsersList />
       </div>
