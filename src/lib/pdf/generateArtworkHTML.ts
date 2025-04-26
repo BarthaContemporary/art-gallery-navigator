@@ -27,10 +27,25 @@ export function generateArtworkHTML(
       <style>
         ${baseStyles}
         ${templateStyles}
+        
+        /* Additional styles to ensure content appears over background */
+        .stationery-background-image {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 0;
+        }
+        
+        .content-wrapper {
+          position: relative;
+          z-index: 1;
+        }
       </style>
     </head>
     <body>
-      ${useStationery ? `<img src="${stationeryImagePath}" alt="Stationery" class="stationery-background-image" />` : ''}
+      ${useStationery ? `<div class="stationery-container"><img src="${stationeryImagePath}" alt="Stationery" class="stationery-background-image" /></div>` : ''}
       
       <div class="content-wrapper">
         ${artwork.image_url ? `<img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />` : ''}
