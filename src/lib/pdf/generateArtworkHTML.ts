@@ -36,7 +36,7 @@ export function generateArtworkHTML(
         ${artwork.image_url ? `<img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />` : ''}
         
         <p class="artist-name">${escapeHtml(artwork.artist_name || 'Artist Name')}</p>
-        <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? ', ' + escapeHtml(artwork.year) : ''}</p>
+        <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? ', ' + escapeHtml(artwork.year.toString()) : ''}</p>
         
         ${artwork.materials ? `<p class="materials">${escapeHtml(artwork.materials)}</p>` : ''}
         
