@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -39,7 +38,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
         name,
         description,
         artworkIds: selectedArtworks,
-        notificationEmails: emails.length > 0 ? emails : undefined,
+        externalEmails: emails.length > 0 ? emails : undefined,
       },
       {
         onSuccess: () => {
@@ -122,7 +121,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Notification Emails (Optional)</label>
+            <label className="block text-sm font-medium mb-1">External Users (Optional)</label>
             <div className="flex gap-2 mb-2">
               <Input
                 type="email"

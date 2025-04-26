@@ -290,6 +290,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          external_emails: string[] | null
           id: string
           name: string
           updated_at: string
@@ -297,6 +298,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          external_emails?: string[] | null
           id?: string
           name: string
           updated_at?: string
@@ -304,6 +306,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          external_emails?: string[] | null
           id?: string
           name?: string
           updated_at?: string

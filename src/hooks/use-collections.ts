@@ -9,7 +9,7 @@ export interface Collection {
   created_at?: string;
   updated_at?: string;
   artworks?: Artwork[];
-  notification_emails?: string[];
+  external_emails?: string[];
 }
 
 // Fetch all collections with attached artworks
@@ -42,20 +42,20 @@ export function useCreateCollection() {
       name,
       description,
       artworkIds,
-      notificationEmails,
+      externalEmails,
     }: {
       name: string;
       description?: string;
       artworkIds?: string[];
-      notificationEmails?: string[];
+      externalEmails?: string[];
     }) => {
-      // 1. Create collection with notification emails
+      // 1. Create collection with external emails
       const { data: colData, error } = await supabase
         .from("collections")
         .insert({ 
           name, 
           description,
-          notification_emails: notificationEmails 
+          external_emails: externalEmails 
         })
         .select("*")
         .single();
