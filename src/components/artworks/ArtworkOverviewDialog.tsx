@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
 import {
@@ -47,6 +47,24 @@ export function ArtworkOverviewDialog({
     artwork.title
   );
 
+  // Use a memoized handler to prevent re-renders and event propagation issues
+  const handleDialogInteraction = useCallback((e: React.MouseEvent) => {
+    // Prevent event from bubbling up to parent elements
+    e.stopPropagation();
+  }, []);
+
+  // Safer dialog close handler
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      // Add a small delay to ensure clean state transition
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 10);
+    } else {
+      onOpenChange(true);
+    }
+  }, [onOpenChange]);
+
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
     if (isGenerating) return;
     
@@ -66,8 +84,11 @@ export function ArtworkOverviewDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          onClick={handleDialogInteraction}
+        >
           <DialogHeader>
             <div className="flex justify-between items-center relative">
               <DialogTitle className="text-2xl font-bold">
