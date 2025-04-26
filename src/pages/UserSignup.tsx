@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
+
 export default function UserSignup() {
   const {
     isAdmin
@@ -17,6 +18,7 @@ export default function UserSignup() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"gallery_admin" | "artist">("artist");
   const [isLoading, setIsLoading] = useState(false);
+
   if (!isAdmin) {
     return <div className="flex h-full items-center justify-center">
         <p className="text-xl font-semibold text-muted-foreground">
@@ -24,11 +26,11 @@ export default function UserSignup() {
         </p>
       </div>;
   }
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Create the user in Supabase auth
       const {
         data,
         error
@@ -40,8 +42,6 @@ export default function UserSignup() {
         throw error;
       }
 
-      // Add admin role if selected
-      // This requires an RPC or insert into user_roles. We use user id from the sign up result.
       const userId = data.user?.id;
       if (userId) {
         const {
@@ -72,6 +72,7 @@ export default function UserSignup() {
       setIsLoading(false);
     }
   };
+
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto text-left">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
@@ -81,7 +82,7 @@ export default function UserSignup() {
       </div>
 
       <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8 text-left">
-        <Card className="shadow-lg border border-border/60 text-left">
+        <Card className="shadow-lg border border-border/60 text-left w-full">
           <CardHeader className="px-6 pt-8 pb-2 sm:pt-10 text-left">
             <CardTitle className="text-2xl sm:text-3xl text-left md:text-2xl">
               User Signup
