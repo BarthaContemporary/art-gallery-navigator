@@ -19,6 +19,7 @@ import { ArtworkDetailsSection } from "./overview/ArtworkDetailsSection";
 import { DimensionsSection } from "./overview/DimensionsSection";
 import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
 import { supabase } from "@/integrations/supabase/client";
+import JSZip from "jszip";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -34,6 +35,10 @@ export function ArtworkOverviewDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
+  
+  const formatFileName = (artistName: string, artworkTitle: string) => {
+    return `B_c-${artistName}-${artworkTitle}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+  };
 
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
     if (isGenerating) return;
@@ -67,14 +72,25 @@ export function ArtworkOverviewDialog({
         return;
       }
 
-      images.forEach((image: { image_url: string }, index: number) => {
-        const link = document.createElement('a');
-        link.href = image.image_url;
-        link.download = `artwork-${artwork.id}-image-${index + 1}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      });
+      const zip = new JSZip();
+      const artistName = artist?.full_name || 'Unknown_Artist';
+      const baseFileName = formatFileName(artistName, artwork.title);
+
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const response = await fetch(image.image_url);
+        const blob = await response.blob();
+        zip.file(`${baseFileName}_${i + 1}-${images.length}.jpg`, blob);
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `${baseFileName}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
 
       toast.success("Download started for all images");
     } catch (error) {
