@@ -8,23 +8,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
 
 export default function UserSignup() {
-  const {
-    isAdmin
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"gallery_admin" | "artist">("artist");
+  const [role, setRole] = useState<"gallery_admin" | "artist" | "external">("artist");
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isAdmin) {
-    return <div className="flex h-full items-center justify-center">
+    return (
+      <div className="flex h-full items-center justify-center">
         <p className="text-xl font-semibold text-muted-foreground">
           You do not have permission to view this page.
         </p>
-      </div>;
+      </div>
+    );
   }
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -73,7 +71,8 @@ export default function UserSignup() {
     }
   };
 
-  return <div className="p-4 sm:p-6 max-w-7xl mx-auto text-left">
+  return (
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto text-left">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
@@ -92,18 +91,42 @@ export default function UserSignup() {
           <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="space-y-2">
-                <Input type="email" placeholder="Email" value={email} autoFocus onChange={e => setEmail(e.target.value)} required className="text-base sm:text-sm py-3" inputMode="email" autoComplete="email" />
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  autoFocus
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  inputMode="email"
+                  autoComplete="email"
+                />
               </div>
               <div className="space-y-2">
-                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="text-base sm:text-sm py-3" autoComplete="new-password" />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  autoComplete="new-password"
+                />
               </div>
               <div className="space-y-1">
                 <label htmlFor="user-role" className="block text-sm font-medium">
                   Role
                 </label>
-                <select id="user-role" value={role} onChange={e => setRole(e.target.value as "gallery_admin" | "artist")} className="w-full border rounded-md px-3 py-2 text-base bg-white">
+                <select
+                  id="user-role"
+                  value={role}
+                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+                  className="w-full border rounded-md px-3 py-2 text-base bg-white"
+                >
                   <option value="artist">Artist</option>
                   <option value="gallery_admin">Admin</option>
+                  <option value="external">External</option>
                 </select>
               </div>
               <Button type="submit" className="w-full h-12 sm:h-10 text-lg sm:text-base" disabled={isLoading}>
@@ -118,5 +141,6 @@ export default function UserSignup() {
         <h2 className="text-2xl font-semibold mb-4">Registered Users</h2>
         <UsersList />
       </div>
-    </div>;
+    </div>
+  );
 }
