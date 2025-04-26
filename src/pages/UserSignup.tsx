@@ -86,9 +86,7 @@ export default function UserSignup() {
             <CardTitle className="text-2xl sm:text-3xl text-left md:text-2xl">
               User Signup
             </CardTitle>
-            <CardDescription className="text-base sm:text-lg text-left">
-              Admins can create new users here.
-            </CardDescription>
+            <CardDescription className="text-base text-left sm:text-base">Add users</CardDescription>
           </CardHeader>
           <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
             <form onSubmit={handleSignup} className="space-y-6">
