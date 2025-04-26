@@ -54,7 +54,14 @@ interface PDFPreviewDocumentProps {
 function PDFPreviewDocument({ type, useStationery, title }: PDFPreviewDocumentProps) {
   return (
     <div className="bg-gray-100 p-4 rounded flex items-center justify-center">
-      <div className="bg-white shadow-lg" style={{ width: '595px', height: '842px', position: 'relative' }}>
+      <div className="bg-white shadow-lg" style={{ 
+        width: '100%', 
+        maxWidth: '595px',
+        height: '842px', 
+        transform: 'scale(0.8)',
+        transformOrigin: 'center center',
+        position: 'relative' 
+      }}>
         <StationeryBackground show={useStationery} />
         
         <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>

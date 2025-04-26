@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -43,12 +42,10 @@ export function PDFPreviewDialog({
             </DialogDescription>
           </div>
           
-          {type === "collection" && (
-            <Button onClick={handleApply} className="flex items-center gap-2">
-              <Save className="h-4 w-4" />
-              Save and Generate PDF
-            </Button>
-          )}
+          <Button onClick={handleApply} className="flex items-center gap-2">
+            <Save className="h-4 w-4" />
+            Generate PDF
+          </Button>
         </DialogHeader>
         
         <PDFPreviewContent

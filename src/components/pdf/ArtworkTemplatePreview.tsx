@@ -1,4 +1,3 @@
-
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { TabsContent } from "@/components/ui/tabs";
@@ -9,12 +8,19 @@ interface ArtworkTemplatePreviewProps {
 }
 
 export function ArtworkTemplatePreview({ useStationery, title }: ArtworkTemplatePreviewProps) {
+  const previewStyles = `
+    ${useStationery ? 'pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'}
+    h-full overflow-auto text-[12px]
+  `;
+
+  const headerArtistStyle = useStationery ? 'absolute top-[6cm] left-[4cm] font-bold uppercase' : '';
+
   return (
     <>
       <TabsContent value="basic" className="m-0 p-0 h-full">
-        <div className={`${useStationery ? 'pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'} h-full overflow-auto`}>
+        <div className={previewStyles}>
           {useStationery && (
-            <div className="absolute top-[6cm] right-[4cm] font-bold uppercase">
+            <div className={headerArtistStyle}>
               ARTIST NAME
             </div>
           )}
@@ -41,9 +47,9 @@ export function ArtworkTemplatePreview({ useStationery, title }: ArtworkTemplate
       </TabsContent>
       
       <TabsContent value="basicWithPrice" className="m-0 p-0 h-full">
-        <div className={`${useStationery ? 'pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'} h-full overflow-auto`}>
+        <div className={previewStyles}>
           {useStationery && (
-            <div className="absolute top-[6cm] right-[4cm] font-bold uppercase">
+            <div className={headerArtistStyle}>
               ARTIST NAME
             </div>
           )}
@@ -69,9 +75,9 @@ export function ArtworkTemplatePreview({ useStationery, title }: ArtworkTemplate
       </TabsContent>
       
       <TabsContent value="complete" className="m-0 p-0 h-full">
-        <div className={`${useStationery ? 'pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'} h-full overflow-auto`}>
+        <div className={previewStyles}>
           {useStationery && (
-            <div className="absolute top-[6cm] right-[4cm] font-bold uppercase">
+            <div className={headerArtistStyle}>
               ARTIST NAME
             </div>
           )}
