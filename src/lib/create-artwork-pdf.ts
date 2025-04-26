@@ -2,6 +2,7 @@
 import { Artwork } from "@/hooks/use-artworks";
 import { generatePDFFromHTML } from "./pdf/pdf-utils";
 import { generateArtworkHTML } from './pdf/generateArtworkHTML';
+import { supabase } from "@/integrations/supabase/client";
 
 export async function createArtworkPDF(
   artwork: Artwork,
@@ -10,6 +11,25 @@ export async function createArtworkPDF(
 ): Promise<string> {
   console.log("Creating PDF for artwork:", artwork.title);
   
+  // Fetch artist name if available
+  let artworkWithArtistName = { ...artwork };
+  
+  if (artwork.artist_id) {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('full_name')
+        .eq('id', artwork.artist_id)
+        .single();
+        
+      if (!error && data) {
+        artworkWithArtistName.artist_name = data.full_name;
+      }
+    } catch (error) {
+      console.error("Error fetching artist name:", error);
+    }
+  }
+  
   // Generate unique filename
   const timestamp = Date.now();
   const randomStr = Math.random().toString(36).substring(2, 8);
@@ -17,7 +37,7 @@ export async function createArtworkPDF(
   const fileName = `artwork_${safeArtworkTitle}_${timestamp}_${randomStr}.pdf`;
   
   // Generate HTML content
-  const htmlContent = generateArtworkHTML(artwork, templateStyle, useStationery);
+  const htmlContent = generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
   
   // Generate and return PDF
   return generatePDFFromHTML({
@@ -29,4 +49,3 @@ export async function createArtworkPDF(
     description: `Datasheet for ${artwork.title}`
   });
 }
-

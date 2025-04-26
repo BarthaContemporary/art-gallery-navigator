@@ -1,7 +1,7 @@
 
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 11cm;
+    padding-top: 7cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;

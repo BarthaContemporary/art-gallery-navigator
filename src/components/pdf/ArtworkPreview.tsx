@@ -1,6 +1,7 @@
 
 import { Artwork } from "@/hooks/use-artworks";
 import { cmToInchFraction } from "@/lib/pdf/styles";
+import { useArtist } from "@/hooks/use-artist";
 
 interface ArtworkPreviewProps {
   artwork: Artwork;
@@ -8,8 +9,8 @@ interface ArtworkPreviewProps {
 }
 
 export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProps) {
-  // Get artist name (placeholder - would need to be fetched from relationship)
-  const artistName = "Artist Name";
+  // Get artist name from the artwork or default
+  const artistName = artwork.artist_name || "Artist Name";
   
   // Calculate dimensions in inches if height, width, depth are available
   let dimensionsInInches = '';

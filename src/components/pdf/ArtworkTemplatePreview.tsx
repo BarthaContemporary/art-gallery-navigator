@@ -10,7 +10,7 @@ interface ArtworkTemplatePreviewProps {
 
 export function ArtworkTemplatePreview({ useStationery, title }: ArtworkTemplatePreviewProps) {
   const previewStyles = `
-    ${useStationery ? 'pt-[11cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'}
+    ${useStationery ? 'pt-[7cm] pl-[4cm] pr-[3cm] pb-[3.5cm]' : 'p-[3cm] pb-[3.5cm]'}
     h-full overflow-auto text-[12px]
   `;
 

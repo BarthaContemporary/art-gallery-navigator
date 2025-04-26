@@ -8,14 +8,15 @@ import {
   getStationeryStyle, 
   cmToInchFraction 
 } from "./styles";
+import { useArtist } from "@/hooks/use-artist";
 
 export function generateArtworkHTML(
   artwork: Artwork, 
   templateStyle: string = 'basic',
   useStationery: boolean = false
 ): string {
-  // Get artist name if available (assuming we have artist data)
-  const artistName = artwork.artist_id ? "Artist Name" : "Unknown Artist"; // Replace with actual artist name when available
+  // Get artist name if available
+  const artistName = artwork.artist_name || "Unknown Artist";
   
   // Calculate dimensions in inches if height, width, depth are available
   let dimensionsInInches = '';
