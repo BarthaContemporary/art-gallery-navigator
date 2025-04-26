@@ -67,23 +67,27 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
         crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
       };
 
+      // Improved handling for initial data case to prevent UI freeze
       if (initialData) {
-        // Use type casting to resolve the type mismatch
+        // Update artwork
         const { error } = await supabase
           .from('artworks')
           .update(formattedData as any)
           .eq('id', initialData.id)
           .select();
+        
         if (error) throw error;
       } else {
-        // Use type casting to resolve the type mismatch
+        // Create new artwork
         const { error } = await supabase
           .from('artworks')
           .insert([formattedData as any])
           .select();
+        
         if (error) throw error;
       }
 
+      // Handle image uploads if any
       if (uploadedImageUrls.length > 0) {
         let artworkId: string | undefined = initialData?.id;
 
@@ -93,6 +97,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
             .select('id')
             .order('created_at', { ascending: false })
             .limit(1);
+          
           if (fetchError) throw fetchError;
           artworkId = artworks && artworks.length > 0 ? artworks[0].id : undefined;
         }
@@ -113,7 +118,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
         }
       }
 
-      // Important: Invalidate query before UI state updates
+      // CRITICAL: First invalidate the queries and display toast before any UI state changes
       await queryClient.invalidateQueries({ queryKey: ['artworks'] });
 
       // Show success toast
@@ -128,15 +133,26 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
       resetUploaded();
       form.reset();
       
-      // Use requestAnimationFrame for smoother state transitions and prevent freeze
-      requestAnimationFrame(() => {
-        // Use a longer timeout for edit dialog to ensure all state has settled
-        const timeout = preventFreeze ? 250 : 150;
-        
+      // Fixed: Close the dialog in a safer way, using a longer timeout for editing existing records
+      const safeTimeout = preventFreeze ? 500 : 250;
+      
+      // For editing (which is more prone to freezing), use an even more cautious approach
+      if (initialData) {
+        // First, detach from the current event loop
+        setTimeout(() => {
+          // Then queue the UI update with requestAnimationFrame
+          window.requestAnimationFrame(() => {
+            // Only now close the dialog
+            setOpen(false);
+          });
+        }, safeTimeout);
+      } else {
+        // For new artwork creation (less problematic), use a simpler approach
         setTimeout(() => {
           setOpen(false);
-        }, timeout);
-      });
+        }, safeTimeout);
+      }
+      
     } catch (error) {
       console.error("Form submission error:", error);
       toast({

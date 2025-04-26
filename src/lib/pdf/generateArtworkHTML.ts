@@ -109,7 +109,7 @@ export function generateArtworkHTML(
           : ''}
         
         ${(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price 
-          ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>`
+          ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toString()}</p>`
           : ''}
         
         ${templateStyle === 'complete' && artwork.story 

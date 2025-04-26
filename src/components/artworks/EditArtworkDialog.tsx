@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreateArtworkForm } from "./CreateArtworkForm";
 import { Artwork } from "@/hooks/use-artworks";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
@@ -12,6 +12,14 @@ interface EditArtworkDialogProps {
 }
 
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
+  // Track mount state to prevent issues with animation frames
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
   // Use a memoized handler to prevent re-renders
   const handleDialogInteraction = useCallback((e: React.MouseEvent) => {
     // Prevent event from bubbling up to parent elements
@@ -20,21 +28,24 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   // Memoized handler for dialog close to prevent state issues
   const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (!isMounted) return;
+    
     if (newOpen === false) {
       // Add a slight delay when closing to ensure state is properly handled
-      setTimeout(() => {
+      window.requestAnimationFrame(() => {
         onOpenChange(false);
-      }, 10);
+      });
     } else {
       onOpenChange(true);
     }
-  }, [onOpenChange]);
+  }, [onOpenChange, isMounted]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="max-w-2xl max-h-[90vh]"
         onClick={handleDialogInteraction}
+        onPointerDownOutside={(e) => e.preventDefault()} // Prevent accidental outside clicks
       >
         <DialogHeader>
           <DialogTitle>Edit Artwork</DialogTitle>
