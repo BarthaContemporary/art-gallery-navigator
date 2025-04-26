@@ -9,9 +9,43 @@ export function useArtworkActions(artwork: Artwork) {
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
+  const checkCollections = async (artworkId: string) => {
+    const { data: collections } = await supabase
+      .from("collection_artworks")
+      .select("collection_id, collections(name)")
+      .eq("artwork_id", artworkId);
+
+    return collections || [];
+  };
+
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
+      
+      // Check if artwork is in any collections
+      const collections = await checkCollections(artwork.id);
+      
+      if (collections.length > 0) {
+        const collectionNames = collections
+          .map((c: any) => c.collections.name)
+          .join(", ");
+        
+        if (!window.confirm(
+          `This artwork is currently displayed in the following collections: ${collectionNames}.\n\nAre you sure you want to delete it? The artwork will be automatically removed from these collections.`
+        )) {
+          return false;
+        }
+
+        // Remove artwork from all collections it's in
+        const { error: unlinkError } = await supabase
+          .from("collection_artworks")
+          .delete()
+          .eq("artwork_id", artwork.id);
+
+        if (unlinkError) throw unlinkError;
+      }
+
+      // Delete the artwork itself
       const { error } = await supabase
         .from('artworks')
         .delete()
@@ -20,6 +54,7 @@ export function useArtworkActions(artwork: Artwork) {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['artworks'] });
+      await queryClient.invalidateQueries({ queryKey: ['collections'] });
       toast.success("Artwork deleted successfully");
       return true;
     } catch (error) {
