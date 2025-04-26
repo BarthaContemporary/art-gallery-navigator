@@ -10,6 +10,10 @@ export function getStationeryStyle(useStationery: boolean): string {
       margin: 0;
       padding: 0;
       size: A4;
+      background-image: url('${stationeryImagePath}');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: top center;
     }
     
     body {
@@ -19,6 +23,10 @@ export function getStationeryStyle(useStationery: boolean): string {
       width: 210mm;
       height: 297mm;
       background-color: white;
+      background-image: url('${stationeryImagePath}');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: top center;
     }
     
     /* Use both background methods for maximum compatibility */
@@ -35,6 +43,7 @@ export function getStationeryStyle(useStationery: boolean): string {
       bottom: 0;
       z-index: -1;
       opacity: 1;
+      pointer-events: none;
     }
     
     /* Also include the image directly in HTML for PDF generators that don't support CSS backgrounds */
@@ -46,6 +55,7 @@ export function getStationeryStyle(useStationery: boolean): string {
       height: 100%;
       z-index: -1;
       opacity: 1;
+      pointer-events: none;
     }
     
     .content-wrapper {

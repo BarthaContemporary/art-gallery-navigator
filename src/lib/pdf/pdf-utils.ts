@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
@@ -36,67 +35,109 @@ export async function generatePDFFromHTML({
     console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
   }
 
-  // Create temporary div for rendering
-  const tempDiv = document.createElement('div');
-  tempDiv.style.position = 'absolute';
-  tempDiv.style.left = '-9999px';
-  tempDiv.style.top = '-9999px';
-  tempDiv.style.width = '595px'; // A4 width in pixels at 72 DPI
-  tempDiv.style.height = '842px'; // A4 height in pixels at 72 DPI
-  tempDiv.style.backgroundColor = 'white';
-  tempDiv.innerHTML = html;
-  document.body.appendChild(tempDiv);
+  // Create temporary iframe for rendering with proper dimensions
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'absolute';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.width = '210mm';
+  iframe.style.height = '297mm';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+  
+  // Wait for iframe to load before accessing its document
+  await new Promise((resolve) => {
+    iframe.onload = resolve;
+    iframe.srcdoc = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            @page { size: A4; margin: 0; }
+            @media print { body { -webkit-print-color-adjust: exact; } }
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 210mm;
+              height: 297mm;
+            }
+          </style>
+        </head>
+        <body>
+          ${html}
+        </body>
+      </html>
+    `;
+  });
 
   try {
-    // Generate PDF with correct A4 dimensions
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      hotfixes: ['px_scaling']
-    });
-
     toast.loading("Generating PDF, please wait...");
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const canvas = await html2canvas(tempDiv, {
-      scale: 2.0, // Higher resolution
+    // Access the document inside the iframe
+    const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDocument) throw new Error("Could not access iframe document");
+    
+    // Wait for images to load within the iframe
+    await Promise.all(
+      Array.from(iframeDocument.images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if some images fail
+        });
+      })
+    );
+    
+    // Add explicit load event for stationery background
+    const stationeryImg = iframeDocument.querySelector('.stationery-background-image') as HTMLImageElement;
+    if (stationeryImg) {
+      await new Promise(resolve => {
+        if (stationeryImg.complete) resolve(true);
+        else stationeryImg.onload = () => resolve(true);
+      });
+    }
+
+    // Generate canvas from iframe content
+    const canvas = await html2canvas(iframeDocument.body, {
+      scale: 2,
       useCORS: true,
-      logging: false,
       allowTaint: true,
-      backgroundColor: null, // Transparent background to let stationery show
-      imageTimeout: 0,
+      logging: false,
+      width: 210 * 3.78, // A4 width in pixels (210mm) at 72 DPI
+      height: 297 * 3.78, // A4 height in pixels (297mm) at 72 DPI
+      backgroundColor: null, // Transparent background
+      imageTimeout: 30000,
       onclone: (clonedDoc) => {
-        const style = clonedDoc.createElement('style');
-        style.innerHTML = `
-          @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-          body { margin: 0; padding: 0; }
-          .stationery-background-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-          }
-        `;
-        clonedDoc.head.appendChild(style);
-        
-        // Ensure images are loaded and visible
+        // Ensure all images are properly set to visible in the cloned document
         const imgs = clonedDoc.querySelectorAll('img');
         imgs.forEach(img => {
           img.style.visibility = 'visible';
           img.style.opacity = '1';
-          const newImg = new Image();
-          newImg.crossOrigin = "Anonymous";
-          newImg.src = img.src;
+          img.crossOrigin = "Anonymous";
         });
       }
     });
 
-    // Add canvas to PDF at correct dimensions
-    const imgData = canvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', 0, 0, 210, 297); // A4 dimensions in mm (210x297)
+    // Create PDF with A4 dimensions
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+
+    // Add canvas to PDF at A4 size
+    doc.addImage(
+      canvas.toDataURL('image/png', 1.0), 
+      'PNG', 
+      0, 
+      0, 
+      210, 
+      297
+    );
 
     // Upload PDF
     const pdfBlob = doc.output('blob');
@@ -144,7 +185,7 @@ export async function generatePDFFromHTML({
     }
     throw error;
   } finally {
-    document.body.removeChild(tempDiv);
+    document.body.removeChild(iframe);
   }
 }
 

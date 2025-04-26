@@ -2,6 +2,7 @@
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles, plainPaperStyles, getStationeryStyle } from "./styles";
 import { cmToInchFraction } from "./unit-conversion";
+import { escapeHtml } from "./utils";
 
 export function generateArtworkHTML(
   artwork: Artwork,
@@ -21,7 +22,8 @@ export function generateArtworkHTML(
     <html>
     <head>
       <meta charset="utf-8">
-      <title>${artwork.title || "Artwork"}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>${escapeHtml(artwork.title || "Artwork")}</title>
       <style>
         ${baseStyles}
         ${templateStyles}
@@ -31,12 +33,12 @@ export function generateArtworkHTML(
       ${useStationery ? `<img src="${stationeryImagePath}" alt="Stationery" class="stationery-background-image" />` : ''}
       
       <div class="content-wrapper">
-        <img src="${artwork.image_url || '/placeholder.svg'}" alt="${artwork.title || 'Artwork'}" class="artwork-image" />
+        ${artwork.image_url ? `<img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />` : ''}
         
-        <p class="artist-name">${artwork.artist_name || 'Artist Name'}</p>
-        <p class="artwork-title">${artwork.title}${artwork.year ? ', ' + artwork.year : ''}</p>
+        <p class="artist-name">${escapeHtml(artwork.artist_name || 'Artist Name')}</p>
+        <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? ', ' + escapeHtml(artwork.year) : ''}</p>
         
-        ${artwork.materials ? `<p class="materials">${artwork.materials}</p>` : ''}
+        ${artwork.materials ? `<p class="materials">${escapeHtml(artwork.materials)}</p>` : ''}
         
         ${artwork.edition_size && artwork.edition_size > 1 
           ? `<p class="edition-details">Edition of ${artwork.edition_size}${artwork.artist_proofs 
@@ -45,7 +47,7 @@ export function generateArtworkHTML(
           : '<p class="edition-details">Unique</p>'}
         
         ${artwork.dimensions 
-          ? `<p class="dimensions">${artwork.dimensions}</p>`
+          ? `<p class="dimensions">${escapeHtml(artwork.dimensions)}</p>`
           : ''}
         
         ${artwork.height && artwork.width 
@@ -77,21 +79,21 @@ export function generateArtworkHTML(
         ${templateStyle === 'complete' && artwork.story 
           ? `
           <h2>Story</h2>
-          <p class="artwork-story">${artwork.story}</p>
+          <p class="artwork-story">${escapeHtml(artwork.story)}</p>
           `
           : ''}
         
         ${templateStyle === 'complete' && artwork.provenance 
           ? `
           <h2>Provenance</h2>
-          <p class="artwork-provenance">${artwork.provenance}</p>
+          <p class="artwork-provenance">${escapeHtml(artwork.provenance)}</p>
           `
           : ''}
         
         ${templateStyle === 'complete' && artwork.exhibition_history 
           ? `
           <h2>Exhibition History</h2>
-          <p class="artwork-exhibition-history">${artwork.exhibition_history}</p>
+          <p class="artwork-exhibition-history">${escapeHtml(artwork.exhibition_history)}</p>
           `
           : ''}
       </div>

@@ -1,10 +1,18 @@
 
 export const plainPaperStyles = `
+  @page {
+    size: A4;
+    margin: 0;
+    padding: 0;
+  }
+
   body {
     width: 210mm;
     height: 297mm;
     margin: 0;
     padding: 0;
+    background-color: white;
+    position: relative;
   }
 
   .content-wrapper {
@@ -12,6 +20,7 @@ export const plainPaperStyles = `
     font-family: 'Source Sans 3', sans-serif;
     position: relative;
     z-index: 1;
+    box-sizing: border-box;
   }
   
   .artwork-image {
