@@ -51,7 +51,10 @@ export function generateArtworkHTML(
         .content-wrapper {
           position: relative;
           z-index: 10;
-          padding: 3cm;
+          padding-top: 7cm; /* Increased top padding to move content down */
+          padding-left: 3cm;
+          padding-right: 3cm;
+          padding-bottom: 3cm;
           min-height: 297mm;
           box-sizing: border-box;
           font-family: Arial, sans-serif;

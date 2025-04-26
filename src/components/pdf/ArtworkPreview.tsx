@@ -44,7 +44,7 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
   }
   
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 p-4" style={{ paddingTop: '2rem' }}>
       {artwork.image_url && (
         <div className="flex justify-center mb-6">
           <img 
