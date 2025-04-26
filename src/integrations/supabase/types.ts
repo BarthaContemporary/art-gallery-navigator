@@ -310,6 +310,42 @@ export type Database = {
         }
         Relationships: []
       }
+      deletion_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_details: Json
+          item_id: string
+          item_type: string
+          status: Database["public"]["Enums"]["deletion_request_status"] | null
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_details: Json
+          item_id: string
+          item_type: string
+          status?: Database["public"]["Enums"]["deletion_request_status"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_details?: Json
+          item_id?: string
+          item_type?: string
+          status?: Database["public"]["Enums"]["deletion_request_status"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           artist_id: string | null
@@ -590,6 +626,7 @@ export type Database = {
       }
     }
     Enums: {
+      deletion_request_status: "pending" | "approved" | "rejected"
       user_role: "gallery_admin" | "artist"
     }
     CompositeTypes: {
@@ -706,6 +743,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      deletion_request_status: ["pending", "approved", "rejected"],
       user_role: ["gallery_admin", "artist"],
     },
   },
