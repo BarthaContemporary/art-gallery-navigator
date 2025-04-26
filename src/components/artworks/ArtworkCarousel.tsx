@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { 
   Carousel, 
@@ -9,6 +8,8 @@ import {
 } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 
 interface ArtworkImage {
@@ -100,20 +101,43 @@ export function ArtworkCarousel({ artworkId }: ArtworkCarouselProps) {
       emblaApi.scrollTo(index);
     }
   };
-  
+
+  const handleDownload = (imageUrl: string) => {
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `artwork-${artworkId}-image.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="relative">
       <div className="w-full">
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex">
             {displayImages.map((image) => (
-              <div key={image.id} className="flex-[0_0_100%] min-w-0">
+              <div key={image.id} className="flex-[0_0_100%] min-w-0 group relative">
                 <AspectRatio ratio={4/3} className="bg-secondary/20">
                   <img
                     src={image.image_url || "/placeholder.svg"}
                     alt="Artwork image"
                     className="w-full h-full object-contain"
                   />
+                  {image.image_url && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(image.image_url);
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="sr-only">Download image</span>
+                    </Button>
+                  )}
                 </AspectRatio>
               </div>
             ))}
