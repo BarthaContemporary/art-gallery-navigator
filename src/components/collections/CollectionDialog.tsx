@@ -16,13 +16,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArtworkSearch } from "./ArtworkSearch";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, X } from "lucide-react";
 
 export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedArtworks, setSelectedArtworks] = useState<string[]>([]);
+  const [emails, setEmails] = useState<string[]>([]);
+  const [currentEmail, setCurrentEmail] = useState("");
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
   const createCollection = useCreateCollection();
 
@@ -37,6 +39,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
         name,
         description,
         artworkIds: selectedArtworks,
+        notificationEmails: emails.length > 0 ? emails : undefined,
       },
       {
         onSuccess: () => {
@@ -45,6 +48,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           setName("");
           setDescription("");
           setSelectedArtworks([]);
+          setEmails([]);
           afterCreate && afterCreate();
         },
         onError: (error) => {
@@ -53,6 +57,23 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
         },
       }
     );
+  };
+
+  const handleAddEmail = () => {
+    if (currentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentEmail)) {
+      if (!emails.includes(currentEmail)) {
+        setEmails([...emails, currentEmail]);
+        setCurrentEmail("");
+      } else {
+        toast.error("Email already added");
+      }
+    } else if (currentEmail) {
+      toast.error("Please enter a valid email address");
+    }
+  };
+
+  const removeEmail = (emailToRemove: string) => {
+    setEmails(emails.filter(email => email !== emailToRemove));
   };
 
   const toggleArtwork = (id: string) => {
@@ -98,6 +119,44 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
                 selectedArtworks={selectedArtworks}
                 onToggleArtwork={toggleArtwork}
               />
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Notification Emails (Optional)</label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                type="email"
+                value={currentEmail}
+                onChange={(e) => setCurrentEmail(e.target.value)}
+                placeholder="Enter email address"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddEmail();
+                  }
+                }}
+              />
+              <Button type="button" onClick={handleAddEmail} variant="secondary">
+                Add
+              </Button>
+            </div>
+            {emails.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {emails.map((email) => (
+                  <div key={email} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                    <span className="text-sm">{email}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0"
+                      onClick={() => removeEmail(email)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

@@ -9,6 +9,7 @@ export interface Collection {
   created_at?: string;
   updated_at?: string;
   artworks?: Artwork[];
+  notification_emails?: string[];
 }
 
 // Fetch all collections with attached artworks
@@ -41,15 +42,21 @@ export function useCreateCollection() {
       name,
       description,
       artworkIds,
+      notificationEmails,
     }: {
       name: string;
       description?: string;
       artworkIds?: string[];
+      notificationEmails?: string[];
     }) => {
-      // 1. Create collection
+      // 1. Create collection with notification emails
       const { data: colData, error } = await supabase
         .from("collections")
-        .insert({ name, description })
+        .insert({ 
+          name, 
+          description,
+          notification_emails: notificationEmails 
+        })
         .select("*")
         .single();
 
