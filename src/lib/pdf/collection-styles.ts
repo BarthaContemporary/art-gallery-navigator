@@ -1,6 +1,6 @@
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 8.5cm;
+    padding-top: 10cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;
@@ -28,7 +28,7 @@ export const stationeryStyles = `
   
   .artist-name-header {
     position: absolute;
-    top: 7.5cm;
+    top: 9cm;
     left: 4cm;
     font-weight: 700;
     text-transform: uppercase;
