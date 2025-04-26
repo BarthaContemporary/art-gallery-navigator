@@ -7,6 +7,10 @@ interface HTMLToPDFOptions {
   fileName: string;
 }
 
+/**
+ * Creates a temporary iframe for rendering HTML content
+ * @returns HTMLIFrameElement
+ */
 function createTemporaryIframe(): HTMLIFrameElement {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'absolute';
@@ -19,6 +23,13 @@ function createTemporaryIframe(): HTMLIFrameElement {
   return iframe;
 }
 
+/**
+ * Sets up the content of the iframe with the provided HTML
+ * @param iframe The iframe element to setup
+ * @param html The HTML content to load
+ * @param fileName The name of the file for the title
+ * @returns Promise resolving to the iframe's Document
+ */
 async function setupIframeContent(iframe: HTMLIFrameElement, html: string, fileName: string): Promise<Document> {
   return new Promise((resolve) => {
     iframe.onload = () => {
@@ -53,6 +64,11 @@ async function setupIframeContent(iframe: HTMLIFrameElement, html: string, fileN
   });
 }
 
+/**
+ * Preloads all images in the document to ensure they render correctly
+ * @param document The document containing images to preload
+ * @returns Promise resolving when all images are loaded
+ */
 async function preloadImages(document: Document): Promise<void> {
   const imgPromises = Array.from(document.images).map(img => {
     return new Promise((resolve) => {
@@ -72,6 +88,11 @@ async function preloadImages(document: Document): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 500)); // Additional buffer time for image processing
 }
 
+/**
+ * Configures the canvas options for html2canvas
+ * @param document The document to configure canvas options for
+ * @returns Canvas configuration options
+ */
 function configureCanvas(document: Document): html2canvas.Options {
   return {
     scale: 2,
@@ -104,6 +125,11 @@ function configureCanvas(document: Document): html2canvas.Options {
   };
 }
 
+/**
+ * Converts HTML content to a PDF blob
+ * @param options The HTML and fileName for the PDF
+ * @returns Promise resolving to a PDF Blob
+ */
 export async function convertHTMLToPDF({ html, fileName }: HTMLToPDFOptions): Promise<Blob> {
   const iframe = createTemporaryIframe();
 
@@ -139,4 +165,3 @@ export async function convertHTMLToPDF({ html, fileName }: HTMLToPDFOptions): Pr
     document.body.removeChild(iframe);
   }
 }
-
