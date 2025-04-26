@@ -56,7 +56,7 @@ export function useNavItems() {
   
   if (isAdmin) {
     navItems.push({
-      name: "User Signup",
+      name: "User Management",
       icon: Shield,
       href: "/signup",
     });

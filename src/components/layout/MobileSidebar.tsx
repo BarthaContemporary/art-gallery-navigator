@@ -21,7 +21,7 @@ export function MobileSidebar() {
 
   if (isAdmin) {
     navigationItems.push({
-      title: "User Signup",
+      title: "User Management",
       icon: <Shield size={20} />,
       path: "/signup",
     });
