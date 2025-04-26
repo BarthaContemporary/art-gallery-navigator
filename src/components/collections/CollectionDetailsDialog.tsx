@@ -102,7 +102,7 @@ export function CollectionDetailsDialog({
                     >
                       {doc.file_name}
                     </DropdownMenuItem>
-                  )}
+                  ))}
                   {!documents?.length && (
                     <DropdownMenuItem disabled>
                       No documents available
