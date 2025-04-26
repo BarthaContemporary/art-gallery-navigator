@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -11,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
-import { Save, Download } from "lucide-react";
+import { Save, Download, Files } from "lucide-react";
 import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
 import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
 import { ArtworkCarousel } from "./ArtworkCarousel";
@@ -20,6 +19,7 @@ import { DimensionsSection } from "./overview/DimensionsSection";
 import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
 import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
+import { useNavigate } from "react-router-dom";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -35,6 +35,7 @@ export function ArtworkOverviewDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
+  const navigate = useNavigate();
   
   const formatFileName = (artistName: string, artworkTitle: string) => {
     return `B_c-${artistName}-${artworkTitle}`.replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -99,6 +100,11 @@ export function ArtworkOverviewDialog({
     }
   };
 
+  const handleViewDocuments = () => {
+    navigate(`/documents?artwork=${artwork.id}`);
+    onOpenChange(false);
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +115,14 @@ export function ArtworkOverviewDialog({
                 {artwork.title}
               </DialogTitle>
               <div className="flex gap-2 absolute right-8">
-                {/* Swapped the order of buttons and ensured they are on the same line */}
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={handleViewDocuments}
+                >
+                  <Files className="h-4 w-4" />
+                  View Files
+                </Button>
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
