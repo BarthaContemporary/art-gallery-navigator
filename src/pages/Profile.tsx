@@ -8,8 +8,15 @@ export default function Profile() {
   const { user } = useAuth();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-10">
-      <Card className="w-full max-w-md p-4 shadow-md">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+          <p className="text-muted-foreground">Manage your account details</p>
+        </div>
+      </div>
+      
+      <Card className="w-full max-w-md mx-auto p-4 shadow-md">
         <CardHeader className="flex flex-col items-center">
           <Avatar className="h-20 w-20 mb-2">
             <AvatarImage src={user?.user_metadata?.avatar_url} />

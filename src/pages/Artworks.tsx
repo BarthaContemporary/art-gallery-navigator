@@ -76,7 +76,7 @@ const Artworks = () => {
   }
 
   return (
-    <div className="pt-6 pb-6 px-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Artworks</h1>

@@ -13,7 +13,7 @@ export function MainLayout() {
       <div className="flex h-screen w-full">
         <Sidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 px-4 flex items-center">
+          <header className="h-12 px-4 flex items-center">
             {isMobile && <MobileSidebar />}
           </header>
           <main className="flex-1 overflow-auto">

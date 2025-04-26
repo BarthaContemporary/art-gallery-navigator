@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { LocationHeader } from "@/components/locations/LocationHeader";
 import { LocationSearch } from "@/components/locations/LocationSearch";
@@ -8,7 +9,9 @@ const Locations = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <LocationHeader />
+      <div className="mb-8">
+        <LocationHeader />
+      </div>
       <LocationSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
       <LocationGrid searchTerm={searchTerm} />
     </div>

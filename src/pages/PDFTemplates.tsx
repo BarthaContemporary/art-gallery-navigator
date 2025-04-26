@@ -49,9 +49,12 @@ export default function PDFTemplates() {
   };
 
   return (
-    <div className="pt-6 pb-6 px-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">PDF Templates</h1>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">PDF Templates</h1>
+          <p className="text-muted-foreground">Generate PDF documents for artworks and collections</p>
+        </div>
       </div>
       
       <div className="bg-white shadow rounded-lg p-6">

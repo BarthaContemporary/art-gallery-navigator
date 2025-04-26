@@ -74,7 +74,14 @@ export default function UserSignup() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground">Create and manage user accounts</p>
+        </div>
+      </div>
+
       <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8">
         <Card className="shadow-lg border border-border/60">
           <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
