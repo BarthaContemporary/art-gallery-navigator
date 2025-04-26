@@ -1,14 +1,7 @@
-
 import { Download } from "lucide-react";
 import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
 interface CarouselDownloadMenuProps {
   images: {
     id: string;
@@ -20,16 +13,14 @@ interface CarouselDownloadMenuProps {
   artistName: string;
   artworkTitle: string;
 }
-
-export function CarouselDownloadMenu({ 
-  images, 
-  artistName, 
-  artworkTitle 
+export function CarouselDownloadMenu({
+  images,
+  artistName,
+  artworkTitle
 }: CarouselDownloadMenuProps) {
   const formatFileName = (artistName: string, artworkTitle: string, index: number, total: number) => {
     return `B_c-${artistName}-${artworkTitle}_${index + 1}-${total}`.replace(/[^a-zA-Z0-9-_]/g, '_');
   };
-
   const handleDownload = (imageUrl: string, index: number) => {
     try {
       const link = document.createElement("a");
@@ -43,25 +34,14 @@ export function CarouselDownloadMenu({
       toast.error("Failed to download image");
     }
   };
-
-  return (
-    <DropdownMenu>
+  return <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Download Files
-        </Button>
+        
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {images.map((image, index) => (
-          <DropdownMenuItem
-            key={image.id}
-            onClick={() => handleDownload(image.image_url, index)}
-          >
+        {images.map((image, index) => <DropdownMenuItem key={image.id} onClick={() => handleDownload(image.image_url, index)}>
             Image {index + 1} of {images.length}
-          </DropdownMenuItem>
-        ))}
+          </DropdownMenuItem>)}
       </DropdownMenuContent>
-    </DropdownMenu>
-  );
+    </DropdownMenu>;
 }
