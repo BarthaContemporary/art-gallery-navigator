@@ -30,11 +30,14 @@ export async function createArtworkPDF(
     }
   }
   
-  // Generate unique filename
-  const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  const safeArtworkTitle = artwork.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  const fileName = `artwork_${safeArtworkTitle}_${timestamp}_${randomStr}.pdf`;
+  // Generate filename in the format B_c-[Artist Name]-[Work Title].pdf
+  const safeArtistName = (artworkWithArtistName.artist_name || 'Unknown')
+    .replace(/[^a-z0-9]/gi, '_')
+    .toLowerCase();
+  const safeArtworkTitle = artwork.title
+    .replace(/[^a-z0-9]/gi, '_')
+    .toLowerCase();
+  const fileName = `B_c-${safeArtistName}-${safeArtworkTitle}.pdf`;
   
   // Generate HTML content
   const htmlContent = generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
@@ -49,3 +52,4 @@ export async function createArtworkPDF(
     description: `Datasheet for ${artwork.title}`
   });
 }
+
