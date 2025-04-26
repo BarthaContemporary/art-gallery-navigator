@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   isArtist: boolean;
+  isExternal: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isArtist, setIsArtist] = useState(false);
+  const [isExternal, setIsExternal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,12 +43,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               _user_id: currentSession.user.id,
               _role: 'artist'
             });
+            const { data: externalRole } = await supabase.rpc('has_role', {
+              _user_id: currentSession.user.id,
+              _role: 'external'
+            });
             setIsAdmin(!!adminRole);
             setIsArtist(!!artistRole);
+            setIsExternal(!!externalRole);
           }, 0);
         } else {
           setIsAdmin(false);
           setIsArtist(false);
+          setIsExternal(false);
         }
       }
     );
@@ -87,7 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut, 
       isLoading,
       isAdmin,
-      isArtist
+      isArtist,
+      isExternal
     }}>
       {children}
     </AuthContext.Provider>
