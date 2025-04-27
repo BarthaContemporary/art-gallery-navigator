@@ -26,7 +26,7 @@ export function TurnstileWidget({ siteKey, onVerify }: TurnstileWidgetProps) {
 
     // Function to render the widget when script is loaded
     const renderWidget = () => {
-      if (!containerRef.current || !window.turnstile || !containerRef.current.innerHTML.trim() === '') return;
+      if (!containerRef.current || !window.turnstile || containerRef.current.innerHTML.trim() === '') return;
       
       try {
         // Only render if we don't already have a widget ID
