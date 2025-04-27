@@ -1,14 +1,11 @@
-
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Upload } from "lucide-react";
-import { UploadFormData } from "./upload-document-schema";
-import { UseFormReturn } from "react-hook-form";
 import { FileUploadField } from "./form/FileUploadField";
 import { DocumentTypeField } from "./form/DocumentTypeField";
 import { ArtworkField } from "./form/ArtworkField";
 import { CollectionField } from "./form/CollectionField";
-import { ArtistField } from "./components/documents/ArtistField";
+import { ArtistField } from "./ArtistField";
 import { DescriptionField } from "./form/DescriptionField";
 import { useWatch } from "react-hook-form";
 import { useState, useEffect } from "react";
@@ -28,7 +25,6 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Reset other fields when one is selected to ensure mutual exclusivity
   useEffect(() => {
     if (artworkId && artworkId !== "_none") {
       form.setValue("collection_id", "_none");
@@ -53,10 +49,8 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
     }
   }, [artistId, form]);
 
-  // Submit handler with improved validation
   const handleSubmit = async (data: UploadFormData) => {
     try {
-      // Validate that exactly one attachment field is set
       const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
       const hasCollection = data.collection_id && data.collection_id !== "_none";
       const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
@@ -73,7 +67,6 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         return;
       }
 
-      // Log the selected values for debugging
       console.log("Submitting with values:", {
         artwork_id: hasArtwork ? data.artwork_id : null,
         collection_id: hasCollection ? data.collection_id : null,
@@ -91,7 +84,6 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
     }
   };
 
-  // Check if any field has a non-none value
   const hasArtworkSelected = artworkId && artworkId !== "_none";
   const hasCollectionSelected = collectionId && collectionId !== "_none";
   const hasArtistSelected = artistId && artistId !== "_none" && artistId !== "";
