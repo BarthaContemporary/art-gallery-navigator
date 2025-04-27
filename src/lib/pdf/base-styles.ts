@@ -63,3 +63,4 @@ export const baseStyles = `
     font-size: 9pt;
     margin-bottom: 0.8cm;
   }
+`;
