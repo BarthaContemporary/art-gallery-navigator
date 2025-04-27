@@ -13,6 +13,7 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
   const scriptLoadedRef = useRef<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   const resetWidget = () => {
     if (widgetIdRef.current && window.turnstile) {
@@ -37,12 +38,15 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
     
     if (!widgetIdRef.current) {
       try {
-        console.log('Rendering Turnstile widget...');
+        console.log('Rendering Turnstile widget with site key:', siteKey);
+        
+        // Log browser information for debugging
+        setDebugInfo(`Browser: ${navigator.userAgent}, Language: ${navigator.language}`);
         
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           callback: (token: string) => {
-            console.log('CAPTCHA token generated');
+            console.log('CAPTCHA token generated successfully');
             setLoadError(null);
             // Immediately notify parent component of the token
             onVerify(token);
@@ -50,6 +54,11 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
           'error-callback': (errorCode: string) => {
             console.error(`CAPTCHA error: ${errorCode}`);
             setLoadError(`Verification failed (${errorCode}). Please try again.`);
+            
+            // Add additional context for error 110200
+            if (errorCode === '110200') {
+              setDebugInfo('Error 110200: This may indicate an invalid site key or domain mismatch. Please check your configuration.');
+            }
             
             if (onError) onError(new Error(`CAPTCHA error: ${errorCode}`));
             setTimeout(resetWidget, 1500);
@@ -63,7 +72,10 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
             console.log('CAPTCHA expired - resetting');
             setLoadError('Verification expired. Please try again.');
             resetWidget();
-          }
+          },
+          size: 'normal',
+          appearance: 'always',
+          theme: 'auto'
         });
         setIsLoading(false);
       } catch (error) {
@@ -87,7 +99,11 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
           console.log('Turnstile script loaded');
           scriptLoadedRef.current = true;
           setIsLoading(false);
-          renderWidget();
+          
+          // Give a small delay for the script to fully initialize
+          setTimeout(() => {
+            renderWidget();
+          }, 100);
         };
         script.onerror = (e) => {
           console.error('Failed to load Turnstile script:', e);
@@ -98,8 +114,10 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
       } else {
         scriptLoadedRef.current = true;
         if (window.turnstile) {
-          setIsLoading(false);
-          renderWidget();
+          // Give a small delay for the script to fully initialize if it was already loaded
+          setTimeout(() => {
+            renderWidget();
+          }, 100);
         }
       }
     } else if (window.turnstile) {
@@ -129,6 +147,11 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
       />
       {isLoading && (
         <div className="text-muted-foreground text-sm">Loading CAPTCHA verification...</div>
+      )}
+      {debugInfo && (
+        <div className="text-amber-600 text-xs mt-2 max-w-md text-center">
+          Debug info: {debugInfo}
+        </div>
       )}
     </div>
   );

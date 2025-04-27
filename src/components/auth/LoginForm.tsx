@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,6 +26,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -68,6 +69,12 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     console.error('CAPTCHA error:', error);
     setCaptchaError(error.message);
     setCaptchaToken(null);
+  };
+
+  const refreshCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaError(null);
+    setRefreshKey(prev => prev + 1);
   };
 
   return (
@@ -131,16 +138,32 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         
         {captchaError && (
           <Alert variant="destructive" className="py-2">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertDescription>{captchaError}</AlertDescription>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                <AlertDescription>{captchaError}</AlertDescription>
+              </div>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2"
+                onClick={refreshCaptcha}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Retry
+              </Button>
+            </div>
           </Alert>
         )}
         
-        <TurnstileWidget 
-          siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
-          onVerify={handleCaptchaVerify}
-          onError={handleCaptchaError}
-        />
+        <div key={refreshKey}>
+          <TurnstileWidget 
+            siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
+            onVerify={handleCaptchaVerify}
+            onError={handleCaptchaError}
+          />
+        </div>
         
         <Button 
           type="submit" 
