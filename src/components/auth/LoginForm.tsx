@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,18 +26,6 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
-  const [verifyAttempts, setVerifyAttempts] = useState(0);
-  const [domainInfo, setDomainInfo] = useState<string>('');
-
-  // Get domain information for debugging
-  useEffect(() => {
-    const currentDomain = window.location.hostname;
-    const fullUrl = window.location.href;
-    setDomainInfo(currentDomain);
-    console.log(`LoginForm - Current domain: ${currentDomain}`);
-    console.log(`LoginForm - Full URL: ${fullUrl}`);
-    console.log(`LoginForm - Origin: ${window.location.origin}`);
-  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -55,49 +42,22 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     }
 
     try {
-      setVerifyAttempts(prev => prev + 1);
-      const currentDomain = window.location.hostname;
-      
-      console.log(`Verifying CAPTCHA with domain: ${currentDomain}`);
-      console.log(`Token length: ${captchaToken.length}`);
-      
-      const { data, error } = await supabase.functions.invoke('verify-turnstile', {
-        body: { 
-          token: captchaToken,
-          domain: currentDomain,
-          origin: window.location.origin,
-          url: window.location.href
-        }
-      });
-
-      if (error) {
-        console.error('CAPTCHA verification failed:', error);
-        setCaptchaError(error.message || "CAPTCHA verification failed. Please try again.");
-        return;
-      }
-
-      if (data && data.success) {
-        console.log('CAPTCHA verification successful with response:', data);
-        onSubmit(values, captchaToken);
-      } else {
-        console.error('CAPTCHA verification failed with response:', data);
-        setCaptchaError(data?.message || "CAPTCHA verification failed. Please try again.");
-      }
+      onSubmit(values, captchaToken);
     } catch (error) {
-      console.error('Error during CAPTCHA verification:', error);
-      setCaptchaError("An error occurred during verification. Please try again.");
+      console.error('Login error:', error);
+      setCaptchaError("An error occurred during login. Please try again.");
     }
   };
 
   const handleCaptchaVerify = (token: string) => {
-    console.log(`CAPTCHA verified successfully - Token received (length: ${token.length})`);
+    console.log('CAPTCHA verified - token received');
     setCaptchaToken(token);
     setCaptchaError(null);
   };
 
   const handleCaptchaError = (error: Error) => {
-    console.error('CAPTCHA verification failed:', error);
-    setCaptchaError(`Verification failed: ${error.message}`);
+    console.error('CAPTCHA error:', error);
+    setCaptchaError(error.message);
     setCaptchaToken(null);
   };
 
@@ -164,20 +124,6 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
           <Alert variant="destructive" className="py-2">
             <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription>{captchaError}</AlertDescription>
-          </Alert>
-        )}
-
-        {domainInfo && (
-          <div className="text-xs text-muted-foreground">
-            Using domain: {domainInfo}
-          </div>
-        )}
-
-        {verifyAttempts > 3 && (
-          <Alert className="bg-amber-50 text-amber-800 border-amber-200 py-2">
-            <AlertDescription>
-              Having trouble with CAPTCHA? Try refreshing the page or using a different browser.
-            </AlertDescription>
           </Alert>
         )}
         

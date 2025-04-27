@@ -17,7 +17,7 @@ export default function Auth() {
   const [showOTP, setShowOTP] = useState(false);
   const [email, setEmail] = useState("");
   
-  const { signIn, verifyOTP } = useAuth();
+  const { signIn, signInWithPassword, signInWithOTP, verifyOTP } = useAuth();
   const { toast } = useToast();
   const { execute, isLoading } = useSafeAsync();
 
@@ -25,8 +25,22 @@ export default function Auth() {
     setEmail(values.email);
     
     execute(async () => {
-      const { needsOTP } = await signIn(values.email, values.password, captchaToken);
-      return { needsOTP };
+      // Try password login first if provided
+      if (values.password) {
+        try {
+          await signInWithPassword(values.email, values.password, captchaToken);
+          return { needsOTP: false };
+        } catch (error) {
+          // If password login fails with invalid credentials, try OTP
+          if (error instanceof Error && error.message.includes("Invalid login credentials")) {
+            return signInWithOTP(values.email, captchaToken);
+          }
+          throw error;
+        }
+      } else {
+        // No password provided, use OTP directly
+        return signInWithOTP(values.email, captchaToken);
+      }
     }, {
       onSuccess: (result) => {
         if (result?.needsOTP) {
