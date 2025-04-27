@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload } from "lucide-react";
+import { toast } from "sonner";
 
 export function FileUploader() {
   const { uploadFile, isUploading } = useFileUpload();
@@ -19,6 +20,11 @@ export function FileUploader() {
       await uploadFile(file, notes);
       setNotes("");
       setProgress(0);
+      
+      // Show notification for new upload
+      toast('New file uploaded', {
+        description: `${file.name} has been uploaded and is ready for review.`
+      });
     } catch (error) {
       console.error("Upload failed:", error);
     }

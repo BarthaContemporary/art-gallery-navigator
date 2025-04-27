@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
+import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
 
 export default function UserSignup() {
   const { isAdmin } = useAuth();
@@ -137,9 +138,9 @@ export default function UserSignup() {
         </Card>
       </div>
 
-      <div className="max-w-6xl mx-auto text-left">
-        <h2 className="text-2xl font-semibold mb-4">Registered Users</h2>
-        <UsersList />
+      <div className="max-w-6xl mx-auto text-left mt-8">
+        <h2 className="text-2xl font-semibold mb-4">Uploaded Files</h2>
+        <UploadedFilesList />
       </div>
     </div>
   );

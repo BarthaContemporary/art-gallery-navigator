@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Users,
@@ -7,6 +6,7 @@ import {
   File,
   List,
   Shield,
+  Upload
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -41,6 +41,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Documents",
     icon: File,
     href: "/documents",
+  },
+  {
+    name: "File Transfer",
+    icon: Upload,
+    href: "/file-transfer",
   },
 ];
 

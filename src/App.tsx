@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import EmailConfirmation from "./pages/EmailConfirmation";
 import PDFTemplates from "./pages/PDFTemplates";
 import Upload from "./pages/Upload";
+import FileTransfer from "./pages/FileTransfer";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
               <Route path="/upload" element={<Upload />} />
+              <Route path="/file-transfer" element={<FileTransfer />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
