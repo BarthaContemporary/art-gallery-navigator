@@ -1,26 +1,14 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { UsersTable } from "./UsersTable";
 import { DeletionRequestsTable } from "./DeletionRequestsTable";
 import { useDeletionRequests } from "@/hooks/use-deletion-requests";
-
 export function UsersList() {
-  const { deletionRequests } = useDeletionRequests();
-
-  return (
-    <Tabs defaultValue="users" className="w-full">
-      <TabsList>
-        <TabsTrigger value="users">Users</TabsTrigger>
-        <TabsTrigger value="deletion-requests">
-          Deletion Requests
-          {deletionRequests?.length ? (
-            <Badge variant="destructive" className="ml-2">
-              {deletionRequests.length}
-            </Badge>
-          ) : null}
-        </TabsTrigger>
-      </TabsList>
+  const {
+    deletionRequests
+  } = useDeletionRequests();
+  return <Tabs defaultValue="users" className="w-full">
+      
 
       <TabsContent value="users" className="border rounded-md mt-4">
         <UsersTable />
@@ -29,6 +17,5 @@ export function UsersList() {
       <TabsContent value="deletion-requests" className="border rounded-md mt-4">
         <DeletionRequestsTable />
       </TabsContent>
-    </Tabs>
-  );
+    </Tabs>;
 }
