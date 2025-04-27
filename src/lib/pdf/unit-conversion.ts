@@ -1,32 +1,49 @@
 
-// Helper function to convert centimeters to inches with fractions
+/**
+ * Converts centimeters to inch fraction representation
+ */
 export function cmToInchFraction(cm: number): string {
-  if (!cm) return '';
-  
+  // Convert cm to inches
   const inches = cm / 2.54;
+  
+  // Extract whole number and decimal
   const wholeInches = Math.floor(inches);
-  const fraction = inches - wholeInches;
+  const decimalPart = inches - wholeInches;
   
-  // Convert to closest 1/8th fraction
-  const denominator = 8;
-  const nearestFraction = Math.round(fraction * denominator);
+  // Common fractions: 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8
+  const fractions = [
+    { value: 0, display: "" },
+    { value: 1/8, display: "1/8" },
+    { value: 1/4, display: "1/4" },
+    { value: 3/8, display: "3/8" },
+    { value: 1/2, display: "1/2" },
+    { value: 5/8, display: "5/8" },
+    { value: 3/4, display: "3/4" },
+    { value: 7/8, display: "7/8" },
+    { value: 1, display: "" }
+  ];
   
-  if (nearestFraction === 0) {
-    return `${wholeInches}"`;
-  } else if (nearestFraction === denominator) {
-    return `${wholeInches + 1}"`;
-  } else {
-    // Simplify the fraction
-    let num = nearestFraction;
-    let den = denominator;
-    
-    const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
-    const divisor = gcd(num, den);
-    
-    num = num / divisor;
-    den = den / divisor;
-    
-    return `${wholeInches} ${num}/${den}"`;
+  // Find closest fraction
+  let closestFraction = { value: 0, display: "" };
+  let minDifference = 1;
+  
+  for (const fraction of fractions) {
+    const difference = Math.abs(decimalPart - fraction.value);
+    if (difference < minDifference) {
+      minDifference = difference;
+      closestFraction = fraction;
+    }
   }
+  
+  // Handle full inch case
+  let nextWholeInch = wholeInches;
+  if (closestFraction.value === 1) {
+    nextWholeInch += 1;
+    closestFraction = { value: 0, display: "" };
+  }
+  
+  // Format the result
+  return closestFraction.display 
+    ? `${nextWholeInch} ${closestFraction.display}` 
+    : `${nextWholeInch}`;
 }
-

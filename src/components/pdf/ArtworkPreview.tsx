@@ -1,7 +1,6 @@
 
 import { Artwork } from "@/hooks/use-artworks";
-import { cmToInchFraction } from "@/lib/pdf/styles";
-import { useArtist } from "@/hooks/use-artist";
+import { cmToInchFraction } from "@/lib/pdf/unit-conversion";
 
 interface ArtworkPreviewProps {
   artwork: Artwork;
@@ -44,7 +43,7 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
   }
   
   return (
-    <div className="space-y-4 p-4 font-sans" style={{ paddingTop: '1rem' }}>
+    <div className="space-y-4 font-sans">
       {artwork.image_url && (
         <div className="flex justify-center mb-6">
           <img 

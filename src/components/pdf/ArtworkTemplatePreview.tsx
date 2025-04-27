@@ -13,9 +13,8 @@ export function ArtworkTemplatePreview({
   title 
 }: ArtworkTemplatePreviewProps) {
   return (
-    <div className="h-full overflow-auto font-sans">
-      {/* Preview content with proper top padding */}
-      <div style={{ paddingTop: '2.5rem' }}>
+    <div className="h-full overflow-auto font-sans relative">
+      <div className="py-10 px-8">
         {/* Preview header based on template */}
         {template === "classic" && (
           <div className="border-b-2 border-primary pb-4 mb-6">
@@ -36,40 +35,39 @@ export function ArtworkTemplatePreview({
         
         {/* Artwork image placeholder */}
         <div className="mb-6 text-center">
-          <div className="w-full h-48 bg-gray-100 border flex items-center justify-center mb-4">
+          <div className="w-full h-48 bg-gray-100 border flex items-center justify-center mb-6">
             <span className="text-gray-400">Artwork Image</span>
           </div>
-        </div>
-        
-        {/* Artwork details preview */}
-        <div className={template === "modern" ? "pl-4 border-l-4 border-primary" : ""}>
-          <p className="font-bold mb-1">Artist Name</p>
-          <p className="italic mb-4">{title}, 2023</p>
-          <p className="mb-2">Oil on canvas</p>
-          <p className="mb-2">Edition of 10 + 2 AP</p>
-          <p className="mb-2">120 x 80 cm</p>
-          <p className="mb-2">47 1/4 x 31 1/2"</p>
           
-          {/* Additional info based on template */}
-          {template === "basicWithPrice" && (
-            <p className="font-semibold mt-6">£ 5,000</p>
-          )}
-          
-          {template === "minimal" && (
-            <>
+          <div className="text-left">
+            <p className="font-bold mb-1">Artist Name</p>
+            <p className="italic mb-4">{title}, 2023</p>
+            <p className="mb-2">Oil on canvas</p>
+            <p className="mb-2">Edition of 10 + 2 AP</p>
+            <p className="mb-2">120 x 80 cm</p>
+            <p className="mb-2">47 1/4 x 31 1/2"</p>
+            
+            {/* Additional info based on template */}
+            {template === "modern" && (
               <p className="font-semibold mt-6">£ 5,000</p>
-              
-              <div className="mt-8">
-                <h3 className="font-semibold text-lg mb-2">Story</h3>
-                <p className="text-sm">Sample story text about the artwork and its creation.</p>
-              </div>
-              
-              <div className="mt-6">
-                <h3 className="font-semibold text-lg mb-2">Provenance</h3>
-                <p className="text-sm">Gallery collection, London</p>
-              </div>
-            </>
-          )}
+            )}
+            
+            {template === "minimal" && (
+              <>
+                <p className="font-semibold mt-6">£ 5,000</p>
+                
+                <div className="mt-8">
+                  <h3 className="font-semibold text-lg mb-2">Story</h3>
+                  <p className="text-sm">Sample story text about the artwork and its creation.</p>
+                </div>
+                
+                <div className="mt-6">
+                  <h3 className="font-semibold text-lg mb-2">Provenance</h3>
+                  <p className="text-sm">Gallery collection, London</p>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

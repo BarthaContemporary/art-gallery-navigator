@@ -7,10 +7,10 @@ import { toast } from "sonner";
 
 export async function createArtworkPDF(
   artwork: Artwork,
-  templateStyle: string = 'basic',
+  templateStyle: string = 'classic',
   useStationery: boolean = false
 ): Promise<string> {
-  console.log("Creating PDF for artwork:", artwork.title, "with template:", templateStyle, "useStationery:", useStationery);
+  console.log(`Creating PDF for artwork: ${artwork.title} with template: ${templateStyle} useStationery: ${useStationery}`);
   
   // Fetch artist name if not already available
   let artworkWithArtistName = { ...artwork };
@@ -33,7 +33,7 @@ export async function createArtworkPDF(
     }
   }
   
-  // Generate filename in the format B_c-[Artist Name]-[Work Title].pdf
+  // Generate safe filename
   const safeArtistName = (artworkWithArtistName.artist_name || 'Unknown')
     .replace(/[^a-z0-9]/gi, '_')
     .toLowerCase();
@@ -43,9 +43,28 @@ export async function createArtworkPDF(
   const fileName = `B_c-${safeArtistName}-${safeArtworkTitle}.pdf`;
   console.log("Generated filename:", fileName);
   
-  // Validate image URL if available
+  // Log image URL status
   if (artwork.image_url) {
     console.log("Artwork has an image URL:", artwork.image_url);
+    
+    // Preload the image
+    try {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.src = artwork.image_url;
+      await new Promise((resolve) => {
+        img.onload = () => {
+          console.log("Successfully preloaded artwork image");
+          resolve(true);
+        };
+        img.onerror = () => {
+          console.error("Failed to preload artwork image");
+          resolve(false);
+        };
+      });
+    } catch (e) {
+      console.error("Error preloading image:", e);
+    }
   } else {
     console.log("Artwork has no image URL");
   }
