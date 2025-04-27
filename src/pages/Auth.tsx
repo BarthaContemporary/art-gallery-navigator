@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useSafeAsync } from "@/hooks/use-safe-async";
+import { supabase } from "@/integrations/supabase/client";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -25,9 +26,16 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const turnstileResponse = await window.turnstile.render('#turnstile-widget', {
+      sitekey: '1x00000000000000000000AA',
+      callback: function(token: string) {
+        return token;
+      },
+    });
     
     execute(async () => {
-      const { needsOTP } = await signIn(email, password);
+      const { needsOTP } = await signIn(email, password, turnstileResponse);
       return { needsOTP };
     }, {
       onSuccess: (result) => {
@@ -103,6 +111,7 @@ export default function Auth() {
                   disabled={isLoading}
                 />
               </div>
+              <div id="turnstile-widget" className="flex justify-center"></div>
               <Button 
                 type="submit" 
                 className="w-full h-12 sm:h-10 text-lg sm:text-base"
