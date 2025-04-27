@@ -11,7 +11,7 @@ export default function Profile() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+          <h1 className="text-3xl tracking-wide font-semibold">Profile</h1>
           <p className="text-muted-foreground">Manage your account details</p>
         </div>
       </div>
