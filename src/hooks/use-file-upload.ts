@@ -9,10 +9,16 @@ export function useFileUpload() {
   const uploadFile = async (file: File, notes?: string) => {
     try {
       setIsUploading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User must be logged in to upload files');
+      }
 
       // Upload file to storage
       const fileName = `${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data } = await supabase.storage
         .from('large-uploads')
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -27,21 +33,22 @@ export function useFileUpload() {
         .getPublicUrl(fileName);
 
       // Record the upload in the database
-      // Using 'as any' to bypass TypeScript errors temporarily
-      const { error: dbError } = await (supabase
-        .from('uploads' as any)
+      const { error: dbError } = await supabase
+        .from('uploads')
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
-          uploaded_by: supabase.auth.getUser().then(({ data }) => data?.user?.id),
+          uploaded_by: user.id,
           notes
-        } as any));
+        });
 
       if (dbError) throw dbError;
 
+      toast.success('File uploaded successfully');
     } catch (error: any) {
       console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error.message || 'Unknown error'));
       throw error;
     } finally {
       setIsUploading(false);
