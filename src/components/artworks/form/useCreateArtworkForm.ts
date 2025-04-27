@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +9,7 @@ import { useLocations } from "./useLocations";
 import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
 import { useSafeAsync } from "@/hooks/use-safe-async";
+import { useImageProcessing } from "@/hooks/use-image-processing";
 
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
@@ -21,6 +21,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { execute, isLoading: isSaving } = useSafeAsync();
+  const { processImage } = useImageProcessing();
 
   const form = useForm<ArtworkFormData>({
     defaultValues: getArtworkInitialValues(initialData),
@@ -38,7 +39,6 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   } = useImageUpload(form);
 
   const onSubmit = async (data: ArtworkFormData) => {
-    // Use our safe async execution pattern
     execute(
       async () => {
         const dimensions = [
@@ -47,7 +47,6 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           data.depth ? `${data.depth}cm D` : ''
         ].filter(Boolean).join(' x ');
 
-        // Cast the data to the expected types before sending to Supabase
         const formattedData = {
           ...data,
           dimensions: dimensions || null,
@@ -58,7 +57,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           depth: data.depth ? Number(data.depth) : null,
           edition_size: data.edition_size ? Number(data.edition_size) : null,
           inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
-          available_works: data.available_works || null, // Keep as string
+          available_works: data.available_works || null,
           artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
           is_framed: !!data.is_framed,
           frame_height: data.frame_height ? Number(data.frame_height) : null,
@@ -71,9 +70,8 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
         };
 
-        // Database operations - update or create artwork
+        let artworkId: string;
         if (initialData) {
-          // Update artwork
           const { error } = await supabase
             .from('artworks')
             .update(formattedData as any)
@@ -81,45 +79,37 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
             .select();
           
           if (error) throw error;
+          artworkId = initialData.id;
         } else {
-          // Create new artwork
-          const { error } = await supabase
+          const { data: newArtwork, error } = await supabase
             .from('artworks')
             .insert([formattedData as any])
-            .select();
+            .select()
+            .single();
           
           if (error) throw error;
+          artworkId = newArtwork.id;
         }
 
-        // Handle image uploads if any
         if (uploadedImageUrls.length > 0) {
-          let artworkId: string | undefined = initialData?.id;
+          const imagesToInsert = uploadedImageUrls.map((url, index) => ({
+            artwork_id: artworkId,
+            image_url: url,
+            is_primary: index === 0,
+            display_order: index,
+            processed: false
+          }));
 
-          if (!artworkId) {
-            const { data: artworks, error: fetchError } = await supabase
-              .from('artworks')
-              .select('id')
-              .order('created_at', { ascending: false })
-              .limit(1);
-            
-            if (fetchError) throw fetchError;
-            artworkId = artworks && artworks.length > 0 ? artworks[0].id : undefined;
-          }
+          const { data: insertedImages, error: imageError } = await supabase
+            .from('artwork_images')
+            .insert(imagesToInsert)
+            .select();
 
-          if (artworkId) {
-            const imagesToInsert = uploadedImageUrls.map((url, index) => ({
-              artwork_id: artworkId,
-              image_url: url,
-              is_primary: index === 0,
-              display_order: index
-            }));
+          if (imageError) throw imageError;
 
-            const { error: imageError } = await supabase
-              .from('artwork_images')
-              .insert(imagesToInsert);
-
-            if (imageError) throw imageError;
-          }
+          insertedImages?.forEach(image => {
+            processImage(image.image_url, image.id);
+          });
         }
 
         return { success: true };
@@ -129,20 +119,13 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           ? "Artwork has been updated successfully"
           : "Artwork has been created successfully",
         onSuccess: () => {
-          // Reset form state first
           resetUploaded();
           form.reset();
           
-          // Set a minimum timeout for closing the dialog
-          // Let UI settle before invalidating queries
           setTimeout(() => {
-            // First invalidate queries
             queryClient.invalidateQueries({ queryKey: ['artworks'] });
-            
-            // Then wait a bit longer before closing the dialog
             const safeTimeout = preventFreeze ? 500 : 250;
             setTimeout(() => {
-              // Use requestAnimationFrame for smoother transitions
               requestAnimationFrame(() => {
                 setOpen(false);
               });

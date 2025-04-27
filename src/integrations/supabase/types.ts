@@ -59,6 +59,16 @@ export type Database = {
           id: string
           image_url: string
           is_primary: boolean | null
+          medium_height: number | null
+          medium_url: string | null
+          medium_width: number | null
+          original_height: number | null
+          original_size: number | null
+          original_width: number | null
+          processed: boolean | null
+          thumbnail_height: number | null
+          thumbnail_url: string | null
+          thumbnail_width: number | null
           updated_at: string | null
         }
         Insert: {
@@ -68,6 +78,16 @@ export type Database = {
           id?: string
           image_url: string
           is_primary?: boolean | null
+          medium_height?: number | null
+          medium_url?: string | null
+          medium_width?: number | null
+          original_height?: number | null
+          original_size?: number | null
+          original_width?: number | null
+          processed?: boolean | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -77,6 +97,16 @@ export type Database = {
           id?: string
           image_url?: string
           is_primary?: boolean | null
+          medium_height?: number | null
+          medium_url?: string | null
+          medium_width?: number | null
+          original_height?: number | null
+          original_size?: number | null
+          original_width?: number | null
+          processed?: boolean | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
           updated_at?: string | null
         }
         Relationships: [
