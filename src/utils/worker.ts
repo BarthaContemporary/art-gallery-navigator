@@ -1,41 +1,15 @@
 
-// Web Worker for background processing
-self.onmessage = (event: MessageEvent) => {
-  const { id, type, data } = event.data;
+import { WorkerTask, WorkerResponse, FileProcessingResult, HeavyComputationResult } from './worker-types';
 
-  try {
-    switch (type) {
-      case 'HEAVY_COMPUTATION':
-        const result = heavyComputation(data);
-        self.postMessage({ id, type: 'RESULT', result });
-        break;
-      case 'FILE_PROCESSING':
-        const processedFile = processFile(data);
-        self.postMessage({ id, type: 'RESULT', result: processedFile });
-        break;
-      default:
-        throw new Error(`Unsupported task type: ${type}`);
-    }
-  } catch (error) {
-    self.postMessage({ 
-      id, 
-      type: 'ERROR', 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
-};
-
-function heavyComputation(data: any) {
-  // Simulate a heavy computation
-  let result = 0;
+function heavyComputation(data: number): HeavyComputationResult {
+  let value = 0;
   for (let i = 0; i < 1000000; i++) {
-    result += Math.sqrt(data + i);
+    value += Math.sqrt(data + i);
   }
-  return result;
+  return { value };
 }
 
-function processFile(file: File) {
-  // Simulate file processing
+function processFile(file: File): FileProcessingResult {
   return {
     name: file.name,
     size: file.size,
@@ -44,5 +18,42 @@ function processFile(file: File) {
   };
 }
 
-// TypeScript compilation requires this for module workers
+self.onmessage = (event: MessageEvent<WorkerTask>) => {
+  const { id, type, data } = event.data;
+
+  try {
+    let result: unknown;
+
+    switch (type) {
+      case 'HEAVY_COMPUTATION':
+        if (typeof data !== 'number') {
+          throw new Error('Heavy computation requires numeric input');
+        }
+        result = heavyComputation(data);
+        break;
+
+      case 'FILE_PROCESSING':
+        if (!(data instanceof File)) {
+          throw new Error('File processing requires File input');
+        }
+        result = processFile(data);
+        break;
+
+      default:
+        throw new Error(`Unsupported task type: ${type}`);
+    }
+
+    const response: WorkerResponse = { id, type: 'RESULT', result };
+    self.postMessage(response);
+  } catch (error) {
+    const response: WorkerResponse = { 
+      id, 
+      type: 'ERROR', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+    self.postMessage(response);
+  }
+};
+
+// Required for TypeScript module workers
 export {};
