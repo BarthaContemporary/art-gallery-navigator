@@ -8,9 +8,6 @@ export default function Collections() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl tracking-wide font-semibold">Collections</h1>
-          <p className="text-muted-foreground">
-            Browse and manage your artwork collections
-          </p>
         </div>
         <CollectionDialog />
       </div>
