@@ -1,5 +1,5 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useSafeAsync } from "@/hooks/use-safe-async";
@@ -21,9 +21,16 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   
-  const { signInWithPassword, signInWithOTP, verifyOTP } = useAuth();
+  const { signInWithPassword, signInWithOTP, verifyOTP, session } = useAuth();
   const { toast } = useToast();
   const { execute, isLoading } = useSafeAsync();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (session) {
+      navigate("/");
+    }
+  }, [session, navigate]);
 
   const handleLogin = async (values: { email: string; password: string }, captchaToken: string) => {
     setEmail(values.email);
@@ -32,14 +39,12 @@ export default function Auth() {
     console.log("Login attempt initiated with CAPTCHA token:", captchaToken ? "provided" : "missing");
     
     execute(async () => {
-      // Try password login first if provided
       if (values.password) {
         try {
           console.log("Attempting password login...");
           await signInWithPassword(values.email, values.password, captchaToken);
           return { needsOTP: false };
         } catch (error) {
-          // If password login fails with invalid credentials, try OTP
           if (error instanceof Error) {
             console.log("Password login error:", error.message);
             
@@ -56,7 +61,6 @@ export default function Auth() {
           throw error;
         }
       } else {
-        // No password provided, use OTP directly
         console.log("No password provided, using OTP directly...");
         return signInWithOTP(values.email, captchaToken);
       }
@@ -73,12 +77,12 @@ export default function Auth() {
             title: "Login successful",
             description: "Welcome back!",
           });
+          navigate("/");
         }
       },
       onError: (error) => {
         console.error('Login error:', error);
         
-        // Special handling for CAPTCHA-related errors
         if (error.message.includes("captcha")) {
           setAuthError(`CAPTCHA verification failed: ${error.message.replace(/^.*captcha[^:]*:\s*/i, "")}`);
         } else {
@@ -92,11 +96,12 @@ export default function Auth() {
     });
   };
 
-  const handleOTPVerify = (values: { otp: string }) => {
+  const handleOTPVerify = async (values: { otp: string }) => {
     setAuthError(null);
     
     execute(async () => {
       await verifyOTP(email, values.otp);
+      navigate("/");
     }, {
       onSuccess: () => {
         toast({
@@ -165,11 +170,9 @@ export default function Auth() {
   );
 }
 
-// Helper function to provide hints for common CAPTCHA issues
 function captchaErrorHint(): JSX.Element | null {
   const host = window.location.hostname;
   
-  // Only show hints in development or test environments
   if (host.includes('localhost') || host.includes('.lovableproject.com')) {
     return (
       <span>
