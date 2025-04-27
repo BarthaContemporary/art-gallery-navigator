@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface TurnstileWidgetProps {
   siteKey: string;
@@ -11,37 +11,69 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const scriptLoadedRef = useRef<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const resetWidget = () => {
+    if (widgetIdRef.current && window.turnstile) {
+      try {
+        window.turnstile.reset(widgetIdRef.current);
+        console.log('CAPTCHA widget reset');
+      } catch (error) {
+        console.error('Error resetting Turnstile widget:', error);
+      }
+    }
+  };
+
+  const renderWidget = () => {
+    if (!containerRef.current || !window.turnstile) {
+      console.log('Container or Turnstile not ready');
+      return;
+    }
+    
+    if (widgetIdRef.current && containerRef.current.children.length === 0) {
+      widgetIdRef.current = null;
+    }
+    
+    if (!widgetIdRef.current) {
+      try {
+        console.log('Rendering Turnstile widget...');
+        widgetIdRef.current = window.turnstile.render(containerRef.current, {
+          sitekey: siteKey,
+          callback: (token: string) => {
+            console.log('CAPTCHA verified successfully');
+            setLoadError(null);
+            onVerify(token);
+          },
+          'error-callback': () => {
+            const error = new Error('CAPTCHA verification failed');
+            console.error('CAPTCHA verification failed');
+            setLoadError('Verification failed. Please try again.');
+            if (onError) onError(error);
+            // Auto-reset after error
+            setTimeout(resetWidget, 1500);
+          },
+          'timeout-callback': () => {
+            console.log('CAPTCHA timeout - resetting');
+            setLoadError('Verification timed out. Please try again.');
+            resetWidget();
+          },
+          'expired-callback': () => {
+            console.log('CAPTCHA expired - resetting');
+            setLoadError('Verification expired. Please try again.');
+            resetWidget();
+          }
+        });
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error rendering Turnstile widget:', error);
+        setLoadError('Failed to load CAPTCHA. Please refresh the page.');
+        if (onError) onError(error instanceof Error ? error : new Error('Failed to render CAPTCHA'));
+      }
+    }
+  };
 
   useEffect(() => {
-    // Function to render the widget when script is loaded
-    const renderWidget = () => {
-      if (!containerRef.current || !window.turnstile) return;
-      
-      // If we already have a widget ID but the container is empty, reset the widget ID
-      if (widgetIdRef.current && containerRef.current.children.length === 0) {
-        widgetIdRef.current = null;
-      }
-      
-      // Only render if we don't already have a widget ID
-      if (!widgetIdRef.current) {
-        try {
-          widgetIdRef.current = window.turnstile.render(containerRef.current, {
-            sitekey: siteKey,
-            callback: (token: string) => {
-              onVerify(token);
-            },
-            'error-callback': () => {
-              if (onError) onError(new Error('CAPTCHA verification failed'));
-            }
-          });
-        } catch (error) {
-          console.error('Error rendering Turnstile widget:', error);
-          if (onError) onError(error instanceof Error ? error : new Error('Failed to render CAPTCHA'));
-        }
-      }
-    };
-
-    // Load script if it hasn't been loaded yet
     if (!scriptLoadedRef.current) {
       const existingScript = document.querySelector('script[src*="turnstile"]');
       
@@ -51,41 +83,51 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
         script.async = true;
         script.defer = true;
         script.onload = () => {
+          console.log('Turnstile script loaded');
           scriptLoadedRef.current = true;
+          setIsLoading(false);
           renderWidget();
+        };
+        script.onerror = () => {
+          console.error('Failed to load Turnstile script');
+          setLoadError('Failed to load CAPTCHA. Please refresh the page.');
+          setIsLoading(false);
         };
         document.head.appendChild(script);
       } else {
         scriptLoadedRef.current = true;
-        // If the script is already in the document but not loaded yet
-        existingScript.addEventListener('load', renderWidget);
-        // If the script is already loaded
         if (window.turnstile) {
+          setIsLoading(false);
           renderWidget();
         }
       }
     } else if (window.turnstile) {
-      // Script is loaded, render widget
       renderWidget();
     }
 
     return () => {
-      // Cleanup when component unmounts
       if (widgetIdRef.current && window.turnstile) {
         try {
-          window.turnstile.reset(widgetIdRef.current);
+          window.turnstile.remove(widgetIdRef.current);
         } catch (e) {
-          console.error('Error resetting Turnstile widget:', e);
+          console.error('Error cleaning up Turnstile widget:', e);
         }
       }
     };
-  }, [siteKey, onVerify, onError]);
+  }, [siteKey]);
 
   return (
-    <div className="flex flex-col items-center w-full">
-      <div ref={containerRef} className="flex justify-center my-4" data-turnstile></div>
-      {!scriptLoadedRef.current && (
-        <div className="text-muted-foreground text-xs">Loading CAPTCHA...</div>
+    <div className="flex flex-col items-center w-full space-y-2">
+      <div 
+        ref={containerRef} 
+        className="flex justify-center my-4" 
+        data-turnstile
+      />
+      {isLoading && (
+        <div className="text-muted-foreground text-sm">Loading CAPTCHA verification...</div>
+      )}
+      {loadError && (
+        <div className="text-destructive text-sm">{loadError}</div>
       )}
     </div>
   );

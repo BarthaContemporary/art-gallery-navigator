@@ -43,12 +43,15 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
 
     try {
       const { error } = await supabase.functions.invoke('verify-turnstile', {
-        body: { token: captchaToken }
+        body: { 
+          token: captchaToken,
+          ip: undefined // Optional: add IP if available
+        }
       });
 
       if (error) {
         console.error('CAPTCHA verification failed:', error);
-        setCaptchaError("CAPTCHA verification failed. Please try again.");
+        setCaptchaError(error.message || "CAPTCHA verification failed. Please try again.");
         return;
       }
 
