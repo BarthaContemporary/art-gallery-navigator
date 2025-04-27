@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -26,46 +26,61 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
   );
   const [emails, setEmails] = useState<string[]>(collection.external_emails || []);
   const [currentEmail, setCurrentEmail] = useState("");
+  const [isMounted, setIsMounted] = useState(true);
+  
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
   const { mutate: updateCollection, isPending } = useUpdateCollection();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Use memoized event handler to prevent re-renders
+  const handleDialogClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error("Please enter a name for the collection.");
       return;
     }
 
-    updateCollection(
-      { 
-        id: collection.id, 
-        name, 
-        description,
-        artworkIds: selectedArtworks,
-        externalEmails: emails.length > 0 ? emails : undefined
-      },
-      {
-        onSuccess: () => {
-          toast.success("Collection updated successfully");
-          onOpenChange(false);
+    // Use a small timeout to prevent UI freezing
+    setTimeout(() => {
+      updateCollection(
+        { 
+          id: collection.id, 
+          name, 
+          description,
+          artworkIds: selectedArtworks,
+          externalEmails: emails.length > 0 ? emails : undefined
         },
-        onError: (error) => {
-          toast.error("Failed to update collection: " + error.message);
-        },
-      }
-    );
-  };
+        {
+          onSuccess: () => {
+            toast.success("Collection updated successfully");
+            // Use requestAnimationFrame for smoother transitions
+            requestAnimationFrame(() => {
+              if (isMounted) {
+                onOpenChange(false);
+              }
+            });
+          },
+          onError: (error) => {
+            toast.error("Failed to update collection: " + error.message);
+          },
+        }
+      );
+    }, 0);
+  }, [name, description, selectedArtworks, emails, collection.id, updateCollection, onOpenChange, isMounted]);
 
-  const toggleArtwork = (id: string) => {
+  const toggleArtwork = useCallback((id: string) => {
     setSelectedArtworks((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-  };
+  }, []);
 
-  const handleAddEmail = () => {
+  const handleAddEmail = useCallback(() => {
     if (currentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentEmail)) {
       if (!emails.includes(currentEmail)) {
-        setEmails([...emails, currentEmail]);
+        setEmails(prev => [...prev, currentEmail]);
         setCurrentEmail("");
       } else {
         toast.error("Email already added");
@@ -73,15 +88,27 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
     } else if (currentEmail) {
       toast.error("Please enter a valid email address");
     }
-  };
+  }, [currentEmail, emails]);
 
-  const removeEmail = (emailToRemove: string) => {
-    setEmails(emails.filter(email => email !== emailToRemove));
-  };
+  const removeEmail = useCallback((emailToRemove: string) => {
+    setEmails(emails => emails.filter(email => email !== emailToRemove));
+  }, []);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        // Add a slight delay when closing to ensure state is properly handled
+        if (!newOpen) {
+          requestAnimationFrame(() => {
+            onOpenChange(false);
+          });
+        } else {
+          onOpenChange(true);
+        }
+      }}
+    >
+      <DialogContent onClick={handleDialogClick}>
         <DialogHeader>
           <DialogTitle>Edit Collection</DialogTitle>
         </DialogHeader>
