@@ -9,7 +9,6 @@ import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeletionRequestsTable } from "@/components/auth/DeletionRequestsTable";
-
 export default function UserSignup() {
   const {
     isAdmin
@@ -21,7 +20,6 @@ export default function UserSignup() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"gallery_admin" | "artist" | "external">("artist");
   const [isLoading, setIsLoading] = useState(false);
-
   if (!isAdmin) {
     return <div className="flex h-full items-center justify-center">
         <p className="text-xl font-semibold text-muted-foreground">
@@ -29,7 +27,6 @@ export default function UserSignup() {
         </p>
       </div>;
   }
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -74,11 +71,10 @@ export default function UserSignup() {
       setIsLoading(false);
     }
   };
-
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          <h1 className="text-3xl tracking-wide text-slate-500 font-thin">USER MANAGEMENT</h1>
+          <h1 className="text-slate-700 text-sm font-normal\n">USER MANAGEMENT</h1>
         </div>
       </div>
 
