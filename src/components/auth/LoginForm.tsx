@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,17 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
   const [verifyAttempts, setVerifyAttempts] = useState(0);
+  const [domainInfo, setDomainInfo] = useState<string>('');
+
+  // Get domain information for debugging
+  useEffect(() => {
+    const currentDomain = window.location.hostname;
+    const fullUrl = window.location.href;
+    setDomainInfo(currentDomain);
+    console.log(`LoginForm - Current domain: ${currentDomain}`);
+    console.log(`LoginForm - Full URL: ${fullUrl}`);
+    console.log(`LoginForm - Origin: ${window.location.origin}`);
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -48,11 +59,14 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
       const currentDomain = window.location.hostname;
       
       console.log(`Verifying CAPTCHA with domain: ${currentDomain}`);
+      console.log(`Token length: ${captchaToken.length}`);
+      
       const { data, error } = await supabase.functions.invoke('verify-turnstile', {
         body: { 
           token: captchaToken,
-          ip: undefined, // Optional: add IP if available
-          domain: currentDomain
+          domain: currentDomain,
+          origin: window.location.origin,
+          url: window.location.href
         }
       });
 
@@ -62,7 +76,13 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         return;
       }
 
-      onSubmit(values, captchaToken);
+      if (data && data.success) {
+        console.log('CAPTCHA verification successful with response:', data);
+        onSubmit(values, captchaToken);
+      } else {
+        console.error('CAPTCHA verification failed with response:', data);
+        setCaptchaError(data?.message || "CAPTCHA verification failed. Please try again.");
+      }
     } catch (error) {
       console.error('Error during CAPTCHA verification:', error);
       setCaptchaError("An error occurred during verification. Please try again.");
@@ -70,14 +90,14 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   };
 
   const handleCaptchaVerify = (token: string) => {
-    console.log('CAPTCHA verified successfully');
+    console.log(`CAPTCHA verified successfully - Token received (length: ${token.length})`);
     setCaptchaToken(token);
     setCaptchaError(null);
   };
 
   const handleCaptchaError = (error: Error) => {
     console.error('CAPTCHA verification failed:', error);
-    setCaptchaError("CAPTCHA verification failed. Please try again.");
+    setCaptchaError(`Verification failed: ${error.message}`);
     setCaptchaToken(null);
   };
 
@@ -145,6 +165,12 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
             <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription>{captchaError}</AlertDescription>
           </Alert>
+        )}
+
+        {domainInfo && (
+          <div className="text-xs text-muted-foreground">
+            Using domain: {domainInfo}
+          </div>
         )}
 
         {verifyAttempts > 3 && (
