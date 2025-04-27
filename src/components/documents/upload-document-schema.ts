@@ -9,19 +9,18 @@ export const uploadFormSchema = z.object({
   collection_id: z.string().optional(),
   artist_id: z.string().optional(),
 }).refine((data) => {
-  // Get the states of each entity selection
-  const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
-  const hasCollection = !!data.collection_id && data.collection_id !== "_none";
-  const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+  // Count the number of selected entities
+  let selectedCount = 0;
   
-  // Count how many entities are selected
-  const selectedCount = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
+  if (data.artwork_id && data.artwork_id !== "_none") selectedCount++;
+  if (data.collection_id && data.collection_id !== "_none") selectedCount++;
+  if (data.artist_id && data.artist_id !== "_none" && data.artist_id !== "") selectedCount++;
   
   // We need exactly one entity to be selected
   return selectedCount === 1;
 }, {
   message: "Document must be attached to exactly one of: artwork, collection, or artist",
-  path: ["artwork_id", "collection_id", "artist_id"], 
+  path: ["artwork_id"], // Path to show the error
 });
 
 export type UploadFormData = z.infer<typeof uploadFormSchema>;

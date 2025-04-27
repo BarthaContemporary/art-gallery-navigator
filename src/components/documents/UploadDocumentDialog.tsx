@@ -34,7 +34,7 @@ export function UploadDocumentDialog() {
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
           <DialogDescription>
-            Attach a document to an artwork, collection, or artist.
+            Attach a document to an artwork, collection, or artist. Please select exactly one.
           </DialogDescription>
         </DialogHeader>
         <UploadDocumentForm form={form} onSubmit={handleUpload} />

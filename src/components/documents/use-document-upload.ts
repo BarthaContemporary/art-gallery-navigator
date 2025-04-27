@@ -72,8 +72,8 @@ export function useDocumentUpload() {
         .from('documents')
         .getPublicUrl(fileName);
 
-      // IMPORTANT: Ensure only one foreign key is set and the others are null
-      // This is crucial to satisfy the check constraint
+      // Create document record with proper null handling
+      // Only one of the three foreign keys should be non-null
       const documentRecord = {
         file_name: file.name,
         file_url: publicUrl,
@@ -92,7 +92,7 @@ export function useDocumentUpload() {
         description: data.description || null
       });
 
-      // Insert record in database with exactly one non-null reference
+      // Insert record in database
       const insertResult = await supabase
         .from('documents')
         .insert(documentRecord);

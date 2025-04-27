@@ -61,13 +61,14 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
       const hasCollection = !!data.collection_id && data.collection_id !== "_none";
       const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
-      if (!hasArtwork && !hasCollection && !hasArtist) {
+      const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
+      
+      if (selectedEntities === 0) {
         setValidationError("Please attach document to either an artwork, collection, or artist");
         return;
       }
-
-      const attachedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
-      if (attachedEntities > 1) {
+      
+      if (selectedEntities > 1) {
         setValidationError("Document can only be attached to one entity: artwork, collection, or artist");
         return;
       }
@@ -75,7 +76,13 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
       setValidationError(null);
       setIsSubmitting(true);
       
-      await onSubmit(data);
+      await onSubmit({
+        ...data,
+        // Ensure the non-selected entities are properly set to null values
+        artwork_id: hasArtwork ? data.artwork_id : "_none",
+        collection_id: hasCollection ? data.collection_id : "_none",
+        artist_id: hasArtist ? data.artist_id : "",
+      });
     } catch (error) {
       console.error("Form submission error:", error);
     } finally {
