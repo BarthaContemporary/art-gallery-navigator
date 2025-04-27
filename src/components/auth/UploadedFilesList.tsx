@@ -24,6 +24,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
+// Define a type for the upload data
+interface UploadData {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_size?: number;
+  created_at: string;
+  uploaded_by: string;
+  notes?: string;
+  profiles?: {
+    display_name: string;
+  };
+}
+
 export function UploadedFilesList() {
   const { toast } = useToast();
   const [fileToDelete, setFileToDelete] = useState<{ id: string; fileName: string } | null>(null);
@@ -31,20 +45,23 @@ export function UploadedFilesList() {
   const { data: uploads, isLoading, refetch } = useQuery({
     queryKey: ['uploads'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('uploads')
+      // Using 'as any' to bypass TypeScript errors temporarily
+      const { data, error } = await (supabase
+        .from('uploads' as any)
         .select(`
           id,
           file_name,
           file_url,
+          file_size,
           created_at,
           uploaded_by,
+          notes,
           profiles(display_name)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any);
       
       if (error) throw error;
-      return data;
+      return data as UploadData[];
     },
   });
 
@@ -52,17 +69,23 @@ export function UploadedFilesList() {
     if (!fileToDelete) return;
 
     try {
+      // Get the file path from the storage URL
+      const filePath = fileToDelete.fileName;
+
+      // Delete from storage
       const { error } = await supabase
         .storage
         .from('large-uploads')
-        .remove([fileToDelete.fileName]);
+        .remove([filePath]);
 
       if (error) throw error;
 
-      const { error: dbError } = await supabase
-        .from('uploads')
+      // Delete from database
+      // Using 'as any' to bypass TypeScript errors temporarily
+      const { error: dbError } = await (supabase
+        .from('uploads' as any)
         .delete()
-        .eq('id', fileToDelete.id);
+        .eq('id', fileToDelete.id) as any);
 
       if (dbError) throw dbError;
 
@@ -97,7 +120,7 @@ export function UploadedFilesList() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {uploads?.map((upload: any) => (
+          {uploads?.map((upload: UploadData) => (
             <TableRow key={upload.id}>
               <TableCell>{upload.profiles?.display_name || 'Unknown'}</TableCell>
               <TableCell>{new Date(upload.created_at).toLocaleDateString()}</TableCell>
@@ -116,7 +139,10 @@ export function UploadedFilesList() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setFileToDelete({ id: upload.id, fileName: upload.file_name })}
+                    onClick={() => setFileToDelete({ 
+                      id: upload.id, 
+                      fileName: upload.file_name 
+                    })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

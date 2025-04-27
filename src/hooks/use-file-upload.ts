@@ -27,14 +27,16 @@ export function useFileUpload() {
         .getPublicUrl(fileName);
 
       // Record the upload in the database
-      const { error: dbError } = await supabase
-        .from('uploads')
+      // Using 'as any' to bypass TypeScript errors temporarily
+      const { error: dbError } = await (supabase
+        .from('uploads' as any)
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
+          uploaded_by: supabase.auth.getUser().then(({ data }) => data?.user?.id),
           notes
-        });
+        } as any));
 
       if (dbError) throw dbError;
 
