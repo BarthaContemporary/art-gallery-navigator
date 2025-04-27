@@ -20,22 +20,25 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [showOTP, setShowOTP] = useState(false);
   const [otpToken, setOtpToken] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const { signIn, verifyOTP } = useAuth();
   const { toast } = useToast();
   const { execute, isLoading } = useSafeAsync();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const turnstileResponse = await window.turnstile.render('#turnstile-widget', {
-      sitekey: '1x00000000000000000000AA',
-      callback: function(token: string) {
-        return token;
-      },
-    });
+    
+    if (!captchaToken) {
+      toast({
+        title: "CAPTCHA Required",
+        description: "Please complete the CAPTCHA verification.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     execute(async () => {
-      const { needsOTP } = await signIn(email, password, turnstileResponse);
+      const { needsOTP } = await signIn(email, password, captchaToken);
       return { needsOTP };
     }, {
       onSuccess: (result) => {
@@ -111,11 +114,14 @@ export default function Auth() {
                   disabled={isLoading}
                 />
               </div>
-              <div id="turnstile-widget" className="flex justify-center"></div>
+              <TurnstileWidget 
+                siteKey="1x00000000000000000000AA" 
+                onVerify={(token) => setCaptchaToken(token)} 
+              />
               <Button 
                 type="submit" 
                 className="w-full h-12 sm:h-10 text-lg sm:text-base"
-                disabled={isLoading}
+                disabled={isLoading || !captchaToken}
               >
                 {isLoading ? "Processing..." : "Login"}
               </Button>
