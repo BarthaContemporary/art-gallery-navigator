@@ -1,7 +1,7 @@
 
 import { Outlet } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useInactivity } from "@/hooks/use-inactivity";
