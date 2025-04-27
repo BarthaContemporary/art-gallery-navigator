@@ -32,7 +32,7 @@ export function UploadedFilesList() {
     queryKey: ['uploads'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('uploads' as any)
+        .from('uploads')
         .select(`
           id,
           file_name,
@@ -60,7 +60,7 @@ export function UploadedFilesList() {
       if (error) throw error;
 
       const { error: dbError } = await supabase
-        .from('uploads' as any)
+        .from('uploads')
         .delete()
         .eq('id', fileToDelete.id);
 
