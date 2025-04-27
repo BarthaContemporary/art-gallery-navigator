@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // Define a type for the upload data
 interface UploadData {
@@ -39,29 +39,39 @@ interface UploadData {
 }
 
 export function UploadedFilesList() {
-  const { toast } = useToast();
   const [fileToDelete, setFileToDelete] = useState<{ id: string; fileName: string } | null>(null);
 
-  const { data: uploads, isLoading, refetch } = useQuery({
+  const { data: uploads, isLoading, refetch, error } = useQuery({
     queryKey: ['uploads'],
     queryFn: async () => {
-      // Using 'as any' to bypass TypeScript errors temporarily
-      const { data, error } = await (supabase
-        .from('uploads' as any)
-        .select(`
-          id,
-          file_name,
-          file_url,
-          file_size,
-          created_at,
-          uploaded_by,
-          notes,
-          profiles(display_name)
-        `)
-        .order('created_at', { ascending: false }) as any);
-      
-      if (error) throw error;
-      return data as UploadData[];
+      try {
+        console.log("Fetching uploads data...");
+        // Using 'as any' to bypass TypeScript errors temporarily
+        const { data, error } = await (supabase
+          .from('uploads' as any)
+          .select(`
+            id,
+            file_name,
+            file_url,
+            file_size,
+            created_at,
+            uploaded_by,
+            notes,
+            profiles(display_name)
+          `)
+          .order('created_at', { ascending: false }) as any);
+        
+        if (error) {
+          console.error("Error fetching uploads:", error);
+          throw error;
+        }
+        
+        console.log("Uploads data fetched:", data);
+        return data as UploadData[];
+      } catch (err) {
+        console.error("Failed to fetch uploads:", err);
+        throw err;
+      }
     },
   });
 
@@ -69,17 +79,25 @@ export function UploadedFilesList() {
     if (!fileToDelete) return;
 
     try {
-      // Get the file path from the storage URL
-      const filePath = fileToDelete.fileName;
-
+      // Extract the filename from the URL to get the storage path
+      const url = new URL(fileToDelete.fileName);
+      const filePath = url.pathname.split('/').pop() || fileToDelete.fileName;
+      
+      console.log("Deleting file from storage:", filePath);
+      
       // Delete from storage
       const { error } = await supabase
         .storage
         .from('large-uploads')
         .remove([filePath]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Storage deletion error:", error);
+        throw error;
+      }
 
+      console.log("File deleted from storage, now removing from database");
+      
       // Delete from database
       // Using 'as any' to bypass TypeScript errors temporarily
       const { error: dbError } = await (supabase
@@ -87,26 +105,41 @@ export function UploadedFilesList() {
         .delete()
         .eq('id', fileToDelete.id) as any);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("Database deletion error:", dbError);
+        throw dbError;
+      }
 
-      toast({
-        title: "File deleted",
-        description: "The file has been successfully deleted.",
+      toast.success("File deleted", {
+        description: "The file has been successfully deleted."
       });
 
       refetch();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to delete the file. Please try again.",
-        variant: "destructive",
+      console.error("Delete operation failed:", error);
+      toast.error("Failed to delete file", {
+        description: error.message || "Please try again or contact support."
       });
     } finally {
       setFileToDelete(null);
     }
   };
 
-  if (isLoading) return <div>Loading uploads...</div>;
+  if (isLoading) {
+    return <div className="py-8 text-center">Loading uploads...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="py-8 text-center text-destructive">
+        Error loading uploads. Please try refreshing the page.
+      </div>
+    );
+  }
+
+  if (!uploads || uploads.length === 0) {
+    return <div className="py-8 text-center text-muted-foreground">No files have been uploaded yet.</div>;
+  }
 
   return (
     <>
@@ -124,7 +157,7 @@ export function UploadedFilesList() {
             <TableRow key={upload.id}>
               <TableCell>{upload.profiles?.display_name || 'Unknown'}</TableCell>
               <TableCell>{new Date(upload.created_at).toLocaleDateString()}</TableCell>
-              <TableCell>{upload.file_name}</TableCell>
+              <TableCell className="max-w-[200px] truncate">{upload.file_name}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
                   <Button
@@ -141,7 +174,7 @@ export function UploadedFilesList() {
                     size="icon"
                     onClick={() => setFileToDelete({ 
                       id: upload.id, 
-                      fileName: upload.file_name 
+                      fileName: upload.file_url
                     })}
                   >
                     <Trash2 className="h-4 w-4" />

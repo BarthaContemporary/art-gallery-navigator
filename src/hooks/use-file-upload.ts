@@ -17,7 +17,12 @@ export function useFileUpload() {
       }
 
       // Upload file to storage
-      const fileName = `${Date.now()}_${file.name}`;
+      const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${timestamp}_${file.name}`;
+      
+      console.log('Uploading to large-uploads bucket:', fileName);
+      
       const { error: uploadError, data } = await supabase.storage
         .from('large-uploads')
         .upload(fileName, file, {
@@ -25,12 +30,17 @@ export function useFileUpload() {
           upsert: false
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('large-uploads')
         .getPublicUrl(fileName);
+      
+      console.log('File uploaded successfully, public URL:', publicUrl);
 
       // Record the upload in the database
       // Using 'as any' to bypass TypeScript errors until types are updated
@@ -44,9 +54,13 @@ export function useFileUpload() {
           notes
         } as any);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database insert error:', dbError);
+        throw dbError;
+      }
 
       toast.success('File uploaded successfully');
+      return publicUrl;
     } catch (error: any) {
       console.error('Upload error:', error);
       toast.error('Upload failed: ' + (error.message || 'Unknown error'));
