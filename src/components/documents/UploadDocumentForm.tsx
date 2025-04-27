@@ -28,7 +28,7 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Reset other fields when one is selected
+  // Reset other fields when one is selected to ensure mutual exclusivity
   useEffect(() => {
     if (artworkId && artworkId !== "_none") {
       form.setValue("collection_id", "_none");
@@ -53,13 +53,13 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
     }
   }, [artistId, form]);
 
-  // Process form data before submission
+  // Submit handler with improved validation
   const handleSubmit = async (data: UploadFormData) => {
     try {
-      // Validate that one and only one of artwork_id, collection_id or artist_id is set
-      const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
-      const hasCollection = !!data.collection_id && data.collection_id !== "_none";
-      const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+      // Validate that exactly one attachment field is set
+      const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
+      const hasCollection = data.collection_id && data.collection_id !== "_none";
+      const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
       const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
       
@@ -76,13 +76,7 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
       setValidationError(null);
       setIsSubmitting(true);
       
-      await onSubmit({
-        ...data,
-        // Ensure the non-selected entities are properly set to null values
-        artwork_id: hasArtwork ? data.artwork_id : "_none",
-        collection_id: hasCollection ? data.collection_id : "_none",
-        artist_id: hasArtist ? data.artist_id : "",
-      });
+      await onSubmit(data);
     } catch (error) {
       console.error("Form submission error:", error);
     } finally {

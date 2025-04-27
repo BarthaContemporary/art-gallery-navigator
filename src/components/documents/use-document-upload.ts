@@ -29,28 +29,31 @@ export function useDocumentUpload() {
       
       if (!data.file) {
         toast.error("Please select a file to upload");
-        return;
-      }
-      
-      // Validate that exactly one of artwork_id, collection_id, or artist_id is provided
-      const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
-      const hasCollection = !!data.collection_id && data.collection_id !== "_none";
-      const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
-      
-      if (!hasArtwork && !hasCollection && !hasArtist) {
-        toast.error("Please attach document to either an artwork, collection, or artist");
         setIsUploading(false);
         return;
       }
       
-      if ((hasArtwork && hasCollection) || 
-          (hasArtwork && hasArtist) || 
-          (hasCollection && hasArtist)) {
+      // Parse and validate the associations
+      const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
+      const hasCollection = data.collection_id && data.collection_id !== "_none";
+      const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+      
+      // Count selected entities to ensure exactly one is chosen
+      const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean);
+      
+      if (selectedEntities.length === 0) {
+        toast.error("Please attach document to an artwork, collection, or artist");
+        setIsUploading(false);
+        return;
+      }
+      
+      if (selectedEntities.length > 1) {
         toast.error("Document can only be attached to one entity: artwork, collection, or artist");
         setIsUploading(false);
         return;
       }
       
+      // File upload logic
       const file = data.file;
       const fileExt = file.name.split('.').pop();
       const timestamp = Date.now();
@@ -64,33 +67,33 @@ export function useDocumentUpload() {
         
       if (uploadResult.error) {
         handleUploadError(uploadResult.error);
+        setIsUploading(false);
         return;
       }
 
-      // Get public URL
+      // Get public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(fileName);
 
-      // Create document record
-      // CRITICAL: We must set unused foreign keys to NULL, not empty strings or "_none"
+      // Prepare document record with proper NULL handling for the database
       const documentRecord = {
         file_name: file.name,
         file_url: publicUrl,
         type: data.type,
         description: data.description || null,
-        // Only one of these should be non-null, the others MUST be null
+        // Set only one field and ensure others are NULL
         artwork_id: hasArtwork ? data.artwork_id : null,
         collection_id: hasCollection ? data.collection_id : null,
         artist_id: hasArtist ? data.artist_id : null
       };
 
-      console.log("Inserting document with:", { 
-        finalArtworkId: documentRecord.artwork_id, 
-        finalCollectionId: documentRecord.collection_id,
-        finalArtistId: documentRecord.artist_id,
-        type: data.type,
-        description: data.description || null
+      // Debug log to help diagnose issues
+      console.log("Inserting document record:", { 
+        artwork_id: documentRecord.artwork_id, 
+        collection_id: documentRecord.collection_id,
+        artist_id: documentRecord.artist_id,
+        type: data.type
       });
 
       // Insert record in database
@@ -118,6 +121,7 @@ export function useDocumentUpload() {
 
     } catch (error) {
       console.error('Upload error:', error);
+      toast.error("An unexpected error occurred during upload");
       setIsUploading(false);
     } finally {
       setIsUploading(false);

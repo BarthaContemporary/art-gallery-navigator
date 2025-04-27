@@ -17,16 +17,24 @@ export function UploadDocumentDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
+      // Only allow closing if not currently uploading
       if (!isUploading) {
         setOpen(newOpen);
         if (!newOpen) {
           // Reset form when dialog is closed
-          form.reset();
+          form.reset({
+            description: "",
+            artwork_id: "_none",
+            collection_id: "_none",
+            artist_id: "",
+            type: "",
+            file: undefined
+          });
         }
       }
     }}>
       <DialogTrigger asChild>
-        <Button>
+        <Button onClick={() => setOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" /> Upload Document
         </Button>
       </DialogTrigger>
