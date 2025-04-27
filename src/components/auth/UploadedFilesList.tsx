@@ -33,33 +33,28 @@ interface UploadData {
   created_at: string;
   uploaded_by: string;
   notes?: string;
-  profiles?: {
-    display_name: string;
-  };
+}
+
+// Define a type for profile data
+interface ProfileData {
+  id: string;
+  display_name: string | null;
 }
 
 export function UploadedFilesList() {
   const [fileToDelete, setFileToDelete] = useState<{ id: string; fileName: string } | null>(null);
+  const [userProfiles, setUserProfiles] = useState<Record<string, string>>({});
 
+  // Fetch uploads data
   const { data: uploads, isLoading, refetch, error } = useQuery({
     queryKey: ['uploads'],
     queryFn: async () => {
       try {
         console.log("Fetching uploads data...");
-        // Using 'as any' to bypass TypeScript errors temporarily
-        const { data, error } = await (supabase
-          .from('uploads' as any)
-          .select(`
-            id,
-            file_name,
-            file_url,
-            file_size,
-            created_at,
-            uploaded_by,
-            notes,
-            profiles(display_name)
-          `)
-          .order('created_at', { ascending: false }) as any);
+        const { data, error } = await supabase
+          .from('uploads')
+          .select('*')
+          .order('created_at', { ascending: false });
         
         if (error) {
           console.error("Error fetching uploads:", error);
@@ -67,6 +62,29 @@ export function UploadedFilesList() {
         }
         
         console.log("Uploads data fetched:", data);
+        
+        // Get unique user IDs from uploads
+        const userIds = [...new Set(data.map((upload) => upload.uploaded_by))];
+        
+        if (userIds.length > 0) {
+          // Fetch profiles for these user IDs
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', userIds);
+            
+          if (profilesError) {
+            console.error("Error fetching profiles:", profilesError);
+          } else if (profiles) {
+            // Create a mapping of user IDs to display names
+            const profileMap: Record<string, string> = {};
+            profiles.forEach((profile: ProfileData) => {
+              profileMap[profile.id] = profile.display_name || 'Unknown';
+            });
+            setUserProfiles(profileMap);
+          }
+        }
+        
         return data as UploadData[];
       } catch (err) {
         console.error("Failed to fetch uploads:", err);
@@ -80,15 +98,14 @@ export function UploadedFilesList() {
 
     try {
       // Extract the filename from the URL to get the storage path
-      const url = new URL(fileToDelete.fileName);
-      const filePath = url.pathname.split('/').pop() || fileToDelete.fileName;
+      const filePath = fileToDelete.fileName.split('/').pop() || fileToDelete.fileName;
       
       console.log("Deleting file from storage:", filePath);
       
       // Delete from storage
       const { error } = await supabase
         .storage
-        .from('large-uploads')
+        .from('documents')
         .remove([filePath]);
 
       if (error) {
@@ -99,11 +116,10 @@ export function UploadedFilesList() {
       console.log("File deleted from storage, now removing from database");
       
       // Delete from database
-      // Using 'as any' to bypass TypeScript errors temporarily
-      const { error: dbError } = await (supabase
-        .from('uploads' as any)
+      const { error: dbError } = await supabase
+        .from('uploads')
         .delete()
-        .eq('id', fileToDelete.id) as any);
+        .eq('id', fileToDelete.id);
 
       if (dbError) {
         console.error("Database deletion error:", dbError);
@@ -155,7 +171,7 @@ export function UploadedFilesList() {
         <TableBody>
           {uploads?.map((upload: UploadData) => (
             <TableRow key={upload.id}>
-              <TableCell>{upload.profiles?.display_name || 'Unknown'}</TableCell>
+              <TableCell>{userProfiles[upload.uploaded_by] || 'Unknown'}</TableCell>
               <TableCell>{new Date(upload.created_at).toLocaleDateString()}</TableCell>
               <TableCell className="max-w-[200px] truncate">{upload.file_name}</TableCell>
               <TableCell>
