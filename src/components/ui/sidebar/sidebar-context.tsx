@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { SidebarContext, SidebarProviderProps } from "./types"
+import type { SidebarContext as SidebarContextType, SidebarProviderProps } from "./types"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
@@ -8,10 +8,11 @@ const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
-const SidebarContext = React.createContext<SidebarContext | null>(null)
+// Rename the context to avoid naming conflict
+const SidebarContextInstance = React.createContext<SidebarContextType | null>(null)
 
 export function useSidebar() {
-  const context = React.useContext(SidebarContext)
+  const context = React.useContext(SidebarContextInstance)
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider")
   }
@@ -75,7 +76,7 @@ export const SidebarProvider = React.forwardRef<HTMLDivElement, SidebarProviderP
     )
 
     return (
-      <SidebarContext.Provider value={contextValue}>
+      <SidebarContextInstance.Provider value={contextValue}>
         <TooltipProvider delayDuration={0}>
           <div
             style={{
@@ -90,7 +91,7 @@ export const SidebarProvider = React.forwardRef<HTMLDivElement, SidebarProviderP
             {children}
           </div>
         </TooltipProvider>
-      </SidebarContext.Provider>
+      </SidebarContextInstance.Provider>
     )
   }
 )
