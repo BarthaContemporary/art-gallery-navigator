@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +8,8 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   signIn: (email: string, password: string, captchaToken?: string) => Promise<{ needsOTP: boolean }>;
+  signInWithPassword: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signInWithOTP: (email: string, captchaToken?: string) => Promise<{ needsOTP: boolean }>;
   verifyOTP: (email: string, token: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -70,7 +73,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Main signIn function that tries password first if provided, otherwise uses OTP
   const signIn = async (email: string, password: string, captchaToken?: string) => {
+    // If password is provided, try password-based login
+    if (password) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: {
+            captchaToken
+          }
+        });
+        
+        if (error) {
+          // If password login fails, fall back to OTP
+          if (error.message.includes("Invalid login credentials")) {
+            return signInWithOTP(email, captchaToken);
+          }
+          throw error;
+        }
+        
+        return { needsOTP: false };
+      } catch (error) {
+        // Fall back to OTP if password login fails
+        return signInWithOTP(email, captchaToken);
+      }
+    } else {
+      // No password provided, use OTP directly
+      return signInWithOTP(email, captchaToken);
+    }
+  };
+
+  // Password-specific login
+  const signInWithPassword = async (email: string, password: string, captchaToken?: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: {
+        captchaToken
+      }
+    });
+    
+    if (error) throw error;
+  };
+
+  // OTP-specific login
+  const signInWithOTP = async (email: string, captchaToken?: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -110,6 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session, 
       user, 
       signIn,
+      signInWithPassword,
+      signInWithOTP,
       verifyOTP,
       signUp, 
       signOut, 

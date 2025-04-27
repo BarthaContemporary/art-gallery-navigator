@@ -13,62 +13,89 @@ declare global {
 interface TurnstileWidgetProps {
   siteKey: string;
   onVerify: (token: string) => void;
+  onError?: (error: Error) => void;
 }
 
-export function TurnstileWidget({ siteKey, onVerify }: TurnstileWidgetProps) {
+export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const scriptAddedRef = useRef<boolean>(false);
+  const scriptLoadedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // If we already have a widget ID, we don't need to render again
-    if (widgetIdRef.current) return;
-
     // Function to render the widget when script is loaded
     const renderWidget = () => {
-      if (!containerRef.current || !window.turnstile || containerRef.current.innerHTML.trim() === '') return;
+      if (!containerRef.current || !window.turnstile) return;
       
-      try {
-        // Only render if we don't already have a widget ID
-        if (!widgetIdRef.current) {
+      // If we already have a widget ID but the container is empty, reset the widget ID
+      if (widgetIdRef.current && containerRef.current.children.length === 0) {
+        widgetIdRef.current = null;
+      }
+      
+      // Only render if we don't already have a widget ID
+      if (!widgetIdRef.current) {
+        try {
           widgetIdRef.current = window.turnstile.render(containerRef.current, {
             sitekey: siteKey,
             callback: (token: string) => {
               onVerify(token);
             },
+            'error-callback': () => {
+              if (onError) onError(new Error('CAPTCHA verification failed'));
+            }
           });
+        } catch (error) {
+          console.error('Error rendering Turnstile widget:', error);
+          if (onError) onError(error instanceof Error ? error : new Error('Failed to render CAPTCHA'));
         }
-      } catch (error) {
-        console.error('Error rendering Turnstile widget:', error);
       }
     };
 
-    // Create and load the script only once
-    if (!scriptAddedRef.current && !document.querySelector('script[src*="turnstile"]')) {
-      const script = document.createElement('script');
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.defer = true;
-      script.onload = renderWidget;
-      document.head.appendChild(script);
-      scriptAddedRef.current = true;
+    // Load script if it hasn't been loaded yet
+    if (!scriptLoadedRef.current) {
+      const existingScript = document.querySelector('script[src*="turnstile"]');
+      
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          scriptLoadedRef.current = true;
+          renderWidget();
+        };
+        document.head.appendChild(script);
+      } else {
+        scriptLoadedRef.current = true;
+        // If the script is already in the document but not loaded yet
+        existingScript.addEventListener('load', renderWidget);
+        // If the script is already loaded
+        if (window.turnstile) {
+          renderWidget();
+        }
+      }
     } else if (window.turnstile) {
-      // If script is already loaded but we don't have a widget yet
+      // Script is loaded, render widget
       renderWidget();
     }
 
     return () => {
-      // Only reset the widget when unmounting, don't remove the script
+      // Cleanup when component unmounts
       if (widgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.reset(widgetIdRef.current);
-          widgetIdRef.current = null;
         } catch (e) {
           console.error('Error resetting Turnstile widget:', e);
         }
       }
     };
-  }, [siteKey, onVerify]);
+  }, [siteKey, onVerify, onError]);
 
-  return <div ref={containerRef} className="flex justify-center my-4"></div>;
+  return (
+    <div className="flex flex-col items-center w-full">
+      <div ref={containerRef} className="flex justify-center my-4"></div>
+      {!scriptLoadedRef.current && (
+        <div className="text-muted-foreground text-xs">Loading CAPTCHA...</div>
+      )}
+    </div>
+  );
 }
