@@ -121,7 +121,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         )}
         
         <TurnstileWidget 
-          siteKey="1x00000000000000000000AA"
+          siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
           onVerify={handleCaptchaVerify}
           onError={handleCaptchaError}
         />
