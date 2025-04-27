@@ -9,25 +9,24 @@ import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeletionRequestsTable } from "@/components/auth/DeletionRequestsTable";
-
 export default function UserSignup() {
-  const { isAdmin } = useAuth();
-  const { toast } = useToast();
+  const {
+    isAdmin
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"gallery_admin" | "artist" | "external">("artist");
   const [isLoading, setIsLoading] = useState(false);
-
   if (!isAdmin) {
-    return (
-      <div className="flex h-full items-center justify-center">
+    return <div className="flex h-full items-center justify-center">
         <p className="text-xl font-semibold text-muted-foreground">
           You do not have permission to view this page.
         </p>
-      </div>
-    );
+      </div>;
   }
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -42,7 +41,6 @@ export default function UserSignup() {
       if (error) {
         throw error;
       }
-
       const userId = data.user?.id;
       if (userId) {
         const {
@@ -73,13 +71,12 @@ export default function UserSignup() {
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
+  return <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">Create and manage user accounts</p>
+          <h1 className="text-3xl tracking-wide font-semibold text-slate-500">USER MANAGEMENT</h1>
+          <p className="text-muted-foreground">
+        </p>
         </div>
       </div>
 
@@ -94,39 +91,16 @@ export default function UserSignup() {
           <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="space-y-2">
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  autoFocus
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  className="text-base sm:text-sm py-3"
-                  inputMode="email"
-                  autoComplete="email"
-                />
+                <Input type="email" placeholder="Email" value={email} autoFocus onChange={e => setEmail(e.target.value)} required className="text-base sm:text-sm py-3" inputMode="email" autoComplete="email" />
               </div>
               <div className="space-y-2">
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className="text-base sm:text-sm py-3"
-                  autoComplete="new-password"
-                />
+                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="text-base sm:text-sm py-3" autoComplete="new-password" />
               </div>
               <div className="space-y-1">
                 <label htmlFor="user-role" className="block text-sm font-medium">
                   Role
                 </label>
-                <select
-                  id="user-role"
-                  value={role}
-                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-                  className="w-full border rounded-md px-3 py-2 text-base bg-white"
-                >
+                <select id="user-role" value={role} onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")} className="w-full border rounded-md px-3 py-2 text-base bg-white">
                   <option value="artist">Artist</option>
                   <option value="gallery_admin">Admin</option>
                   <option value="external">External</option>
@@ -159,6 +133,5 @@ export default function UserSignup() {
           <UploadedFilesList />
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 }
