@@ -21,7 +21,7 @@ export function useFileUpload() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${timestamp}_${file.name}`;
       
-      console.log('Uploading to large-uploads bucket:', fileName);
+      console.log('Attempting upload to large-uploads bucket:', fileName);
       
       const { error: uploadError, data } = await supabase.storage
         .from('large-uploads')
@@ -43,16 +43,15 @@ export function useFileUpload() {
       console.log('File uploaded successfully, public URL:', publicUrl);
 
       // Record the upload in the database
-      // Using 'as any' to bypass TypeScript errors until types are updated
       const { error: dbError } = await supabase
-        .from('uploads' as any)
+        .from('uploads')
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
           uploaded_by: user.id,
           notes
-        } as any);
+        });
 
       if (dbError) {
         console.error('Database insert error:', dbError);
