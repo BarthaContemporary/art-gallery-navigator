@@ -13,6 +13,8 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
   const scriptLoadedRef = useRef<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const attemptRef = useRef<number>(0);
+  const maxRetries = 3;
 
   const resetWidget = () => {
     if (widgetIdRef.current && window.turnstile) {
@@ -37,7 +39,12 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
     
     if (!widgetIdRef.current) {
       try {
-        console.log('Rendering Turnstile widget...');
+        attemptRef.current += 1;
+        console.log(`Rendering Turnstile widget... (attempt ${attemptRef.current})`);
+        
+        const currentDomain = window.location.hostname;
+        console.log(`Current domain: ${currentDomain}`);
+        
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           callback: (token: string) => {
@@ -62,13 +69,27 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
             console.log('CAPTCHA expired - resetting');
             setLoadError('Verification expired. Please try again.');
             resetWidget();
-          }
+          },
+          'execution-hostname': window.location.hostname,
+          'data-action': 'login',
+          'data-cdata': window.location.hostname // Add domain info for verification
         });
         setIsLoading(false);
       } catch (error) {
         console.error('Error rendering Turnstile widget:', error);
-        setLoadError('Failed to load CAPTCHA. Please refresh the page.');
+        setLoadError(attemptRef.current >= maxRetries 
+          ? 'Failed to load CAPTCHA. Please refresh the page or try a different browser.' 
+          : 'Failed to load CAPTCHA. Retrying...');
+        
         if (onError) onError(error instanceof Error ? error : new Error('Failed to render CAPTCHA'));
+        
+        // Try to reload if under max attempts
+        if (attemptRef.current < maxRetries) {
+          setTimeout(() => {
+            console.log(`Retrying widget render (${attemptRef.current}/${maxRetries})...`);
+            renderWidget();
+          }, 2000);
+        }
       }
     }
   };
@@ -118,6 +139,9 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
 
   return (
     <div className="flex flex-col items-center w-full space-y-2">
+      {loadError && (
+        <div className="text-destructive text-sm mb-2">{loadError}</div>
+      )}
       <div 
         ref={containerRef} 
         className="flex justify-center my-4" 
@@ -125,9 +149,6 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
       />
       {isLoading && (
         <div className="text-muted-foreground text-sm">Loading CAPTCHA verification...</div>
-      )}
-      {loadError && (
-        <div className="text-destructive text-sm">{loadError}</div>
       )}
     </div>
   );

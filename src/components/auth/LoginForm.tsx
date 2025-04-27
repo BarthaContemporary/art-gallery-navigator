@@ -1,8 +1,9 @@
+
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,6 +27,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
+  const [verifyAttempts, setVerifyAttempts] = useState(0);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -42,10 +44,15 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     }
 
     try {
-      const { error } = await supabase.functions.invoke('verify-turnstile', {
+      setVerifyAttempts(prev => prev + 1);
+      const currentDomain = window.location.hostname;
+      
+      console.log(`Verifying CAPTCHA with domain: ${currentDomain}`);
+      const { data, error } = await supabase.functions.invoke('verify-turnstile', {
         body: { 
           token: captchaToken,
-          ip: undefined // Optional: add IP if available
+          ip: undefined, // Optional: add IP if available
+          domain: currentDomain
         }
       });
 
@@ -135,7 +142,16 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         
         {captchaError && (
           <Alert variant="destructive" className="py-2">
+            <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription>{captchaError}</AlertDescription>
+          </Alert>
+        )}
+
+        {verifyAttempts > 3 && (
+          <Alert className="bg-amber-50 text-amber-800 border-amber-200 py-2">
+            <AlertDescription>
+              Having trouble with CAPTCHA? Try refreshing the page or using a different browser.
+            </AlertDescription>
           </Alert>
         )}
         
@@ -148,7 +164,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading}
+          disabled={isLoading || !captchaToken}
         >
           {isLoading ? (
             <>
