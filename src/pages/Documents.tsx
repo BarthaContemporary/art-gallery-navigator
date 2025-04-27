@@ -16,17 +16,25 @@ export function DocumentsHeader() {
 
 export default function Documents() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const { data: documents = [] } = useDocuments();
   
-  // Filter documents based on search term
-  const filteredDocuments = documents.filter(doc => 
-    doc.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter documents based on search term and type filter
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.file_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = !typeFilter || doc.type.toLowerCase() === typeFilter.toLowerCase();
+    return matchesSearch && matchesType;
+  });
   
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <DocumentsHeader />
-      <DocumentsSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+      <DocumentsSearch 
+        searchTerm={searchTerm} 
+        onSearchChange={setSearchTerm}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+      />
       <DocumentsList documents={filteredDocuments} />
     </div>
   );
