@@ -32,13 +32,13 @@ export function useDocumentUpload() {
         return;
       }
       
-      // Validate that exactly one of artwork_id or collection_id is provided
+      // Validate that exactly one of artwork_id, collection_id, or artist_id is provided
       const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
       const hasCollection = !!data.collection_id && data.collection_id !== "_none";
       const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
-      if (!hasArtwork && !hasCollection) {
-        toast.error("Please attach document to either an artwork or a collection");
+      if (!hasArtwork && !hasCollection && !hasArtist) {
+        toast.error("Please attach document to either an artwork, collection, or artist");
         setIsUploading(false);
         return;
       }
@@ -86,7 +86,7 @@ export function useDocumentUpload() {
         description: data.description || null
       });
 
-      // Insert record in database
+      // Insert record in database with exactly one non-null reference
       const insertResult = await supabase
         .from('documents')
         .insert({

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -32,6 +33,9 @@ export function UploadDocumentDialog() {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
+          <DialogDescription>
+            Attach a document to an artwork, collection, or artist.
+          </DialogDescription>
         </DialogHeader>
         <UploadDocumentForm form={form} onSubmit={handleUpload} />
       </DialogContent>
