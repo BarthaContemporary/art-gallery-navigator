@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { TurnstileWidget } from "./TurnstileWidget";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -35,12 +35,28 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     }
   });
 
-  const handleSubmit = (values: LoginFormValues) => {
+  const handleSubmit = async (values: LoginFormValues) => {
     if (!captchaToken) {
       setCaptchaError("Please complete the CAPTCHA verification");
       return;
     }
-    onSubmit(values, captchaToken);
+
+    try {
+      const { error } = await supabase.functions.invoke('verify-turnstile', {
+        body: { token: captchaToken }
+      });
+
+      if (error) {
+        console.error('CAPTCHA verification failed:', error);
+        setCaptchaError("CAPTCHA verification failed. Please try again.");
+        return;
+      }
+
+      onSubmit(values, captchaToken);
+    } catch (error) {
+      console.error('Error during CAPTCHA verification:', error);
+      setCaptchaError("An error occurred during verification. Please try again.");
+    }
   };
 
   const handleCaptchaVerify = (token: string) => {
