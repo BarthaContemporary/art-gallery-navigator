@@ -21,10 +21,10 @@ export function useFileUpload() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${timestamp}_${file.name}`;
       
-      console.log('Attempting upload to large-uploads bucket:', fileName);
+      console.log('Attempting upload to documents bucket:', fileName);
       
       const { error: uploadError, data } = await supabase.storage
-        .from('large-uploads')
+        .from('documents')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false
@@ -37,21 +37,21 @@ export function useFileUpload() {
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('large-uploads')
+        .from('documents')
         .getPublicUrl(fileName);
       
       console.log('File uploaded successfully, public URL:', publicUrl);
 
-      // Record the upload in the database using type assertion
-      const { error: dbError } = await (supabase
-        .from('uploads' as any)
+      // Record the upload in the database
+      const { error: dbError } = await supabase
+        .from('uploads')
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
           uploaded_by: user.id,
           notes
-        } as any));
+        });
 
       if (dbError) {
         console.error('Database insert error:', dbError);
