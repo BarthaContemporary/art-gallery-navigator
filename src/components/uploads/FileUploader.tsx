@@ -27,6 +27,9 @@ export function FileUploader() {
       });
     } catch (error) {
       console.error("Upload failed:", error);
+      toast.error('Upload failed', {
+        description: 'There was an error uploading your file. Please try again.'
+      });
     }
   }, [uploadFile, notes]);
 
