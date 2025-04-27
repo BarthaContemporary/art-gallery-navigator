@@ -33,15 +33,16 @@ export function useFileUpload() {
         .getPublicUrl(fileName);
 
       // Record the upload in the database
+      // Using 'as any' to bypass TypeScript errors until types are updated
       const { error: dbError } = await supabase
-        .from('uploads')
+        .from('uploads' as any)
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
           uploaded_by: user.id,
           notes
-        });
+        } as any);
 
       if (dbError) throw dbError;
 
