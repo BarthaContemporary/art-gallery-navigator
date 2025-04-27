@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function UserSignup() {
   const { isAdmin } = useAuth();
@@ -73,7 +75,7 @@ export default function UserSignup() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto text-left">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
@@ -81,7 +83,7 @@ export default function UserSignup() {
         </div>
       </div>
 
-      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto mb-8 text-left">
+      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto text-left">
         <Card className="shadow-lg border border-border/60 text-left w-full">
           <CardHeader className="px-6 pt-8 pb-2 sm:pt-10 text-left">
             <CardTitle className="text-2xl sm:text-3xl text-left md:text-2xl">
@@ -138,10 +140,25 @@ export default function UserSignup() {
         </Card>
       </div>
 
-      <div className="max-w-6xl mx-auto text-left mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Uploaded Files</h2>
-        <UploadedFilesList />
-      </div>
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="deletion-requests">Deletion Requests</TabsTrigger>
+          <TabsTrigger value="uploads">File Uploads</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="border rounded-md mt-4">
+          <UsersList />
+        </TabsContent>
+        
+        <TabsContent value="deletion-requests" className="border rounded-md mt-4">
+          <DeletionRequestsTable />
+        </TabsContent>
+
+        <TabsContent value="uploads" className="border rounded-md mt-4">
+          <UploadedFilesList />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
