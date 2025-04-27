@@ -33,15 +33,16 @@ export function useFileUpload() {
         .from('large-uploads')
         .getPublicUrl(fileName);
 
-      // Record the upload in the database
+      // Record the upload in the database - using type assertion to work with the new uploads table
       const { error: dbError } = await supabase
-        .from('uploads')
+        .from('uploads' as any)
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
+          uploaded_by: userId,
           notes
-        });
+        } as any);
 
       if (dbError) throw dbError;
 
