@@ -1,171 +1,174 @@
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 interface HTMLToPDFOptions {
   html: string;
   fileName: string;
+  onProgress?: (message: string) => void;
 }
 
 /**
- * Renders HTML content into a PDF document
+ * Converts HTML content to a PDF document
  */
-export async function convertHTMLToPDF({ html, fileName }: HTMLToPDFOptions): Promise<Blob> {
+export async function convertHTMLToPDF({ 
+  html, 
+  fileName,
+  onProgress = () => {}
+}: HTMLToPDFOptions): Promise<Blob> {
+  onProgress("Creating document container...");
   console.log("Starting PDF conversion process");
   
-  // Create a temporary iframe to render the HTML
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'absolute';
-  iframe.style.left = '-9999px';
-  iframe.style.width = '210mm'; // A4 width
-  iframe.style.height = '297mm'; // A4 height
-  document.body.appendChild(iframe);
+  // Create a temporary container outside the viewport
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '-9999px';
+  container.style.left = '-9999px';
+  container.style.width = '210mm'; // A4 width
+  container.style.height = '297mm'; // A4 height
+  container.style.backgroundColor = 'white';
+  container.style.overflow = 'hidden';
+  container.style.zIndex = '-1000';
+  document.body.appendChild(container);
 
   try {
-    // Set the iframe content
-    return new Promise((resolve, reject) => {
-      iframe.onload = async () => {
-        try {
-          console.log("Iframe loaded, preparing document");
-          const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
-          if (!iframeDocument) throw new Error("Cannot access iframe document");
-          
-          // Wait for fonts and images to load
-          console.log("Waiting for resources to load");
-          await waitForResources(iframeDocument);
-          
-          // Render the document to canvas
-          console.log("Rendering document to canvas");
-          const canvas = await html2canvas(iframeDocument.body, {
-            scale: 2, // Higher scale for better quality
-            useCORS: true, // Enable CORS for external images
-            allowTaint: true, // Allow potentially tainted images
-            logging: true, // Enable logging for debugging
-            backgroundColor: '#FFFFFF',
-            onclone: (clonedDoc) => {
-              console.log("Processing cloned document");
-              const images = clonedDoc.querySelectorAll('img');
-              console.log(`Found ${images.length} images in document`);
-              
-              // Set crossOrigin attribute for all images
-              images.forEach(img => {
-                img.crossOrigin = "Anonymous";
-                console.log(`Processing image: ${img.src.substring(0, 50)}...`);
-                
-                // Make sure images are visible
-                img.style.visibility = 'visible';
-                img.style.display = 'block';
-                img.style.opacity = '1';
-                
-                // Apply specific styles based on image purpose
-                if (img.classList.contains('stationery-background')) {
-                  img.style.width = '100%';
-                  img.style.height = '100%';
-                  img.style.position = 'absolute';
-                  img.style.top = '0';
-                  img.style.left = '0';
-                  img.style.zIndex = '1';
-                  console.log("Enhanced stationery background image");
-                }
-                
-                if (img.classList.contains('artwork-image')) {
-                  img.style.maxWidth = '100%';
-                  img.style.maxHeight = '40%';
-                  img.style.zIndex = '2';
-                  console.log("Enhanced artwork image");
-                }
-              });
+    // Add the HTML content to the container
+    onProgress("Setting up content...");
+    container.innerHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            @page { size: A4; margin: 0; }
+            @media print { body { -webkit-print-color-adjust: exact; } }
+            body { 
+              margin: 0; 
+              padding: 0; 
+              width: 210mm; 
+              height: 297mm;
+              font-family: 'Source Sans 3', sans-serif;
             }
-          });
+          </style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
+    
+    // Force layout calculation
+    container.offsetHeight; 
+    
+    // Wait for fonts and images
+    onProgress("Loading resources...");
+    await waitForResources(container);
+    onProgress("Rendering document...");
+    
+    // Setup html2canvas with optimal settings
+    const canvas = await html2canvas(container, {
+      scale: 2, // Higher scale for better quality
+      useCORS: true, 
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#FFFFFF',
+      onclone: (clonedDoc) => {
+        console.log("Processing document clone");
+        const images = clonedDoc.querySelectorAll('img');
+        console.log(`Found ${images.length} images in document`);
+        
+        // Process each image
+        images.forEach((img) => {
+          img.crossOrigin = "Anonymous";
+          img.style.maxWidth = '100%';
           
-          console.log("Canvas generated, creating PDF");
-          
-          // Create a PDF document
-          const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-          });
-          
-          // Add canvas content to PDF
-          const imgData = canvas.toDataURL('image/jpeg', 1.0);
-          doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-          
-          console.log("PDF created successfully");
-          resolve(doc.output('blob'));
-        } catch (error) {
-          console.error("Error in PDF generation:", error);
-          reject(error);
-        }
-      };
-      
-      // Load the HTML content into the iframe
-      iframe.srcdoc = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>${fileName}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-            <style>
-              @page { size: A4; margin: 0; }
-              @media print { body { -webkit-print-color-adjust: exact; } }
-              body { 
-                margin: 0; 
-                padding: 0; 
-                width: 210mm; 
-                height: 297mm;
-                font-family: 'Source Sans 3', sans-serif;
-              }
-            </style>
-          </head>
-          <body>${html}</body>
-        </html>
-      `;
+          // Make images visible
+          img.style.opacity = '1';
+          img.style.display = 'block';
+          img.style.visibility = 'visible';
+        });
+      }
     });
+    
+    // Create PDF
+    onProgress("Creating PDF file...");
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+    
+    // Add canvas to PDF
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    
+    // Return the PDF as a blob
+    const blob = pdf.output('blob');
+    console.log(`PDF created successfully: ${blob.size} bytes`);
+    
+    return blob;
+  } catch (error) {
+    console.error("Error creating PDF:", error);
+    toast.error(`Failed to create PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
   } finally {
-    // Clean up the iframe
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      console.log("Iframe removed");
-    }, 100);
+    // Clean up
+    document.body.removeChild(container);
   }
 }
 
 /**
- * Waits for all resources in the document to load
+ * Waits for all resources (images, fonts) to load
  */
-async function waitForResources(document: Document): Promise<void> {
-  // Wait for all images to load
-  const images = Array.from(document.images);
-  console.log(`Waiting for ${images.length} images to load`);
+async function waitForResources(container: HTMLElement): Promise<void> {
+  console.log("Waiting for resources to load");
   
-  if (images.length > 0) {
-    await Promise.all(
-      images.map(img => {
-        if (img.complete) {
-          console.log(`Image already loaded: ${img.src.substring(0, 50)}...`);
-          return Promise.resolve();
-        }
-        
-        return new Promise<void>((resolve, reject) => {
-          img.onload = () => {
-            console.log(`Image loaded: ${img.src.substring(0, 50)}...`);
-            resolve();
-          };
-          img.onerror = () => {
-            console.error(`Failed to load image: ${img.src.substring(0, 50)}...`);
-            // We resolve anyway to not block the PDF generation
-            resolve();
-          };
-        });
-      })
-    );
+  // Wait for images
+  const images = Array.from(container.querySelectorAll('img'));
+  if (images.length === 0) {
+    console.log("No images to wait for");
+    return;
   }
   
-  // Wait a bit for fonts to load
+  console.log(`Waiting for ${images.length} images to load`);
+  
+  // Preload each image with proper CORS settings
+  const imagePromises = images.map((img) => {
+    // If image is already loaded, no need to wait
+    if (img.complete && img.naturalHeight !== 0) {
+      console.log(`Image already loaded: ${img.src}`);
+      return Promise.resolve();
+    }
+    
+    return new Promise<void>((resolve) => {
+      // Handle successful load
+      img.onload = () => {
+        console.log(`Image loaded: ${img.src.substring(0, 50)}...`);
+        resolve();
+      };
+      
+      // Handle failed load
+      img.onerror = () => {
+        console.warn(`Failed to load image: ${img.src.substring(0, 50)}...`);
+        // Resolve anyway to continue with PDF generation
+        resolve();
+      };
+      
+      // Set CORS attribute
+      img.crossOrigin = "Anonymous";
+      
+      // Reload the image to trigger the events
+      const currentSrc = img.src;
+      img.src = "";
+      img.src = currentSrc;
+    });
+  });
+  
+  // Wait for all images to load or fail
+  await Promise.all(imagePromises);
+  
+  // Additional wait for fonts and layout
   await new Promise(resolve => setTimeout(resolve, 500));
-  console.log("Resources loaded");
+  console.log("All resources loaded");
 }

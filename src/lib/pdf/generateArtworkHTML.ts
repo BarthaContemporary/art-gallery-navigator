@@ -1,18 +1,30 @@
 
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
-import { getStationeryStyle } from "./stationery-utils";
+import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
 import { cmToInchFraction } from "./unit-conversion";
-import { escapeHtml, createImageTag } from "./utils";
+import { escapeHtml, createImageTag, preloadImage } from "./utils";
 
 /**
  * Generates complete HTML for artwork PDF
  */
-export function generateArtworkHTML(
+export async function generateArtworkHTML(
   artwork: Artwork,
-  templateStyle: string = "basic",
+  templateStyle: string = "classic",
   useStationery: boolean = false
-): string {
+): Promise<string> {
+  console.log(`Generating HTML for artwork: ${artwork.title}, template: ${templateStyle}, stationery: ${useStationery}`);
+  
+  // Preload artwork image if available
+  if (artwork.image_url) {
+    console.log(`Preloading artwork image: ${artwork.image_url}`);
+    try {
+      await preloadImage(artwork.image_url);
+    } catch (error) {
+      console.error("Error preloading artwork image:", error);
+    }
+  }
+  
   // Format artwork information safely
   const artistName = escapeHtml(artwork.artist_name || 'Artist Name');
   const artworkTitle = escapeHtml(artwork.title || 'Untitled');
@@ -22,22 +34,18 @@ export function generateArtworkHTML(
   const stationeryStyle = getStationeryStyle(useStationery);
   
   // Generate stationery background HTML if needed
-  const stationeryBackground = useStationery 
-    ? `<div class="stationery-background">
-         <img src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png" 
-              alt="Company Stationery" 
-              class="stationery-background-image" 
-              crossorigin="anonymous" />
-       </div>`
-    : '';
+  const stationeryBackground = useStationery ? getStationeryBackgroundHTML() : '';
   
   // Generate artwork image HTML if available
   const artworkImageHtml = artwork.image_url 
     ? `<div class="artwork-image-container">
-         <img src="${artwork.image_url}" 
-              alt="${escapeHtml(artwork.title || 'Artwork')}" 
-              class="artwork-image"
-              crossorigin="anonymous" />
+         <img 
+           src="${artwork.image_url}" 
+           alt="${escapeHtml(artwork.title || 'Artwork')}" 
+           class="artwork-image"
+           crossorigin="anonymous"
+           style="max-width: 100%; max-height: 40%; object-fit: contain; margin-bottom: 1cm;"
+         />
        </div>`
     : '';
   
@@ -47,16 +55,16 @@ export function generateArtworkHTML(
   // Generate artwork header based on template style
   const header = generateArtworkHeader(artwork, templateStyle);
   
+  // Generate template-specific styles
+  const templateStyles = getTemplateStyles(templateStyle);
+  
   // Generate complete HTML
-  return `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
       <title>${escapeHtml(artwork.title || 'Artwork')}</title>
       <style>
         /* Base styles */
@@ -66,7 +74,27 @@ export function generateArtworkHTML(
         ${stationeryStyle}
         
         /* Template-specific styles */
-        ${getTemplateStyles(templateStyle)}
+        ${templateStyles}
+        
+        /* Additional styles for PDF optimization */
+        img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 0 auto;
+        }
+        
+        .artwork-image {
+          max-width: 80%;
+          max-height: 40%;
+          object-fit: contain;
+          margin: 0 auto 1cm auto;
+        }
+        
+        .artwork-image-container {
+          text-align: center;
+          margin-bottom: 1cm;
+        }
       </style>
     </head>
     <body>
@@ -87,6 +115,9 @@ export function generateArtworkHTML(
     </body>
     </html>
   `;
+  
+  console.log("HTML generation complete");
+  return html;
 }
 
 /**
@@ -164,13 +195,13 @@ function generateArtworkDetails(artwork: Artwork, templateStyle: string): string
     : '';
   
   // Include price if template requires it
-  const priceInfo = (templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price 
+  const priceInfo = (templateStyle === 'modern' || templateStyle === 'minimal') && artwork.price 
     ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>` 
     : '';
   
   // Additional sections for complete template
   let additionalSections = '';
-  if (templateStyle === 'complete') {
+  if (templateStyle === 'minimal') {
     // Story section
     if (artwork.story) {
       additionalSections += `

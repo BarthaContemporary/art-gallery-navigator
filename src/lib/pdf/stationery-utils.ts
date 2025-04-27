@@ -1,4 +1,9 @@
 
+import { preloadImage } from "./utils";
+
+// Stationery image path - cached as a constant for consistency
+const STATIONERY_IMAGE_PATH = "/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png";
+
 /**
  * Returns CSS styles for stationery backgrounds
  */
@@ -41,5 +46,30 @@ export function getStationeryStyle(useStationery: boolean): string {
       position: relative;
       z-index: 3;
     }
+  `;
+}
+
+/**
+ * Preloads the stationery image
+ */
+export async function preloadStationeryImage(): Promise<void> {
+  console.log("Preloading stationery image");
+  return preloadImage(STATIONERY_IMAGE_PATH);
+}
+
+/**
+ * Gets the HTML markup for the stationery background
+ */
+export function getStationeryBackgroundHTML(): string {
+  return `
+    <div class="stationery-background">
+      <img 
+        src="${STATIONERY_IMAGE_PATH}" 
+        alt="Company Stationery" 
+        class="stationery-background-image"
+        crossorigin="anonymous"
+        style="width: 100%; height: 100%; object-fit: cover;"
+      />
+    </div>
   `;
 }

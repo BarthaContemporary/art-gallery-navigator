@@ -1,26 +1,24 @@
 
 export const baseStyles = `
-  /* Import Source Sans 3 font */
+  /* Font styles */
   @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-  
-  /* Font declaration */
-  @font-face {
-    font-family: 'Source Sans 3';
-    src: url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-    font-display: swap;
-  }
   
   body { 
     font-family: 'Source Sans 3', sans-serif; 
     color: #333;
     line-height: 1.5;
     font-size: 12pt;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
   h1 {
     font-size: 20pt;
     font-weight: 600;
     margin-bottom: 0.5cm;
+    line-height: 1.2;
   }
   
   h2 {
@@ -28,16 +26,19 @@ export const baseStyles = `
     font-weight: 600;
     margin-top: 1cm;
     margin-bottom: 0.5cm;
+    line-height: 1.3;
   }
   
   h3 {
     font-size: 14pt;
     font-weight: 500;
     margin-bottom: 0.3cm;
+    line-height: 1.3;
   }
   
   p {
     margin-bottom: 0.3cm;
+    line-height: 1.5;
   }
   
   .artwork-image-container {

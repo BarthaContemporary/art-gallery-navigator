@@ -51,6 +51,7 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
             alt={artwork.title} 
             className="max-h-64 w-auto object-contain"
             style={{ border: '1px solid #eee' }}
+            crossOrigin="anonymous"
           />
         </div>
       )}
@@ -82,11 +83,11 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
         <p>Frame: {frameDimensionsInInches}</p>
       )}
       
-      {(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price && (
-        <p className="mt-4 font-semibold">{artwork.currency} {artwork.price.toLocaleString()}</p>
+      {(templateStyle === 'modern' || templateStyle === 'minimal') && artwork.price && (
+        <p className="mt-4 font-semibold">{artwork.currency || '£'} {artwork.price.toLocaleString()}</p>
       )}
       
-      {templateStyle === 'complete' && (
+      {templateStyle === 'minimal' && (
         <>
           {artwork.story && (
             <div className="mt-6">

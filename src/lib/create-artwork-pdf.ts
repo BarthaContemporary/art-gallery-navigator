@@ -4,6 +4,7 @@ import { generatePDFFromHTML } from "./pdf/pdf-utils";
 import { generateArtworkHTML } from './pdf/generateArtworkHTML';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { preloadImage } from "./pdf/utils";
 
 export async function createArtworkPDF(
   artwork: Artwork,
@@ -43,25 +44,14 @@ export async function createArtworkPDF(
   const fileName = `B_c-${safeArtistName}-${safeArtworkTitle}.pdf`;
   console.log("Generated filename:", fileName);
   
-  // Log image URL status
+  // Log and preload image URL
   if (artwork.image_url) {
     console.log("Artwork has an image URL:", artwork.image_url);
     
     // Preload the image
     try {
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      img.src = artwork.image_url;
-      await new Promise((resolve) => {
-        img.onload = () => {
-          console.log("Successfully preloaded artwork image");
-          resolve(true);
-        };
-        img.onerror = () => {
-          console.error("Failed to preload artwork image");
-          resolve(false);
-        };
-      });
+      await preloadImage(artwork.image_url);
+      console.log("Successfully preloaded artwork image");
     } catch (e) {
       console.error("Error preloading image:", e);
     }
@@ -69,9 +59,9 @@ export async function createArtworkPDF(
     console.log("Artwork has no image URL");
   }
   
-  // Generate HTML content
+  // Generate HTML content (now async)
   console.log("Generating HTML content");
-  const htmlContent = generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
+  const htmlContent = await generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
   
   // Generate and return PDF
   return generatePDFFromHTML({

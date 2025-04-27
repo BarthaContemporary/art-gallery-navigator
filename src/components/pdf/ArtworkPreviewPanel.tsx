@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
 import { Artwork } from "@/hooks/use-artworks";
-import { ArtworkPDFPreview } from "@/lib/pdf-templates";
+import { ArtworkPDFPreview } from "@/components/pdf/ArtworkPreview";
 
 interface ArtworkPreviewPanelProps {
   artwork: Artwork | undefined;
@@ -46,13 +46,14 @@ export function ArtworkPreviewPanel({
         
         <div className="bg-gray-100 p-6 rounded-lg">
           <div className="mx-auto" style={{ width: '595px', height: '842px', position: 'relative' }}>
-            <div className="bg-white shadow-lg h-full overflow-auto">
+            <div className="bg-white shadow-lg h-full overflow-auto relative">
               {useStationery && (
                 <div className="absolute inset-0 pointer-events-none z-0">
                   <img 
                     src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png" 
                     alt="Company Stationery" 
                     className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
                   />
                 </div>
               )}
@@ -64,7 +65,7 @@ export function ArtworkPreviewPanel({
                   </h1>
                 </div>
                 {artwork ? (
-                  <ArtworkPDFPreview artwork={artwork} templateStyle="basic" />
+                  <ArtworkPDFPreview artwork={artwork} templateStyle="classic" />
                 ) : (
                   <p>Select an artwork to preview</p>
                 )}
@@ -79,7 +80,7 @@ export function ArtworkPreviewPanel({
                 </div>
                 <div className="pl-6 border-l-4 border-primary">
                   {artwork ? (
-                    <ArtworkPDFPreview artwork={artwork} templateStyle="basicWithPrice" />
+                    <ArtworkPDFPreview artwork={artwork} templateStyle="modern" />
                   ) : (
                     <p>Select an artwork to preview</p>
                   )}
@@ -92,7 +93,7 @@ export function ArtworkPreviewPanel({
                 </h1>
                 <div className="grid grid-cols-1 gap-6">
                   {artwork ? (
-                    <ArtworkPDFPreview artwork={artwork} templateStyle="complete" />
+                    <ArtworkPDFPreview artwork={artwork} templateStyle="minimal" />
                   ) : (
                     <p>Select an artwork to preview</p>
                   )}

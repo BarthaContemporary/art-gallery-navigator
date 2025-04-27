@@ -24,31 +24,47 @@ export async function generatePDFFromHTML({
   console.log(`Generating PDF for ${entityType} "${entityTitle}"`);
   
   // Check storage availability
-  const bucketExists = await ensureDocumentsBucketExists();
-  if (!bucketExists) {
-    console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
+  try {
+    const bucketExists = await ensureDocumentsBucketExists();
+    if (!bucketExists) {
+      console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
+    }
+  } catch (error) {
+    console.error("Error checking document storage bucket:", error);
   }
 
   const toastId = toast.loading("Preparing PDF document...");
+  let progressMessage = "Preparing PDF document...";
 
   try {
+    // Update progress callback
+    const updateProgress = (message: string) => {
+      progressMessage = message;
+      toast.loading(progressMessage, { id: toastId });
+      console.log(`PDF Generation Progress: ${message}`);
+    };
+
     // Convert HTML to PDF
-    console.log("Converting HTML to PDF");
-    const pdfBlob = await convertHTMLToPDF({ html, fileName });
+    updateProgress("Converting HTML to PDF...");
+    const pdfBlob = await convertHTMLToPDF({ 
+      html, 
+      fileName,
+      onProgress: updateProgress
+    });
     console.log("PDF blob created, size:", Math.round(pdfBlob.size / 1024), "KB");
 
     // Upload document and create record
-    console.log("Uploading PDF to storage");
+    updateProgress("Uploading PDF to storage...");
     const publicUrl = await uploadDocument(pdfBlob, fileName, {
       type: entityType,
       entityId,
       entityTitle,
-      description
+      description: description || `PDF for ${entityTitle}`
     });
     console.log("PDF uploaded successfully to:", publicUrl);
 
     // Create download link
-    console.log("Creating download link for user");
+    updateProgress("Creating download link...");
     const downloadLink = document.createElement("a");
     downloadLink.href = URL.createObjectURL(pdfBlob);
     downloadLink.download = fileName;
