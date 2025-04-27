@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DeletionRequestsTable } from "@/components/auth/DeletionRequestsTable";
 
 export default function UserSignup() {
   const { isAdmin } = useAuth();
