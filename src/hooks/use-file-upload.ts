@@ -42,16 +42,16 @@ export function useFileUpload() {
       
       console.log('File uploaded successfully, public URL:', publicUrl);
 
-      // Record the upload in the database
-      const { error: dbError } = await supabase
-        .from('uploads')
+      // Record the upload in the database using type assertion
+      const { error: dbError } = await (supabase
+        .from('uploads' as any)
         .insert({
           file_name: file.name,
           file_url: publicUrl,
           file_size: file.size,
           uploaded_by: user.id,
           notes
-        });
+        } as any));
 
       if (dbError) {
         console.error('Database insert error:', dbError);
