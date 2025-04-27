@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Upload } from "lucide-react";
@@ -7,10 +8,11 @@ import { ArtworkField } from "./form/ArtworkField";
 import { CollectionField } from "./form/CollectionField";
 import { ArtistField } from "./ArtistField";
 import { DescriptionField } from "./form/DescriptionField";
-import { useWatch } from "react-hook-form";
+import { useWatch, UseFormReturn } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { UploadFormData } from "./upload-document-schema";
 
 interface UploadDocumentFormProps {
   form: UseFormReturn<UploadFormData>;
