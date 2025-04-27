@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
@@ -32,26 +33,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
           setTimeout(async () => {
-            const { data: adminRole } = await supabase.rpc('has_role', {
-              _user_id: currentSession.user.id,
-              _role: 'gallery_admin'
-            });
-            const { data: artistRole } = await supabase.rpc('has_role', {
-              _user_id: currentSession.user.id,
-              _role: 'artist'
-            });
-            const { data: externalRole } = await supabase.rpc('has_role', {
-              _user_id: currentSession.user.id,
-              _role: 'external'
-            });
-            setIsAdmin(!!adminRole);
-            setIsArtist(!!artistRole);
-            setIsExternal(!!externalRole);
+            try {
+              const { data: adminRole } = await supabase.rpc('has_role', {
+                _user_id: currentSession.user.id,
+                _role: 'gallery_admin'
+              });
+              const { data: artistRole } = await supabase.rpc('has_role', {
+                _user_id: currentSession.user.id,
+                _role: 'artist'
+              });
+              const { data: externalRole } = await supabase.rpc('has_role', {
+                _user_id: currentSession.user.id,
+                _role: 'external'
+              });
+              setIsAdmin(!!adminRole);
+              setIsArtist(!!artistRole);
+              setIsExternal(!!externalRole);
+            } catch (error) {
+              console.error("Error checking user roles:", error);
+            }
           }, 0);
         } else {
           setIsAdmin(false);
@@ -73,26 +79,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string, captchaToken?: string) => {
+    console.log("Signing in with:", email, "CAPTCHA token provided:", !!captchaToken);
+    
     if (password) {
       try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-          options: {
-            captchaToken
-          }
-        });
-        
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            return signInWithOTP(email, captchaToken);
-          }
-          throw error;
-        }
-        
+        await signInWithPassword(email, password, captchaToken);
         return { needsOTP: false };
       } catch (error) {
-        return signInWithOTP(email, captchaToken);
+        console.error("Password login failed:", error);
+        if (error instanceof Error && error.message.includes("Invalid login credentials")) {
+          return signInWithOTP(email, captchaToken);
+        }
+        throw error;
       }
     } else {
       return signInWithOTP(email, captchaToken);
@@ -100,49 +98,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithPassword = async (email: string, password: string, captchaToken?: string) => {
+    console.log("Signing in with password:", email, "CAPTCHA token provided:", !!captchaToken);
+    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
+      options: captchaToken ? {
         captchaToken
-      }
+      } : undefined
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Sign in with password error:", error);
+      throw error;
+    }
+    
+    console.log("Password sign-in successful");
   };
 
   const signInWithOTP = async (email: string, captchaToken?: string) => {
+    console.log("Sending OTP to:", email, "CAPTCHA token provided:", !!captchaToken);
+    
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
-        captchaToken
+        captchaToken: captchaToken
       }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Sign in with OTP error:", error);
+      throw error;
+    }
+    
+    console.log("OTP sent successfully");
     return { needsOTP: true };
   };
 
   const verifyOTP = async (email: string, token: string) => {
+    console.log("Verifying OTP for:", email);
+    
     const { error } = await supabase.auth.verifyOtp({
       email,
       token,
       type: 'email'
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error("OTP verification error:", error);
+      throw error;
+    }
+    
+    console.log("OTP verification successful");
     navigate("/");
   };
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
+    
+    if (error) {
+      console.error("Sign up error:", error);
+      throw error;
+    }
+    
+    console.log("Sign up successful");
   };
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    
+    if (error) {
+      console.error("Sign out error:", error);
+      throw error;
+    }
+    
+    console.log("Sign out successful");
     navigate("/auth");
   };
 

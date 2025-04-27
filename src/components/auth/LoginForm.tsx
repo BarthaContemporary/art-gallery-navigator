@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,11 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { TurnstileWidget } from "./TurnstileWidget";
-import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Please enter your password")
+  password: z.string().optional()
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -43,6 +43,8 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
 
     try {
       onSubmit(values, captchaToken);
+      // Reset the captcha token after submission to prevent reuse
+      setCaptchaToken(null);
     } catch (error) {
       console.error('Login error:', error);
       setCaptchaError("An error occurred during login. Please try again.");
@@ -53,6 +55,13 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     console.log('CAPTCHA verified - token received');
     setCaptchaToken(token);
     setCaptchaError(null);
+
+    // Automatically submit the form if email is filled
+    const emailValue = form.getValues("email");
+    if (emailValue && form.formState.isValid) {
+      const values = form.getValues();
+      onSubmit(values, token);
+    }
   };
 
   const handleCaptchaError = (error: Error) => {
@@ -96,7 +105,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
                   <Input
                     {...field}
                     type={showPassword ? "text" : "password"}
-                    placeholder="Password"
+                    placeholder="Password (optional)"
                     className="text-base sm:text-sm py-3 pr-10"
                     autoComplete="current-password"
                     disabled={isLoading}
@@ -136,7 +145,7 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !captchaToken}
+          disabled={isLoading || !form.formState.isValid}
         >
           {isLoading ? (
             <>

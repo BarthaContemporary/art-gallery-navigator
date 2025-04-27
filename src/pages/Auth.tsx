@@ -17,7 +17,7 @@ export default function Auth() {
   const [showOTP, setShowOTP] = useState(false);
   const [email, setEmail] = useState("");
   
-  const { signIn, signInWithPassword, signInWithOTP, verifyOTP } = useAuth();
+  const { signInWithPassword, signInWithOTP, verifyOTP } = useAuth();
   const { toast } = useToast();
   const { execute, isLoading } = useSafeAsync();
 

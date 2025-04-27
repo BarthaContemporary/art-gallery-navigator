@@ -44,6 +44,7 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
           callback: (token: string) => {
             console.log('CAPTCHA token generated');
             setLoadError(null);
+            // Immediately notify parent component of the token
             onVerify(token);
           },
           'error-callback': (errorCode: string) => {
