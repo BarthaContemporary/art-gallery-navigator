@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,7 +98,9 @@ const Artists = () => {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        <ArtistHeader />
+        <div>
+          <h1 className="text-3xl tracking-wide text-slate-500 font-thin">ARTISTS</h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
