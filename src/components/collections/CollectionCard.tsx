@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CollectionCardProps {
   collection: Collection;
@@ -34,7 +35,8 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { mutate: deleteCollection, isPending: isDeleting } = useDeleteCollection();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { mutate: deleteCollection } = useDeleteCollection();
   const { isAdmin } = useAuth();
   
   const handleEdit = (e: React.MouseEvent) => {
@@ -49,16 +51,44 @@ export function CollectionCard({ collection }: CollectionCardProps) {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
-    deleteCollection(collection.id, {
-      onSuccess: () => {
-        toast.success("Collection deleted successfully");
-        setShowDeleteConfirm(false);
-      },
-      onError: (error) => {
-        toast.error("Failed to delete collection: " + error.message);
-      },
-    });
+  const confirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      
+      // First, check if there are any documents associated with this collection
+      const { data: documents, error: documentsError } = await supabase
+        .from("documents")
+        .select("id")
+        .eq("collection_id", collection.id);
+      
+      if (documentsError) throw documentsError;
+      
+      // If documents exist, delete them first
+      if (documents && documents.length > 0) {
+        const { error: deleteDocsError } = await supabase
+          .from("documents")
+          .delete()
+          .eq("collection_id", collection.id);
+        
+        if (deleteDocsError) throw deleteDocsError;
+      }
+      
+      // Now proceed with collection deletion
+      deleteCollection(collection.id, {
+        onSuccess: () => {
+          toast.success("Collection deleted successfully");
+          setShowDeleteConfirm(false);
+          setIsDeleting(false);
+        },
+        onError: (error) => {
+          toast.error("Failed to delete collection: " + error.message);
+          setIsDeleting(false);
+        },
+      });
+    } catch (error: any) {
+      toast.error("Error: " + error.message);
+      setIsDeleting(false);
+    }
   };
   
   const preventPropagation = (e: React.MouseEvent) => {
@@ -133,7 +163,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the collection "{collection.name}" and remove all artwork associations.
+              This will permanently delete the collection "{collection.name}" and remove all artwork associations and documents linked to this collection.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
