@@ -5,6 +5,6 @@
 
 @layer base {
   h1 {
-    @apply font-visby;
+    @apply font-visby font-normal text-slate-500;
   }
 }
