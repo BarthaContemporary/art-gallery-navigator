@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -15,14 +14,13 @@ import {
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useSafeAsync } from "@/hooks/use-safe-async";
 import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
-import { ReloadIcon, EyeIcon, EyeOffIcon } from "@radix-ui/react-icons";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-// Define form schemas
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Please enter your password")
@@ -46,7 +44,6 @@ export default function Auth() {
   const { toast } = useToast();
   const { execute, isLoading } = useSafeAsync();
 
-  // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -55,7 +52,6 @@ export default function Auth() {
     }
   });
 
-  // OTP form
   const otpForm = useForm<OTPFormValues>({
     resolver: zodResolver(otpSchema),
     defaultValues: {
@@ -69,7 +65,6 @@ export default function Auth() {
       return;
     }
     
-    // Store email for OTP verification if needed
     setEmail(values.email);
     
     execute(async () => {
@@ -96,7 +91,6 @@ export default function Auth() {
           description: error.message,
           variant: "destructive",
         });
-        // Reset CAPTCHA on error
         setCaptchaToken(null);
       }
     });
@@ -200,9 +194,9 @@ export default function Auth() {
                             tabIndex={-1}
                           >
                             {showPassword ? (
-                              <EyeOffIcon className="h-4 w-4" />
+                              <EyeOff className="h-4 w-4" />
                             ) : (
-                              <EyeIcon className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             )}
                           </button>
                         </div>
@@ -231,7 +225,7 @@ export default function Auth() {
                 >
                   {isLoading ? (
                     <>
-                      <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
                   ) : "Login"}
@@ -272,7 +266,7 @@ export default function Auth() {
                 >
                   {isLoading ? (
                     <>
-                      <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Verifying...
                     </>
                   ) : "Verify Code"}
