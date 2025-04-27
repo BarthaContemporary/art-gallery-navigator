@@ -71,6 +71,17 @@ export default function Auth() {
     setCaptchaToken(null);
   };
 
+  const resetCaptcha = () => {
+    try {
+      const container = document.querySelector('[data-turnstile]');
+      if (container && window.turnstile) {
+        window.turnstile.reset(container);
+      }
+    } catch (e) {
+      console.error('Error resetting CAPTCHA:', e);
+    }
+  };
+
   const handleLogin = (values: LoginFormValues) => {
     if (!captchaToken) {
       setCaptchaError("Please complete the CAPTCHA verification");
@@ -105,16 +116,7 @@ export default function Auth() {
           variant: "destructive",
         });
         setCaptchaToken(null);
-        if (window.turnstile) {
-          try {
-            const container = document.querySelector('[data-turnstile]');
-            if (container) {
-              window.turnstile.reset(container);
-            }
-          } catch (e) {
-            console.error('Error resetting CAPTCHA:', e);
-          }
-        }
+        resetCaptcha();
       }
     });
   };

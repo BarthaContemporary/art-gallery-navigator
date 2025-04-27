@@ -83,7 +83,7 @@ export function TurnstileWidget({ siteKey, onVerify, onError }: TurnstileWidgetP
 
   return (
     <div className="flex flex-col items-center w-full">
-      <div ref={containerRef} className="flex justify-center my-4"></div>
+      <div ref={containerRef} className="flex justify-center my-4" data-turnstile></div>
       {!scriptLoadedRef.current && (
         <div className="text-muted-foreground text-xs">Loading CAPTCHA...</div>
       )}
