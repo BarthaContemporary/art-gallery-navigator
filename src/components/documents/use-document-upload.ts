@@ -72,16 +72,17 @@ export function useDocumentUpload() {
         .from('documents')
         .getPublicUrl(fileName);
 
-      // Create document record with proper null handling
-      // Only one of the three foreign keys should be non-null
+      // Create document record
+      // CRITICAL: We must set unused foreign keys to NULL, not empty strings or "_none"
       const documentRecord = {
         file_name: file.name,
         file_url: publicUrl,
         type: data.type,
         description: data.description || null,
+        // Only one of these should be non-null, the others MUST be null
         artwork_id: hasArtwork ? data.artwork_id : null,
         collection_id: hasCollection ? data.collection_id : null,
-        artist_id: hasArtist ? data.artist_id : null,
+        artist_id: hasArtist ? data.artist_id : null
       };
 
       console.log("Inserting document with:", { 
