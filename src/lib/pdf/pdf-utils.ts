@@ -21,44 +21,54 @@ export async function generatePDFFromHTML({
   entityTitle,
   description
 }: PDFGenerationOptions): Promise<string> {
+  console.log(`Generating PDF for ${entityType} "${entityTitle}"`);
+  
   // Check storage availability
   const bucketExists = await ensureDocumentsBucketExists();
   if (!bucketExists) {
     console.warn("Document storage bucket issue - proceeding with attempt to upload anyway");
   }
 
-  toast.loading("Preparing PDF document...");
+  const toastId = toast.loading("Preparing PDF document...");
 
   try {
     // Convert HTML to PDF
+    console.log("Converting HTML to PDF");
     const pdfBlob = await convertHTMLToPDF({ html, fileName });
+    console.log("PDF blob created, size:", Math.round(pdfBlob.size / 1024), "KB");
 
     // Upload document and create record
+    console.log("Uploading PDF to storage");
     const publicUrl = await uploadDocument(pdfBlob, fileName, {
       type: entityType,
       entityId,
       entityTitle,
       description
     });
+    console.log("PDF uploaded successfully to:", publicUrl);
 
     // Create download link
+    console.log("Creating download link for user");
     const downloadLink = document.createElement("a");
     downloadLink.href = URL.createObjectURL(pdfBlob);
-    downloadLink.download = `${entityTitle}.pdf`;
+    downloadLink.download = fileName;
     downloadLink.rel = "noopener noreferrer";
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
     URL.revokeObjectURL(downloadLink.href);
 
-    toast.success("Document ready for download");
+    toast.success("PDF generated successfully", { id: toastId });
     return publicUrl;
 
   } catch (error) {
-    console.error("Error generating document:", error);
-    if (error instanceof Error) {
-      toast.error("Failed to generate document: " + error.message);
-    }
+    console.error("Error generating PDF document:", error);
+    toast.error(
+      error instanceof Error 
+        ? `PDF generation failed: ${error.message}` 
+        : "PDF generation failed for unknown reason", 
+      { id: toastId }
+    );
     throw error;
   }
 }

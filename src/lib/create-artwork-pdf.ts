@@ -3,18 +3,19 @@ import { Artwork } from "@/hooks/use-artworks";
 import { generatePDFFromHTML } from "./pdf/pdf-utils";
 import { generateArtworkHTML } from './pdf/generateArtworkHTML';
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export async function createArtworkPDF(
   artwork: Artwork,
   templateStyle: string = 'basic',
   useStationery: boolean = false
 ): Promise<string> {
-  console.log("Creating PDF for artwork:", artwork.title);
+  console.log("Creating PDF for artwork:", artwork.title, "with template:", templateStyle, "useStationery:", useStationery);
   
-  // Fetch artist name if available
+  // Fetch artist name if not already available
   let artworkWithArtistName = { ...artwork };
   
-  if (artwork.artist_id) {
+  if (artwork.artist_id && !artwork.artist_name) {
     try {
       const { data, error } = await supabase
         .from('artists')
@@ -24,9 +25,11 @@ export async function createArtworkPDF(
         
       if (!error && data) {
         artworkWithArtistName.artist_name = data.full_name;
+        console.log("Retrieved artist name:", data.full_name);
       }
     } catch (error) {
       console.error("Error fetching artist name:", error);
+      toast.error("Couldn't retrieve artist information");
     }
   }
   
@@ -38,8 +41,17 @@ export async function createArtworkPDF(
     .replace(/[^a-z0-9]/gi, '_')
     .toLowerCase();
   const fileName = `B_c-${safeArtistName}-${safeArtworkTitle}.pdf`;
+  console.log("Generated filename:", fileName);
+  
+  // Validate image URL if available
+  if (artwork.image_url) {
+    console.log("Artwork has an image URL:", artwork.image_url);
+  } else {
+    console.log("Artwork has no image URL");
+  }
   
   // Generate HTML content
+  console.log("Generating HTML content");
   const htmlContent = generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
   
   // Generate and return PDF
@@ -52,4 +64,3 @@ export async function createArtworkPDF(
     description: `Datasheet for ${artwork.title}`
   });
 }
-

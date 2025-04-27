@@ -1,5 +1,5 @@
 
-// Use direct image path and better background handling to ensure stationery appears
+// Improved stationery styles with better visibility for background images
 export function getStationeryStyle(useStationery: boolean): string {
   if (!useStationery) return '';
   
@@ -19,8 +19,8 @@ export function getStationeryStyle(useStationery: boolean): string {
       background-color: white;
     }
     
-    /* Stationery background handled via HTML */
-    .stationery-container {
+    /* Stationery background styling */
+    .stationery-background {
       position: absolute;
       top: 0;
       left: 0;
@@ -30,10 +30,17 @@ export function getStationeryStyle(useStationery: boolean): string {
       pointer-events: none;
     }
     
-    .stationery-container img {
+    .stationery-background img {
       width: 100%;
       height: 100%;
       display: block;
+      object-fit: cover;
+    }
+    
+    /* Ensure content appears on top of stationery */
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
     }
   `;
 }

@@ -13,10 +13,77 @@ export function generateArtworkHTML(
   const stationeryStyle = getStationeryStyle(useStationery);
   const templateStyles = useStationery ? stationeryStyle : plainPaperStyles;
   
-  // The path to the stationery image - used for direct image inclusion
-  const stationeryImagePath = '/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png';
+  // The path to the stationery image - used for base64 embedding to ensure it appears in PDF
+  const stationeryImagePath = useStationery ? '/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png' : '';
   
-  // Generate HTML content based on artwork data
+  // Format artwork information
+  const artistName = escapeHtml(artwork.artist_name || 'Artist Name');
+  const artworkTitle = escapeHtml(artwork.title || '');
+  const artworkYear = artwork.year ? `, ${escapeHtml(artwork.year.toString())}` : '';
+  const materials = artwork.materials ? `<p>${escapeHtml(artwork.materials)}</p>` : '';
+  
+  // Generate edition information
+  let editionInfo = '';
+  if (artwork.edition_size && artwork.edition_size > 1) {
+    editionInfo = `<p>Edition of ${artwork.edition_size}${artwork.artist_proofs 
+      ? ' + ' + artwork.artist_proofs + ' AP'
+      : ''}</p>`;
+  } else {
+    editionInfo = '<p>Unique</p>';
+  }
+  
+  // Generate dimensions information
+  const dimensionsCm = artwork.height && artwork.width 
+    ? `<p>${artwork.height} x ${artwork.width}${artwork.depth ? ' x ' + artwork.depth : ''} cm</p>` 
+    : '';
+    
+  const dimensionsInches = artwork.height && artwork.width 
+    ? `<p>${cmToInchFraction(artwork.height)} x ${cmToInchFraction(artwork.width)}${artwork.depth 
+        ? ' x ' + cmToInchFraction(artwork.depth)
+        : ''}"</p>` 
+    : '';
+  
+  // Generate frame dimensions information if applicable
+  const frameDimensionsCm = artwork.is_framed && artwork.frame_height && artwork.frame_width 
+    ? `<p>Frame: ${artwork.frame_height} x ${artwork.frame_width}${artwork.frame_depth 
+        ? ' x ' + artwork.frame_depth 
+        : ''} cm</p>` 
+    : '';
+    
+  const frameDimensionsInches = artwork.is_framed && artwork.frame_height && artwork.frame_width 
+    ? `<p>Frame: ${cmToInchFraction(artwork.frame_height)} x ${cmToInchFraction(artwork.frame_width)}${artwork.frame_depth 
+        ? ' x ' + cmToInchFraction(artwork.frame_depth)
+        : ''}"</p>` 
+    : '';
+  
+  // Price information based on template style
+  const priceInfo = (templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price 
+    ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>`
+    : '';
+  
+  // Additional information based on template style
+  const storySection = templateStyle === 'complete' && artwork.story 
+    ? `
+    <h2>Story</h2>
+    <p>${escapeHtml(artwork.story)}</p>
+    `
+    : '';
+  
+  const provenanceSection = templateStyle === 'complete' && artwork.provenance 
+    ? `
+    <h2>Provenance</h2>
+    <p>${escapeHtml(artwork.provenance)}</p>
+    `
+    : '';
+  
+  const exhibitionSection = templateStyle === 'complete' && artwork.exhibition_history 
+    ? `
+    <h2>Exhibition History</h2>
+    <p>${escapeHtml(artwork.exhibition_history)}</p>
+    `
+    : '';
+
+  // Generate HTML content with embedded styles and properly handled image paths
   return `
     <!DOCTYPE html>
     <html>
@@ -29,7 +96,6 @@ export function generateArtworkHTML(
         ${baseStyles}
         ${templateStyles}
         
-        /* Fixed positioning for content to ensure it appears correctly */
         body {
           position: relative;
           margin: 0;
@@ -40,33 +106,43 @@ export function generateArtworkHTML(
           font-family: 'Source Sans 3', sans-serif;
         }
         
-        .stationery-container {
+        /* Background stationery styles */
+        ${useStationery ? `
+        .stationery-background {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
           z-index: 0;
-          pointer-events: none;
+          overflow: hidden;
         }
+        
+        .stationery-background img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+        }` : ''}
         
         .content-wrapper {
           position: relative;
-          z-index: 10;
-          padding-top: 4cm; /* Adjusted top padding to move content lower */
-          padding-left: 3cm;
-          padding-right: 3cm;
-          padding-bottom: 3cm;
+          z-index: 1;
+          padding: 4cm 3cm 3cm;
           min-height: 297mm;
           box-sizing: border-box;
           font-family: 'Source Sans 3', sans-serif;
         }
         
+        .artwork-image-container {
+          text-align: center;
+          margin-bottom: 2cm;
+        }
+        
         .artwork-image {
           max-width: 100%;
           max-height: 15cm;
-          display: block;
-          margin: 0 auto 2cm auto;
+          display: inline-block;
           border: 1px solid #eee;
         }
         
@@ -74,105 +150,63 @@ export function generateArtworkHTML(
           font-weight: bold;
           font-size: 14pt;
           margin-bottom: 0.5cm;
-          font-family: 'Source Sans 3', sans-serif;
         }
         
         .artwork-title {
           font-style: italic;
           font-size: 12pt;
           margin-bottom: 1cm;
-          font-family: 'Source Sans 3', sans-serif;
         }
         
         p {
           margin-bottom: 0.5cm;
           line-height: 1.5;
-          font-family: 'Source Sans 3', sans-serif;
         }
         
         h2 {
-          margin-top: 2cm;
+          margin-top: 1.5cm;
           margin-bottom: 0.5cm;
           font-size: 14pt;
-          font-family: 'Source Sans 3', sans-serif;
+          font-weight: 600;
+        }
+        
+        .price {
+          font-weight: bold;
+          margin-top: 1cm;
         }
       </style>
     </head>
     <body>
       ${useStationery ? `
-      <div class="stationery-container">
-        <img src="${stationeryImagePath}" alt="Stationery" style="width: 100%; height: 100%; object-fit: cover;" />
+      <div class="stationery-background">
+        <img src="${stationeryImagePath}" alt="Stationery Background" />
       </div>
       ` : ''}
       
       <div class="content-wrapper">
         ${artwork.image_url ? `
-          <div style="text-align: center; margin-bottom: 2cm;">
-            <img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />
-          </div>
+        <div class="artwork-image-container">
+          <img src="${artwork.image_url}" alt="${escapeHtml(artwork.title || 'Artwork')}" class="artwork-image" />
+        </div>
         ` : ''}
         
-        <p class="artist-name">${escapeHtml(artwork.artist_name || 'Artist Name')}</p>
-        <p class="artwork-title">${escapeHtml(artwork.title)}${artwork.year ? ', ' + escapeHtml(artwork.year.toString()) : ''}</p>
+        <p class="artist-name">${artistName}</p>
+        <p class="artwork-title">${artworkTitle}${artworkYear}</p>
         
-        ${artwork.materials ? `<p class="materials">${escapeHtml(artwork.materials)}</p>` : ''}
+        ${materials}
+        ${editionInfo}
         
-        ${artwork.edition_size && artwork.edition_size > 1 
-          ? `<p class="edition-details">Edition of ${artwork.edition_size}${artwork.artist_proofs 
-              ? ' + ' + artwork.artist_proofs + ' AP'
-              : ''}</p>`
-          : '<p class="edition-details">Unique</p>'}
+        ${artwork.dimensions ? `<p>${escapeHtml(artwork.dimensions)}</p>` : ''}
+        ${dimensionsCm}
+        ${dimensionsInches}
+        ${frameDimensionsCm}
+        ${frameDimensionsInches}
         
-        ${artwork.dimensions 
-          ? `<p class="dimensions">${escapeHtml(artwork.dimensions)}</p>`
-          : ''}
+        ${priceInfo}
         
-        ${artwork.height && artwork.width 
-          ? `<p class="dimensions">${artwork.height} x ${artwork.width}${artwork.depth ? ' x ' + artwork.depth : ''} cm</p>` 
-          : ''}
-        
-        ${artwork.height && artwork.width 
-          ? `<p class="dimensions">${cmToInchFraction(artwork.height)} x ${cmToInchFraction(artwork.width)}${artwork.depth 
-              ? ' x ' + cmToInchFraction(artwork.depth)
-              : ''}"</p>` 
-          : ''}
-        
-        ${artwork.is_framed && artwork.frame_height && artwork.frame_width 
-          ? `<p class="frame-dimensions">Frame: ${artwork.frame_height} x ${artwork.frame_width}${artwork.frame_depth 
-              ? ' x ' + artwork.frame_depth 
-              : ''} cm</p>` 
-          : ''}
-        
-        ${artwork.is_framed && artwork.frame_height && artwork.frame_width 
-          ? `<p class="frame-dimensions">Frame: ${cmToInchFraction(artwork.frame_height)} x ${cmToInchFraction(artwork.frame_width)}${artwork.frame_depth 
-              ? ' x ' + cmToInchFraction(artwork.frame_depth)
-              : ''}"</p>` 
-          : ''}
-        
-        ${(templateStyle === 'basicWithPrice' || templateStyle === 'complete') && artwork.price 
-          ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toString()}</p>`
-          : ''}
-        
-        ${templateStyle === 'complete' && artwork.story 
-          ? `
-          <h2>Story</h2>
-          <p class="artwork-story">${escapeHtml(artwork.story)}</p>
-          `
-          : ''}
-        
-        ${templateStyle === 'complete' && artwork.provenance 
-          ? `
-          <h2>Provenance</h2>
-          <p class="artwork-provenance">${escapeHtml(artwork.provenance)}</p>
-          `
-          : ''}
-        
-        ${templateStyle === 'complete' && artwork.exhibition_history 
-          ? `
-          <h2>Exhibition History</h2>
-          <p class="artwork-exhibition-history">${escapeHtml(artwork.exhibition_history)}</p>
-          `
-          : ''}
+        ${storySection}
+        ${provenanceSection}
+        ${exhibitionSection}
       </div>
     </body>
     </html>
