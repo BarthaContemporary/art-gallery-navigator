@@ -59,6 +59,18 @@ export default function Auth() {
     }
   });
 
+  const handleCaptchaVerify = (token: string) => {
+    console.log('CAPTCHA verified successfully');
+    setCaptchaToken(token);
+    setCaptchaError(null);
+  };
+
+  const handleCaptchaError = (error: Error) => {
+    console.error('CAPTCHA verification failed:', error);
+    setCaptchaError("CAPTCHA verification failed. Please try again.");
+    setCaptchaToken(null);
+  };
+
   const handleLogin = (values: LoginFormValues) => {
     if (!captchaToken) {
       setCaptchaError("Please complete the CAPTCHA verification");
@@ -86,12 +98,23 @@ export default function Auth() {
         }
       },
       onError: (error) => {
+        console.error('Login error:', error);
         toast({
           title: "Login failed",
           description: error.message,
           variant: "destructive",
         });
         setCaptchaToken(null);
+        if (window.turnstile) {
+          try {
+            const container = document.querySelector('[data-turnstile]');
+            if (container) {
+              window.turnstile.reset(container);
+            }
+          } catch (e) {
+            console.error('Error resetting CAPTCHA:', e);
+          }
+        }
       }
     });
   };
@@ -115,16 +138,6 @@ export default function Auth() {
         otpForm.reset();
       }
     });
-  };
-
-  const handleCaptchaVerify = (token: string) => {
-    setCaptchaToken(token);
-    setCaptchaError(null);
-  };
-
-  const handleCaptchaError = (error: Error) => {
-    setCaptchaError("CAPTCHA verification failed. Please try again.");
-    setCaptchaToken(null);
   };
 
   const togglePasswordVisibility = () => {
