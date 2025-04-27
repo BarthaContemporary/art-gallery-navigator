@@ -6,11 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UploadFormData, uploadFormSchema } from "./upload-document-schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSafeAsync } from "@/hooks/use-safe-async";
 
 export function useDocumentUpload() {
   const [open, setOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
+  const { execute } = useSafeAsync();
   
   const form = useForm<UploadFormData>({
     resolver: zodResolver(uploadFormSchema),
@@ -24,114 +26,116 @@ export function useDocumentUpload() {
   });
 
   const handleUpload = async (data: UploadFormData) => {
-    try {
-      setIsUploading(true);
-      
-      if (!data.file) {
-        toast.error("Please select a file to upload");
-        setIsUploading(false);
-        return;
-      }
-      
-      // Determine which entity is selected and properly format values
-      const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
-      const hasCollection = data.collection_id && data.collection_id !== "_none";
-      const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
-      
-      // Ensure exactly one entity is selected
-      const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean);
-      
-      if (selectedEntities.length === 0) {
-        toast.error("Please attach document to an artwork, collection, or artist");
-        setIsUploading(false);
-        return;
-      }
-      
-      if (selectedEntities.length > 1) {
-        toast.error("Document can only be attached to one entity: artwork, collection, or artist");
-        setIsUploading(false);
-        return;
-      }
-      
-      // File upload logic
-      const file = data.file;
-      const fileExt = file.name.split('.').pop();
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 8);
-      const fileName = `${timestamp}_${randomStr}.${fileExt}`;
-
-      // Upload file to storage
-      const uploadResult = await supabase.storage
-        .from('documents')
-        .upload(fileName, file);
-        
-      if (uploadResult.error) {
-        handleUploadError(uploadResult.error);
-        setIsUploading(false);
-        return;
-      }
-
-      // Get public URL for the uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(fileName);
-
-      // Prepare document record with proper NULL handling for the database
-      // Important: Initialize all entity IDs as null
-      const documentRecord = {
-        file_name: file.name,
-        file_url: publicUrl,
-        type: data.type,
-        description: data.description || null,
-        // Set all fields explicitly to null
-        artwork_id: null,
-        collection_id: null,
-        artist_id: null
-      };
-
-      // Now set only the appropriate field based on what was selected
-      if (hasArtwork) {
-        documentRecord.artwork_id = data.artwork_id;
-      } else if (hasCollection) {
-        documentRecord.collection_id = data.collection_id;
-      } else if (hasArtist) {
-        documentRecord.artist_id = data.artist_id;
-      }
-
-      // Debug log to help diagnose issues
-      console.log("Inserting document record:", documentRecord);
-
-      // Insert record in database
-      const insertResult = await supabase
-        .from('documents')
-        .insert(documentRecord);
-
-      if (insertResult.error) {
-        console.error('Upload error:', insertResult.error);
-        toast.error("Failed to save document record: " + insertResult.error.message);
-        setIsUploading(false);
-        return;
-      }
-
-      toast.success("Document uploaded successfully");
-      setOpen(false);
-      form.reset({
-        description: "",
-        artwork_id: "_none",
-        collection_id: "_none",
-        artist_id: "",
-        type: "",
-        file: undefined
-      });
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error("An unexpected error occurred during upload");
-      setIsUploading(false);
-    } finally {
-      setIsUploading(false);
+    if (!data.file) {
+      toast.error("Please select a file to upload");
+      return;
     }
+    
+    // Determine which entity is selected and properly format values
+    const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
+    const hasCollection = data.collection_id && data.collection_id !== "_none";
+    const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+    
+    // Ensure exactly one entity is selected
+    const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean);
+    
+    if (selectedEntities.length === 0) {
+      toast.error("Please attach document to an artwork, collection, or artist");
+      return;
+    }
+    
+    if (selectedEntities.length > 1) {
+      toast.error("Document can only be attached to one entity: artwork, collection, or artist");
+      return;
+    }
+
+    setIsUploading(true);
+    
+    // Use the safe async execution pattern
+    await execute(
+      async () => {
+        // File upload logic
+        const file = data.file!;
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 8);
+        const fileName = `${timestamp}_${randomStr}.${fileExt}`;
+
+        // Upload file to storage
+        const uploadResult = await supabase.storage
+          .from('documents')
+          .upload(fileName, file);
+          
+        if (uploadResult.error) {
+          handleUploadError(uploadResult.error);
+          throw uploadResult.error;
+        }
+
+        // Get public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName);
+
+        // Prepare document record with proper NULL handling for the database
+        // Initialize all entity IDs as null
+        const documentRecord = {
+          file_name: file.name,
+          file_url: publicUrl,
+          type: data.type,
+          description: data.description || null,
+          // Set all fields explicitly to null
+          artwork_id: null,
+          collection_id: null,
+          artist_id: null
+        };
+
+        // Now set only the appropriate field based on what was selected
+        if (hasArtwork) {
+          documentRecord.artwork_id = data.artwork_id;
+        } else if (hasCollection) {
+          documentRecord.collection_id = data.collection_id;
+        } else if (hasArtist) {
+          documentRecord.artist_id = data.artist_id;
+        }
+
+        // Insert record in database
+        const insertResult = await supabase
+          .from('documents')
+          .insert(documentRecord);
+
+        if (insertResult.error) {
+          console.error('Upload error:', insertResult.error);
+          throw new Error("Failed to save document record: " + insertResult.error.message);
+        }
+
+        return { success: true };
+      },
+      {
+        successMessage: "Document uploaded successfully",
+        onSuccess: () => {
+          // Use setTimeout to avoid UI freeze after operation completes
+          setTimeout(() => {
+            setOpen(false);
+            form.reset({
+              description: "",
+              artwork_id: "_none",
+              collection_id: "_none",
+              artist_id: "",
+              type: "",
+              file: undefined
+            });
+            
+            // Delay query invalidation to prevent UI freezing
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ["documents"] });
+            }, 100);
+          }, 200);
+        },
+        finallyFn: () => {
+          setIsUploading(false);
+        }
+      }
+    );
   };
   
   const handleUploadError = (error: Error) => {

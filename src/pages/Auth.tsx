@@ -12,6 +12,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useSafeAsync } from "@/hooks/use-safe-async";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -20,38 +21,48 @@ export default function Auth() {
   const [otpToken, setOtpToken] = useState("");
   const { signIn, verifyOTP } = useAuth();
   const { toast } = useToast();
+  const { execute, isLoading } = useSafeAsync();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
+    
+    execute(async () => {
       const { needsOTP } = await signIn(email, password);
-      if (needsOTP) {
-        setShowOTP(true);
+      return { needsOTP };
+    }, {
+      onSuccess: (result) => {
+        if (result?.needsOTP) {
+          setShowOTP(true);
+          toast({
+            title: "Check your email",
+            description: "We've sent you a one-time password.",
+          });
+        }
+      },
+      onError: (error) => {
         toast({
-          title: "Check your email",
-          description: "We've sent you a one-time password.",
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    });
   };
 
   const handleOTPSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
+    
+    execute(async () => {
       await verifyOTP(email, otpToken);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    }, {
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   return (
@@ -77,6 +88,7 @@ export default function Auth() {
                   className="text-base sm:text-sm py-3"
                   inputMode="email"
                   autoComplete="email"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -88,19 +100,21 @@ export default function Auth() {
                   required
                   className="text-base sm:text-sm py-3"
                   autoComplete="current-password"
+                  disabled={isLoading}
                 />
               </div>
               <Button 
                 type="submit" 
                 className="w-full h-12 sm:h-10 text-lg sm:text-base"
+                disabled={isLoading}
               >
-                Login
+                {isLoading ? "Processing..." : "Login"}
               </Button>
             </form>
           ) : (
             <form onSubmit={handleOTPSubmit} className="space-y-6">
               <div className="space-y-4">
-                <InputOTP maxLength={6} value={otpToken} onChange={setOtpToken}>
+                <InputOTP maxLength={6} value={otpToken} onChange={setOtpToken} disabled={isLoading}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
@@ -114,9 +128,9 @@ export default function Auth() {
               <Button 
                 type="submit" 
                 className="w-full h-12 sm:h-10 text-lg sm:text-base"
-                disabled={otpToken.length !== 6}
+                disabled={isLoading || otpToken.length !== 6}
               >
-                Verify Code
+                {isLoading ? "Verifying..." : "Verify Code"}
               </Button>
             </form>
           )}

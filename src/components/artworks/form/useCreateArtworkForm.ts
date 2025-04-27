@@ -9,6 +9,7 @@ import { useArtists } from "./useArtists";
 import { useLocations } from "./useLocations";
 import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
+import { useSafeAsync } from "@/hooks/use-safe-async";
 
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
@@ -19,6 +20,7 @@ export type UseCreateArtworkFormProps = {
 export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = false }: UseCreateArtworkFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { execute, isLoading: isSaving } = useSafeAsync();
 
   const form = useForm<ArtworkFormData>({
     defaultValues: getArtworkInitialValues(initialData),
@@ -36,133 +38,122 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   } = useImageUpload(form);
 
   const onSubmit = async (data: ArtworkFormData) => {
-    try {
-      const dimensions = [
-        data.height ? `${data.height}cm H` : '',
-        data.width ? `${data.width}cm W` : '',
-        data.depth ? `${data.depth}cm D` : ''
-      ].filter(Boolean).join(' x ');
+    // Use our safe async execution pattern
+    execute(
+      async () => {
+        const dimensions = [
+          data.height ? `${data.height}cm H` : '',
+          data.width ? `${data.width}cm W` : '',
+          data.depth ? `${data.depth}cm D` : ''
+        ].filter(Boolean).join(' x ');
 
-      // Cast the data to the expected types before sending to Supabase
-      const formattedData = {
-        ...data,
-        dimensions: dimensions || null,
-        price: data.price ? Number(data.price) : null,
-        year: data.year ? Number(data.year) : null,
-        height: data.height ? Number(data.height) : null,
-        width: data.width ? Number(data.width) : null,
-        depth: data.depth ? Number(data.depth) : null,
-        edition_size: data.edition_size ? Number(data.edition_size) : null,
-        inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
-        available_works: data.available_works || null, // Keep as string
-        artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
-        is_framed: !!data.is_framed,
-        frame_height: data.frame_height ? Number(data.frame_height) : null,
-        frame_width: data.frame_width ? Number(data.frame_width) : null,
-        frame_depth: data.frame_depth ? Number(data.frame_depth) : null,
-        weight: data.weight ? Number(data.weight) : null,
-        has_crate: !!data.has_crate,
-        crate_height: data.crate_height ? Number(data.crate_height) : null,
-        crate_width: data.crate_width ? Number(data.crate_width) : null,
-        crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
-      };
+        // Cast the data to the expected types before sending to Supabase
+        const formattedData = {
+          ...data,
+          dimensions: dimensions || null,
+          price: data.price ? Number(data.price) : null,
+          year: data.year ? Number(data.year) : null,
+          height: data.height ? Number(data.height) : null,
+          width: data.width ? Number(data.width) : null,
+          depth: data.depth ? Number(data.depth) : null,
+          edition_size: data.edition_size ? Number(data.edition_size) : null,
+          inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
+          available_works: data.available_works || null, // Keep as string
+          artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
+          is_framed: !!data.is_framed,
+          frame_height: data.frame_height ? Number(data.frame_height) : null,
+          frame_width: data.frame_width ? Number(data.frame_width) : null,
+          frame_depth: data.frame_depth ? Number(data.frame_depth) : null,
+          weight: data.weight ? Number(data.weight) : null,
+          has_crate: !!data.has_crate,
+          crate_height: data.crate_height ? Number(data.crate_height) : null,
+          crate_width: data.crate_width ? Number(data.crate_width) : null,
+          crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
+        };
 
-      // Improved handling for initial data case to prevent UI freeze
-      if (initialData) {
-        // Update artwork
-        const { error } = await supabase
-          .from('artworks')
-          .update(formattedData as any)
-          .eq('id', initialData.id)
-          .select();
-        
-        if (error) throw error;
-      } else {
-        // Create new artwork
-        const { error } = await supabase
-          .from('artworks')
-          .insert([formattedData as any])
-          .select();
-        
-        if (error) throw error;
-      }
-
-      // Handle image uploads if any
-      if (uploadedImageUrls.length > 0) {
-        let artworkId: string | undefined = initialData?.id;
-
-        if (!artworkId) {
-          const { data: artworks, error: fetchError } = await supabase
+        // Database operations - update or create artwork
+        if (initialData) {
+          // Update artwork
+          const { error } = await supabase
             .from('artworks')
-            .select('id')
-            .order('created_at', { ascending: false })
-            .limit(1);
+            .update(formattedData as any)
+            .eq('id', initialData.id)
+            .select();
           
-          if (fetchError) throw fetchError;
-          artworkId = artworks && artworks.length > 0 ? artworks[0].id : undefined;
+          if (error) throw error;
+        } else {
+          // Create new artwork
+          const { error } = await supabase
+            .from('artworks')
+            .insert([formattedData as any])
+            .select();
+          
+          if (error) throw error;
         }
 
-        if (artworkId) {
-          const imagesToInsert = uploadedImageUrls.map((url, index) => ({
-            artwork_id: artworkId,
-            image_url: url,
-            is_primary: index === 0,
-            display_order: index
-          }));
+        // Handle image uploads if any
+        if (uploadedImageUrls.length > 0) {
+          let artworkId: string | undefined = initialData?.id;
 
-          const { error: imageError } = await supabase
-            .from('artwork_images')
-            .insert(imagesToInsert);
+          if (!artworkId) {
+            const { data: artworks, error: fetchError } = await supabase
+              .from('artworks')
+              .select('id')
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            if (fetchError) throw fetchError;
+            artworkId = artworks && artworks.length > 0 ? artworks[0].id : undefined;
+          }
 
-          if (imageError) throw imageError;
+          if (artworkId) {
+            const imagesToInsert = uploadedImageUrls.map((url, index) => ({
+              artwork_id: artworkId,
+              image_url: url,
+              is_primary: index === 0,
+              display_order: index
+            }));
+
+            const { error: imageError } = await supabase
+              .from('artwork_images')
+              .insert(imagesToInsert);
+
+            if (imageError) throw imageError;
+          }
         }
-      }
 
-      // CRITICAL: First invalidate the queries and display toast before any UI state changes
-      await queryClient.invalidateQueries({ queryKey: ['artworks'] });
-
-      // Show success toast
-      toast({
-        title: "Success",
-        description: initialData 
+        return { success: true };
+      },
+      {
+        successMessage: initialData 
           ? "Artwork has been updated successfully"
           : "Artwork has been created successfully",
-      });
-
-      // Reset form state
-      resetUploaded();
-      form.reset();
-      
-      // Fixed: Close the dialog in a safer way, using a longer timeout for editing existing records
-      const safeTimeout = preventFreeze ? 500 : 250;
-      
-      // For editing (which is more prone to freezing), use an even more cautious approach
-      if (initialData) {
-        // First, detach from the current event loop
-        setTimeout(() => {
-          // Then queue the UI update with requestAnimationFrame
-          window.requestAnimationFrame(() => {
-            // Only now close the dialog
-            setOpen(false);
-          });
-        }, safeTimeout);
-      } else {
-        // For new artwork creation (less problematic), use a simpler approach
-        setTimeout(() => {
-          setOpen(false);
-        }, safeTimeout);
-      }
-      
-    } catch (error) {
-      console.error("Form submission error:", error);
-      toast({
-        title: "Error",
-        description: initialData
+        onSuccess: () => {
+          // Reset form state first
+          resetUploaded();
+          form.reset();
+          
+          // Set a minimum timeout for closing the dialog
+          // Let UI settle before invalidating queries
+          setTimeout(() => {
+            // First invalidate queries
+            queryClient.invalidateQueries({ queryKey: ['artworks'] });
+            
+            // Then wait a bit longer before closing the dialog
+            const safeTimeout = preventFreeze ? 500 : 250;
+            setTimeout(() => {
+              // Use requestAnimationFrame for smoother transitions
+              requestAnimationFrame(() => {
+                setOpen(false);
+              });
+            }, safeTimeout);
+          }, 100);
+        },
+        errorMessage: initialData
           ? "There was an error updating the artwork"
-          : "There was an error creating the artwork",
-        variant: "destructive",
-      });
-    }
+          : "There was an error creating the artwork"
+      }
+    );
   };
 
   return {
@@ -173,6 +164,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
     onSubmit,
     handleImagesUploaded,
     uploadedImageUrls,
-    initialData
+    initialData,
+    isSaving
   };
 }

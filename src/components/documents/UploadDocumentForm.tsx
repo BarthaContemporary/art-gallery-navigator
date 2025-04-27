@@ -17,14 +17,14 @@ import { UploadFormData } from "./upload-document-schema";
 interface UploadDocumentFormProps {
   form: UseFormReturn<UploadFormData>;
   onSubmit: (data: UploadFormData) => Promise<void>;
+  isUploading?: boolean;
 }
 
-export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) {
+export function UploadDocumentForm({ form, onSubmit, isUploading = false }: UploadDocumentFormProps) {
   const artworkId = useWatch({ control: form.control, name: "artwork_id" });
   const collectionId = useWatch({ control: form.control, name: "collection_id" });
   const artistId = useWatch({ control: form.control, name: "artist_id" });
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,20 +69,10 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         return;
       }
 
-      console.log("Submitting with values:", {
-        artwork_id: hasArtwork ? data.artwork_id : null,
-        collection_id: hasCollection ? data.collection_id : null,
-        artist_id: hasArtist ? data.artist_id : null,
-      });
-
       setValidationError(null);
-      setIsSubmitting(true);
-      
       await onSubmit(data);
     } catch (error) {
       console.error("Form submission error:", error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -110,9 +100,23 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         </div>
         
         <DescriptionField form={form} />
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          <Upload className="mr-2 h-4 w-4" /> 
-          {isSubmitting ? "Uploading..." : "Upload"}
+        <Button 
+          type="submit" 
+          disabled={isUploading} 
+          className="w-full relative"
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          <span>
+            {isUploading ? "Uploading..." : "Upload"}
+          </span>
+          {isUploading && (
+            <span 
+              className="absolute inset-0 flex items-center justify-center" 
+              aria-hidden="true"
+            >
+              <span className="animate-pulse">Processing...</span>
+            </span>
+          )}
         </Button>
       </form>
     </Form>
