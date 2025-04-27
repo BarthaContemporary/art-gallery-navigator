@@ -1,12 +1,13 @@
-
 import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { PerformanceMonitor } from "@/utils/performance";
+import { useLoading } from "@/contexts/loading-context";
 
 export function useSafeAsync<T>() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLocalLoading, setIsLocalLoading] = useState(false);
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(true);
+  const { startLoading, stopLoading } = useLoading();
   
   // Set up cleanup when component unmounts
   useState(() => {
@@ -24,11 +25,16 @@ export function useSafeAsync<T>() {
       successMessage?: string;
       errorMessage?: string;
       finallyFn?: () => void;
+      useGlobalLoading?: boolean;
     }
   ): Promise<R | undefined> => {
-    if (isLoading) return;
+    if (isLocalLoading) return;
     
-    setIsLoading(true);
+    setIsLocalLoading(true);
+    if (options?.useGlobalLoading) {
+      startLoading();
+    }
+    
     let result: R | undefined;
     
     try {
@@ -92,7 +98,10 @@ export function useSafeAsync<T>() {
       if (isMounted) {
         requestAnimationFrame(() => {
           if (isMounted) {
-            setIsLoading(false);
+            setIsLocalLoading(false);
+            if (options?.useGlobalLoading) {
+              stopLoading();
+            }
             if (options?.finallyFn) {
               setTimeout(options.finallyFn, 10);
             }
@@ -100,10 +109,10 @@ export function useSafeAsync<T>() {
         });
       }
     }
-  }, [isLoading, toast, isMounted]);
+  }, [isLocalLoading, toast, isMounted, startLoading, stopLoading]);
 
   return {
-    isLoading,
+    isLoading: isLocalLoading,
     execute
   };
 }
