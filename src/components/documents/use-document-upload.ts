@@ -33,12 +33,12 @@ export function useDocumentUpload() {
         return;
       }
       
-      // Parse and validate the associations
+      // Determine which entity is selected and properly format values
       const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
       const hasCollection = data.collection_id && data.collection_id !== "_none";
       const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
       
-      // Count selected entities to ensure exactly one is chosen
+      // Ensure exactly one entity is selected
       const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean);
       
       if (selectedEntities.length === 0) {
@@ -77,24 +77,29 @@ export function useDocumentUpload() {
         .getPublicUrl(fileName);
 
       // Prepare document record with proper NULL handling for the database
+      // Important: Convert "_none" and empty strings to null
       const documentRecord = {
         file_name: file.name,
         file_url: publicUrl,
         type: data.type,
         description: data.description || null,
-        // Set only one field and ensure others are NULL
-        artwork_id: hasArtwork ? data.artwork_id : null,
-        collection_id: hasCollection ? data.collection_id : null,
-        artist_id: hasArtist ? data.artist_id : null
+        // Set all fields initially to null
+        artwork_id: null,
+        collection_id: null,
+        artist_id: null
       };
 
+      // Now set only the appropriate field based on what was selected
+      if (hasArtwork) {
+        documentRecord.artwork_id = data.artwork_id;
+      } else if (hasCollection) {
+        documentRecord.collection_id = data.collection_id;
+      } else if (hasArtist) {
+        documentRecord.artist_id = data.artist_id;
+      }
+
       // Debug log to help diagnose issues
-      console.log("Inserting document record:", { 
-        artwork_id: documentRecord.artwork_id, 
-        collection_id: documentRecord.collection_id,
-        artist_id: documentRecord.artist_id,
-        type: data.type
-      });
+      console.log("Inserting document record:", documentRecord);
 
       // Insert record in database
       const insertResult = await supabase
@@ -116,6 +121,7 @@ export function useDocumentUpload() {
         collection_id: "_none",
         artist_id: "",
         type: "",
+        file: undefined
       });
       queryClient.invalidateQueries({ queryKey: ["documents"] });
 

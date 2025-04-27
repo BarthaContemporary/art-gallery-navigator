@@ -8,7 +8,7 @@ import { FileUploadField } from "./form/FileUploadField";
 import { DocumentTypeField } from "./form/DocumentTypeField";
 import { ArtworkField } from "./form/ArtworkField";
 import { CollectionField } from "./form/CollectionField";
-import { ArtistField } from "./ArtistField";
+import { ArtistField } from "./components/documents/ArtistField";
 import { DescriptionField } from "./form/DescriptionField";
 import { useWatch } from "react-hook-form";
 import { useState, useEffect } from "react";
@@ -72,6 +72,13 @@ export function UploadDocumentForm({ form, onSubmit }: UploadDocumentFormProps) 
         setValidationError("Document can only be attached to one entity: artwork, collection, or artist");
         return;
       }
+
+      // Log the selected values for debugging
+      console.log("Submitting with values:", {
+        artwork_id: hasArtwork ? data.artwork_id : null,
+        collection_id: hasCollection ? data.collection_id : null,
+        artist_id: hasArtist ? data.artist_id : null,
+      });
 
       setValidationError(null);
       setIsSubmitting(true);

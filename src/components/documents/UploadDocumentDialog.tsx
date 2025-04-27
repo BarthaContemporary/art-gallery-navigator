@@ -21,7 +21,7 @@ export function UploadDocumentDialog() {
       if (!isUploading) {
         setOpen(newOpen);
         if (!newOpen) {
-          // Reset form when dialog is closed
+          // Reset form when dialog is closed with proper defaults
           form.reset({
             description: "",
             artwork_id: "_none",

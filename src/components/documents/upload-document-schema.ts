@@ -5,14 +5,22 @@ export const uploadFormSchema = z.object({
   file: z.instanceof(File, { message: "File is required" }),
   type: z.string().min(1, "Document type is required"),
   description: z.string().optional(),
-  artwork_id: z.string().optional(),
-  collection_id: z.string().optional(),
-  artist_id: z.string().optional(),
+  // Ensure these fields can be null/undefined/"_none" to match database constraints
+  artwork_id: z.string().nullable().optional(),
+  collection_id: z.string().nullable().optional(),
+  artist_id: z.string().nullable().optional(),
 }).refine((data) => {
-  // Count how many of the entity fields are selected
-  const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
-  const hasCollection = data.collection_id && data.collection_id !== "_none";
-  const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+  // Track selected entity for debugging
+  console.log("Validating form data:", {
+    artwork: data.artwork_id,
+    collection: data.collection_id,
+    artist: data.artist_id
+  });
+
+  // Count how many of the entity fields are actually selected with valid values
+  const hasArtwork = !!data.artwork_id && data.artwork_id !== "_none";
+  const hasCollection = !!data.collection_id && data.collection_id !== "_none";
+  const hasArtist = !!data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
   
   // Valid if exactly one entity is selected
   const selectedCount = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
