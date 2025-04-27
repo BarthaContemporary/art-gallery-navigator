@@ -1,5 +1,5 @@
 
-import { WorkerTask, WorkerResponse } from './worker-types';
+import { WorkerTask, WorkerResponse, WorkerSuccessResponse, WorkerErrorResponse } from './worker-types';
 
 export class WorkerService {
   private static worker: Worker | null = null;
@@ -14,17 +14,19 @@ export class WorkerService {
       this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
       
       this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-        const { id, type, result, error } = event.data;
-        const callback = this.taskCallbacks.get(id);
+        const response = event.data;
+        const callback = this.taskCallbacks.get(response.id);
         
         if (callback) {
           clearTimeout(callback.timeout);
-          this.taskCallbacks.delete(id);
+          this.taskCallbacks.delete(response.id);
           
-          if (type === 'ERROR') {
-            callback.reject(new Error(error));
+          if (response.type === 'ERROR') {
+            const errorResponse = response as WorkerErrorResponse;
+            callback.reject(new Error(errorResponse.error));
           } else {
-            callback.resolve(result);
+            const successResponse = response as WorkerSuccessResponse;
+            callback.resolve(successResponse.result);
           }
         }
       };
