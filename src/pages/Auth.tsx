@@ -11,17 +11,40 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signIn } = useAuth();
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpToken, setOtpToken] = useState("");
+  const { signIn, verifyOTP } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signIn(email, password);
+      const { needsOTP } = await signIn(email, password);
+      if (needsOTP) {
+        setShowOTP(true);
+        toast({
+          title: "Check your email",
+          description: "We've sent you a one-time password.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOTPSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await verifyOTP(email, otpToken);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -37,42 +60,66 @@ export default function Auth() {
         <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
           <CardTitle className="text-2xl sm:text-3xl md:text-4xl">Login</CardTitle>
           <CardDescription className="text-base sm:text-lg">
-            Welcome back! Please login to continue.
+            {showOTP ? "Enter the code sent to your email" : "Welcome back! Please login to continue."}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 pb-8 pt-4 sm:pt-2">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                autoFocus
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="text-base sm:text-sm py-3"
-                inputMode="email"
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="text-base sm:text-sm py-3"
-                autoComplete="current-password"
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full h-12 sm:h-10 text-lg sm:text-base"
-            >
-              Login
-            </Button>
-          </form>
+          {!showOTP ? (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  autoFocus
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  inputMode="email"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="text-base sm:text-sm py-3"
+                  autoComplete="current-password"
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full h-12 sm:h-10 text-lg sm:text-base"
+              >
+                Login
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleOTPSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <InputOTP maxLength={6} value={otpToken} onChange={setOtpToken}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full h-12 sm:h-10 text-lg sm:text-base"
+                disabled={otpToken.length !== 6}
+              >
+                Verify Code
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
