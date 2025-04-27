@@ -1,5 +1,5 @@
 
-import { serve } from "https://deno.fresh.runtime.dev";
+import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 
 interface TurnstileResponse {
   "error-codes": string[];
