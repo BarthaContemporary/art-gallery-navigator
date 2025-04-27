@@ -77,13 +77,13 @@ export function useDocumentUpload() {
         .getPublicUrl(fileName);
 
       // Prepare document record with proper NULL handling for the database
-      // Important: Convert "_none" and empty strings to null
+      // Important: Initialize all entity IDs as null
       const documentRecord = {
         file_name: file.name,
         file_url: publicUrl,
         type: data.type,
         description: data.description || null,
-        // Set all fields initially to null
+        // Set all fields explicitly to null
         artwork_id: null,
         collection_id: null,
         artist_id: null
