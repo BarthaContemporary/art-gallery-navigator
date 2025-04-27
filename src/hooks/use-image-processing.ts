@@ -6,12 +6,14 @@ import { toast } from "sonner";
 export function useImageProcessing() {
   const processImage = useCallback(async (imageUrl: string, artworkImageId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('process-artwork-image', {
+      // Call the edge function to mark the image as processed
+      const { data, error } = await supabase.functions.invoke('process-artwork-image', {
         body: { image_url: imageUrl, artwork_image_id: artworkImageId }
       });
 
       if (error) throw error;
 
+      console.log('Image processing result:', data);
       return true;
     } catch (error) {
       console.error('Error processing image:', error);

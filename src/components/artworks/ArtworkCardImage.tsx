@@ -1,7 +1,7 @@
 
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ArtworkCardImageProps {
   imageUrl: string | null;
@@ -11,6 +11,17 @@ interface ArtworkCardImageProps {
 
 export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!imageUrl) {
+      setOptimizedUrl("/placeholder.svg");
+      return;
+    }
+
+    // Use the original URL when no optimized version is available
+    setOptimizedUrl(imageUrl);
+  }, [imageUrl]);
 
   return (
     <div 
@@ -22,13 +33,14 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <Skeleton className="h-full w-full absolute inset-0" />
         )}
         <img
-          src={imageUrl || "/placeholder.svg"}
+          src={optimizedUrl || "/placeholder.svg"}
           alt={title}
           className={`h-full w-full object-cover transition-all hover:scale-105 ${
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
           onLoad={() => setIsLoading(false)}
           loading="lazy"
+          style={{ maxWidth: '400px' }} // Limit display size to thumbnail dimensions
         />
       </AspectRatio>
     </div>

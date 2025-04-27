@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface CarouselImageProps {
@@ -18,9 +18,12 @@ export function CarouselImage({
   artworkTitle = "Untitled"
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
 
-  // Use medium resolution for carousel
-  const mediumUrl = imageUrl.replace('artwork-images', 'artwork-medium').replace(/\.[^/.]+$/, '.webp');
+  useEffect(() => {
+    // Use the original URL when no optimized version is available
+    setOptimizedUrl(imageUrl);
+  }, [imageUrl]);
 
   return (
     <div className="relative w-full flex-[0_0_100%]">
@@ -28,7 +31,7 @@ export function CarouselImage({
         <Skeleton className="absolute inset-0" />
       )}
       <img
-        src={mediumUrl}
+        src={optimizedUrl}
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
         className={`w-full h-[600px] object-contain transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'

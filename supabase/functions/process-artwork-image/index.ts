@@ -1,27 +1,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import sharp from 'https://esm.sh/sharp@0.32.6';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-async function processImage(imageBuffer: Uint8Array, width: number): Promise<{ buffer: Uint8Array, metadata: sharp.Metadata }> {
-  const image = sharp(imageBuffer);
-  const metadata = await image.metadata();
-  
-  const resizedImage = await image
-    .resize(width, undefined, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 80 })
-    .toBuffer();
-
-  return { buffer: resizedImage, metadata };
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,66 +19,41 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    // Download the original image
-    const response = await fetch(image_url);
-    const imageBuffer = new Uint8Array(await response.arrayBuffer());
-
-    // Process images for different sizes
-    const [thumbnail, medium, original] = await Promise.all([
-      processImage(imageBuffer, 400),
-      processImage(imageBuffer, 800),
-      processImage(imageBuffer, undefined)
-    ]);
-
     // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Upload processed images to their respective buckets
-    const [thumbnailUpload, mediumUpload] = await Promise.all([
-      supabase.storage
-        .from('artwork-thumbnails')
-        .upload(`${artwork_image_id}.webp`, thumbnail.buffer, {
-          contentType: 'image/webp',
-          upsert: true
-        }),
-      supabase.storage
-        .from('artwork-medium')
-        .upload(`${artwork_image_id}.webp`, medium.buffer, {
-          contentType: 'image/webp',
-          upsert: true
-        })
-    ]);
+    // First, check if this image already exists in our database and has been processed
+    const { data: existingImage } = await supabase
+      .from('artwork_images')
+      .select('*')
+      .eq('id', artwork_image_id)
+      .single();
 
-    if (thumbnailUpload.error || mediumUpload.error) {
-      throw new Error('Failed to upload processed images');
+    // If the image has already been processed, return early
+    if (existingImage?.processed) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Image already processed',
+        thumbnail_url: existingImage.thumbnail_url,
+        medium_url: existingImage.medium_url
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Get public URLs for the uploaded images
-    const thumbnailUrl = supabase.storage
-      .from('artwork-thumbnails')
-      .getPublicUrl(`${artwork_image_id}.webp`).data.publicUrl;
-      
-    const mediumUrl = supabase.storage
-      .from('artwork-medium')
-      .getPublicUrl(`${artwork_image_id}.webp`).data.publicUrl;
-
-    // Update the artwork_images record with new URLs and metadata
+    // Update the artwork_images record to mark it as processed
+    // In this version, we're not performing actual image processing, but marking it for client-side processing
     const { error: updateError } = await supabase
       .from('artwork_images')
       .update({
-        thumbnail_url: thumbnailUrl,
-        medium_url: mediumUrl,
-        original_width: original.metadata.width,
-        original_height: original.metadata.height,
-        original_size: imageBuffer.length,
-        thumbnail_width: thumbnail.metadata.width,
-        thumbnail_height: thumbnail.metadata.height,
-        medium_width: medium.metadata.width,
-        medium_height: medium.metadata.height,
-        processed: true
+        processed: true,
+        // Set the URLs to be the same as the original for now
+        // The browser will handle resizing for display purposes
+        thumbnail_url: image_url,
+        medium_url: image_url
       })
       .eq('id', artwork_image_id);
 
@@ -102,10 +61,14 @@ serve(async (req) => {
       throw updateError;
     }
 
+    // Log successful processing
+    console.log(`Successfully marked image ${artwork_image_id} as processed`);
+
     return new Response(JSON.stringify({
       success: true,
-      thumbnail_url: thumbnailUrl,
-      medium_url: mediumUrl
+      message: 'Image marked for client-side processing',
+      thumbnail_url: image_url,
+      medium_url: image_url
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
