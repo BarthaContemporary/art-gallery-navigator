@@ -72,16 +72,22 @@ export function useDocumentUpload() {
         .from('documents')
         .getPublicUrl(fileName);
 
-      // Process form data to make sure we have valid values
-      // Important: Convert "_none" to null to satisfy the database constraint
-      const finalArtworkId = hasArtwork ? data.artwork_id : null;
-      const finalCollectionId = hasCollection ? data.collection_id : null;
-      const finalArtistId = hasArtist ? data.artist_id : null;
+      // IMPORTANT: Ensure only one foreign key is set and the others are null
+      // This is crucial to satisfy the check constraint
+      const documentRecord = {
+        file_name: file.name,
+        file_url: publicUrl,
+        type: data.type,
+        description: data.description || null,
+        artwork_id: hasArtwork ? data.artwork_id : null,
+        collection_id: hasCollection ? data.collection_id : null,
+        artist_id: hasArtist ? data.artist_id : null,
+      };
 
       console.log("Inserting document with:", { 
-        finalArtworkId, 
-        finalCollectionId,
-        finalArtistId,
+        finalArtworkId: documentRecord.artwork_id, 
+        finalCollectionId: documentRecord.collection_id,
+        finalArtistId: documentRecord.artist_id,
         type: data.type,
         description: data.description || null
       });
@@ -89,15 +95,7 @@ export function useDocumentUpload() {
       // Insert record in database with exactly one non-null reference
       const insertResult = await supabase
         .from('documents')
-        .insert({
-          file_name: file.name,
-          file_url: publicUrl,
-          type: data.type,
-          description: data.description || null,
-          artwork_id: finalArtworkId,
-          collection_id: finalCollectionId,
-          artist_id: finalArtistId,
-        });
+        .insert(documentRecord);
 
       if (insertResult.error) {
         console.error('Upload error:', insertResult.error);
