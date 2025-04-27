@@ -8,7 +8,7 @@ import { SidebarUserMenu } from "./sidebar/SidebarUserMenu";
 export function Sidebar() {
   return (
     <SidebarComponent
-      className="hidden sm:flex flex-col w-60 h-full border-r bg-white"
+      className="hidden sm:flex flex-col w-60 h-full" // Removed border-r
       style={{
         minHeight: "100vh",
         textAlign: "left"
