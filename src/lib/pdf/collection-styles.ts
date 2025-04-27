@@ -1,12 +1,12 @@
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 10cm;
+    padding-top: 8cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;
     position: relative;
     font-family: 'Source Sans 3', sans-serif;
-    font-size: 10px;
+    font-size: 8px;
     box-sizing: border-box;
     z-index: 1;
   }
@@ -23,7 +23,7 @@ export const stationeryStyles = `
     font-weight: 700;
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .artist-name-header {
@@ -32,45 +32,45 @@ export const stationeryStyles = `
     left: 4cm;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .artwork-title {
     font-style: italic;
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .materials {
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .edition-details {
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .dimensions {
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .frame-dimensions {
     margin-bottom: 0.05cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .price {
     font-weight: 600;
     margin-top: 0.1cm;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .collection-name {
@@ -78,20 +78,20 @@ export const stationeryStyles = `
     top: 6cm;
     left: 4cm;
     font-weight: 700;
-    font-size: 10px;
+    font-size: 8px;
     font-family: 'Source Sans 3', sans-serif;
   }
   
   .collection-description {
     margin-top: 0;
     margin-bottom: 0.1cm;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.2;
   }
   
   .collection-items {
     margin-top: 0.5cm;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .collection-item {
@@ -99,7 +99,7 @@ export const stationeryStyles = `
     margin-bottom: 0.1cm;
     border-bottom: 1px solid #eee;
     padding-bottom: 0.1cm;
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .collection-item-image-container {
@@ -120,14 +120,14 @@ export const stationeryStyles = `
   
   .collection-item-details {
     flex: 1;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1.2;
   }
   
   .collection-item-details p {
     margin-top: 0;
     margin-bottom: 0.05cm;
-    font-size: 10px;
+    font-size: 8px;
   }
 
   h2 {

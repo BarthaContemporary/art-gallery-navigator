@@ -1,4 +1,3 @@
-
 import { preloadImage } from "./utils";
 
 // Stationery image path - cached as a constant for consistency
@@ -38,13 +37,14 @@ export function getStationeryStyle(useStationery: boolean): string {
     .content-wrapper {
       position: relative;
       z-index: 2;
-      padding: 3cm 2.5cm;
+      padding: 8cm 2.5cm 3cm 2.5cm;
     }
     
     /* Ensure all content appears above stationery */
     h1, h2, h3, p, div {
       position: relative;
       z-index: 3;
+      font-family: 'Source Sans 3', sans-serif;
     }
   `;
 }

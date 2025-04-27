@@ -7,7 +7,7 @@ export const baseStyles = `
     font-family: 'Source Sans 3', sans-serif; 
     color: #333;
     line-height: 1.5;
-    font-size: 12pt;
+    font-size: 8pt;
     margin: 0;
     padding: 0;
     -webkit-print-color-adjust: exact;
@@ -15,14 +15,14 @@ export const baseStyles = `
   }
   
   h1 {
-    font-size: 20pt;
+    font-size: 16pt;
     font-weight: 600;
     margin-bottom: 0.5cm;
     line-height: 1.2;
   }
   
   h2 {
-    font-size: 16pt;
+    font-size: 12pt;
     font-weight: 600;
     margin-top: 1cm;
     margin-bottom: 0.5cm;
@@ -30,7 +30,7 @@ export const baseStyles = `
   }
   
   h3 {
-    font-size: 14pt;
+    font-size: 10pt;
     font-weight: 500;
     margin-bottom: 0.3cm;
     line-height: 1.3;
@@ -54,13 +54,12 @@ export const baseStyles = `
   
   .artist-name {
     font-weight: bold;
-    font-size: 14pt;
+    font-size: 10pt;
     margin-bottom: 0.2cm;
   }
   
   .artwork-title {
     font-style: italic;
-    font-size: 13pt;
+    font-size: 9pt;
     margin-bottom: 0.8cm;
   }
-`;
