@@ -1,14 +1,8 @@
 
 import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { PerformanceMonitor } from "@/utils/performance";
 
-/**
- * Custom hook for handling asynchronous operations safely
- * - Prevents UI freezing with proper async handling
- * - Manages loading state automatically
- * - Provides toast notifications for errors
- * - Supports cleanup on component unmount
- */
 export function useSafeAsync<T>() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -21,7 +15,7 @@ export function useSafeAsync<T>() {
     };
   });
 
-  // Main execution function with safety features
+  // Main execution function with safety features and performance monitoring
   const execute = useCallback(async <R>(
     asyncFn: () => Promise<R>,
     options?: {
@@ -38,11 +32,14 @@ export function useSafeAsync<T>() {
     let result: R | undefined;
     
     try {
-      // Use requestAnimationFrame to give UI time to update
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      
-      // Execute the async function
-      result = await asyncFn();
+      // Use performance monitoring for async operations
+      result = await PerformanceMonitor.measureAsync('async-operation', async () => {
+        // Use requestAnimationFrame to give UI time to update
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        
+        // Execute the async function
+        return await asyncFn();
+      });
       
       // Only continue if component is still mounted
       if (!isMounted) return result;
@@ -64,7 +61,7 @@ export function useSafeAsync<T>() {
       
       return result;
     } catch (error) {
-      // Handle error
+      // Handle error with performance logging
       console.error("Operation failed:", error);
       
       if (!isMounted) return;
