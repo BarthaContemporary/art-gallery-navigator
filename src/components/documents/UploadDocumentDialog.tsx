@@ -12,7 +12,7 @@ import { PlusCircle } from "lucide-react";
 import { UploadDocumentForm } from "./UploadDocumentForm";
 import { useDocumentUpload } from "./use-document-upload";
 import { useDialog } from "@/hooks/use-dialog";
-import React, { useEffect } from "react";
+import React from "react";
 
 export function UploadDocumentDialog() {
   const { isOpen, onOpenChange } = useDialog(false);
