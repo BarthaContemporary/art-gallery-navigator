@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -20,14 +19,23 @@ export default {
     },
     extend: {
       fontFamily: {
-        // Remove sans from configuration since we're setting it globally in index.css
+        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
         'visby': ['visby-round', 'sans-serif'],
+      },
+      fontWeight: {
+        thin: '200',
+        light: '300',
+        normal: '400',
+        medium: '500',
+        semibold: '600',
+        bold: '700',
+        extrabold: '800',
+        black: '900',
       },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        // Adjusting colors to pure white backgrounds
         background: '#ffffff',
         foreground: '#000000',
         card: {
@@ -51,11 +59,11 @@ export default {
           foreground: '#000000',
         },
         primary: {
-          DEFAULT: '#18465a',                     // hex for the main blue
+          DEFAULT: '#18465a',
           foreground: '#fff',
         },
         destructive: {
-          DEFAULT: '#910000',                     // hex for red (links/destructive)
+          DEFAULT: '#910000',
           foreground: '#fff',
         },
         hover: '#455118',
