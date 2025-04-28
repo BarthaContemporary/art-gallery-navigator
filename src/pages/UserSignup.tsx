@@ -82,12 +82,13 @@ export default function UserSignup() {
     }
   };
 
-  return <div className="p-4 space-y-6">
+  return (
+    <div className="p-4 space-y-6">
       <div>
         <h1 className="text-sm font-visby font-extrabold text-slate-700">USER MANAGEMENT</h1>
       </div>
 
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-full sm:max-w-md mx-auto px-2 sm:px-0">
         <Card className="shadow-lg border border-border/60">
           <CardHeader className="px-4 pt-6 pb-2">
             <CardTitle className="text-lg sm:text-2xl">User Signup</CardTitle>
@@ -140,16 +141,12 @@ export default function UserSignup() {
               <Button type="submit" className="w-full text-base sm:text-sm" disabled={isLoading}>
                 {isLoading ? "Creating..." : "Create User"}
               </Button>
-              
-              <div className="text-sm text-muted-foreground mt-4">
-                <p>Note: If you're experiencing issues with confirmation emails, please check your Supabase email provider settings.</p>
-              </div>
             </form>
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-8 overflow-hidden">
+      <div className="mt-8 -mx-4 sm:mx-0">
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="w-full grid grid-cols-3 mb-4">
             <TabsTrigger value="users">Users</TabsTrigger>
@@ -157,24 +154,19 @@ export default function UserSignup() {
             <TabsTrigger value="uploads">Uploads</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="border rounded-md">
-            <div className="overflow-x-auto">
-              <UsersList />
-            </div>
+          <TabsContent value="users" className="border rounded-md overflow-x-auto">
+            <UsersList />
           </TabsContent>
           
-          <TabsContent value="deletion-requests" className="border rounded-md">
-            <div className="overflow-x-auto">
-              <DeletionRequestsTable />
-            </div>
+          <TabsContent value="deletion-requests" className="border rounded-md overflow-x-auto">
+            <DeletionRequestsTable />
           </TabsContent>
 
-          <TabsContent value="uploads" className="border rounded-md">
-            <div className="overflow-x-auto">
-              <UploadedFilesList />
-            </div>
+          <TabsContent value="uploads" className="border rounded-md overflow-x-auto">
+            <UploadedFilesList />
           </TabsContent>
         </Tabs>
       </div>
-    </div>;
+    </div>
+  );
 }

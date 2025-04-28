@@ -9,10 +9,7 @@ const Locations = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <LocationHeader />
-      </div>
-      <h1 className="text-sm font-visby font-extrabold text-slate-700">LOCATIONS</h1>
+      <LocationHeader />
       <LocationSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
       <LocationGrid searchTerm={searchTerm} />
     </div>
