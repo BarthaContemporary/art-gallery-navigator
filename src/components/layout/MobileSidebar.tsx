@@ -16,13 +16,8 @@ export function MobileSidebar() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerContent className="p-0 flex flex-col h-[96vh]">
-        <div className="flex items-center justify-between border-b px-4 py-4">
-          <img
-            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-            alt="Bartha Logo"
-            className="h-7 w-auto"
-            style={{ maxWidth: 120 }}
-          />
+        {/* Add mt-12 for top spacing and adjust header */}
+        <div className="flex items-center justify-between border-b px-4 py-4 mt-12">
           <Button
             variant="ghost"
             size="icon"
@@ -31,6 +26,12 @@ export function MobileSidebar() {
           >
             <X />
           </Button>
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 120 }}
+          />
         </div>
         <nav className="flex-1 py-6 px-4 flex flex-col gap-2">
           {navItems.map((item) => (
@@ -68,12 +69,22 @@ export function MobileSidebar() {
           </Button>
         </div>
       </DrawerContent>
-      <div className="absolute top-3 left-3 z-40">
+      {/* Move trigger to top-right and add spacing */}
+      <div className="absolute top-3 right-3 z-40">
         <DrawerTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Open menu">
             <Menu />
           </Button>
         </DrawerTrigger>
+      </div>
+      {/* Add the B_c Logo at the top-right */}
+      <div className="fixed top-3 right-16 z-40">
+        <img
+          src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+          alt="Bartha Logo"
+          className="h-7 w-auto"
+          style={{ maxWidth: 120 }}
+        />
       </div>
     </Drawer>
   );
