@@ -84,16 +84,16 @@ export default function UserSignup() {
 
   return <div className="p-4 space-y-6">
       <div>
-        <h1 className="text-sm font-visby font-extrabold text-slate-700 uppercase">USER MANAGEMENT</h1>
+        <h1 className="text-sm font-visby font-extrabold text-slate-700">USER MANAGEMENT</h1>
       </div>
 
       <div className="w-full max-w-md mx-auto">
         <Card className="shadow-lg border border-border/60">
-          <CardHeader className="px-4 pt-6 pb-2 sm:px-6">
-            <CardTitle className="text-xl sm:text-2xl">User Signup</CardTitle>
+          <CardHeader className="px-4 pt-6 pb-2">
+            <CardTitle className="text-lg sm:text-2xl">User Signup</CardTitle>
             <CardDescription>Add users</CardDescription>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6">
+          <CardContent className="p-4">
             {signupError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -109,7 +109,7 @@ export default function UserSignup() {
                 autoFocus 
                 onChange={e => setEmail(e.target.value)} 
                 required 
-                className="w-full" 
+                className="w-full text-base sm:text-sm" 
                 inputMode="email" 
                 autoComplete="email" 
               />
@@ -119,7 +119,7 @@ export default function UserSignup() {
                 value={password} 
                 onChange={e => setPassword(e.target.value)} 
                 required 
-                className="w-full" 
+                className="w-full text-base sm:text-sm" 
                 autoComplete="new-password" 
               />
               <div>
@@ -130,14 +130,14 @@ export default function UserSignup() {
                   id="user-role" 
                   value={role} 
                   onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-                  className="w-full border rounded-md px-3 py-2 bg-background"
+                  className="w-full border rounded-md px-3 py-2 bg-background text-base sm:text-sm"
                 >
                   <option value="artist">Artist</option>
                   <option value="gallery_admin">Admin</option>
                   <option value="external">External</option>
                 </select>
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full text-base sm:text-sm" disabled={isLoading}>
                 {isLoading ? "Creating..." : "Create User"}
               </Button>
               
