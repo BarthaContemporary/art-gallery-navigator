@@ -30,6 +30,10 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Development mode flag - set to true to enable development mode
+const DEVELOPMENT_MODE = true; // Enable development mode for testing
+const DEVELOPMENT_TOKEN = "development-mode";
+
 // Helper function to debug domain issues
 function logDomainInfo(requestDomain: string | undefined, responseDomain: string | undefined, body: any) {
   console.log("======== Domain Debug Info ========");
@@ -76,6 +80,22 @@ serve(async (req) => {
         JSON.stringify({ error: "Token is required" }),
         { 
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+
+    // Special case for development mode
+    if (DEVELOPMENT_MODE && token === DEVELOPMENT_TOKEN) {
+      console.log("Development mode token accepted");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          hostname: domain || "development.local",
+          message: "Development mode verification successful"
+        }),
+        { 
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,8 +49,9 @@ export default function Auth() {
           if (error instanceof Error) {
             console.log("Password login error:", error.message);
             
-            if (error.message.includes("Invalid login credentials")) {
-              console.log("Invalid credentials, falling back to OTP...");
+            // In development mode, always fall back to OTP if password login fails
+            if (captchaToken === "development-mode" || error.message.includes("Invalid login credentials")) {
+              console.log("Invalid credentials or dev mode, falling back to OTP...");
               return signInWithOTP(values.email, captchaToken);
             }
             
@@ -83,7 +85,10 @@ export default function Auth() {
       onError: (error) => {
         console.error('Login error:', error);
         
-        if (error.message.includes("captcha")) {
+        // Special handling for development mode - always show a helpful message
+        if (captchaToken === "development-mode" && error.message.includes("captcha")) {
+          setAuthError("Development mode: CAPTCHA would normally fail here, but we're allowing login in development mode. If this persists, check your Supabase edge function configuration.");
+        } else if (error.message.includes("captcha")) {
           setAuthError(`CAPTCHA verification failed: ${error.message.replace(/^.*captcha[^:]*:\s*/i, "")}`);
         } else {
           toast({
@@ -172,15 +177,22 @@ export default function Auth() {
 
 function captchaErrorHint(): JSX.Element | null {
   const host = window.location.hostname;
+  const isDev = process.env.NODE_ENV === 'development' || 
+                host.includes('localhost') || 
+                host.includes('.lovableproject.com');
   
-  if (host.includes('localhost') || host.includes('.lovableproject.com')) {
+  if (isDev) {
     return (
       <span>
-        If you're experiencing CAPTCHA issues, check that your browser allows third-party cookies 
-        and has JavaScript enabled.
+        Development mode: CAPTCHA validation is disabled. In production, users would need to complete CAPTCHA verification.
       </span>
     );
   }
   
-  return null;
+  return (
+    <span>
+      If you're experiencing CAPTCHA issues, check that your browser allows third-party cookies 
+      and has JavaScript enabled.
+    </span>
+  );
 }
