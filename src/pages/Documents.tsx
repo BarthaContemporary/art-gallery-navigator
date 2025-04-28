@@ -1,7 +1,5 @@
-
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
-import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { useDocuments } from "@/hooks/use-documents";
 import { useState } from "react";
 
@@ -20,7 +18,6 @@ export default function Documents() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 mb-8">
         <h1 className="text-sm font-visby font-extrabold text-slate-700">DOCUMENTS</h1>
-        <UploadDocumentDialog />
       </div>
       <DocumentsSearch 
         searchTerm={searchTerm} 
