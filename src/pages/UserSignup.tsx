@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeletionRequestsTable } from "@/components/auth/DeletionRequestsTable";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function UserSignup() {
   const {
@@ -21,6 +24,7 @@ export default function UserSignup() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"gallery_admin" | "artist" | "external">("artist");
   const [isLoading, setIsLoading] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
   if (!isAdmin) {
     return <div className="flex h-full items-center justify-center">
@@ -33,6 +37,8 @@ export default function UserSignup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setSignupError(null);
+    
     try {
       const {
         data,
@@ -65,6 +71,8 @@ export default function UserSignup() {
       setPassword("");
       setRole("artist");
     } catch (error: any) {
+      console.error("User signup error:", error);
+      setSignupError(error.message || "An unknown error occurred.");
       toast({
         title: "Error",
         description: error.message || "An unknown error occurred.",
@@ -91,6 +99,13 @@ export default function UserSignup() {
             <CardDescription className="text-base text-left sm:text-base">Add users</CardDescription>
           </CardHeader>
           <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
+            {signupError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{signupError}</AlertDescription>
+              </Alert>
+            )}
+            
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="space-y-2">
                 <Input type="email" placeholder="Email" value={email} autoFocus onChange={e => setEmail(e.target.value)} required className="text-base sm:text-sm py-3" inputMode="email" autoComplete="email" />
@@ -111,6 +126,10 @@ export default function UserSignup() {
               <Button type="submit" className="w-full h-12 sm:h-10 text-lg sm:text-base" disabled={isLoading}>
                 {isLoading ? "Creating..." : "Create User"}
               </Button>
+              
+              <div className="text-sm text-muted-foreground mt-4">
+                <p>Note: If you're experiencing issues with confirmation emails, please check your Supabase email provider settings.</p>
+              </div>
             </form>
           </CardContent>
         </Card>
