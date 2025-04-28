@@ -36,7 +36,7 @@ export function MobileSidebar() {
           {navItems.map((item) => (
             <Link
               to={item.href}
-              key={item.href} {/* Changed from item.path to item.href */}
+              key={item.href}
               onClick={() => setOpen(false)}
               className={
                 location.pathname === item.href || 
@@ -45,7 +45,6 @@ export function MobileSidebar() {
                   : "flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors hover:bg-secondary hover:text-secondary-foreground"
               }
             >
-              {/* Create element properly with imported React */}
               <item.icon className="w-5 h-5" />
               {item.name}
             </Link>
