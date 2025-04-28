@@ -83,7 +83,7 @@ const Artists = () => {
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          <h1 className="font-visby text-slate-700 font-normal\\\\n text-sm font-extrabold">ARTISTS</h1>
+          <h1 className="font-visby text-slate-700 text-sm font-extrabold">ARTISTS</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
