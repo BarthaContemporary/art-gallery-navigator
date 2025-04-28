@@ -1,31 +1,17 @@
 
 import { DropZone } from "../uploads/DropZone";
-import { UploadDocumentDialog } from "./UploadDocumentDialog";
-import { useDocumentDropzone } from "./hooks/use-document-dropzone";
+import { useDocumentUpload } from "./use-document-upload";
 
 export function DocumentsHeader() {
-  const {
-    selectedFile,
-    isOpen,
-    isUploading,
-    setIsUploading,
-    onOpenChange,
-    handleFileSelect
-  } = useDocumentDropzone();
+  const { handleUpload, isUploading } = useDocumentUpload();
   
   return (
     <div className="space-y-4">
       <h1 className="text-3xl tracking-wide font-semibold text-slate-500">DOCUMENTS</h1>
       <div className="max-w-3xl">
         <DropZone 
-          onFileSelect={handleFileSelect}
+          onFileSelect={handleUpload} 
           disabled={isUploading}
-        />
-        <UploadDocumentDialog
-          open={isOpen}
-          onOpenChange={onOpenChange}
-          selectedFile={selectedFile}
-          setIsUploading={setIsUploading}
         />
       </div>
     </div>

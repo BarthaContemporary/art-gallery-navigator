@@ -6,58 +6,46 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { PlusCircle } from "lucide-react";
 import { UploadDocumentForm } from "./UploadDocumentForm";
 import { useDocumentUpload } from "./use-document-upload";
-import { Dispatch, SetStateAction } from "react";
+import { useDialog } from "@/hooks/use-dialog";
 
-interface UploadDocumentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedFile: File | null;
-  setIsUploading: Dispatch<SetStateAction<boolean>>;
-}
-
-export function UploadDocumentDialog({ 
-  open, 
-  onOpenChange, 
-  selectedFile,
-  setIsUploading 
-}: UploadDocumentDialogProps) {
+export function UploadDocumentDialog() {
+  const { isOpen, onOpenChange } = useDialog(false);
   const { form, handleUpload, isUploading } = useDocumentUpload();
-
-  // Update parent's uploading state
-  React.useEffect(() => {
-    setIsUploading(isUploading);
-  }, [isUploading, setIsUploading]);
-
-  // Set the selected file in the form when dialog opens
-  React.useEffect(() => {
-    if (selectedFile) {
-      form.setValue("file", selectedFile);
-    }
-  }, [selectedFile, form]);
 
   const handleOpenChange = (newOpen: boolean) => {
     // Only allow closing if not currently uploading
     if (!isUploading) {
       onOpenChange(newOpen);
       
-      // Reset form when dialog is closed
+      // Reset form when dialog is closed with proper defaults
       if (!newOpen) {
-        form.reset({
-          description: "",
-          artwork_id: "_none",
-          collection_id: "_none",
-          artist_id: "",
-          type: "",
-        });
+        // Use setTimeout to prevent UI freeze
+        setTimeout(() => {
+          form.reset({
+            description: "",
+            artwork_id: "_none",
+            collection_id: "_none",
+            artist_id: "",
+            type: "",
+            file: undefined
+          });
+        }, 100);
       }
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button onClick={() => onOpenChange(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Upload Document
+        </Button>
+      </DialogTrigger>
       <DialogContent 
         className="sm:max-w-[425px]"
         onClick={(e) => e.stopPropagation()}
@@ -74,11 +62,7 @@ export function UploadDocumentDialog({
             Attach a document to an artwork, collection, or artist. Please select exactly one.
           </DialogDescription>
         </DialogHeader>
-        <UploadDocumentForm 
-          form={form} 
-          onSubmit={handleUpload} 
-          isUploading={isUploading}
-        />
+        <UploadDocumentForm form={form} onSubmit={handleUpload} isUploading={isUploading} />
       </DialogContent>
     </Dialog>
   );
