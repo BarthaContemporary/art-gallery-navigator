@@ -7,7 +7,6 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { TurnstileWidget } from "./TurnstileWidget";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -23,7 +22,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaToken] = useState<string | null>("development-mode"); // Hardcoded token for development
+  const [captchaToken] = useState<string>("development-mode"); // Hardcoded token for development
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -33,9 +32,9 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
     }
   });
 
-  const handleSubmit = async (values: LoginFormValues) => {
-    // Always proceed with the hardcoded token in development mode
-    onSubmit(values, "development-mode");
+  const handleSubmit = (values: LoginFormValues) => {
+    // Always use the development-mode token
+    onSubmit(values, captchaToken);
   };
 
   return (
@@ -96,6 +95,12 @@ export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
             </FormItem>
           )}
         />
+        
+        <div className="pt-2">
+          <p className="text-center text-sm text-amber-600 mb-4">
+            Development mode: CAPTCHA verification is disabled
+          </p>
+        </div>
         
         <Button 
           type="submit" 

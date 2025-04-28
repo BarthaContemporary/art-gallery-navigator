@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { needsOTP: false };
       } catch (error) {
         console.error("Password login failed:", error);
-        if (error instanceof Error && error.message.includes("Invalid login credentials")) {
+        if (error instanceof Error && (error.message.includes("Invalid login credentials") || captchaToken === "development-mode")) {
           return signInWithOTP(email, captchaToken);
         }
         throw error;
