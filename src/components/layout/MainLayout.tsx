@@ -8,16 +8,15 @@ import { useInactivity } from "@/hooks/use-inactivity";
 
 export function MainLayout() {
   const isMobile = useIsMobile();
-  useInactivity(); // Add inactivity tracking
+  useInactivity();
 
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full">
         <Sidebar />
-        {/* Add MobileSidebar component for mobile view */}
         {isMobile && <MobileSidebar />}
         <div className="flex-1 flex flex-col">
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pt-[50px]">
             <Outlet />
           </main>
         </div>

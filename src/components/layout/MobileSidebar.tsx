@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { useNavItems } from "@/hooks/use-nav-items"; 
+import { useNavItems } from "@/hooks/use-nav-items";
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
@@ -16,7 +15,6 @@ export function MobileSidebar() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerContent className="p-0 flex flex-col h-[96vh]">
-        {/* Add mt-12 for top spacing and adjust header */}
         <div className="flex items-center justify-between border-b px-4 py-4 mt-12">
           <Button
             variant="ghost"
@@ -69,22 +67,20 @@ export function MobileSidebar() {
           </Button>
         </div>
       </DrawerContent>
-      {/* Move trigger to top-right and add spacing */}
-      <div className="absolute top-3 right-3 z-40">
-        <DrawerTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open menu">
-            <Menu />
-          </Button>
-        </DrawerTrigger>
-      </div>
-      {/* Add the B_c Logo at the top-right */}
-      <div className="fixed top-3 right-16 z-40">
+      <div className="fixed top-3 left-4 z-40">
         <img
           src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
           alt="Bartha Logo"
           className="h-7 w-auto"
           style={{ maxWidth: 120 }}
         />
+      </div>
+      <div className="absolute top-3 right-3 z-40">
+        <DrawerTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Open menu">
+            <Menu />
+          </Button>
+        </DrawerTrigger>
       </div>
     </Drawer>
   );
