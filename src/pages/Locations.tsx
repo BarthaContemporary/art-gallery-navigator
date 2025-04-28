@@ -12,7 +12,7 @@ const Locations = () => {
       <div className="mb-8">
         <LocationHeader />
       </div>
-      <h1 className="text-3xl tracking-wide text-slate-500 font-thin mb-8">LOCATIONS</h1>
+      <h1 className="text-sm font-visby font-extrabold text-slate-700">LOCATIONS</h1>
       <LocationSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
       <LocationGrid searchTerm={searchTerm} />
     </div>

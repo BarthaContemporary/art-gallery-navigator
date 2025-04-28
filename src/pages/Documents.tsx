@@ -3,14 +3,16 @@ import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { useDocuments } from "@/hooks/use-documents";
 import { useState } from "react";
+
 export function DocumentsHeader() {
   return <div className="flex items-center justify-between mb-8">
       <div>
-        <h1 className="text-slate-700 text-sm font-normal\n">DOCUMENTS</h1>
+        <h1 className="text-sm font-visby font-extrabold text-slate-700">DOCUMENTS</h1>
       </div>
       <UploadDocumentDialog />
     </div>;
 }
+
 export default function Documents() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
