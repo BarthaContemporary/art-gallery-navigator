@@ -69,7 +69,10 @@ export function useNavItems() {
   }
 
   // Remove Locations tab for external users
-  return navItems.filter(item => 
-    item.name !== "Locations" || !(isExternal) 
-  );
+  return navItems.filter(item => {
+    if (item.name === "Locations") {
+      return !isExternal;
+    }
+    return true;
+  });
 }

@@ -23,42 +23,55 @@ import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 
 // Create a new QueryClient to manage our React Query state
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      useErrorBoundary: true
+    }
+  }
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <AuthProvider>
-        <LoadingProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <LoadingOverlay />
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/email-confirmation" element={<EmailConfirmation />} />
-              <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/artists" element={<Artists />} />
-                <Route path="/artworks" element={<Artworks />} />
-                <Route path="/collections" element={<Collections />} />
-                <Route path="/locations" element={<Locations />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route path="/signup" element={<UserSignup />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
-                <Route path="/upload" element={<Upload />} />
-                <Route path="/file-transfer" element={<FileTransfer />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TooltipProvider>
-        </LoadingProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ErrorBoundary>
+          <AuthProvider>
+            <LoadingProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <LoadingOverlay />
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/email-confirmation" element={<EmailConfirmation />} />
+                  <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/artists" element={<Artists />} />
+                    <Route path="/artworks" element={<Artworks />} />
+                    <Route path="/collections" element={<Collections />} />
+                    <Route path="/locations" element={<Locations />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/signup" element={<UserSignup />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
+                    <Route path="/upload" element={<Upload />} />
+                    <Route path="/file-transfer" element={<FileTransfer />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TooltipProvider>
+            </LoadingProvider>
+          </AuthProvider>
+        </ErrorBoundary>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

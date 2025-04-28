@@ -1,31 +1,17 @@
 
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut, Shield } from "lucide-react";
+import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut, Shield, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { useNavItems } from "@/hooks/use-nav-items"; 
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { signOut, isAdmin } = useAuth();
-
-  const navigationItems = [
-    { title: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/" },
-    { title: "Artists", icon: <Users size={20} />, path: "/artists" },
-    { title: "Artworks", icon: <Palette size={20} />, path: "/artworks" },
-    { title: "Locations", icon: <MapPin size={20} />, path: "/locations" },
-    { title: "Documents", icon: <FileText size={20} />, path: "/documents" },
-  ];
-
-  if (isAdmin) {
-    navigationItems.push({
-      title: "User Management",
-      icon: <Shield size={20} />,
-      path: "/signup",
-    });
-  }
+  const { signOut } = useAuth();
+  const navItems = useNavItems();
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
@@ -47,22 +33,21 @@ export function MobileSidebar() {
           </Button>
         </div>
         <nav className="flex-1 py-6 px-4 flex flex-col gap-2">
-          {navigationItems.map((item) => (
-            <NavLink
-              to={item.path}
-              key={item.path}
+          {navItems.map((item) => (
+            <Link
+              to={item.href}
+              key={item.path || item.href}
               onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors ${
-                  isActive || location.pathname === item.path
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary hover:text-secondary-foreground"
-                }`
+              className={
+                location.pathname === item.href || 
+                (item.href !== "/" && location.pathname.startsWith(item.href))
+                  ? "flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors bg-primary text-primary-foreground"
+                  : "flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors hover:bg-secondary hover:text-secondary-foreground"
               }
             >
-              {item.icon}
-              {item.title}
-            </NavLink>
+              {React.createElement(item.icon, { size: 20 })}
+              {item.name}
+            </Link>
           ))}
         </nav>
         <div className="border-t p-4">
