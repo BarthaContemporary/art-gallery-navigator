@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { UsersList } from "@/components/auth/UsersList";
 import { UploadedFilesList } from "@/components/auth/UploadedFilesList";
@@ -87,65 +86,60 @@ export default function UserSignup() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="USER MANAGEMENT" />
 
-      <div className="w-full max-w-full sm:max-w-md mx-auto px-2 sm:px-0">
-        <Card className="shadow-lg border border-border/60">
-          <CardHeader className="px-4 pt-6 pb-2">
-            <CardTitle className="text-lg sm:text-2xl">User Signup</CardTitle>
-            <CardDescription>Add users</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4">
-            {signupError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{signupError}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleSignup} className="space-y-4">
-              <Input 
-                type="email" 
-                placeholder="Email" 
-                value={email} 
-                autoFocus 
-                onChange={e => setEmail(e.target.value)} 
-                required 
-                className="w-full text-base sm:text-sm" 
-                inputMode="email" 
-                autoComplete="email" 
-              />
-              <Input 
-                type="password" 
-                placeholder="Password" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                required 
-                className="w-full text-base sm:text-sm" 
-                autoComplete="new-password" 
-              />
-              <div>
-                <label htmlFor="user-role" className="block text-sm font-medium mb-1">
-                  Role
-                </label>
-                <select 
-                  id="user-role" 
-                  value={role} 
-                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-                  className="w-full border rounded-md px-3 py-2 bg-background text-base sm:text-sm"
-                >
-                  <option value="artist">Artist</option>
-                  <option value="gallery_admin">Admin</option>
-                  <option value="external">External</option>
-                </select>
-              </div>
-              <Button type="submit" className="w-full text-base sm:text-sm" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create User"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4">User Signup</h2>
+        <p className="text-sm text-muted-foreground mb-4">Add users</p>
+        
+        {signupError && (
+          <Alert variant="destructive" className="mb-4 max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{signupError}</AlertDescription>
+          </Alert>
+        )}
+        
+        <form onSubmit={handleSignup} className="space-y-4 max-w-md">
+          <Input 
+            type="email" 
+            placeholder="Email" 
+            value={email} 
+            autoFocus 
+            onChange={e => setEmail(e.target.value)} 
+            required 
+            className="w-full text-base sm:text-sm" 
+            inputMode="email" 
+            autoComplete="email" 
+          />
+          <Input 
+            type="password" 
+            placeholder="Password" 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            required 
+            className="w-full text-base sm:text-sm" 
+            autoComplete="new-password" 
+          />
+          <div>
+            <label htmlFor="user-role" className="block text-sm font-medium mb-1">
+              Role
+            </label>
+            <select 
+              id="user-role" 
+              value={role} 
+              onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+              className="w-full border rounded-md px-3 py-2 bg-background text-base sm:text-sm"
+            >
+              <option value="artist">Artist</option>
+              <option value="gallery_admin">Admin</option>
+              <option value="external">External</option>
+            </select>
+          </div>
+          <Button type="submit" className="w-full text-base sm:text-sm" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Create User"}
+          </Button>
+        </form>
       </div>
 
-      <div className="mt-8 -mx-4 sm:mx-0">
+      <div className="-mx-4 sm:mx-0">
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="w-full grid grid-cols-3 mb-4">
             <TabsTrigger value="users">Users</TabsTrigger>
