@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Palette, Users, Landmark } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { format } from "date-fns";
+
 const STATUS_COLORS: Record<string, string> = {
   "available": "bg-green-500",
   "on hold": "bg-amber-500",
@@ -12,14 +13,14 @@ const STATUS_COLORS: Record<string, string> = {
   "returned": "bg-black",
   "unknown": "bg-gray-300"
 };
+
 function getStatusLabel(status: string) {
   return status.split(' ').map(str => str.charAt(0).toUpperCase() + str.slice(1)).join(' ');
 }
+
 const Dashboard = () => {
-  const {
-    data: stats,
-    isLoading
-  } = useDashboardStats();
+  const { data: stats, isLoading } = useDashboardStats();
+  
   const statsCards = [{
     title: "Total Artworks",
     value: stats?.artworks_count || 0,
@@ -36,14 +37,13 @@ const Dashboard = () => {
     icon: <Landmark className="h-5 w-5" />,
     change: "Gallery spaces"
   }];
+
   const orderedStatuses = stats ? Object.entries(stats.inventory_statuses).sort((a, b) => a[0].localeCompare(b[0])) : [];
-  return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+
+  return (
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-visby text-slate-700 text-sm font-extrabold">DASHBOARD</h1>
-          <p className="text-muted-foreground">
-        </p>
-        </div>
+        <h1 className="font-visby text-slate-700 text-sm font-extrabold">DASHBOARD</h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -105,6 +105,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Dashboard;
