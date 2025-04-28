@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface ProfileData {
   id: string;
@@ -16,6 +17,8 @@ interface UserRoleData {
 }
 
 export function useUsersList() {
+  const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null);
+  
   const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
@@ -62,6 +65,32 @@ export function useUsersList() {
     }
   };
 
+  const handleResendConfirmation = async (email: string, userId: string) => {
+    setIsResendingEmail(userId);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Confirmation email sent",
+        description: `A new confirmation email has been sent to ${email}.`,
+      });
+    } catch (error: any) {
+      console.error('Error resending confirmation email:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend confirmation email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendingEmail(null);
+    }
+  };
+
   const getUserRoles = (userId: string) => {
     return userRoles?.filter(role => role.user_id === userId).map(ur => ur.role) || [];
   };
@@ -71,5 +100,7 @@ export function useUsersList() {
     isLoading,
     getUserRoles,
     handleDeleteUser,
+    handleResendConfirmation,
+    isResendingEmail,
   };
 }
