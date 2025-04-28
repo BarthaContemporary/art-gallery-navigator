@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, X, Users, Palette, MapPin, FileText, LayoutDashboard, LogOut, Shield, Upload } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavItems } from "@/hooks/use-nav-items"; 
@@ -36,7 +36,7 @@ export function MobileSidebar() {
           {navItems.map((item) => (
             <Link
               to={item.href}
-              key={item.path || item.href}
+              key={item.href} {/* Changed from item.path to item.href */}
               onClick={() => setOpen(false)}
               className={
                 location.pathname === item.href || 
@@ -45,7 +45,8 @@ export function MobileSidebar() {
                   : "flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors hover:bg-secondary hover:text-secondary-foreground"
               }
             >
-              {React.createElement(item.icon, { size: 20 })}
+              {/* Create element properly with imported React */}
+              <item.icon className="w-5 h-5" />
               {item.name}
             </Link>
           ))}
@@ -57,8 +58,14 @@ export function MobileSidebar() {
             onClick={signOut}
             className="w-full gap-2 justify-start"
           >
-            <LogOut size={20} />
-            <span>Logout</span>
+            <span className="flex items-center gap-2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M16 17l5-5-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Logout
+            </span>
           </Button>
         </div>
       </DrawerContent>
