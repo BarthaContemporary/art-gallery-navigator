@@ -1,5 +1,4 @@
 
-import React, { Dispatch, SetStateAction, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { UploadDocumentForm } from "./UploadDocumentForm";
 import { useDocumentUpload } from "./use-document-upload";
+import { Dispatch, SetStateAction } from "react";
 
 interface UploadDocumentDialogProps {
   open: boolean;
@@ -27,12 +27,12 @@ export function UploadDocumentDialog({
   const { form, handleUpload, isUploading } = useDocumentUpload();
 
   // Update parent's uploading state
-  useEffect(() => {
+  React.useEffect(() => {
     setIsUploading(isUploading);
   }, [isUploading, setIsUploading]);
 
   // Set the selected file in the form when dialog opens
-  useEffect(() => {
+  React.useEffect(() => {
     if (selectedFile) {
       form.setValue("file", selectedFile);
     }
