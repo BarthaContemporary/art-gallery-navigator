@@ -40,7 +40,7 @@ const Dashboard = () => {
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-slate-700 text-sm font-normal">DASHBOARD</h1>
+          <h1 className="text-18465a text-sm font-visby font-extrabold">DASHBOARD</h1>
           <p className="text-muted-foreground">
         </p>
         </div>
