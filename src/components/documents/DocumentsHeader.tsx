@@ -19,7 +19,7 @@ export function DocumentsHeader() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl tracking-wide font-semibold text-slate-500">DOCUMENTS</h1>
-        <Button onClick={() => onOpenChange(true)}>
+        <Button onClick={() => onOpenChange()}>
           <Upload className="mr-2 h-4 w-4" />
           Upload
         </Button>

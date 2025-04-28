@@ -18,12 +18,16 @@ export function useDocumentDropzone() {
     setIsUploading(false);
   };
 
+  const handleOpen = () => {
+    onOpenChange(true);
+  };
+
   return {
     selectedFile,
     isOpen,
     isUploading,
     setIsUploading,
-    onOpenChange: handleClose,
+    onOpenChange: handleOpen,
     handleFileSelect
   };
 }
