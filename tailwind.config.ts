@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -19,7 +20,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"Source Sans 3"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Remove sans from configuration since we're setting it globally in index.css
         'visby': ['visby-round', 'sans-serif'],
       },
       colors: {
