@@ -11,21 +11,18 @@ import {
 import { PlusCircle } from "lucide-react";
 import { UploadDocumentForm } from "./UploadDocumentForm";
 import { useDocumentUpload } from "./use-document-upload";
-import { useDialog } from "@/hooks/use-dialog";
 import React from "react";
 
 export function UploadDocumentDialog() {
-  const { isOpen, onOpenChange } = useDialog(false);
-  const { form, handleUpload, isUploading } = useDocumentUpload();
+  const { form, handleUpload, isUploading, open, setOpen } = useDocumentUpload();
 
   const handleOpenChange = (newOpen: boolean) => {
     // Only allow closing if not currently uploading
     if (!isUploading) {
-      onOpenChange(newOpen);
+      setOpen(newOpen);
       
-      // Reset form when dialog is closed with proper defaults
+      // Reset form when dialog is closed
       if (!newOpen) {
-        // Use setTimeout to prevent UI freeze
         setTimeout(() => {
           form.reset({
             description: "",
@@ -41,10 +38,11 @@ export function UploadDocumentDialog() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button onClick={() => onOpenChange(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Upload Document
+        <Button>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Upload Document
         </Button>
       </DialogTrigger>
       <DialogContent 

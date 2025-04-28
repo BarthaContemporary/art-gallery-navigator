@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,12 +30,10 @@ export function useDocumentUpload() {
       return;
     }
     
-    // Determine which entity is selected and properly format values
     const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
     const hasCollection = data.collection_id && data.collection_id !== "_none";
     const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
     
-    // Ensure exactly one entity is selected
     const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean);
     
     if (selectedEntities.length === 0) {
@@ -51,17 +48,14 @@ export function useDocumentUpload() {
 
     setIsUploading(true);
     
-    // Use the safe async execution pattern
     await execute(
       async () => {
-        // File upload logic
         const file = data.file!;
         const fileExt = file.name.split('.').pop();
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
         const fileName = `${timestamp}_${randomStr}.${fileExt}`;
 
-        // Upload file to storage
         const uploadResult = await supabase.storage
           .from('documents')
           .upload(fileName, file);
@@ -71,25 +65,20 @@ export function useDocumentUpload() {
           throw uploadResult.error;
         }
 
-        // Get public URL for the uploaded file
         const { data: { publicUrl } } = supabase.storage
           .from('documents')
           .getPublicUrl(fileName);
 
-        // Prepare document record with proper NULL handling for the database
-        // Initialize all entity IDs as null
         const documentRecord = {
           file_name: file.name,
           file_url: publicUrl,
           type: data.type,
           description: data.description || null,
-          // Set all fields explicitly to null
           artwork_id: null,
           collection_id: null,
           artist_id: null
         };
 
-        // Now set only the appropriate field based on what was selected
         if (hasArtwork) {
           documentRecord.artwork_id = data.artwork_id;
         } else if (hasCollection) {
@@ -98,7 +87,6 @@ export function useDocumentUpload() {
           documentRecord.artist_id = data.artist_id;
         }
 
-        // Insert record in database
         const insertResult = await supabase
           .from('documents')
           .insert(documentRecord);
@@ -113,7 +101,6 @@ export function useDocumentUpload() {
       {
         successMessage: "Document uploaded successfully",
         onSuccess: () => {
-          // Use setTimeout to avoid UI freeze after operation completes
           setTimeout(() => {
             setOpen(false);
             form.reset({
@@ -125,7 +112,6 @@ export function useDocumentUpload() {
               file: undefined
             });
             
-            // Delay query invalidation to prevent UI freezing
             setTimeout(() => {
               queryClient.invalidateQueries({ queryKey: ["documents"] });
             }, 100);
@@ -137,7 +123,7 @@ export function useDocumentUpload() {
       }
     );
   };
-  
+
   const handleUploadError = (error: Error) => {
     if (error.message.includes("buckets")) {
       toast.error("Document storage not available. Contact administrator.", {
