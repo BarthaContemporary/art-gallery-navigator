@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Palette, Users, Landmark } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { format } from "date-fns";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const STATUS_COLORS: Record<string, string> = {
   "available": "bg-green-500",
@@ -42,9 +43,7 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="font-visby text-marine text-sm font-extrabold">DASHBOARD</h1>
-      </div>
+      <PageHeader title="DASHBOARD" />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {statsCards.map((stat, index) => <Card key={index}>

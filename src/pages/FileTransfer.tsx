@@ -1,12 +1,11 @@
 
 import { FileUploader } from "@/components/uploads/FileUploader";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function FileTransfer() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="font-visby text-marine text-sm font-extrabold">FILE TRANSFER</h1>
-      </div>
+      <PageHeader title="FILE TRANSFER" />
       <div className="max-w-4xl">
         <FileUploader />
       </div>
