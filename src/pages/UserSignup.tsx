@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -83,22 +82,18 @@ export default function UserSignup() {
     }
   };
 
-  return <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        <div>
-          <h1 className="text-sm font-visby font-extrabold text-slate-700 uppercase">USER MANAGEMENT</h1>
-        </div>
+  return <div className="p-4 space-y-6">
+      <div>
+        <h1 className="text-sm font-visby font-extrabold text-slate-700 uppercase">USER MANAGEMENT</h1>
       </div>
 
-      <div className="max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md mx-auto text-left">
-        <Card className="shadow-lg border border-border/60 text-left w-full">
-          <CardHeader className="px-6 pt-8 pb-2 sm:pt-10 text-left">
-            <CardTitle className="text-2xl sm:text-3xl text-left md:text-2xl">
-              User Signup
-            </CardTitle>
-            <CardDescription className="text-base text-left sm:text-base">Add users</CardDescription>
+      <div className="w-full max-w-md mx-auto">
+        <Card className="shadow-lg border border-border/60">
+          <CardHeader className="px-4 pt-6 pb-2 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl">User Signup</CardTitle>
+            <CardDescription>Add users</CardDescription>
           </CardHeader>
-          <CardContent className="px-6 pb-8 pt-4 sm:pt-2 text-left">
+          <CardContent className="p-4 sm:p-6">
             {signupError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -106,24 +101,43 @@ export default function UserSignup() {
               </Alert>
             )}
             
-            <form onSubmit={handleSignup} className="space-y-6">
-              <div className="space-y-2">
-                <Input type="email" placeholder="Email" value={email} autoFocus onChange={e => setEmail(e.target.value)} required className="text-base sm:text-sm py-3" inputMode="email" autoComplete="email" />
-              </div>
-              <div className="space-y-2">
-                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="text-base sm:text-sm py-3" autoComplete="new-password" />
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="user-role" className="block text-sm font-medium">
+            <form onSubmit={handleSignup} className="space-y-4">
+              <Input 
+                type="email" 
+                placeholder="Email" 
+                value={email} 
+                autoFocus 
+                onChange={e => setEmail(e.target.value)} 
+                required 
+                className="w-full" 
+                inputMode="email" 
+                autoComplete="email" 
+              />
+              <Input 
+                type="password" 
+                placeholder="Password" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                required 
+                className="w-full" 
+                autoComplete="new-password" 
+              />
+              <div>
+                <label htmlFor="user-role" className="block text-sm font-medium mb-1">
                   Role
                 </label>
-                <select id="user-role" value={role} onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")} className="w-full border rounded-md px-3 py-2 text-base bg-white">
+                <select 
+                  id="user-role" 
+                  value={role} 
+                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+                  className="w-full border rounded-md px-3 py-2 bg-background"
+                >
                   <option value="artist">Artist</option>
                   <option value="gallery_admin">Admin</option>
                   <option value="external">External</option>
                 </select>
               </div>
-              <Button type="submit" className="w-full h-12 sm:h-10 text-lg sm:text-base" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating..." : "Create User"}
               </Button>
               
@@ -135,24 +149,32 @@ export default function UserSignup() {
         </Card>
       </div>
 
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="deletion-requests">Deletion Requests</TabsTrigger>
-          <TabsTrigger value="uploads">File Uploads</TabsTrigger>
-        </TabsList>
+      <div className="mt-8 overflow-hidden">
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="w-full grid grid-cols-3 mb-4">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
+            <TabsTrigger value="uploads">Uploads</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="users" className="border rounded-md mt-4">
-          <UsersList />
-        </TabsContent>
-        
-        <TabsContent value="deletion-requests" className="border rounded-md mt-4">
-          <DeletionRequestsTable />
-        </TabsContent>
+          <TabsContent value="users" className="border rounded-md">
+            <div className="overflow-x-auto">
+              <UsersList />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="deletion-requests" className="border rounded-md">
+            <div className="overflow-x-auto">
+              <DeletionRequestsTable />
+            </div>
+          </TabsContent>
 
-        <TabsContent value="uploads" className="border rounded-md mt-4">
-          <UploadedFilesList />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="uploads" className="border rounded-md">
+            <div className="overflow-x-auto">
+              <UploadedFilesList />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>;
 }
