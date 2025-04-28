@@ -12,8 +12,10 @@ export function MainLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full"> {/* Removed border styling */}
+      <div className="flex h-screen w-full">
         <Sidebar />
+        {/* Add MobileSidebar component for mobile view */}
+        {isMobile && <MobileSidebar />}
         <div className="flex-1 flex flex-col">
           <main className="flex-1 overflow-auto">
             <Outlet />

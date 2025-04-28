@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   Users,
@@ -6,7 +7,7 @@ import {
   File,
   List,
   Shield,
-  Upload
+  Upload,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -38,6 +39,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
     href: "/collections",
   },
   {
+    name: "Locations",
+    icon: MapPin,
+    href: "/locations",
+  },
+  {
     name: "Documents",
     icon: File,
     href: "/documents",
@@ -50,7 +56,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
 ];
 
 export function useNavItems() {
-  const { isAdmin, isArtist } = useAuth();
+  const { isAdmin, isArtist, isExternal } = useAuth();
   
   const navItems = [...BASE_NAV_ITEMS];
   
@@ -64,6 +70,6 @@ export function useNavItems() {
 
   // Remove Locations tab for external users
   return navItems.filter(item => 
-    item.name !== "Locations" || (isAdmin || isArtist)
+    item.name !== "Locations" || !(isExternal) 
   );
 }
