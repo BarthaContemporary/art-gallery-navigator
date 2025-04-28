@@ -85,7 +85,7 @@ export default function UserSignup() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="font-visby text-slate-700 text-sm font-extrabold">USER MANAGEMENT</h1>
+        <h1 className="font-visby text-marine text-sm font-extrabold">USER MANAGEMENT</h1>
       </div>
 
       <div className="w-full max-w-full sm:max-w-md mx-auto px-2 sm:px-0">

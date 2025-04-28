@@ -12,10 +12,10 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: "2rem",
       screens: {
-        '2xl': '1400px'
-      }
+        "2xl": "1400px",
+      },
     },
     extend: {
       fontFamily: {
@@ -67,7 +67,8 @@ export default {
           foreground: '#fff',
         },
         hover: '#455118',
-        link: '#910000'
+        link: '#910000',
+        marine: "#18465a"
       },
       borderRadius: {
         lg: 'var(--radius)',
