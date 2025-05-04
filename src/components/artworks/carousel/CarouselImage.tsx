@@ -105,7 +105,7 @@ export function CarouselImage({
       <img
         src={optimizedUrl}
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
-        className={`w-full h-[600px] object-contain transition-opacity duration-300 opacity-80 ${
+        className={`w-full h-[600px] object-contain transition-all duration-300 opacity-80 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
         onLoad={() => {
