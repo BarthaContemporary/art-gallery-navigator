@@ -123,6 +123,7 @@ const Locations = () => {
       <DeleteLocationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
+        locationId={locationToDelete}
         onConfirm={() => locationToDelete && handleDelete(locationToDelete)}
         isDeleting={isDeleting}
       />
