@@ -101,7 +101,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-all hover:scale-105 opacity-90 group-hover:opacity-100 ${
+          className={`h-full w-full object-cover transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-105 ${
             isLoading ? 'opacity-0' : ''
           }`}
           onLoad={() => {
