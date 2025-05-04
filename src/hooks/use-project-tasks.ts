@@ -78,11 +78,12 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
             typeof task.assignee === 'object' && 
             !Array.isArray(task.assignee) && 
             task.assignee !== null) {
-          // Check if it's an error object from Supabase or a valid profile
-          if (!('error' in task.assignee)) {
+          // Type assertion to work with the data
+          const assigneeData = task.assignee as unknown as { display_name?: string; avatar_url?: string | null };
+          if (assigneeData && typeof assigneeData === 'object') {
             assignee = {
-              display_name: task.assignee.display_name,
-              avatar_url: task.assignee.avatar_url
+              display_name: assigneeData.display_name || 'Unknown',
+              avatar_url: assigneeData.avatar_url || null
             };
           }
         }
@@ -123,11 +124,12 @@ export function useProjectTask(taskId: string | undefined) {
           typeof data.assignee === 'object' && 
           !Array.isArray(data.assignee) && 
           data.assignee !== null) {
-        // Check if it's an error object from Supabase or a valid profile
-        if (!('error' in data.assignee)) {
+        // Type assertion to work with the data
+        const assigneeData = data.assignee as unknown as { display_name?: string; avatar_url?: string | null };
+        if (assigneeData && typeof assigneeData === 'object') {
           assignee = {
-            display_name: data.assignee.display_name,
-            avatar_url: data.assignee.avatar_url
+            display_name: assigneeData.display_name || 'Unknown',
+            avatar_url: assigneeData.avatar_url || null
           };
         }
       }

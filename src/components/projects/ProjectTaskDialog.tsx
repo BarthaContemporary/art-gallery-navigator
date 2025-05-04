@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -174,13 +175,21 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="">Unassigned</SelectItem>
-                        {projectUsers?.map(user => (
-                          <SelectItem key={user.user_id} value={user.user_id}>
-                            {user.profiles && typeof user.profiles === 'object' && user.profiles !== null
-                              ? user.profiles.display_name 
-                              : "User"}
-                          </SelectItem>
-                        ))}
+                        {projectUsers?.map(user => {
+                          // Fixed TypeScript error with proper null check
+                          let displayName = "User";
+                          if (user.profiles && 
+                              typeof user.profiles === 'object' && 
+                              user.profiles !== null) {
+                            displayName = user.profiles.display_name || "User";
+                          }
+                          
+                          return (
+                            <SelectItem key={user.user_id} value={user.user_id}>
+                              {displayName}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />

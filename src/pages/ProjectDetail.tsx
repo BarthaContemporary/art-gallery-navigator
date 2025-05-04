@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject, useProjectUsers } from "@/hooks/use-projects";
@@ -150,23 +149,28 @@ const ProjectDetail = () => {
           ) : (
             <div className="flex flex-wrap gap-4">
               {projectUsers?.map(projectUser => {
-                // Safely access the profile data
-                const profileData = projectUser.profiles && 
-                  typeof projectUser.profiles === 'object' && 
-                  projectUser.profiles !== null && 
-                  !('error' in projectUser.profiles)
-                    ? projectUser.profiles 
-                    : { display_name: 'User', avatar_url: null };
+                // Fixed TypeScript error with proper null check and type handling
+                let displayName = 'User';
+                let avatarUrl = null;
+                
+                if (projectUser.profiles && 
+                    typeof projectUser.profiles === 'object' && 
+                    projectUser.profiles !== null) {
+                  // Use type assertion to prevent TypeScript errors
+                  const profileData = projectUser.profiles as { display_name?: string; avatar_url?: string | null };
+                  displayName = profileData.display_name || 'User';
+                  avatarUrl = profileData.avatar_url || null;
+                }
                 
                 return (
                   <div key={projectUser.user_id} className="flex items-center gap-2">
                     <Avatar>
-                      <AvatarImage src={profileData.avatar_url || undefined} />
+                      <AvatarImage src={avatarUrl || undefined} />
                       <AvatarFallback>
-                        {profileData.display_name?.substring(0, 2) || 'U'}
+                        {displayName.substring(0, 2) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{profileData.display_name}</span>
+                    <span className="text-sm">{displayName}</span>
                   </div>
                 );
               })}
