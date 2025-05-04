@@ -55,20 +55,21 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       const img = new Image();
       img.crossOrigin = "anonymous"; // This is needed for some external images
       img.onload = () => {
-        // Create a small version for cache
+        // Create a medium-res version for cache (improved quality)
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Downscale to save space (thumbnail size)
-        const maxDimension = 100;
+        // Increase thumbnail size for better quality (from 100px to 180px max dimension)
+        const maxDimension = 180;
         const scale = maxDimension / Math.max(img.width, img.height);
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const lowResDataUrl = canvas.toDataURL("image/jpeg", 0.5); // Low quality JPEG
-          setCachedImage(optimizedUrl, lowResDataUrl);
+          // Increase JPEG quality from 0.5 to 0.7 for better visuals
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          setCachedImage(optimizedUrl, mediumResDataUrl);
         }
       };
       img.src = optimizedUrl;
@@ -92,7 +93,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <img 
             src={placeholderUrl}
             alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-50 filter blur-[2px]"
+            className="h-full w-full object-cover opacity-70 filter blur-[1px]" // Reduced blur and increased opacity
             aria-hidden="true"
           />
         )}

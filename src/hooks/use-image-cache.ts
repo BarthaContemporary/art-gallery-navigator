@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v1.1"; // Updating version to invalidate old low-res cache
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 export type CachedImage = {
@@ -46,8 +46,8 @@ export function useImageCache() {
     if (!isLocalStorageAvailable) return;
 
     try {
-      // Only cache if it's a reasonable size (under 100KB)
-      if (dataUrl.length > 100000) return;
+      // Only cache if it's a reasonable size (under 150KB) - increased from 100KB
+      if (dataUrl.length > 150000) return;
 
       const cacheKey = `${CACHE_PREFIX}${btoa(imageUrl)}`;
       const cachedImage: CachedImage = {

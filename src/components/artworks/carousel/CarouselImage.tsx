@@ -21,12 +21,14 @@ export function CarouselImage({
   const [isLoading, setIsLoading] = useState(true);
   const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
   const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
-  const { getCachedImage } = useImageCache();
+  const { getCachedImage, setCachedImage } = useImageCache();
+  const imageLoadAttempted = useRef(false);
   
   useEffect(() => {
     // Reset loading state when image URL changes
     setIsLoading(true);
     setPlaceholderUrl(null);
+    imageLoadAttempted.current = false;
     
     if (!imageUrl) {
       setOptimizedUrl("/placeholder.svg");
@@ -50,6 +52,38 @@ export function CarouselImage({
       setOptimizedUrl(imageUrl);
     }
   }, [imageUrl, getCachedImage]);
+  
+  // Cache the loaded image at medium res if not already cached
+  const cacheImageIfNeeded = () => {
+    if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
+    
+    imageLoadAttempted.current = true;
+    
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // Create a medium quality version for cache
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        // Use a slightly larger size for better quality in the carousel
+        const maxDimension = 300; // Increased from previous implementation
+        const scale = maxDimension / Math.max(img.width, img.height);
+        canvas.width = Math.floor(img.width * scale);
+        canvas.height = Math.floor(img.height * scale);
+        
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.75); // Better quality
+          setCachedImage(optimizedUrl, mediumResDataUrl);
+        }
+      };
+      img.src = optimizedUrl;
+    } catch (error) {
+      console.error("Failed to cache image:", error);
+    }
+  };
 
   return (
     <div className="relative w-full flex-[0_0_100%]">
@@ -62,7 +96,7 @@ export function CarouselImage({
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain opacity-30 filter blur-[2px]"
+          className="w-full h-[600px] object-contain opacity-50 filter blur-[1px]" // Reduced blur, increased opacity
           aria-hidden="true"
         />
       )}
@@ -73,7 +107,10 @@ export function CarouselImage({
         className={`w-full h-[600px] object-contain transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
-        onLoad={() => setIsLoading(false)}
+        onLoad={() => {
+          setIsLoading(false);
+          cacheImageIfNeeded();
+        }}
         onError={() => {
           setOptimizedUrl("/placeholder.svg");
           setIsLoading(false);
