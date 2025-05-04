@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import Artists from "./pages/Artists";
 import Artworks from "./pages/Artworks";
 import Locations from "./pages/Locations";
+import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -53,6 +56,8 @@ const App = () => (
                     <Route path="/artists" element={<Artists />} />
                     <Route path="/artworks" element={<Artworks />} />
                     <Route path="/collections" element={<Collections />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/projects/:id" element={<ProjectDetail />} />
                     <Route path="/locations" element={<Locations />} />
                     <Route path="/documents" element={<Documents />} />
                     <Route path="/signup" element={<UserSignup />} />

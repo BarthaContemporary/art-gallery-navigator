@@ -569,6 +569,161 @@ export type Database = {
         }
         Relationships: []
       }
+      project_task_references: {
+        Row: {
+          created_at: string
+          id: string
+          reference_id: string
+          reference_type: Database["public"]["Enums"]["reference_type"]
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reference_id: string
+          reference_type: Database["public"]["Enums"]["reference_type"]
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reference_id?: string
+          reference_type?: Database["public"]["Enums"]["reference_type"]
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_task_references_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          name: string
+          project_id: string
+          start_date: string
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          name: string
+          project_id: string
+          start_date: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          project_id?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_users: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_users_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          location_id: string | null
+          name: string
+          start_date: string
+          status: Database["public"]["Enums"]["project_status"]
+          type: Database["public"]["Enums"]["project_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          location_id?: string | null
+          name: string
+          start_date: string
+          status?: Database["public"]["Enums"]["project_status"]
+          type: Database["public"]["Enums"]["project_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          location_id?: string | null
+          name?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          type?: Database["public"]["Enums"]["project_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           artwork_id: string | null
@@ -690,6 +845,9 @@ export type Database = {
     }
     Enums: {
       deletion_request_status: "pending" | "approved" | "rejected"
+      project_status: "active" | "scheduled" | "completed" | "abandoned"
+      project_type: "exhibition" | "fair" | "publication" | "talk" | "other"
+      reference_type: "document" | "collection" | "artwork" | "artist"
       user_role: "gallery_admin" | "artist" | "external"
     }
     CompositeTypes: {
@@ -807,6 +965,9 @@ export const Constants = {
   public: {
     Enums: {
       deletion_request_status: ["pending", "approved", "rejected"],
+      project_status: ["active", "scheduled", "completed", "abandoned"],
+      project_type: ["exhibition", "fair", "publication", "talk", "other"],
+      reference_type: ["document", "collection", "artwork", "artist"],
       user_role: ["gallery_admin", "artist", "external"],
     },
   },

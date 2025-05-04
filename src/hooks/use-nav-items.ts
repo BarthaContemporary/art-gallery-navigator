@@ -8,6 +8,7 @@ import {
   List,
   Shield,
   Upload,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -37,6 +38,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Collections",
     icon: List,
     href: "/collections",
+  },
+  {
+    name: "Projects",
+    icon: Calendar,
+    href: "/projects",
   },
   {
     name: "Locations",

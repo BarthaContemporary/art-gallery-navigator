@@ -54,6 +54,9 @@ export function useDeletionRequests() {
       } else if (itemType === 'locations') {
         const { error } = await supabase.from('locations').delete().eq('id', itemId);
         deleteError = error;
+      } else if (itemType === 'projects') {
+        const { error } = await supabase.from('projects').delete().eq('id', itemId);
+        deleteError = error;
       } else {
         throw new Error(`Unsupported item type: ${itemType}`);
       }
