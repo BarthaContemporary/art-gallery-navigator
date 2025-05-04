@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Palette, Users, Landmark } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
@@ -13,6 +14,15 @@ const STATUS_COLORS: Record<string, string> = {
   "not for sale": "bg-gray-500",
   "returned": "bg-black",
   "unknown": "bg-gray-300"
+};
+
+const ACTIVITY_COLORS: Record<string, string> = {
+  "green": "bg-green-500",
+  "amber": "bg-amber-500",
+  "blue": "bg-blue-500",
+  "purple": "bg-purple-500",
+  "gray": "bg-gray-500",
+  "red": "bg-red-500"
 };
 
 function getStatusLabel(status: string) {
@@ -72,15 +82,20 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats?.recent_activities.map((activity, index) => <div key={index} className="flex items-center gap-4">
-                  <div className={`h-2 w-2 rounded-full bg-${activity.color}-500`}></div>
+              {stats?.recent_activities.map((activity, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <div className={`h-2 w-2 rounded-full ${ACTIVITY_COLORS[activity.color] || "bg-gray-400"}`}></div>
                   <div>
                     <p className="text-sm font-medium">{activity.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(activity.timestamp), "MMMM d, yyyy 'at' HH:mm")}
                     </p>
                   </div>
-                </div>)}
+                </div>
+              ))}
+              {(!stats?.recent_activities || stats.recent_activities.length === 0) && (
+                <div className="text-muted-foreground text-sm">No recent activities found.</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -92,13 +107,15 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {orderedStatuses.map(([status, count]) => <div key={status} className="flex items-center justify-between">
+              {orderedStatuses.map(([status, count]) => (
+                <div key={status} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`h-3 w-3 rounded-full ${STATUS_COLORS[status] || "bg-gray-400"}`}></div>
                     <span className="text-sm">{getStatusLabel(status)}</span>
                   </div>
                   <span className="font-medium">{count}</span>
-                </div>)}
+                </div>
+              ))}
               {orderedStatuses.length === 0 && <div className="text-muted-foreground text-sm">No inventory works found.</div>}
             </div>
           </CardContent>
