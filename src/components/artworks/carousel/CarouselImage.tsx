@@ -67,8 +67,8 @@ export function CarouselImage({
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Increased max dimension for better carousel quality
-        const maxDimension = 1000;
+        // Increased max dimension for carousel quality to 2400px
+        const maxDimension = 2400;
         const scale = maxDimension / Math.max(img.width, img.height);
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);

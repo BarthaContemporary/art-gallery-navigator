@@ -59,8 +59,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Increased max dimension for card thumbnails
-        const maxDimension = 500;
+        // Increased max dimension for card thumbnails to 1000px
+        const maxDimension = 1000;
         const scale = maxDimension / Math.max(img.width, img.height);
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
@@ -115,8 +115,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           loading="lazy"
           decoding="async"
           fetchPriority="high"
-          width="500"
-          height="375"
+          width="1000"
+          height="750"
         />
       </AspectRatio>
     </div>

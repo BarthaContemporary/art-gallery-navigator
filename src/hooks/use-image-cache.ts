@@ -46,8 +46,8 @@ export function useImageCache() {
     if (!isLocalStorageAvailable) return;
 
     try {
-      // Increased max size to 500KB
-      if (dataUrl.length > 500000) return;
+      // Increased max size to 1024KB (1MB)
+      if (dataUrl.length > 1024000) return;
 
       const cacheKey = `${CACHE_PREFIX}${btoa(imageUrl)}`;
       const cachedImage: CachedImage = {
