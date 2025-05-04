@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Dialog,
@@ -56,7 +55,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const { data: locationData } = useLocation(project?.location_id || undefined);
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(project?.users || []);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

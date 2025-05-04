@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { CheckIcon, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, X, UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -30,17 +30,18 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
   
   const { data: users = [], isLoading } = useUsers(search);
   
-  // Make sure users is always an array, even if data is undefined
+  // Ensure users data is always an array
   const safeUsers = Array.isArray(users) ? users : [];
   
-  // Selected users info for displaying badges - filter from safe users array
+  // Get selected users data for badges
   const selectedUsers = safeUsers.filter(user => selectedIds.includes(user.id));
   
+  // Update parent component when selections change
   useEffect(() => {
     onSelectionChange(selectedIds);
   }, [selectedIds, onSelectionChange]);
   
-  const toggleUser = (userId: string) => {
+  const handleSelectUser = (userId: string) => {
     setSelectedIds(prev => {
       if (prev.includes(userId)) {
         return prev.filter(id => id !== userId);
@@ -50,7 +51,7 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
     });
   };
   
-  const removeUser = (userId: string, e: React.MouseEvent) => {
+  const handleRemoveUser = (userId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedIds(prev => prev.filter(id => id !== userId));
   };
@@ -84,12 +85,16 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
                 <div className="p-2 text-center text-sm text-muted-foreground">
                   Loading users...
                 </div>
+              ) : safeUsers.length === 0 ? (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  No users available.
+                </div>
               ) : (
                 safeUsers.map(user => (
                   <CommandItem
                     key={user.id}
                     value={user.id}
-                    onSelect={() => toggleUser(user.id)}
+                    onSelect={() => handleSelectUser(user.id)}
                   >
                     <div className={cn(
                       "mr-2 h-4 w-4 border rounded-sm flex items-center justify-center",
@@ -98,10 +103,10 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
                         : "border-input"
                     )}>
                       {selectedIds.includes(user.id) && (
-                        <CheckIcon className="h-3 w-3" />
+                        <Check className="h-3 w-3" />
                       )}
                     </div>
-                    <span>{user.display_name}</span>
+                    <span>{user.display_name || "Unnamed User"}</span>
                   </CommandItem>
                 ))
               )}
@@ -114,10 +119,10 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
         <div className="flex flex-wrap gap-1.5">
           {selectedUsers.map(user => (
             <Badge key={user.id} variant="secondary" className="flex items-center gap-1">
-              {user.display_name}
+              {user.display_name || "Unnamed User"}
               <X 
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={(e) => removeUser(user.id, e)}
+                onClick={(e) => handleRemoveUser(user.id, e)}
               />
             </Badge>
           ))}
