@@ -174,10 +174,12 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {projectUsers?.map(user => {
                           // Fixed TypeScript error with proper null check
                           let displayName = "User";
+                          
+                          // Add proper null check for profiles
                           if (user.profiles && 
                               typeof user.profiles === 'object' && 
                               user.profiles !== null) {
