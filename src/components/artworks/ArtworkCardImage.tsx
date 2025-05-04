@@ -80,7 +80,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
 
   return (
     <div 
-      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative"
+      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group"
       onClick={onClick}
     >
       <AspectRatio ratio={4/3}>
@@ -101,8 +101,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-all hover:scale-105 ${
-            isLoading ? 'opacity-0' : 'opacity-100'
+          className={`h-full w-full object-cover transition-all hover:scale-105 opacity-90 group-hover:opacity-100 ${
+            isLoading ? 'opacity-0' : ''
           }`}
           onLoad={() => {
             setIsLoading(false);
