@@ -40,6 +40,11 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
   useEffect(() => {
     onSelectionChange(selectedIds);
   }, [selectedIds, onSelectionChange]);
+
+  // Update selected IDs when initialSelectedIds prop changes
+  useEffect(() => {
+    setSelectedIds(initialSelectedIds);
+  }, [initialSelectedIds]);
   
   const handleSelectUser = (userId: string) => {
     setSelectedIds(prev => {

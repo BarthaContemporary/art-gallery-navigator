@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import * as z from "zod";
 import { useLocations } from "@/hooks/use-locations";
 import { format } from "date-fns";
 import { UserMultiSelect } from "./UserMultiSelect";
+import { useProjectUsers } from "@/hooks/use-projects";
 
 interface ProjectDialogProps {
   open: boolean;
@@ -55,7 +57,18 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const { data: locationData } = useLocation(project?.location_id || undefined);
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
-  const [selectedUsers, setSelectedUsers] = useState<string[]>(project?.users || []);
+  
+  // Fetch project users if editing an existing project
+  const { data: projectUsers = [] } = useProjectUsers(project?.id);
+  const initialUserIds = projectUsers.map(pu => pu.user_id);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(initialUserIds);
+  
+  // Update selectedUsers when projectUsers changes
+  useEffect(() => {
+    if (projectUsers.length > 0) {
+      setSelectedUsers(projectUsers.map(pu => pu.user_id));
+    }
+  }, [projectUsers]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
