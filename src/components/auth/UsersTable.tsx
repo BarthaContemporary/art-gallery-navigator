@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -23,7 +23,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUsersList } from "@/hooks/use-users-list";
-import { useEffect } from "react";
 
 export function UsersTable() {
   const { profiles, isLoading, getUserRoles, handleDeleteUser, handleResendConfirmation, isResendingEmail, refetch } = useUsersList();

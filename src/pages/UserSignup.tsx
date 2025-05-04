@@ -94,66 +94,61 @@ export default function UserSignup() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="USER MANAGEMENT" />
 
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">User Signup</h2>
-        <p className="text-sm text-muted-foreground mb-4">Add users</p>
-        
-        {signupError && (
-          <Alert variant="destructive" className="mb-4 max-w-md">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{signupError}</AlertDescription>
-          </Alert>
-        )}
-        
-        <form onSubmit={handleSignup} className="space-y-4 max-w-md">
-          <Input 
-            type="email" 
-            placeholder="Email" 
-            value={email} 
-            autoFocus 
-            onChange={e => setEmail(e.target.value)} 
-            required 
-            className="w-full text-base sm:text-sm" 
-            inputMode="email" 
-            autoComplete="email" 
-          />
-          <Input 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            required 
-            className="w-full text-base sm:text-sm" 
-            autoComplete="new-password" 
-          />
-          <div>
-            <label htmlFor="user-role" className="block text-sm font-medium mb-1">
-              Role
-            </label>
-            <select 
-              id="user-role" 
-              value={role} 
-              onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-              className="w-full border rounded-md px-3 py-2 bg-background text-base sm:text-sm"
-            >
-              <option value="artist">Artist</option>
-              <option value="gallery_admin">Admin</option>
-              <option value="external">External</option>
-            </select>
-          </div>
-          <Button type="submit" className="w-full text-base sm:text-sm" disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create User"}
-          </Button>
-        </form>
-      </div>
-
-      <div className="-mx-4 sm:mx-0">
+      <div className="-mx-4 sm:mx-0 mb-8">
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="w-full grid grid-cols-3 mb-4">
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
-            <TabsTrigger value="uploads">Uploads</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <TabsList className="grid grid-cols-3">
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
+              <TabsTrigger value="uploads">Uploads</TabsTrigger>
+            </TabsList>
+
+            <div className="max-w-md w-full">
+              <form onSubmit={handleSignup} className="flex flex-wrap gap-2">
+                <Input 
+                  type="email" 
+                  placeholder="Email" 
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  required 
+                  className="flex-1 min-w-[200px]" 
+                  inputMode="email" 
+                  autoComplete="email" 
+                />
+                
+                <Input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                  className="flex-1 min-w-[200px]" 
+                  autoComplete="new-password" 
+                />
+                
+                <select 
+                  value={role} 
+                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+                  className="h-10 px-3 rounded-md border border-input bg-background text-base sm:text-sm min-w-[120px]"
+                >
+                  <option value="artist">Artist</option>
+                  <option value="gallery_admin">Admin</option>
+                  <option value="external">External</option>
+                </select>
+                
+                <Button type="submit" className="whitespace-nowrap" disabled={isLoading}>
+                  {isLoading ? "Creating..." : "Add User"}
+                </Button>
+              </form>
+              
+              {signupError && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{signupError}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
 
           <TabsContent value="users" className="border rounded-md overflow-x-auto">
             <UsersList />
