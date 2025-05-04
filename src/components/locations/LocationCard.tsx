@@ -15,6 +15,10 @@ interface LocationCardProps {
 
 export function LocationCard({ location, isAdmin, onDelete }: LocationCardProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  const handleEdit = (location: Location) => {
+    setEditDialogOpen(true);
+  };
 
   return (
     <>
@@ -22,8 +26,8 @@ export function LocationCard({ location, isAdmin, onDelete }: LocationCardProps)
         {isAdmin && (
           <LocationActions
             location={location}
-            onEdit={() => setEditDialogOpen(true)}
-            onDelete={() => onDelete(location.id)}
+            onEdit={handleEdit}
+            onDelete={onDelete}
           />
         )}
         <CardHeader className="flex flex-row items-center gap-4 pb-2">
