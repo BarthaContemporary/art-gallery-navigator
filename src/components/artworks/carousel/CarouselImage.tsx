@@ -92,12 +92,12 @@ export function CarouselImage({
         <Skeleton className="absolute inset-0" />
       )}
       
-      {/* Show cached placeholder while loading - removed blur filter */}
+      {/* Show cached placeholder while loading */}
       {placeholderUrl && isLoading && (
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain opacity-50"
+          className="w-full h-[600px] object-contain"
           aria-hidden="true"
         />
       )}
@@ -105,9 +105,10 @@ export function CarouselImage({
       <img
         src={optimizedUrl}
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
-        className={`w-full h-[600px] object-contain transition-opacity duration-300 ${
-          isLoading ? 'opacity-0' : 'opacity-100'
-        }`}
+        className="w-full h-[600px] object-contain transition-opacity duration-300"
+        style={{
+          opacity: isLoading ? 0 : 1
+        }}
         onLoad={() => {
           setIsLoading(false);
           cacheImageIfNeeded();

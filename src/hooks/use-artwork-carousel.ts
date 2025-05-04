@@ -18,9 +18,10 @@ export function useArtworkCarousel(artworkId: string) {
   const [error, setError] = useState<string | null>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: true,
-    align: "start",
+    align: "center",
     slidesToScroll: 1,
-    containScroll: "trimSnaps" 
+    containScroll: "trimSnaps",
+    draggable: true
   });
 
   const onSelect = useCallback(() => {
@@ -54,6 +55,13 @@ export function useArtworkCarousel(artworkId: string) {
         if (error) throw error;
         
         setImages(data as ArtworkImage[]);
+        
+        // Reset to first slide when images change
+        if (emblaApi && data.length > 0) {
+          setTimeout(() => {
+            emblaApi.scrollTo(0);
+          }, 0);
+        }
       } catch (err) {
         console.error("Error fetching artwork images:", err);
         setError("Failed to load images");
@@ -63,7 +71,7 @@ export function useArtworkCarousel(artworkId: string) {
     }
     
     fetchArtworkImages();
-  }, [artworkId]);
+  }, [artworkId, emblaApi]);
   
   const handleDotClick = (index: number) => {
     if (emblaApi) {

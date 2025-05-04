@@ -3,6 +3,7 @@ import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
+import { useEffect } from "react";
 
 interface ArtworkCarouselProps {
   artworkId: string;
@@ -24,6 +25,13 @@ export function ArtworkCarousel({
     emblaApi,
     handleDotClick,
   } = useArtworkCarousel(artworkId);
+  
+  // Re-initialize the carousel when images change
+  useEffect(() => {
+    if (emblaApi) {
+      emblaApi.reInit();
+    }
+  }, [images, emblaApi]);
   
   if (loading) {
     return (
