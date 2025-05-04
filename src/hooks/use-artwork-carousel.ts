@@ -20,8 +20,7 @@ export function useArtworkCarousel(artworkId: string) {
     loop: true,
     align: "center",
     slidesToScroll: 1,
-    containScroll: "trimSnaps",
-    draggable: true
+    containScroll: "trimSnaps"
   });
 
   const onSelect = useCallback(() => {

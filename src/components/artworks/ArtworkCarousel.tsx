@@ -28,8 +28,10 @@ export function ArtworkCarousel({
   
   // Re-initialize the carousel when images change
   useEffect(() => {
-    if (emblaApi) {
+    if (emblaApi && images.length > 0) {
       emblaApi.reInit();
+      // Ensure we're on the first slide when images change
+      emblaApi.scrollTo(0);
     }
   }, [images, emblaApi]);
   

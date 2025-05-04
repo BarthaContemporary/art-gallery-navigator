@@ -97,7 +97,7 @@ export function CarouselImage({
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain"
+          className="w-full h-[600px] object-contain opacity-70"
           aria-hidden="true"
         />
       )}
@@ -105,7 +105,7 @@ export function CarouselImage({
       <img
         src={optimizedUrl}
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
-        className="w-full h-[600px] object-contain transition-opacity duration-300"
+        className="w-full h-[600px] object-contain transition-opacity duration-500"
         style={{
           opacity: isLoading ? 0 : 1
         }}
@@ -114,6 +114,7 @@ export function CarouselImage({
           cacheImageIfNeeded();
         }}
         onError={() => {
+          console.log(`Failed to load image: ${imageUrl}`);
           setOptimizedUrl("/placeholder.svg");
           setIsLoading(false);
         }}
