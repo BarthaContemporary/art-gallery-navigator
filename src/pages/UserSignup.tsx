@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -93,62 +92,60 @@ export default function UserSignup() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="USER MANAGEMENT" />
+      
+      <div className="mb-6">
+        <form onSubmit={handleSignup} className="flex flex-wrap gap-2 max-w-3xl">
+          <Input 
+            type="email" 
+            placeholder="Email" 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+            required 
+            className="flex-1 min-w-[200px]" 
+            inputMode="email" 
+            autoComplete="email" 
+          />
+          
+          <Input 
+            type="password" 
+            placeholder="Password" 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            required 
+            className="flex-1 min-w-[200px]" 
+            autoComplete="new-password" 
+          />
+          
+          <select 
+            value={role} 
+            onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+            className="h-10 px-3 rounded-md border border-input bg-background text-base sm:text-sm min-w-[120px]"
+          >
+            <option value="artist">Artist</option>
+            <option value="gallery_admin">Admin</option>
+            <option value="external">External</option>
+          </select>
+          
+          <Button type="submit" className="whitespace-nowrap" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Add User"}
+          </Button>
+        </form>
+        
+        {signupError && (
+          <Alert variant="destructive" className="mt-2 max-w-3xl">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{signupError}</AlertDescription>
+          </Alert>
+        )}
+      </div>
 
-      <div className="-mx-4 sm:mx-0 mb-8">
+      <div className="-mx-4 sm:mx-0">
         <Tabs defaultValue="users" className="w-full">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
-              <TabsTrigger value="uploads">Uploads</TabsTrigger>
-            </TabsList>
-
-            <div className="max-w-md w-full">
-              <form onSubmit={handleSignup} className="flex flex-wrap gap-2">
-                <Input 
-                  type="email" 
-                  placeholder="Email" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
-                  required 
-                  className="flex-1 min-w-[200px]" 
-                  inputMode="email" 
-                  autoComplete="email" 
-                />
-                
-                <Input 
-                  type="password" 
-                  placeholder="Password" 
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  required 
-                  className="flex-1 min-w-[200px]" 
-                  autoComplete="new-password" 
-                />
-                
-                <select 
-                  value={role} 
-                  onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-                  className="h-10 px-3 rounded-md border border-input bg-background text-base sm:text-sm min-w-[120px]"
-                >
-                  <option value="artist">Artist</option>
-                  <option value="gallery_admin">Admin</option>
-                  <option value="external">External</option>
-                </select>
-                
-                <Button type="submit" className="whitespace-nowrap" disabled={isLoading}>
-                  {isLoading ? "Creating..." : "Add User"}
-                </Button>
-              </form>
-              
-              {signupError && (
-                <Alert variant="destructive" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{signupError}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
+          <TabsList className="grid grid-cols-3">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
+            <TabsTrigger value="uploads">Uploads</TabsTrigger>
+          </TabsList>
 
           <TabsContent value="users" className="border rounded-md overflow-x-auto">
             <UsersList />
