@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
 
@@ -11,7 +11,7 @@ interface CarouselImageProps {
   artworkTitle?: string;
 }
 
-export function CarouselImage({
+export const CarouselImage = memo(function CarouselImage({
   imageUrl,
   index,
   totalImages,
@@ -23,32 +23,32 @@ export function CarouselImage({
   const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
   const imageLoadAttempted = useRef(false);
+  const mountedRef = useRef(true);
   
   useEffect(() => {
-    // Reset loading state when image URL changes
-    setIsLoading(true);
-    setPlaceholderUrl(null);
-    imageLoadAttempted.current = false;
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  
+  useEffect(() => {
+    // Only reset loading state if the image URL actually changes
+    if (optimizedUrl !== imageUrl) {
+      setIsLoading(true);
+      setPlaceholderUrl(null);
+      imageLoadAttempted.current = false;
     
-    if (!imageUrl) {
-      setOptimizedUrl("/placeholder.svg");
-      setIsLoading(false);
-      return;
-    }
-    
-    // Check cache for placeholder
-    const cachedImage = getCachedImage(imageUrl);
-    if (cachedImage) {
-      setPlaceholderUrl(cachedImage.dataUrl);
-      // We'll still load the full image, but with a nice placeholder
-    }
-    
-    // Add smaller size parameter for thumbnails if using Supabase storage
-    if (imageUrl.includes('supabase.co/storage')) {
-      // Use width transformation parameter if available in your setup
-      // This is a placeholder for potential CDN transformations
-      setOptimizedUrl(imageUrl);
-    } else {
+      if (!imageUrl) {
+        setOptimizedUrl("/placeholder.svg");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check cache for placeholder
+      const cachedImage = getCachedImage(imageUrl);
+      if (cachedImage) {
+        setPlaceholderUrl(cachedImage.dataUrl);
+      }
+      
       setOptimizedUrl(imageUrl);
     }
   }, [imageUrl, getCachedImage]);
@@ -63,20 +63,21 @@ export function CarouselImage({
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
+        if (!mountedRef.current) return;
+        
         // Create a higher quality version for cache
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Increased max dimension for carousel quality to 2400px
-        const maxDimension = 2400;
-        const scale = maxDimension / Math.max(img.width, img.height);
+        const maxDimension = 1200; // reduced from 2400px for better performance
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Using maximum JPEG quality of 1.0
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 1.0);
+          // Using a lower JPEG quality for better performance
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setCachedImage(optimizedUrl, mediumResDataUrl);
         }
       };
@@ -105,22 +106,26 @@ export function CarouselImage({
       <img
         src={optimizedUrl}
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
-        className="w-full h-[600px] object-contain transition-opacity duration-500"
+        className="w-full h-[600px] object-contain transition-opacity duration-300"
         style={{
           opacity: isLoading ? 0 : 1
         }}
         onLoad={() => {
-          setIsLoading(false);
-          cacheImageIfNeeded();
+          if (mountedRef.current) {
+            setIsLoading(false);
+            cacheImageIfNeeded();
+          }
         }}
         onError={() => {
-          console.log(`Failed to load image: ${imageUrl}`);
-          setOptimizedUrl("/placeholder.svg");
-          setIsLoading(false);
+          if (mountedRef.current) {
+            console.log(`Failed to load image: ${imageUrl}`);
+            setOptimizedUrl("/placeholder.svg");
+            setIsLoading(false);
+          }
         }}
         loading="lazy"
         decoding="async"
       />
     </div>
   );
-}
+});

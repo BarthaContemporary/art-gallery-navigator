@@ -18,9 +18,11 @@ export function useArtworkCarousel(artworkId: string) {
   const [error, setError] = useState<string | null>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: true,
-    align: "center",
+    align: "start",
     slidesToScroll: 1,
-    containScroll: "trimSnaps"
+    containScroll: "trimSnaps",
+    watchDrag: false, // Reduce unnecessary reloads during drag
+    skipSnaps: false // Make navigation smoother
   });
 
   const onSelect = useCallback(() => {
@@ -40,7 +42,11 @@ export function useArtworkCarousel(artworkId: string) {
   }, [emblaApi, onSelect]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     async function fetchArtworkImages() {
+      if (!artworkId) return;
+      
       try {
         setLoading(true);
         setError(null);
@@ -53,24 +59,40 @@ export function useArtworkCarousel(artworkId: string) {
           
         if (error) throw error;
         
-        setImages(data as ArtworkImage[]);
-        
-        // Reset to first slide when images change
-        if (emblaApi && data.length > 0) {
-          setTimeout(() => {
-            emblaApi.scrollTo(0);
-          }, 0);
+        // Only update state if the component is still mounted
+        if (!controller.signal.aborted) {
+          setImages(data as ArtworkImage[]);
         }
       } catch (err) {
         console.error("Error fetching artwork images:", err);
-        setError("Failed to load images");
+        if (!controller.signal.aborted) {
+          setError("Failed to load images");
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
     
     fetchArtworkImages();
-  }, [artworkId, emblaApi]);
+    
+    return () => {
+      controller.abort();
+    };
+  }, [artworkId]);
+  
+  // This effect is separate to avoid resetting the carousel when it's not needed
+  useEffect(() => {
+    if (emblaApi && images.length > 0) {
+      // Use setTimeout to allow the DOM to update before reinitializing
+      const timer = setTimeout(() => {
+        emblaApi.reInit();
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [images.length, emblaApi]);
   
   const handleDotClick = (index: number) => {
     if (emblaApi) {
