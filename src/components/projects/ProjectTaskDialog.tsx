@@ -176,14 +176,13 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
                         {projectUsers?.map(user => {
-                          // Fixed TypeScript error with proper null check
+                          // Use a local variable for display name with a safe default
                           let displayName = "User";
                           
-                          // Add proper null check for profiles
-                          if (user.profiles && 
-                              typeof user.profiles === 'object' && 
-                              user.profiles !== null) {
-                            displayName = user.profiles.display_name || "User";
+                          // Use type assertions to help TypeScript understand the structure
+                          if (user && user.profiles) {
+                            const profileData = user.profiles as { display_name?: string; avatar_url?: string | null };
+                            displayName = profileData.display_name || "User";
                           }
                           
                           return (
