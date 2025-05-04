@@ -6,8 +6,8 @@ import { ProjectsGrid } from "@/components/projects/ProjectsGrid";
 
 const Projects = () => {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [type, setType] = useState("");
+  const [status, setStatus] = useState("all");
+  const [type, setType] = useState("all");
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">

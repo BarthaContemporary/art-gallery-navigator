@@ -51,11 +51,11 @@ export function useProjects(filters?: {
           location:locations(name)
         `);
       
-      if (filters?.status && filters.status !== "") {
+      if (filters?.status && filters.status !== "all") {
         query = query.eq('status', filters.status as 'active' | 'scheduled' | 'completed' | 'abandoned');
       }
       
-      if (filters?.type && filters.type !== "") {
+      if (filters?.type && filters.type !== "all") {
         query = query.eq('type', filters.type as 'exhibition' | 'fair' | 'publication' | 'talk' | 'other');
       }
       

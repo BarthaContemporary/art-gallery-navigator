@@ -38,7 +38,7 @@ export function ProjectsSearch({
           <SelectValue placeholder="Filter by status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Statuses</SelectItem>
+          <SelectItem value="all">All Statuses</SelectItem>
           <SelectItem value="active">Active</SelectItem>
           <SelectItem value="scheduled">Scheduled</SelectItem>
           <SelectItem value="completed">Completed</SelectItem>
@@ -51,7 +51,7 @@ export function ProjectsSearch({
           <SelectValue placeholder="Filter by type" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Types</SelectItem>
+          <SelectItem value="all">All Types</SelectItem>
           <SelectItem value="exhibition">Exhibition</SelectItem>
           <SelectItem value="fair">Fair</SelectItem>
           <SelectItem value="publication">Publication</SelectItem>

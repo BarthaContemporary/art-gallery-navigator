@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ProjectWithLocation, useProjects } from "@/hooks/use-projects";
 import { ProjectCard } from "./ProjectCard";
@@ -73,7 +72,7 @@ export function ProjectsGrid({ search, status, type }: ProjectsGridProps) {
   if (projects.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-20">
-        No projects found. {search || status || type ? "Try adjusting your filters." : ""}
+        No projects found. {search || status !== "all" || type !== "all" ? "Try adjusting your filters." : ""}
       </div>
     );
   }
