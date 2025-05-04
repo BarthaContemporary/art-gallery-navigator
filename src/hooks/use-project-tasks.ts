@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,7 +53,7 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
         .from('project_tasks')
         .select(`
           *,
-          assignee:profiles!project_tasks_assigned_to_fkey(display_name, avatar_url)
+          assignee:profiles!inner(display_name, avatar_url)
         `)
         .eq('project_id', projectId);
       
@@ -70,11 +71,21 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
       
       // Transform the data to ensure it matches TaskWithAssignee type
       const tasksWithAssignees = data.map(task => {
-        // Handle the case where assignee might be an error object
-        const assignee = 
-          task.assignee && typeof task.assignee === 'object' && !Array.isArray(task.assignee) && !task.assignee.error 
-            ? task.assignee 
-            : null;
+        // Handle the case where assignee might be null or have a different structure
+        let assignee = null;
+        
+        if (task.assignee && 
+            typeof task.assignee === 'object' && 
+            !Array.isArray(task.assignee) && 
+            task.assignee !== null) {
+          // Check if it's an error object from Supabase or a valid profile
+          if (!('error' in task.assignee)) {
+            assignee = {
+              display_name: task.assignee.display_name,
+              avatar_url: task.assignee.avatar_url
+            };
+          }
+        }
           
         return {
           ...task,
@@ -98,18 +109,28 @@ export function useProjectTask(taskId: string | undefined) {
         .from('project_tasks')
         .select(`
           *,
-          assignee:profiles!project_tasks_assigned_to_fkey(display_name, avatar_url)
+          assignee:profiles!inner(display_name, avatar_url)
         `)
         .eq('id', taskId)
         .single();
       
       if (error) throw error;
       
-      // Handle the case where assignee might be an error object
-      const assignee = 
-        data.assignee && typeof data.assignee === 'object' && !Array.isArray(data.assignee) && !data.assignee.error 
-          ? data.assignee 
-          : null;
+      // Handle the case where assignee might be null or have a different structure
+      let assignee = null;
+      
+      if (data.assignee && 
+          typeof data.assignee === 'object' && 
+          !Array.isArray(data.assignee) && 
+          data.assignee !== null) {
+        // Check if it's an error object from Supabase or a valid profile
+        if (!('error' in data.assignee)) {
+          assignee = {
+            display_name: data.assignee.display_name,
+            avatar_url: data.assignee.avatar_url
+          };
+        }
+      }
           
       return {
         ...data,

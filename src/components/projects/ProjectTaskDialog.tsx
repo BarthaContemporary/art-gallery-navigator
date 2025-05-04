@@ -176,7 +176,7 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
                         <SelectItem value="">Unassigned</SelectItem>
                         {projectUsers?.map(user => (
                           <SelectItem key={user.user_id} value={user.user_id}>
-                            {user.profiles && typeof user.profiles === 'object' 
+                            {user.profiles && typeof user.profiles === 'object' && user.profiles !== null
                               ? user.profiles.display_name 
                               : "User"}
                           </SelectItem>

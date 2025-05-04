@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject, useProjectUsers } from "@/hooks/use-projects";
@@ -152,8 +153,8 @@ const ProjectDetail = () => {
                 // Safely access the profile data
                 const profileData = projectUser.profiles && 
                   typeof projectUser.profiles === 'object' && 
-                  !Array.isArray(projectUser.profiles) && 
-                  !projectUser.profiles.error 
+                  projectUser.profiles !== null && 
+                  !('error' in projectUser.profiles)
                     ? projectUser.profiles 
                     : { display_name: 'User', avatar_url: null };
                 
