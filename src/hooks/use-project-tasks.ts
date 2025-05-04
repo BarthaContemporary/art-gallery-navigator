@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -53,12 +52,12 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
         .from('project_tasks')
         .select(`
           *,
-          assignee:profiles(display_name, avatar_url)
+          assignee:profiles!project_tasks_assigned_to_fkey(display_name, avatar_url)
         `)
         .eq('project_id', projectId);
       
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
+      if (filters?.status && filters.status !== "") {
+        query = query.eq('status', filters.status as 'active' | 'scheduled' | 'completed' | 'abandoned');
       }
       
       if (filters?.assignedTo) {
@@ -68,7 +67,22 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
       const { data, error } = await query.order('start_date', { ascending: true });
       
       if (error) throw error;
-      return data as TaskWithAssignee[];
+      
+      // Transform the data to ensure it matches TaskWithAssignee type
+      const tasksWithAssignees = data.map(task => {
+        // Handle the case where assignee might be an error object
+        const assignee = 
+          task.assignee && typeof task.assignee === 'object' && !Array.isArray(task.assignee) && !task.assignee.error 
+            ? task.assignee 
+            : null;
+          
+        return {
+          ...task,
+          assignee
+        } as TaskWithAssignee;
+      });
+      
+      return tasksWithAssignees;
     },
     enabled: !!projectId && !!user
   });
@@ -84,13 +98,23 @@ export function useProjectTask(taskId: string | undefined) {
         .from('project_tasks')
         .select(`
           *,
-          assignee:profiles(display_name, avatar_url)
+          assignee:profiles!project_tasks_assigned_to_fkey(display_name, avatar_url)
         `)
         .eq('id', taskId)
         .single();
       
       if (error) throw error;
-      return data as TaskWithAssignee;
+      
+      // Handle the case where assignee might be an error object
+      const assignee = 
+        data.assignee && typeof data.assignee === 'object' && !Array.isArray(data.assignee) && !data.assignee.error 
+          ? data.assignee 
+          : null;
+          
+      return {
+        ...data,
+        assignee
+      } as TaskWithAssignee;
     },
     enabled: !!taskId
   });

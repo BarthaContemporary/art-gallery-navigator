@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TaskWithAssignee, useCreateTask, useUpdateTask } from "@/hooks/use-project-tasks";
+import { TaskWithAssignee, useCreateTask, useUpdateTask, CreateTaskInput } from "@/hooks/use-project-tasks";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -58,15 +57,28 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
         await updateTask.mutateAsync({
           id: task.id,
           data: {
-            ...values,
+            name: values.name,
+            description: values.description,
+            status: values.status,
+            assigned_to: values.assigned_to,
+            start_date: values.start_date,
+            end_date: values.end_date,
+            project_id: values.project_id,
             references
           }
         });
       } else {
-        await createTask.mutateAsync({
-          ...values,
+        const taskInput: CreateTaskInput = {
+          name: values.name,
+          description: values.description,
+          status: values.status,
+          assigned_to: values.assigned_to,
+          start_date: values.start_date,
+          end_date: values.end_date,
+          project_id: values.project_id,
           references
-        });
+        };
+        await createTask.mutateAsync(taskInput);
       }
       onOpenChange(false);
     } finally {
@@ -164,7 +176,9 @@ export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: Proje
                         <SelectItem value="">Unassigned</SelectItem>
                         {projectUsers?.map(user => (
                           <SelectItem key={user.user_id} value={user.user_id}>
-                            {user.profiles?.display_name || "User"}
+                            {user.profiles && typeof user.profiles === 'object' 
+                              ? user.profiles.display_name 
+                              : "User"}
                           </SelectItem>
                         ))}
                       </SelectContent>

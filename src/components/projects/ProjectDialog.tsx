@@ -77,8 +77,15 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
+      // Ensure all required fields are present
       const projectData: CreateProjectInput = {
-        ...values,
+        name: values.name,
+        description: values.description,
+        status: values.status,
+        type: values.type,
+        location_id: values.location_id,
+        start_date: values.start_date,
+        end_date: values.end_date,
         users: selectedUsers,
       };
       

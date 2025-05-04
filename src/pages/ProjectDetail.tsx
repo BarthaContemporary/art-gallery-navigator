@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject, useProjectUsers } from "@/hooks/use-projects";
@@ -149,17 +148,27 @@ const ProjectDetail = () => {
             <div className="text-sm text-muted-foreground">No team members assigned.</div>
           ) : (
             <div className="flex flex-wrap gap-4">
-              {projectUsers?.map(projectUser => (
-                <div key={projectUser.user_id} className="flex items-center gap-2">
-                  <Avatar>
-                    <AvatarImage src={projectUser.profiles?.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {projectUser.profiles?.display_name?.substring(0, 2) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm">{projectUser.profiles?.display_name}</span>
-                </div>
-              ))}
+              {projectUsers?.map(projectUser => {
+                // Safely access the profile data
+                const profileData = projectUser.profiles && 
+                  typeof projectUser.profiles === 'object' && 
+                  !Array.isArray(projectUser.profiles) && 
+                  !projectUser.profiles.error 
+                    ? projectUser.profiles 
+                    : { display_name: 'User', avatar_url: null };
+                
+                return (
+                  <div key={projectUser.user_id} className="flex items-center gap-2">
+                    <Avatar>
+                      <AvatarImage src={profileData.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {profileData.display_name?.substring(0, 2) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{profileData.display_name}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

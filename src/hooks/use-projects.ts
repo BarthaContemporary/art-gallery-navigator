@@ -51,12 +51,12 @@ export function useProjects(filters?: {
           location:locations(name)
         `);
       
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
+      if (filters?.status && filters.status !== "") {
+        query = query.eq('status', filters.status as 'active' | 'scheduled' | 'completed' | 'abandoned');
       }
       
-      if (filters?.type) {
-        query = query.eq('type', filters.type);
+      if (filters?.type && filters.type !== "") {
+        query = query.eq('type', filters.type as 'exhibition' | 'fair' | 'publication' | 'talk' | 'other');
       }
       
       if (filters?.search) {
@@ -247,7 +247,7 @@ export function useProjectUsers(projectId: string | undefined) {
         .from('project_users')
         .select(`
           user_id,
-          profiles:profiles(id, display_name, avatar_url)
+          profiles:profiles!inner(id, display_name, avatar_url)
         `)
         .eq('project_id', projectId);
       
