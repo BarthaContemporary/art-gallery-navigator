@@ -35,7 +35,7 @@ export function LocationGrid({ searchTerm }: LocationGridProps) {
   }
 
   if (filteredLocations.length === 0) {
-    return <div className="col-span-full text-center text-muted-foreground">No locations found.</div>;
+    return <div className="text-center text-muted-foreground py-20">No locations found.</div>;
   }
 
   return (

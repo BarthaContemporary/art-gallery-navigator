@@ -18,21 +18,34 @@ interface DeleteLocationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locationId: string | null;
+  onConfirm?: () => Promise<void>;
+  isDeleting?: boolean;
 }
 
 export function DeleteLocationDialog({ 
   open, 
   onOpenChange,
-  locationId
+  locationId,
+  onConfirm,
+  isDeleting: externalIsDeleting
 }: DeleteLocationDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [internalIsDeleting, setInternalIsDeleting] = useState(false);
   const queryClient = useQueryClient();
+  
+  // Use external isDeleting state if provided, otherwise use internal state
+  const isDeleting = externalIsDeleting !== undefined ? externalIsDeleting : internalIsDeleting;
 
   const handleDelete = async () => {
     if (!locationId || isDeleting) return;
     
+    // If onConfirm is provided, use that instead of internal delete logic
+    if (onConfirm) {
+      await onConfirm();
+      return;
+    }
+    
     try {
-      setIsDeleting(true);
+      setInternalIsDeleting(true);
       const { error } = await supabase
         .from('locations')
         .delete()
@@ -48,7 +61,7 @@ export function DeleteLocationDialog({
       console.error('Error deleting location:', error);
       toast.error("Failed to delete location");
     } finally {
-      setIsDeleting(false);
+      setInternalIsDeleting(false);
     }
   };
 
