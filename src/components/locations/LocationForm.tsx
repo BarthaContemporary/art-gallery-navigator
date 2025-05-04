@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -10,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Location } from "@/hooks/use-locations";
+import { useState } from "react";
 
 const locationTypes = ["exhibition", "storage", "consignment", "external", "artist studio"] as const;
 
@@ -28,6 +30,7 @@ interface LocationFormProps {
 export function LocationForm({ initialData, setOpen }: LocationFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!initialData;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -40,7 +43,11 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+      
       if (isEditing) {
         // Fix: Create a properly typed update object with required fields
         const updateData: {
@@ -79,12 +86,23 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
         toast.success("Location created successfully");
       }
 
+      // Invalidate the query to refresh the location data
+      await queryClient.invalidateQueries({ queryKey: ["locations"] });
+      
+      // Reset form and close dialog
+      form.reset();
       setOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["locations"] });
     } catch (error) {
       console.error("Error saving location:", error);
       toast.error("Failed to save location");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    form.reset();
+    setOpen(false);
   };
 
   return (
@@ -158,11 +176,19 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
         />
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleCancel}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button type="submit">
-            {isEditing ? "Update" : "Create"}
+          <Button 
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (isEditing ? "Updating..." : "Creating...") : (isEditing ? "Update" : "Create")}
           </Button>
         </div>
       </form>

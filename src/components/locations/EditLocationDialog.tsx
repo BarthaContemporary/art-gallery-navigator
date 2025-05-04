@@ -2,6 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { LocationForm } from "./LocationForm";
 import { Location } from "@/hooks/use-locations";
+import { useState } from "react";
 
 interface EditLocationDialogProps {
   location: Location;
