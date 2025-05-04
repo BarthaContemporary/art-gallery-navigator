@@ -30,8 +30,11 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
   
   const { data: users = [], isLoading } = useUsers(search);
   
-  // Selected users info for displaying badges
-  const selectedUsers = users.filter(user => selectedIds.includes(user.id)) || [];
+  // Make sure users is always an array, even if data is undefined
+  const safeUsers = Array.isArray(users) ? users : [];
+  
+  // Selected users info for displaying badges - filter from safe users array
+  const selectedUsers = safeUsers.filter(user => selectedIds.includes(user.id));
   
   useEffect(() => {
     onSelectionChange(selectedIds);
@@ -82,7 +85,7 @@ export function UserMultiSelect({ onSelectionChange, initialSelectedIds = [] }: 
                   Loading users...
                 </div>
               ) : (
-                users.map(user => (
+                safeUsers.map(user => (
                   <CommandItem
                     key={user.id}
                     value={user.id}
