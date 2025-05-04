@@ -1,11 +1,16 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { format } from "date-fns";
 import { z } from "zod";
-import { TaskWithAssignee, useCreateTask, useUpdateTask, CreateTaskInput } from "@/hooks/use-project-tasks";
+import { 
+  CreateTaskInput, 
+  useCreateTask, 
+  useUpdateTask, 
+  TaskWithAssignee, 
+  useTaskReferences 
+} from "@/hooks/use-project-tasks";
 import { useProjectUsers } from "@/hooks/use-projects";
 
 import { taskFormSchema } from "./schema";
