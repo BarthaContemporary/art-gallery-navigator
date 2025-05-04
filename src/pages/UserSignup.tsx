@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -44,11 +45,16 @@ export default function UserSignup() {
         error
       } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + '/email-confirmation'
+        }
       });
+      
       if (error) {
         throw error;
       }
+      
       const userId = data.user?.id;
       if (userId) {
         const {
@@ -61,11 +67,13 @@ export default function UserSignup() {
           throw roleError;
         }
       }
+      
       toast({
         title: "User created",
         description: `The user ${email} was created successfully.`,
         variant: "default"
       });
+      
       setEmail("");
       setPassword("");
       setRole("artist");

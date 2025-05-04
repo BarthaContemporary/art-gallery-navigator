@@ -68,17 +68,27 @@ export function useUsersList() {
   const handleResendConfirmation = async (email: string, userId: string) => {
     setIsResendingEmail(userId);
     try {
+      // First attempt to resend the confirmation email
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
       });
 
       if (error) throw error;
+      
+      // Update the user profile to reflect that a new email has been sent
+      // This doesn't change the confirmation status, just acknowledges the resend
+      await supabase.from('profiles')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', userId);
 
       toast({
         title: "Confirmation email sent",
         description: `A new confirmation email has been sent to ${email}.`,
       });
+      
+      // Refresh the profiles list to get latest data
+      refetch();
     } catch (error: any) {
       console.error('Error resending confirmation email:', error);
       toast({
@@ -102,5 +112,6 @@ export function useUsersList() {
     handleDeleteUser,
     handleResendConfirmation,
     isResendingEmail,
+    refetch,
   };
 }
