@@ -11,8 +11,8 @@ import { Location } from "@/hooks/use-locations";
 
 interface LocationActionsProps {
   location: Location;
-  onEdit: (location: Location) => void;
-  onDelete: (locationId: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 export function LocationActions({ location, onEdit, onDelete }: LocationActionsProps) {
@@ -29,12 +29,12 @@ export function LocationActions({ location, onEdit, onDelete }: LocationActionsP
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onEdit(location)}>
+        <DropdownMenuItem onClick={onEdit}>
           <Edit className="h-4 w-4 mr-2" />
           Edit
         </DropdownMenuItem>
         <DropdownMenuItem 
-          onClick={() => onDelete(location.id)}
+          onClick={onDelete}
           className="text-red-600 focus:text-red-600 focus:bg-red-50"
         >
           <Trash2 className="h-4 w-4 mr-2" />

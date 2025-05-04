@@ -4,8 +4,6 @@ import { LocationSearch } from "@/components/locations/LocationSearch";
 import { LocationGrid } from "@/components/locations/LocationGrid";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CreateLocationDialog } from "@/components/locations/CreateLocationDialog";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
 
 const Locations = () => {
   const [searchTerm, setSearchTerm] = useState("");
