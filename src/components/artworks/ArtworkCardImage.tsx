@@ -88,12 +88,12 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <Skeleton className="h-full w-full absolute inset-0" />
         )}
         
-        {/* Show cached placeholder while loading */}
+        {/* Show cached placeholder while loading - removed blur filter */}
         {placeholderUrl && isLoading && (
           <img 
             src={placeholderUrl}
             alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-70 filter blur-[1px]"
+            className="h-full w-full object-cover opacity-70"
             aria-hidden="true"
           />
         )}

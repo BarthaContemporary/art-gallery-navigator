@@ -92,12 +92,12 @@ export function CarouselImage({
         <Skeleton className="absolute inset-0" />
       )}
       
-      {/* Show cached placeholder while loading */}
+      {/* Show cached placeholder while loading - removed blur filter */}
       {placeholderUrl && isLoading && (
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain opacity-50 filter blur-[1px]"
+          className="w-full h-[600px] object-contain opacity-50"
           aria-hidden="true"
         />
       )}
