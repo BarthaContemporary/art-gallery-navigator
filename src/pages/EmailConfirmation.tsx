@@ -3,11 +3,40 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export default function EmailConfirmation() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const updateEmailConfirmationStatus = async () => {
+      try {
+        // Get the current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user && user.email_confirmed_at) {
+          // Update the user's profile in our public schema
+          const { error } = await supabase.from('profiles')
+            .update({ 
+              email_confirmed: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+            
+          if (error) {
+            console.error('Error updating confirmation status:', error);
+          } else {
+            console.log('Email confirmation status updated successfully');
+          }
+        }
+      } catch (err) {
+        console.error('Error in email confirmation page:', err);
+      }
+    };
+    
+    updateEmailConfirmationStatus();
+    
     // Automatically redirect to the dashboard after 5 seconds
     const timer = setTimeout(() => {
       navigate("/");
