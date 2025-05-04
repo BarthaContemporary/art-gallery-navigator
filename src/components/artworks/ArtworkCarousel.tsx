@@ -51,7 +51,7 @@ export function ArtworkCarousel({
 
   return (
     <div className="relative">
-      <div className="w-full">
+      <div className="w-full group">
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex">
             {displayImages.map((image, index) => (
@@ -85,6 +85,14 @@ export function ArtworkCarousel({
                 </svg>
               </button>
             </div>
+            {/* Add the download button that appears on hover */}
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <CarouselDownloadMenu 
+                images={displayImages}
+                artistName={artistName}
+                artworkTitle={artworkTitle}
+              />
+            </div>
           </>
         )}
       </div>
@@ -95,13 +103,6 @@ export function ArtworkCarousel({
           totalImages={displayImages.length}
           onDotClick={handleDotClick}
         />
-        {displayImages.length > 0 && (
-          <CarouselDownloadMenu 
-            images={displayImages}
-            artistName={artistName}
-            artworkTitle={artworkTitle}
-          />
-        )}
       </div>
     </div>
   );

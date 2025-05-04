@@ -63,19 +63,20 @@ export function CarouselImage({
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        // Create a medium quality version for cache
+        // Create a higher quality version for cache
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Use a slightly larger size for better quality in the carousel
-        const maxDimension = 300; // Increased from previous implementation
+        // Increased max dimension for better carousel quality
+        const maxDimension = 1000;
         const scale = maxDimension / Math.max(img.width, img.height);
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.75); // Better quality
+          // Increased JPEG quality to 0.85 for better visuals
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setCachedImage(optimizedUrl, mediumResDataUrl);
         }
       };
@@ -96,7 +97,7 @@ export function CarouselImage({
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain opacity-50 filter blur-[1px]" // Reduced blur, increased opacity
+          className="w-full h-[600px] object-contain opacity-50 filter blur-[1px]"
           aria-hidden="true"
         />
       )}

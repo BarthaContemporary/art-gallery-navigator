@@ -45,7 +45,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     }
   }, [imageUrl, getCachedImage]);
 
-  // Function to create and cache a low-res version using a canvas
+  // Function to create and cache a medium-res version using a canvas
   const cacheImageIfNeeded = () => {
     if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
@@ -55,20 +55,20 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       const img = new Image();
       img.crossOrigin = "anonymous"; // This is needed for some external images
       img.onload = () => {
-        // Create a medium-res version for cache (improved quality)
+        // Create a higher-quality version for cache with increased dimensions
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Increase thumbnail size for better quality (from 100px to 180px max dimension)
-        const maxDimension = 180;
+        // Increased max dimension for card thumbnails
+        const maxDimension = 500;
         const scale = maxDimension / Math.max(img.width, img.height);
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Increase JPEG quality from 0.5 to 0.7 for better visuals
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          // Increased JPEG quality to 0.85 for better visuals
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setCachedImage(optimizedUrl, mediumResDataUrl);
         }
       };
@@ -93,7 +93,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <img 
             src={placeholderUrl}
             alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-70 filter blur-[1px]" // Reduced blur and increased opacity
+            className="h-full w-full object-cover opacity-70 filter blur-[1px]"
             aria-hidden="true"
           />
         )}
@@ -115,8 +115,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           loading="lazy"
           decoding="async"
           fetchPriority="high"
-          width="400"
-          height="300"
+          width="500"
+          height="375"
         />
       </AspectRatio>
     </div>
