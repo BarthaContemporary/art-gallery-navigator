@@ -21,8 +21,23 @@ export function CarouselImage({
   const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
 
   useEffect(() => {
-    // Use the original URL when no optimized version is available
-    setOptimizedUrl(imageUrl);
+    // Reset loading state when image URL changes
+    setIsLoading(true);
+    
+    if (!imageUrl) {
+      setOptimizedUrl("/placeholder.svg");
+      setIsLoading(false);
+      return;
+    }
+    
+    // Add smaller size parameter for thumbnails if using Supabase storage
+    if (imageUrl.includes('supabase.co/storage')) {
+      // Use width transformation parameter if available in your setup
+      // This is a placeholder for potential CDN transformations
+      setOptimizedUrl(imageUrl);
+    } else {
+      setOptimizedUrl(imageUrl);
+    }
   }, [imageUrl]);
 
   return (
@@ -37,7 +52,12 @@ export function CarouselImage({
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
         onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setOptimizedUrl("/placeholder.svg");
+          setIsLoading(false);
+        }}
         loading="lazy"
+        decoding="async"
       />
     </div>
   );

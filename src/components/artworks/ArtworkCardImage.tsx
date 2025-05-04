@@ -14,13 +14,22 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
   const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    // Reset loading state when image URL changes
+    setIsLoading(true);
+    
     if (!imageUrl) {
       setOptimizedUrl("/placeholder.svg");
+      setIsLoading(false);
       return;
     }
 
-    // Use the original URL when no optimized version is available
-    setOptimizedUrl(imageUrl);
+    // For thumbnails in cards, use a smaller image size if possible
+    if (imageUrl.includes('supabase.co/storage')) {
+      // This could be enhanced with actual resize parameters if your storage supports it
+      setOptimizedUrl(imageUrl);
+    } else {
+      setOptimizedUrl(imageUrl);
+    }
   }, [imageUrl]);
 
   return (
@@ -39,8 +48,15 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
           onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setOptimizedUrl("/placeholder.svg");
+            setIsLoading(false);
+          }}
           loading="lazy"
-          style={{ maxWidth: '400px' }} // Limit display size to thumbnail dimensions
+          decoding="async"
+          fetchPriority="high"
+          width="400"
+          height="300"
         />
       </AspectRatio>
     </div>
