@@ -108,6 +108,7 @@ export const CreateLocationDialog = () => {
                       <SelectItem value="storage">Storage</SelectItem>
                       <SelectItem value="consignment">Consignment</SelectItem>
                       <SelectItem value="external">External</SelectItem>
+                      <SelectItem value="artist studio">Artist Studio</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>

@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -12,7 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Location } from "@/hooks/use-locations";
 
-const locationTypes = ["exhibition", "storage", "consignment", "external"] as const;
+const locationTypes = ["exhibition", "storage", "consignment", "external", "artist studio"] as const;
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
