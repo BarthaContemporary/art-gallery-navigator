@@ -114,9 +114,6 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           }}
           loading="lazy"
           decoding="async"
-          fetchPriority="high"
-          width="1000"
-          height="750"
         />
       </AspectRatio>
     </div>
