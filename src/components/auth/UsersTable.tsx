@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Mail, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Mail, Trash2, XCircle, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,13 +23,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUsersList } from "@/hooks/use-users-list";
+import { useEffect } from "react";
 
 export function UsersTable() {
-  const { profiles, isLoading, getUserRoles, handleDeleteUser, handleResendConfirmation, isResendingEmail } = useUsersList();
+  const { profiles, isLoading, getUserRoles, handleDeleteUser, handleResendConfirmation, isResendingEmail, refetch } = useUsersList();
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  if (isLoading) return <div>Loading users...</div>;
+  // Force refresh on initial load to ensure we have the latest data
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const onDeleteUser = async () => {
     if (!userToDelete) return;
@@ -39,8 +44,28 @@ export function UsersTable() {
     setIsDeleting(false);
   };
 
+  const handleRefreshList = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setTimeout(() => setIsRefreshing(false), 1000); // Show refresh animation for at least 1 second
+  };
+
+  if (isLoading) return <div className="p-8 text-center">Loading users...</div>;
+
   return (
     <div className="min-w-[600px]">
+      <div className="flex justify-end p-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1"
+          onClick={handleRefreshList}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>

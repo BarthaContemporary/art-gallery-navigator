@@ -22,12 +22,50 @@ export function useUsersList() {
   const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
+      // Get the latest data from profiles table
       const { data, error } = await supabase
         .from('profiles')
         .select('*');
+      
       if (error) throw error;
+      
+      // For each profile, check the actual auth status to ensure we have the latest info
+      if (data && data.length > 0) {
+        const updatedProfiles = await Promise.all(
+          data.map(async (profile) => {
+            // Try to get the auth user info to check confirmed status
+            const { data: authData } = await supabase.auth.admin.getUserById(profile.id);
+            
+            // If we got auth data and email confirmation status differs, update our local record
+            if (authData && authData.user && 
+                (profile.email_confirmed !== !!authData.user.email_confirmed_at)) {
+              
+              // Update the profile in the database
+              await supabase.from('profiles')
+                .update({ 
+                  email_confirmed: !!authData.user.email_confirmed_at,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', profile.id);
+                
+              // Return updated profile
+              return {
+                ...profile,
+                email_confirmed: !!authData.user.email_confirmed_at
+              };
+            }
+            
+            // Return original profile if no update needed
+            return profile;
+          })
+        );
+        
+        return updatedProfiles as ProfileData[];
+      }
+      
       return data as ProfileData[];
     },
+    refetchInterval: 30000, // Refresh data every 30 seconds
   });
 
   const { data: userRoles } = useQuery({
