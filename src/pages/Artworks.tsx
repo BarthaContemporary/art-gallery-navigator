@@ -8,16 +8,19 @@ import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
 import { useArtists } from "@/components/artworks/form/useArtists";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useNavigate } from "react-router-dom";
+import { useImageCache } from "@/hooks/use-image-cache";
+import { toast } from "sonner";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
+  const { clearImageCache } = useImageCache();
 
   const {
     data: artworks,
@@ -60,6 +63,11 @@ const Artworks = () => {
     navigate(`/pdf-templates/artwork/${artwork.id}`);
   };
 
+  const handleClearImageCache = () => {
+    clearImageCache();
+    toast.success("Image cache cleared. Refresh the page to reload images.");
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-[50vh]">
         <p className="text-muted-foreground">Loading artworks...</p>
@@ -88,6 +96,9 @@ const Artworks = () => {
               Export All ({artworks.length})
             </Button>}
           <CreateArtworkDialog />
+          <Button variant="ghost" size="icon" title="Clear Image Cache" onClick={handleClearImageCache}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
