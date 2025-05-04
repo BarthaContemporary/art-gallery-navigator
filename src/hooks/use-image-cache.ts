@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v1.2"; // Updated version to invalidate previous caches
+const CACHE_VERSION = "v1.3"; // Updated version to invalidate previous caches
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 export type CachedImage = {

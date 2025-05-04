@@ -75,8 +75,8 @@ export function CarouselImage({
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Increased JPEG quality to 0.85 for better visuals
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          // Using maximum JPEG quality of 1.0
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 1.0);
           setCachedImage(optimizedUrl, mediumResDataUrl);
         }
       };
