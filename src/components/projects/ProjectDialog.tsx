@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -60,13 +59,25 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   
   // Fetch project users if editing an existing project
   const { data: projectUsers = [] } = useProjectUsers(project?.id);
-  const initialUserIds = projectUsers.map(pu => pu.user_id);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>(initialUserIds);
+  // Defensively ensure we have a valid array of user IDs
+  const initialUserIds = Array.isArray(projectUsers) && projectUsers.length > 0
+    ? projectUsers.filter(pu => pu && pu.user_id).map(pu => pu.user_id)
+    : [];
+  
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
   // Update selectedUsers when projectUsers changes
   useEffect(() => {
-    if (projectUsers.length > 0) {
-      setSelectedUsers(projectUsers.map(pu => pu.user_id));
+    try {
+      if (Array.isArray(projectUsers) && projectUsers.length > 0) {
+        const validUserIds = projectUsers
+          .filter(pu => pu && pu.user_id)
+          .map(pu => pu.user_id);
+        setSelectedUsers(validUserIds);
+      }
+    } catch (error) {
+      console.error("Error processing project users:", error);
+      setSelectedUsers([]);
     }
   }, [projectUsers]);
   
@@ -108,13 +119,17 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       }
       
       onOpenChange(false);
+    } catch (error) {
+      console.error("Error submitting project:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
   
   const handleUserSelection = (userIds: string[]) => {
-    setSelectedUsers(userIds);
+    // Ensure userIds is always an array
+    const safeUserIds = Array.isArray(userIds) ? userIds : [];
+    setSelectedUsers(safeUserIds);
   };
   
   return (
