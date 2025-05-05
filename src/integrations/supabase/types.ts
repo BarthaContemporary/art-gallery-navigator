@@ -831,6 +831,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_projects: {
+        Args: { user_uuid: string }
+        Returns: string[]
+      }
       has_role: {
         Args: {
           _user_id: string

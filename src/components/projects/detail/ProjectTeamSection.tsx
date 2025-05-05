@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ProjectMember } from "@/hooks/projects/project-types";
+import { ProjectMember } from "@/hooks/projects/types/project-types";
 
 interface ProjectTeamSectionProps {
   projectMembers: ProjectMember[] | undefined;
@@ -23,7 +23,7 @@ export function ProjectTeamSection({ projectMembers }: ProjectTeamSectionProps) 
                 <Avatar>
                   <AvatarImage src={member.avatar_url || undefined} />
                   <AvatarFallback>
-                    {member.display_name?.substring(0, 2) || 'U'}
+                    {member.display_name?.substring(0, 2)?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm">{member.display_name || 'User'}</span>

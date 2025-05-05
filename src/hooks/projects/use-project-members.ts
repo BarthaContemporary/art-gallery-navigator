@@ -41,7 +41,7 @@ export function useProjectMembers(projectId: string | undefined) {
             project_id: item.project_id,
             display_name: profile?.display_name || null,
             avatar_url: profile?.avatar_url || null,
-            // We don't have email in profiles, so we'll use display_name as email
+            // Use display_name as email as well for compatibility with existing UI
             email: profile?.display_name || null
           };
         });

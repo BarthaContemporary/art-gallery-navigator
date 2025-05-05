@@ -29,7 +29,7 @@ export function ProjectUserEmailInput({
   }, [initialEmails]);
   
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Add email on Enter, comma, or space
+    // Add username on Enter, comma, or space
     if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
       addEmail();
@@ -75,7 +75,7 @@ export function ProjectUserEmailInput({
         onChange={(e) => setCurrentInput(e.target.value)}
         onKeyDown={handleInputKeyDown}
         onBlur={handleInputBlur}
-        placeholder="Enter username or email"
+        placeholder="Enter username"
         className="w-full"
       />
       

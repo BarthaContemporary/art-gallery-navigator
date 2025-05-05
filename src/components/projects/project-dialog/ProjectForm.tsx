@@ -14,7 +14,6 @@ import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
-import { supabase } from "@/integrations/supabase/client";
 import * as z from "zod";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
@@ -34,15 +33,15 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const [userEmails, setUserEmails] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Extract emails from project members when available
+  // Extract usernames from project members when available
   useEffect(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
-      // Simply extract emails from the flattened structure
-      const emails = projectMembers
-        .map(member => member.email)
-        .filter((email): email is string => !!email); // Filter out null/undefined
+      // Extract display names from the members
+      const usernames = projectMembers
+        .map(member => member.display_name)
+        .filter((name): name is string => !!name); // Filter out null/undefined
       
-      setUserEmails(emails);
+      setUserEmails(usernames);
     }
   }, [projectMembers]);
   
@@ -105,13 +104,13 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         <DateFields control={form.control} />
         
         <div className="space-y-2">
-          <label className="text-sm font-medium">Project Users (by Email)</label>
+          <label className="text-sm font-medium">Project Team Members (by Username)</label>
           <ProjectUserEmailInput
             onEmailsChange={handleEmailsChange}
             initialEmails={userEmails}
           />
           <p className="text-xs text-muted-foreground">
-            Enter email addresses of users to invite to this project
+            Enter usernames of team members to invite to this project
           </p>
         </div>
         
