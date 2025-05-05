@@ -14,6 +14,7 @@ import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
+import { supabase } from "@/integrations/supabase/client";
 import * as z from "zod";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
@@ -33,20 +34,35 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const [userEmails, setUserEmails] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Extract emails from project users when available
+  // Extract emails from project users when available - retrieve from another method
   useEffect(() => {
     try {
+      // If we have project users, we need to check for email addresses
       if (Array.isArray(projectUsers) && projectUsers.length > 0) {
-        // Extract emails from profiles data, with careful null checks
-        const emails: string[] = [];
-        
-        projectUsers.forEach(pu => {
-          if (pu.profiles && typeof pu.profiles === 'object' && pu.profiles.email) {
-            emails.push(pu.profiles.email);
+        // We'll query for emails separately since they might not be in the profiles data
+        const fetchUserEmails = async () => {
+          const userIds = projectUsers.map(pu => pu.user_id);
+          
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', userIds);
+            
+          if (error) {
+            console.error("Error fetching user emails:", error);
+            return;
           }
-        });
+          
+          if (data && data.length > 0) {
+            const emails = data
+              .filter(profile => profile.email)
+              .map(profile => profile.email as string);
+              
+            setUserEmails(emails);
+          }
+        };
         
-        setUserEmails(emails);
+        fetchUserEmails();
       }
     } catch (error) {
       console.error("Error processing project users:", error);

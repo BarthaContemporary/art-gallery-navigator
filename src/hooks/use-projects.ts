@@ -26,11 +26,12 @@ export interface ProjectWithLocation extends Project {
 export interface ProjectUser {
   user_id: string;
   project_id: string;
+  // Make profiles nullable and use a more flexible type
   profiles?: {
-    id: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    email: string | null;
+    id?: string;
+    display_name?: string | null;
+    avatar_url?: string | null;
+    email?: string | null;
   } | null;
 }
 
@@ -190,7 +191,7 @@ export function useUpdateProject() {
       if (error) throw error;
       
       // Update users if provided (by email)
-      if (user_emails) {
+      if (user_emails !== undefined) {
         try {
           // First delete all existing project users
           const { error: deleteError } = await supabase
@@ -323,18 +324,18 @@ export function useProjectUsers(projectId: string | undefined) {
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, display_name, avatar_url, email')
+          .select('id, display_name, avatar_url')
           .in('id', userIds);
         
         if (profilesError) throw profilesError;
         
         // Combine the data
         const result = projectUsersData.map(pu => {
-          const profile = profilesData?.find(p => p.id === pu.user_id) || null;
+          const profile = profilesData?.find(p => p.id === pu.user_id);
           return {
             user_id: pu.user_id,
             project_id: pu.project_id,
-            profiles: profile
+            profiles: profile || null
           };
         });
         
