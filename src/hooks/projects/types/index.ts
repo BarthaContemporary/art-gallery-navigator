@@ -1,6 +1,6 @@
 
 /**
- * Export all type definitions 
+ * Export all type definitions
  */
-export * from "./base-types";
+export * from "./project-types";
 export * from "./task-types";

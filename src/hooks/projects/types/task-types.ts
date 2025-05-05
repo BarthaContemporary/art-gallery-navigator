@@ -3,7 +3,7 @@
  * Task-related type definitions
  */
 
-// Define task-related types
+// Task with assignee
 export interface TaskWithAssignee {
   id: string;
   project_id: string;
@@ -21,6 +21,7 @@ export interface TaskWithAssignee {
   } | null;
 }
 
+// Create task input
 export interface CreateTaskInput {
   project_id: string;
   name: string;
@@ -35,6 +36,7 @@ export interface CreateTaskInput {
   }>;
 }
 
+// Update task input
 export interface UpdateTaskInput {
   id: string;
   data: Partial<CreateTaskInput>;
