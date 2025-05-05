@@ -16,6 +16,7 @@ import { DateFields } from "./DateFields";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
 import { toast } from "sonner";
 import * as z from "zod";
+import { useQueryClient } from "@tanstack/react-query";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
 
@@ -27,6 +28,7 @@ interface ProjectFormProps {
 export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
+  const queryClient = useQueryClient();
   
   // For existing projects, fetch associated members
   const { data: projectMembers = [], isLoading: isLoadingMembers, isError: membersError } = 
@@ -118,6 +120,11 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         });
       } else {
         await createProject.mutateAsync(projectData);
+      }
+      
+      // Force invalidate project members query to ensure the list is updated
+      if (project?.id) {
+        queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
       }
       
       onClose();

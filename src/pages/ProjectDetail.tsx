@@ -7,8 +7,9 @@ import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { ProjectCalendarView } from "@/components/projects/ProjectCalendarView";
 import { ProjectTaskDialog } from "@/components/projects/ProjectTaskDialog";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ProjectDetailHeader } from "@/components/projects/detail/ProjectDetailHeader";
 import { ProjectTeamSection } from "@/components/projects/detail/ProjectTeamSection";
@@ -19,6 +20,7 @@ const ProjectDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   
   // Add member dialog state
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -35,8 +37,21 @@ const ProjectDetail = () => {
     data: projectMembers,
     isLoading: membersLoading,
     isError: membersError,
-    error: membersErrorDetails 
+    error: membersErrorDetails,
+    refetch: refetchMembers
   } = useProjectMembers(id);
+  
+  // Force refresh project members when dialog closes
+  useEffect(() => {
+    if (!addMemberDialogOpen && id) {
+      // A small delay to ensure any database operations have completed
+      const timer = setTimeout(() => {
+        refetchMembers();
+        queryClient.invalidateQueries({ queryKey: ['project-members', id] });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [addMemberDialogOpen, id, refetchMembers, queryClient]);
   
   const { 
     data: projectTasks,
@@ -142,10 +157,22 @@ const ProjectDetail = () => {
   const handleAddMemberClick = () => {
     try {
       setAddMemberDialogOpen(true);
+      // Pre-fetch members to ensure we have the latest data
+      refetchMembers();
     } catch (error) {
       console.error("Error opening add member dialog:", error);
       toast.error("Failed to open add member dialog");
     }
+  };
+  
+  // Force close the member dialog and refresh data
+  const handleCloseMemberDialog = () => {
+    setAddMemberDialogOpen(false);
+    // Force refresh project members when dialog closes
+    setTimeout(() => {
+      refetchMembers();
+      queryClient.invalidateQueries({ queryKey: ['project-members', id] });
+    }, 300);
   };
   
   const isMember = userIsMember();
@@ -214,10 +241,10 @@ const ProjectDetail = () => {
         />
       )}
       
-      {/* Add Member Dialog */}
+      {/* Add Member Dialog - Using initialTab="members" to directly open the members tab */}
       <ProjectDialog
         open={addMemberDialogOpen}
-        onOpenChange={setAddMemberDialogOpen}
+        onOpenChange={handleCloseMemberDialog}
         project={project}
         initialTab="members"
       />

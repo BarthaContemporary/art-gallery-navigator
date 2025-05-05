@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,6 +39,7 @@ export function ProjectUserEmailInput({
         }
         
         if (!projectUsers || projectUsers.length === 0) {
+          setLoading(false);
           return;
         }
         
@@ -51,6 +52,7 @@ export function ProjectUserEmailInput({
         
         if (profilesError) {
           console.error("Error fetching profiles:", profilesError);
+          setLoading(false);
           return;
         }
         
@@ -58,7 +60,9 @@ export function ProjectUserEmailInput({
           const names = profiles
             .filter(p => p.display_name)
             .map(p => p.display_name as string);
+          
           setUsernames(names);
+          onEmailsChange(names); // Ensure parent component has up-to-date data
         }
       } catch (err) {
         console.error("Error in fetchMembers:", err);
@@ -68,7 +72,7 @@ export function ProjectUserEmailInput({
     }
     
     fetchMembers();
-  }, [projectId]);
+  }, [projectId, onEmailsChange]);
   
   // Update parent component when usernames change
   useEffect(() => {
@@ -82,7 +86,7 @@ export function ProjectUserEmailInput({
         initialEmails.length > 0) {
       setUsernames(initialEmails);
     }
-  }, [initialEmails]);
+  }, [initialEmails, usernames]);
   
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Add username on Enter, comma, or space
@@ -122,7 +126,12 @@ export function ProjectUserEmailInput({
   };
   
   if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading team members...</div>;
+    return (
+      <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Loading team members...
+      </div>
+    );
   }
   
   return (
