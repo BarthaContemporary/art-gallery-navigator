@@ -1,10 +1,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, Users, Landmark } from "lucide-react";
+import { Palette, Users, Landmark, Calendar, Folder, AlertCircle, FileUp } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
+import { Link } from "react-router-dom";
 
 const STATUS_COLORS: Record<string, string> = {
   "available": "bg-green-500",
@@ -32,23 +34,40 @@ function getStatusLabel(status: string) {
 
 const Dashboard = () => {
   const { data: stats, isLoading, error } = useDashboardStats();
+  const { isAdmin } = useAuth();
   
-  const statsCards = [{
-    title: "Total Artworks",
-    value: stats?.artworks_count ?? 0,
-    icon: <Palette className="h-5 w-5" />,
-    change: "Updated in real-time"
-  }, {
-    title: "Artists",
-    value: stats?.artists_count ?? 0,
-    icon: <Users className="h-5 w-5" />,
-    change: "Active artists"
-  }, {
-    title: "Locations",
-    value: stats?.locations_count ?? 0,
-    icon: <Landmark className="h-5 w-5" />,
-    change: "Gallery spaces"
-  }];
+  const statsCards = [
+    {
+      title: "Total Artworks",
+      value: stats?.artworks_count ?? 0,
+      icon: <Palette className="h-5 w-5" />,
+      change: "Updated in real-time"
+    }, 
+    {
+      title: "Artists",
+      value: stats?.artists_count ?? 0,
+      icon: <Users className="h-5 w-5" />,
+      change: "Active artists"
+    }, 
+    {
+      title: "Locations",
+      value: stats?.locations_count ?? 0,
+      icon: <Landmark className="h-5 w-5" />,
+      change: "Gallery spaces"
+    },
+    {
+      title: "Projects",
+      value: stats?.projects_count ?? 0,
+      icon: <Calendar className="h-5 w-5" />,
+      change: "Total projects"
+    },
+    {
+      title: "Collections",
+      value: stats?.collections_count ?? 0,
+      icon: <Folder className="h-5 w-5" />,
+      change: "Created collections"
+    }
+  ];
 
   const orderedStatuses = stats ? Object.entries(stats.inventory_statuses || {}).sort((a, b) => a[0].localeCompare(b[0])) : [];
 
@@ -93,6 +112,68 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Admin Notifications Section - Only visible to admins */}
+      {isAdmin && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Admin Notifications</h2>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            <Link to="/documents" className="no-underline">
+              <Card className={stats?.pending_deletions_count ? "border-amber-300 hover:border-amber-400 transition-colors" : ""}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">
+                    Pending Deletion Requests
+                  </CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {stats?.pending_deletions_count ?? 0}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {stats?.pending_deletions_count ? "Items awaiting review" : "No items awaiting review"}
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/file-transfer" className="no-underline">
+              <Card className={stats?.new_uploads_count ? "border-blue-300 hover:border-blue-400 transition-colors" : ""}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">
+                    Recent File Uploads
+                  </CardTitle>
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <FileUp className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {stats?.new_uploads_count ?? 0}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {stats?.new_uploads_count ? "New files in last 7 days" : "No new files in last 7 days"}
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mt-8">
         <Card>
