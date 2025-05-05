@@ -35,6 +35,7 @@ export function ProjectUserEmailInput({
           
         if (error) {
           console.error("Error fetching project users:", error);
+          setLoading(false);
           return;
         }
         
