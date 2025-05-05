@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreateProjectInput } from "../types/project-types";
+import type { CreateProjectInput } from "../types/project-types";
 
 export function useUpdateProject() {
   const queryClient = useQueryClient();
