@@ -18,4 +18,3 @@ createRoot(rootElement).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
-
