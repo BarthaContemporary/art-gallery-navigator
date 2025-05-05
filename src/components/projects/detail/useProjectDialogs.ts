@@ -1,8 +1,6 @@
-
 import { useState } from "react";
 import { useDialog } from "@/hooks/use-dialog";
-import { TaskWithAssignee } from "@/hooks/projects/types";
-import { ProjectWithLocation } from "@/hooks/projects/project-types";
+import { TaskWithAssignee, ProjectWithLocation } from "@/hooks/projects";
 
 export function useProjectDialogs() {
   const [taskToEdit, setTaskToEdit] = useState<TaskWithAssignee | null>(null);

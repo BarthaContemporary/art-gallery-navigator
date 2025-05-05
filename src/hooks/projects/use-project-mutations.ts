@@ -1,3 +1,3 @@
 
-// Re-export all project mutation hooks from the refactored files
+// Export all project mutation hooks
 export * from "./mutations";

@@ -11,7 +11,7 @@ import {
   useUpdateTask, 
   TaskWithAssignee, 
   useTaskReferences 
-} from "@/hooks/use-project-tasks";
+} from "@/hooks/projects";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
 
 import { taskFormSchema } from "./schema";

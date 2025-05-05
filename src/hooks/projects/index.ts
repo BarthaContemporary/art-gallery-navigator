@@ -15,7 +15,6 @@ export * from "./use-task-mutations";
 export * from "./use-task-references";
 
 // Export type definitions
-export * from "./project-types";
 export * from "./types";
 
 // Export project members hook
