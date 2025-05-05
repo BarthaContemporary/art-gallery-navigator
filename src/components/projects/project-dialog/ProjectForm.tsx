@@ -14,6 +14,7 @@ import { BasicInfoFields } from "./BasicInfoFields";
 import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
+import * as z from "zod"; // Added this import to fix the error
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
 
