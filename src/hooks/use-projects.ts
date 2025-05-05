@@ -22,11 +22,11 @@ export interface ProjectWithLocation extends Project {
   } | null;
 }
 
-// Simplified ProjectUser interface to prevent excessive type instantiation
+// Simplified ProjectUser interface with explicit types to prevent excessive type instantiation
 export interface ProjectUser {
   user_id: string;
   project_id: string;
-  profiles?: {
+  profiles: {
     id?: string;
     display_name?: string | null;
     avatar_url?: string | null;
@@ -298,7 +298,7 @@ export function useDeleteProject() {
   });
 }
 
-// Updated hook for better type safety and error handling
+// Completely rewritten hook to avoid type recursion issues
 export function useProjectUsers(projectId: string | undefined) {
   return useQuery({
     queryKey: ['project-users', projectId],
@@ -306,20 +306,17 @@ export function useProjectUsers(projectId: string | undefined) {
       if (!projectId) return [];
       
       try {
-        // First get the project_users entries
+        // Get project users first
         const { data: projectUsersData, error: projectUsersError } = await supabase
           .from('project_users')
-          .select('user_id, project_id');
+          .select('user_id, project_id')
+          .eq('project_id', projectId);
         
         if (projectUsersError) throw projectUsersError;
         if (!projectUsersData || projectUsersData.length === 0) return [];
         
-        // Filter to only include users for this project
-        const projectUsers = projectUsersData.filter(pu => pu.project_id === projectId);
-        if (projectUsers.length === 0) return [];
-        
-        // Now get the profiles for these users
-        const userIds = projectUsers.map(pu => pu.user_id);
+        // Get user profiles in a separate query
+        const userIds = projectUsersData.map(pu => pu.user_id);
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -328,15 +325,24 @@ export function useProjectUsers(projectId: string | undefined) {
         
         if (profilesError) throw profilesError;
         
-        // Combine the data with simplified structure
-        return projectUsers.map(pu => {
+        // Manually construct the result array without complex type mappings
+        const result: ProjectUser[] = [];
+        
+        for (const pu of projectUsersData) {
           const profile = profilesData?.find(p => p.id === pu.user_id);
-          return {
+          
+          result.push({
             user_id: pu.user_id,
             project_id: pu.project_id,
-            profiles: profile || null
-          };
-        }) as ProjectUser[];
+            profiles: profile ? {
+              id: profile.id,
+              display_name: profile.display_name,
+              avatar_url: profile.avatar_url
+            } : null
+          });
+        }
+        
+        return result;
       } catch (error) {
         console.error("Error fetching project users:", error);
         throw error;
