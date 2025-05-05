@@ -6,7 +6,7 @@ export * from "./use-projects-list";
 export * from "./use-project-detail";
 
 // Export project mutation hooks
-export * from "./mutations";
+export * from "./use-project-mutations";
 
 // Export task-related hooks
 export * from "./use-task-list";

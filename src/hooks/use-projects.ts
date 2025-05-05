@@ -5,6 +5,7 @@ import {
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
+  useProjectMembers,
   ProjectWithLocation,
   Project,
   ProjectMember,
