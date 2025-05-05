@@ -5,6 +5,12 @@ import { ProjectMember } from "./types/project-types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 
+// Define interface for the RPC return type to fix TypeScript errors
+interface ProjectUserRPC {
+  user_id: string;
+  project_id: string;
+}
+
 export function useProjectMembers(projectId: string | undefined) {
   const { user } = useAuth();
   
@@ -85,8 +91,11 @@ export function useProjectMembers(projectId: string | undefined) {
         
         if (!memberData || memberData.length === 0) return [];
         
+        // Cast memberData to the correct type with user_id property
+        const typedMemberData = memberData as unknown as ProjectUserRPC[];
+        
         // Get profile information for each member in a single query
-        const userIds = memberData.map(member => member.user_id);
+        const userIds = typedMemberData.map(member => member.user_id);
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -98,7 +107,7 @@ export function useProjectMembers(projectId: string | undefined) {
           toast.error("Could not load team members' information");
           
           // Return partial data with user_ids, but no profile details
-          return memberData.map(member => ({
+          return typedMemberData.map(member => ({
             user_id: member.user_id,
             project_id: projectId,
             display_name: null,
@@ -108,7 +117,7 @@ export function useProjectMembers(projectId: string | undefined) {
         }
         
         // Map the profile data to project members
-        return memberData.map(member => {
+        return typedMemberData.map(member => {
           const profile = profilesData?.find(p => p.id === member.user_id);
           
           return {
