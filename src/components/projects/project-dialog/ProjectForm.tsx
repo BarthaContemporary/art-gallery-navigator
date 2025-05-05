@@ -57,7 +57,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
             const emails: string[] = [];
             
             data.forEach(profile => {
-              if (profile && typeof profile === 'object' && 'email' in profile && typeof profile.email === 'string') {
+              if (profile && typeof profile === 'object' && profile !== null && 'email' in profile && typeof profile.email === 'string') {
                 emails.push(profile.email);
               }
             });

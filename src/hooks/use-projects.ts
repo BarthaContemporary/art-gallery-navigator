@@ -297,7 +297,7 @@ export function useDeleteProject() {
   });
 }
 
-// Hook to get users for a project - improved with better error handling
+// Hook to get users for a project - fixed for better type safety and error handling
 export function useProjectUsers(projectId: string | undefined) {
   return useQuery({
     queryKey: ['project-users', projectId],
