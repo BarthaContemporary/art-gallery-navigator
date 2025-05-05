@@ -29,7 +29,7 @@ export function ProjectUserEmailInput({
       setLoading(true);
       try {
         // First fetch the project users
-        const { data: projectUsers, error } = await supabase
+        const { data: memberIds, error } = await supabase
           .from('project_users')
           .select('user_id')
           .eq('project_id', projectId);
@@ -40,13 +40,13 @@ export function ProjectUserEmailInput({
           return;
         }
         
-        if (!projectUsers || projectUsers.length === 0) {
+        if (!memberIds || memberIds.length === 0) {
           setLoading(false);
           return;
         }
         
         // Then get the display names from profiles
-        const userIds = projectUsers.map(pu => pu.user_id);
+        const userIds = memberIds.map(pu => pu.user_id);
         
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')

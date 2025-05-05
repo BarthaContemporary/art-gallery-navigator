@@ -34,7 +34,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
   const [error, setError] = useState<string | null>(null);
   const [emails, setEmails] = useState<string[]>([]);
   const queryClient = useQueryClient();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   
   const handleSaveMembers = async () => {
     if (!projectId || emails.length === 0) {
@@ -46,7 +46,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
     setError(null);
     
     try {
-      // First get existing profiles that match the entered emails/display names
+      // First get profiles that match the entered display names
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name')
@@ -62,8 +62,6 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         return;
       }
       
-      // Instead of checking existing members, just try to insert directly
-      // and handle duplicates gracefully
       let successCount = 0;
       const failedNames: string[] = [];
       
