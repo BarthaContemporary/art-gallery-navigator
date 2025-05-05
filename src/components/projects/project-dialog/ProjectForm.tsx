@@ -34,18 +34,18 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const [userEmails, setUserEmails] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Extract emails from project users when available - retrieve from another method
+  // Extract emails from project users when available - retrieve via separate query
   useEffect(() => {
     try {
-      // If we have project users, we need to check for email addresses
+      // If we have project users, fetch their email addresses
       if (Array.isArray(projectUsers) && projectUsers.length > 0) {
-        // We'll query for emails separately since they might not be in the profiles data
         const fetchUserEmails = async () => {
           const userIds = projectUsers.map(pu => pu.user_id);
           
+          // Query the profiles table specifically for email
           const { data, error } = await supabase
             .from('profiles')
-            .select('id, email')
+            .select('email')
             .in('id', userIds);
             
           if (error) {
@@ -54,9 +54,11 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
           }
           
           if (data && data.length > 0) {
+            // Filter out any undefined emails and extract the email strings
             const emails = data
               .filter(profile => profile.email)
-              .map(profile => profile.email as string);
+              .map(profile => profile.email)
+              .filter(Boolean) as string[];
               
             setUserEmails(emails);
           }

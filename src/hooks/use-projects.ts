@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,12 +25,10 @@ export interface ProjectWithLocation extends Project {
 export interface ProjectUser {
   user_id: string;
   project_id: string;
-  // Make profiles nullable and use a more flexible type
   profiles?: {
     id?: string;
     display_name?: string | null;
     avatar_url?: string | null;
-    email?: string | null;
   } | null;
 }
 
