@@ -1,5 +1,5 @@
 
-import { ProjectDialog } from "@/components/projects/ProjectDialog";
+import { ProjectDialog } from "@/components/projects/project-dialog/ProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { ProjectCalendarView } from "@/components/projects/ProjectCalendarView";
 import { ProjectTaskDialog } from "@/components/projects/ProjectTaskDialog";
