@@ -25,20 +25,17 @@ export function useCreateProject() {
         return project;
       }
       
-      // Add the current user as a project member first
       try {
-        const { error: currentUserError } = await supabase.auth.getUser();
+        // Add the current user as a project member first
+        const currentUser = await supabase.auth.getUser();
         
-        if (!currentUserError) {
-          const currentUser = await supabase.auth.getUser();
-          if (currentUser && currentUser.data.user) {
-            await supabase
-              .from('project_users')
-              .insert({
-                project_id: project.id,
-                user_id: currentUser.data.user.id
-              });
-          }
+        if (!currentUser.error && currentUser.data.user) {
+          await supabase
+            .from('project_users')
+            .insert({
+              project_id: project.id,
+              user_id: currentUser.data.user.id
+            });
         }
       } catch (err) {
         console.error("Error adding current user to project:", err);
@@ -46,6 +43,9 @@ export function useCreateProject() {
       }
       
       // Find users by their display_name and add them individually
+      const addedUsers = [];
+      const notFoundUsers = [];
+      
       for (const username of user_emails) {
         try {
           // Find user by display_name
@@ -62,6 +62,7 @@ export function useCreateProject() {
           
           if (users && users.length > 0) {
             const userId = users[0].id;
+            addedUsers.push(username);
             
             // Add user to project
             const { error: insertError } = await supabase
@@ -73,15 +74,19 @@ export function useCreateProject() {
             
             if (insertError) {
               console.error(`Error adding user ${username} to project:`, insertError);
-              // Continue with other users
             }
           } else {
+            notFoundUsers.push(username);
             console.log(`User with username ${username} not found`);
           }
         } catch (err) {
           console.error(`Error processing user ${username}:`, err);
-          // Continue with other users
         }
+      }
+      
+      // Provide feedback about users that couldn't be found
+      if (notFoundUsers.length > 0) {
+        toast.warning(`Some users could not be found: ${notFoundUsers.join(', ')}`);
       }
       
       return project;
