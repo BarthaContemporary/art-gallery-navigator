@@ -22,15 +22,13 @@ export interface ProjectWithLocation extends Project {
   } | null;
 }
 
-// Simplified ProjectUser interface with explicit types to prevent excessive type instantiation
+// Use a flattened structure to avoid recursive type definitions
 export interface ProjectUser {
   user_id: string;
   project_id: string;
-  profiles: {
-    id?: string;
-    display_name?: string | null;
-    avatar_url?: string | null;
-  } | null;
+  // Use a simple structure for profiles
+  profile_display_name: string | null;
+  profile_avatar_url: string | null;
 }
 
 export interface CreateProjectInput {
