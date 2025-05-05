@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -305,38 +306,43 @@ export function useProjectUsers(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
       
-      // First get the project_users entries
-      const { data: projectUsersData, error: projectUsersError } = await supabase
-        .from('project_users')
-        .select('user_id')
-        .eq('project_id', projectId);
-      
-      if (projectUsersError) throw projectUsersError;
-      
-      // If there are no users associated with this project, return an empty array
-      if (!projectUsersData || projectUsersData.length === 0) return [];
-      
-      // Now get the profiles for these users
-      const userIds = projectUsersData.map(pu => pu.user_id);
-      
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url, email')
-        .in('id', userIds);
-      
-      if (profilesError) throw profilesError;
-      
-      // Combine the data
-      const result = projectUsersData.map(pu => {
-        const profile = profilesData?.find(p => p.id === pu.user_id);
-        return {
-          user_id: pu.user_id,
-          project_id: projectId,
-          profiles: profile || null
-        };
-      });
-      
-      return result as ProjectUser[];
+      try {
+        // First get the project_users entries
+        const { data: projectUsersData, error: projectUsersError } = await supabase
+          .from('project_users')
+          .select('user_id, project_id')
+          .eq('project_id', projectId);
+        
+        if (projectUsersError) throw projectUsersError;
+        
+        // If there are no users associated with this project, return an empty array
+        if (!projectUsersData || projectUsersData.length === 0) return [];
+        
+        // Now get the profiles for these users
+        const userIds = projectUsersData.map(pu => pu.user_id);
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, email')
+          .in('id', userIds);
+        
+        if (profilesError) throw profilesError;
+        
+        // Combine the data
+        const result = projectUsersData.map(pu => {
+          const profile = profilesData?.find(p => p.id === pu.user_id) || null;
+          return {
+            user_id: pu.user_id,
+            project_id: pu.project_id,
+            profiles: profile
+          };
+        });
+        
+        return result as ProjectUser[];
+      } catch (error) {
+        console.error("Error fetching project users:", error);
+        throw error;
+      }
     },
     enabled: !!projectId
   });

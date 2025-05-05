@@ -37,11 +37,15 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   useEffect(() => {
     try {
       if (Array.isArray(projectUsers) && projectUsers.length > 0) {
-        // Extract emails from profiles data
-        const emails = projectUsers
-          .filter(pu => pu.profiles && pu.profiles.email)
-          .map(pu => pu.profiles!.email!)
-          .filter(Boolean) as string[];
+        // Extract emails from profiles data, with careful null checks
+        const emails: string[] = [];
+        
+        projectUsers.forEach(pu => {
+          if (pu.profiles && typeof pu.profiles === 'object' && pu.profiles.email) {
+            emails.push(pu.profiles.email);
+          }
+        });
+        
         setUserEmails(emails);
       }
     } catch (error) {
