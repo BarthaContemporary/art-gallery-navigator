@@ -1,4 +1,13 @@
 
+// Export project list hook
+export * from "./use-projects-list";
+
+// Export project detail hook
+export * from "./use-project-detail";
+
+// Export project mutation hooks
+export * from "./use-project-mutations";
+
 // Export task-related hooks
 export * from "./use-task-list";
 export * from "./use-task-detail";
