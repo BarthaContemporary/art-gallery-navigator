@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import React from 'react'
 import App from './App.tsx'
 import './index.css'
+import { ErrorBoundary } from './components/ui/error-boundary'
 
 // Make sure we're rendering the app correctly
 const rootElement = document.getElementById("root");
@@ -12,6 +13,9 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
+

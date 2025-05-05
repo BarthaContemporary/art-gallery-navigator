@@ -24,7 +24,7 @@ export function ProjectUserEmailInput({
   
   // Update internal state when initialEmails changes
   useEffect(() => {
-    if (initialEmails && 
+    if (Array.isArray(initialEmails) && 
         JSON.stringify(initialEmails) !== JSON.stringify(usernames) &&
         initialEmails.length > 0) {
       setUsernames(initialEmails);
@@ -54,12 +54,12 @@ export function ProjectUserEmailInput({
       return;
     }
     
-    setUsernames(prev => [...prev, trimmedInput]);
+    setUsernames(prev => [...(prev || []), trimmedInput]);
     setCurrentInput("");
   };
   
   const removeUsername = (usernameToRemove: string) => {
-    setUsernames(prev => prev.filter(username => username !== usernameToRemove));
+    setUsernames(prev => (prev || []).filter(username => username !== usernameToRemove));
   };
   
   const handleInputBlur = () => {
@@ -71,7 +71,7 @@ export function ProjectUserEmailInput({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2 mb-2">
-        {usernames.map((username, index) => (
+        {usernames && usernames.map((username, index) => (
           <Badge key={`${username}-${index}`} variant="secondary" className="px-3 py-1">
             {username}
             <X 

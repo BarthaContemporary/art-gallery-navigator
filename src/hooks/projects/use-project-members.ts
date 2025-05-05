@@ -16,10 +16,14 @@ export function useProjectMembers(projectId: string | undefined) {
           .select('user_id')
           .eq('project_id', projectId);
         
-        if (memberError) throw memberError;
+        if (memberError) {
+          console.error("Error fetching project members:", memberError);
+          throw memberError;
+        }
+        
         if (!memberData || memberData.length === 0) return [];
         
-        // Get profile information for each member in a separate query to avoid recursion
+        // Get profile information for each member in a single query
         const userIds = memberData.map(member => member.user_id);
         
         const { data: profilesData, error: profilesError } = await supabase
@@ -27,7 +31,17 @@ export function useProjectMembers(projectId: string | undefined) {
           .select('id, display_name, avatar_url')
           .in('id', userIds);
           
-        if (profilesError) throw profilesError;
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          return memberData.map(member => ({
+            user_id: member.user_id,
+            project_id: projectId,
+            display_name: null,
+            avatar_url: null,
+            email: null
+          }));
+        }
+        
         if (!profilesData) return [];
         
         // Map the profile data to project members
@@ -39,17 +53,18 @@ export function useProjectMembers(projectId: string | undefined) {
             project_id: projectId,
             display_name: profile?.display_name || null,
             avatar_url: profile?.avatar_url || null,
-            email: profile?.display_name || null
+            email: profile?.display_name || null  // Using display_name as email as per original code
           };
         });
       } catch (error) {
-        console.error("Error fetching project members:", error);
-        throw error;
+        console.error("Error in useProjectMembers:", error);
+        return []; // Return empty array instead of throwing to prevent app from crashing
       }
     },
     enabled: !!projectId,
-    // Add error handling and stale time settings
+    // Add reasonable error handling and stale time settings
     retry: 1,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchOnWindowFocus: false,
   });
 }

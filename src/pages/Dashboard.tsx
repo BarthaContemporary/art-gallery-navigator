@@ -4,6 +4,7 @@ import { Palette, Users, Landmark } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_COLORS: Record<string, string> = {
   "available": "bg-green-500",
@@ -30,33 +31,45 @@ function getStatusLabel(status: string) {
 }
 
 const Dashboard = () => {
-  const { data: stats, isLoading } = useDashboardStats();
+  const { data: stats, isLoading, error } = useDashboardStats();
   
   const statsCards = [{
     title: "Total Artworks",
-    value: stats?.artworks_count || 0,
+    value: stats?.artworks_count ?? 0,
     icon: <Palette className="h-5 w-5" />,
     change: "Updated in real-time"
   }, {
     title: "Artists",
-    value: stats?.artists_count || 0,
+    value: stats?.artists_count ?? 0,
     icon: <Users className="h-5 w-5" />,
     change: "Active artists"
   }, {
     title: "Locations",
-    value: stats?.locations_count || 0,
+    value: stats?.locations_count ?? 0,
     icon: <Landmark className="h-5 w-5" />,
     change: "Gallery spaces"
   }];
 
-  const orderedStatuses = stats ? Object.entries(stats.inventory_statuses).sort((a, b) => a[0].localeCompare(b[0])) : [];
+  const orderedStatuses = stats ? Object.entries(stats.inventory_statuses || {}).sort((a, b) => a[0].localeCompare(b[0])) : [];
+
+  if (error) {
+    return (
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <PageHeader title="DASHBOARD" />
+        <div className="text-red-500 p-4 border border-red-200 rounded-md mt-4">
+          Error loading dashboard data. Please refresh the page or try again later.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="DASHBOARD" />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {statsCards.map((stat, index) => <Card key={index}>
+        {statsCards.map((stat, index) => (
+          <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium">
                 {stat.title}
@@ -66,12 +79,19 @@ const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stat.change}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stat.change}
+                  </p>
+                </>
+              )}
             </CardContent>
-          </Card>)}
+          </Card>
+        ))}
       </div>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mt-8">
@@ -81,22 +101,37 @@ const Dashboard = () => {
             <CardDescription>Latest updates to your gallery inventory</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {stats?.recent_activities.map((activity, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <div className={`h-2 w-2 rounded-full ${ACTIVITY_COLORS[activity.color] || "bg-gray-400"}`}></div>
-                  <div>
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(activity.timestamp), "MMMM d, yyyy 'at' HH:mm")}
-                    </p>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="flex items-center gap-4">
+                    <Skeleton className="h-2 w-2 rounded-full" />
+                    <div className="w-full">
+                      <Skeleton className="h-4 w-36 mb-1" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
                   </div>
-                </div>
-              ))}
-              {(!stats?.recent_activities || stats.recent_activities.length === 0) && (
-                <div className="text-muted-foreground text-sm">No recent activities found.</div>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {stats?.recent_activities && stats.recent_activities.length > 0 ? (
+                  stats.recent_activities.map((activity, index) => (
+                    <div key={index} className="flex items-center gap-4">
+                      <div className={`h-2 w-2 rounded-full ${ACTIVITY_COLORS[activity.color] || "bg-gray-400"}`}></div>
+                      <div>
+                        <p className="text-sm font-medium">{activity.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(activity.timestamp), "MMMM d, yyyy 'at' HH:mm")}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-muted-foreground text-sm">No recent activities found.</div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -106,18 +141,35 @@ const Dashboard = () => {
             <CardDescription>Current status of artworks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {orderedStatuses.map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-3 w-3 rounded-full ${STATUS_COLORS[status] || "bg-gray-400"}`}></div>
-                    <span className="text-sm">{getStatusLabel(status)}</span>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-3 w-3 rounded-full" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                    <Skeleton className="h-4 w-8" />
                   </div>
-                  <span className="font-medium">{count}</span>
-                </div>
-              ))}
-              {orderedStatuses.length === 0 && <div className="text-muted-foreground text-sm">No inventory works found.</div>}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orderedStatuses.length > 0 ? (
+                  orderedStatuses.map(([status, count]) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-3 w-3 rounded-full ${STATUS_COLORS[status] || "bg-gray-400"}`}></div>
+                        <span className="text-sm">{getStatusLabel(status)}</span>
+                      </div>
+                      <span className="font-medium">{count}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-muted-foreground text-sm">No inventory works found.</div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
