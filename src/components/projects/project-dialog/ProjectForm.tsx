@@ -14,6 +14,7 @@ import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
+import { toast } from "sonner";
 import * as z from "zod";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
@@ -28,15 +29,15 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const updateProject = useUpdateProject();
   
   // For existing projects, fetch associated members
-  const { data: projectMembers = [] } = useProjectMembers(project?.id);
+  const { data: projectMembers = [], isLoading: isLoadingMembers } = useProjectMembers(project?.id);
   
   const [userNames, setUserNames] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   // Extract usernames from project members when available
   useEffect(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
-      // Extract display names from the members
       const names = projectMembers
         .map(member => member.display_name)
         .filter((name): name is string => !!name); // Filter out null/undefined
@@ -60,18 +61,42 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   });
   
   const onSubmit = async (values: FormValues) => {
+    setFormError(null);
     setIsSubmitting(true);
+    
     try {
+      if (!values.name.trim()) {
+        setFormError("Project name is required");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Validate dates
+      const startDate = new Date(values.start_date);
+      const endDate = new Date(values.end_date);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        setFormError("Invalid date format");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (startDate > endDate) {
+        setFormError("End date must be after start date");
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Ensure all required fields are present
       const projectData: CreateProjectInput = {
-        name: values.name,
-        description: values.description,
+        name: values.name.trim(),
+        description: values.description?.trim() || null,
         status: values.status,
         type: values.type,
-        location_id: values.location_id,
+        location_id: values.location_id || null,
         start_date: values.start_date,
         end_date: values.end_date,
-        user_emails: userNames,
+        user_emails: userNames.filter(name => name.trim() !== ""),
       };
       
       if (project) {
@@ -81,8 +106,9 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
       }
       
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting project:", error);
+      setFormError(error?.message || "An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,16 +130,26 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         <DateFields control={form.control} />
         
         <div className="space-y-2">
-          <label className="text-sm font-medium">Project Team Members (by Username)</label>
-          <ProjectUserEmailInput
-            onEmailsChange={handleUserNamesChange}
-            initialEmails={userNames}
-          />
+          <label className="text-sm font-medium">Project Team Members</label>
+          
+          {isLoadingMembers && project ? (
+            <div className="text-sm text-muted-foreground">Loading team members...</div>
+          ) : (
+            <ProjectUserEmailInput
+              onEmailsChange={handleUserNamesChange}
+              initialEmails={userNames}
+            />
+          )}
+          
           <p className="text-xs text-muted-foreground">
-            Enter display names (usernames) of team members to invite to this project.
+            Enter display names of team members to invite to this project.
             This will grant them access to view and edit the project.
           </p>
         </div>
+        
+        {formError && (
+          <div className="text-sm font-medium text-destructive">{formError}</div>
+        )}
         
         <DialogFooter>
           <Button

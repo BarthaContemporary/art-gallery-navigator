@@ -9,110 +9,137 @@ export function useUpdateProject() {
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string, data: Partial<CreateProjectInput> }) => {
-      const { user_emails, ...projectData } = data;
-      
-      // Update the project
-      const { error } = await supabase
-        .from('projects')
-        .update(projectData)
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      // Update users if provided (by username/display_name)
-      if (user_emails !== undefined) {
-        try {
-          // Get current user
-          const currentUser = await supabase.auth.getUser();
-          if (currentUser.error) {
-            throw currentUser.error;
-          }
-          
-          const currentUserId = currentUser.data.user?.id;
-          if (!currentUserId) {
-            throw new Error("Could not determine current user");
-          }
-          
-          // Delete all existing project users except the current user
-          const { error: deleteError } = await supabase
-            .from('project_users')
-            .delete()
-            .eq('project_id', id)
-            .neq('user_id', currentUserId);
-          
-          if (deleteError) {
-            console.error("Error deleting existing project users:", deleteError);
-          }
-          
-          // Track users that couldn't be found
-          const notFoundUsers = [];
-          
-          // Then add users one by one by username/display_name
-          if (user_emails.length > 0) {
-            for (const username of user_emails) {
-              try {
-                // Find user by display_name
-                const { data: users, error: findError } = await supabase
-                  .from('profiles')
-                  .select('id')
-                  .eq('display_name', username)
-                  .limit(1);
-                
-                if (findError) {
-                  console.error(`Error finding user with username ${username}:`, findError);
-                  continue;
-                }
-                
-                if (users && users.length > 0) {
-                  const userId = users[0].id;
-                  
-                  // Check if this user is already added to avoid duplicates
-                  const { data: existingUser } = await supabase
-                    .from('project_users')
-                    .select('id')
-                    .eq('project_id', id)
-                    .eq('user_id', userId)
-                    .limit(1);
-                  
-                  if (!existingUser || existingUser.length === 0) {
-                    // Add user to project
-                    await supabase
-                      .from('project_users')
-                      .insert({
-                        project_id: id,
-                        user_id: userId
-                      });
-                  }
-                } else {
-                  notFoundUsers.push(username);
-                  console.log(`User with username ${username} not found`);
-                }
-              } catch (err) {
-                console.error(`Error processing user ${username}:`, err);
-              }
-            }
-          }
-          
-          // Provide feedback about users that couldn't be found
-          if (notFoundUsers.length > 0) {
-            toast.warning(`Some users could not be found: ${notFoundUsers.join(', ')}`);
-          }
-        } catch (error) {
-          console.error("Error updating users by username:", error);
-          toast.error("Error updating team members");
-        }
+      if (!id) {
+        throw new Error("Project ID is required for updating");
       }
       
-      return { id };
+      try {
+        const { user_emails, ...projectData } = data;
+        
+        // Update the project
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', id);
+        
+        if (updateError) {
+          console.error("Error updating project:", updateError);
+          throw new Error(`Failed to update project: ${updateError.message}`);
+        }
+        
+        // Update users if provided
+        if (user_emails !== undefined) {
+          try {
+            // Get current user
+            const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();
+            
+            if (currentUserError) {
+              throw new Error(`Error getting current user: ${currentUserError.message}`);
+            }
+            
+            const currentUserId = currentUserData?.user?.id;
+            if (!currentUserId) {
+              throw new Error("No current user found, authentication may be required");
+            }
+            
+            // First ensure current user is a member (if not already)
+            const { data: existingMembership } = await supabase
+              .from('project_users')
+              .select('id')
+              .eq('project_id', id)
+              .eq('user_id', currentUserId)
+              .maybeSingle();
+            
+            if (!existingMembership) {
+              // Add current user to ensure they don't lose access
+              await supabase
+                .from('project_users')
+                .insert({
+                  project_id: id,
+                  user_id: currentUserId
+                });
+            }
+            
+            // Delete existing project users except the current user
+            const { error: deleteError } = await supabase
+              .from('project_users')
+              .delete()
+              .eq('project_id', id)
+              .neq('user_id', currentUserId);
+            
+            if (deleteError) {
+              console.error("Error removing existing project users:", deleteError);
+              // Continue anyway, we'll try to add the new users
+            }
+            
+            // Track users that couldn't be found
+            const notFoundUsers = [];
+            
+            // Then add users one by one
+            if (user_emails && user_emails.length > 0) {
+              for (const username of user_emails) {
+                try {
+                  if (!username.trim()) continue;
+                  
+                  // Skip if this is the current user (already ensured above)
+                  const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('display_name', username.trim())
+                    .limit(1);
+                  
+                  if (!profileData || profileData.length === 0) {
+                    notFoundUsers.push(username);
+                    continue;
+                  }
+                  
+                  const userId = profileData[0].id;
+                  
+                  // Skip if this is the current user (already ensured above)
+                  if (userId === currentUserId) continue;
+                  
+                  // Add user to project
+                  const { error: insertError } = await supabase
+                    .from('project_users')
+                    .insert({
+                      project_id: id,
+                      user_id: userId
+                    });
+                  
+                  if (insertError) {
+                    console.error(`Error adding user ${username} to project:`, insertError);
+                  }
+                } catch (err) {
+                  console.error(`Error processing user ${username}:`, err);
+                }
+              }
+            }
+            
+            if (notFoundUsers.length > 0) {
+              toast.warning(`Some users could not be found: ${notFoundUsers.join(', ')}`);
+            }
+            
+          } catch (error) {
+            console.error("Error updating project users:", error);
+            toast.error("Some team members couldn't be added to the project");
+          }
+        }
+        
+        return { id };
+      } catch (error) {
+        console.error("Project update failed:", error);
+        throw error;
+      }
     },
     onSuccess: (_, variables) => {
       toast.success("Project updated successfully");
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['project', variables.id] });
     },
-    onError: (error) => {
-      console.error("Error updating project:", error);
-      toast.error("Failed to update project");
+    onError: (error: any) => {
+      console.error("Error in update project mutation:", error);
+      const errorMessage = error?.message || "Failed to update project";
+      toast.error(errorMessage);
     }
   });
 }
