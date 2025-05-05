@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -23,6 +22,16 @@ export interface ProjectWithLocation extends Project {
   } | null;
 }
 
+export interface ProjectUser {
+  user_id: string;
+  profiles: {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    email: string;
+  };
+}
+
 export interface CreateProjectInput {
   name: string;
   description?: string;
@@ -31,7 +40,7 @@ export interface CreateProjectInput {
   location_id?: string;
   start_date: string;
   end_date: string;
-  user_emails?: string[]; // Changed from users to user_emails
+  user_emails?: string[];
 }
 
 export function useProjects(filters?: {
@@ -136,16 +145,17 @@ export function useCreateProject() {
           }
           
           // For unmatched emails, we could implement an invitation system later
-          const foundEmails = foundUsers.map(u => u.email);
-          const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
-          
-          if (unmatchedEmails.length > 0) {
-            console.log("Some emails were not matched to users:", unmatchedEmails);
-            // We'll just notify the user in the UI
+          if (foundUsers) {
+            // Safely access foundUsers array
+            const foundEmails = foundUsers.map(u => u.email).filter(Boolean);
+            const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
+            
+            if (unmatchedEmails.length > 0) {
+              console.log("Some emails were not matched to users:", unmatchedEmails);
+            }
           }
         } catch (userError) {
           console.error("Error adding users by email:", userError);
-          // We'll continue with the project creation even if adding users fails
         }
       }
       
@@ -213,17 +223,20 @@ export function useUpdateProject() {
             }
             
             // For emails that don't match any user, we could implement invitations later
-            const foundEmails = foundUsers.map(u => u.email);
-            const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
-            
-            if (unmatchedEmails.length > 0) {
-              console.log("Some emails were not matched to users:", unmatchedEmails);
-              // We'll just notify the user in the UI
+            if (foundUsers) {
+              // Type-safe access to emails
+              const foundEmails = user_emails.filter(email => 
+                foundUsers.some(user => user.email === email)
+              );
+              const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
+              
+              if (unmatchedEmails.length > 0) {
+                console.log("Some emails were not matched to users:", unmatchedEmails);
+              }
             }
           }
         } catch (userError) {
           console.error("Error updating users by email:", userError);
-          // We'll continue with the project update even if updating users fails
         }
       }
       
@@ -302,7 +315,7 @@ export function useProjectUsers(projectId: string | undefined) {
         .eq('project_id', projectId);
       
       if (error) throw error;
-      return data;
+      return data as ProjectUser[];
     },
     enabled: !!projectId
   });

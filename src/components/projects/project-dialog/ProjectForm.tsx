@@ -75,7 +75,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         location_id: values.location_id,
         start_date: values.start_date,
         end_date: values.end_date,
-        user_emails: userEmails, // Changed from users to user_emails
+        user_emails: userEmails,
       };
       
       if (project) {
