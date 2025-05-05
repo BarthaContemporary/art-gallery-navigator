@@ -19,62 +19,77 @@ export function useUpdateProject() {
       
       if (error) throw error;
       
-      // Update users if provided (by username)
+      // Update users if provided (by username/display_name)
       if (user_emails !== undefined) {
         try {
-          // First delete all existing project users
-          const { error: deleteError } = await supabase
-            .from('project_users')
-            .delete()
-            .eq('project_id', id);
-          
-          if (deleteError) {
-            console.error("Error deleting existing project users:", deleteError);
-            // Continue despite the error
-          }
-          
-          // Then add users by username
-          if (user_emails.length > 0) {
-            // Find users by matching their display_name with provided usernames
-            const { data: foundUsers, error: userError } = await supabase
-              .from('profiles')
-              .select('id, display_name')
-              .in('display_name', user_emails);
+          // First delete all existing project users except the current user
+          const currentUser = await supabase.auth.getUser();
+          if (currentUser.error) {
+            console.error("Error getting current user:", currentUser.error);
+          } else {
+            const currentUserId = currentUser.data.user?.id;
             
-            if (userError) {
-              console.error("Error finding users:", userError);
-              // Log error but continue
-            }
-            
-            // Add found users to the project one by one to avoid RLS recursion
-            if (foundUsers && foundUsers.length > 0) {
-              for (const user of foundUsers) {
-                try {
-                  const { error: insertError } = await supabase
-                    .from('project_users')
-                    .insert({
-                      project_id: id,
-                      user_id: user.id
-                    });
-                  
-                  if (insertError) {
-                    console.error("Error adding user to project:", insertError);
-                  }
-                } catch (err) {
-                  console.error("Exception adding user to project:", err);
-                }
+            // Delete all existing project users except the current user
+            if (currentUserId) {
+              const { error: deleteError } = await supabase
+                .from('project_users')
+                .delete()
+                .eq('project_id', id)
+                .neq('user_id', currentUserId);
+              
+              if (deleteError) {
+                console.error("Error deleting existing project users:", deleteError);
+                // Continue despite the error
               }
             }
-            
-            // Log usernames that don't match any user
-            if (foundUsers) {
-              const unmatchedUsernames = user_emails.filter(username => 
-                !foundUsers.some(user => user.display_name === username)
-              );
-              
-              if (unmatchedUsernames.length > 0) {
-                console.log("Some users were not found:", unmatchedUsernames);
-                toast.warning(`${unmatchedUsernames.length} username(s) not found.`);
+          }
+          
+          // Then add users one by one by username/display_name
+          if (user_emails.length > 0) {
+            for (const username of user_emails) {
+              try {
+                // Find user by display_name
+                const { data: users, error: findError } = await supabase
+                  .from('profiles')
+                  .select('id')
+                  .eq('display_name', username)
+                  .limit(1);
+                
+                if (findError) {
+                  console.error(`Error finding user with username ${username}:`, findError);
+                  continue;
+                }
+                
+                if (users && users.length > 0) {
+                  const userId = users[0].id;
+                  
+                  // Check if this user is already added to avoid duplicates
+                  const { data: existingUser } = await supabase
+                    .from('project_users')
+                    .select('id')
+                    .eq('project_id', id)
+                    .eq('user_id', userId)
+                    .limit(1);
+                  
+                  if (!existingUser || existingUser.length === 0) {
+                    // Add user to project
+                    const { error: insertError } = await supabase
+                      .from('project_users')
+                      .insert({
+                        project_id: id,
+                        user_id: userId
+                      });
+                    
+                    if (insertError) {
+                      console.error(`Error adding user ${username} to project:`, insertError);
+                    }
+                  }
+                } else {
+                  console.log(`User with username ${username} not found`);
+                  // Collect usernames that don't match any user for warning
+                }
+              } catch (err) {
+                console.error(`Error processing user ${username}:`, err);
               }
             }
           }

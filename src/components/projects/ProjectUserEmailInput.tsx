@@ -80,7 +80,7 @@ export function ProjectUserEmailInput({
       />
       
       <p className="text-xs text-muted-foreground mt-1">
-        Press Enter, comma, space, or click outside to add each username
+        Press Enter, comma, space, or click outside to add each username. Use display names, not email addresses.
       </p>
     </div>
   );

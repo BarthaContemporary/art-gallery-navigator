@@ -110,7 +110,8 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
             initialEmails={userNames}
           />
           <p className="text-xs text-muted-foreground">
-            Enter display names of team members to invite to this project
+            Enter display names (usernames) of team members to invite to this project.
+            This will grant them access to view and edit the project.
           </p>
         </div>
         
