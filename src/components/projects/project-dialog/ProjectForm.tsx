@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,8 +58,13 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
             const emails: string[] = [];
             
             data.forEach(profile => {
-              if (profile && typeof profile === 'object' && profile !== null && 'email' in profile && typeof profile.email === 'string') {
-                emails.push(profile.email);
+              // Make sure profile is a valid object and has an email property
+              if (profile && typeof profile === 'object' && profile !== null) {
+                // TypeScript fix: Use type assertion after checking profile is an object
+                const profileObj = profile as { email?: string };
+                if (profileObj.email && typeof profileObj.email === 'string') {
+                  emails.push(profileObj.email);
+                }
               }
             });
             
