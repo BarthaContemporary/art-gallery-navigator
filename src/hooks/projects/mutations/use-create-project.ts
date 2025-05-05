@@ -12,6 +12,19 @@ export function useCreateProject() {
       const { user_emails, ...projectData } = input;
       
       try {
+        // Get current user first to avoid auth issues
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          throw new Error(`Authentication error: ${userError.message}`);
+        }
+        
+        if (!userData?.user?.id) {
+          throw new Error("No current user found, authentication may be required");
+        }
+        
+        const currentUserId = userData.user.id;
+        
         // First create the project
         const { data: project, error: projectError } = await supabase
           .from('projects')
@@ -28,31 +41,17 @@ export function useCreateProject() {
           throw new Error("Project was not created, no data returned");
         }
         
-        // First add the current user as a member
-        try {
-          const currentUser = await supabase.auth.getUser();
-          
-          if (currentUser.error) {
-            throw new Error(`Error getting current user: ${currentUser.error.message}`);
-          }
-          
-          if (!currentUser.data?.user?.id) {
-            throw new Error("No current user found, authentication may be required");
-          }
-          
-          const { error: memberError } = await supabase
-            .from('project_users')
-            .insert({
-              project_id: project.id,
-              user_id: currentUser.data.user.id
-            });
-          
-          if (memberError) {
-            console.error("Error adding current user to project:", memberError);
-            // Don't throw here, continue with other users
-          }
-        } catch (err) {
-          console.error("Error processing current user:", err);
+        // Add the current user as a member using a separate call
+        const { error: memberError } = await supabase
+          .from('project_users')
+          .insert({
+            project_id: project.id,
+            user_id: currentUserId
+          });
+        
+        if (memberError) {
+          console.error("Error adding current user to project:", memberError);
+          // Continue with trying to add other users
         }
         
         // Skip other users if none specified
@@ -60,11 +59,13 @@ export function useCreateProject() {
           return project;
         }
         
-        // Add each user to the project (one by one to avoid transactions)
+        // Process each username individually to handle potential errors gracefully
+        const notFoundUsernames: string[] = [];
+        
         for (const username of user_emails) {
+          if (!username.trim()) continue;
+          
           try {
-            if (!username.trim()) continue;
-            
             // Find user by display_name
             const { data: users, error: findError } = await supabase
               .from('profiles')
@@ -78,11 +79,14 @@ export function useCreateProject() {
             }
             
             if (!users || users.length === 0) {
-              console.warn(`User with username ${username} not found`);
+              notFoundUsernames.push(username);
               continue;
             }
             
             const userId = users[0].id;
+            
+            // Skip adding current user again
+            if (userId === currentUserId) continue;
             
             // Add user to project
             const { error: insertError } = await supabase
@@ -98,6 +102,10 @@ export function useCreateProject() {
           } catch (err) {
             console.error(`Error processing user ${username}:`, err);
           }
+        }
+        
+        if (notFoundUsernames.length > 0) {
+          toast.warning(`Some users could not be found: ${notFoundUsernames.join(', ')}`);
         }
         
         return project;

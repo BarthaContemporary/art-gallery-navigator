@@ -10,38 +10,35 @@ export function useProjectMembers(projectId: string | undefined) {
       if (!projectId) return [];
       
       try {
-        // Join project_users with profiles in a single query
-        const { data, error } = await supabase
+        // First get all member user_ids for this project
+        const { data: memberData, error: memberError } = await supabase
           .from('project_users')
-          .select(`
-            user_id,
-            project_id,
-            profiles:profiles(
-              id,
-              display_name,
-              avatar_url
-            )
-          `)
+          .select('user_id')
           .eq('project_id', projectId);
         
-        if (error) throw error;
-        if (!data || data.length === 0) return [];
+        if (memberError) throw memberError;
+        if (!memberData || memberData.length === 0) return [];
         
-        // Map to a flat structure to avoid type recursion
-        return data.map(item => {
-          // Safe type handling
-          const profile = item.profiles as { 
-            id?: string; 
-            display_name?: string | null; 
-            avatar_url?: string | null;
-          } | null;
+        // Get profile information for each member in a separate query to avoid recursion
+        const userIds = memberData.map(member => member.user_id);
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+          
+        if (profilesError) throw profilesError;
+        if (!profilesData) return [];
+        
+        // Map the profile data to project members
+        return memberData.map(member => {
+          const profile = profilesData.find(p => p.id === member.user_id);
           
           return {
-            user_id: item.user_id,
-            project_id: item.project_id,
+            user_id: member.user_id,
+            project_id: projectId,
             display_name: profile?.display_name || null,
             avatar_url: profile?.avatar_url || null,
-            // Use display_name as email as well for compatibility with existing UI
             email: profile?.display_name || null
           };
         });
@@ -50,6 +47,9 @@ export function useProjectMembers(projectId: string | undefined) {
         throw error;
       }
     },
-    enabled: !!projectId
+    enabled: !!projectId,
+    // Add error handling and stale time settings
+    retry: 1,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 }

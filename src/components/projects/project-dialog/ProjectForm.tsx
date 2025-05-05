@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -29,22 +29,34 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const updateProject = useUpdateProject();
   
   // For existing projects, fetch associated members
-  const { data: projectMembers = [], isLoading: isLoadingMembers } = useProjectMembers(project?.id);
+  const { data: projectMembers = [], isLoading: isLoadingMembers, isError: membersError } = 
+    useProjectMembers(project?.id);
   
   const [userNames, setUserNames] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
-  // Extract usernames from project members when available
-  useEffect(() => {
+  // Extract usernames from project members when available - with memoization to prevent unnecessary re-renders
+  const processMembers = useCallback(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
       const names = projectMembers
         .map(member => member.display_name)
-        .filter((name): name is string => !!name); // Filter out null/undefined
+        .filter((name): name is string => !!name);
       
       setUserNames(names);
     }
   }, [projectMembers]);
+  
+  useEffect(() => {
+    processMembers();
+  }, [projectMembers, processMembers]);
+
+  // Show error if members couldn't be loaded
+  useEffect(() => {
+    if (membersError && project) {
+      toast.error("Failed to load project members");
+    }
+  }, [membersError, project]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(ProjectFormSchema),
@@ -100,7 +112,10 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
       };
       
       if (project) {
-        await updateProject.mutateAsync({ id: project.id, data: projectData });
+        await updateProject.mutateAsync({ 
+          id: project.id, 
+          data: projectData 
+        });
       } else {
         await createProject.mutateAsync(projectData);
       }
@@ -114,9 +129,9 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     }
   };
   
-  const handleUserNamesChange = (names: string[]) => {
+  const handleUserNamesChange = useCallback((names: string[]) => {
     setUserNames(names);
-  };
+  }, []);
   
   return (
     <Form {...form}>

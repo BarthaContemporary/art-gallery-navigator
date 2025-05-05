@@ -24,8 +24,10 @@ export function ProjectUserEmailInput({
   
   // Update internal state when initialEmails changes
   useEffect(() => {
-    if (JSON.stringify(initialEmails) !== JSON.stringify(usernames)) {
-      setUsernames(initialEmails || []);
+    if (initialEmails && 
+        JSON.stringify(initialEmails) !== JSON.stringify(usernames) &&
+        initialEmails.length > 0) {
+      setUsernames(initialEmails);
     }
   }, [initialEmails]);
   
@@ -52,12 +54,12 @@ export function ProjectUserEmailInput({
       return;
     }
     
-    setUsernames([...usernames, trimmedInput]);
+    setUsernames(prev => [...prev, trimmedInput]);
     setCurrentInput("");
   };
   
   const removeUsername = (usernameToRemove: string) => {
-    setUsernames(usernames.filter(username => username !== usernameToRemove));
+    setUsernames(prev => prev.filter(username => username !== usernameToRemove));
   };
   
   const handleInputBlur = () => {

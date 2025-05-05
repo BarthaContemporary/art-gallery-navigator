@@ -14,34 +14,36 @@ export function useUpdateProject() {
       }
       
       try {
+        // Get current user
+        const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();
+        
+        if (currentUserError) {
+          throw new Error(`Error getting current user: ${currentUserError.message}`);
+        }
+        
+        const currentUserId = currentUserData?.user?.id;
+        if (!currentUserId) {
+          throw new Error("No current user found, authentication may be required");
+        }
+        
         const { user_emails, ...projectData } = data;
         
         // Update the project
-        const { error: updateError } = await supabase
-          .from('projects')
-          .update(projectData)
-          .eq('id', id);
-        
-        if (updateError) {
-          console.error("Error updating project:", updateError);
-          throw new Error(`Failed to update project: ${updateError.message}`);
+        if (Object.keys(projectData).length > 0) {
+          const { error: updateError } = await supabase
+            .from('projects')
+            .update(projectData)
+            .eq('id', id);
+          
+          if (updateError) {
+            console.error("Error updating project:", updateError);
+            throw new Error(`Failed to update project: ${updateError.message}`);
+          }
         }
         
         // Update users if provided
         if (user_emails !== undefined) {
           try {
-            // Get current user
-            const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();
-            
-            if (currentUserError) {
-              throw new Error(`Error getting current user: ${currentUserError.message}`);
-            }
-            
-            const currentUserId = currentUserData?.user?.id;
-            if (!currentUserId) {
-              throw new Error("No current user found, authentication may be required");
-            }
-            
             // Ensure current user is a member (if not already)
             const { data: existingMembership } = await supabase
               .from('project_users')
@@ -60,10 +62,10 @@ export function useUpdateProject() {
                 });
             }
             
-            // Process each username individually rather than in bulk
+            // Process each username individually
             const notFoundUsers: string[] = [];
+            const addedUsers: string[] = [];
             
-            // For each user_email (username), try to add them to the project
             if (user_emails && user_emails.length > 0) {
               for (const username of user_emails) {
                 try {
@@ -109,6 +111,8 @@ export function useUpdateProject() {
                   
                   if (insertError) {
                     console.error(`Error adding user ${username} to project:`, insertError);
+                  } else {
+                    addedUsers.push(username);
                   }
                 } catch (err) {
                   console.error(`Error processing user ${username}:`, err);
