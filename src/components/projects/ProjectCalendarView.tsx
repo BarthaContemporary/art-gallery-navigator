@@ -1,9 +1,8 @@
-
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectWithLocation } from "@/hooks/use-projects";
 import { TaskWithAssignee, useProjectTasks } from "@/hooks/use-project-tasks";
-import { useProjectUsers } from "@/hooks/use-projects";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { format } from "date-fns";
 
 interface ProjectCalendarViewProps {
@@ -14,7 +13,7 @@ interface ProjectCalendarViewProps {
 
 export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCalendarViewProps) {
   const { data: tasks } = useProjectTasks(project?.id);
-  const { data: projectUsers } = useProjectUsers(project?.id);
+  const { data: projectMembers } = useProjectMembers(project?.id);
   const calendarRef = useRef<HTMLDivElement>(null);
   
   if (!project) return null;

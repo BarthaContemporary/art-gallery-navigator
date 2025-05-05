@@ -4,12 +4,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Control } from "react-hook-form";
 import { z } from "zod";
 import { taskFormSchema } from "./schema";
+import { ProjectMember } from "@/hooks/projects/use-project-members";
 
 type FormValues = z.infer<typeof taskFormSchema>;
 
 interface TaskAssigneeFieldProps {
   control: Control<FormValues>;
-  projectUsers: any[] | undefined;
+  projectUsers: ProjectMember[];
 }
 
 export function TaskAssigneeField({ control, projectUsers }: TaskAssigneeFieldProps) {
@@ -31,22 +32,11 @@ export function TaskAssigneeField({ control, projectUsers }: TaskAssigneeFieldPr
             </FormControl>
             <SelectContent>
               <SelectItem value="unassigned">Unassigned</SelectItem>
-              {projectUsers?.map(user => {
-                // Use a local variable for display name with a safe default
-                let displayName = "User";
-                
-                // Use type assertions to help TypeScript understand the structure
-                if (user && user.profiles) {
-                  const profileData = user.profiles as { display_name?: string; avatar_url?: string | null };
-                  displayName = profileData.display_name || "User";
-                }
-                
-                return (
-                  <SelectItem key={user.user_id} value={user.user_id}>
-                    {displayName}
-                  </SelectItem>
-                );
-              })}
+              {projectUsers?.map(member => (
+                <SelectItem key={member.user_id} value={member.user_id}>
+                  {member.display_name || "User"}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <FormMessage />

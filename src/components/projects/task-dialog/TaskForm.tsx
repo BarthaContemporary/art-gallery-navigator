@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +12,7 @@ import {
   TaskWithAssignee, 
   useTaskReferences 
 } from "@/hooks/use-project-tasks";
-import { useProjectUsers } from "@/hooks/use-projects";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 
 import { taskFormSchema } from "./schema";
 import { TaskBasicFields } from "./TaskBasicFields";
@@ -30,7 +31,7 @@ interface TaskFormProps {
 }
 
 export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
-  const { data: projectUsers } = useProjectUsers(projectId);
+  const { data: projectMembers = [] } = useProjectMembers(projectId);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,7 +97,7 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
         
         <div className="grid grid-cols-2 gap-4">
           <TaskStatusField control={form.control} />
-          <TaskAssigneeField control={form.control} projectUsers={projectUsers} />
+          <TaskAssigneeField control={form.control} projectUsers={projectMembers} />
         </div>
         
         <TaskDateFields control={form.control} />
