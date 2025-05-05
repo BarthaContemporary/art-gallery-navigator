@@ -28,6 +28,7 @@ export function ProjectUserEmailInput({
       
       setLoading(true);
       try {
+        // First fetch the project users
         const { data: projectUsers, error } = await supabase
           .from('project_users')
           .select('user_id')
@@ -44,8 +45,9 @@ export function ProjectUserEmailInput({
           return;
         }
         
-        // Get display names
+        // Then get the display names from profiles
         const userIds = projectUsers.map(pu => pu.user_id);
+        
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, display_name')
@@ -62,8 +64,12 @@ export function ProjectUserEmailInput({
             .filter(p => p.display_name)
             .map(p => p.display_name as string);
           
-          setUsernames(names);
-          onEmailsChange(names); // Ensure parent component has up-to-date data
+          setUsernames(prev => {
+            // Combine with any existing names without duplicates
+            const combined = [...new Set([...prev, ...names])];
+            onEmailsChange(combined); // Update parent
+            return combined;
+          });
         }
       } catch (err) {
         console.error("Error in fetchMembers:", err);

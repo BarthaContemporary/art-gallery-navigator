@@ -62,96 +62,40 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         return;
       }
       
-      // Get existing project members to avoid duplicates
-      const { data: existingMembers, error: membersError } = await supabase
-        .from('project_users')
-        .select('user_id')
-        .eq('project_id', projectId);
+      // Instead of checking existing members, just try to insert directly
+      // and handle duplicates gracefully
+      let successCount = 0;
+      const failedNames: string[] = [];
       
-      if (membersError) {
-        console.error("Error checking existing members:", membersError);
-        // Try a different approach if the first one fails due to permissions
-        if (membersError.code === '42P17' || membersError.message.includes("permission")) {
-          // Direct insert approach
-          for (const profile of profiles) {
-            try {
-              const { error: insertError } = await supabase
-                .from('project_users')
-                .insert({
-                  project_id: projectId,
-                  user_id: profile.id
-                });
-                
-              if (insertError && !insertError.message.includes("duplicate")) {
-                console.error("Error inserting member:", insertError);
-              }
-            } catch (err) {
-              console.error("Error in insert attempt:", err);
-            }
+      // Try to add each member individually to handle failures better
+      for (const profile of profiles) {
+        try {
+          const { error: insertError } = await supabase
+            .from('project_users')
+            .insert({
+              project_id: projectId,
+              user_id: profile.id
+            });
+            
+          if (!insertError) {
+            successCount++;
+          } else if (!insertError.message.includes("duplicate")) {
+            // Only track as failed if it's not a duplicate (duplicates are ok)
+            failedNames.push(profile.display_name || 'Unknown user');
           }
-          
-          // Force invalidate the project members query to update the list
-          queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
-          
-          toast.success(`Attempted to add ${profiles.length} team member(s)`);
-          onClose();
-          return;
+        } catch (err) {
+          console.error("Error in member insert attempt:", err);
+          failedNames.push(profile.display_name || 'Unknown user');
         }
-        
-        throw membersError;
       }
       
-      const existingUserIds = existingMembers?.map(m => m.user_id) || [];
-      
-      // Filter out users that are already members
-      const newMembers = profiles
-        .filter(profile => !existingUserIds.includes(profile.id))
-        .map(profile => ({
-          project_id: projectId,
-          user_id: profile.id
-        }));
-      
-      if (newMembers.length === 0) {
-        toast.info("All users are already members of this project");
-        setLoading(false);
-        return;
+      // Report results to the user
+      if (successCount > 0) {
+        toast.success(`Added ${successCount} team member(s)`);
       }
       
-      // Insert new members
-      const { error: insertError } = await supabase
-        .from('project_users')
-        .insert(newMembers);
-      
-      if (insertError) {
-        // If permission error, try one by one
-        if (insertError.code === '42P17' || insertError.message.includes("permission")) {
-          let successCount = 0;
-          
-          for (const member of newMembers) {
-            try {
-              const { error: singleInsertError } = await supabase
-                .from('project_users')
-                .insert(member);
-                
-              if (!singleInsertError) {
-                successCount++;
-              }
-            } catch (err) {
-              console.error("Error in single insert:", err);
-            }
-          }
-          
-          if (successCount > 0) {
-            toast.success(`Added ${successCount} team member(s)`);
-          } else {
-            toast.error("Failed to add team members");
-            throw new Error("Failed to add any team members");
-          }
-        } else {
-          throw insertError;
-        }
-      } else {
-        toast.success(`Added ${newMembers.length} team member${newMembers.length > 1 ? 's' : ''}`);
+      if (failedNames.length > 0) {
+        toast.error(`Failed to add: ${failedNames.join(', ')}`);
       }
       
       // Force invalidate the project members query to update the list
