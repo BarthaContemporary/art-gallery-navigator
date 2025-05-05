@@ -7,14 +7,14 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { format } from "date-fns";
 import { ProjectWithLocation, CreateProjectInput, useCreateProject, useUpdateProject } from "@/hooks/use-projects";
-import { UserMultiSelect } from "../UserMultiSelect";
 import { useProjectUsers } from "@/hooks/use-projects";
 import { ProjectFormSchema } from "./schema";
 import { BasicInfoFields } from "./BasicInfoFields";
 import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
-import * as z from "zod"; // Added this import to fix the error
+import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
+import * as z from "zod";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
 
@@ -27,29 +27,25 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   
-  // Fetch project users if editing an existing project
+  // For existing projects, fetch associated emails
   const { data: projectUsers = [] } = useProjectUsers(project?.id);
   
-  // Defensively ensure we have a valid array of user IDs
-  const initialUserIds = Array.isArray(projectUsers) && projectUsers.length > 0
-    ? projectUsers.filter(pu => pu && pu.user_id).map(pu => pu.user_id)
-    : [];
-  
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [userEmails, setUserEmails] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Update selectedUsers when projectUsers changes
+  // Extract emails from project users when available
   useEffect(() => {
     try {
       if (Array.isArray(projectUsers) && projectUsers.length > 0) {
-        const validUserIds = projectUsers
-          .filter(pu => pu && pu.user_id)
-          .map(pu => pu.user_id);
-        setSelectedUsers(validUserIds);
+        // Extract emails from profiles data
+        const emails = projectUsers
+          .filter(pu => pu && pu.profiles && pu.profiles.email)
+          .map(pu => pu.profiles.email);
+        setUserEmails(emails);
       }
     } catch (error) {
       console.error("Error processing project users:", error);
-      setSelectedUsers([]);
+      setUserEmails([]);
     }
   }, [projectUsers]);
   
@@ -79,7 +75,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         location_id: values.location_id,
         start_date: values.start_date,
         end_date: values.end_date,
-        users: selectedUsers,
+        user_emails: userEmails, // Changed from users to user_emails
       };
       
       if (project) {
@@ -96,10 +92,8 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     }
   };
   
-  const handleUserSelection = (userIds: string[]) => {
-    // Ensure userIds is always an array
-    const safeUserIds = Array.isArray(userIds) ? userIds : [];
-    setSelectedUsers(safeUserIds);
+  const handleEmailsChange = (emails: string[]) => {
+    setUserEmails(emails);
   };
   
   return (
@@ -114,11 +108,14 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         <DateFields control={form.control} />
         
         <div className="space-y-2">
-          <label className="text-sm font-medium">Project Users</label>
-          <UserMultiSelect
-            onSelectionChange={handleUserSelection}
-            initialSelectedIds={selectedUsers}
+          <label className="text-sm font-medium">Project Users (by Email)</label>
+          <ProjectUserEmailInput
+            onEmailsChange={handleEmailsChange}
+            initialEmails={userEmails}
           />
+          <p className="text-xs text-muted-foreground">
+            Enter email addresses of users to invite to this project
+          </p>
         </div>
         
         <DialogFooter>

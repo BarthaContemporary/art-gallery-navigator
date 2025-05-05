@@ -31,7 +31,7 @@ export interface CreateProjectInput {
   location_id?: string;
   start_date: string;
   end_date: string;
-  users?: string[]; // Array of user IDs to add to the project
+  user_emails?: string[]; // Changed from users to user_emails
 }
 
 export function useProjects(filters?: {
@@ -99,7 +99,7 @@ export function useCreateProject() {
   
   return useMutation({
     mutationFn: async (input: CreateProjectInput) => {
-      const { users, ...projectData } = input;
+      const { user_emails, ...projectData } = input;
       
       // First create the project
       const { data: project, error } = await supabase
@@ -110,18 +110,43 @@ export function useCreateProject() {
       
       if (error) throw error;
       
-      // Then add users if provided
-      if (users && users.length > 0) {
-        const projectUsers = users.map(userId => ({
-          project_id: project.id,
-          user_id: userId
-        }));
-        
-        const { error: usersError } = await supabase
-          .from('project_users')
-          .insert(projectUsers);
-        
-        if (usersError) throw usersError;
+      // Then add users if provided (by email)
+      if (user_emails && user_emails.length > 0) {
+        try {
+          // Find users by email
+          const { data: foundUsers, error: userError } = await supabase
+            .from('profiles')
+            .select('id')
+            .in('email', user_emails);
+          
+          if (userError) throw userError;
+          
+          // Add found users to the project
+          if (foundUsers && foundUsers.length > 0) {
+            const projectUsers = foundUsers.map(user => ({
+              project_id: project.id,
+              user_id: user.id
+            }));
+            
+            const { error: usersError } = await supabase
+              .from('project_users')
+              .insert(projectUsers);
+            
+            if (usersError) throw usersError;
+          }
+          
+          // For unmatched emails, we could implement an invitation system later
+          const foundEmails = foundUsers.map(u => u.email);
+          const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
+          
+          if (unmatchedEmails.length > 0) {
+            console.log("Some emails were not matched to users:", unmatchedEmails);
+            // We'll just notify the user in the UI
+          }
+        } catch (userError) {
+          console.error("Error adding users by email:", userError);
+          // We'll continue with the project creation even if adding users fails
+        }
       }
       
       return project;
@@ -142,7 +167,7 @@ export function useUpdateProject() {
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string, data: Partial<CreateProjectInput> }) => {
-      const { users, ...projectData } = data;
+      const { user_emails, ...projectData } = data;
       
       // Update the project
       const { error } = await supabase
@@ -152,28 +177,53 @@ export function useUpdateProject() {
       
       if (error) throw error;
       
-      // Update users if provided
-      if (users) {
-        // First delete all existing project users
-        const { error: deleteError } = await supabase
-          .from('project_users')
-          .delete()
-          .eq('project_id', id);
-        
-        if (deleteError) throw deleteError;
-        
-        // Then add the new users
-        if (users.length > 0) {
-          const projectUsers = users.map(userId => ({
-            project_id: id,
-            user_id: userId
-          }));
-          
-          const { error: usersError } = await supabase
+      // Update users if provided (by email)
+      if (user_emails) {
+        try {
+          // First delete all existing project users
+          const { error: deleteError } = await supabase
             .from('project_users')
-            .insert(projectUsers);
+            .delete()
+            .eq('project_id', id);
           
-          if (usersError) throw usersError;
+          if (deleteError) throw deleteError;
+          
+          // Then add users by email
+          if (user_emails.length > 0) {
+            // Find users by email
+            const { data: foundUsers, error: userError } = await supabase
+              .from('profiles')
+              .select('id')
+              .in('email', user_emails);
+            
+            if (userError) throw userError;
+            
+            // Add found users to the project
+            if (foundUsers && foundUsers.length > 0) {
+              const projectUsers = foundUsers.map(user => ({
+                project_id: id,
+                user_id: user.id
+              }));
+              
+              const { error: usersError } = await supabase
+                .from('project_users')
+                .insert(projectUsers);
+              
+              if (usersError) throw usersError;
+            }
+            
+            // For emails that don't match any user, we could implement invitations later
+            const foundEmails = foundUsers.map(u => u.email);
+            const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
+            
+            if (unmatchedEmails.length > 0) {
+              console.log("Some emails were not matched to users:", unmatchedEmails);
+              // We'll just notify the user in the UI
+            }
+          }
+        } catch (userError) {
+          console.error("Error updating users by email:", userError);
+          // We'll continue with the project update even if updating users fails
         }
       }
       
@@ -247,7 +297,7 @@ export function useProjectUsers(projectId: string | undefined) {
         .from('project_users')
         .select(`
           user_id,
-          profiles:profiles!inner(id, display_name, avatar_url)
+          profiles:profiles!inner(id, display_name, avatar_url, email)
         `)
         .eq('project_id', projectId);
       
