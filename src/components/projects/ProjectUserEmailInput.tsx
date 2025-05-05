@@ -85,7 +85,7 @@ export function ProjectUserEmailInput({
         onChange={(e) => setCurrentInput(e.target.value)}
         onKeyDown={handleInputKeyDown}
         onBlur={handleInputBlur}
-        placeholder="Enter username"
+        placeholder="Enter username (display name)"
         className="w-full"
       />
       

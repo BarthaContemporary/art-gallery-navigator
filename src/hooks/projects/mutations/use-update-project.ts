@@ -42,7 +42,7 @@ export function useUpdateProject() {
               throw new Error("No current user found, authentication may be required");
             }
             
-            // First ensure current user is a member (if not already)
+            // Ensure current user is a member (if not already)
             const { data: existingMembership } = await supabase
               .from('project_users')
               .select('id')
@@ -60,22 +60,10 @@ export function useUpdateProject() {
                 });
             }
             
-            // Delete existing project users except the current user
-            const { error: deleteError } = await supabase
-              .from('project_users')
-              .delete()
-              .eq('project_id', id)
-              .neq('user_id', currentUserId);
+            // Process each username individually rather than in bulk
+            const notFoundUsers: string[] = [];
             
-            if (deleteError) {
-              console.error("Error removing existing project users:", deleteError);
-              // Continue anyway, we'll try to add the new users
-            }
-            
-            // Track users that couldn't be found
-            const notFoundUsers = [];
-            
-            // Then add users one by one
+            // For each user_email (username), try to add them to the project
             if (user_emails && user_emails.length > 0) {
               for (const username of user_emails) {
                 try {
@@ -97,6 +85,19 @@ export function useUpdateProject() {
                   
                   // Skip if this is the current user (already ensured above)
                   if (userId === currentUserId) continue;
+                  
+                  // Check if user is already a member
+                  const { data: existingUser } = await supabase
+                    .from('project_users')
+                    .select('id')
+                    .eq('project_id', id)
+                    .eq('user_id', userId)
+                    .maybeSingle();
+                    
+                  if (existingUser) {
+                    // User already added, skip
+                    continue;
+                  }
                   
                   // Add user to project
                   const { error: insertError } = await supabase

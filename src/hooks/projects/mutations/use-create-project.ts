@@ -28,7 +28,7 @@ export function useCreateProject() {
           throw new Error("Project was not created, no data returned");
         }
         
-        // Add the current user as a project member first to ensure access rights
+        // First add the current user as a member
         try {
           const currentUser = await supabase.auth.getUser();
           
@@ -49,11 +49,10 @@ export function useCreateProject() {
           
           if (memberError) {
             console.error("Error adding current user to project:", memberError);
-            // Don't throw here, we'll continue with other users
+            // Don't throw here, continue with other users
           }
         } catch (err) {
           console.error("Error processing current user:", err);
-          // Continue anyway as this is not critical
         }
         
         // Skip other users if none specified
@@ -61,10 +60,7 @@ export function useCreateProject() {
           return project;
         }
         
-        // Find users by their display_name and add them individually
-        const addedUsers = [];
-        const notFoundUsers = [];
-        
+        // Add each user to the project (one by one to avoid transactions)
         for (const username of user_emails) {
           try {
             if (!username.trim()) continue;
@@ -82,7 +78,7 @@ export function useCreateProject() {
             }
             
             if (!users || users.length === 0) {
-              notFoundUsers.push(username);
+              console.warn(`User with username ${username} not found`);
               continue;
             }
             
@@ -98,18 +94,10 @@ export function useCreateProject() {
             
             if (insertError) {
               console.error(`Error adding user ${username} to project:`, insertError);
-              continue;
             }
-            
-            addedUsers.push(username);
           } catch (err) {
             console.error(`Error processing user ${username}:`, err);
           }
-        }
-        
-        // Provide feedback about users that couldn't be found
-        if (notFoundUsers.length > 0) {
-          toast.warning(`Some users could not be found: ${notFoundUsers.join(', ')}`);
         }
         
         return project;
