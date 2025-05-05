@@ -13,6 +13,7 @@ import {
   useTaskReferences 
 } from "@/hooks/projects";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
+import { toast } from "sonner";
 
 import { taskFormSchema } from "./schema";
 import { TaskBasicFields } from "./TaskBasicFields";
@@ -31,10 +32,11 @@ interface TaskFormProps {
 }
 
 export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
-  const { data: projectMembers = [] } = useProjectMembers(projectId);
+  const { data: projectMembers = [], isError: membersError } = useProjectMembers(projectId);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [references, setReferences] = useState<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]>([]);
 
   const form = useForm<FormValues>({
@@ -50,8 +52,15 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
     }
   });
 
+  // Show warning if there was an error loading project members
+  if (membersError) {
+    toast.warning("Could not load team members. Some features may be limited.");
+  }
+
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
+    setError(null);
+    
     try {
       if (task) {
         await updateTask.mutateAsync({
@@ -81,6 +90,9 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
         await createTask.mutateAsync(taskInput);
       }
       onClose();
+    } catch (err: any) {
+      console.error("Error in task form submission:", err);
+      setError(err.message || "An error occurred while saving the task");
     } finally {
       setIsSubmitting(false);
     }
@@ -93,11 +105,20 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4 text-sm">
+            {error}
+          </div>
+        )}
+        
         <TaskBasicFields control={form.control} />
         
         <div className="grid grid-cols-2 gap-4">
           <TaskStatusField control={form.control} />
-          <TaskAssigneeField control={form.control} projectUsers={projectMembers} />
+          <TaskAssigneeField 
+            control={form.control} 
+            projectUsers={projectMembers || []}
+          />
         </div>
         
         <TaskDateFields control={form.control} />
