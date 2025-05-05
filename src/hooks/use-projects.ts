@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,11 +23,10 @@ export interface ProjectWithLocation extends Project {
   } | null;
 }
 
-// Use a flattened structure to avoid recursive type definitions
+// Completely flatten the structure to avoid any recursive type definitions
 export interface ProjectUser {
   user_id: string;
   project_id: string;
-  // Use a simple structure for profiles
   profile_display_name: string | null;
   profile_avatar_url: string | null;
 }
@@ -42,7 +42,7 @@ export interface CreateProjectInput {
   user_emails?: string[];
 }
 
-// Re-export the project members hook
+// Re-export from another file to avoid circular dependencies
 export { useProjectMembers } from "./projects/use-project-members";
 export type { ProjectMember } from "./projects/use-project-members";
 
