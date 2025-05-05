@@ -22,6 +22,7 @@ export interface ProjectWithLocation extends Project {
   } | null;
 }
 
+// Simplified ProjectUser interface to prevent excessive type instantiation
 export interface ProjectUser {
   user_id: string;
   project_id: string;
@@ -297,7 +298,7 @@ export function useDeleteProject() {
   });
 }
 
-// Hook to get users for a project - fixed for better type safety and error handling
+// Updated hook for better type safety and error handling
 export function useProjectUsers(projectId: string | undefined) {
   return useQuery({
     queryKey: ['project-users', projectId],
@@ -314,11 +315,11 @@ export function useProjectUsers(projectId: string | undefined) {
         if (!projectUsersData || projectUsersData.length === 0) return [];
         
         // Filter to only include users for this project
-        const filteredProjectUsers = projectUsersData.filter(pu => pu.project_id === projectId);
-        if (filteredProjectUsers.length === 0) return [];
+        const projectUsers = projectUsersData.filter(pu => pu.project_id === projectId);
+        if (projectUsers.length === 0) return [];
         
         // Now get the profiles for these users
-        const userIds = filteredProjectUsers.map(pu => pu.user_id);
+        const userIds = projectUsers.map(pu => pu.user_id);
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -327,17 +328,15 @@ export function useProjectUsers(projectId: string | undefined) {
         
         if (profilesError) throw profilesError;
         
-        // Combine the data
-        const result = filteredProjectUsers.map(pu => {
+        // Combine the data with simplified structure
+        return projectUsers.map(pu => {
           const profile = profilesData?.find(p => p.id === pu.user_id);
           return {
             user_id: pu.user_id,
             project_id: pu.project_id,
             profiles: profile || null
           };
-        });
-        
-        return result as ProjectUser[];
+        }) as ProjectUser[];
       } catch (error) {
         console.error("Error fetching project users:", error);
         throw error;
