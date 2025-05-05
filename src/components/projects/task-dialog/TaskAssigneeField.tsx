@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Control } from "react-hook-form";
 import { z } from "zod";
 import { taskFormSchema } from "./schema";
-import { ProjectMember } from "@/hooks/projects/use-project-members";
+import { ProjectMember } from "@/hooks/projects/project-types";
 
 type FormValues = z.infer<typeof taskFormSchema>;
 

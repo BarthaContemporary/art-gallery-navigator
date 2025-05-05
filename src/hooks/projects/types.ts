@@ -30,7 +30,7 @@ export interface CreateTaskInput {
   assigned_to?: string | null;
   references?: Array<{
     id: string;
-    type: string;
+    type: 'document' | 'collection' | 'artwork' | 'artist';
   }>;
 }
 

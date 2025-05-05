@@ -24,7 +24,7 @@ export function useCreateTask() {
       if (references && references.length > 0) {
         const taskReferences = references.map(ref => ({
           task_id: task.id,
-          reference_type: ref.type,
+          reference_type: ref.type as 'document' | 'collection' | 'artwork' | 'artist',
           reference_id: ref.id
         }));
         
@@ -77,7 +77,7 @@ export function useUpdateTask() {
         if (references.length > 0) {
           const taskReferences = references.map(ref => ({
             task_id: id,
-            reference_type: ref.type,
+            reference_type: ref.type as 'document' | 'collection' | 'artwork' | 'artist',
             reference_id: ref.id
           }));
           
