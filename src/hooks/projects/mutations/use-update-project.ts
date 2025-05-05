@@ -36,7 +36,6 @@ export function useUpdateProject() {
           // Then add users by email
           if (user_emails.length > 0) {
             // Find users by matching their display_name with provided emails
-            // Note: In the current schema, profiles doesn't have a direct email column
             const { data: foundUsers, error: userError } = await supabase
               .from('profiles')
               .select('id, display_name')
@@ -46,19 +45,24 @@ export function useUpdateProject() {
             
             // Add found users to the project
             if (foundUsers && foundUsers.length > 0) {
-              const projectUsers = foundUsers.map(user => ({
-                project_id: id,
-                user_id: user.id
-              }));
-              
-              const { error: usersError } = await supabase
-                .from('project_users')
-                .insert(projectUsers);
-              
-              if (usersError) throw usersError;
+              // Insert users one by one to avoid potential bulk insert issues
+              for (const user of foundUsers) {
+                const projectUser = {
+                  project_id: id,
+                  user_id: user.id
+                };
+                
+                const { error: insertError } = await supabase
+                  .from('project_users')
+                  .insert(projectUser);
+                
+                if (insertError) {
+                  console.error("Error adding user to project:", insertError);
+                }
+              }
             }
             
-            // For emails that don't match any user, we could implement invitations later
+            // Log emails that don't match any user
             if (foundUsers) {
               const unmatchedEmails = user_emails.filter(email => 
                 !foundUsers.some(user => user.display_name === email)
@@ -71,6 +75,7 @@ export function useUpdateProject() {
           }
         } catch (userError) {
           console.error("Error updating users by email:", userError);
+          // Continue with project update even if updating users fails
         }
       }
       

@@ -23,11 +23,10 @@ export function useCreateProject() {
       
       if (error) throw error;
       
-      // Then add users if provided (by email)
-      if (user_emails && user_emails.length > 0) {
+      // Handle user associations separately only if project was created successfully
+      if (project && user_emails && user_emails.length > 0) {
         try {
           // Find users by matching their display_name with provided emails
-          // Note: In the current schema, profiles doesn't have a direct email column
           const { data: foundUsers, error: userError } = await supabase
             .from('profiles')
             .select('id, display_name')
@@ -42,14 +41,19 @@ export function useCreateProject() {
               user_id: user.id
             }));
             
-            const { error: usersError } = await supabase
-              .from('project_users')
-              .insert(projectUsers);
-            
-            if (usersError) throw usersError;
+            // Insert users one by one to avoid potential bulk insert issues
+            for (const projectUser of projectUsers) {
+              const { error: insertError } = await supabase
+                .from('project_users')
+                .insert(projectUser);
+              
+              if (insertError) {
+                console.error("Error adding user to project:", insertError);
+              }
+            }
           }
           
-          // For unmatched emails, we could implement an invitation system later
+          // Log unmatched emails for potential invitation system
           if (foundUsers) {
             const unmatchedEmails = user_emails.filter(email => 
               !foundUsers.some(user => user.display_name === email)
@@ -61,6 +65,8 @@ export function useCreateProject() {
           }
         } catch (userError) {
           console.error("Error adding users by email:", userError);
+          // Continue with project creation even if adding users fails
+          // Don't throw the error here to avoid failing the whole operation
         }
       }
       
