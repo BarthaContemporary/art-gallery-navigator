@@ -1,52 +1,23 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { 
+  Project, 
+  ProjectWithLocation, 
+  CreateProjectInput 
+} from "./projects/project-types";
 
-// Base project type without any nested objects
-export interface Project {
-  id: string;
-  name: string;
-  description: string | null;
-  status: 'active' | 'scheduled' | 'completed' | 'abandoned';
-  type: 'exhibition' | 'fair' | 'publication' | 'talk' | 'other';
-  location_id: string | null;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export types from the dedicated types file for backward compatibility
+export type { 
+  Project, 
+  ProjectWithLocation, 
+  ProjectMember, 
+  CreateProjectInput 
+} from "./projects/project-types";
 
-// Extended type with location - using a simple nested object that won't cause recursion
-export interface ProjectWithLocation extends Project {
-  location: {
-    name: string;
-  } | null;
-}
-
-// Simple flat type for project users, no nested profiles
-export interface ProjectUser {
-  user_id: string;
-  project_id: string;
-  profile_display_name: string | null;
-  profile_avatar_url: string | null;
-}
-
-export interface CreateProjectInput {
-  name: string;
-  description?: string;
-  status: 'active' | 'scheduled' | 'completed' | 'abandoned';
-  type: 'exhibition' | 'fair' | 'publication' | 'talk' | 'other';
-  location_id?: string;
-  start_date: string;
-  end_date: string;
-  user_emails?: string[];
-}
-
-// Re-export from separate files to avoid circular dependencies
+// Re-export hooks from separate files to avoid circular dependencies
 export { useProjectMembers } from "./projects/use-project-members";
-export type { ProjectMember } from "./projects/use-project-members";
 
 export function useProjects(filters?: {
   status?: string;

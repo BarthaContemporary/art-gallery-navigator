@@ -1,15 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-// Simple, flat type definitions to avoid recursive type references
-export interface ProjectMember {
-  user_id: string;
-  project_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  email: string | null;
-}
+import { ProjectMember } from "./project-types";
 
 export function useProjectMembers(projectId: string | undefined) {
   return useQuery({
