@@ -19,7 +19,7 @@ export function useUpdateProject() {
       
       if (error) throw error;
       
-      // Update users if provided (by email)
+      // Update users if provided (by username)
       if (user_emails !== undefined) {
         try {
           // First delete all existing project users
@@ -33,9 +33,9 @@ export function useUpdateProject() {
             // Continue despite the error
           }
           
-          // Then add users by email/username
+          // Then add users by username
           if (user_emails.length > 0) {
-            // Find users by matching their display_name with provided emails/usernames
+            // Find users by matching their display_name with provided usernames
             const { data: foundUsers, error: userError } = await supabase
               .from('profiles')
               .select('id, display_name')
@@ -43,49 +43,43 @@ export function useUpdateProject() {
             
             if (userError) {
               console.error("Error finding users:", userError);
-              // We'll continue and just add the users we can find
+              // Log error but continue
             }
             
-            // Add found users to the project
+            // Add found users to the project one by one to avoid RLS recursion
             if (foundUsers && foundUsers.length > 0) {
-              const projectUserPromises = foundUsers.map(async (user) => {
-                const projectUser = {
-                  project_id: id,
-                  user_id: user.id
-                };
-                
+              for (const user of foundUsers) {
                 try {
                   const { error: insertError } = await supabase
                     .from('project_users')
-                    .insert(projectUser);
+                    .insert({
+                      project_id: id,
+                      user_id: user.id
+                    });
                   
                   if (insertError) {
                     console.error("Error adding user to project:", insertError);
                   }
-                  return !insertError;
                 } catch (err) {
                   console.error("Exception adding user to project:", err);
-                  return false;
                 }
-              });
-              
-              await Promise.all(projectUserPromises);
+              }
             }
             
-            // Log emails that don't match any user
+            // Log usernames that don't match any user
             if (foundUsers) {
-              const unmatchedEmails = user_emails.filter(email => 
-                !foundUsers.some(user => user.display_name === email)
+              const unmatchedUsernames = user_emails.filter(username => 
+                !foundUsers.some(user => user.display_name === username)
               );
               
-              if (unmatchedEmails.length > 0) {
-                console.log("Some users were not found:", unmatchedEmails);
-                toast.warning(`${unmatchedEmails.length} user(s) not found.`);
+              if (unmatchedUsernames.length > 0) {
+                console.log("Some users were not found:", unmatchedUsernames);
+                toast.warning(`${unmatchedUsernames.length} username(s) not found.`);
               }
             }
           }
         } catch (error) {
-          console.error("Error updating users by email:", error);
+          console.error("Error updating users by username:", error);
           // Continue with project update even if updating users fails
         }
       }

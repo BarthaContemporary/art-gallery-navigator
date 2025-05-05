@@ -13,18 +13,18 @@ export function ProjectUserEmailInput({
   initialEmails = [],
   onEmailsChange
 }: ProjectUserEmailInputProps) {
-  const [emails, setEmails] = useState<string[]>(initialEmails || []);
+  const [usernames, setUsernames] = useState<string[]>(initialEmails || []);
   const [currentInput, setCurrentInput] = useState("");
   
-  // Update parent component when emails change
+  // Update parent component when usernames change
   useEffect(() => {
-    onEmailsChange(emails);
-  }, [emails, onEmailsChange]);
+    onEmailsChange(usernames);
+  }, [usernames, onEmailsChange]);
   
   // Update internal state when initialEmails changes
   useEffect(() => {
-    if (JSON.stringify(initialEmails) !== JSON.stringify(emails)) {
-      setEmails(initialEmails || []);
+    if (JSON.stringify(initialEmails) !== JSON.stringify(usernames)) {
+      setUsernames(initialEmails || []);
     }
   }, [initialEmails]);
   
@@ -32,39 +32,39 @@ export function ProjectUserEmailInput({
     // Add username on Enter, comma, or space
     if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
-      addEmail();
+      addUsername();
     }
   };
   
-  const addEmail = () => {
+  const addUsername = () => {
     const trimmedInput = currentInput.trim();
     
     // Skip empty inputs and duplicates
-    if (trimmedInput && !emails.includes(trimmedInput)) {
-      setEmails([...emails, trimmedInput]);
+    if (trimmedInput && !usernames.includes(trimmedInput)) {
+      setUsernames([...usernames, trimmedInput]);
       setCurrentInput("");
     }
   };
   
-  const removeEmail = (emailToRemove: string) => {
-    setEmails(emails.filter(email => email !== emailToRemove));
+  const removeUsername = (usernameToRemove: string) => {
+    setUsernames(usernames.filter(username => username !== usernameToRemove));
   };
   
   const handleInputBlur = () => {
     if (currentInput.trim()) {
-      addEmail();
+      addUsername();
     }
   };
   
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2 mb-2">
-        {emails.map((email, index) => (
-          <Badge key={`${email}-${index}`} variant="secondary" className="px-3 py-1">
-            {email}
+        {usernames.map((username, index) => (
+          <Badge key={`${username}-${index}`} variant="secondary" className="px-3 py-1">
+            {username}
             <X 
               className="ml-2 h-3 w-3 cursor-pointer hover:text-destructive" 
-              onClick={() => removeEmail(email)}
+              onClick={() => removeUsername(username)}
             />
           </Badge>
         ))}

@@ -30,18 +30,18 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   // For existing projects, fetch associated members
   const { data: projectMembers = [] } = useProjectMembers(project?.id);
   
-  const [userEmails, setUserEmails] = useState<string[]>([]);
+  const [userNames, setUserNames] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Extract usernames from project members when available
   useEffect(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
       // Extract display names from the members
-      const usernames = projectMembers
+      const names = projectMembers
         .map(member => member.display_name)
         .filter((name): name is string => !!name); // Filter out null/undefined
       
-      setUserEmails(usernames);
+      setUserNames(names);
     }
   }, [projectMembers]);
   
@@ -71,7 +71,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         location_id: values.location_id,
         start_date: values.start_date,
         end_date: values.end_date,
-        user_emails: userEmails,
+        user_emails: userNames,
       };
       
       if (project) {
@@ -88,8 +88,8 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     }
   };
   
-  const handleEmailsChange = (emails: string[]) => {
-    setUserEmails(emails);
+  const handleUserNamesChange = (names: string[]) => {
+    setUserNames(names);
   };
   
   return (
@@ -106,11 +106,11 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         <div className="space-y-2">
           <label className="text-sm font-medium">Project Team Members (by Username)</label>
           <ProjectUserEmailInput
-            onEmailsChange={handleEmailsChange}
-            initialEmails={userEmails}
+            onEmailsChange={handleUserNamesChange}
+            initialEmails={userNames}
           />
           <p className="text-xs text-muted-foreground">
-            Enter usernames of team members to invite to this project
+            Enter display names of team members to invite to this project
           </p>
         </div>
         

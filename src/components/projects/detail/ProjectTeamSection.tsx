@@ -26,7 +26,7 @@ export function ProjectTeamSection({ projectMembers }: ProjectTeamSectionProps) 
                     {member.display_name?.substring(0, 2)?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm">{member.display_name || 'User'}</span>
+                <span className="text-sm">{member.display_name || 'Unknown User'}</span>
               </div>
             ))}
           </div>
