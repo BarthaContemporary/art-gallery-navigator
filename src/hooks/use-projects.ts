@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 
+// Base project type without any nested objects
 export interface Project {
   id: string;
   name: string;
@@ -17,13 +18,14 @@ export interface Project {
   updated_at: string;
 }
 
+// Extended type with location - using a simple nested object that won't cause recursion
 export interface ProjectWithLocation extends Project {
   location: {
     name: string;
   } | null;
 }
 
-// Completely flatten the structure to avoid any recursive type definitions
+// Simple flat type for project users, no nested profiles
 export interface ProjectUser {
   user_id: string;
   project_id: string;
@@ -42,7 +44,7 @@ export interface CreateProjectInput {
   user_emails?: string[];
 }
 
-// Re-export from another file to avoid circular dependencies
+// Re-export from separate files to avoid circular dependencies
 export { useProjectMembers } from "./projects/use-project-members";
 export type { ProjectMember } from "./projects/use-project-members";
 
