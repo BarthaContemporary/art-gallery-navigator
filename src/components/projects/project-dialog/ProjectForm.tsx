@@ -39,8 +39,9 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
       if (Array.isArray(projectUsers) && projectUsers.length > 0) {
         // Extract emails from profiles data
         const emails = projectUsers
-          .filter(pu => pu && pu.profiles && pu.profiles.email)
-          .map(pu => pu.profiles.email);
+          .filter(pu => pu.profiles && pu.profiles.email)
+          .map(pu => pu.profiles!.email!)
+          .filter(Boolean) as string[];
         setUserEmails(emails);
       }
     } catch (error) {

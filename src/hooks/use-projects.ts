@@ -24,12 +24,13 @@ export interface ProjectWithLocation extends Project {
 
 export interface ProjectUser {
   user_id: string;
-  profiles: {
+  project_id: string;
+  profiles?: {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
-    email: string;
-  };
+    email: string | null;
+  } | null;
 }
 
 export interface CreateProjectInput {
@@ -146,9 +147,9 @@ export function useCreateProject() {
           
           // For unmatched emails, we could implement an invitation system later
           if (foundUsers) {
-            // Safely access foundUsers array
-            const foundEmails = foundUsers.map(u => u.email).filter(Boolean);
-            const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
+            const unmatchedEmails = user_emails.filter(email => 
+              !foundUsers.some(user => user.id && email)
+            );
             
             if (unmatchedEmails.length > 0) {
               console.log("Some emails were not matched to users:", unmatchedEmails);
@@ -224,11 +225,9 @@ export function useUpdateProject() {
             
             // For emails that don't match any user, we could implement invitations later
             if (foundUsers) {
-              // Type-safe access to emails
-              const foundEmails = user_emails.filter(email => 
-                foundUsers.some(user => user.email === email)
+              const unmatchedEmails = user_emails.filter(email => 
+                !foundUsers.some(user => user.id && email)
               );
-              const unmatchedEmails = user_emails.filter(email => !foundEmails.includes(email));
               
               if (unmatchedEmails.length > 0) {
                 console.log("Some emails were not matched to users:", unmatchedEmails);
@@ -306,16 +305,38 @@ export function useProjectUsers(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
       
-      const { data, error } = await supabase
+      // First get the project_users entries
+      const { data: projectUsersData, error: projectUsersError } = await supabase
         .from('project_users')
-        .select(`
-          user_id,
-          profiles:profiles!inner(id, display_name, avatar_url, email)
-        `)
+        .select('user_id')
         .eq('project_id', projectId);
       
-      if (error) throw error;
-      return data as ProjectUser[];
+      if (projectUsersError) throw projectUsersError;
+      
+      // If there are no users associated with this project, return an empty array
+      if (!projectUsersData || projectUsersData.length === 0) return [];
+      
+      // Now get the profiles for these users
+      const userIds = projectUsersData.map(pu => pu.user_id);
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, email')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Combine the data
+      const result = projectUsersData.map(pu => {
+        const profile = profilesData?.find(p => p.id === pu.user_id);
+        return {
+          user_id: pu.user_id,
+          project_id: projectId,
+          profiles: profile || null
+        };
+      });
+      
+      return result as ProjectUser[];
     },
     enabled: !!projectId
   });
