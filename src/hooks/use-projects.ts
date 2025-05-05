@@ -44,6 +44,10 @@ export interface CreateProjectInput {
   user_emails?: string[];
 }
 
+// Re-export the project members hook
+export { useProjectMembers } from "./projects/use-project-members";
+export type { ProjectMember } from "./projects/use-project-members";
+
 export function useProjects(filters?: {
   status?: string;
   type?: string;
@@ -295,59 +299,5 @@ export function useDeleteProject() {
       console.error("Error deleting project:", error);
       toast.error("Failed to delete project");
     }
-  });
-}
-
-// Completely rewritten hook to avoid type recursion issues
-export function useProjectUsers(projectId: string | undefined) {
-  return useQuery({
-    queryKey: ['project-users', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      
-      try {
-        // Get project users first
-        const { data: projectUsersData, error: projectUsersError } = await supabase
-          .from('project_users')
-          .select('user_id, project_id')
-          .eq('project_id', projectId);
-        
-        if (projectUsersError) throw projectUsersError;
-        if (!projectUsersData || projectUsersData.length === 0) return [];
-        
-        // Get user profiles in a separate query
-        const userIds = projectUsersData.map(pu => pu.user_id);
-        
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url')
-          .in('id', userIds);
-        
-        if (profilesError) throw profilesError;
-        
-        // Manually construct the result array without complex type mappings
-        const result: ProjectUser[] = [];
-        
-        for (const pu of projectUsersData) {
-          const profile = profilesData?.find(p => p.id === pu.user_id);
-          
-          result.push({
-            user_id: pu.user_id,
-            project_id: pu.project_id,
-            profiles: profile ? {
-              id: profile.id,
-              display_name: profile.display_name,
-              avatar_url: profile.avatar_url
-            } : null
-          });
-        }
-        
-        return result;
-      } catch (error) {
-        console.error("Error fetching project users:", error);
-        throw error;
-      }
-    },
-    enabled: !!projectId
   });
 }

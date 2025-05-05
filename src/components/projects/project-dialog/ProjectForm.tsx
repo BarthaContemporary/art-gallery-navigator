@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +6,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { format } from "date-fns";
 import { ProjectWithLocation, CreateProjectInput, useCreateProject, useUpdateProject } from "@/hooks/use-projects";
-import { useProjectUsers } from "@/hooks/use-projects";
+import { useProjectMembers } from "@/hooks/use-projects";
 import { ProjectFormSchema } from "./schema";
 import { BasicInfoFields } from "./BasicInfoFields";
 import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
@@ -28,57 +27,23 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   
-  // For existing projects, fetch associated emails
-  const { data: projectUsers = [] } = useProjectUsers(project?.id);
+  // For existing projects, fetch associated members
+  const { data: projectMembers = [] } = useProjectMembers(project?.id);
   
   const [userEmails, setUserEmails] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Extract emails from project users when available - retrieve via separate query
+  // Extract emails from project members when available
   useEffect(() => {
-    try {
-      // If we have project users, fetch their email addresses
-      if (Array.isArray(projectUsers) && projectUsers.length > 0) {
-        const fetchUserEmails = async () => {
-          const userIds = projectUsers.map(pu => pu.user_id);
-          
-          // Query the profiles table specifically for email
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('email')
-            .in('id', userIds);
-            
-          if (error) {
-            console.error("Error fetching user emails:", error);
-            return;
-          }
-          
-          if (data && data.length > 0) {
-            // Safely extract emails, handling potential type errors
-            const emails: string[] = [];
-            
-            data.forEach(profile => {
-              // Make sure profile is a valid object and has an email property
-              if (profile && typeof profile === 'object' && profile !== null) {
-                // TypeScript fix: Use type assertion after checking profile is an object
-                const profileObj = profile as { email?: string };
-                if (profileObj.email && typeof profileObj.email === 'string') {
-                  emails.push(profileObj.email);
-                }
-              }
-            });
-            
-            setUserEmails(emails);
-          }
-        };
-        
-        fetchUserEmails();
-      }
-    } catch (error) {
-      console.error("Error processing project users:", error);
-      setUserEmails([]);
+    if (Array.isArray(projectMembers) && projectMembers.length > 0) {
+      // Simply extract emails from the flattened structure
+      const emails = projectMembers
+        .map(member => member.email)
+        .filter((email): email is string => !!email); // Filter out null/undefined
+      
+      setUserEmails(emails);
     }
-  }, [projectUsers]);
+  }, [projectMembers]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(ProjectFormSchema),

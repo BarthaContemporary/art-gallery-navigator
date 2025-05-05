@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProject, useProjectUsers } from "@/hooks/use-projects";
+import { useProject, useProjectMembers } from "@/hooks/use-projects";
 import { useProjectTasks, TaskWithAssignee } from "@/hooks/use-project-tasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ const ProjectDetail = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { data: project, isLoading, isError } = useProject(id);
-  const { data: projectUsers } = useProjectUsers(id);
+  const { data: projectMembers } = useProjectMembers(id);
   const { data: projectTasks } = useProjectTasks(id);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -40,7 +40,7 @@ const ProjectDetail = () => {
   const [editTaskDialogOpen, setEditTaskDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   
-  const userIsMember = projectUsers?.some(pu => pu.user_id === user?.id);
+  const userIsMember = projectMembers?.some(member => member.user_id === user?.id);
   
   const filteredTasks = (projectTasks || []).filter(task => {
     if (activeTab === "all") return true;
@@ -138,42 +138,27 @@ const ProjectDetail = () => {
         </div>
       </div>
       
-      {/* Project members section */}
+      {/* Project members section - updated implementation */}
       <Card className="mb-6">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <h2 className="text-lg font-semibold">Project Team</h2>
         </CardHeader>
         <CardContent>
-          {projectUsers?.length === 0 ? (
+          {!projectMembers || projectMembers.length === 0 ? (
             <div className="text-sm text-muted-foreground">No team members assigned.</div>
           ) : (
             <div className="flex flex-wrap gap-4">
-              {projectUsers?.map(projectUser => {
-                // Fixed TypeScript error with proper null check and type handling
-                let displayName = 'User';
-                let avatarUrl = null;
-                
-                if (projectUser.profiles && 
-                    typeof projectUser.profiles === 'object' && 
-                    projectUser.profiles !== null) {
-                  // Use type assertion to prevent TypeScript errors
-                  const profileData = projectUser.profiles as { display_name?: string; avatar_url?: string | null };
-                  displayName = profileData.display_name || 'User';
-                  avatarUrl = profileData.avatar_url || null;
-                }
-                
-                return (
-                  <div key={projectUser.user_id} className="flex items-center gap-2">
-                    <Avatar>
-                      <AvatarImage src={avatarUrl || undefined} />
-                      <AvatarFallback>
-                        {displayName.substring(0, 2) || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{displayName}</span>
-                  </div>
-                );
-              })}
+              {projectMembers.map(member => (
+                <div key={member.user_id} className="flex items-center gap-2">
+                  <Avatar>
+                    <AvatarImage src={member.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {member.display_name?.substring(0, 2) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{member.display_name || 'User'}</span>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
