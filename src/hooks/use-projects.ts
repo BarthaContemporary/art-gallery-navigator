@@ -297,7 +297,7 @@ export function useDeleteProject() {
   });
 }
 
-// Hook to get users for a project
+// Hook to get users for a project - improved with better error handling
 export function useProjectUsers(projectId: string | undefined) {
   return useQuery({
     queryKey: ['project-users', projectId],
@@ -308,16 +308,17 @@ export function useProjectUsers(projectId: string | undefined) {
         // First get the project_users entries
         const { data: projectUsersData, error: projectUsersError } = await supabase
           .from('project_users')
-          .select('user_id, project_id')
-          .eq('project_id', projectId);
+          .select('user_id, project_id');
         
         if (projectUsersError) throw projectUsersError;
-        
-        // If there are no users associated with this project, return an empty array
         if (!projectUsersData || projectUsersData.length === 0) return [];
         
+        // Filter to only include users for this project
+        const filteredProjectUsers = projectUsersData.filter(pu => pu.project_id === projectId);
+        if (filteredProjectUsers.length === 0) return [];
+        
         // Now get the profiles for these users
-        const userIds = projectUsersData.map(pu => pu.user_id);
+        const userIds = filteredProjectUsers.map(pu => pu.user_id);
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -327,7 +328,7 @@ export function useProjectUsers(projectId: string | undefined) {
         if (profilesError) throw profilesError;
         
         // Combine the data
-        const result = projectUsersData.map(pu => {
+        const result = filteredProjectUsers.map(pu => {
           const profile = profilesData?.find(p => p.id === pu.user_id);
           return {
             user_id: pu.user_id,

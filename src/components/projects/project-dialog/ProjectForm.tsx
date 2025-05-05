@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,12 +53,15 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
           }
           
           if (data && data.length > 0) {
-            // Filter out any undefined emails and extract the email strings
-            const emails = data
-              .filter(profile => profile.email)
-              .map(profile => profile.email)
-              .filter(Boolean) as string[];
-              
+            // Safely extract emails, handling potential type errors
+            const emails: string[] = [];
+            
+            data.forEach(profile => {
+              if (profile && typeof profile === 'object' && 'email' in profile && typeof profile.email === 'string') {
+                emails.push(profile.email);
+              }
+            });
+            
             setUserEmails(emails);
           }
         };
