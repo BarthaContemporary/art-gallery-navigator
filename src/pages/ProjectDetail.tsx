@@ -7,7 +7,7 @@ import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { ProjectCalendarView } from "@/components/projects/ProjectCalendarView";
 import { ProjectTaskDialog } from "@/components/projects/ProjectTaskDialog";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectDetailHeader } from "@/components/projects/detail/ProjectDetailHeader";
@@ -20,6 +20,9 @@ const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
   
+  // Add member dialog state
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
+  
   // Add error handling for the data fetching hooks
   const { 
     data: project, 
@@ -30,12 +33,14 @@ const ProjectDetail = () => {
   
   const { 
     data: projectMembers,
+    isLoading: membersLoading,
     isError: membersError,
     error: membersErrorDetails 
   } = useProjectMembers(id);
   
   const { 
     data: projectTasks,
+    isLoading: tasksLoading,
     isError: tasksError,
     error: tasksErrorDetails
   } = useProjectTasks(id);
@@ -134,6 +139,15 @@ const ProjectDetail = () => {
     }
   };
   
+  const handleAddMemberClick = () => {
+    try {
+      setAddMemberDialogOpen(true);
+    } catch (error) {
+      console.error("Error opening add member dialog:", error);
+      toast.error("Failed to open add member dialog");
+    }
+  };
+  
   const isMember = userIsMember();
   
   return (
@@ -147,7 +161,14 @@ const ProjectDetail = () => {
         onCalendarViewClick={handleCalendarViewClick}
       />
       
-      <ProjectTeamSection projectMembers={projectMembers} />
+      <ProjectTeamSection 
+        projectMembers={projectMembers}
+        isLoading={membersLoading}
+        isError={membersError}
+        onAddMember={handleAddMemberClick}
+        userIsMember={isMember}
+        isAdmin={isAdmin}
+      />
       
       <ProjectTasksList 
         tasks={projectTasks}
@@ -155,6 +176,8 @@ const ProjectDetail = () => {
         userIsMember={isMember}
         onCreateTask={handleCreateTaskClick}
         onEditTask={handleEditTaskClick}
+        isLoading={tasksLoading}
+        isError={tasksError}
       />
       
       {/* Dialogs */}
@@ -190,6 +213,14 @@ const ProjectDetail = () => {
           task={taskToEdit}
         />
       )}
+      
+      {/* Add Member Dialog */}
+      <ProjectDialog
+        open={addMemberDialogOpen}
+        onOpenChange={setAddMemberDialogOpen}
+        project={project}
+        initialTab="members"
+      />
     </div>
   );
 };

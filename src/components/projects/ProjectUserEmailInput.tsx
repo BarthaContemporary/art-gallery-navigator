@@ -4,18 +4,71 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProjectUserEmailInputProps {
+  projectId?: string;
   initialEmails?: string[];
   onEmailsChange: (emails: string[]) => void;
 }
 
 export function ProjectUserEmailInput({ 
+  projectId,
   initialEmails = [],
   onEmailsChange
 }: ProjectUserEmailInputProps) {
   const [usernames, setUsernames] = useState<string[]>(initialEmails || []);
   const [currentInput, setCurrentInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // When projectId is provided, fetch existing members
+  useEffect(() => {
+    async function fetchMembers() {
+      if (!projectId) return;
+      
+      setLoading(true);
+      try {
+        const { data: projectUsers, error } = await supabase
+          .from('project_users')
+          .select('user_id')
+          .eq('project_id', projectId);
+          
+        if (error) {
+          console.error("Error fetching project users:", error);
+          return;
+        }
+        
+        if (!projectUsers || projectUsers.length === 0) {
+          return;
+        }
+        
+        // Get display names
+        const userIds = projectUsers.map(pu => pu.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', userIds);
+        
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          return;
+        }
+        
+        if (profiles && profiles.length > 0) {
+          const names = profiles
+            .filter(p => p.display_name)
+            .map(p => p.display_name as string);
+          setUsernames(names);
+        }
+      } catch (err) {
+        console.error("Error in fetchMembers:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchMembers();
+  }, [projectId]);
   
   // Update parent component when usernames change
   useEffect(() => {
@@ -67,6 +120,10 @@ export function ProjectUserEmailInput({
       addUsername();
     }
   };
+  
+  if (loading) {
+    return <div className="text-sm text-muted-foreground">Loading team members...</div>;
+  }
   
   return (
     <div className="space-y-2">
