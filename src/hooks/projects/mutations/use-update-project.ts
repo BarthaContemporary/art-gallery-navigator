@@ -35,7 +35,7 @@ export function useUpdateProject() {
             // Find users by email
             const { data: foundUsers, error: userError } = await supabase
               .from('profiles')
-              .select('id')
+              .select('id, email')
               .in('email', user_emails);
             
             if (userError) throw userError;
@@ -57,7 +57,7 @@ export function useUpdateProject() {
             // For emails that don't match any user, we could implement invitations later
             if (foundUsers) {
               const unmatchedEmails = user_emails.filter(email => 
-                !foundUsers.some(user => user.id && email)
+                !foundUsers.some(user => user.email === email)
               );
               
               if (unmatchedEmails.length > 0) {
