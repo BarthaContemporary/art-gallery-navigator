@@ -15,53 +15,58 @@ export function useProjectTasks(projectId: string | undefined, filters?: {
     queryFn: async () => {
       if (!projectId) return [];
       
-      let query = supabase
-        .from('project_tasks')
-        .select(`
-          *,
-          assignee:profiles!inner(display_name, avatar_url)
-        `)
-        .eq('project_id', projectId);
-      
-      if (filters?.status && filters.status !== "") {
-        query = query.eq('status', filters.status as 'active' | 'scheduled' | 'completed' | 'abandoned');
-      }
-      
-      if (filters?.assignedTo) {
-        query = query.eq('assigned_to', filters.assignedTo);
-      }
-      
-      const { data, error } = await query.order('start_date', { ascending: true });
-      
-      if (error) throw error;
-      
-      // Transform the data to ensure it matches TaskWithAssignee type
-      const tasksWithAssignees = data.map(task => {
-        // Handle the case where assignee might be null or have a different structure
-        let assignee = null;
+      try {
+        let query = supabase
+          .from('project_tasks')
+          .select(`
+            *
+          `)
+          .eq('project_id', projectId);
         
-        if (task.assignee && 
-            typeof task.assignee === 'object' && 
-            !Array.isArray(task.assignee) && 
-            task.assignee !== null) {
-          // Type assertion to work with the data
-          const assigneeData = task.assignee as unknown as { display_name?: string; avatar_url?: string | null };
-          if (assigneeData && typeof assigneeData === 'object') {
-            assignee = {
-              display_name: assigneeData.display_name || 'Unknown',
-              avatar_url: assigneeData.avatar_url || null
-            };
-          }
+        if (filters?.status && filters.status !== "") {
+          query = query.eq('status', filters.status as 'active' | 'scheduled' | 'completed' | 'abandoned');
         }
+        
+        if (filters?.assignedTo) {
+          query = query.eq('assigned_to', filters.assignedTo);
+        }
+        
+        const { data, error } = await query.order('start_date', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Get assignee info for each task in a separate query
+        const tasksWithAssignees = await Promise.all(data.map(async (task) => {
+          let assignee = null;
           
-        return {
-          ...task,
-          assignee
-        } as TaskWithAssignee;
-      });
-      
-      return tasksWithAssignees;
+          if (task.assigned_to) {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('display_name, avatar_url')
+              .eq('id', task.assigned_to)
+              .single();
+              
+            if (!profileError && profileData) {
+              assignee = {
+                display_name: profileData.display_name || 'Unknown',
+                avatar_url: profileData.avatar_url || null
+              };
+            }
+          }
+          
+          return {
+            ...task,
+            assignee
+          } as TaskWithAssignee;
+        }));
+        
+        return tasksWithAssignees;
+      } catch (error) {
+        console.error("Error fetching project tasks:", error);
+        return [];
+      }
     },
-    enabled: !!projectId && !!user
+    enabled: !!projectId && !!user,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 }

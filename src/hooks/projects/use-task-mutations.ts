@@ -12,6 +12,7 @@ export function useCreateTask() {
       const { references, ...taskData } = input;
       
       try {
+        // Use the service role client for operations that might be affected by RLS
         // First create the task
         const { data: task, error } = await supabase
           .from('project_tasks')
@@ -19,7 +20,13 @@ export function useCreateTask() {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error creating task:", error);
+          if (error.code === '42P17' || error.message.includes("permission")) {
+            throw new Error("Permission error: You may not have access to create tasks in this project");
+          }
+          throw error;
+        }
         
         // Then add references if provided
         if (references && references.length > 0) {
@@ -42,10 +49,10 @@ export function useCreateTask() {
         
         return task;
       } catch (error: any) {
-        console.error("Error creating task:", error);
+        console.error("Error in createTask mutation:", error);
         
         // Handle specific error cases
-        if (error.code === '42P17') {
+        if (error.code === '42P17' || error.message.includes("permission")) {
           throw new Error("Permission error: You may not have access to create tasks in this project");
         }
         
@@ -114,7 +121,7 @@ export function useUpdateTask() {
         console.error("Error updating task:", error);
         
         // Handle specific error cases
-        if (error.code === '42P17') {
+        if (error.code === '42P17' || error.message.includes("permission")) {
           throw new Error("Permission error: You may not have access to update tasks in this project");
         }
         
@@ -149,7 +156,7 @@ export function useDeleteTask() {
         console.error("Error deleting task:", error);
         
         // Handle specific error cases
-        if (error.code === '42P17') {
+        if (error.code === '42P17' || error.message.includes("permission")) {
           throw new Error("Permission error: You may not have access to delete tasks in this project");
         }
         

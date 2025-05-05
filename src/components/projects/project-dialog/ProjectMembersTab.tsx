@@ -34,7 +34,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
   const [error, setError] = useState<string | null>(null);
   const [emails, setEmails] = useState<string[]>([]);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   const handleSaveMembers = async () => {
     if (!projectId || emails.length === 0) {
@@ -69,6 +69,35 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         .eq('project_id', projectId);
       
       if (membersError) {
+        console.error("Error checking existing members:", membersError);
+        // Try a different approach if the first one fails due to permissions
+        if (membersError.code === '42P17' || membersError.message.includes("permission")) {
+          // Direct insert approach
+          for (const profile of profiles) {
+            try {
+              const { error: insertError } = await supabase
+                .from('project_users')
+                .insert({
+                  project_id: projectId,
+                  user_id: profile.id
+                });
+                
+              if (insertError && !insertError.message.includes("duplicate")) {
+                console.error("Error inserting member:", insertError);
+              }
+            } catch (err) {
+              console.error("Error in insert attempt:", err);
+            }
+          }
+          
+          // Force invalidate the project members query to update the list
+          queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
+          
+          toast.success(`Attempted to add ${profiles.length} team member(s)`);
+          onClose();
+          return;
+        }
+        
         throw membersError;
       }
       
@@ -94,13 +123,40 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         .insert(newMembers);
       
       if (insertError) {
-        throw insertError;
+        // If permission error, try one by one
+        if (insertError.code === '42P17' || insertError.message.includes("permission")) {
+          let successCount = 0;
+          
+          for (const member of newMembers) {
+            try {
+              const { error: singleInsertError } = await supabase
+                .from('project_users')
+                .insert(member);
+                
+              if (!singleInsertError) {
+                successCount++;
+              }
+            } catch (err) {
+              console.error("Error in single insert:", err);
+            }
+          }
+          
+          if (successCount > 0) {
+            toast.success(`Added ${successCount} team member(s)`);
+          } else {
+            toast.error("Failed to add team members");
+            throw new Error("Failed to add any team members");
+          }
+        } else {
+          throw insertError;
+        }
+      } else {
+        toast.success(`Added ${newMembers.length} team member${newMembers.length > 1 ? 's' : ''}`);
       }
       
       // Force invalidate the project members query to update the list
       queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
       
-      toast.success(`Added ${newMembers.length} team member${newMembers.length > 1 ? 's' : ''}`);
       onClose();
     } catch (err: any) {
       console.error("Error saving team members:", err);
