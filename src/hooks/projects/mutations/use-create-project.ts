@@ -32,20 +32,23 @@ export function useCreateProject() {
             .select('id, display_name')
             .in('display_name', user_emails);
           
-          if (userError) throw userError;
+          if (userError) {
+            console.error("Error finding users:", userError);
+          }
           
           // Add found users to the project
           if (foundUsers && foundUsers.length > 0) {
-            const projectUsers = foundUsers.map(user => ({
-              project_id: project.id,
-              user_id: user.id
-            }));
-            
             // Insert users one by one to avoid potential bulk insert issues
-            for (const projectUser of projectUsers) {
+            for (const user of foundUsers) {
+              const projectUser = {
+                project_id: project.id,
+                user_id: user.id
+              };
+              
               const { error: insertError } = await supabase
                 .from('project_users')
-                .insert(projectUser);
+                .insert(projectUser)
+                .select();
               
               if (insertError) {
                 console.error("Error adding user to project:", insertError);
@@ -66,7 +69,6 @@ export function useCreateProject() {
         } catch (userError) {
           console.error("Error adding users by email:", userError);
           // Continue with project creation even if adding users fails
-          // Don't throw the error here to avoid failing the whole operation
         }
       }
       

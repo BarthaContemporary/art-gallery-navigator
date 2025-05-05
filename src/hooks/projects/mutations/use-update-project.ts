@@ -31,7 +31,9 @@ export function useUpdateProject() {
             .delete()
             .eq('project_id', id);
           
-          if (deleteError) throw deleteError;
+          if (deleteError) {
+            console.error("Error deleting existing project users:", deleteError);
+          }
           
           // Then add users by email
           if (user_emails.length > 0) {
@@ -41,7 +43,9 @@ export function useUpdateProject() {
               .select('id, display_name')
               .in('display_name', user_emails);
             
-            if (userError) throw userError;
+            if (userError) {
+              console.error("Error finding users:", userError);
+            }
             
             // Add found users to the project
             if (foundUsers && foundUsers.length > 0) {

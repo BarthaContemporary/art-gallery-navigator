@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectMember } from "./project-types";
+import { ProjectMember } from "./types/project-types";
 
 export function useProjectMembers(projectId: string | undefined) {
   return useQuery({
@@ -19,8 +19,7 @@ export function useProjectMembers(projectId: string | undefined) {
             profiles:profiles(
               id,
               display_name,
-              avatar_url,
-              email
+              avatar_url
             )
           `)
           .eq('project_id', projectId);
@@ -35,7 +34,6 @@ export function useProjectMembers(projectId: string | undefined) {
             id?: string; 
             display_name?: string | null; 
             avatar_url?: string | null;
-            email?: string | null;
           } | null;
           
           return {
@@ -43,7 +41,8 @@ export function useProjectMembers(projectId: string | undefined) {
             project_id: item.project_id,
             display_name: profile?.display_name || null,
             avatar_url: profile?.avatar_url || null,
-            email: profile?.email || null
+            // We don't have email in profiles, so we'll use display_name as email
+            email: profile?.display_name || null
           };
         });
       } catch (error) {
