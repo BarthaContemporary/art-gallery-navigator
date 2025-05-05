@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { CreateProjectInput } from "../types/project-types";
 import { Database } from "@/integrations/supabase/types";
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+type ProfilesRow = Database['public']['Tables']['profiles']['Row'];
 
 export function useUpdateProject() {
   const queryClient = useQueryClient();
@@ -35,11 +35,12 @@ export function useUpdateProject() {
           
           // Then add users by email
           if (user_emails.length > 0) {
-            // Find users by email
+            // Find users by matching their display_name with provided emails
+            // Note: In the current schema, profiles doesn't have a direct email column
             const { data: foundUsers, error: userError } = await supabase
               .from('profiles')
-              .select('id, email')
-              .in('email', user_emails);
+              .select('id, display_name')
+              .in('display_name', user_emails);
             
             if (userError) throw userError;
             
@@ -60,7 +61,7 @@ export function useUpdateProject() {
             // For emails that don't match any user, we could implement invitations later
             if (foundUsers) {
               const unmatchedEmails = user_emails.filter(email => 
-                !foundUsers.some(user => user.email === email)
+                !foundUsers.some(user => user.display_name === email)
               );
               
               if (unmatchedEmails.length > 0) {
