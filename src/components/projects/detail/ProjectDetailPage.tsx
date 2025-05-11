@@ -9,7 +9,7 @@ import { ProjectDetailHeader } from "./ProjectDetailHeader";
 import { ProjectTeamSection } from "./ProjectTeamSection";
 import { ProjectTasksList } from "./ProjectTasksList";
 import { ProjectDialogsManager } from "./ProjectDialogsManager";
-import { useProjectMembers } from "@/hooks/use-projects";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { useProjectTasks } from "@/hooks/use-project-tasks";
 import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,6 +20,9 @@ const ProjectDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Initialize project dialogs hook at the beginning
+  const projectDialogs = useProjectDialogs();
   
   // Add member dialog state
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -167,8 +170,6 @@ const ProjectDetailPage = () => {
       <DebugInfo data={debugData} title="Project Debug Info" />
     </div>
   );
-  
-  const projectDialogs = useProjectDialogs();
 };
 
 export default ProjectDetailPage;
