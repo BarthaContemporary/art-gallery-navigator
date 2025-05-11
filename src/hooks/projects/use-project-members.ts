@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,13 +35,22 @@ export function useProjectMembers(projectId: string | undefined) {
         if (error) throw error;
         
         // Transform the data to our ProjectMember type
-        const members: ProjectMember[] = data.map(item => ({
-          user_id: item.user_id,
-          project_id: item.project_id,
-          display_name: item.profiles?.display_name || 'Unknown User',
-          avatar_url: item.profiles?.avatar_url || null,
-          email: item.profiles?.display_name || null // Using display_name as email since that's what's stored
-        }));
+        const members: ProjectMember[] = data.map(item => {
+          // Type-safe check for profile data
+          const profileData = item.profiles || {};
+          const displayName = typeof profileData === 'object' && 'display_name' in profileData ? 
+            profileData.display_name as string | null : null;
+          const avatarUrl = typeof profileData === 'object' && 'avatar_url' in profileData ? 
+            profileData.avatar_url as string | null : null;
+            
+          return {
+            user_id: item.user_id,
+            project_id: item.project_id,
+            display_name: displayName || 'Unknown User',
+            avatar_url: avatarUrl || null,
+            email: displayName || null // Using display_name as email since that's what's stored
+          };
+        });
         
         // If there are no members but current user has access, include them
         if (members.length === 0 && user) {

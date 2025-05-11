@@ -32,7 +32,7 @@ interface TaskFormProps {
 }
 
 export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
-  const { data: projectMembers = [], isError: membersError } = useProjectMembers(projectId);
+  const { members = [], isError: membersError } = useProjectMembers(projectId);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,7 +117,7 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
           <TaskStatusField control={form.control} />
           <TaskAssigneeField 
             control={form.control} 
-            projectUsers={projectMembers || []}
+            projectUsers={members || []}
           />
         </div>
         

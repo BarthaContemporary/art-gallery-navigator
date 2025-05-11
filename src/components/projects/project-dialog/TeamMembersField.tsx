@@ -11,7 +11,7 @@ interface TeamMembersFieldProps {
 }
 
 export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFieldProps) {
-  const { data: projectMembers, isLoading } = useProjectMembers(project?.id);
+  const { members: projectMembers, isLoading } = useProjectMembers(project?.id);
   
   // Handle member changes and extract emails for the form
   const handleMembersChange = useCallback((members: ProjectMember[]) => {
@@ -31,8 +31,7 @@ export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFie
       ) : (
         <ProjectMemberSelect
           projectId={project?.id}
-          initialMembers={projectMembers}
-          onMembersChange={handleMembersChange}
+          readOnly={false}
         />
       )}
       

@@ -13,7 +13,7 @@ interface ProjectCalendarViewProps {
 
 export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCalendarViewProps) {
   const { data: tasks } = useProjectTasks(project?.id);
-  const { data: projectMembers } = useProjectMembers(project?.id);
+  const { members: projectMembers } = useProjectMembers(project?.id);
   const calendarRef = useRef<HTMLDivElement>(null);
   
   if (!project) return null;
