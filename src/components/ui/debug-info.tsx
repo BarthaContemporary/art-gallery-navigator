@@ -50,7 +50,7 @@ export function DebugInfo({
               {JSON.stringify(data, null, 2)}
             </pre>
           </CardContent>
-        </Collapsible>
+        </CollapsibleContent>
       </Collapsible>
     </Card>
   );
