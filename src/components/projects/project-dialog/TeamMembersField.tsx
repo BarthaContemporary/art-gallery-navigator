@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
-import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 
 interface TeamMembersFieldProps {

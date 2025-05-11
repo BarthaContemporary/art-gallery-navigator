@@ -4,6 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProjectMember } from "./types/project-types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { User } from "@supabase/supabase-js";
+
+// Helper function with correct type handling
+function createCurrentUserMember(user: User, projectId: string): ProjectMember {
+  return {
+    user_id: user.id,
+    project_id: projectId,
+    display_name: user.email || 'Current User',
+    avatar_url: null,
+    email: user.email || null
+  };
+}
 
 export function useProjectMembers(projectId: string | undefined) {
   const { user } = useAuth();
@@ -63,14 +75,16 @@ export function useProjectMembers(projectId: string | undefined) {
             project_id: projectId,
             display_name: profile?.display_name || 'Unknown User',
             avatar_url: profile?.avatar_url || null,
-            email: item.user_id === user?.id ? user.email : profile?.email
+            email: profile?.email || null
           };
         });
         
         // Always ensure current user is included if they have access
-        const currentUserIncluded = members.some(member => member.user_id === user?.id);
-        if (user && !currentUserIncluded) {
-          members.push(createCurrentUserMember(user, projectId));
+        if (user) {
+          const currentUserIncluded = members.some(member => member.user_id === user.id);
+          if (!currentUserIncluded) {
+            members.push(createCurrentUserMember(user, projectId));
+          }
         }
         
         return members;
@@ -89,15 +103,4 @@ export function useProjectMembers(projectId: string | undefined) {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
   });
-}
-
-// Helper function to create a consistent current user member object
-function createCurrentUserMember(user: { id: string, email: string | null }, projectId: string): ProjectMember {
-  return {
-    user_id: user.id,
-    project_id: projectId,
-    display_name: user.email || 'Current User',
-    avatar_url: null,
-    email: user.email
-  };
 }
