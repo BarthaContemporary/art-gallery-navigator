@@ -32,26 +32,26 @@ export function DebugInfo({
             <Bug className="h-4 w-4 text-yellow-600" />
             <CardTitle className="text-sm text-yellow-800 dark:text-yellow-400">{title}</CardTitle>
           </div>
-          <CollapsibleTrigger asChild onClick={() => setIsOpen(!isOpen)}>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              {isOpen ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
+          <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                {isOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="p-4">
+                <pre className="text-xs overflow-auto max-h-[300px] p-2 bg-slate-100 dark:bg-slate-900 rounded">
+                  {JSON.stringify(data, null, 2)}
+                </pre>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </CardHeader>
-      <Collapsible open={isOpen}>
-        <CollapsibleContent>
-          <CardContent className="p-4">
-            <pre className="text-xs overflow-auto max-h-[300px] p-2 bg-slate-100 dark:bg-slate-900 rounded">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
     </Card>
   );
 }
