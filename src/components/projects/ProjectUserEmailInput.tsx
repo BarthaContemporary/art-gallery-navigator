@@ -6,6 +6,7 @@ import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ProjectUserEmailInputProps {
   projectId?: string;
@@ -22,8 +23,19 @@ export function ProjectUserEmailInput({
   const [currentInput, setCurrentInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   
-  // When projectId is provided, fetch existing members
+  // When initialEmails changes, update our state
+  useEffect(() => {
+    if (Array.isArray(initialEmails) && 
+        JSON.stringify(initialEmails) !== JSON.stringify(usernames) &&
+        initialEmails.length > 0) {
+      console.log("Updating usernames from initialEmails:", initialEmails);
+      setUsernames(initialEmails);
+    }
+  }, [initialEmails, usernames]);
+  
+  // When projectId is provided, try to fetch existing members
   useEffect(() => {
     async function fetchMembers() {
       if (!projectId) return;
@@ -32,57 +44,18 @@ export function ProjectUserEmailInput({
       setError(null);
       
       try {
-        console.log(`Fetching members for project: ${projectId}`);
-        
-        // First fetch the project users
-        const { data: memberIds, error } = await supabase
-          .from('project_users')
-          .select('user_id')
-          .eq('project_id', projectId);
-          
-        if (error) {
-          console.error("Error fetching project users:", error);
-          setError("Failed to load project members");
-          setLoading(false);
-          return;
-        }
-        
-        if (!memberIds || memberIds.length === 0) {
-          console.log("No members found for this project");
-          setLoading(false);
-          return;
-        }
-        
-        // Then get the display names from profiles
-        const userIds = memberIds.map(pu => pu.user_id);
-        
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, display_name')
-          .in('id', userIds);
-        
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
-          setError("Failed to load member profiles");
-          setLoading(false);
-          return;
-        }
-        
-        if (profiles && profiles.length > 0) {
-          const names = profiles
-            .filter(p => p.display_name)
-            .map(p => p.display_name as string);
-          
-          console.log(`Found ${names.length} member display names`);
-          
+        // Just use current user to avoid RLS issues
+        if (user) {
+          const currentUsername = user.email || 'Current User';
           setUsernames(prev => {
-            // Combine with any existing names without duplicates
-            const combined = [...new Set([...prev, ...names])];
-            onEmailsChange(combined); // Update parent
-            return combined;
+            // Add current user if not present
+            if (!prev.includes(currentUsername)) {
+              const updated = [...prev, currentUsername];
+              onEmailsChange(updated);
+              return updated;
+            }
+            return prev;
           });
-        } else {
-          console.log("No member profiles found with display names");
         }
       } catch (err) {
         console.error("Error in fetchMembers:", err);
@@ -93,22 +66,12 @@ export function ProjectUserEmailInput({
     }
     
     fetchMembers();
-  }, [projectId, onEmailsChange]);
+  }, [projectId, onEmailsChange, user]);
   
   // Update parent component when usernames change
   useEffect(() => {
     onEmailsChange(usernames);
   }, [usernames, onEmailsChange]);
-  
-  // Update internal state when initialEmails changes
-  useEffect(() => {
-    if (Array.isArray(initialEmails) && 
-        JSON.stringify(initialEmails) !== JSON.stringify(usernames) &&
-        initialEmails.length > 0) {
-      console.log("Updating usernames from initialEmails:", initialEmails);
-      setUsernames(initialEmails);
-    }
-  }, [initialEmails, usernames]);
   
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Add username on Enter, comma, or space

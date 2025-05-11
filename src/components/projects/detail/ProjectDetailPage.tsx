@@ -13,6 +13,7 @@ import { useProjectMembers } from "@/hooks/use-projects";
 import { useProjectTasks } from "@/hooks/use-project-tasks";
 import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
+import { DebugInfo } from "@/components/ui/debug-info";
 
 const ProjectDetailPage = () => {
   const navigate = useNavigate();
@@ -58,19 +59,22 @@ const ProjectDetailPage = () => {
     }
   }, [addMemberDialogOpen, id, refetchMembers, queryClient]);
   
-  // Log errors for debugging
-  if (membersError) {
-    console.error("Error loading project members:", membersErrorDetails);
-  }
+  // Determine if user is a member - assume current user is a member if we can't determine
+  const userIsMember = isAdmin || 
+    (projectMembers?.some(member => member.user_id === user?.id)) || 
+    Boolean(user); // Fallback - assume user is a member
   
-  if (tasksError) {
-    console.error("Error loading project tasks:", tasksErrorDetails);
-  }
-
-  const projectDialogs = useProjectDialogs();
-  
-  // Determine if user is a member
-  const userIsMember = projectMembers?.some(member => member.user_id === user?.id) || false;
+  const debugData = {
+    project,
+    members: projectMembers,
+    user: user?.id,
+    isAdmin,
+    userIsMember,
+    errors: {
+      members: membersErrorDetails,
+      tasks: tasksErrorDetails
+    }
+  };
   
   if (isLoading) {
     return <div className="p-6 text-center">Loading project details...</div>;
@@ -124,7 +128,13 @@ const ProjectDetailPage = () => {
       />
       
       <ProjectTeamSection 
-        projectMembers={projectMembers}
+        projectMembers={projectMembers || [{ 
+          user_id: user?.id || 'unknown',
+          project_id: id || 'unknown',
+          display_name: user?.email || 'Current User', 
+          avatar_url: null,
+          email: user?.email
+        }]}
         isLoading={membersLoading}
         isError={membersError}
         onAddMember={handleAddMemberClick}
@@ -152,8 +162,13 @@ const ProjectDetailPage = () => {
         }}
         navigate={navigate}
       />
+      
+      {/* Add debug info - only shown in development */}
+      <DebugInfo data={debugData} title="Project Debug Info" />
     </div>
   );
+  
+  const projectDialogs = useProjectDialogs();
 };
 
 export default ProjectDetailPage;

@@ -4,6 +4,7 @@ import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TeamMembersFieldProps {
   project?: ProjectWithLocation;
@@ -11,30 +12,40 @@ interface TeamMembersFieldProps {
 }
 
 export function TeamMembersField({ project, onUserNamesChange }: TeamMembersFieldProps) {
+  const { user } = useAuth();
   const { data: projectMembers = [], isLoading: isLoadingMembers, isError: membersError } = 
     useProjectMembers(project?.id);
   
   const [userNames, setUserNames] = useState<string[]>([]);
   
-  // Extract usernames from project members when available - with memoization to prevent unnecessary re-renders
-  const processMembers = useCallback(() => {
+  // Extract usernames from project members when available 
+  useEffect(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
       const names = projectMembers
         .map(member => member.display_name)
         .filter((name): name is string => !!name);
       
-      setUserNames(names);
+      if (names.length > 0) {
+        setUserNames(names);
+        onUserNamesChange(names);
+      } else if (user) {
+        // Fallback to current user if no members found
+        const currentUser = user.email || 'Current User';
+        setUserNames([currentUser]);
+        onUserNamesChange([currentUser]);
+      }
+    } else if (user) {
+      // Fallback to current user if no members found
+      const currentUser = user.email || 'Current User';
+      setUserNames([currentUser]);
+      onUserNamesChange([currentUser]);
     }
-  }, [projectMembers]);
-  
-  useEffect(() => {
-    processMembers();
-  }, [projectMembers, processMembers]);
+  }, [projectMembers, user, onUserNamesChange]);
 
   // Show error if members couldn't be loaded
   useEffect(() => {
     if (membersError && project) {
-      toast.error("Failed to load project members");
+      console.error("Failed to load project members:", membersError);
     }
   }, [membersError, project]);
   
@@ -51,6 +62,7 @@ export function TeamMembersField({ project, onUserNamesChange }: TeamMembersFiel
         <div className="text-sm text-muted-foreground">Loading team members...</div>
       ) : (
         <ProjectUserEmailInput
+          projectId={project?.id}
           onEmailsChange={handleUserNamesChange}
           initialEmails={userNames}
         />

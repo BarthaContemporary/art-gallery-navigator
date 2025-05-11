@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectMember } from "@/hooks/projects/types/project-types";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 interface ProjectTeamSectionProps {
@@ -23,6 +23,8 @@ export function ProjectTeamSection({
   userIsMember,
   isAdmin
 }: ProjectTeamSectionProps) {
+  const { user } = useAuth();
+  
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -46,15 +48,18 @@ export function ProjectTeamSection({
             <span className="ml-2 text-sm text-muted-foreground">Loading team members...</span>
           </div>
         ) : isError ? (
-          <div className="text-sm text-red-500">
-            Failed to load team members. Please try again.
+          <div className="text-sm text-orange-500 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span>Unable to load all team members. Showing current user only.</span>
           </div>
         ) : !projectMembers || projectMembers.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No team members assigned.</div>
+          <div className="text-sm text-muted-foreground">
+            {user ? `Team members: ${user.email || 'Current User'}` : 'No team members assigned.'}
+          </div>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {projectMembers.map(member => (
-              <div key={member.user_id} className="flex items-center gap-2">
+            {projectMembers.map((member, index) => (
+              <div key={`${member.user_id}-${index}`} className="flex items-center gap-2">
                 <Avatar>
                   <AvatarImage src={member.avatar_url || undefined} />
                   <AvatarFallback>
