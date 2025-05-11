@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectMember } from "./types/member-types";
+import { ProjectMember, ProfileData } from "./types/member-types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { User } from "@supabase/supabase-js";
@@ -72,14 +72,15 @@ export function useProjectMembers(projectId: string | undefined) {
         
         // Map the data to our ProjectMember type
         const members: ProjectMember[] = membersData.map(item => {
-          const profile = item.profiles || {};
+          // Ensure profile exists and use safe property access
+          const profile: ProfileData = item.profiles || {};
           
           return {
             user_id: item.user_id,
             project_id: projectId,
             display_name: profile.display_name || 'Unknown User',
             avatar_url: profile.avatar_url || null,
-            email: profile.display_name || null // Using display_name as email
+            email: profile.display_name || null // Using display_name as email for now
           };
         });
         

@@ -25,6 +25,14 @@ export interface MemberOperationResult {
   member?: ProjectMember;
 }
 
+// Type for profile data returned from Supabase
+export interface ProfileData {
+  id?: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  email_confirmed?: boolean | null;
+}
+
 // Helper to create a consistent member object from user data
 export function createMemberFromUser(
   userId: string,

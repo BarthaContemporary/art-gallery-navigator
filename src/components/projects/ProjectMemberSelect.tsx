@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { UserPlus, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { ProjectMember } from "@/hooks/projects/types/member-types";
+import { ProjectMember, ProfileData } from "@/hooks/projects/types/member-types";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 interface ProjectMemberSelectProps {
@@ -70,7 +69,7 @@ export function ProjectMemberSelect({
         // Process members from database
         if (projectUsers && projectUsers.length > 0) {
           projectUsers.forEach(pu => {
-            const profile = pu.profiles || {};
+            const profile: ProfileData = pu.profiles || {};
             fetchedMembers.push({
               user_id: pu.user_id,
               project_id: projectId,

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,11 +38,19 @@ export function useProjectFormSubmit(project?: ProjectWithLocation, onClose?: ()
         queryClient.invalidateQueries({ queryKey: ['project', project.id] });
         queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
       } else {
-        // Create new project
-        const newProject = await createProject({
-          ...values,
+        // Create new project - ensuring required fields are present
+        const projectData: CreateProjectInput = {
+          name: values.name,
+          description: values.description,
+          status: values.status,
+          type: values.type,
+          location_id: values.location_id,
+          start_date: values.start_date,
+          end_date: values.end_date,
           user_emails: userEmails
-        });
+        };
+        
+        const newProject = await createProject(projectData);
         
         toast.success("Project created");
         queryClient.invalidateQueries({ queryKey: ['projects'] });

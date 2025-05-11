@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useCallback, ReactNode } from "react";
-import { ProjectMember, MemberOperationResult } from "@/hooks/projects/types/member-types";
+import { ProjectMember, MemberOperationResult, ProfileData } from "@/hooks/projects/types/member-types";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,13 +52,18 @@ export function ProjectMembersProvider({ children }: { children: ReactNode }) {
       }
 
       // Transform the data into our consistent ProjectMember format
-      const projectMembers: ProjectMember[] = membersData.map(item => ({
-        user_id: item.user_id,
-        project_id: item.project_id,
-        display_name: item.profiles?.display_name || 'Unknown User',
-        avatar_url: item.profiles?.avatar_url || null,
-        email: item.profiles?.display_name || null // Using display_name as email since that's what's stored
-      }));
+      const projectMembers: ProjectMember[] = membersData.map(item => {
+        // Ensure profile exists and use safe property access
+        const profile: ProfileData = item.profiles || {};
+        
+        return {
+          user_id: item.user_id,
+          project_id: item.project_id,
+          display_name: profile.display_name || 'Unknown User',
+          avatar_url: profile.avatar_url || null,
+          email: profile.display_name || null // Using display_name as email since that's what's stored
+        };
+      });
 
       setMembers(projectMembers);
       setLoading(false);
