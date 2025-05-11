@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ProjectMember, isProfileData } from "@/hooks/projects/types/member-types";
+import { ProjectMember, ProfileData } from "@/hooks/projects/types/member-types";
 
 export function useAddMember(
   projectId: string | undefined,
@@ -49,11 +49,15 @@ export function useAddMember(
         return;
       }
       
-      // Enhanced type handling with strong defaults
-      const safeProfile = profileData || {};
-      const profileId = safeProfile.id;
+      // Properly type the profile data
+      const safeProfile: ProfileData = profileData || { 
+        id: undefined,
+        display_name: undefined,
+        avatar_url: undefined 
+      };
       
-      if (!profileId) {
+      // Ensure we have a valid profile ID
+      if (!safeProfile.id) {
         toast.error("Invalid user profile");
         setLoading(false);
         return;
@@ -64,7 +68,7 @@ export function useAddMember(
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
-        .eq('user_id', profileId)
+        .eq('user_id', safeProfile.id)
         .maybeSingle();
         
       if (existingMemberData) {
@@ -78,14 +82,14 @@ export function useAddMember(
         .from('project_users')
         .insert({
           project_id: projectId,
-          user_id: profileId
+          user_id: safeProfile.id
         });
         
       if (addError) throw addError;
       
       // Create member object and update state
       const newMember: ProjectMember = {
-        user_id: profileId,
+        user_id: safeProfile.id,
         project_id: projectId,
         display_name: safeProfile.display_name || email,
         avatar_url: safeProfile.avatar_url || null,
