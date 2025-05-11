@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectMember, ProfileData } from "./types/member-types";
+import { ProjectMember, ProfileData, isProfileData } from "./types/member-types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { User } from "@supabase/supabase-js";
@@ -70,10 +70,11 @@ export function useProjectMembers(projectId: string | undefined) {
           return [];
         }
         
-        // Map the data to our ProjectMember type
+        // Map the data to our ProjectMember type with proper type checking
         const members: ProjectMember[] = membersData.map(item => {
-          // Ensure profile exists and use safe property access
-          const profile: ProfileData = item.profiles || {};
+          // Ensure profile exists and use safe property access with type guard
+          const profileData = item.profiles || {};
+          const profile: ProfileData = isProfileData(profileData) ? profileData : {};
           
           return {
             user_id: item.user_id,

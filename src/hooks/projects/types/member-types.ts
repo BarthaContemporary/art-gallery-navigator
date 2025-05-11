@@ -33,6 +33,11 @@ export interface ProfileData {
   email_confirmed?: boolean | null;
 }
 
+// Type guard to check if an object is a valid ProfileData
+export function isProfileData(obj: any): obj is ProfileData {
+  return obj && typeof obj === 'object';
+}
+
 // Helper to create a consistent member object from user data
 export function createMemberFromUser(
   userId: string,

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { ProjectMember, ProfileData } from "@/hooks/projects/types/member-types";
+import { ProjectMember, ProfileData, isProfileData } from "@/hooks/projects/types/member-types";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 interface ProjectMemberSelectProps {
@@ -141,7 +141,7 @@ export function ProjectMemberSelect({
     
     try {
       // Find user profile by email (display_name field)
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
         .eq('display_name', email)
@@ -158,6 +158,9 @@ export function ProjectMemberSelect({
         setEmailInput("");
         return;
       }
+      
+      // Apply type guard to ensure profile is valid
+      const profile: ProfileData = isProfileData(profileData) ? profileData : {};
       
       // Check if user is already a member
       const { data: existingMember } = await supabase

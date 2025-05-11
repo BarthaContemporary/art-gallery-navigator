@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useCallback, ReactNode } from "react";
-import { ProjectMember, MemberOperationResult, ProfileData } from "@/hooks/projects/types/member-types";
+import { ProjectMember, MemberOperationResult, ProfileData, isProfileData } from "@/hooks/projects/types/member-types";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -41,8 +41,7 @@ export function ProjectMembersProvider({ children }: { children: ReactNode }) {
             id,
             display_name,
             avatar_url,
-            email_confirmed,
-            display_name
+            email_confirmed
           )
         `)
         .eq('project_id', projectId);
@@ -54,7 +53,8 @@ export function ProjectMembersProvider({ children }: { children: ReactNode }) {
       // Transform the data into our consistent ProjectMember format
       const projectMembers: ProjectMember[] = membersData.map(item => {
         // Ensure profile exists and use safe property access
-        const profile: ProfileData = item.profiles || {};
+        const profileData = item.profiles || {};
+        const profile: ProfileData = isProfileData(profileData) ? profileData : {};
         
         return {
           user_id: item.user_id,

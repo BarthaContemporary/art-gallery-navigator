@@ -41,10 +41,10 @@ export function useProjectFormSubmit(project?: ProjectWithLocation, onClose?: ()
         // Create new project - ensuring required fields are present
         const projectData: CreateProjectInput = {
           name: values.name,
-          description: values.description,
+          description: values.description || "",
           status: values.status,
           type: values.type,
-          location_id: values.location_id,
+          location_id: values.location_id || null,
           start_date: values.start_date,
           end_date: values.end_date,
           user_emails: userEmails
