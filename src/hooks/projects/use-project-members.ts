@@ -17,6 +17,18 @@ function createCurrentUserMember(user: User, projectId: string): ProjectMember {
   };
 }
 
+// Define a proper type for the joined data from Supabase
+interface ProjectUserWithProfile {
+  user_id: string;
+  project_id: string;
+  profiles?: {
+    id?: string;
+    display_name?: string;
+    avatar_url?: string | null;
+    email?: string | null;
+  } | null;
+}
+
 export function useProjectMembers(projectId: string | undefined) {
   const { user } = useAuth();
   
@@ -67,15 +79,17 @@ export function useProjectMembers(projectId: string | undefined) {
           return [];
         }
         
-        // Map joined data to project members
-        const members: ProjectMember[] = membersWithProfiles.map(item => {
-          const profile = item.profiles;
+        // Type-safe mapping of joined data to project members
+        const members: ProjectMember[] = (membersWithProfiles as ProjectUserWithProfile[]).map(item => {
+          // Safely access potentially undefined profile properties
+          const profile = item.profiles || {};
+          
           return {
             user_id: item.user_id,
             project_id: projectId,
-            display_name: profile?.display_name || 'Unknown User',
-            avatar_url: profile?.avatar_url || null,
-            email: profile?.email || null
+            display_name: profile.display_name || 'Unknown User',
+            avatar_url: profile.avatar_url || null,
+            email: profile.email || null
           };
         });
         

@@ -8,17 +8,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useAuth } from "@/hooks/use-auth";
 
-interface ProjectUserEmailInputProps {
+interface ProjectUserEmailInput {
   projectId?: string;
   initialEmails?: string[];
   onEmailsChange: (emails: string[]) => void;
+}
+
+interface ProjectUserWithProfile {
+  user_id: string;
+  profiles?: {
+    id?: string;
+    display_name?: string;
+    email?: string;
+  } | null;
 }
 
 export function ProjectUserEmailInput({ 
   projectId,
   initialEmails = [],
   onEmailsChange
-}: ProjectUserEmailInputProps) {
+}: ProjectUserEmailInput) {
   const [emails, setEmails] = useState<string[]>(initialEmails || []);
   const [currentInput, setCurrentInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,10 +71,14 @@ export function ProjectUserEmailInput({
         }
         
         if (projectUsers && projectUsers.length > 0) {
-          // Extract email addresses from profiles
-          const memberEmails = projectUsers
-            .map(pu => pu.profiles?.email)
-            .filter((email): email is string => !!email);
+          // Type-safe extraction of email addresses from profiles
+          const memberEmails: string[] = [];
+          
+          (projectUsers as ProjectUserWithProfile[]).forEach(pu => {
+            if (pu.profiles?.email) {
+              memberEmails.push(pu.profiles.email);
+            }
+          });
           
           if (memberEmails.length > 0) {
             setEmails(memberEmails);
