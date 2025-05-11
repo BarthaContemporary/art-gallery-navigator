@@ -17,9 +17,11 @@ interface OTPVerificationProps {
   onSubmit: (values: OTPFormValues) => void;
   onBack: () => void;
   isLoading: boolean;
+  email?: string;
+  onError?: (error: Error) => void;
 }
 
-export function OTPVerification({ onSubmit, onBack, isLoading }: OTPVerificationProps) {
+export function OTPVerification({ onSubmit, onBack, isLoading, email, onError }: OTPVerificationProps) {
   const form = useForm<OTPFormValues>({
     resolver: zodResolver(otpSchema),
     defaultValues: {

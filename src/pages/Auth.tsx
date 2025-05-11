@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -107,11 +108,45 @@ function Auth() {
               </TabsList>
               
               <TabsContent value="login">
-                <LoginForm onOtpRequested={handleOtpRequested} onError={handleAuthError} />
+                <LoginForm 
+                  onSubmit={async (values, captchaToken) => {
+                    try {
+                      const { needsOTP } = await useAuth().signIn(
+                        values.email, 
+                        values.password || "", 
+                        captchaToken
+                      );
+                      if (needsOTP) {
+                        handleOtpRequested(values.email);
+                      }
+                    } catch (error) {
+                      if (error instanceof Error) {
+                        handleAuthError(error);
+                      }
+                    }
+                  }} 
+                  isLoading={isLoading}
+                  onOtpRequested={handleOtpRequested}
+                  onError={handleAuthError}
+                />
               </TabsContent>
               
               <TabsContent value="otp">
-                <OTPVerification email={email} onError={handleAuthError} />
+                <OTPVerification 
+                  onSubmit={async (values) => {
+                    try {
+                      await useAuth().verifyOTP(email, values.otp);
+                    } catch (error) {
+                      if (error instanceof Error) {
+                        handleAuthError(error);
+                      }
+                    }
+                  }}
+                  onBack={() => setSelectedTab("login")}
+                  isLoading={isLoading}
+                  email={email}
+                  onError={handleAuthError}
+                />
               </TabsContent>
             </Tabs>
           </Card>

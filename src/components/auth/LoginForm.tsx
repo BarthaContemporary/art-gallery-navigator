@@ -18,9 +18,11 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 interface LoginFormProps {
   onSubmit: (values: LoginFormValues, captchaToken: string) => void;
   isLoading: boolean;
+  onOtpRequested?: (userEmail: string) => void;
+  onError?: (error: Error) => void;
 }
 
-export function LoginForm({ onSubmit, isLoading }: LoginFormProps) {
+export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken] = useState<string>("development-mode"); // Hardcoded token for development
 
