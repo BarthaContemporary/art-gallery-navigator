@@ -1,198 +1,130 @@
-
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import { useSafeAsync } from "@/hooks/use-safe-async";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle,
-  CardFooter
-} from "@/components/ui/card";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { OTPVerification } from "@/components/auth/OTPVerification";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader } from "lucide-react";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { DebugInfo } from "@/components/ui/debug-info";
+import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
 
-export default function Auth() {
-  const [showOTP, setShowOTP] = useState(false);
-  const [email, setEmail] = useState("");
-  const [authError, setAuthError] = useState<string | null>(null);
-  
-  const { signInWithPassword, signInWithOTP, verifyOTP, session } = useAuth();
-  const { toast } = useToast();
-  const { execute, isLoading } = useSafeAsync();
+type AuthTab = "login" | "otp";
+
+function Auth() {
+  const { user, isLoading } = useAuth();
+  const [selectedTab, setSelectedTab] = useState<AuthTab>("login");
+  const [email, setEmail] = useState<string>("");
+  const [authError, setAuthError] = useState<Error | null>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (session) {
-      navigate("/");
-    }
-  }, [session, navigate]);
-
-  const handleLogin = async (values: { email: string; password: string }, captchaToken: string) => {
-    setEmail(values.email);
-    setAuthError(null);
-    
-    console.log("Login attempt initiated with CAPTCHA token:", captchaToken ? "provided" : "missing");
-    
-    execute(async () => {
-      if (values.password) {
-        try {
-          console.log("Attempting password login...");
-          await signInWithPassword(values.email, values.password, captchaToken);
-          return { needsOTP: false };
-        } catch (error) {
-          if (error instanceof Error) {
-            console.log("Password login error:", error.message);
-            
-            // In development mode, always fall back to OTP if password login fails
-            if (captchaToken === "development-mode" || error.message.includes("Invalid login credentials")) {
-              console.log("Invalid credentials or dev mode, falling back to OTP...");
-              return signInWithOTP(values.email, captchaToken);
-            }
-            
-            if (error.message.includes("captcha")) {
-              setAuthError(`CAPTCHA verification failed: ${error.message}`);
-              throw error;
-            }
-          }
-          throw error;
-        }
-      } else {
-        console.log("No password provided, using OTP directly...");
-        return signInWithOTP(values.email, captchaToken);
-      }
-    }, {
-      onSuccess: (result) => {
-        if (result?.needsOTP) {
-          setShowOTP(true);
-          toast({
-            title: "Check your email",
-            description: "We've sent you a one-time password.",
-          });
-        } else {
-          toast({
-            title: "Login successful",
-            description: "Welcome back!",
-          });
-          navigate("/");
-        }
-      },
-      onError: (error) => {
-        console.error('Login error:', error);
-        
-        // Special handling for development mode - always show a helpful message
-        if (captchaToken === "development-mode" && error.message.includes("captcha")) {
-          setAuthError("Development mode: CAPTCHA would normally fail here, but we're allowing login in development mode. If this persists, check your Supabase edge function configuration.");
-        } else if (error.message.includes("captcha")) {
-          setAuthError(`CAPTCHA verification failed: ${error.message.replace(/^.*captcha[^:]*:\s*/i, "")}`);
-        } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      }
-    });
-  };
-
-  const handleOTPVerify = async (values: { otp: string }) => {
-    setAuthError(null);
-    
-    execute(async () => {
-      await verifyOTP(email, values.otp);
-      navigate("/");
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "Verification successful",
-          description: "You are now logged in.",
-        });
-      },
-      onError: (error) => {
-        toast({
-          title: "Verification failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    });
-  };
-
-  const handleBack = () => {
-    setShowOTP(false);
-    setAuthError(null);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-2 sm:px-4">
-      <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-md shadow-lg border border-border/60">
-        <CardHeader className="px-6 pt-8 pb-2 sm:pt-10">
-          <CardTitle className="text-2xl sm:text-3xl md:text-4xl">
-            {showOTP ? "Verify Email" : "Login"}
-          </CardTitle>
-          <CardDescription className="text-base sm:text-lg">
-            {showOTP 
-              ? "Enter the code sent to your email" 
-              : "Welcome back! Please login to continue."
-            }
-          </CardDescription>
-        </CardHeader>
-        
-        {authError && (
-          <div className="px-6">
-            <Alert variant="warning" className="py-2">
-              <AlertCircle className="h-4 w-4 mr-2 text-amber-600" />
-              <AlertDescription className="text-amber-600">{authError}</AlertDescription>
-            </Alert>
-          </div>
-        )}
-        
-        <CardContent className="px-6 pb-8 pt-4 sm:pt-2">
-          {!showOTP ? (
-            <LoginForm onSubmit={handleLogin} isLoading={isLoading} />
-          ) : (
-            <OTPVerification 
-              onSubmit={handleOTPVerify}
-              onBack={handleBack}
-              isLoading={isLoading}
-            />
-          )}
-        </CardContent>
-        
-        <CardFooter className="px-6 pb-6 pt-0 flex flex-col items-center text-center">
-          <p className="text-sm text-muted-foreground">
-            {captchaErrorHint()}
-          </p>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-}
-
-function captchaErrorHint(): JSX.Element | null {
-  const host = window.location.hostname;
-  const isDev = process.env.NODE_ENV === 'development' || 
-                host.includes('localhost') || 
-                host.includes('.lovableproject.com');
+  const location = useLocation();
   
-  if (isDev) {
+  // Get the page to redirect to after login
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/";
+  
+  // Add debug info about the redirect path
+  const debugInfo = {
+    redirectPath: from,
+    authState: !!user,
+    isLoading,
+    currentLocation: location.pathname
+  };
+  
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !isLoading) {
+      console.log("User is authenticated, redirecting to:", from);
+      navigate(from, { replace: true });
+    }
+  }, [user, isLoading, navigate, from]);
+  
+  // Handle OTP request completion
+  const handleOtpRequested = (userEmail: string) => {
+    setEmail(userEmail);
+    setSelectedTab("otp");
+  };
+  
+  // Handle authentication errors
+  const handleAuthError = (error: Error) => {
+    console.error("Authentication error:", error);
+    setAuthError(error);
+  };
+  
+  // Reset any auth errors
+  const resetError = () => {
+    setAuthError(null);
+  };
+  
+  if (isLoading) {
     return (
-      <span>
-        Development mode: CAPTCHA validation is disabled. In production, users would need to complete CAPTCHA verification.
-      </span>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-2">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-2">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">Redirecting...</p>
+        </div>
+      </div>
     );
   }
   
   return (
-    <span>
-      If you're experiencing CAPTCHA issues, check that your browser allows third-party cookies 
-      and has JavaScript enabled.
-    </span>
+    <ErrorBoundary>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md px-4">
+          <Card className="p-6 shadow-lg">
+            <div className="mb-6 text-center">
+              <h1 className="text-3xl font-bold">Welcome</h1>
+              <p className="text-muted-foreground mt-2">Sign in to your account</p>
+            </div>
+            
+            {authError && (
+              <ErrorDisplay 
+                error={authError} 
+                resetError={resetError} 
+                showHomeButton={false}
+                title="Authentication Error" 
+              />
+            )}
+            
+            <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as AuthTab)}>
+              <TabsList className="grid grid-cols-2 mb-6">
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="otp" disabled={!email}>
+                  Verification
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="login">
+                <LoginForm onOtpRequested={handleOtpRequested} onError={handleAuthError} />
+              </TabsContent>
+              
+              <TabsContent value="otp">
+                <OTPVerification email={email} onError={handleAuthError} />
+              </TabsContent>
+            </Tabs>
+          </Card>
+          
+          {/* Debug information - only visible in development */}
+          <DebugInfo data={debugInfo} title="Auth Debug Info" />
+        </div>
+        
+        {/* Auth status monitor - only in development */}
+        <AuthStatusMonitor />
+      </div>
+    </ErrorBoundary>
   );
 }
+
+export default Auth;

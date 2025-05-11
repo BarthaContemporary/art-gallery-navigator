@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ProjectWithLocation } from "@/hooks/projects";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 interface ProjectMembersTabProps {
   project: ProjectWithLocation;
@@ -16,15 +17,22 @@ interface ProjectMembersTabProps {
 
 export function ProjectMembersTab({ project, onClose }: ProjectMembersTabProps) {
   return (
-    <div className="space-y-6 py-4">
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium">Project team members</h3>
-        <UserMultiSelect 
-          projectId={project.id} 
-          onClose={onClose} 
-        />
+    <ErrorBoundary fallback={
+      <div className="p-4 text-center">
+        <p className="text-red-500 mb-2">Error loading project members</p>
+        <Button onClick={onClose}>Close</Button>
       </div>
-    </div>
+    }>
+      <div className="space-y-6 py-4">
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium">Project team members</h3>
+          <UserMultiSelect 
+            projectId={project.id} 
+            onClose={onClose} 
+          />
+        </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 
@@ -62,24 +70,49 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         return;
       }
       
+      console.log("Found matching profiles:", profiles);
+      
       let successCount = 0;
       const failedNames: string[] = [];
       
       // Try to add each member individually to handle failures better
       for (const profile of profiles) {
+        if (!profile.id) continue;
+        
         try {
-          const { error: insertError } = await supabase
+          // Check if the user is already a member of this project
+          const { data: existingMember, error: checkError } = await supabase
             .from('project_users')
-            .insert({
-              project_id: projectId,
-              user_id: profile.id
-            });
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('user_id', profile.id)
+            .single();
             
-          if (!insertError) {
-            successCount++;
-          } else if (!insertError.message.includes("duplicate")) {
-            // Only track as failed if it's not a duplicate (duplicates are ok)
-            failedNames.push(profile.display_name || 'Unknown user');
+          if (checkError && !checkError.message.includes("No rows found")) {
+            console.error("Error checking existing membership:", checkError);
+          }
+          
+          // Only insert if not already a member
+          if (!existingMember) {
+            const { error: insertError } = await supabase
+              .from('project_users')
+              .insert({
+                project_id: projectId,
+                user_id: profile.id
+              });
+              
+            if (!insertError) {
+              successCount++;
+              console.log(`Added user ${profile.id} to project ${projectId}`);
+            } else {
+              console.error("Error adding member:", insertError);
+              if (!insertError.message.includes("duplicate")) {
+                // Only track as failed if it's not a duplicate (duplicates are ok)
+                failedNames.push(profile.display_name || 'Unknown user');
+              }
+            }
+          } else {
+            console.log(`User ${profile.id} is already a member of project ${projectId}`);
           }
         } catch (err) {
           console.error("Error in member insert attempt:", err);
@@ -90,6 +123,8 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
       // Report results to the user
       if (successCount > 0) {
         toast.success(`Added ${successCount} team member(s)`);
+      } else if (profiles.length > 0) {
+        toast.info("No new members were added - users may already be team members");
       }
       
       if (failedNames.length > 0) {
@@ -120,12 +155,12 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         onEmailsChange={handleEmailsChange}
       />
       <div className="flex justify-end space-x-2 pt-4">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={loading}>
           Cancel
         </Button>
         <Button 
           onClick={handleSaveMembers}
-          disabled={loading}
+          disabled={loading || emails.length === 0}
         >
           {loading ? (
             <>

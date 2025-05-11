@@ -27,12 +27,20 @@ import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 
-// Create a new QueryClient to manage our React Query state
+// Create a new QueryClient with enhanced error handling
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false
+      retry: 2,
+      refetchOnWindowFocus: false,
+      onError: (error) => {
+        console.error("Query error:", error);
+      }
+    },
+    mutations: {
+      onError: (error) => {
+        console.error("Mutation error:", error);
+      }
     }
   }
 });
