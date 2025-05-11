@@ -62,24 +62,24 @@ export function useUpdateProject() {
                 });
             }
             
-            // Process each username individually
+            // Process each email individually
             const notFoundUsers: string[] = [];
             const addedUsers: string[] = [];
             
             if (user_emails && user_emails.length > 0) {
-              for (const username of user_emails) {
+              for (const email of user_emails) {
                 try {
-                  if (!username.trim()) continue;
+                  if (!email.trim()) continue;
                   
-                  // Skip if this is the current user (already ensured above)
+                  // Find user by email (stored in display_name field of profiles)
                   const { data: profileData } = await supabase
                     .from('profiles')
                     .select('id')
-                    .eq('display_name', username.trim())
+                    .eq('display_name', email.trim())
                     .limit(1);
                   
                   if (!profileData || profileData.length === 0) {
-                    notFoundUsers.push(username);
+                    notFoundUsers.push(email);
                     continue;
                   }
                   
@@ -110,18 +110,22 @@ export function useUpdateProject() {
                     });
                   
                   if (insertError) {
-                    console.error(`Error adding user ${username} to project:`, insertError);
+                    console.error(`Error adding user ${email} to project:`, insertError);
                   } else {
-                    addedUsers.push(username);
+                    addedUsers.push(email);
                   }
                 } catch (err) {
-                  console.error(`Error processing user ${username}:`, err);
+                  console.error(`Error processing user ${email}:`, err);
                 }
               }
             }
             
             if (notFoundUsers.length > 0) {
               toast.warning(`Some users could not be found: ${notFoundUsers.join(', ')}`);
+            }
+            
+            if (addedUsers.length > 0) {
+              toast.success(`Added team members: ${addedUsers.join(', ')}`);
             }
             
           } catch (error) {

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,7 +23,7 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ project, onClose }: ProjectFormProps) {
-  const [userNames, setUserNames] = useState<string[]>([]);
+  const [userEmails, setUserEmails] = useState<string[]>([]);
   const { onSubmit, isSubmitting, formError } = useProjectFormSubmit(project, onClose);
   
   const form = useForm<FormValues>({
@@ -41,12 +40,12 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     }
   });
   
-  const handleUserNamesChange = useCallback((names: string[]) => {
-    setUserNames(names);
+  const handleUserEmailsChange = useCallback((emails: string[]) => {
+    setUserEmails(emails);
   }, []);
   
   const handleFormSubmit = form.handleSubmit((values) => {
-    onSubmit(values, userNames);
+    onSubmit(values, userEmails);
   });
   
   return (
@@ -62,7 +61,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         
         <TeamMembersField 
           project={project} 
-          onUserNamesChange={handleUserNamesChange} 
+          onUserEmailsChange={handleUserEmailsChange} 
         />
         
         {formError && (

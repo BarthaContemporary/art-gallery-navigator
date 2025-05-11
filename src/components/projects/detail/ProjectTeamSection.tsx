@@ -58,17 +58,25 @@ export function ProjectTeamSection({
           </div>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {projectMembers.map((member, index) => (
-              <div key={`${member.user_id}-${index}`} className="flex items-center gap-2">
-                <Avatar>
-                  <AvatarImage src={member.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {member.display_name?.substring(0, 2)?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm">{member.display_name || 'Unknown User'}</span>
-              </div>
-            ))}
+            {projectMembers.map((member, index) => {
+              // Use the first two letters of the display name or email for avatar fallback
+              const nameParts = member.display_name?.split(' ') || [];
+              const initials = nameParts.length > 1 
+                ? `${nameParts[0]?.charAt(0) || ''}${nameParts[1]?.charAt(0) || ''}`
+                : member.display_name?.substring(0, 2) || member.email?.substring(0, 2)?.toUpperCase() || 'U';
+              
+              return (
+                <div key={`${member.user_id}-${index}`} className="flex items-center gap-2">
+                  <Avatar>
+                    <AvatarImage src={member.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {initials.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{member.display_name || member.email || 'Unknown User'}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

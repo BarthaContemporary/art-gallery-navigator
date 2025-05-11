@@ -19,7 +19,7 @@ export function useProjectFormSubmit(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
-  const onSubmit = async (values: FormValues, userNames: string[]) => {
+  const onSubmit = async (values: FormValues, userEmails: string[]) => {
     setFormError(null);
     setIsSubmitting(true);
     
@@ -55,7 +55,7 @@ export function useProjectFormSubmit(
         location_id: values.location_id || null,
         start_date: values.start_date,
         end_date: values.end_date,
-        user_emails: userNames.filter(name => name.trim() !== ""),
+        user_emails: userEmails.filter(email => email.trim() !== ""),
       };
       
       if (project) {

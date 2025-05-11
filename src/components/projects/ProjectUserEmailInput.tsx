@@ -19,7 +19,7 @@ export function ProjectUserEmailInput({
   initialEmails = [],
   onEmailsChange
 }: ProjectUserEmailInputProps) {
-  const [usernames, setUsernames] = useState<string[]>(initialEmails || []);
+  const [emails, setEmails] = useState<string[]>(initialEmails || []);
   const [currentInput, setCurrentInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,12 +28,12 @@ export function ProjectUserEmailInput({
   // When initialEmails changes, update our state
   useEffect(() => {
     if (Array.isArray(initialEmails) && 
-        JSON.stringify(initialEmails) !== JSON.stringify(usernames) &&
+        JSON.stringify(initialEmails) !== JSON.stringify(emails) &&
         initialEmails.length > 0) {
-      console.log("Updating usernames from initialEmails:", initialEmails);
-      setUsernames(initialEmails);
+      console.log("Updating emails from initialEmails:", initialEmails);
+      setEmails(initialEmails);
     }
-  }, [initialEmails, usernames]);
+  }, [initialEmails, emails]);
   
   // When projectId is provided, try to fetch existing members
   useEffect(() => {
@@ -44,13 +44,41 @@ export function ProjectUserEmailInput({
       setError(null);
       
       try {
-        // Just use current user to avoid RLS issues
-        if (user) {
-          const currentUsername = user.email || 'Current User';
-          setUsernames(prev => {
+        const { data: projectUsers, error } = await supabase
+          .from('project_users')
+          .select(`
+            user_id,
+            profiles:user_id (
+              id,
+              display_name,
+              email:display_name
+            )
+          `)
+          .eq('project_id', projectId);
+          
+        if (error) {
+          console.error("Error fetching project members:", error);
+          throw new Error("Failed to load team members");
+        }
+        
+        if (projectUsers && projectUsers.length > 0) {
+          // Extract email addresses from profiles
+          const memberEmails = projectUsers
+            .map(pu => pu.profiles?.email)
+            .filter((email): email is string => !!email);
+          
+          if (memberEmails.length > 0) {
+            setEmails(memberEmails);
+            onEmailsChange(memberEmails);
+          }
+        }
+        
+        // Always include current user if they exist
+        if (user && user.email) {
+          setEmails(prev => {
             // Add current user if not present
-            if (!prev.includes(currentUsername)) {
-              const updated = [...prev, currentUsername];
+            if (!prev.includes(user.email!)) {
+              const updated = [...prev, user.email!];
               onEmailsChange(updated);
               return updated;
             }
@@ -59,7 +87,13 @@ export function ProjectUserEmailInput({
         }
       } catch (err) {
         console.error("Error in fetchMembers:", err);
-        setError("An unexpected error occurred");
+        setError("An error occurred loading team members");
+        
+        // Fallback to current user
+        if (user && user.email) {
+          setEmails([user.email]);
+          onEmailsChange([user.email]);
+        }
       } finally {
         setLoading(false);
       }
@@ -68,20 +102,19 @@ export function ProjectUserEmailInput({
     fetchMembers();
   }, [projectId, onEmailsChange, user]);
   
-  // Update parent component when usernames change
+  // Update parent component when emails change
   useEffect(() => {
-    onEmailsChange(usernames);
-  }, [usernames, onEmailsChange]);
+    onEmailsChange(emails);
+  }, [emails, onEmailsChange]);
   
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Add username on Enter, comma, or space
     if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
-      addUsername();
+      addEmail();
     }
   };
   
-  const addUsername = () => {
+  const addEmail = () => {
     const trimmedInput = currentInput.trim();
     
     // Skip empty inputs
@@ -90,25 +123,25 @@ export function ProjectUserEmailInput({
     }
     
     // Check for duplicates
-    if (usernames.includes(trimmedInput)) {
-      toast.warning(`Username "${trimmedInput}" has already been added`);
+    if (emails.includes(trimmedInput)) {
+      toast.warning(`Email "${trimmedInput}" has already been added`);
       setCurrentInput("");
       return;
     }
     
-    console.log(`Adding username: ${trimmedInput}`);
-    setUsernames(prev => [...(prev || []), trimmedInput]);
+    console.log(`Adding email: ${trimmedInput}`);
+    setEmails(prev => [...(prev || []), trimmedInput]);
     setCurrentInput("");
   };
   
-  const removeUsername = (usernameToRemove: string) => {
-    console.log(`Removing username: ${usernameToRemove}`);
-    setUsernames(prev => (prev || []).filter(username => username !== usernameToRemove));
+  const removeEmail = (emailToRemove: string) => {
+    console.log(`Removing email: ${emailToRemove}`);
+    setEmails(prev => (prev || []).filter(email => email !== emailToRemove));
   };
   
   const handleInputBlur = () => {
     if (currentInput.trim()) {
-      addUsername();
+      addEmail();
     }
   };
   
@@ -129,12 +162,12 @@ export function ProjectUserEmailInput({
         ) : null}
         
         <div className="flex flex-wrap gap-2 mb-2">
-          {usernames && usernames.map((username, index) => (
-            <Badge key={`${username}-${index}`} variant="secondary" className="px-3 py-1">
-              {username}
+          {emails && emails.map((email, index) => (
+            <Badge key={`${email}-${index}`} variant="secondary" className="px-3 py-1">
+              {email}
               <X 
                 className="ml-2 h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={() => removeUsername(username)}
+                onClick={() => removeEmail(email)}
               />
             </Badge>
           ))}
@@ -145,13 +178,13 @@ export function ProjectUserEmailInput({
           onChange={(e) => setCurrentInput(e.target.value)}
           onKeyDown={handleInputKeyDown}
           onBlur={handleInputBlur}
-          placeholder="Enter username (display name)"
+          placeholder="Enter email address"
           className="w-full"
         />
         
         <p className="text-xs text-muted-foreground mt-1">
-          Enter usernames (display names) of team members to invite to this project. 
-          Press Enter or click outside to add each username.
+          Enter email addresses of team members to invite to this project. 
+          Press Enter or click outside to add each email.
         </p>
       </div>
     </ErrorBoundary>

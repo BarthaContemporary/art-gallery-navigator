@@ -54,7 +54,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
     setError(null);
     
     try {
-      // First get profiles that match the entered display names
+      // First get profiles that match the entered emails (stored in display_name)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name')
@@ -65,7 +65,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
       }
       
       if (!profiles || profiles.length === 0) {
-        toast.warning("No matching users found with the provided names");
+        toast.warning("No matching users found with the provided emails");
         setLoading(false);
         return;
       }
@@ -73,7 +73,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
       console.log("Found matching profiles:", profiles);
       
       let successCount = 0;
-      const failedNames: string[] = [];
+      const failedEmails: string[] = [];
       
       // Try to add each member individually to handle failures better
       for (const profile of profiles) {
@@ -108,7 +108,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
               console.error("Error adding member:", insertError);
               if (!insertError.message.includes("duplicate")) {
                 // Only track as failed if it's not a duplicate (duplicates are ok)
-                failedNames.push(profile.display_name || 'Unknown user');
+                failedEmails.push(profile.display_name || 'Unknown user');
               }
             }
           } else {
@@ -116,7 +116,7 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
           }
         } catch (err) {
           console.error("Error in member insert attempt:", err);
-          failedNames.push(profile.display_name || 'Unknown user');
+          failedEmails.push(profile.display_name || 'Unknown user');
         }
       }
       
@@ -127,8 +127,8 @@ function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: (
         toast.info("No new members were added - users may already be team members");
       }
       
-      if (failedNames.length > 0) {
-        toast.error(`Failed to add: ${failedNames.join(', ')}`);
+      if (failedEmails.length > 0) {
+        toast.error(`Failed to add: ${failedEmails.join(', ')}`);
       }
       
       // Force invalidate the project members query to update the list

@@ -8,39 +8,37 @@ import { useAuth } from "@/hooks/use-auth";
 
 interface TeamMembersFieldProps {
   project?: ProjectWithLocation;
-  onUserNamesChange: (names: string[]) => void;
+  onUserEmailsChange: (emails: string[]) => void;
 }
 
-export function TeamMembersField({ project, onUserNamesChange }: TeamMembersFieldProps) {
+export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFieldProps) {
   const { user } = useAuth();
   const { data: projectMembers = [], isLoading: isLoadingMembers, isError: membersError } = 
     useProjectMembers(project?.id);
   
-  const [userNames, setUserNames] = useState<string[]>([]);
+  const [userEmails, setUserEmails] = useState<string[]>([]);
   
-  // Extract usernames from project members when available 
+  // Extract email addresses from project members when available 
   useEffect(() => {
     if (Array.isArray(projectMembers) && projectMembers.length > 0) {
-      const names = projectMembers
-        .map(member => member.display_name)
-        .filter((name): name is string => !!name);
+      const emails = projectMembers
+        .map(member => member.email)
+        .filter((email): email is string => !!email);
       
-      if (names.length > 0) {
-        setUserNames(names);
-        onUserNamesChange(names);
-      } else if (user) {
+      if (emails.length > 0) {
+        setUserEmails(emails);
+        onUserEmailsChange(emails);
+      } else if (user?.email) {
         // Fallback to current user if no members found
-        const currentUser = user.email || 'Current User';
-        setUserNames([currentUser]);
-        onUserNamesChange([currentUser]);
+        setUserEmails([user.email]);
+        onUserEmailsChange([user.email]);
       }
-    } else if (user) {
+    } else if (user?.email) {
       // Fallback to current user if no members found
-      const currentUser = user.email || 'Current User';
-      setUserNames([currentUser]);
-      onUserNamesChange([currentUser]);
+      setUserEmails([user.email]);
+      onUserEmailsChange([user.email]);
     }
-  }, [projectMembers, user, onUserNamesChange]);
+  }, [projectMembers, user, onUserEmailsChange]);
 
   // Show error if members couldn't be loaded
   useEffect(() => {
@@ -49,10 +47,10 @@ export function TeamMembersField({ project, onUserNamesChange }: TeamMembersFiel
     }
   }, [membersError, project]);
   
-  const handleUserNamesChange = useCallback((names: string[]) => {
-    setUserNames(names);
-    onUserNamesChange(names);
-  }, [onUserNamesChange]);
+  const handleUserEmailsChange = useCallback((emails: string[]) => {
+    setUserEmails(emails);
+    onUserEmailsChange(emails);
+  }, [onUserEmailsChange]);
   
   return (
     <div className="space-y-2">
@@ -63,13 +61,13 @@ export function TeamMembersField({ project, onUserNamesChange }: TeamMembersFiel
       ) : (
         <ProjectUserEmailInput
           projectId={project?.id}
-          onEmailsChange={handleUserNamesChange}
-          initialEmails={userNames}
+          onEmailsChange={handleUserEmailsChange}
+          initialEmails={userEmails}
         />
       )}
       
       <p className="text-xs text-muted-foreground">
-        Enter display names of team members to invite to this project.
+        Enter email addresses of team members to invite to this project.
         This will grant them access to view and edit the project.
       </p>
     </div>

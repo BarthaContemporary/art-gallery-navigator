@@ -59,31 +59,32 @@ export function useCreateProject() {
           return project;
         }
         
-        // Process each username individually to handle potential errors gracefully
-        const notFoundUsernames: string[] = [];
+        // Process each email individually to handle potential errors gracefully
+        const notFoundEmails: string[] = [];
+        const addedEmails: string[] = [];
         
-        for (const username of user_emails) {
-          if (!username.trim()) continue;
+        for (const email of user_emails) {
+          if (!email.trim()) continue;
           
           try {
-            // Find user by display_name
-            const { data: users, error: findError } = await supabase
+            // Find user by email (display_name in profiles)
+            const { data: profiles, error: findError } = await supabase
               .from('profiles')
               .select('id')
-              .eq('display_name', username.trim())
+              .eq('display_name', email.trim())
               .limit(1);
             
             if (findError) {
-              console.error(`Error finding user with username ${username}:`, findError);
+              console.error(`Error finding user with email ${email}:`, findError);
               continue;
             }
             
-            if (!users || users.length === 0) {
-              notFoundUsernames.push(username);
+            if (!profiles || profiles.length === 0) {
+              notFoundEmails.push(email);
               continue;
             }
             
-            const userId = users[0].id;
+            const userId = profiles[0].id;
             
             // Skip adding current user again
             if (userId === currentUserId) continue;
@@ -97,15 +98,26 @@ export function useCreateProject() {
               });
             
             if (insertError) {
-              console.error(`Error adding user ${username} to project:`, insertError);
+              if (insertError.message.includes('duplicate')) {
+                // User already added, just note it
+                addedEmails.push(email);
+              } else {
+                console.error(`Error adding user ${email} to project:`, insertError);
+              }
+            } else {
+              addedEmails.push(email);
             }
           } catch (err) {
-            console.error(`Error processing user ${username}:`, err);
+            console.error(`Error processing user ${email}:`, err);
           }
         }
         
-        if (notFoundUsernames.length > 0) {
-          toast.warning(`Some users could not be found: ${notFoundUsernames.join(', ')}`);
+        if (notFoundEmails.length > 0) {
+          toast.warning(`Some users could not be found: ${notFoundEmails.join(', ')}`);
+        }
+        
+        if (addedEmails.length > 0) {
+          toast.success(`Added team members: ${addedEmails.join(', ')}`);
         }
         
         return project;
