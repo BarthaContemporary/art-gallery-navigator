@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject } from "@/hooks/use-projects";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,13 +34,7 @@ const ProjectDetailPage = () => {
     error: projectError 
   } = useProject(id);
   
-  const { 
-    data: projectMembers,
-    isLoading: membersLoading,
-    isError: membersError,
-    error: membersErrorDetails,
-    refetch: refetchMembers
-  } = useProjectMembers(id);
+  const { members, isLoading: membersLoading, isError: membersError } = useProjectMembers(id);
   
   const { 
     data: projectTasks,
@@ -50,33 +43,17 @@ const ProjectDetailPage = () => {
     error: tasksErrorDetails
   } = useProjectTasks(id);
   
-  // Force refresh project members when dialog closes
-  useEffect(() => {
-    if (!addMemberDialogOpen && id) {
-      // A small delay to ensure any database operations have completed
-      const timer = setTimeout(() => {
-        refetchMembers();
-        queryClient.invalidateQueries({ queryKey: ['project-members', id] });
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [addMemberDialogOpen, id, refetchMembers, queryClient]);
-  
   // Determine if user is a member - assume current user is a member if we can't determine
   const userIsMember = isAdmin || 
-    (projectMembers?.some(member => member.user_id === user?.id)) || 
+    (members?.some(member => member.user_id === user?.id)) || 
     Boolean(user); // Fallback - assume user is a member
   
   const debugData = {
     project,
-    members: projectMembers,
+    members,
     user: user?.id,
     isAdmin,
     userIsMember,
-    errors: {
-      members: membersErrorDetails,
-      tasks: tasksErrorDetails
-    }
   };
   
   if (isLoading) {
@@ -101,8 +78,6 @@ const ProjectDetailPage = () => {
   const handleAddMemberClick = () => {
     try {
       setAddMemberDialogOpen(true);
-      // Pre-fetch members to ensure we have the latest data
-      refetchMembers();
     } catch (error) {
       console.error("Error opening add member dialog:", error);
       toast.error("Failed to open add member dialog");
@@ -114,7 +89,6 @@ const ProjectDetailPage = () => {
     setAddMemberDialogOpen(false);
     // Force refresh project members when dialog closes
     setTimeout(() => {
-      refetchMembers();
       queryClient.invalidateQueries({ queryKey: ['project-members', id] });
     }, 300);
   };
@@ -131,15 +105,7 @@ const ProjectDetailPage = () => {
       />
       
       <ProjectTeamSection 
-        projectMembers={projectMembers || [{ 
-          user_id: user?.id || 'unknown',
-          project_id: id || 'unknown',
-          display_name: user?.email || 'Current User', 
-          avatar_url: null,
-          email: user?.email
-        }]}
-        isLoading={membersLoading}
-        isError={membersError}
+        projectId={id}
         onAddMember={handleAddMemberClick}
         userIsMember={userIsMember}
         isAdmin={isAdmin}

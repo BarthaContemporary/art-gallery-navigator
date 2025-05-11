@@ -1,29 +1,24 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Loader2, AlertCircle } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { ProjectMember } from "@/hooks/projects/types/member-types";
+import { UserPlus } from "lucide-react";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 
 interface ProjectTeamSectionProps {
-  projectMembers: ProjectMember[] | undefined;
-  isLoading?: boolean;
-  isError?: boolean;
+  projectId?: string;
   onAddMember?: () => void;
   userIsMember?: boolean;
   isAdmin?: boolean;
 }
 
 export function ProjectTeamSection({ 
-  projectMembers, 
-  isLoading, 
-  isError, 
+  projectId,
   onAddMember,
   userIsMember,
   isAdmin
 }: ProjectTeamSectionProps) {
-  const { user } = useAuth();
+  const { members, isLoading, isError } = useProjectMembers(projectId);
   
   return (
     <Card className="mb-6">
@@ -50,15 +45,15 @@ export function ProjectTeamSection({
         ) : isError ? (
           <div className="text-sm text-orange-500 flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            <span>Unable to load all team members. Showing current user only.</span>
+            <span>Unable to load team members. Please try again later.</span>
           </div>
-        ) : !projectMembers || projectMembers.length === 0 ? (
+        ) : !members || members.length === 0 ? (
           <div className="text-sm text-muted-foreground">
-            {user ? `Team members: ${user.email || 'Current User'}` : 'No team members assigned.'}
+            No team members assigned.
           </div>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {projectMembers.map((member, index) => {
+            {members.map((member) => {
               // Get initials for avatar fallback
               const nameParts = member.display_name?.split(' ') || [];
               const initials = nameParts.length > 1 
@@ -66,13 +61,10 @@ export function ProjectTeamSection({
                 : member.display_name?.substring(0, 2) || member.email?.substring(0, 2)?.toUpperCase() || 'U';
               
               return (
-                <div key={`${member.user_id}-${index}`} className="flex items-center gap-2">
-                  <Avatar>
-                    <AvatarImage src={member.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {initials.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                <div key={member.user_id} className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                    {initials.toUpperCase()}
+                  </div>
                   <span className="text-sm">{member.display_name || member.email || 'Unknown User'}</span>
                 </div>
               );

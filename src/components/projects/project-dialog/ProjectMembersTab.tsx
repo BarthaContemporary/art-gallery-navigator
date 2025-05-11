@@ -2,12 +2,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { ProjectMemberSelect } from "@/components/projects/ProjectMemberSelect";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useProjectMembers } from "@/hooks/projects/use-project-members";
+import { ProjectMemberManager } from "@/components/projects/members/ProjectMemberManager";
 
 interface ProjectMembersTabProps {
   project: ProjectWithLocation;
@@ -17,14 +16,12 @@ interface ProjectMembersTabProps {
 export function ProjectMembersTab({ project, onClose }: ProjectMembersTabProps) {
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { data: members, isLoading: membersLoading } = useProjectMembers(project.id);
 
   const handleSaveMembers = async () => {
     setLoading(true);
     
     try {
-      // Members are saved directly in the ProjectMemberSelect component
-      // Here we just need to refresh the data and close the dialog
+      // Force invalidate the query to ensure latest data
       await queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
       toast.success("Team members updated");
       onClose();
@@ -46,17 +43,7 @@ export function ProjectMembersTab({ project, onClose }: ProjectMembersTabProps) 
       <div className="space-y-6 py-4">
         <h3 className="text-sm font-medium">Project team members</h3>
         
-        {membersLoading ? (
-          <div className="flex items-center justify-center p-6">
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-            <span>Loading team members...</span>
-          </div>
-        ) : (
-          <ProjectMemberSelect 
-            projectId={project.id}
-            initialMembers={members}
-          />
-        )}
+        <ProjectMemberManager projectId={project.id} />
         
         <div className="flex justify-end space-x-2 pt-4">
           <Button variant="outline" onClick={onClose} disabled={loading}>
