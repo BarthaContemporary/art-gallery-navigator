@@ -33,9 +33,17 @@ export interface ProfileData {
   email_confirmed?: boolean | null;
 }
 
-// Type guard to check if an object is a valid ProfileData
+// Enhanced type guard to check if an object is a valid ProfileData
 export function isProfileData(obj: any): obj is ProfileData {
-  return obj && typeof obj === 'object';
+  // Check if obj is a valid object and not null
+  if (!obj || typeof obj !== 'object') return false;
+  
+  // Check if it's an error object from Supabase
+  if ('code' in obj && 'message' in obj && 'details' in obj) return false;
+  
+  // Return true if it's a valid object (even with no matching properties)
+  // This is safe because we'll provide sensible defaults when using the result
+  return true;
 }
 
 // Helper to create a consistent member object from user data

@@ -159,15 +159,24 @@ export function ProjectMemberSelect({
         return;
       }
       
-      // Apply type guard to ensure profile is valid
-      const profile: ProfileData = isProfileData(profileData) ? profileData : {};
+      // Enhanced type handling with strong defaults
+      const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
+      const profileId = safeProfile.id;
+      
+      // Safety check for profile ID
+      if (!profileId) {
+        toast.error("Invalid user profile");
+        setLoading(false);
+        setEmailInput("");
+        return;
+      }
       
       // Check if user is already a member
       const { data: existingMember } = await supabase
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
-        .eq('user_id', profile.id)
+        .eq('user_id', profileId)
         .single();
         
       if (existingMember) {
@@ -182,7 +191,7 @@ export function ProjectMemberSelect({
         .from('project_users')
         .insert({
           project_id: projectId,
-          user_id: profile.id
+          user_id: profileId
         });
         
       if (addError) {
@@ -191,10 +200,10 @@ export function ProjectMemberSelect({
       
       // Create member object
       const newMember: ProjectMember = {
-        user_id: profile.id,
+        user_id: profileId,
         project_id: projectId,
-        display_name: profile.display_name || email,
-        avatar_url: profile.avatar_url || null,
+        display_name: safeProfile.display_name || email,
+        avatar_url: safeProfile.avatar_url || null,
         email: email
       };
       

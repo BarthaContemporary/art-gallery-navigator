@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useCallback, ReactNode } from "react";
 import { ProjectMember, MemberOperationResult, ProfileData, isProfileData } from "@/hooks/projects/types/member-types";
 import { useState } from "react";
@@ -52,16 +51,17 @@ export function ProjectMembersProvider({ children }: { children: ReactNode }) {
 
       // Transform the data into our consistent ProjectMember format
       const projectMembers: ProjectMember[] = membersData.map(item => {
-        // Ensure profile exists and use safe property access
+        // Enhanced type safety: First ensure profiles data exists, then apply type guard
         const profileData = item.profiles || {};
-        const profile: ProfileData = isProfileData(profileData) ? profileData : {};
+        // Use the improved type guard to safely handle any type of response
+        const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
         
         return {
           user_id: item.user_id,
           project_id: item.project_id,
-          display_name: profile.display_name || 'Unknown User',
-          avatar_url: profile.avatar_url || null,
-          email: profile.display_name || null // Using display_name as email since that's what's stored
+          display_name: safeProfile.display_name || 'Unknown User',
+          avatar_url: safeProfile.avatar_url || null,
+          email: safeProfile.display_name || null // Using display_name as email since that's what's stored
         };
       });
 
