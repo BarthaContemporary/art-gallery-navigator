@@ -33,13 +33,26 @@ export interface ProfileData {
   email_confirmed?: boolean | null;
 }
 
+// Interface for Supabase SelectQueryError to help with type checking
+interface SelectQueryError {
+  code?: string;
+  message?: string;
+  details?: string;
+}
+
 // Enhanced type guard to check if an object is a valid ProfileData
 export function isProfileData(obj: any): obj is ProfileData {
   // Check if obj is a valid object and not null
   if (!obj || typeof obj !== 'object') return false;
   
-  // Check if it's an error object from Supabase
-  if ('code' in obj && 'message' in obj && 'details' in obj) return false;
+  // Check if it's a SelectQueryError from Supabase
+  if ('code' in obj && 'message' in obj && 'details' in obj) {
+    // This matches the pattern of a SelectQueryError, so it's not valid profile data
+    return false;
+  }
+  
+  // Check if it has any properties that might suggest it's a SelectQueryError
+  if ('error' in obj || obj.code === 'PGRST116') return false;
   
   // Return true if it's a valid object (even with no matching properties)
   // This is safe because we'll provide sensible defaults when using the result

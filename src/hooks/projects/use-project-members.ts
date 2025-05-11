@@ -71,20 +71,27 @@ export function useProjectMembers(projectId: string | undefined) {
         }
         
         // Map the data to our ProjectMember type with proper type checking
-        const members: ProjectMember[] = membersData.map(item => {
-          // Enhanced type safety with improved handling
-          const profileData = item.profiles || {};
-          // Use our enhanced type guard for stronger type safety
-          const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
+        const members: ProjectMember[] = [];
+        
+        for (const item of membersData) {
+          const profileRaw = item.profiles || {};
           
-          return {
+          // Skip items with invalid profile data
+          if (!isProfileData(profileRaw)) {
+            console.warn("Invalid profile data received:", profileRaw);
+            continue;
+          }
+          
+          const safeProfile: ProfileData = profileRaw;
+          
+          members.push({
             user_id: item.user_id,
             project_id: projectId,
             display_name: safeProfile.display_name || 'Unknown User',
             avatar_url: safeProfile.avatar_url || null,
-            email: safeProfile.display_name || null // Using display_name as email for now
-          };
-        });
+            email: safeProfile.display_name || null // Using display_name as email
+          });
+        }
         
         // Make sure current user is included if they have access
         if (user) {

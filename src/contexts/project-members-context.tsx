@@ -50,20 +50,25 @@ export function ProjectMembersProvider({ children }: { children: ReactNode }) {
       }
 
       // Transform the data into our consistent ProjectMember format
-      const projectMembers: ProjectMember[] = membersData.map(item => {
-        // Enhanced type safety: First ensure profiles data exists, then apply type guard
-        const profileData = item.profiles || {};
-        // Use the improved type guard to safely handle any type of response
-        const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
-        
-        return {
-          user_id: item.user_id,
-          project_id: item.project_id,
-          display_name: safeProfile.display_name || 'Unknown User',
-          avatar_url: safeProfile.avatar_url || null,
-          email: safeProfile.display_name || null // Using display_name as email since that's what's stored
-        };
-      });
+      const projectMembers: ProjectMember[] = membersData
+        .filter(item => {
+          // Filter out items with invalid profile data
+          const profileRaw = item.profiles || {};
+          return isProfileData(profileRaw); 
+        })
+        .map(item => {
+          // Safe to cast now that we've filtered
+          const profileRaw = item.profiles || {};
+          const safeProfile: ProfileData = isProfileData(profileRaw) ? profileRaw : {};
+          
+          return {
+            user_id: item.user_id,
+            project_id: item.project_id,
+            display_name: safeProfile.display_name || 'Unknown User',
+            avatar_url: safeProfile.avatar_url || null,
+            email: safeProfile.display_name || null
+          };
+        });
 
       setMembers(projectMembers);
       setLoading(false);

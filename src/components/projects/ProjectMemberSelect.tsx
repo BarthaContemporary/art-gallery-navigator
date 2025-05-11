@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { UserPlus, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -69,7 +70,18 @@ export function ProjectMemberSelect({
         // Process members from database
         if (projectUsers && projectUsers.length > 0) {
           projectUsers.forEach(pu => {
-            const profile: ProfileData = pu.profiles || {};
+            // Use our enhanced type guard for more safety
+            const profileRaw = pu.profiles || {};
+            
+            // Apply the improved type guard
+            if (!isProfileData(profileRaw)) {
+              console.warn("Invalid profile data received:", profileRaw);
+              return; // Skip this item
+            }
+            
+            // Now TypeScript knows profileRaw is ProfileData
+            const profile: ProfileData = profileRaw;
+            
             fetchedMembers.push({
               user_id: pu.user_id,
               project_id: projectId,
