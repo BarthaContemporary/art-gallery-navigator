@@ -1,10 +1,9 @@
-
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ProjectMember } from "@/hooks/projects/types/member-types";
 import { MembersList } from "./members/MembersList";
 import { AddMemberInput } from "./members/AddMemberInput";
-import { useMemberSelection } from "./members/use-member-selection";
+import { useMemberSelection } from "./members/hooks/use-member-selection";
 
 interface ProjectMemberSelectProps {
   projectId?: string;
