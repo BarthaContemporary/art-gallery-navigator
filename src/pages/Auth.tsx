@@ -15,7 +15,7 @@ import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
 type AuthTab = "login" | "otp";
 
 function Auth() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signIn, verifyOTP } = useAuth();
   const [selectedTab, setSelectedTab] = useState<AuthTab>("login");
   const [email, setEmail] = useState<string>("");
   const [authError, setAuthError] = useState<Error | null>(null);
@@ -56,6 +56,37 @@ function Auth() {
   // Reset any auth errors
   const resetError = () => {
     setAuthError(null);
+  };
+
+  // Handle login form submission
+  const handleLoginSubmit = async (values: { email: string; password: string }, captchaToken: string) => {
+    try {
+      resetError();
+      const { needsOTP } = await signIn(
+        values.email, 
+        values.password || "", 
+        captchaToken
+      );
+      if (needsOTP) {
+        handleOtpRequested(values.email);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        handleAuthError(error);
+      }
+    }
+  };
+
+  // Handle OTP verification submission
+  const handleOtpSubmit = async (values: { otp: string }) => {
+    try {
+      resetError();
+      await verifyOTP(email, values.otp);
+    } catch (error) {
+      if (error instanceof Error) {
+        handleAuthError(error);
+      }
+    }
   };
   
   if (isLoading) {
@@ -109,22 +140,7 @@ function Auth() {
               
               <TabsContent value="login">
                 <LoginForm 
-                  onSubmit={async (values, captchaToken) => {
-                    try {
-                      const { needsOTP } = await useAuth().signIn(
-                        values.email, 
-                        values.password || "", 
-                        captchaToken
-                      );
-                      if (needsOTP) {
-                        handleOtpRequested(values.email);
-                      }
-                    } catch (error) {
-                      if (error instanceof Error) {
-                        handleAuthError(error);
-                      }
-                    }
-                  }} 
+                  onSubmit={handleLoginSubmit}
                   isLoading={isLoading}
                   onOtpRequested={handleOtpRequested}
                   onError={handleAuthError}
@@ -133,15 +149,7 @@ function Auth() {
               
               <TabsContent value="otp">
                 <OTPVerification 
-                  onSubmit={async (values) => {
-                    try {
-                      await useAuth().verifyOTP(email, values.otp);
-                    } catch (error) {
-                      if (error instanceof Error) {
-                        handleAuthError(error);
-                      }
-                    }
-                  }}
+                  onSubmit={handleOtpSubmit}
                   onBack={() => setSelectedTab("login")}
                   isLoading={isLoading}
                   email={email}
