@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 2,
       refetchOnWindowFocus: false,
-      // Updated error handling to use meta object
+      // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
           console.error("Query error:", error);
@@ -41,7 +41,7 @@ const queryClient = new QueryClient({
       }
     },
     mutations: {
-      // Updated error handling to use meta object
+      // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
           console.error("Mutation error:", error);
