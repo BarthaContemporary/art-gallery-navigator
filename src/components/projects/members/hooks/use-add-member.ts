@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ProjectMember, ProfileData, isProfileData } from "@/hooks/projects/types/member-types";
+import { ProjectMember, isProfileData } from "@/hooks/projects/types/member-types";
 
 export function useAddMember(
   projectId: string | undefined,
@@ -45,28 +45,31 @@ export function useAddMember(
           toast.error("Error finding user");
           console.error("Error finding user:", profileError);
         }
+        setLoading(false);
         return;
       }
       
       // Enhanced type handling with strong defaults
-      const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
+      const safeProfile = profileData || {};
       const profileId = safeProfile.id;
       
       if (!profileId) {
         toast.error("Invalid user profile");
+        setLoading(false);
         return;
       }
       
       // Check if user is already a member
-      const { data: existingMember } = await supabase
+      const { data: existingMemberData } = await supabase
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
         .eq('user_id', profileId)
-        .single();
+        .maybeSingle();
         
-      if (existingMember) {
+      if (existingMemberData) {
         toast.info(`${email} is already a member of this project`);
+        setLoading(false);
         return;
       }
       

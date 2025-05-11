@@ -19,45 +19,45 @@ export function useProjectMembersApi() {
     setError(null);
 
     try {
-      // Fetch project members with a properly typed query
-      const { data: membersData, error: membersError } = await supabase
+      // First get project users
+      const { data: projectUsers, error: projectUsersError } = await supabase
         .from('project_users')
-        .select(`
-          user_id,
-          project_id,
-          profiles:user_id (
-            id,
-            display_name,
-            avatar_url,
-            email_confirmed
-          )
-        `)
+        .select('user_id, project_id')
         .eq('project_id', projectId);
-
-      if (membersError) {
-        throw membersError;
+      
+      if (projectUsersError) throw projectUsersError;
+      
+      if (!projectUsers?.length) {
+        setLoading(false);
+        return [];
       }
+      
+      // Then fetch profiles for those users
+      const userIds = projectUsers.map(pu => pu.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, email_confirmed')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
 
       // Transform the data into our consistent ProjectMember format
-      const projectMembers: ProjectMember[] = membersData
-        .filter(item => {
-          // Filter out items with invalid profile data
-          const profileRaw = item.profiles || {};
-          return isProfileData(profileRaw); 
-        })
-        .map(item => {
-          // Safe to cast now that we've filtered
-          const profileRaw = item.profiles || {};
-          const safeProfile: ProfileData = isProfileData(profileRaw) ? profileRaw : {};
-          
-          return {
-            user_id: item.user_id,
-            project_id: item.project_id,
-            display_name: safeProfile.display_name || 'Unknown User',
-            avatar_url: safeProfile.avatar_url || null,
-            email: safeProfile.display_name || null
-          };
-        });
+      const projectMembers: ProjectMember[] = [];
+      
+      // Match project users with their profiles
+      for (const pu of projectUsers) {
+        const profile = profiles?.find(p => p.id === pu.user_id);
+        
+        if (profile) {
+          projectMembers.push({
+            user_id: pu.user_id,
+            project_id: projectId,
+            display_name: profile.display_name || 'Unknown User',
+            avatar_url: profile.avatar_url || null,
+            email: profile.display_name || null
+          });
+        }
+      }
 
       setMembers(projectMembers);
       setLoading(false);

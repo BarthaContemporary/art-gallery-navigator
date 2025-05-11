@@ -37,35 +37,47 @@ export function useFetchMembers(
       setError(null);
       
       try {
+        // First get all project users
         const { data: projectUsers, error } = await supabase
           .from('project_users')
-          .select(`
-            user_id,
-            project_id,
-            profiles:user_id (
-              id,
-              display_name,
-              avatar_url
-            )
-          `)
+          .select('user_id, project_id')
           .eq('project_id', projectId);
           
         if (error) throw new Error("Failed to load team members");
         
+        if (!projectUsers?.length) {
+          // No project users found, add current user as fallback
+          if (user.email) {
+            const currentUserMember: ProjectMember = {
+              user_id: user.id,
+              project_id: projectId,
+              display_name: user.email,
+              avatar_url: null,
+              email: user.email
+            };
+            setMembers([currentUserMember]);
+            onMembersChange?.([currentUserMember]);
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Then fetch profiles for those users
+        const userIds = projectUsers.map(pu => pu.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+        
+        if (profilesError) throw new Error("Failed to load user profiles");
+        
         const fetchedMembers: ProjectMember[] = [];
         
-        // Process members from database
-        if (projectUsers?.length) {
-          projectUsers.forEach(pu => {
-            const profileRaw = pu.profiles || {};
-            
-            if (!isProfileData(profileRaw)) {
-              console.warn("Invalid profile data received:", profileRaw);
-              return;
-            }
-            
-            const profile: ProfileData = profileRaw;
-            
+        // Match project users with their profiles
+        for (const pu of projectUsers) {
+          const profile = profiles?.find(p => p.id === pu.user_id);
+          
+          if (profile) {
             fetchedMembers.push({
               user_id: pu.user_id,
               project_id: projectId,
@@ -73,7 +85,7 @@ export function useFetchMembers(
               avatar_url: profile.avatar_url || null,
               email: profile.display_name || null // Using display_name as email
             });
-          });
+          }
         }
         
         // Add current user if not present

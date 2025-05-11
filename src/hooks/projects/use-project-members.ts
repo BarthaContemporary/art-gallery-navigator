@@ -33,22 +33,14 @@ export function useProjectMembers(projectId: string | undefined) {
       try {
         console.log(`Fetching members for project: ${projectId}`);
         
-        // Fetch project members with profiles in a single query
-        const { data: membersData, error } = await supabase
+        // First get project users
+        const { data: projectUsers, error: projectUsersError } = await supabase
           .from('project_users')
-          .select(`
-            user_id,
-            project_id,
-            profiles:user_id (
-              id,
-              display_name,
-              avatar_url
-            )
-          `)
+          .select('user_id, project_id')
           .eq('project_id', projectId);
         
-        if (error) {
-          console.error("Error fetching project members:", error);
+        if (projectUsersError) {
+          console.error("Error fetching project users:", projectUsersError);
           toast.error("Failed to load team members");
           
           // Return the current user as fallback if available
@@ -60,9 +52,28 @@ export function useProjectMembers(projectId: string | undefined) {
         }
         
         // If no members found, return current user as fallback
-        if (!membersData || membersData.length === 0) {
+        if (!projectUsers || projectUsers.length === 0) {
           console.log("No project users found, using current user as fallback");
           
+          if (user) {
+            const currentMember = createMemberFromUser(user, projectId);
+            return currentMember ? [currentMember] : [];
+          }
+          return [];
+        }
+        
+        // Then fetch profiles for those users
+        const userIds = projectUsers.map(pu => pu.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+        
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          toast.error("Failed to load user profiles");
+          
+          // Return the current user as fallback
           if (user) {
             const currentMember = createMemberFromUser(user, projectId);
             return currentMember ? [currentMember] : [];
@@ -73,24 +84,19 @@ export function useProjectMembers(projectId: string | undefined) {
         // Map the data to our ProjectMember type with proper type checking
         const members: ProjectMember[] = [];
         
-        for (const item of membersData) {
-          const profileRaw = item.profiles || {};
+        // Match project users with their profiles
+        for (const pu of projectUsers) {
+          const profile = profiles?.find(p => p.id === pu.user_id);
           
-          // Skip items with invalid profile data
-          if (!isProfileData(profileRaw)) {
-            console.warn("Invalid profile data received:", profileRaw);
-            continue;
+          if (profile) {
+            members.push({
+              user_id: pu.user_id,
+              project_id: projectId,
+              display_name: profile.display_name || 'Unknown User',
+              avatar_url: profile.avatar_url || null,
+              email: profile.display_name || null // Using display_name as email
+            });
           }
-          
-          const safeProfile: ProfileData = profileRaw;
-          
-          members.push({
-            user_id: item.user_id,
-            project_id: projectId,
-            display_name: safeProfile.display_name || 'Unknown User',
-            avatar_url: safeProfile.avatar_url || null,
-            email: safeProfile.display_name || null // Using display_name as email
-          });
         }
         
         // Make sure current user is included if they have access
