@@ -1,89 +1,65 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectWithLocation, CreateProjectInput, useCreateProject, useUpdateProject } from "@/hooks/projects";
 import { z } from "zod";
 import { ProjectFormSchema } from "./schema";
+import { useNavigate } from "react-router-dom";
 
 type FormValues = z.infer<typeof ProjectFormSchema>;
 
-export function useProjectFormSubmit(
-  project: ProjectWithLocation | undefined,
-  onClose: () => void
-) {
-  const createProject = useCreateProject();
-  const updateProject = useUpdateProject();
-  const queryClient = useQueryClient();
-  
+export function useProjectFormSubmit(project?: ProjectWithLocation, onClose?: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  
-  const onSubmit = async (values: FormValues, userEmails: string[]) => {
-    setFormError(null);
+  const queryClient = useQueryClient();
+  const { mutateAsync: createProject } = useCreateProject();
+  const { mutateAsync: updateProject } = useUpdateProject();
+  const navigate = useNavigate();
+
+  const onSubmit = async (values: z.infer<typeof ProjectFormSchema>, userEmails: string[] = []) => {
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
+    setFormError(null);
     
     try {
-      if (!values.name.trim()) {
-        setFormError("Project name is required");
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Validate dates
-      const startDate = new Date(values.start_date);
-      const endDate = new Date(values.end_date);
-      
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        setFormError("Invalid date format");
-        setIsSubmitting(false);
-        return;
-      }
-      
-      if (startDate > endDate) {
-        setFormError("End date must be after start date");
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Ensure all required fields are present
-      const projectData: CreateProjectInput = {
-        name: values.name.trim(),
-        description: values.description?.trim() || null,
-        status: values.status,
-        type: values.type,
-        location_id: values.location_id || null,
-        start_date: values.start_date,
-        end_date: values.end_date,
-        user_emails: userEmails.filter(email => email.trim() !== ""),
-      };
-      
       if (project) {
-        await updateProject.mutateAsync({ 
-          id: project.id, 
-          data: projectData 
+        // Update existing project
+        await updateProject({
+          id: project.id,
+          data: {
+            ...values,
+            user_emails: userEmails
+          }
         });
-      } else {
-        await createProject.mutateAsync(projectData);
-      }
-      
-      // Force invalidate project members query to ensure the list is updated
-      if (project?.id) {
+        
+        toast.success("Project updated");
+        queryClient.invalidateQueries({ queryKey: ['project', project.id] });
         queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
+      } else {
+        // Create new project
+        const newProject = await createProject({
+          ...values,
+          user_emails: userEmails
+        });
+        
+        toast.success("Project created");
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        
+        if (newProject?.id) {
+          navigate(`/projects/${newProject.id}`);
+        }
       }
       
-      onClose();
+      if (onClose) onClose();
     } catch (error: any) {
-      console.error("Error submitting project:", error);
-      setFormError(error?.message || "An unexpected error occurred");
+      console.error('Error submitting project form:', error);
+      setFormError(error?.message || 'Something went wrong. Please try again.');
+      toast.error('Failed to save project');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  return {
-    onSubmit,
-    isSubmitting,
-    formError,
-  };
+
+  return { onSubmit, isSubmitting, formError };
 }

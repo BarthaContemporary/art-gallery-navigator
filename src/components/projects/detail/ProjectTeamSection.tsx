@@ -1,10 +1,10 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ProjectMember } from "@/hooks/projects/types/project-types";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { ProjectMember } from "@/hooks/projects/types/member-types";
 
 interface ProjectTeamSectionProps {
   projectMembers: ProjectMember[] | undefined;
@@ -59,7 +59,7 @@ export function ProjectTeamSection({
         ) : (
           <div className="flex flex-wrap gap-4">
             {projectMembers.map((member, index) => {
-              // Use the first two letters of the display name or email for avatar fallback
+              // Get initials for avatar fallback
               const nameParts = member.display_name?.split(' ') || [];
               const initials = nameParts.length > 1 
                 ? `${nameParts[0]?.charAt(0) || ''}${nameParts[1]?.charAt(0) || ''}`

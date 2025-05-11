@@ -2,13 +2,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { ProjectUserEmailInput } from "../ProjectUserEmailInput";
+import { ProjectMemberSelect } from "@/components/projects/ProjectMemberSelect";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 
 interface ProjectMembersTabProps {
   project: ProjectWithLocation;
@@ -16,6 +15,27 @@ interface ProjectMembersTabProps {
 }
 
 export function ProjectMembersTab({ project, onClose }: ProjectMembersTabProps) {
+  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const { data: members, isLoading: membersLoading } = useProjectMembers(project.id);
+
+  const handleSaveMembers = async () => {
+    setLoading(true);
+    
+    try {
+      // Members are saved directly in the ProjectMemberSelect component
+      // Here we just need to refresh the data and close the dialog
+      await queryClient.invalidateQueries({ queryKey: ['project-members', project.id] });
+      toast.success("Team members updated");
+      onClose();
+    } catch (error) {
+      console.error("Error saving members:", error);
+      toast.error("Failed to save members");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   return (
     <ErrorBoundary fallback={
       <div className="p-4 text-center">
@@ -24,155 +44,37 @@ export function ProjectMembersTab({ project, onClose }: ProjectMembersTabProps) 
       </div>
     }>
       <div className="space-y-6 py-4">
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium">Project team members</h3>
-          <UserMultiSelect 
-            projectId={project.id} 
-            onClose={onClose} 
+        <h3 className="text-sm font-medium">Project team members</h3>
+        
+        {membersLoading ? (
+          <div className="flex items-center justify-center p-6">
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            <span>Loading team members...</span>
+          </div>
+        ) : (
+          <ProjectMemberSelect 
+            projectId={project.id}
+            initialMembers={members}
           />
+        )}
+        
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveMembers}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : "Done"}
+          </Button>
         </div>
       </div>
     </ErrorBoundary>
-  );
-}
-
-// UserMultiSelect component for managing team members
-function UserMultiSelect({ projectId, onClose }: { projectId: string, onClose: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [emails, setEmails] = useState<string[]>([]);
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  
-  const handleSaveMembers = async () => {
-    if (!projectId || emails.length === 0) {
-      onClose();
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // First get profiles that match the entered emails (stored in display_name)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name')
-        .in('display_name', emails);
-      
-      if (profilesError) {
-        throw profilesError;
-      }
-      
-      if (!profiles || profiles.length === 0) {
-        toast.warning("No matching users found with the provided emails");
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Found matching profiles:", profiles);
-      
-      let successCount = 0;
-      const failedEmails: string[] = [];
-      
-      // Try to add each member individually to handle failures better
-      for (const profile of profiles) {
-        if (!profile.id) continue;
-        
-        try {
-          // Check if the user is already a member of this project
-          const { data: existingMember, error: checkError } = await supabase
-            .from('project_users')
-            .select('id')
-            .eq('project_id', projectId)
-            .eq('user_id', profile.id)
-            .single();
-            
-          if (checkError && !checkError.message.includes("No rows found")) {
-            console.error("Error checking existing membership:", checkError);
-          }
-          
-          // Only insert if not already a member
-          if (!existingMember) {
-            const { error: insertError } = await supabase
-              .from('project_users')
-              .insert({
-                project_id: projectId,
-                user_id: profile.id
-              });
-              
-            if (!insertError) {
-              successCount++;
-              console.log(`Added user ${profile.id} to project ${projectId}`);
-            } else {
-              console.error("Error adding member:", insertError);
-              if (!insertError.message.includes("duplicate")) {
-                // Only track as failed if it's not a duplicate (duplicates are ok)
-                failedEmails.push(profile.display_name || 'Unknown user');
-              }
-            }
-          } else {
-            console.log(`User ${profile.id} is already a member of project ${projectId}`);
-          }
-        } catch (err) {
-          console.error("Error in member insert attempt:", err);
-          failedEmails.push(profile.display_name || 'Unknown user');
-        }
-      }
-      
-      // Report results to the user
-      if (successCount > 0) {
-        toast.success(`Added ${successCount} team member(s)`);
-      } else if (profiles.length > 0) {
-        toast.info("No new members were added - users may already be team members");
-      }
-      
-      if (failedEmails.length > 0) {
-        toast.error(`Failed to add: ${failedEmails.join(', ')}`);
-      }
-      
-      // Force invalidate the project members query to update the list
-      queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
-      
-      onClose();
-    } catch (err: any) {
-      console.error("Error saving team members:", err);
-      setError(err.message || "Failed to add team members");
-      toast.error("Failed to add team members");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleEmailsChange = (newEmails: string[]) => {
-    setEmails(newEmails);
-  };
-  
-  return (
-    <div className="space-y-4">
-      <ProjectUserEmailInput 
-        projectId={projectId}
-        onEmailsChange={handleEmailsChange}
-      />
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button variant="outline" onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleSaveMembers}
-          disabled={loading || emails.length === 0}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : "Save Members"}
-        </Button>
-      </div>
-      {error && (
-        <div className="text-sm text-red-500 mt-2">{error}</div>
-      )}
-    </div>
   );
 }

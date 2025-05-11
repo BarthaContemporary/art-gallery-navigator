@@ -1,9 +1,9 @@
 
 import { useState, useEffect, useCallback } from "react";
-import { useProjectMembers } from "@/hooks/projects/use-project-members";
+import { ProjectMember } from "@/hooks/projects/types/member-types";
 import { ProjectWithLocation } from "@/hooks/projects";
-import { ProjectUserEmailInput } from "@/components/projects/ProjectUserEmailInput";
-import { useAuth } from "@/hooks/use-auth";
+import { ProjectMemberSelect } from "@/components/projects/ProjectMemberSelect";
+import { useProjectMembers } from "@/hooks/projects/use-project-members";
 
 interface TeamMembersFieldProps {
   project?: ProjectWithLocation;
@@ -11,43 +11,14 @@ interface TeamMembersFieldProps {
 }
 
 export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFieldProps) {
-  const { user } = useAuth();
-  const { data: projectMembers = [], isLoading: isLoadingMembers, isError: membersError } = 
-    useProjectMembers(project?.id);
+  const { data: projectMembers, isLoading } = useProjectMembers(project?.id);
   
-  const [userEmails, setUserEmails] = useState<string[]>([]);
-  
-  // Extract email addresses from project members when available 
-  useEffect(() => {
-    if (Array.isArray(projectMembers) && projectMembers.length > 0) {
-      const emails = projectMembers
-        .map(member => member.email)
-        .filter((email): email is string => !!email);
-      
-      if (emails.length > 0) {
-        setUserEmails(emails);
-        onUserEmailsChange(emails);
-      } else if (user?.email) {
-        // Fallback to current user if no members found
-        setUserEmails([user.email]);
-        onUserEmailsChange([user.email]);
-      }
-    } else if (user?.email) {
-      // Fallback to current user if no members found
-      setUserEmails([user.email]);
-      onUserEmailsChange([user.email]);
-    }
-  }, [projectMembers, user, onUserEmailsChange]);
-
-  // Show error if members couldn't be loaded
-  useEffect(() => {
-    if (membersError && project) {
-      console.error("Failed to load project members:", membersError);
-    }
-  }, [membersError, project]);
-  
-  const handleUserEmailsChange = useCallback((emails: string[]) => {
-    setUserEmails(emails);
+  // Handle member changes and extract emails for the form
+  const handleMembersChange = useCallback((members: ProjectMember[]) => {
+    const emails = members
+      .map(member => member.email)
+      .filter((email): email is string => !!email);
+    
     onUserEmailsChange(emails);
   }, [onUserEmailsChange]);
   
@@ -55,13 +26,13 @@ export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFie
     <div className="space-y-2">
       <label className="text-sm font-medium">Project Team Members</label>
       
-      {isLoadingMembers && project ? (
+      {isLoading && project ? (
         <div className="text-sm text-muted-foreground">Loading team members...</div>
       ) : (
-        <ProjectUserEmailInput
+        <ProjectMemberSelect
           projectId={project?.id}
-          onEmailsChange={handleUserEmailsChange}
-          initialEmails={userEmails}
+          initialMembers={projectMembers}
+          onMembersChange={handleMembersChange}
         />
       )}
       

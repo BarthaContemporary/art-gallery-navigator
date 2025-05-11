@@ -1,32 +1,22 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectMember } from "./types/project-types";
+import { ProjectMember } from "./types/member-types";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { User } from "@supabase/supabase-js";
 
-// Helper function with correct type handling
-function createCurrentUserMember(user: User, projectId: string): ProjectMember {
+// Helper function to create a member from user data
+function createMemberFromUser(user: User | null, projectId: string): ProjectMember | null {
+  if (!user) return null;
+  
   return {
     user_id: user.id,
     project_id: projectId,
     display_name: user.email || 'Current User',
     avatar_url: null,
-    email: user.email || null
+    email: user.email
   };
-}
-
-// Define a proper type for the joined data from Supabase
-interface ProjectUserWithProfile {
-  user_id: string;
-  project_id: string;
-  profiles?: {
-    id?: string;
-    display_name?: string;
-    avatar_url?: string | null;
-    email?: string | null;
-  } | null;
 }
 
 export function useProjectMembers(projectId: string | undefined) {
@@ -43,8 +33,8 @@ export function useProjectMembers(projectId: string | undefined) {
       try {
         console.log(`Fetching members for project: ${projectId}`);
         
-        // Fetch project members with a single efficient query using proper join
-        const { data: membersWithProfiles, error } = await supabase
+        // Fetch project members with profiles in a single query
+        const { data: membersData, error } = await supabase
           .from('project_users')
           .select(`
             user_id,
@@ -52,8 +42,7 @@ export function useProjectMembers(projectId: string | undefined) {
             profiles:user_id (
               id,
               display_name,
-              avatar_url,
-              email:display_name
+              avatar_url
             )
           `)
           .eq('project_id', projectId);
@@ -62,26 +51,27 @@ export function useProjectMembers(projectId: string | undefined) {
           console.error("Error fetching project members:", error);
           toast.error("Failed to load team members");
           
-          // Return at least the current user as fallback
+          // Return the current user as fallback if available
           if (user) {
-            return [createCurrentUserMember(user, projectId)];
+            const currentMember = createMemberFromUser(user, projectId);
+            return currentMember ? [currentMember] : [];
           }
           return [];
         }
         
-        // If no project users found, return the current user as fallback
-        if (!membersWithProfiles || membersWithProfiles.length === 0) {
+        // If no members found, return current user as fallback
+        if (!membersData || membersData.length === 0) {
           console.log("No project users found, using current user as fallback");
           
           if (user) {
-            return [createCurrentUserMember(user, projectId)];
+            const currentMember = createMemberFromUser(user, projectId);
+            return currentMember ? [currentMember] : [];
           }
           return [];
         }
         
-        // Type-safe mapping of joined data to project members
-        const members: ProjectMember[] = (membersWithProfiles as ProjectUserWithProfile[]).map(item => {
-          // Safely access potentially undefined profile properties
+        // Map the data to our ProjectMember type
+        const members: ProjectMember[] = membersData.map(item => {
           const profile = item.profiles || {};
           
           return {
@@ -89,26 +79,30 @@ export function useProjectMembers(projectId: string | undefined) {
             project_id: projectId,
             display_name: profile.display_name || 'Unknown User',
             avatar_url: profile.avatar_url || null,
-            email: profile.email || null
+            email: profile.display_name || null // Using display_name as email
           };
         });
         
-        // Always ensure current user is included if they have access
+        // Make sure current user is included if they have access
         if (user) {
           const currentUserIncluded = members.some(member => member.user_id === user.id);
           if (!currentUserIncluded) {
-            members.push(createCurrentUserMember(user, projectId));
+            const currentMember = createMemberFromUser(user, projectId);
+            if (currentMember) {
+              members.push(currentMember);
+            }
           }
         }
         
         return members;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Exception in useProjectMembers:", error);
         toast.error("Failed to load project members");
         
-        // Return at least the current user as fallback
+        // Return current user as fallback
         if (user) {
-          return [createCurrentUserMember(user, projectId)];
+          const currentMember = createMemberFromUser(user, projectId);
+          return currentMember ? [currentMember] : [];
         }
         return [];
       }
