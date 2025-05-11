@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { 
   ProjectMember, 
@@ -10,7 +9,7 @@ import {
 } from "@/hooks/projects/types/member-types";
 
 export function useFetchMembers(
-  projectId?: string,
+  projectId: string | undefined,
   initialMembers: ProjectMember[] = [],
   onMembersChange?: (members: ProjectMember[]) => void,
   readOnly: boolean = false
@@ -33,7 +32,7 @@ export function useFetchMembers(
   useEffect(() => {
     if (!projectId || !user || readOnly) return;
     
-    async function fetchProjectMembers() {
+    const fetchProjectMembers = async () => {
       setLoading(true);
       setError(null);
       
@@ -51,25 +50,20 @@ export function useFetchMembers(
           `)
           .eq('project_id', projectId);
           
-        if (error) {
-          throw new Error("Failed to load team members");
-        }
+        if (error) throw new Error("Failed to load team members");
         
         const fetchedMembers: ProjectMember[] = [];
         
         // Process members from database
-        if (projectUsers && projectUsers.length > 0) {
+        if (projectUsers?.length) {
           projectUsers.forEach(pu => {
-            // Use our enhanced type guard for more safety
             const profileRaw = pu.profiles || {};
             
-            // Apply the improved type guard
             if (!isProfileData(profileRaw)) {
               console.warn("Invalid profile data received:", profileRaw);
-              return; // Skip this item
+              return;
             }
             
-            // Now TypeScript knows profileRaw is ProfileData
             const profile: ProfileData = profileRaw;
             
             fetchedMembers.push({
@@ -83,9 +77,7 @@ export function useFetchMembers(
         }
         
         // Add current user if not present
-        const currentUserInMembers = fetchedMembers.some(m => m.user_id === user.id);
-        
-        if (!currentUserInMembers && user.email) {
+        if (!fetchedMembers.some(m => m.user_id === user.id) && user.email) {
           fetchedMembers.push({
             user_id: user.id,
             project_id: projectId,
@@ -118,7 +110,7 @@ export function useFetchMembers(
       } finally {
         setLoading(false);
       }
-    }
+    };
     
     fetchProjectMembers();
   }, [projectId, user, onMembersChange, readOnly]);

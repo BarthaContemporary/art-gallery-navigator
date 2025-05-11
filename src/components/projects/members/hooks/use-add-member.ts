@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { ProjectMember, ProfileData, isProfileData } from "@/hooks/projects/types/member-types";
 
 export function useAddMember(
-  projectId?: string,
-  members: ProjectMember[] = [],
+  projectId: string | undefined,
+  members: ProjectMember[],
   setMembers: (members: ProjectMember[]) => void,
   onMembersChange?: (members: ProjectMember[]) => void
 ) {
@@ -15,9 +15,8 @@ export function useAddMember(
   
   const handleAddMember = async () => {
     const email = emailInput.trim();
-    
-    if (!email) return;
-    if (!projectId) {
+    if (!email || !projectId) {
+      if (!email) return;
       toast.error("Project ID is required");
       return;
     }
@@ -32,7 +31,7 @@ export function useAddMember(
     setLoading(true);
     
     try {
-      // Find user profile by email (display_name field)
+      // Find user profile by email
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
@@ -46,8 +45,6 @@ export function useAddMember(
           toast.error("Error finding user");
           console.error("Error finding user:", profileError);
         }
-        setLoading(false);
-        setEmailInput("");
         return;
       }
       
@@ -55,11 +52,8 @@ export function useAddMember(
       const safeProfile: ProfileData = isProfileData(profileData) ? profileData : {};
       const profileId = safeProfile.id;
       
-      // Safety check for profile ID
       if (!profileId) {
         toast.error("Invalid user profile");
-        setLoading(false);
-        setEmailInput("");
         return;
       }
       
@@ -73,8 +67,6 @@ export function useAddMember(
         
       if (existingMember) {
         toast.info(`${email} is already a member of this project`);
-        setLoading(false);
-        setEmailInput("");
         return;
       }
       
@@ -86,11 +78,9 @@ export function useAddMember(
           user_id: profileId
         });
         
-      if (addError) {
-        throw addError;
-      }
+      if (addError) throw addError;
       
-      // Create member object
+      // Create member object and update state
       const newMember: ProjectMember = {
         user_id: profileId,
         project_id: projectId,
@@ -99,7 +89,6 @@ export function useAddMember(
         email: email
       };
       
-      // Update state
       const updatedMembers = [...members, newMember];
       setMembers(updatedMembers);
       onMembersChange?.(updatedMembers);

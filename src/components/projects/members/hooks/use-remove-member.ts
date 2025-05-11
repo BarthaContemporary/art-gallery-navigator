@@ -6,8 +6,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { ProjectMember } from "@/hooks/projects/types/member-types";
 
 export function useRemoveMember(
-  projectId?: string,
-  members: ProjectMember[] = [],
+  projectId: string | undefined,
+  members: ProjectMember[],
   setMembers: (members: ProjectMember[]) => void,
   onMembersChange?: (members: ProjectMember[]) => void,
   readOnly: boolean = false
