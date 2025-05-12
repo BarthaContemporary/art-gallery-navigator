@@ -24,10 +24,9 @@ export function useFetchMembers(projectId: string | undefined) {
           .eq('project_id', projectId);
           
         if (projectUsersError) {
-          // Log the error but don't throw it to prevent UI from breaking
           console.error("Error fetching project members:", projectUsersError);
           
-          // Return current user as fallback for better UX
+          // Return current user as fallback if we're encountering a database error
           if (user) {
             return [{
               user_id: user.id,
@@ -41,16 +40,23 @@ export function useFetchMembers(projectId: string | undefined) {
           return [];
         }
         
+        // If no members found and user is signed in, add current user as fallback
+        if ((!projectUsers || projectUsers.length === 0) && user) {
+          return [{
+            user_id: user.id,
+            project_id: projectId,
+            display_name: user.email || 'Current User',
+            avatar_url: null,
+            email: user.email,
+            is_admin: isAdmin
+          }];
+        }
+        
         // Get all user IDs from project_users
         const memberIds = new Set(projectUsers?.map(pu => pu.user_id) || []);
         
         // If current user is admin, add them regardless
         if (user && isAdmin) {
-          memberIds.add(user.id);
-        }
-        
-        // If no members found and it's not a new project, add current user as fallback
-        if (memberIds.size === 0 && user) {
           memberIds.add(user.id);
         }
         
@@ -87,12 +93,10 @@ export function useFetchMembers(projectId: string | undefined) {
         const { data: adminUsers, error: adminError } = await supabase
           .from('user_roles')
           .select('user_id')
-          .eq('role', 'gallery_admin')
-          .in('user_id', userIds);
+          .eq('role', 'gallery_admin');
           
         if (adminError) {
           console.error("Error fetching admin users:", adminError);
-          // Continue with the data we have without admin info
         }
         
         // Create a set of admin user IDs for quick lookup
@@ -116,9 +120,8 @@ export function useFetchMembers(projectId: string | undefined) {
         return members;
       } catch (error) {
         console.error("Error in useFetchMembers:", error);
-        toast.error("Failed to load team members");
         
-        // Return current user as fallback if they're an admin
+        // Return current user as fallback for better UX
         if (user) {
           return [{
             user_id: user.id,
@@ -140,7 +143,6 @@ export function useFetchMembers(projectId: string | undefined) {
     meta: {
       onError: (error: Error) => {
         console.error("Error in useFetchMembers query:", error);
-        toast.error("Failed to load team members");
       }
     }
   });
