@@ -24,7 +24,7 @@ export function MembersList({
           member={member}
           isCurrentUser={member.user_id === user?.id}
           readOnly={readOnly}
-          onRemove={onRemoveMember}
+          onRemove={() => onRemoveMember(member.user_id)}
         />
       ))}
     </div>

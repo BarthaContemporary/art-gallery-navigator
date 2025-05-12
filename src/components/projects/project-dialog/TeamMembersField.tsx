@@ -1,6 +1,4 @@
 
-import { useState, useEffect, useCallback } from "react";
-import { ProjectMember } from "@/hooks/projects/types/member-types";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectMemberSelect } from "@/components/projects/ProjectMemberSelect";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
@@ -11,16 +9,19 @@ interface TeamMembersFieldProps {
 }
 
 export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFieldProps) {
-  const { members: projectMembers, isLoading } = useProjectMembers(project?.id);
+  const { members, isLoading } = useProjectMembers(project?.id);
   
-  // Handle member changes and extract emails for the form
-  const handleMembersChange = useCallback((members: ProjectMember[]) => {
-    const emails = members
-      .map(member => member.email)
-      .filter((email): email is string => !!email);
-    
-    onUserEmailsChange(emails);
-  }, [onUserEmailsChange]);
+  // Since we now use user selection by ID instead of emails, we can extract emails
+  // from the members array whenever it changes
+  React.useEffect(() => {
+    if (members?.length) {
+      const emails = members
+        .map(member => member.email)
+        .filter((email): email is string => !!email);
+      
+      onUserEmailsChange(emails);
+    }
+  }, [members, onUserEmailsChange]);
   
   return (
     <div className="space-y-2">
@@ -36,8 +37,8 @@ export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFie
       )}
       
       <p className="text-xs text-muted-foreground">
-        Enter email addresses of team members to invite to this project.
-        This will grant them access to view and edit the project.
+        Select team members to grant them access to view and edit this project. 
+        Admin users automatically have access to all projects.
       </p>
     </div>
   );

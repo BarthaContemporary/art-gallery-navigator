@@ -8,7 +8,7 @@ interface MemberBadgeProps {
   member: ProjectMember;
   isCurrentUser: boolean;
   readOnly: boolean;
-  onRemove: (userId: string) => void;
+  onRemove: () => void;
 }
 
 export function MemberBadge({ 
@@ -25,9 +25,8 @@ export function MemberBadge({
   
   return (
     <Badge 
-      key={member.user_id} 
-      variant="secondary" 
-      className="px-2 py-1 flex items-center gap-1.5"
+      variant={member.is_admin ? "default" : "secondary"} 
+      className={`px-2 py-1 flex items-center gap-1.5 ${member.is_admin ? "bg-primary/20 hover:bg-primary/30 text-primary" : ""}`}
     >
       <Avatar className="h-5 w-5">
         <AvatarImage src={member.avatar_url || undefined} />
@@ -35,11 +34,15 @@ export function MemberBadge({
           {initials.toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <span>{member.display_name}</span>
-      {!readOnly && !isCurrentUser && (
+      <span>{member.display_name || member.email || "Unknown"}</span>
+      
+      {isCurrentUser && <span className="text-[10px] ml-1">(you)</span>}
+      {member.is_admin && <span className="text-[10px] ml-1">admin</span>}
+      
+      {!readOnly && !isCurrentUser && !member.is_admin && (
         <X 
           className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive" 
-          onClick={() => onRemove(member.user_id)}
+          onClick={onRemove}
         />
       )}
     </Badge>

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,7 +10,7 @@ import { ProjectMember } from "./types/member-types";
  * Provides a centralized way to fetch, add, and remove project members
  */
 export function useProjectMembers(projectId: string | undefined) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   
   // Fetch project members
@@ -19,62 +20,85 @@ export function useProjectMembers(projectId: string | undefined) {
       if (!projectId) return [];
       
       try {
-        // Get project users with profiles in a single query using a join
-        const { data, error } = await supabase
+        // Get project users
+        const { data: projectUsers, error: projectUsersError } = await supabase
           .from('project_users')
-          .select(`
-            user_id, 
-            project_id,
-            profiles:user_id (
-              display_name,
-              avatar_url
-            )
-          `)
+          .select('user_id, project_id')
           .eq('project_id', projectId);
           
-        if (error) throw error;
+        if (projectUsersError) throw projectUsersError;
         
-        // Transform the data to our ProjectMember type
-        const members: ProjectMember[] = data.map(item => {
-          // Type-safe check for profile data
-          const profileData = item.profiles || {};
-          const displayName = typeof profileData === 'object' && 'display_name' in profileData ? 
-            profileData.display_name as string | null : null;
-          const avatarUrl = typeof profileData === 'object' && 'avatar_url' in profileData ? 
-            profileData.avatar_url as string | null : null;
-            
+        // Get all user IDs from project_users
+        const memberIds = new Set(projectUsers?.map(pu => pu.user_id) || []);
+        
+        // If current user is admin, add them regardless
+        if (user && isAdmin) {
+          memberIds.add(user.id);
+        }
+        
+        // If no members found and it's not a new project, return empty array
+        if (memberIds.size === 0) {
+          // For new projects, include the current user automatically
+          if (user) {
+            memberIds.add(user.id);
+          }
+          
+          if (memberIds.size === 0) {
+            return [];
+          }
+        }
+        
+        // Convert set to array
+        const userIds = Array.from(memberIds);
+        
+        // Fetch profiles for these users
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+        
+        if (profilesError) throw profilesError;
+        
+        // Get admin users
+        const { data: adminUsers, error: adminError } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'gallery_admin')
+          .in('user_id', userIds);
+          
+        if (adminError) throw adminError;
+        
+        // Create a set of admin user IDs for quick lookup
+        const adminUserIds = new Set(adminUsers?.map(u => u.user_id) || []);
+        
+        // Map profiles to members format
+        const members: ProjectMember[] = userIds.map(userId => {
+          const profile = profiles?.find(p => p.id === userId);
+          const isUserAdmin = adminUserIds.has(userId);
+          
           return {
-            user_id: item.user_id,
-            project_id: item.project_id,
-            display_name: displayName || 'Unknown User',
-            avatar_url: avatarUrl || null,
-            email: displayName || null // Using display_name as email since that's what's stored
+            user_id: userId,
+            project_id: projectId,
+            display_name: profile?.display_name || 'Unknown User',
+            avatar_url: profile?.avatar_url || null,
+            email: profile?.display_name || null,
+            is_admin: isUserAdmin
           };
         });
-        
-        // If there are no members but current user has access, include them
-        if (members.length === 0 && user) {
-          members.push({
-            user_id: user.id,
-            project_id: projectId,
-            display_name: user.email || 'Current User',
-            avatar_url: null,
-            email: user.email
-          });
-        }
         
         return members;
       } catch (error) {
         console.error("Error fetching project members:", error);
         
-        // Return current user as fallback
-        if (user) {
+        // Return current user as fallback if they're an admin
+        if (user && isAdmin) {
           return [{
             user_id: user.id,
             project_id: projectId,
             display_name: user.email || 'Current User',
             avatar_url: null,
-            email: user.email
+            email: user.email,
+            is_admin: true
           }];
         }
         
@@ -85,38 +109,25 @@ export function useProjectMembers(projectId: string | undefined) {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
   
-  // Add member mutation
-  const addMemberMutation = useMutation({
-    mutationFn: async ({ email }: { email: string }) => {
-      if (!projectId || !email) {
-        throw new Error("Project ID and email are required");
-      }
-      
-      // Find user profile by email
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .eq('display_name', email) // Using display_name as email
-        .single();
-      
-      if (profileError) {
-        throw new Error(profileError.message);
-      }
-      
-      if (!profile?.id) {
-        throw new Error(`No user found with email ${email}`);
+  // Add member by ID mutation
+  const addMemberByIdMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!projectId || !userId) {
+        throw new Error("Project ID and user ID are required");
       }
       
       // Check if user is already a member
-      const { data: existingMember } = await supabase
+      const { data: existingMember, error: checkError } = await supabase
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
-        .eq('user_id', profile.id)
+        .eq('user_id', userId)
         .maybeSingle();
         
+      if (checkError) throw checkError;
+      
       if (existingMember) {
-        throw new Error(`${email} is already a member of this project`);
+        throw new Error("User is already a member of this project");
       }
       
       // Add the member
@@ -124,40 +135,47 @@ export function useProjectMembers(projectId: string | undefined) {
         .from('project_users')
         .insert({
           project_id: projectId,
-          user_id: profile.id
+          user_id: userId
         });
         
       if (addError) throw addError;
       
-      // Return the new member
+      // Get the user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError) throw profileError;
+      
+      // Check if user is admin
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'gallery_admin')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      // Return the member data
       return {
-        user_id: profile.id,
+        user_id: userId,
         project_id: projectId,
-        display_name: profile.display_name || email,
+        display_name: profile.display_name || 'Unknown User',
         avatar_url: profile.avatar_url || null,
-        email: email
+        email: profile.display_name,
+        is_admin: !!adminRole
       };
     },
     onSuccess: (newMember) => {
-      // Update the cache with the new member
       queryClient.setQueryData(
         ['project-members', projectId],
         (oldData: ProjectMember[] = []) => [...oldData, newMember]
       );
-      
-      toast.success(`Added ${newMember.email} to the project`);
     },
     onError: (error: Error) => {
       console.error("Error adding member:", error);
-      
-      // Show user-friendly error message
-      if (error.message.includes("No user found")) {
-        toast.warning(error.message);
-      } else if (error.message.includes("already a member")) {
-        toast.info(error.message);
-      } else {
-        toast.error("Failed to add team member");
-      }
+      toast.error(error.message || "Failed to add team member");
     }
   });
   
@@ -166,6 +184,18 @@ export function useProjectMembers(projectId: string | undefined) {
     mutationFn: async (userId: string) => {
       if (!projectId) {
         throw new Error("Project ID is required");
+      }
+      
+      // Admin users cannot be removed as they have automatic access
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'gallery_admin')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (adminRole) {
+        throw new Error("Admin users cannot be removed from projects");
       }
       
       const { error } = await supabase
@@ -179,7 +209,7 @@ export function useProjectMembers(projectId: string | undefined) {
       return userId;
     },
     onSuccess: (userId) => {
-      // Update the cache by removing the member
+      // Update the cache by filtering out the removed member
       queryClient.setQueryData(
         ['project-members', projectId],
         (oldData: ProjectMember[] = []) => oldData.filter(m => m.user_id !== userId)
@@ -187,19 +217,14 @@ export function useProjectMembers(projectId: string | undefined) {
       
       toast.success("Team member removed");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error removing member:", error);
-      toast.error("Failed to remove team member");
+      toast.error(error.message || "Failed to remove team member");
     }
   });
   
-  const addMember = (email: string) => {
-    if (!email.trim()) {
-      toast.error("Email is required");
-      return;
-    }
-    
-    addMemberMutation.mutate({ email: email.trim() });
+  const addMemberById = async (userId: string) => {
+    await addMemberByIdMutation.mutateAsync(userId);
   };
   
   const removeMember = (userId: string) => {
@@ -209,8 +234,16 @@ export function useProjectMembers(projectId: string | undefined) {
       return;
     }
     
-    // Don't allow removing the last member
-    if (membersQuery.data && membersQuery.data.length <= 1) {
+    // Don't allow removing admin users
+    const memberToRemove = membersQuery.data?.find(m => m.user_id === userId);
+    if (memberToRemove?.is_admin) {
+      toast.info("Admin users automatically have access to all projects");
+      return;
+    }
+    
+    // Don't allow removing the last non-admin member
+    const nonAdminMembers = membersQuery.data?.filter(m => !m.is_admin) || [];
+    if (nonAdminMembers.length <= 1 && nonAdminMembers.some(m => m.user_id === userId)) {
       toast.warning("Projects must have at least one member");
       return;
     }
@@ -220,13 +253,13 @@ export function useProjectMembers(projectId: string | undefined) {
   
   return {
     members: membersQuery.data || [],
-    isLoading: membersQuery.isLoading || addMemberMutation.isPending || removeMemberMutation.isPending,
+    isLoading: membersQuery.isLoading || addMemberByIdMutation.isPending || removeMemberMutation.isPending,
     isError: membersQuery.isError,
     error: membersQuery.error,
     refetch: membersQuery.refetch,
-    addMember,
+    addMemberById,
     removeMember,
-    isAddingMember: addMemberMutation.isPending,
+    isAddingMember: addMemberByIdMutation.isPending,
     isRemovingMember: removeMemberMutation.isPending
   };
 }

@@ -10,6 +10,7 @@ export interface ProjectMember {
   display_name: string;
   avatar_url: string | null;
   email: string | null;
+  is_admin?: boolean;  // Flag to indicate if user is an admin (has access to all projects)
 }
 
 // Input for adding a new member to a project
@@ -65,13 +66,15 @@ export function createMemberFromUser(
   projectId: string,
   displayName: string | null,
   email: string | null,
-  avatarUrl: string | null
+  avatarUrl: string | null,
+  isAdmin: boolean = false
 ): ProjectMember {
   return {
     user_id: userId,
     project_id: projectId,
     display_name: displayName || email || 'Unknown User',
     avatar_url: avatarUrl,
-    email: email
+    email: email,
+    is_admin: isAdmin
   };
 }
