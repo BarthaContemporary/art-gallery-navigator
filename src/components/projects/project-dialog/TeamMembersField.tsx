@@ -1,4 +1,5 @@
 
+import React, { useEffect } from "react";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectMemberSelect } from "@/components/projects/ProjectMemberSelect";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
@@ -13,7 +14,7 @@ export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFie
   
   // Since we now use user selection by ID instead of emails, we can extract emails
   // from the members array whenever it changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (members?.length) {
       const emails = members
         .map(member => member.email)
