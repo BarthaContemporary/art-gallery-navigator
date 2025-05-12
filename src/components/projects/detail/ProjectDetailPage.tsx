@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject } from "@/hooks/use-projects";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,14 +35,31 @@ const ProjectDetailPage = () => {
     error: projectError 
   } = useProject(id);
   
-  const { members, isLoading: membersLoading, isError: membersError } = useProjectMembers(id);
+  // Get members with improved error handling
+  const { 
+    members, 
+    isLoading: membersLoading, 
+    isError: membersError,
+    error: membersErrorDetails
+  } = useProjectMembers(id);
   
+  // Get tasks with improved error handling
   const { 
     data: projectTasks,
     isLoading: tasksLoading,
     isError: tasksError,
     error: tasksErrorDetails
   } = useProjectTasks(id);
+  
+  // Log any errors for debugging
+  useEffect(() => {
+    if (membersError) {
+      console.error("Members error:", membersErrorDetails);
+    }
+    if (tasksError) {
+      console.error("Tasks error:", tasksErrorDetails);
+    }
+  }, [membersError, membersErrorDetails, tasksError, tasksErrorDetails]);
   
   // Determine if user is a member - assume current user is a member if we can't determine
   const userIsMember = isAdmin || 
@@ -51,9 +69,12 @@ const ProjectDetailPage = () => {
   const debugData = {
     project,
     members,
+    memberCount: members?.length || 0,
     user: user?.id,
     isAdmin,
     userIsMember,
+    membersError: membersError ? 'Error loading members' : null,
+    tasksError: tasksError ? 'Error loading tasks' : null,
   };
   
   if (isLoading) {
@@ -121,7 +142,7 @@ const ProjectDetailPage = () => {
         isError={tasksError}
       />
       
-      {/* Project dialogs */}
+      {/* Project dialogs - ensure they still work even if data loading fails */}
       <ProjectDialogsManager
         project={project}
         dialogStates={{

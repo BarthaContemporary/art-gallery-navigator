@@ -11,7 +11,7 @@ import { UseProjectMembersResult } from "./types";
  * Provides a centralized way to fetch, add, and remove project members
  */
 export function useProjectMembers(projectId: string | undefined): UseProjectMembersResult {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   // Fetch project members
   const { 
@@ -29,10 +29,21 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
   const removeMemberMutation = useRemoveMember(projectId);
   
   const addMemberById = async (userId: string) => {
-    await addMemberMutation.mutateAsync(userId);
+    try {
+      await addMemberMutation.mutateAsync(userId);
+    } catch (error) {
+      console.error("Error adding member:", error);
+      toast.error("Failed to add team member");
+    }
   };
   
   const removeMember = (userId: string) => {
+    // Safety check - don't continue if no project ID
+    if (!projectId) {
+      toast.error("Project ID is required");
+      return;
+    }
+    
     // Don't allow removing yourself
     if (userId === user?.id) {
       toast.warning("You cannot remove yourself from the project");
@@ -53,11 +64,26 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
       return;
     }
     
-    removeMemberMutation.mutate(userId);
+    try {
+      removeMemberMutation.mutate(userId);
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast.error("Failed to remove team member");
+    }
   };
   
+  // In case of an error, ensure we still have the current user as a fallback
+  const safeMembers = members.length > 0 ? members : (user ? [{
+    user_id: user.id,
+    project_id: projectId || '',
+    display_name: user.email || 'Current User',
+    avatar_url: null,
+    email: user.email,
+    is_admin: isAdmin
+  }] : []);
+  
   return {
-    members,
+    members: safeMembers,
     isLoading: isFetchLoading || addMemberMutation.isPending || removeMemberMutation.isPending,
     isError,
     error,

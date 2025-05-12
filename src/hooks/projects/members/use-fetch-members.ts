@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ProjectMember } from "../types/member-types";
+import { toast } from "sonner";
 
 /**
  * Hook for fetching project members
@@ -16,13 +17,29 @@ export function useFetchMembers(projectId: string | undefined) {
       if (!projectId) return [];
       
       try {
-        // Get project users
+        // Get project users with error handling
         const { data: projectUsers, error: projectUsersError } = await supabase
           .from('project_users')
           .select('user_id, project_id')
           .eq('project_id', projectId);
           
-        if (projectUsersError) throw projectUsersError;
+        if (projectUsersError) {
+          // Log the error but don't throw it to prevent UI from breaking
+          console.error("Error fetching project members:", projectUsersError);
+          
+          // Return current user as fallback for better UX
+          if (user) {
+            return [{
+              user_id: user.id,
+              project_id: projectId,
+              display_name: user.email || 'Current User',
+              avatar_url: null,
+              email: user.email,
+              is_admin: isAdmin
+            }];
+          }
+          return [];
+        }
         
         // Get all user IDs from project_users
         const memberIds = new Set(projectUsers?.map(pu => pu.user_id) || []);
@@ -32,20 +49,17 @@ export function useFetchMembers(projectId: string | undefined) {
           memberIds.add(user.id);
         }
         
-        // If no members found and it's not a new project, return empty array
-        if (memberIds.size === 0) {
-          // For new projects, include the current user automatically
-          if (user) {
-            memberIds.add(user.id);
-          }
-          
-          if (memberIds.size === 0) {
-            return [];
-          }
+        // If no members found and it's not a new project, add current user as fallback
+        if (memberIds.size === 0 && user) {
+          memberIds.add(user.id);
         }
         
         // Convert set to array
         const userIds = Array.from(memberIds);
+        
+        if (userIds.length === 0) {
+          return [];
+        }
         
         // Fetch profiles for these users
         const { data: profiles, error: profilesError } = await supabase
@@ -53,7 +67,21 @@ export function useFetchMembers(projectId: string | undefined) {
           .select('id, display_name, avatar_url')
           .in('id', userIds);
         
-        if (profilesError) throw profilesError;
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          // Return minimal data for current user as fallback
+          if (user) {
+            return [{
+              user_id: user.id,
+              project_id: projectId,
+              display_name: user.email || 'Current User',
+              avatar_url: null,
+              email: user.email,
+              is_admin: isAdmin
+            }];
+          }
+          return [];
+        }
         
         // Get admin users
         const { data: adminUsers, error: adminError } = await supabase
@@ -62,7 +90,10 @@ export function useFetchMembers(projectId: string | undefined) {
           .eq('role', 'gallery_admin')
           .in('user_id', userIds);
           
-        if (adminError) throw adminError;
+        if (adminError) {
+          console.error("Error fetching admin users:", adminError);
+          // Continue with the data we have without admin info
+        }
         
         // Create a set of admin user IDs for quick lookup
         const adminUserIds = new Set(adminUsers?.map(u => u.user_id) || []);
@@ -78,30 +109,39 @@ export function useFetchMembers(projectId: string | undefined) {
             display_name: profile?.display_name || 'Unknown User',
             avatar_url: profile?.avatar_url || null,
             email: profile?.display_name || null,
-            is_admin: isUserAdmin
+            is_admin: isUserAdmin || (userId === user?.id && isAdmin)
           };
         });
         
         return members;
       } catch (error) {
-        console.error("Error fetching project members:", error);
+        console.error("Error in useFetchMembers:", error);
+        toast.error("Failed to load team members");
         
         // Return current user as fallback if they're an admin
-        if (user && isAdmin) {
+        if (user) {
           return [{
             user_id: user.id,
             project_id: projectId,
             display_name: user.email || 'Current User',
             avatar_url: null,
             email: user.email,
-            is_admin: true
+            is_admin: isAdmin
           }];
         }
         
-        throw error;
+        return [];
       }
     },
     enabled: !!projectId && !!user,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    
+    // Improve error handling to prevent UI breakage
+    meta: {
+      onError: (error: Error) => {
+        console.error("Error in useFetchMembers query:", error);
+        toast.error("Failed to load team members");
+      }
+    }
   });
 }
