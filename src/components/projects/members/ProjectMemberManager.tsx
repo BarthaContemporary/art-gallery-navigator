@@ -23,14 +23,20 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     removeMember
   } = useProjectMembers(projectId);
 
+  // Make sure members is always an array
+  const safeMembers = Array.isArray(members) ? members : [];
+
   const handleRemoveMember = (userId: string) => {
+    // Safety checks first
+    if (!userId) return;
+    
     // Don't allow removing yourself
     if (userId === user?.id) {
       return;
     }
     
     // Admin users shouldn't be removable through the UI since they have access by default
-    const memberToRemove = members.find(m => m.user_id === userId);
+    const memberToRemove = safeMembers.find(m => m.user_id === userId);
     if (memberToRemove?.is_admin) {
       return;
     }
@@ -38,7 +44,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     removeMember(userId);
   };
 
-  if (isLoading && !members.length) {
+  if (isLoading && (!safeMembers || safeMembers.length === 0)) {
     return (
       <div className="flex items-center justify-center p-4 text-muted-foreground">
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -71,11 +77,11 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
         </div>
 
         <div className="space-y-2">
-          {members.length === 0 ? (
+          {safeMembers.length === 0 ? (
             <div className="text-sm text-muted-foreground">No team members added yet</div>
           ) : (
             <MembersList
-              members={members}
+              members={safeMembers}
               readOnly={readOnly}
               onRemoveMember={handleRemoveMember}
             />
@@ -88,7 +94,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
         <div>
           <UserSelectionField
             projectId={projectId}
-            members={members}
+            members={safeMembers}
             onAddMember={addMemberById}
           />
           

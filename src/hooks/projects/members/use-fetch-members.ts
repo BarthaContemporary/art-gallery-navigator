@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ProjectMember, createMemberFromUser } from "../types/member-types";
-// Removed toast import as per previous diff, hooks shouldn't generally cause side-effects like toasts
 
 /**
  * Hook for fetching project members
@@ -14,66 +13,83 @@ export function useFetchMembers(projectId: string | undefined) {
   return useQuery({
     queryKey: ['project-members', projectId],
     queryFn: async (): Promise<ProjectMember[]> => {
-      if (!projectId) return [];
+      if (!projectId) {
+        console.log("No projectId provided to useFetchMembers");
+        return [];
+      }
 
       try {
+        console.log(`Fetching members for project: ${projectId}`);
+        
+        // Get project users
         const { data: projectUsersData, error: projectUsersError } = await supabase
           .from('project_users')
           .select('user_id, project_id')
           .eq('project_id', projectId);
 
-        // Ensure projectUsers is always an array for safety
-        const projectUsers: { user_id: string; project_id: string }[] = Array.isArray(projectUsersData) ? projectUsersData : [];
+        // Ensure projectUsers is always an array
+        const projectUsers = Array.isArray(projectUsersData) ? projectUsersData : [];
 
         if (projectUsersError) {
           console.error("Error fetching project members:", projectUsersError);
+          // Return current user as fallback if available
           if (user && user.id && user.email) {
             return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
           }
           return [];
         }
 
+        console.log(`Found ${projectUsers.length} project users`);
+        
         // If no members found and user is signed in, add current user as fallback
-        // Also ensure user.id and user.email are present for creating a valid member
         if (projectUsers.length === 0 && user && user.id && user.email) {
           return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
         }
 
-        // Initialize memberIds set
-        let memberUserIdsInput: string[] = [];
+        // Add all valid user IDs to a set
+        let memberUserIds: string[] = [];
         if (projectUsers.length > 0) {
-          memberUserIdsInput = projectUsers.map(pu => pu.user_id).filter(id => id != null); // Filter out null/undefined ids
+          // Filter out null/undefined ids
+          memberUserIds = projectUsers
+            .map(pu => pu.user_id)
+            .filter(Boolean);
         }
-        const memberIds = new Set(memberUserIdsInput);
-
-        // If current user is admin, add them regardless (ensure user.id exists)
+        
+        // If current user is admin, make sure they're included
         if (user && isAdmin && user.id) {
-          memberIds.add(user.id);
+          if (!memberUserIds.includes(user.id)) {
+            memberUserIds.push(user.id);
+          }
         }
 
-        const userIds = Array.from(memberIds);
-
-        if (userIds.length === 0) {
+        // If we have no valid user IDs, return empty array
+        if (memberUserIds.length === 0) {
+          console.log("No valid member user IDs found");
           return [];
         }
 
+        console.log(`Fetching profiles for ${memberUserIds.length} users`);
+        
         // Fetch profiles for these users
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, display_name, avatar_url')
-          .in('id', userIds);
+          .in('id', memberUserIds);
 
         // Ensure profiles is always an array
-        const profiles: { id: string; display_name: string | null; avatar_url: string | null; }[] = Array.isArray(profilesData) ? profilesData : [];
+        const profiles = Array.isArray(profilesData) ? profilesData : [];
 
         if (profilesError) {
           console.error("Error fetching profiles:", profilesError);
+          // Return current user as fallback if available
           if (user && user.id && user.email) {
             return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
           }
           return [];
         }
 
+        console.log(`Found ${profiles.length} user profiles`);
+        
         // Get admin users
         const { data: adminUsersData, error: adminError } = await supabase
           .from('user_roles')
@@ -81,39 +97,40 @@ export function useFetchMembers(projectId: string | undefined) {
           .eq('role', 'gallery_admin');
 
         // Ensure adminUsers is always an array
-        const adminUsers: { user_id: string }[] = Array.isArray(adminUsersData) ? adminUsersData : [];
+        const adminUsers = Array.isArray(adminUsersData) ? adminUsersData : [];
         
         if (adminError) {
           console.error("Error fetching admin users:", adminError);
         }
 
-        let adminUserIdsInput: string[] = [];
+        // Create a set of admin user IDs
+        let adminUserIds: Set<string> = new Set();
         if (adminUsers.length > 0) {
-            adminUserIdsInput = adminUsers.map(u => u.user_id).filter(id => id != null); // filter out null/undefined ids
+            adminUsers
+              .filter(admin => admin && admin.user_id) // Filter out null/undefined
+              .forEach(admin => adminUserIds.add(admin.user_id));
         }
-        const adminUserIds = new Set(adminUserIdsInput);
 
-        // Map profiles to members format using createMemberFromUser helper
-        const members: ProjectMember[] = userIds.map(userId => {
+        // Map profiles to members format
+        const members: ProjectMember[] = memberUserIds.map(userId => {
           const profile = profiles.find(p => p.id === userId);
           const isUserAdmin = adminUserIds.has(userId) || (user?.id === userId && isAdmin);
 
-          // Assuming email is sourced from profile.display_name as per prior logic.
-          // If profile.email is available, it should be used here.
           return createMemberFromUser(
             userId,
             projectId,
             profile?.display_name ?? 'Unknown User',
-            profile?.display_name ?? null, // Placeholder for email, adjust if actual email available
+            profile?.display_name ?? null,
             profile?.avatar_url ?? null,
             isUserAdmin
           );
         });
 
+        console.log(`Returning ${members.length} project members`);
         return members;
-      } catch (err) { // Changed error variable name for clarity
-        console.error("Critical error in useFetchMembers queryFn catch block:", err); // Enhanced logging
-        // Return current user as fallback for better UX, ensuring user details are present
+      } catch (err) {
+        console.error("Critical error in useFetchMembers:", err);
+        // Return current user as fallback if available
         if (user && user.id && user.email) {
           return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
         }
@@ -124,7 +141,7 @@ export function useFetchMembers(projectId: string | undefined) {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     meta: {
       onError: (error: Error) => {
-        console.error("Error in useFetchMembers React Query meta.onError:", error);
+        console.error("Error in useFetchMembers React Query:", error);
       }
     }
   });

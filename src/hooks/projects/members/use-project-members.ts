@@ -29,6 +29,11 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
   const removeMemberMutation = useRemoveMember(projectId);
   
   const addMemberById = async (userId: string) => {
+    if (!userId || !projectId) {
+      toast.error("Missing user ID or project ID");
+      return;
+    }
+    
     try {
       await addMemberMutation.mutateAsync(userId);
     } catch (error) {
@@ -72,15 +77,17 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
     }
   };
   
-  // In case of an error, ensure we still have the current user as a fallback
-  const safeMembers = members.length > 0 ? members : (user ? [{
-    user_id: user.id,
-    project_id: projectId || '',
-    display_name: user.email || 'Current User',
-    avatar_url: null,
-    email: user.email,
-    is_admin: isAdmin
-  }] : []);
+  // In case of an error or empty array, ensure we still have the current user as a fallback
+  const safeMembers = (Array.isArray(members) && members.length > 0) 
+    ? members 
+    : (user && user.id && user.email ? [{
+        user_id: user.id,
+        project_id: projectId || '',
+        display_name: user.email || 'Current User',
+        avatar_url: null,
+        email: user.email,
+        is_admin: isAdmin
+      }] : []);
   
   return {
     members: safeMembers,
