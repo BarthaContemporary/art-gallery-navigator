@@ -12,15 +12,17 @@ interface TeamMembersFieldProps {
 export function TeamMembersField({ project, onUserEmailsChange }: TeamMembersFieldProps) {
   const { members, isLoading } = useProjectMembers(project?.id);
   
-  // Since we now use user selection by ID instead of emails, we can extract emails
-  // from the members array whenever it changes
+  // Extract emails from members array when it changes, with safety checks
   useEffect(() => {
-    if (members?.length) {
+    if (Array.isArray(members) && members.length > 0) {
       const emails = members
-        .map(member => member.email)
-        .filter((email): email is string => !!email);
+        .map(member => member?.email)
+        .filter((email): email is string => typeof email === 'string' && email.length > 0);
       
       onUserEmailsChange(emails);
+    } else {
+      // If no members or invalid members array, provide empty array
+      onUserEmailsChange([]);
     }
   }, [members, onUserEmailsChange]);
   

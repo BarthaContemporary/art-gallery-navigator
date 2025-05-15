@@ -15,12 +15,15 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
   
   // Fetch project members
   const { 
-    data: members = [], 
+    data: membersData, 
     isLoading: isFetchLoading, 
     isError, 
     error,
     refetch 
   } = useFetchMembers(projectId);
+  
+  // Ensure members is always a valid array
+  const members = Array.isArray(membersData) ? membersData : [];
   
   // Add member mutation
   const addMemberMutation = useAddMember(projectId);

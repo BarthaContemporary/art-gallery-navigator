@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ProjectMember } from "@/hooks/projects/types/member-types";
 import { UserSelectionField } from "./UserSelectionField";
 import { MembersList } from "./MembersList";
+import { Button } from "@/components/ui/button";
 
 interface ProjectMemberManagerProps {
   projectId?: string;
@@ -20,7 +21,8 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     isError,
     error,
     addMemberById,
-    removeMember
+    removeMember,
+    refetch
   } = useProjectMembers(projectId);
 
   // Make sure members is always an array
@@ -55,13 +57,23 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
 
   return (
     <div className="space-y-4">
-      {/* Error display */}
+      {/* Error display with retry button */}
       {isError && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md flex items-center">
-          <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-          <span className="text-sm">
-            Failed to load team members: {(error as Error)?.message || "Unknown error"}
-          </span>
+        <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md flex items-center justify-between">
+          <div className="flex items-center">
+            <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">
+              Failed to load team members: {(error as Error)?.message || "Unknown error"}
+            </span>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
+            Retry
+          </Button>
         </div>
       )}
 
