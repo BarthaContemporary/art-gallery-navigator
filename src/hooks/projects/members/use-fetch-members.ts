@@ -70,10 +70,10 @@ export function useFetchMembers(projectId: string | undefined) {
 
         console.log(`Fetching profiles for ${memberUserIds.length} users`);
         
-        // Fetch profiles for these users
+        // Fetch profiles for these users, including the email field
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, display_name, avatar_url')
+          .select('id, display_name, avatar_url, email') // Added email here
           .in('id', memberUserIds);
 
         // Ensure profiles is always an array
@@ -119,8 +119,8 @@ export function useFetchMembers(projectId: string | undefined) {
           return createMemberFromUser(
             userId,
             projectId,
-            profile?.display_name ?? 'Unknown User',
             profile?.display_name ?? null,
+            profile?.email ?? null, // Pass profile's email
             profile?.avatar_url ?? null,
             isUserAdmin
           );

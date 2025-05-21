@@ -16,6 +16,7 @@ interface UserData {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  email: string | null; // Added email
   is_admin?: boolean;
 }
 
@@ -38,12 +39,12 @@ export function UserSelectionField({
   
   // Fetch all users
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users-list'],
+    queryKey: ['users-list-with-email'], // Changed queryKey to reflect new data
     queryFn: async () => {
       // Query profiles table for all users
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, email') // Added email
         .order('display_name');
       
       if (error) throw error;
@@ -76,7 +77,7 @@ export function UserSelectionField({
       setIsAdding(true);
       await onAddMember(user.id);
       setOpen(false);
-      toast.success(`Added ${user.display_name || 'user'} to the project`);
+      toast.success(`Added ${user.display_name || user.email || 'user'} to the project`); // Use email as fallback
     } catch (error) {
       console.error("Error adding user to project:", error);
       toast.error("Failed to add user to project");
@@ -118,17 +119,17 @@ export function UserSelectionField({
                 {availableUsers.map(user => (
                   <CommandItem
                     key={user.id}
-                    value={user.id}
+                    value={user.id} // value should be unique, user.id is good. For display, we combine.
                     onSelect={() => handleSelectUser(user)}
                     className="flex items-center gap-2"
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={user.avatar_url || undefined} />
                       <AvatarFallback className="text-xs">
-                        {(user.display_name?.substring(0, 2) || "U").toUpperCase()}
+                        {(user.display_name?.substring(0, 2) || user.email?.substring(0,2) || "U").toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span>{user.display_name || user.id}</span>
+                    <span>{user.display_name || user.email || user.id}</span> {/* Use email as fallback */}
                     {user.is_admin && (
                       <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                         Admin

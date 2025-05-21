@@ -38,12 +38,12 @@ export function useFetchMembers(
       
       try {
         // First get all project users
-        const { data: projectUsers, error } = await supabase
+        const { data: projectUsers, error: dbError } = await supabase // Renamed error to dbError for clarity
           .from('project_users')
           .select('user_id, project_id')
           .eq('project_id', projectId);
           
-        if (error) throw new Error("Failed to load team members");
+        if (dbError) throw new Error("Failed to load team members");
         
         if (!projectUsers?.length) {
           // No project users found, add current user as fallback
@@ -51,7 +51,7 @@ export function useFetchMembers(
             const currentUserMember: ProjectMember = {
               user_id: user.id,
               project_id: projectId,
-              display_name: user.email,
+              display_name: user.email, // Use email as display_name if no profile
               avatar_url: null,
               email: user.email
             };
@@ -66,7 +66,7 @@ export function useFetchMembers(
         const userIds = projectUsers.map(pu => pu.user_id);
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, display_name, avatar_url')
+          .select('id, display_name, avatar_url, email') // Added email
           .in('id', userIds);
         
         if (profilesError) throw new Error("Failed to load user profiles");
@@ -77,23 +77,25 @@ export function useFetchMembers(
         for (const pu of projectUsers) {
           const profile = profiles?.find(p => p.id === pu.user_id);
           
-          if (profile) {
-            fetchedMembers.push({
-              user_id: pu.user_id,
-              project_id: projectId,
-              display_name: profile.display_name || 'Unknown User',
-              avatar_url: profile.avatar_url || null,
-              email: profile.display_name || null // Using display_name as email
-            });
-          }
+          // Use profile data if available, otherwise try to use auth user's email as a last resort if the profile is somehow missing
+          const displayName = profile?.display_name || (pu.user_id === user.id ? user.email : 'Unknown User');
+          const memberEmail = profile?.email || (pu.user_id === user.id ? user.email : null);
+
+          fetchedMembers.push({
+            user_id: pu.user_id,
+            project_id: projectId,
+            display_name: displayName!,
+            avatar_url: profile?.avatar_url || null,
+            email: memberEmail
+          });
         }
         
-        // Add current user if not present
+        // Add current user if not present and they have an email
         if (!fetchedMembers.some(m => m.user_id === user.id) && user.email) {
           fetchedMembers.push({
             user_id: user.id,
             project_id: projectId,
-            display_name: user.email || 'Current User',
+            display_name: user.email, // Default to email
             avatar_url: null,
             email: user.email
           });
@@ -105,14 +107,14 @@ export function useFetchMembers(
         }
       } catch (err) {
         console.error("Error loading project members:", err);
-        setError("Failed to load team members");
+        setError((err as Error).message || "Failed to load team members");
         
         // Fallback to current user
         if (user.email) {
           const currentUserMember: ProjectMember = {
             user_id: user.id,
             project_id: projectId,
-            display_name: user.email,
+            display_name: user.email, // Use email as display_name
             avatar_url: null,
             email: user.email
           };
