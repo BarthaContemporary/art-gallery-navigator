@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { useAuth } from "@/hooks/use-auth";
-import { ProjectMember } from "@/hooks/projects/types/member-types";
+import { ProjectMember } from "@/hooks/projects"; // Updated import
 import { UserSelectionField } from "./UserSelectionField";
 import { MembersList } from "./MembersList";
 import { Button } from "@/components/ui/button";
@@ -127,3 +127,4 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     </div>
   );
 }
+

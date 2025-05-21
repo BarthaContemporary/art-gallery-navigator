@@ -4,3 +4,7 @@ export * from './project-types';
 
 // Export all types from the task-types file
 export * from './task-types';
+
+// Export all types from the member-types file
+export * from './member-types';
+

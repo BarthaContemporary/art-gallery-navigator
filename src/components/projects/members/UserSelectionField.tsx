@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ProjectMember } from "@/hooks/projects/types/member-types";
+import { ProjectMember } from "@/hooks/projects"; // Updated import
 // useAuth removed as isAdmin was not used and useAuth can be heavy if not needed.
 // If isAdmin checks are required later, it can be re-added.
 
@@ -215,3 +215,4 @@ export function UserSelectionField({
     </div>
   );
 }
+

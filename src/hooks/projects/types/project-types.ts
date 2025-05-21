@@ -1,49 +1,36 @@
 
-/**
- * Core type definitions for projects
- */
-
-// Basic project type
+// Base Project type
 export interface Project {
   id: string;
   name: string;
   description: string | null;
+  start_date: string; // ISO date string
+  end_date: string; // ISO date string
   status: 'active' | 'scheduled' | 'completed' | 'abandoned';
   type: 'exhibition' | 'fair' | 'publication' | 'talk' | 'other';
   location_id: string | null;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-  updated_at: string;
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
 }
 
-// Simple location type
-export interface SimpleLocation {
-  name: string;
-}
-
-// Project with location
+// Project with location details
 export interface ProjectWithLocation extends Project {
-  location: SimpleLocation | null;
+  location: { name: string } | null;
+  // If members were to be included here, they should use the canonical ProjectMember type
+  // e.g., members?: ProjectMember[]; 
 }
 
-// Project member
-export interface ProjectMember {
-  user_id: string;
-  project_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  email: string | null;
+// Input for creating a project
+export interface CreateProjectInput extends Omit<Project, 'id' | 'created_at' | 'updated_at' | 'location'> {
+  member_ids?: string[]; // For initial members
 }
 
-// Create project input
-export interface CreateProjectInput {
-  name: string;
-  description?: string;
-  status: 'active' | 'scheduled' | 'completed' | 'abandoned';
-  type: 'exhibition' | 'fair' | 'publication' | 'talk' | 'other';
-  location_id?: string;
-  start_date: string;
-  end_date: string;
-  user_emails?: string[];
+// Input for updating a project
+export interface UpdateProjectInput {
+  id: string;
+  data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at' | 'location'>>;
 }
+
+// Note: ProjectMember interface has been removed from this file.
+// The canonical ProjectMember type is defined in member-types.ts and exported via @/hooks/projects.
+

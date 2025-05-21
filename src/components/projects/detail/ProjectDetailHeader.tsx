@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,9 @@ export function ProjectDetailHeader({
   onCalendarViewClick
 }: ProjectDetailHeaderProps) {
   const navigate = useNavigate();
+
+  // Log prop values for debugging button visibility
+  console.log("ProjectDetailHeader props:", { userIsMember, isAdmin });
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -107,3 +111,4 @@ export function ProjectDetailHeader({
     </>
   );
 }
+
