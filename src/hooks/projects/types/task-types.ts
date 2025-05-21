@@ -19,6 +19,10 @@ export interface TaskWithAssignee {
     display_name: string | null;
     avatar_url: string | null;
   } | null;
+  references?: Array<{ // Added references field
+    id: string;
+    type: 'document' | 'collection' | 'artwork' | 'artist';
+  }> | null; 
 }
 
 // Create task input

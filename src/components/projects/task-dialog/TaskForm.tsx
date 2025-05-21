@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
@@ -10,10 +10,10 @@ import {
   useCreateTask, 
   useUpdateTask, 
   TaskWithAssignee, 
-  useTaskReferences,
-  useProjectMembers, // Correct import for useProjectMembers
-  ProjectMember // Import ProjectMember type
-} from "@/hooks/projects"; // Standardized import path
+  useTaskReferences, // Already imported, ensure it's used
+  useProjectMembers,
+  ProjectMember
+} from "@/hooks/projects";
 import { toast } from "sonner";
 
 import { taskFormSchema } from "./schema";
@@ -38,9 +38,23 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
   const updateTask = useUpdateTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [references, setReferences] = useState<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]>(
-    task?.references || [] // Initialize with existing references if editing
+
+  // Fetch named references for display in ReferenceSelector when editing
+  const { data: initialNamedReferencesForField, isLoading: referencesLoading } = useTaskReferences(task?.id);
+
+  // State for references to be submitted to backend (id, type only)
+  const [referencesForPayload, setReferencesForPayload] = useState<Array<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}>>(
+    () => task?.references || [] // Initialize with existing references (id, type) if editing
   );
+
+  // Effect to update referencesForPayload if the task prop (and its references) changes
+  useEffect(() => {
+    if (task && task.references) {
+      setReferencesForPayload(task.references);
+    } else if (!task) { // Handles switching from edit to create mode if applicable
+      setReferencesForPayload([]);
+    }
+  }, [task]); // Depend on the task object itself
 
   const form = useForm<FormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -48,9 +62,9 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
       name: task?.name || "",
       description: task?.description || "",
       status: task?.status || "scheduled",
-      assigned_to: task?.assigned_to || undefined, // Keep undefined for placeholder
+      assigned_to: task?.assigned_to || undefined,
       start_date: task?.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      end_date: task?.end_date ? format(new Date(task.end_date), "yyyy-MM-dd") : format(new Date(new Date().setDate(new Date().getDate() + 7)), "yyyy-MM-dd"), // Default end date 7 days from start
+      end_date: task?.end_date ? format(new Date(task.end_date), "yyyy-MM-dd") : format(new Date(new Date().setDate(new Date().getDate() + 7)), "yyyy-MM-dd"),
       project_id: projectId,
     }
   });
@@ -67,12 +81,11 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
       name: values.name,
       description: values.description,
       status: values.status,
-      // Ensure 'unassigned' string is converted to null for the database
       assigned_to: values.assigned_to === "unassigned" ? null : values.assigned_to,
       start_date: values.start_date,
       end_date: values.end_date,
       project_id: values.project_id,
-      references
+      references: referencesForPayload // Use the state holding {id, type}
     };
 
     try {
@@ -98,8 +111,9 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
     }
   };
 
+  // This handler receives {id, type} from ReferenceSelector (via TaskReferencesField)
   const handleReferencesChange = (refs: {type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]) => {
-    setReferences(refs);
+    setReferencesForPayload(refs);
   };
 
   return (
@@ -117,13 +131,13 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
           <TaskStatusField control={form.control} />
           <TaskAssigneeField 
             control={form.control} 
-            projectUsers={members as ProjectMember[] || []} // Cast members to ProjectMember[]
+            projectUsers={members as ProjectMember[] || []}
           />
         </div>
         
         <TaskDateFields control={form.control} />
         <TaskReferencesField 
-          initialReferences={references} 
+          initialReferences={initialNamedReferencesForField} // Pass fetched named references
           onReferencesChange={handleReferencesChange} 
         />
         
