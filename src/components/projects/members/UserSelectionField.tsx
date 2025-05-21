@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Command, CommandInput } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -39,6 +38,20 @@ export function UserSelectionField({
     return displayName.toLowerCase().includes(search.toLowerCase()) ||
            email.toLowerCase().includes(search.toLowerCase());
   });
+
+  useEffect(() => {
+    if (open) {
+      console.log("UserSelectionField: Debug Info", {
+        isLoadingUsers,
+        usersQueryError,
+        rawUsersCount: rawUsers?.length,
+        currentMembersCount: members?.length,
+        availableUsersForSelectionInHookCount: availableUsers?.length,
+        search,
+        filteredUsersForDisplayCount: filteredUsers?.length,
+      });
+    }
+  }, [open, isLoadingUsers, usersQueryError, rawUsers, members, availableUsers, search, filteredUsers]);
 
   const handleSelectUser = async (user: UserData) => {
     if (!projectId || !onAddMember || !user || !user.id) {
