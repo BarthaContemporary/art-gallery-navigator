@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectWithLocation, TaskWithAssignee, useProjectTasks } from "@/hooks/projects";
@@ -126,7 +125,7 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
+                            className={`absolute top-[8px] h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
                             style={{ 
                               left: `${left * dayWidthPx}px`, 
                               width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`, // -4 for padding/margin to avoid overlap with borders
