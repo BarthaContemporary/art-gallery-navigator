@@ -1,10 +1,9 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Edit, MapPin, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { ProjectWithLocation } from "@/hooks/projects/project-types";
+import { ProjectWithLocation } from "@/hooks/projects";
 
 interface ProjectDetailHeaderProps {
   project: ProjectWithLocation;

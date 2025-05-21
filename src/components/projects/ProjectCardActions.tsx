@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ProjectWithLocation } from "@/hooks/use-projects";
+import { ProjectWithLocation } from "@/hooks/projects"; // Updated import
 import { useAuth } from "@/hooks/use-auth";
 
 interface ProjectCardActionsProps {
@@ -35,13 +35,13 @@ export function ProjectCardActions({ project, onEdit, onDelete, onCalendar }: Pr
               Calendar View
             </DropdownMenuItem>
           )}
-          {onEdit && (
+          {isAdmin && onEdit && ( // Ensure onEdit is only available to admin or if user has specific edit rights (not implemented here, but good practice)
             <DropdownMenuItem onClick={() => onEdit(project)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </DropdownMenuItem>
           )}
-          {onDelete && (
+          {isAdmin && onDelete && ( // Ensure onDelete is only available to admin
             <DropdownMenuItem
               onClick={() => onDelete(project)}
               className="text-red-600 focus:text-red-600"

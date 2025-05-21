@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectWithLocation } from "./project-types";
+import { ProjectWithLocation } from "./types"; // Updated import
 
 export function useProject(id: string | undefined) {
   return useQuery({
