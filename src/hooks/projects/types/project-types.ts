@@ -21,14 +21,16 @@ export interface ProjectWithLocation extends Project {
 }
 
 // Input for creating a project
+// Changed member_ids to user_emails to align with mutation logic
 export interface CreateProjectInput extends Omit<Project, 'id' | 'created_at' | 'updated_at' | 'location'> {
-  member_ids?: string[]; // For initial members
+  user_emails?: string[]; // For initial members, using emails as per mutation hooks
 }
 
 // Input for updating a project
 export interface UpdateProjectInput {
   id: string;
-  data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at' | 'location'>>;
+  // data will be Partial<CreateProjectInput>, so user_emails will be allowed if present in CreateProjectInput
+  data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at' | 'location'> & { user_emails?: string[] }>;
 }
 
 // Note: ProjectMember interface has been removed from this file.
