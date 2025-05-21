@@ -25,7 +25,8 @@ import FileTransfer from "./pages/FileTransfer";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
-import { ProjectMembersProvider } from "./contexts/project-members-context";
+// Removed ProjectMembersProvider import as it's no longer used
+// import { ProjectMembersProvider } from "./contexts/project-members-context";
 
 // Create a new QueryClient with enhanced error handling
 const queryClient = new QueryClient({
@@ -58,33 +59,32 @@ const App = () => (
         <ErrorBoundary>
           <AuthProvider>
             <LoadingProvider>
-              <ProjectMembersProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <LoadingOverlay />
-                  <Routes>
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/email-confirmation" element={<EmailConfirmation />} />
-                    <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/artists" element={<Artists />} />
-                      <Route path="/artworks" element={<Artworks />} />
-                      <Route path="/collections" element={<Collections />} />
-                      <Route path="/projects" element={<Projects />} />
-                      <Route path="/projects/:id" element={<ProjectDetail />} />
-                      <Route path="/locations" element={<Locations />} />
-                      <Route path="/documents" element={<Documents />} />
-                      <Route path="/signup" element={<UserSignup />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
-                      <Route path="/upload" element={<Upload />} />
-                      <Route path="/file-transfer" element={<FileTransfer />} />
-                    </Route>
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </TooltipProvider>
-              </ProjectMembersProvider>
+              {/* Removed ProjectMembersProvider wrapper */}
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <LoadingOverlay />
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/email-confirmation" element={<EmailConfirmation />} />
+                  <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/artists" element={<Artists />} />
+                    <Route path="/artworks" element={<Artworks />} />
+                    <Route path="/collections" element={<Collections />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/projects/:id" element={<ProjectDetail />} />
+                    <Route path="/locations" element={<Locations />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/signup" element={<UserSignup />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
+                    <Route path="/upload" element={<Upload />} />
+                    <Route path="/file-transfer" element={<FileTransfer />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TooltipProvider>
             </LoadingProvider>
           </AuthProvider>
         </ErrorBoundary>
