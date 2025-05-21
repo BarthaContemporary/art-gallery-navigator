@@ -9,5 +9,6 @@ export const ProjectFormSchema = z.object({
   location_id: z.string().optional(),
   start_date: z.string().min(1, "Start date is required"),
   end_date: z.string().min(1, "End date is required"),
-  users: z.array(z.string()).optional(), // Keep this for backward compatibility
+  // The 'users' field is removed from here as it's handled by 'user_emails' separately
 });
+

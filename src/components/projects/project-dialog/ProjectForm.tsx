@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,7 +37,7 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
       location_id: project?.location_id || undefined,
       start_date: project?.start_date ? format(new Date(project.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       end_date: project?.end_date ? format(new Date(project.end_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      users: [],
+      // Removed 'users: []' default value as it's no longer in the schema
     }
   });
   
@@ -91,3 +92,4 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     </Form>
   );
 }
+
