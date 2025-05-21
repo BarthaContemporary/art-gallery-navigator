@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { ProjectWithLocation } from "./project-types";
+import { ProjectWithLocation } from "@/hooks/projects"; // Updated import
 
 export function useProjects(filters?: {
   status?: string;
