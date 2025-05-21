@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ export function useAddMember(projectId: string | undefined) {
         throw new Error("Project ID and user ID are required");
       }
       
+      console.log(`Adding member with userId ${userId} to project ${projectId}`);
+      
       // Check if user is already a member
       const { data: existingMember, error: checkError } = await supabase
         .from('project_users')
@@ -23,7 +26,10 @@ export function useAddMember(projectId: string | undefined) {
         .eq('user_id', userId)
         .maybeSingle();
         
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error("Error checking existing membership:", checkError);
+        throw checkError;
+      }
       
       if (existingMember) {
         throw new Error("User is already a member of this project");
@@ -37,17 +43,26 @@ export function useAddMember(projectId: string | undefined) {
           user_id: userId
         });
         
-      if (addError) throw addError;
+      if (addError) {
+        console.error("Error adding member to project:", addError);
+        throw addError;
+      }
       
       // Get the user profile, including email
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, email') // Added email
+        .select('id, display_name, avatar_url, email')
         .eq('id', userId)
-        .single(); // Use single as we expect one profile for a user ID
+        .single();
         
-      if (profileError) throw profileError;
-      if (!profile) throw new Error("User profile not found."); // Ensure profile exists
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        throw profileError;
+      }
+      
+      if (!profile) throw new Error("User profile not found.");
+      
+      console.log("Retrieved profile for new member:", profile);
       
       // Check if user is admin
       const { data: adminRole } = await supabase
@@ -63,11 +78,12 @@ export function useAddMember(projectId: string | undefined) {
         project_id: projectId,
         display_name: profile.display_name || 'Unknown User',
         avatar_url: profile.avatar_url || null,
-        email: profile.email ?? null, // Correctly use profile.email, fallback to null
+        email: profile.email || null, // FIXED: Correctly use profile.email instead of profile.display_name
         is_admin: !!adminRole
       } as ProjectMember;
     },
     onSuccess: (newMember) => {
+      console.log("Successfully added member:", newMember);
       queryClient.setQueryData(
         ['project-members', projectId],
         (oldData: ProjectMember[] = []) => {
@@ -78,9 +94,10 @@ export function useAddMember(projectId: string | undefined) {
           return oldData;
         }
       );
-      // Toast success message is handled by UserSelectionField for this flow,
-      // but keeping a generic one here can be a fallback.
-      // toast.success(`Added ${newMember.display_name || 'new member'} to the project`);
+      // Additionally invalidate the query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
+      
+      toast.success(`Added ${newMember.display_name || 'new member'} to the project`);
     },
     onError: (error: Error) => {
       console.error("Error adding member:", error);

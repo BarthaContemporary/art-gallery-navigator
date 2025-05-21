@@ -37,9 +37,9 @@ export function useAddMember(
       // Find user profile by email
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, email') // Added email
-        .eq('email', trimmedEmail) // Changed lookup from display_name to email
-        .single(); // Expecting a single user for an email
+        .select('id, display_name, avatar_url, email')
+        .eq('email', trimmedEmail) // Look up by email field
+        .single();
       
       if (profileError) {
         // PGRST116: "Searched for a single row, but 0 rows were found"
@@ -60,19 +60,16 @@ export function useAddMember(
         return;
       }
       
-      // Type the profile data, including email
-      const safeProfile: ProfileData & { email?: string | null } = profileData;
-            
       // Check if user is already a member (by user_id)
       const { data: existingMemberData } = await supabase
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
-        .eq('user_id', safeProfile.id!)
+        .eq('user_id', profileData.id)
         .maybeSingle();
         
       if (existingMemberData) {
-        toast.info(`${safeProfile.display_name || trimmedEmail} is already a member of this project`);
+        toast.info(`${profileData.display_name || trimmedEmail} is already a member of this project`);
         setLoading(false);
         return;
       }
@@ -82,18 +79,18 @@ export function useAddMember(
         .from('project_users')
         .insert({
           project_id: projectId,
-          user_id: safeProfile.id!
+          user_id: profileData.id
         });
         
       if (addError) throw addError;
       
       // Create member object and update state
       const newMember: ProjectMember = {
-        user_id: safeProfile.id!,
+        user_id: profileData.id,
         project_id: projectId,
-        display_name: safeProfile.display_name || trimmedEmail,
-        avatar_url: safeProfile.avatar_url || null,
-        email: safeProfile.email || trimmedEmail // Prefer profile email, fallback to input
+        display_name: profileData.display_name || trimmedEmail,
+        avatar_url: profileData.avatar_url || null,
+        email: profileData.email || trimmedEmail // Correctly use profile.email
       };
       
       const updatedMembers = [...members, newMember];
@@ -118,4 +115,3 @@ export function useAddMember(
     handleAddMember
   };
 }
-

@@ -7,6 +7,7 @@ import { ProjectMember } from "@/hooks/projects/types/member-types";
 import { UserSelectionField } from "./UserSelectionField";
 import { MembersList } from "./MembersList";
 import { Button } from "@/components/ui/button";
+import { ErrorDisplay } from "@/components/ui/error-display";
 
 interface ProjectMemberManagerProps {
   projectId?: string;
@@ -27,6 +28,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
 
   // Make sure members is always an array
   const safeMembers = Array.isArray(members) ? members : [];
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleRemoveMember = (userId: string) => {
     // Safety checks first
@@ -44,6 +46,11 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     }
     
     removeMember(userId);
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    refetch();
   };
 
   if (isLoading && (!safeMembers || safeMembers.length === 0)) {
@@ -69,7 +76,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => refetch()}
+            onClick={handleRetry}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
           >
             Retry
@@ -89,7 +96,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
         </div>
 
         <div className="space-y-2">
-          {safeMembers.length === 0 ? (
+          {safeMembers.length === 0 && !isLoading && !isError ? (
             <div className="text-sm text-muted-foreground">No team members added yet</div>
           ) : (
             <MembersList

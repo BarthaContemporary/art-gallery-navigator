@@ -16,7 +16,7 @@ interface UserData {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
-  email: string | null; // Added email
+  email: string | null;
   is_admin?: boolean;
 }
 
@@ -39,31 +39,38 @@ export function UserSelectionField({
   
   // Fetch all users
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users-list-with-email'], // Changed queryKey to reflect new data
+    queryKey: ['users-list-with-email'],
     queryFn: async () => {
-      // Query profiles table for all users
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url, email') // Added email
-        .order('display_name');
-      
-      if (error) throw error;
+      try {
+        // Query profiles table for all users
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, email')
+          .order('display_name');
+        
+        if (error) throw error;
 
-      // Get admin users
-      const { data: adminUsers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'gallery_admin');
-      
-      const adminUserIds = new Set(adminUsers?.map(user => user.user_id) || []);
-      
-      // Format data with admin status
-      return data.map(user => ({
-        ...user,
-        is_admin: adminUserIds.has(user.id)
-      }));
+        // Get admin users
+        const { data: adminUsers } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'gallery_admin');
+        
+        const adminUserIds = new Set(adminUsers?.map(user => user.user_id) || []);
+        
+        // Format data with admin status
+        return (data || []).map(user => ({
+          ...user,
+          is_admin: adminUserIds.has(user.id)
+        }));
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Failed to load users list");
+        return [];
+      }
     },
     enabled: open && !disabled,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
   
   // Filter out users who are already members
@@ -77,10 +84,11 @@ export function UserSelectionField({
       setIsAdding(true);
       await onAddMember(user.id);
       setOpen(false);
-      toast.success(`Added ${user.display_name || user.email || 'user'} to the project`); // Use email as fallback
+      toast.success(`Added ${user.display_name || user.email || 'user'} to the project`);
     } catch (error) {
       console.error("Error adding user to project:", error);
-      toast.error("Failed to add user to project");
+      const errorMsg = error instanceof Error ? error.message : "Failed to add user to project";
+      toast.error(errorMsg);
     } finally {
       setIsAdding(false);
     }
@@ -116,29 +124,29 @@ export function UserSelectionField({
               </div>
             ) : (
               <CommandGroup>
-                {availableUsers.map(user => (
-                  <CommandItem
-                    key={user.id}
-                    value={user.id} // value should be unique, user.id is good. For display, we combine.
-                    onSelect={() => handleSelectUser(user)}
-                    className="flex items-center gap-2"
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {(user.display_name?.substring(0, 2) || user.email?.substring(0,2) || "U").toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{user.display_name || user.email || user.id}</span> {/* Use email as fallback */}
-                    {user.is_admin && (
-                      <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                        Admin
-                      </span>
-                    )}
-                  </CommandItem>
-                ))}
-
-                {availableUsers.length === 0 && (
+                {availableUsers.length > 0 ? (
+                  availableUsers.map(user => (
+                    <CommandItem
+                      key={user.id}
+                      value={user.id}
+                      onSelect={() => handleSelectUser(user)}
+                      className="flex items-center gap-2"
+                    >
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {(user.display_name?.substring(0, 2) || user.email?.substring(0,2) || "U").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{user.display_name || user.email || user.id}</span>
+                      {user.is_admin && (
+                        <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          Admin
+                        </span>
+                      )}
+                    </CommandItem>
+                  ))
+                ) : (
                   <div className="py-6 text-center text-sm text-muted-foreground">
                     All users have been added to this project
                   </div>

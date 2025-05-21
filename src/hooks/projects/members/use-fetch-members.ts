@@ -32,11 +32,7 @@ export function useFetchMembers(projectId: string | undefined) {
 
         if (projectUsersError) {
           console.error("Error fetching project members:", projectUsersError);
-          // Return current user as fallback if available
-          if (user && user.id && user.email) {
-            return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
-          }
-          return [];
+          throw new Error(`Error fetching project members: ${projectUsersError.message}`);
         }
 
         console.log(`Found ${projectUsers.length} project users`);
@@ -76,18 +72,13 @@ export function useFetchMembers(projectId: string | undefined) {
           .select('id, display_name, avatar_url, email') // Added email here
           .in('id', memberUserIds);
 
-        // Ensure profiles is always an array
-        const profiles = Array.isArray(profilesData) ? profilesData : [];
-
         if (profilesError) {
           console.error("Error fetching profiles:", profilesError);
-          // Return current user as fallback if available
-          if (user && user.id && user.email) {
-            return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
-          }
-          return [];
+          throw new Error(`Error fetching user profiles: ${profilesError.message}`);
         }
 
+        // Ensure profiles is always an array
+        const profiles = Array.isArray(profilesData) ? profilesData : [];
         console.log(`Found ${profiles.length} user profiles`);
         
         // Get admin users
@@ -120,7 +111,7 @@ export function useFetchMembers(projectId: string | undefined) {
             userId,
             projectId,
             profile?.display_name ?? null,
-            profile?.email ?? null, // Pass profile's email
+            profile?.email ?? null, // Correctly use profile.email
             profile?.avatar_url ?? null,
             isUserAdmin
           );
@@ -130,15 +121,12 @@ export function useFetchMembers(projectId: string | undefined) {
         return members;
       } catch (err) {
         console.error("Critical error in useFetchMembers:", err);
-        // Return current user as fallback if available
-        if (user && user.id && user.email) {
-          return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
-        }
-        return [];
+        throw err; // Re-throw the error to be caught by React Query's error handling
       }
     },
     enabled: !!projectId && !!user,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    retry: 2, // Retry failed queries twice
     meta: {
       onError: (error: Error) => {
         console.error("Error in useFetchMembers React Query:", error);
