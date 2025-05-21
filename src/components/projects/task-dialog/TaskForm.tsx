@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react"; // Added useEffect
+import React, { useState, useEffect } from "react"; 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
@@ -10,11 +10,12 @@ import {
   useCreateTask, 
   useUpdateTask, 
   TaskWithAssignee, 
-  useTaskReferences, // Already imported, ensure it's used
+  useTaskReferences,
   useProjectMembers,
   ProjectMember
 } from "@/hooks/projects";
 import { toast } from "sonner";
+import { ReferenceWithName } from "./TaskReferencesField";
 
 import { taskFormSchema } from "./schema";
 import { TaskBasicFields } from "./TaskBasicFields";
@@ -40,21 +41,21 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch named references for display in ReferenceSelector when editing
-  const { data: initialNamedReferencesForField, isLoading: referencesLoading } = useTaskReferences(task?.id);
+  const { data: initialNamedReferences, isLoading: referencesLoading } = useTaskReferences(task?.id);
 
   // State for references to be submitted to backend (id, type only)
   const [referencesForPayload, setReferencesForPayload] = useState<Array<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}>>(
-    () => task?.references || [] // Initialize with existing references (id, type) if editing
+    task?.references || [] // Initialize with existing references if editing
   );
 
-  // Effect to update referencesForPayload if the task prop (and its references) changes
+  // Effect to update referencesForPayload if task changes
   useEffect(() => {
-    if (task && task.references) {
+    if (task?.references) {
       setReferencesForPayload(task.references);
-    } else if (!task) { // Handles switching from edit to create mode if applicable
+    } else {
       setReferencesForPayload([]);
     }
-  }, [task]); // Depend on the task object itself
+  }, [task]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -85,7 +86,7 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
       start_date: values.start_date,
       end_date: values.end_date,
       project_id: values.project_id,
-      references: referencesForPayload // Use the state holding {id, type}
+      references: referencesForPayload
     };
 
     try {
@@ -136,8 +137,9 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
         </div>
         
         <TaskDateFields control={form.control} />
+        
         <TaskReferencesField 
-          initialReferences={initialNamedReferencesForField} // Pass fetched named references
+          initialReferences={initialNamedReferences}
           onReferencesChange={handleReferencesChange} 
         />
         

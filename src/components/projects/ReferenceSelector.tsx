@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useArtists } from "@/hooks/useArtists";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -18,11 +18,19 @@ interface Reference {
 
 interface ReferenceSelectorProps {
   onReferencesChange: (references: { type: 'document' | 'collection' | 'artwork' | 'artist', id: string }[]) => void;
+  initialReferences?: Reference[];
 }
 
-export function ReferenceSelector({ onReferencesChange }: ReferenceSelectorProps) {
+export function ReferenceSelector({ onReferencesChange, initialReferences = [] }: ReferenceSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReferences, setSelectedReferences] = useState<Reference[]>([]);
+  
+  // Initialize with initial references if provided
+  useEffect(() => {
+    if (initialReferences && initialReferences.length > 0) {
+      setSelectedReferences(initialReferences);
+    }
+  }, [initialReferences]);
   
   // Fetch data from all reference types
   const { data: artists, isLoading: artistsLoading } = useArtists();

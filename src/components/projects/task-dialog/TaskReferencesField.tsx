@@ -3,7 +3,7 @@ import { FormItem, FormLabel } from "@/components/ui/form";
 import { ReferenceSelector } from "../ReferenceSelector";
 
 // This is the type ReferenceSelector expects for its items, including name
-interface ReferenceWithName {
+export interface ReferenceWithName {
   type: 'document' | 'collection' | 'artwork' | 'artist';
   id: string;
   name: string; 
@@ -11,7 +11,7 @@ interface ReferenceWithName {
 
 interface TaskReferencesFieldProps {
   onReferencesChange: (refs: {type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]) => void;
-  initialReferences?: ReferenceWithName[]; // Added initialReferences prop with name
+  initialReferences?: ReferenceWithName[]; 
 }
 
 export function TaskReferencesField({ onReferencesChange, initialReferences }: TaskReferencesFieldProps) {
@@ -20,7 +20,7 @@ export function TaskReferencesField({ onReferencesChange, initialReferences }: T
       <FormLabel>References</FormLabel>
       <ReferenceSelector 
         onReferencesChange={onReferencesChange} 
-        initialReferences={initialReferences} // Pass it to ReferenceSelector
+        initialReferences={initialReferences}
       />
     </FormItem>
   );
