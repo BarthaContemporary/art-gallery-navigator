@@ -1,8 +1,7 @@
-
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { TaskWithAssignee } from "@/hooks/projects/types/task-types";
+import { TaskWithAssignee } from "@/hooks/projects";
 import { format } from "date-fns";
 import { CalendarPlus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +87,7 @@ export function ProjectTasksList({
                   <TableRow 
                     key={task.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onEditTask(task)}
+                    onClick={() => (isAdmin || userIsMember) && onEditTask(task)}
                   >
                     <TableCell className="font-medium">{task.name}</TableCell>
                     <TableCell>
@@ -96,7 +95,7 @@ export function ProjectTasksList({
                         {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(task.end_date), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>{task.end_date ? format(new Date(task.end_date), 'MMM d, yyyy') : 'N/A'}</TableCell>
                     <TableCell>{task.assignee?.display_name || 'Unassigned'}</TableCell>
                   </TableRow>
                 ))}

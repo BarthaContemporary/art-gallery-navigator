@@ -1,16 +1,21 @@
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useProject } from "@/hooks/use-projects";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+
+import { 
+  useProject, 
+  useProjectMembers, 
+  useProjectTasks,
+  ProjectWithLocation, // Ensure type is imported
+  TaskWithAssignee // Ensure type is imported
+} from "@/hooks/projects"; // Standardized import path
 
 import { ProjectDetailHeader } from "./ProjectDetailHeader";
 import { ProjectTeamSection } from "./ProjectTeamSection";
 import { ProjectTasksList } from "./ProjectTasksList";
 import { ProjectDialogsManager } from "./ProjectDialogsManager";
-import { useProjectMembers } from "@/hooks/projects/use-project-members";
-import { useProjectTasks } from "@/hooks/use-project-tasks";
 import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
 import { DebugInfo } from "@/components/ui/debug-info";
@@ -21,13 +26,9 @@ const ProjectDetailPage = () => {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   
-  // Initialize project dialogs hook at the beginning
   const projectDialogs = useProjectDialogs();
-  
-  // Add member dialog state
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   
-  // Add error handling for the data fetching hooks
   const { 
     data: project, 
     isLoading, 
@@ -35,7 +36,6 @@ const ProjectDetailPage = () => {
     error: projectError 
   } = useProject(id);
   
-  // Get members with improved error handling
   const { 
     members, 
     isLoading: membersLoading, 
@@ -43,7 +43,6 @@ const ProjectDetailPage = () => {
     error: membersErrorDetails
   } = useProjectMembers(id);
   
-  // Get tasks with improved error handling
   const { 
     data: projectTasks,
     isLoading: tasksLoading,
@@ -51,7 +50,6 @@ const ProjectDetailPage = () => {
     error: tasksErrorDetails
   } = useProjectTasks(id);
   
-  // Log any errors for debugging
   useEffect(() => {
     if (membersError) {
       console.error("Members error:", membersErrorDetails);
@@ -61,10 +59,8 @@ const ProjectDetailPage = () => {
     }
   }, [membersError, membersErrorDetails, tasksError, tasksErrorDetails]);
   
-  // Determine if user is a member - assume current user is a member if we can't determine
-  const userIsMember = isAdmin || 
-    (members?.some(member => member.user_id === user?.id)) || 
-    Boolean(user); // Fallback - assume user is a member
+  // Refined userIsMember logic
+  const actualUserIsMember = isAdmin || (members?.some(member => member.user_id === user?.id) ?? false);
   
   const debugData = {
     project,
@@ -72,7 +68,7 @@ const ProjectDetailPage = () => {
     memberCount: members?.length || 0,
     user: user?.id,
     isAdmin,
-    userIsMember,
+    userIsMember: actualUserIsMember, // Use refined logic for debug
     membersError: membersError ? 'Error loading members' : null,
     tasksError: tasksError ? 'Error loading tasks' : null,
   };
@@ -105,10 +101,8 @@ const ProjectDetailPage = () => {
     }
   };
   
-  // Force close the member dialog and refresh data
   const handleCloseMemberDialog = () => {
     setAddMemberDialogOpen(false);
-    // Force refresh project members when dialog closes
     setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ['project-members', id] });
     }, 300);
@@ -118,7 +112,7 @@ const ProjectDetailPage = () => {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <ProjectDetailHeader 
         project={project}
-        userIsMember={userIsMember}
+        userIsMember={actualUserIsMember} // Pass refined logic
         isAdmin={isAdmin}
         onEditClick={() => projectDialogs.setEditDialogOpen(true)}
         onDeleteClick={() => projectDialogs.setDeleteDialogOpen(true, project, navigate)}
@@ -128,21 +122,20 @@ const ProjectDetailPage = () => {
       <ProjectTeamSection 
         projectId={id}
         onAddMember={handleAddMemberClick}
-        userIsMember={userIsMember}
+        userIsMember={actualUserIsMember} // Pass refined logic
         isAdmin={isAdmin}
       />
       
       <ProjectTasksList 
         tasks={projectTasks}
         isAdmin={isAdmin}
-        userIsMember={userIsMember}
+        userIsMember={actualUserIsMember} // Pass refined logic
         onCreateTask={() => projectDialogs.setCreateTaskDialogOpen(true)}
         onEditTask={(task) => projectDialogs.openTaskEditDialog(task)}
         isLoading={tasksLoading}
         isError={tasksError}
       />
       
-      {/* Project dialogs - ensure they still work even if data loading fails */}
       <ProjectDialogsManager
         project={project}
         dialogStates={{
@@ -153,7 +146,6 @@ const ProjectDetailPage = () => {
         navigate={navigate}
       />
       
-      {/* Add debug info - only shown in development */}
       <DebugInfo data={debugData} title="Project Debug Info" />
     </div>
   );

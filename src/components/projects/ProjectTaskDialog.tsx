@@ -1,6 +1,6 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TaskWithAssignee } from "@/hooks/use-project-tasks";
+import { TaskWithAssignee } from "@/hooks/projects"; // Standardized import
 import { TaskForm } from "./task-dialog/TaskForm";
 
 interface ProjectTaskDialogProps {

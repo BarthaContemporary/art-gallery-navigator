@@ -3,7 +3,7 @@ import { ProjectDialog } from "@/components/projects/project-dialog/ProjectDialo
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { ProjectCalendarView } from "@/components/projects/ProjectCalendarView";
 import { ProjectTaskDialog } from "@/components/projects/ProjectTaskDialog";
-import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects";
+import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects"; // Standardized import
 import { NavigateFunction } from "react-router-dom";
 
 interface ProjectDialogsManagerProps {
@@ -57,6 +57,8 @@ export function ProjectDialogsManager({
       
       <DeleteProjectDialog
         open={deleteDialogOpen}
+        // Pass navigate to onOpenChange for DeleteProjectDialog if it needs it for redirection
+        // The setDeleteDialogOpen in useProjectDialogs already handles navigate
         onOpenChange={(open) => setDeleteDialogOpen(open, project, navigate)}
         project={project}
       />
@@ -85,7 +87,7 @@ export function ProjectDialogsManager({
       {/* Add Member Dialog - Using initialTab="members" to directly open the members tab */}
       <ProjectDialog
         open={addMemberDialogOpen}
-        onOpenChange={onCloseMemberDialog}
+        onOpenChange={onCloseMemberDialog} // This is correct for this specific dialog instance
         project={project}
         initialTab="members"
       />

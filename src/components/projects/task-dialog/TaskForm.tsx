@@ -10,9 +10,10 @@ import {
   useCreateTask, 
   useUpdateTask, 
   TaskWithAssignee, 
-  useTaskReferences 
-} from "@/hooks/projects";
-import { useProjectMembers } from "@/hooks/projects/use-project-members";
+  useTaskReferences,
+  useProjectMembers, // Correct import for useProjectMembers
+  ProjectMember // Import ProjectMember type
+} from "@/hooks/projects"; // Standardized import path
 import { toast } from "sonner";
 
 import { taskFormSchema } from "./schema";
@@ -37,7 +38,9 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
   const updateTask = useUpdateTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [references, setReferences] = useState<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]>([]);
+  const [references, setReferences] = useState<{type: 'document' | 'collection' | 'artwork' | 'artist', id: string}[]>(
+    task?.references || [] // Initialize with existing references if editing
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -45,54 +48,51 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
       name: task?.name || "",
       description: task?.description || "",
       status: task?.status || "scheduled",
-      assigned_to: task?.assigned_to || undefined,
+      assigned_to: task?.assigned_to || undefined, // Keep undefined for placeholder
       start_date: task?.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      end_date: task?.end_date ? format(new Date(task.end_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+      end_date: task?.end_date ? format(new Date(task.end_date), "yyyy-MM-dd") : format(new Date(new Date().setDate(new Date().getDate() + 7)), "yyyy-MM-dd"), // Default end date 7 days from start
       project_id: projectId,
     }
   });
 
-  // Show warning if there was an error loading project members
   if (membersError) {
-    toast.warning("Could not load team members. Some features may be limited.");
+    toast.warning("Could not load team members for task assignment. Some features may be limited.");
   }
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     setError(null);
     
+    const taskDataPayload = {
+      name: values.name,
+      description: values.description,
+      status: values.status,
+      // Ensure 'unassigned' string is converted to null for the database
+      assigned_to: values.assigned_to === "unassigned" ? null : values.assigned_to,
+      start_date: values.start_date,
+      end_date: values.end_date,
+      project_id: values.project_id,
+      references
+    };
+
     try {
       if (task) {
         await updateTask.mutateAsync({
           id: task.id,
-          data: {
-            name: values.name,
-            description: values.description,
-            status: values.status,
-            assigned_to: values.assigned_to,
-            start_date: values.start_date,
-            end_date: values.end_date,
-            project_id: values.project_id,
-            references
-          }
+          data: taskDataPayload
         });
+        toast.success("Task updated successfully");
       } else {
-        const taskInput: CreateTaskInput = {
-          name: values.name,
-          description: values.description,
-          status: values.status,
-          assigned_to: values.assigned_to,
-          start_date: values.start_date,
-          end_date: values.end_date,
-          project_id: values.project_id,
-          references
-        };
+        const taskInput: CreateTaskInput = taskDataPayload;
         await createTask.mutateAsync(taskInput);
+        toast.success("Task created successfully");
       }
       onClose();
     } catch (err: any) {
       console.error("Error in task form submission:", err);
-      setError(err.message || "An error occurred while saving the task");
+      const errorMessage = err.message || (task ? "An error occurred while updating the task" : "An error occurred while creating the task");
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -117,12 +117,15 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
           <TaskStatusField control={form.control} />
           <TaskAssigneeField 
             control={form.control} 
-            projectUsers={members || []}
+            projectUsers={members as ProjectMember[] || []} // Cast members to ProjectMember[]
           />
         </div>
         
         <TaskDateFields control={form.control} />
-        <TaskReferencesField onReferencesChange={handleReferencesChange} />
+        <TaskReferencesField 
+          initialReferences={references} 
+          onReferencesChange={handleReferencesChange} 
+        />
         
         <TaskFormActions 
           isSubmitting={isSubmitting} 

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useDialog } from "@/hooks/use-dialog";
 import { TaskWithAssignee, ProjectWithLocation } from "@/hooks/projects";
@@ -50,12 +49,17 @@ export function useProjectDialogs() {
     try {
       setDeleteDialogOpenBase(open);
       if (!open && !project && navigate) {
-        navigate("/projects");
+        // This condition seems to imply navigating away if dialog closes AND project is null.
+        // Usually, navigation after delete happens in the delete mutation's onSuccess.
+        // Keeping as is for now, but it might need review based on desired UX.
+        // If project is null when closing, it means deletion might have happened.
+         if (navigate) navigate("/projects");
       }
     } catch (error) {
       console.error("Error changing delete dialog state:", error);
       toast.error("Failed to handle dialog interaction");
       if (!open && navigate) {
+        // Fallback navigation on error during close
         navigate("/projects");
       }
     }
@@ -90,19 +94,19 @@ export function useProjectDialogs() {
     } catch (error) {
       console.error("Error changing edit task dialog state:", error);
       toast.error("Failed to handle dialog interaction");
-      setTaskToEdit(null);
+      setTaskToEdit(null); // Clear immediately on error
     }
   }, [handleEditTaskDialogChangeBase]);
   
   const openTaskEditDialog = useCallback((task: TaskWithAssignee) => {
     try {
       setTaskToEdit(task);
-      setEditTaskDialogOpen(true);
+      setEditTaskDialogOpen(true); // This will call the wrapped setEditTaskDialogOpen
     } catch (error) {
       console.error("Error opening task edit dialog:", error);
       toast.error("Failed to open task edit dialog");
     }
-  }, [setEditTaskDialogOpen]);
+  }, [setEditTaskDialogOpen]); // Depends on the wrapped setter
   
   return {
     taskToEdit,
@@ -115,7 +119,7 @@ export function useProjectDialogs() {
     createTaskDialogOpen,
     setCreateTaskDialogOpen,
     editTaskDialogOpen,
-    setEditTaskDialogOpen,
+    setEditTaskDialogOpen, // Return the wrapped setter
     openTaskEditDialog
   };
 }

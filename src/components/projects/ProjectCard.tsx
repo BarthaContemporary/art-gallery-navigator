@@ -1,14 +1,12 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ProjectWithLocation } from "@/hooks/use-projects";
+import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects";
 import { useAuth } from "@/hooks/use-auth";
 import { format } from "date-fns";
-import { Calendar, Clock, Edit, Trash2 } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProjectCardActions } from "./ProjectCardActions";
 import { Badge } from "@/components/ui/badge";
-import { TaskWithAssignee } from "@/hooks/use-project-tasks";
 
 interface ProjectCardProps {
   project: ProjectWithLocation;
@@ -72,7 +70,7 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
         <div className="flex items-center text-sm text-muted-foreground gap-1">
           <Calendar className="h-3.5 w-3.5" />
           <span>
-            {format(new Date(project.start_date), 'MMM d, yyyy')} - {format(new Date(project.end_date), 'MMM d, yyyy')}
+            {project.start_date ? format(new Date(project.start_date), 'MMM d, yyyy') : 'N/A'} - {project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'N/A'}
           </span>
         </div>
       </CardHeader>
