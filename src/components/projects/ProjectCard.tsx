@@ -37,6 +37,7 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
   };
   
   const handleCardClick = () => {
+    console.log(`ProjectCard: Navigating to /projects/${project.id}`);
     navigate(`/projects/${project.id}`);
   };
   
