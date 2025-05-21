@@ -3,12 +3,13 @@ import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectWithLocation, TaskWithAssignee, useProjectTasks } from "@/hooks/projects";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProjectCalendarViewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: ProjectWithLocation | null;
-  onTaskClick?: (task: TaskWithAssignee) => void; // Added prop for task click
+  onTaskClick?: (task: TaskWithAssignee) => void;
 }
 
 export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }: ProjectCalendarViewProps) {
@@ -19,7 +20,7 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
   
   // Format dates, ensuring they are valid
   const startDate = project.start_date ? new Date(project.start_date) : new Date();
-  const endDate = project.end_date ? new Date(project.end_date) : new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000); // Default to 7 days if end_date is missing
+  const endDate = project.end_date ? new Date(project.end_date) : new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
   
   // Calculate how many days the project spans
   const projectDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
@@ -36,9 +37,11 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
     const taskEnd = task.end_date ? new Date(task.end_date) : taskStart;
     
     // Calculate position as percentage from left edge (day index)
-    const leftDays = Math.max(0, (taskStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Fix: Ensure proper day calculation with Math.floor to align correctly with date grid
+    const leftDays = Math.max(0, Math.floor((taskStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
     
     // Calculate width (duration) as day count
+    // Fix: Use Math.ceil to ensure tasks cover their full duration 
     const widthDays = Math.max(1, Math.ceil((taskEnd.getTime() - taskStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     
     return { left: leftDays, width: widthDays };
@@ -61,6 +64,9 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
     }
   };
 
+  // Fixed day width - consistent for all days
+  const dayWidthPx = 45; // Width of each day column
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
@@ -76,7 +82,7 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
               {dateArray.map(date => (
                 <div 
                   key={date.toISOString()} 
-                  className={`min-w-[45px] w-[45px] flex-shrink-0 px-1 text-xs text-center border-r ${
+                  className={`min-w-[${dayWidthPx}px] w-[${dayWidthPx}px] flex-shrink-0 px-1 text-xs text-center border-r ${
                     date.getDay() === 0 || date.getDay() === 6 ? 'bg-muted/50' : ''
                   }`}
                 >
@@ -87,11 +93,24 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
             </div>
           </div>
           
+          {/* Timeline background grid */}
+          <div className="relative">
+            <div className="absolute top-0 left-[150px] right-0 bottom-0 flex pointer-events-none">
+              {dateArray.map((date, i) => (
+                <div 
+                  key={`grid-${date.toISOString()}`}
+                  className={`w-[${dayWidthPx}px] border-r h-full ${
+                    date.getDay() === 0 || date.getDay() === 6 ? 'bg-muted/30' : ''
+                  }`}
+                ></div>
+              ))}
+            </div>
+          </div>
+          
           {/* Calendar body with tasks */}
-          <div className="overflow-x-auto relative"> {/* Added relative for task bar positioning */}
-            {tasks?.map((task, taskIndex) => {
+          <div className="overflow-x-auto relative">
+            {tasks?.map((task) => {
               const { left, width } = getTaskPosition(task);
-              const dayWidthPx = 45; // Must match header cell width
               
               return (
                 <div key={task.id} className="flex relative min-h-[40px] border-b items-stretch">
@@ -99,20 +118,39 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
                     {task.name}
                   </div>
                   
-                  {/* This container div represents the timeline for this task row */}
-                  <div className="flex-1 relative h-full"> {/* Ensure this takes up height */}
+                  {/* Task row timeline */}
+                  <div className="flex-1 relative h-full">
                     {/* Task bar */}
-                    <div 
-                      className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
-                      style={{ 
-                        left: `${left * dayWidthPx}px`, 
-                        width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`, // Ensure min width for visibility, -4 for padding
-                      }}
-                      title={`${task.name} (${task.start_date ? format(new Date(task.start_date), "MMM d") : 'N/A'} - ${task.end_date ? format(new Date(task.end_date), "MMM d") : 'N/A'})`}
-                      onClick={() => handleTaskBarClick(task)} // Added onClick handler
-                    >
-                      {task.name}
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
+                            style={{ 
+                              left: `${left * dayWidthPx}px`, 
+                              width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`,
+                              zIndex: 5,
+                            }}
+                            onClick={() => handleTaskBarClick(task)}
+                          >
+                            {task.name}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="space-y-1">
+                            <p className="font-medium">{task.name}</p>
+                            <p className="text-xs">Status: {task.status}</p>
+                            <p className="text-xs">
+                              {task.start_date ? format(new Date(task.start_date), "MMM d, yyyy") : 'No start date'} - 
+                              {task.end_date ? format(new Date(task.end_date), "MMM d, yyyy") : 'No end date'}
+                            </p>
+                            {task.assignee && (
+                              <p className="text-xs">Assigned to: {task.assignee.display_name || 'Unnamed User'}</p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               );
@@ -129,4 +167,3 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
     </Dialog>
   );
 }
-
