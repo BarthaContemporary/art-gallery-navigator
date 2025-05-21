@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProjectWithLocation, TaskWithAssignee, useProjectTasks } from "@/hooks/projects";
@@ -7,9 +8,10 @@ interface ProjectCalendarViewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: ProjectWithLocation | null;
+  onTaskClick?: (task: TaskWithAssignee) => void; // Added prop for task click
 }
 
-export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCalendarViewProps) {
+export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }: ProjectCalendarViewProps) {
   const { data: tasks } = useProjectTasks(project?.id);
   const calendarRef = useRef<HTMLDivElement>(null);
   
@@ -49,6 +51,13 @@ export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCale
       case 'completed': return 'bg-gray-500';
       case 'abandoned': return 'bg-red-500';
       default: return 'bg-gray-500';
+    }
+  };
+
+  const handleTaskBarClick = (task: TaskWithAssignee) => {
+    if (onTaskClick) {
+      console.log("ProjectCalendarView: Task bar clicked", task);
+      onTaskClick(task);
     }
   };
 
@@ -94,13 +103,13 @@ export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCale
                   <div className="flex-1 relative h-full"> {/* Ensure this takes up height */}
                     {/* Task bar */}
                     <div 
-                      className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm`}
+                      className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
                       style={{ 
                         left: `${left * dayWidthPx}px`, 
                         width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`, // Ensure min width for visibility, -4 for padding
-                        // top: `${taskIndex * 2.5}rem`, // Stagger tasks slightly if they overlap, or use a layout algorithm
                       }}
                       title={`${task.name} (${task.start_date ? format(new Date(task.start_date), "MMM d") : 'N/A'} - ${task.end_date ? format(new Date(task.end_date), "MMM d") : 'N/A'})`}
+                      onClick={() => handleTaskBarClick(task)} // Added onClick handler
                     >
                       {task.name}
                     </div>
@@ -120,3 +129,4 @@ export function ProjectCalendarView({ open, onOpenChange, project }: ProjectCale
     </Dialog>
   );
 }
+

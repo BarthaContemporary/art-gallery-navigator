@@ -22,6 +22,7 @@ interface ProjectDialogsManagerProps {
     setEditTaskDialogOpen: (open: boolean) => void;
     addMemberDialogOpen: boolean;
     onCloseMemberDialog: () => void;
+    openTaskEditDialog: (task: TaskWithAssignee) => void; // Added this line
   };
   navigate: NavigateFunction;
 }
@@ -44,7 +45,8 @@ export function ProjectDialogsManager({
     editTaskDialogOpen,
     setEditTaskDialogOpen,
     addMemberDialogOpen,
-    onCloseMemberDialog
+    onCloseMemberDialog,
+    openTaskEditDialog // Destructure the new function
   } = dialogStates;
 
   return (
@@ -67,6 +69,7 @@ export function ProjectDialogsManager({
         open={calendarViewOpen}
         onOpenChange={setCalendarViewOpen}
         project={project}
+        onTaskClick={openTaskEditDialog} // Pass it to ProjectCalendarView
       />
       
       <ProjectTaskDialog
@@ -94,3 +97,4 @@ export function ProjectDialogsManager({
     </>
   );
 }
+
