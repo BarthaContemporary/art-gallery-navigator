@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ export function useAddMember(projectId: string | undefined) {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (userId: string) => {
+    mutationFn: async (userId: string): Promise<ProjectMember> => {
       if (!projectId || !userId) {
         throw new Error("Project ID and user ID are required");
       }
@@ -40,14 +39,15 @@ export function useAddMember(projectId: string | undefined) {
         
       if (addError) throw addError;
       
-      // Get the user profile
+      // Get the user profile, including email
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, email') // Added email
         .eq('id', userId)
-        .single();
+        .single(); // Use single as we expect one profile for a user ID
         
       if (profileError) throw profileError;
+      if (!profile) throw new Error("User profile not found."); // Ensure profile exists
       
       // Check if user is admin
       const { data: adminRole } = await supabase
@@ -63,16 +63,24 @@ export function useAddMember(projectId: string | undefined) {
         project_id: projectId,
         display_name: profile.display_name || 'Unknown User',
         avatar_url: profile.avatar_url || null,
-        email: profile.display_name,
+        email: profile.email ?? null, // Correctly use profile.email, fallback to null
         is_admin: !!adminRole
       } as ProjectMember;
     },
     onSuccess: (newMember) => {
       queryClient.setQueryData(
         ['project-members', projectId],
-        (oldData: ProjectMember[] = []) => [...oldData, newMember]
+        (oldData: ProjectMember[] = []) => {
+          // Ensure newMember is valid before adding
+          if (newMember && newMember.user_id) {
+            return [...oldData, newMember];
+          }
+          return oldData;
+        }
       );
-      toast.success(`Added ${newMember.display_name || 'new member'} to the project`);
+      // Toast success message is handled by UserSelectionField for this flow,
+      // but keeping a generic one here can be a fallback.
+      // toast.success(`Added ${newMember.display_name || 'new member'} to the project`);
     },
     onError: (error: Error) => {
       console.error("Error adding member:", error);

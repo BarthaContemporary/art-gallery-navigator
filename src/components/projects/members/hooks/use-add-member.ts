@@ -14,16 +14,19 @@ export function useAddMember(
   const [loading, setLoading] = useState(false);
   
   const handleAddMember = async () => {
-    const email = emailInput.trim();
-    if (!email || !projectId) {
-      if (!email) return;
+    const trimmedEmail = emailInput.trim();
+    if (!trimmedEmail || !projectId) {
+      if (!trimmedEmail) {
+        toast.error("Email is required to add a member.");
+        return;
+      }
       toast.error("Project ID is required");
       return;
     }
     
     // Check for duplicates
-    if (members.some(m => m.email?.toLowerCase() === email.toLowerCase())) {
-      toast.warning(`${email} is already added to the project`);
+    if (members.some(m => m.email?.toLowerCase() === trimmedEmail.toLowerCase())) {
+      toast.warning(`${trimmedEmail} is already added to the project`);
       setEmailInput("");
       return;
     }
@@ -34,13 +37,14 @@ export function useAddMember(
       // Find user profile by email
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
-        .eq('display_name', email)
-        .single();
+        .select('id, display_name, avatar_url, email') // Added email
+        .eq('email', trimmedEmail) // Changed lookup from display_name to email
+        .single(); // Expecting a single user for an email
       
       if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          toast.warning(`No user found with email ${email}`);
+        // PGRST116: "Searched for a single row, but 0 rows were found"
+        if (profileError.code === 'PGRST116') { 
+          toast.warning(`No user found with email ${trimmedEmail}`);
         } else {
           toast.error("Error finding user");
           console.error("Error finding user:", profileError);
@@ -49,30 +53,26 @@ export function useAddMember(
         return;
       }
       
-      // Properly type the profile data
-      const safeProfile: ProfileData = profileData || { 
-        id: undefined,
-        display_name: undefined,
-        avatar_url: undefined 
-      };
-      
-      // Ensure we have a valid profile ID
-      if (!safeProfile.id) {
-        toast.error("Invalid user profile");
+      // Ensure we have a valid profile
+      if (!profileData || !profileData.id) {
+        toast.error("Invalid user profile data received.");
         setLoading(false);
         return;
       }
       
-      // Check if user is already a member
+      // Type the profile data, including email
+      const safeProfile: ProfileData & { email?: string | null } = profileData;
+            
+      // Check if user is already a member (by user_id)
       const { data: existingMemberData } = await supabase
         .from('project_users')
         .select('id')
         .eq('project_id', projectId)
-        .eq('user_id', safeProfile.id)
+        .eq('user_id', safeProfile.id!)
         .maybeSingle();
         
       if (existingMemberData) {
-        toast.info(`${email} is already a member of this project`);
+        toast.info(`${safeProfile.display_name || trimmedEmail} is already a member of this project`);
         setLoading(false);
         return;
       }
@@ -82,28 +82,29 @@ export function useAddMember(
         .from('project_users')
         .insert({
           project_id: projectId,
-          user_id: safeProfile.id
+          user_id: safeProfile.id!
         });
         
       if (addError) throw addError;
       
       // Create member object and update state
       const newMember: ProjectMember = {
-        user_id: safeProfile.id,
+        user_id: safeProfile.id!,
         project_id: projectId,
-        display_name: safeProfile.display_name || email,
+        display_name: safeProfile.display_name || trimmedEmail,
         avatar_url: safeProfile.avatar_url || null,
-        email: email
+        email: safeProfile.email || trimmedEmail // Prefer profile email, fallback to input
       };
       
       const updatedMembers = [...members, newMember];
       setMembers(updatedMembers);
       onMembersChange?.(updatedMembers);
       
-      toast.success(`Added ${email} to the project`);
+      toast.success(`Added ${newMember.display_name || trimmedEmail} to the project`);
     } catch (err) {
       console.error("Error adding team member:", err);
-      toast.error("Failed to add team member");
+      const errorMessage = (err instanceof Error && err.message) ? err.message : "Failed to add team member";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
       setEmailInput("");
@@ -117,3 +118,4 @@ export function useAddMember(
     handleAddMember
   };
 }
+
