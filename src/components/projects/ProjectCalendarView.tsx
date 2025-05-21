@@ -36,12 +36,7 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
     const taskStart = task.start_date ? new Date(task.start_date) : startDate;
     const taskEnd = task.end_date ? new Date(task.end_date) : taskStart;
     
-    // Calculate position as percentage from left edge (day index)
-    // Fix: Ensure proper day calculation with Math.floor to align correctly with date grid
     const leftDays = Math.max(0, Math.floor((taskStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-    
-    // Calculate width (duration) as day count
-    // Fix: Use Math.ceil to ensure tasks cover their full duration 
     const widthDays = Math.max(1, Math.ceil((taskEnd.getTime() - taskStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     
     return { left: leftDays, width: widthDays };
@@ -82,9 +77,10 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
               {dateArray.map(date => (
                 <div 
                   key={date.toISOString()} 
-                  className={`min-w-[${dayWidthPx}px] w-[${dayWidthPx}px] flex-shrink-0 px-1 text-xs text-center border-r ${
+                  className={`flex-shrink-0 px-1 text-xs text-center border-r ${
                     date.getDay() === 0 || date.getDay() === 6 ? 'bg-muted/50' : ''
                   }`}
+                  style={{ minWidth: `${dayWidthPx}px`, width: `${dayWidthPx}px` }}
                 >
                   <div>{format(date, "d")}</div>
                   <div className="text-[10px] text-muted-foreground">{format(date, "E")}</div>
@@ -95,20 +91,25 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
           
           {/* Timeline background grid */}
           <div className="relative">
-            <div className="absolute top-0 left-[150px] right-0 bottom-0 flex pointer-events-none">
+            {/* This div creates the full width for the grid lines based on dateArray and dayWidthPx */}
+            <div 
+              className="absolute top-0 left-0 right-0 bottom-0 flex pointer-events-none"
+              style={{ width: `${dateArray.length * dayWidthPx}px`, left: '150px' }} // Ensure grid covers full timeline width from after task names
+            >
               {dateArray.map((date, i) => (
                 <div 
                   key={`grid-${date.toISOString()}`}
-                  className={`w-[${dayWidthPx}px] border-r h-full ${
+                  className={`border-r h-full ${
                     date.getDay() === 0 || date.getDay() === 6 ? 'bg-muted/30' : ''
                   }`}
+                  style={{ width: `${dayWidthPx}px` }}
                 ></div>
               ))}
             </div>
           </div>
           
           {/* Calendar body with tasks */}
-          <div className="overflow-x-auto relative">
+          <div className="overflow-x-auto relative"> {/* Removed overflow-x-auto from here, handled by parent or specific sections if needed */}
             {tasks?.map((task) => {
               const { left, width } = getTaskPosition(task);
               
@@ -118,8 +119,8 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
                     {task.name}
                   </div>
                   
-                  {/* Task row timeline */}
-                  <div className="flex-1 relative h-full">
+                  {/* Task row timeline - This div must be positioned relative to the task name column */}
+                  <div className="flex-1 relative h-full"> {/* This now correctly uses the remaining space */}
                     {/* Task bar */}
                     <TooltipProvider>
                       <Tooltip>
@@ -128,8 +129,8 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
                             className={`absolute top-1/2 -translate-y-1/2 h-7 rounded ${getStatusColor(task.status)} text-white text-xs flex items-center px-2 truncate shadow-sm ${onTaskClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
                             style={{ 
                               left: `${left * dayWidthPx}px`, 
-                              width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`,
-                              zIndex: 5,
+                              width: `${Math.max(width * dayWidthPx - 4, dayWidthPx - 4)}px`, // -4 for padding/margin to avoid overlap with borders
+                              zIndex: 5, // Ensure task bar is above grid lines
                             }}
                             onClick={() => handleTaskBarClick(task)}
                           >
@@ -157,7 +158,11 @@ export function ProjectCalendarView({ open, onOpenChange, project, onTaskClick }
             })}
             
             {(!tasks || tasks.length === 0) && (
-              <div className="text-center py-10 text-muted-foreground">
+              <div 
+                className="text-center py-10 text-muted-foreground"
+                // Ensure this message is also aware of the task column offset if it needs to span full calendar width
+                style={{ paddingLeft: '150px' }} 
+              >
                 No tasks found for this project
               </div>
             )}
