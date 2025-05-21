@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +24,7 @@ export function ProjectDetailHeader({
 }: ProjectDetailHeaderProps) {
   const navigate = useNavigate();
 
-  // Log prop values for debugging button visibility
-  console.log("ProjectDetailHeader props:", { userIsMember, isAdmin });
+  console.log("ProjectDetailHeader props:", { userIsMember, isAdmin, projectId: project.id });
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -36,6 +34,21 @@ export function ProjectDetailHeader({
       case 'abandoned': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleEditClick = () => {
+    console.log("ProjectDetailHeader: Edit Project button clicked");
+    onEditClick();
+  };
+
+  const handleDeleteClick = () => {
+    console.log("ProjectDetailHeader: Delete Project button clicked");
+    onDeleteClick();
+  };
+
+  const handleCalendarViewClick = () => {
+    console.log("ProjectDetailHeader: Calendar View button clicked");
+    onCalendarViewClick();
   };
   
   return (
@@ -87,13 +100,13 @@ export function ProjectDetailHeader({
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline"
-            onClick={onCalendarViewClick}
+            onClick={handleCalendarViewClick}
           >
             <Calendar className="mr-2 h-4 w-4" /> Calendar View
           </Button>
           
           {(isAdmin || userIsMember) && (
-            <Button onClick={onEditClick}>
+            <Button onClick={handleEditClick}>
               <Edit className="mr-2 h-4 w-4" /> Edit Project
             </Button>
           )}
@@ -101,7 +114,7 @@ export function ProjectDetailHeader({
           {isAdmin && (
             <Button 
               variant="destructive"
-              onClick={onDeleteClick}
+              onClick={handleDeleteClick}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Delete
             </Button>
@@ -111,4 +124,3 @@ export function ProjectDetailHeader({
     </>
   );
 }
-

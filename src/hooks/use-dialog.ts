@@ -8,71 +8,51 @@ import { useCallback, useState, useRef, useEffect } from "react";
 export function useDialog(initialState = false) {
   const [isOpen, setIsOpen] = useState(initialState);
   const isMounted = useRef(true);
-  const animationFrameRef = useRef<number | null>(null);
+  // animationFrameRef is no longer used
 
   // Handle component unmount cleanup
   useEffect(() => {
     return () => {
       isMounted.current = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
   }, []);
 
-  // Safely open dialog with animation frame
+  // Safely open dialog
   const open = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    console.log("useDialog: open() called. Current isMounted:", isMounted.current);
+    if (isMounted.current) {
+      setIsOpen(true);
+      console.log("useDialog: isOpen set to true");
     }
-    
-    animationFrameRef.current = requestAnimationFrame(() => {
-      if (isMounted.current) {
-        setIsOpen(true);
-      }
-    });
   }, []);
 
-  // Safely close dialog with animation frame
+  // Safely close dialog
   const close = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    console.log("useDialog: close() called. Current isMounted:", isMounted.current);
+    if (isMounted.current) {
+      setIsOpen(false);
+      console.log("useDialog: isOpen set to false");
     }
-    
-    animationFrameRef.current = requestAnimationFrame(() => {
-      if (isMounted.current) {
-        setIsOpen(false);
-      }
-    });
   }, []);
 
-  // Safely toggle dialog state with animation frame
+  // Safely toggle dialog state
   const toggle = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    console.log("useDialog: toggle() called. Current isMounted:", isMounted.current);
+    if (isMounted.current) {
+      setIsOpen(prev => {
+        console.log(`useDialog: toggling isOpen from ${prev} to ${!prev}`);
+        return !prev;
+      });
     }
-    
-    animationFrameRef.current = requestAnimationFrame(() => {
-      if (isMounted.current) {
-        setIsOpen(prev => !prev);
-      }
-    });
   }, []);
   
   // Safely handle onOpenChange from radix dialogs
-  const onOpenChange = useCallback((open: boolean) => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+  const onOpenChange = useCallback((openState: boolean) => {
+    console.log(`useDialog: onOpenChange(${openState}) called. Current isMounted:`, isMounted.current);
+    if (isMounted.current) {
+      setIsOpen(openState);
+      console.log(`useDialog: isOpen set to ${openState}`);
     }
-
-    // Use nested requestAnimationFrame for smoother transitions
-    animationFrameRef.current = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (isMounted.current) {
-          setIsOpen(open);
-        }
-      });
-    });
   }, []);
 
   return {

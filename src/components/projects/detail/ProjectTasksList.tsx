@@ -34,6 +34,20 @@ export function ProjectTasksList({
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const handleCreateTaskClick = () => {
+    console.log("ProjectTasksList: Add Task button clicked");
+    onCreateTask();
+  };
+
+  const handleEditTaskRowClick = (task: TaskWithAssignee) => {
+    console.log("ProjectTasksList: Edit Task row clicked for task:", task.id, task.name);
+    if (isAdmin || userIsMember) {
+      onEditTask(task);
+    } else {
+      console.log("ProjectTasksList: User not authorized to edit task row.");
+    }
+  };
   
   return (
     <Card>
@@ -42,7 +56,7 @@ export function ProjectTasksList({
         {(isAdmin || userIsMember) && (
           <Button 
             variant="outline" 
-            onClick={onCreateTask}
+            onClick={handleCreateTaskClick}
           >
             <CalendarPlus className="mr-2 h-4 w-4" /> Add Task
           </Button>
@@ -64,7 +78,7 @@ export function ProjectTasksList({
             {(isAdmin || userIsMember) && (
               <Button 
                 variant="link" 
-                onClick={onCreateTask}
+                onClick={handleCreateTaskClick}
                 className="mt-2"
               >
                 Create your first task
@@ -87,7 +101,7 @@ export function ProjectTasksList({
                   <TableRow 
                     key={task.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => (isAdmin || userIsMember) && onEditTask(task)}
+                    onClick={() => handleEditTaskRowClick(task)}
                   >
                     <TableCell className="font-medium">{task.name}</TableCell>
                     <TableCell>
