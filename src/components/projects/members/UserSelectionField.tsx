@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Command, CommandInput } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,6 +7,7 @@ import { ProjectMember } from "@/hooks/projects";
 import { useUserSelectionData, UserData } from "./hooks/use-user-selection-data";
 import { UserSelectionCommandList } from "./UserSelectionCommandList";
 import { UserSelectionPopoverTrigger } from "./UserSelectionPopoverTrigger";
+import { useDebounce } from "@/hooks/use-debounce"; // Import useDebounce
 
 interface UserSelectionFieldProps {
   projectId?: string;
@@ -22,7 +24,8 @@ export function UserSelectionField({
 }: UserSelectionFieldProps) {
   const [open, setOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [search, setSearch] = useState(""); // Search state managed here
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300); // Debounce search term
 
   const { 
     rawUsers,
@@ -31,27 +34,32 @@ export function UserSelectionField({
     usersQueryError 
   } = useUserSelectionData(open, disabled, members);
 
-  // Filter availableUsers based on search term locally
-  const filteredUsers = availableUsers.filter(user => {
-    const displayName = user.display_name || "";
-    const email = user.email || "";
-    return displayName.toLowerCase().includes(search.toLowerCase()) ||
-           email.toLowerCase().includes(search.toLowerCase());
-  });
+  // Filter availableUsers based on debouncedSearch term locally
+  const filteredUsers = useMemo(() => {
+    // console.log("UserSelectionField: Filtering users with debouncedSearch:", debouncedSearch, "Available users for local filter:", availableUsers.length); // Debug log
+    return availableUsers.filter(user => {
+      const displayName = user.display_name || "";
+      const email = user.email || "";
+      return displayName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+             email.toLowerCase().includes(debouncedSearch.toLowerCase());
+    });
+  }, [availableUsers, debouncedSearch]);
+
 
   useEffect(() => {
     if (open) {
-      console.log("UserSelectionField: Debug Info", {
+      console.log("UserSelectionField: Debug Info on Popover Open/Update", {
         isLoadingUsers,
         usersQueryError,
         rawUsersCount: rawUsers?.length,
         currentMembersCount: members?.length,
-        availableUsersForSelectionInHookCount: availableUsers?.length,
-        search,
-        filteredUsersForDisplayCount: filteredUsers?.length,
+        availableUsersForSelectionInHookCount: availableUsers?.length, // Users from hook before local search
+        search, // current typed search
+        debouncedSearch, // debounced search used for filtering
+        filteredUsersForDisplayCount: filteredUsers?.length, // Users after local search filter
       });
     }
-  }, [open, isLoadingUsers, usersQueryError, rawUsers, members, availableUsers, search, filteredUsers]);
+  }, [open, isLoadingUsers, usersQueryError, rawUsers, members, availableUsers, search, debouncedSearch, filteredUsers]);
 
   const handleSelectUser = async (user: UserData) => {
     if (!projectId || !onAddMember || !user || !user.id) {
@@ -91,15 +99,15 @@ export function UserSelectionField({
           <Command>
             <CommandInput 
               placeholder="Search users..."
-              value={search}
-              onValueChange={setSearch}
+              value={search} // Input still uses immediate search value
+              onValueChange={setSearch} // setSearch updates the immediate search value
             />
             <UserSelectionCommandList
-              availableUsers={filteredUsers} // Pass locally filtered users
+              availableUsers={filteredUsers} // Pass locally filtered users based on debouncedSearch
               isLoading={isLoadingUsers}
               isAdding={isAdding}
               queryError={usersQueryError}
-              rawUsersCount={rawUsers.length}
+              rawUsersCount={rawUsers.length} // Use rawUsers from hook for this count
               onSelectUser={handleSelectUser}
             />
           </Command>
