@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
@@ -69,15 +70,10 @@ const DialogContent = React.forwardRef<
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
-        {/* 
-          The previous generic description was always present. 
-          Now, we only add a generic sr-only description if no specific DialogDescription is found.
-          The specific DialogDescription component will use its own ID ('dialog-description')
-        */}
         {!hasDialogDescription && (
-          <span id={dialogGenericDescriptionId} className="sr-only">
+          <DialogPrimitive.Description id={dialogGenericDescriptionId} className="sr-only">
             This is a dialog window. Please interact with the content inside.
-          </span>
+          </DialogPrimitive.Description>
         )}
       </DialogPrimitive.Content>
     </DialogPortal>
