@@ -106,7 +106,7 @@ export function UserSelectionField({
             queryError={usersQueryError}
           />
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start" side="bottom">
+        <PopoverContent className="p-0 w-[300px]" align="start" side="bottom">
           <Command>
             <CommandInput 
               placeholder="Search users..."
