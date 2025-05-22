@@ -13,10 +13,6 @@ export function UserSelectionPopoverTrigger({
   isAdding,
   queryError,
 }: UserSelectionPopoverTriggerProps) {
-  const handleClick = () => {
-    console.log("UserSelectionPopoverTrigger: Button clicked directly.");
-  };
-
   return (
     <Button
       variant="outline"
@@ -24,7 +20,7 @@ export function UserSelectionPopoverTrigger({
       className="flex items-center gap-1 w-full justify-start"
       disabled={disabled || isAdding || queryError}
       title={queryError ? "Error loading users list" : "Add Team Member"}
-      onClick={handleClick} // Added direct onClick handler
+      // onClick removed, Radix PopoverTrigger will handle it
     >
       {isAdding ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -35,4 +31,3 @@ export function UserSelectionPopoverTrigger({
     </Button>
   );
 }
-
