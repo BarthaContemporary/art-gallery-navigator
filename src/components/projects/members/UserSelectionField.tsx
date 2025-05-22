@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Command, CommandInput } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -108,7 +107,6 @@ export function UserSelectionField({
           />
         </PopoverTrigger>
         <PopoverContent className="p-0 w-[300px]" align="start" side="bottom">
-          {open && console.log("UserSelectionField: PopoverContent IS PART OF THE RENDER TREE, open state:", open)}
           <Command>
             <CommandInput 
               placeholder="Search users..."
@@ -129,4 +127,3 @@ export function UserSelectionField({
     </div>
   );
 }
-
