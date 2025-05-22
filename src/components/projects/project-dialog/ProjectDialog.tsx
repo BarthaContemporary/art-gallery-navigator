@@ -1,7 +1,7 @@
-
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
@@ -40,6 +40,9 @@ export function ProjectDialog({
           <DialogTitle>
             {project ? "Edit Project" : "Create Project"}
           </DialogTitle>
+          <DialogDescription>
+            {project ? "Edit the details of this project or manage its team members." : "Create a new project by filling in the details below."}
+          </DialogDescription>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "details" | "members")}>
