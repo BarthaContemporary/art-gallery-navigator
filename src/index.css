@@ -9,6 +9,6 @@
   }
   
   h1 {
-    @apply font-visby font-normal text-slate-500;
+    @apply font-sans font-normal text-slate-500; /* Changed from font-visby to font-sans */
   }
 }

@@ -20,7 +20,6 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
-        'visby': ['visby-round', 'sans-serif'],
       },
       fontWeight: {
         thin: '200',
