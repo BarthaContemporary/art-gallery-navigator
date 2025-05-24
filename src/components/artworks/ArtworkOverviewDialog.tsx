@@ -42,9 +42,9 @@ export function ArtworkOverviewDialog({
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
   
   const {
-    documents,
-    handleDownloadAllFiles,
-    handleDownloadSingleFile,
+    documents, // Kept for DialogHeaderActions even if button is hidden, might be used by other parts not visible
+    handleDownloadAllFiles, // Kept for DialogHeaderActions even if button is hidden
+    handleDownloadSingleFile, // Kept for DialogHeaderActions even if button is hidden
     handleDownloadAllImages
   } = useFileOperations(
     artwork.id, 
@@ -101,21 +101,21 @@ export function ArtworkOverviewDialog({
               </DialogTitle>
               <DialogHeaderActions
                 isGenerating={isGenerating}
-                // setPDFPreviewOpen will trigger the useEffect hook above
                 setPDFPreviewOpen={setPDFPreviewOpen} 
                 handleDownloadAllImages={handleDownloadAllImages}
-                documents={documents}
-                handleDownloadAllFiles={handleDownloadAllFiles}
-                handleDownloadSingleFile={handleDownloadSingleFile}
+                documents={documents} // Pass documents prop
+                handleDownloadAllFiles={handleDownloadAllFiles} // Pass handleDownloadAllFiles prop
+                handleDownloadSingleFile={handleDownloadSingleFile} // Pass handleDownloadSingleFile prop
                 showCreatePdf={true}
-                showDownloadFiles={true}
+                showDownloadFiles={false} // Hide the "Download Files" button
                 showDownloadAllImages={true}
               />
             </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
-            <div className="mb-6">
+            {/* Added px-6 for horizontal padding around the carousel */}
+            <div className="mb-6 px-6 pt-6"> 
               <ArtworkCarousel 
                 artworkId={artwork.id} 
                 artistName={artist?.full_name || "Unknown_Artist"} 
@@ -143,4 +143,3 @@ export function ArtworkOverviewDialog({
     </>
   );
 }
-
