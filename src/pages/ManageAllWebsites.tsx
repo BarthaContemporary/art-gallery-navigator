@@ -40,8 +40,7 @@ export default function ManageAllWebsites() {
   };
 
   const handleEditWebsite = (websiteId: string) => {
-    toast.info(`Editing website ID: ${websiteId}. Edit functionality not yet implemented.`);
-    // navigate(`/manage-websites/${websiteId}/edit`);
+    navigate(`/manage-websites/${websiteId}/edit`);
   };
 
   const openDeleteDialog = (website: CollectionWebsiteWithCollectionName) => {
@@ -70,7 +69,7 @@ export default function ManageAllWebsites() {
   if (isLoading) {
     return (
       <div className="p-4 sm:p-6">
-        <PageHeader title="Manage All Collection Websites" />
+        <PageHeader title="Manage All Collection Websites" description="View and manage all shareable websites created for your collections."/>
         <p>Loading websites...</p>
       </div>
     );
@@ -79,7 +78,7 @@ export default function ManageAllWebsites() {
   if (error) {
     return (
       <div className="p-4 sm:p-6">
-        <PageHeader title="Manage All Collection Websites" />
+        <PageHeader title="Manage All Collection Websites" description="View and manage all shareable websites created for your collections."/>
         <p className="text-red-500">Error fetching websites: {error.message}</p>
       </div>
     );

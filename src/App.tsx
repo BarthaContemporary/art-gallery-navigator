@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,8 +23,9 @@ import EmailConfirmation from "./pages/EmailConfirmation";
 import PDFTemplates from "./pages/PDFTemplates";
 import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
-import ManageAllWebsites from "./pages/ManageAllWebsites"; // Added import
-import PublicCollectionView from "./pages/PublicCollectionView"; // Added import
+import ManageAllWebsites from "./pages/ManageAllWebsites";
+import PublicCollectionView from "./pages/PublicCollectionView";
+import EditCollectionWebsite from "./pages/EditCollectionWebsite"; // Added import
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -52,6 +54,7 @@ const queryClient = new QueryClient({
   }
 });
 
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -67,7 +70,7 @@ const App = () => (
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/email-confirmation" element={<EmailConfirmation />} />
-                  <Route path="/view-collection/:slug" element={<PublicCollectionView />} /> {/* Added new public route */}
+                  <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                   <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/artists" element={<Artists />} />
@@ -82,7 +85,8 @@ const App = () => (
                     <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
                     <Route path="/upload" element={<Upload />} />
                     <Route path="/file-transfer" element={<FileTransfer />} />
-                    <Route path="/manage-websites" element={<ManageAllWebsites />} /> {/* Added route */}
+                    <Route path="/manage-websites" element={<ManageAllWebsites />} />
+                    <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} /> {/* Added route */}
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
