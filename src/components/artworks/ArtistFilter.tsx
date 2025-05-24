@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useArtists } from "@/components/artworks/form/useArtists"; // Using the same hook as Artworks page
 import { Skeleton } from "@/components/ui/skeleton";
