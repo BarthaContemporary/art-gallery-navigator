@@ -17,20 +17,23 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const { data: artists } = useArtists();
   
-  // Group artworks by artist's first letter
+  // Group artworks by artist's sort letter or first letter of full name
   const groupedArtworks = artworks.reduce((acc: ArtworksByArtist, artwork) => {
-    // Get artist name from the artwork
     let artistName = "Unknown Artist";
+    let sortLetter: string | null = null;
     
-    // Find artist name in the artists data if artist_id exists
     if (artwork.artist_id && artists) {
       const artist = artists.find(a => a.id === artwork.artist_id);
       if (artist) {
         artistName = artist.full_name;
+        sortLetter = artist.surname_first_letter;
       }
     }
     
-    const firstLetter = artistName.charAt(0).toUpperCase();
+    // Use surname_first_letter if available and not empty, otherwise use first letter of full_name
+    const firstLetter = (sortLetter && sortLetter.trim() !== "") 
+      ? sortLetter.trim().toUpperCase() 
+      : artistName.charAt(0).toUpperCase();
     
     if (!acc[firstLetter]) {
       acc[firstLetter] = [];
@@ -42,11 +45,14 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
   // Sort artworks within each group by artist name first, then by title
   Object.keys(groupedArtworks).forEach(letter => {
     groupedArtworks[letter].sort((a, b) => {
-      const artistA = artists?.find(artist => artist.id === a.artist_id)?.full_name || "Unknown Artist";
-      const artistB = artists?.find(artist => artist.id === b.artist_id)?.full_name || "Unknown Artist";
+      const artistDetailsA = artists?.find(artist => artist.id === a.artist_id);
+      const artistDetailsB = artists?.find(artist => artist.id === b.artist_id);
+
+      const artistNameA = artistDetailsA?.full_name || "Unknown Artist";
+      const artistNameB = artistDetailsB?.full_name || "Unknown Artist";
       
-      // First sort by artist name
-      const artistCompare = artistA.localeCompare(artistB);
+      // First sort by artist full name
+      const artistCompare = artistNameA.localeCompare(artistNameB);
       if (artistCompare !== 0) return artistCompare;
       
       // If same artist, sort by title
@@ -71,8 +77,8 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
         >
           <h2 className="text-2xl font-bold mb-4">{letter}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {artworksInGroup.map((artwork) => (
-              <ArtworkCard key={artwork.id} artwork={artwork} />
+            {artworksInGroup.map((artworkEntry) => ( // Renamed artwork to artworkEntry to avoid conflict
+              <ArtworkCard key={artworkEntry.id} artwork={artworkEntry} />
             ))}
           </div>
         </div>

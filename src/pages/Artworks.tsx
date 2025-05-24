@@ -7,15 +7,14 @@ import { TypeFilter } from "@/components/artworks/TypeFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
-import { useArtists } from "@/components/artworks/form/useArtists";
+import { useArtists } from "@/components/artworks/form/useArtists"; // Ensure this is the correct hook
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
-// Removed: import { useNavigate } from "react-router-dom";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
-import { Artwork } from "@/hooks/use-artworks"; // Added for explicit type
+import { Artwork } from "@/hooks/use-artworks";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,10 +30,8 @@ const Artworks = () => {
   } = useArtworks();
 
   const {
-    data: artists
+    data: artists // This now includes surname_first_letter
   } = useArtists();
-
-  // Removed: const navigate = useNavigate();
 
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
@@ -44,9 +41,21 @@ const Artworks = () => {
   }) ?? [];
 
   const letters = Array.from(new Set(filteredArtworks.map(artwork => {
-    const artist = artists?.find(a => a.id === artwork.artist_id);
-    const artistName = artist ? artist.full_name : "Unknown Artist";
-    return artistName.charAt(0).toUpperCase();
+    let artistName = "Unknown Artist";
+    let sortLetter: string | null = null;
+
+    if (artwork.artist_id && artists) {
+      const artist = artists.find(a => a.id === artwork.artist_id);
+      if (artist) {
+        artistName = artist.full_name;
+        sortLetter = artist.surname_first_letter;
+      }
+    }
+    
+    // Use surname_first_letter if available and not empty, otherwise use first letter of full_name
+    return (sortLetter && sortLetter.trim() !== "") 
+      ? sortLetter.trim().toUpperCase() 
+      : artistName.charAt(0).toUpperCase();
   }))).sort();
 
   const handleExportAll = () => {
@@ -60,10 +69,6 @@ const Artworks = () => {
       exportArtworksToCSV(filteredArtworks, 'filtered_artworks.csv');
     }
   };
-
-  // Removed: const handleGeneratePDF = (artwork: Artwork) => { // Type for artwork should be more specific
-  //   navigate(`/pdf-templates/artwork/${artwork.id}`);
-  // };
 
   const handleClearImageCache = () => {
     clearImageCache();
@@ -118,4 +123,3 @@ const Artworks = () => {
 };
 
 export default Artworks;
-
