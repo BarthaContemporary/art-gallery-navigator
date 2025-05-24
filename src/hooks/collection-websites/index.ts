@@ -5,5 +5,7 @@ export * from "./useCreateCollectionWebsite";
 export * from "./useUpdateCollectionWebsite";
 export * from "./useDeleteCollectionWebsite";
 export * from "./useFetchAllCollectionWebsites";
-export * from "./useFetchCollectionWebsiteById"; // Added export
+export * from "./useFetchCollectionWebsiteById";
 export * from "@/types/collection-website"; // Re-export types for convenience
+export type { Collection } from "@/types/collection"; // Add this line
+
