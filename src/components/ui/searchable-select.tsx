@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,7 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   placeholder: string;
   disabled?: boolean;
-  icon?: React.ReactNode; // Added icon prop
+  icon?: React.ReactNode;
 }
 
 export function SearchableSelect({
@@ -37,11 +37,11 @@ export function SearchableSelect({
   onChange,
   placeholder,
   disabled,
-  icon // Added icon parameter
+  icon
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   
-  // Use empty array as fallback for options
+  // Ensure options is always an array and handle undefined/null values safely
   const safeOptions = Array.isArray(options) ? options : [];
   
   // Ensure value is always a string
@@ -61,13 +61,13 @@ export function SearchableSelect({
           disabled={disabled}
         >
           <div className="flex items-center">
-            {icon} {/* Added the icon here */}
+            {icon}
             {selectedOption?.icon && (
               <selectedOption.icon className="mr-2 h-4 w-4" />
             )}
             {selectedOption ? selectedOption.label : placeholder}
           </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          {/* Removed the ChevronsUpDown icon here */}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">

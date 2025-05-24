@@ -14,9 +14,12 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   const { data: artists, isLoading } = useArtists();
 
   const artistOptions = useMemo(() => {
+    // Ensure we have artists data and it's an array
     if (!artists || !Array.isArray(artists)) {
       return [];
     }
+    
+    // Filter out any invalid artist entries
     return artists
       .filter(artist => 
         artist && 
@@ -31,6 +34,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
       }));
   }, [artists]);
 
+  // Handle selection change
   const handleSelectionChange = (selectedValue: string) => {
     if (selectedValue === "_none") {
       onChange(null);
