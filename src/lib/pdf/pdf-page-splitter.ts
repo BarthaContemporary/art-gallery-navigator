@@ -1,11 +1,10 @@
-
 /**
  * Splits HTML into separate pages based on page-break markers
  */
 export function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): string[] {
   // Force splitting for collection PDFs when requested
   if (forceSplitPages) {
-    console.log("Force splitting HTML into multiple pages");
+    console.log("Force splitting HTML into multiple pages using 'splitForcePages' method.");
     return splitForcePages(html);
   }
 
@@ -16,7 +15,7 @@ export function splitHTMLIntoPages(html: string, forceSplitPages: boolean = fals
     return [html];
   }
   
-  console.log("Attempting to split HTML into multiple pages");
+  console.log("Attempting to split HTML into multiple pages based on CSS page-break properties.");
   
   // Create a temporary container to analyze the HTML
   const tempDiv = document.createElement('div');
@@ -29,7 +28,7 @@ export function splitHTMLIntoPages(html: string, forceSplitPages: boolean = fals
   // Process all elements in the body
   const bodyContent = tempDiv.querySelector('body');
   if (!bodyContent) {
-    console.warn("Could not find body element in HTML");
+    console.warn("Could not find body element in HTML for CSS-based splitting. Returning original HTML.");
     return [html];
   }
   
@@ -84,12 +83,15 @@ export function splitHTMLIntoPages(html: string, forceSplitPages: boolean = fals
   }
   
   // If we couldn't split the content, use the original HTML
-  if (pages.length === 0) {
-    console.warn("Could not split HTML into pages, using as single page");
+  if (pages.length === 0 && html.length > 0) {
+    console.warn("CSS-based splitting resulted in 0 pages, but HTML was provided. Returning original HTML as a single page.");
     return [html];
+  } else if (pages.length === 0) {
+     console.warn("CSS-based splitting resulted in 0 pages and no HTML. Returning empty array.");
+     return [];
   }
   
-  console.log(`Successfully split HTML into ${pages.length} pages`);
+  console.log(`Successfully split HTML into ${pages.length} pages using CSS properties.`);
   
   // Wrap each page content in proper HTML structure
   return pages.map(pageContent => {
@@ -130,66 +132,61 @@ export function splitHTMLIntoPages(html: string, forceSplitPages: boolean = fals
 }
 
 /**
- * Helper function to force split HTML into pages by artwork
+ * Helper function to force split HTML into pages by artwork using DOMParser
  * Used when forceSplitPages is true for collections
  */
 function splitForcePages(html: string): string[] {
-  console.log("Force splitting HTML into pages by artwork divs");
+  console.log("Attempting to force split HTML into pages by 'data-artwork-page-boundary' attribute.");
   
-  // Create a DOM parser to work with the HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  if (!doc || !doc.head || !doc.body) {
+    console.error("Failed to parse HTML string with DOMParser in splitForcePages. Returning original HTML as single page.");
+    return [html];
+  }
+
+  const headHTML = doc.head.innerHTML;
   
-  // Extract the necessary parts
-  const headMatch = html.match(/<head>([\s\S]*?)<\/head>/i);
-  const headContent = headMatch ? headMatch[1] : '';
+  let bodyAttributes = "";
+  for (const attr of Array.from(doc.body.attributes)) {
+    bodyAttributes += ` ${attr.name}="${attr.value}"`;
+  }
+
+  const stationeryBackgroundElement = doc.body.querySelector('.stationery-background');
+  const stationeryHTML = stationeryBackgroundElement ? stationeryBackgroundElement.outerHTML : '';
   
-  const bodyMatch = html.match(/<body([^>]*)>([\s\S]*?)<\/body>/i);
-  const bodyAttributes = bodyMatch && bodyMatch[1] ? bodyMatch[1] : '';
-  
-  // Find the content wrapper
-  const bodyContent = tempDiv.querySelector('body');
-  if (!bodyContent) {
-    console.warn("Could not find body element in HTML");
+  const contentWrapperElement = doc.body.querySelector('.content-wrapper');
+  if (!contentWrapperElement) {
+    console.warn("Could not find '.content-wrapper' in HTML for force splitting. Returning original HTML as single page.");
     return [html];
   }
   
-  // Find stationery background if present
-  let stationeryBackgroundHTML = '';
-  const stationeryBackgroundElement = bodyContent.querySelector('.stationery-background');
-  if (stationeryBackgroundElement) {
-    stationeryBackgroundHTML = stationeryBackgroundElement.outerHTML;
+  // Select artwork divs using the new data attribute from within the content wrapper
+  const artworkElements = contentWrapperElement.querySelectorAll('div[data-artwork-page-boundary="true"]');
+  console.log(`Found ${artworkElements.length} artwork elements with 'data-artwork-page-boundary="true"'.`);
+  
+  if (artworkElements.length === 0) {
+    console.warn("No artwork elements found for splitting. The HTML might not contain the 'data-artwork-page-boundary' attribute or it's empty. Returning original HTML as single page.");
+    return [html]; // Return original HTML if no elements to split
   }
   
-  // Find the content wrapper with the artworks
-  const contentWrapper = bodyContent.querySelector('.content-wrapper');
-  if (!contentWrapper) {
-    console.warn("Could not find content wrapper in HTML");
-    return [html];
-  }
-  
-  // Find all artwork divs (first-artwork, artwork-page, or any div with class containing 'artwork')
-  const artworkDivs = contentWrapper.querySelectorAll('div.first-artwork, div.artwork-page, div[class*="artwork"]');
-  console.log(`Found ${artworkDivs.length} artwork divs to split into pages`);
-  
-  if (artworkDivs.length <= 1) {
-    console.warn("Only found one or zero artwork divs, cannot split into multiple pages");
-    return [html];
-  }
-  
-  // Create a separate page for each artwork
   const pages: string[] = [];
-  artworkDivs.forEach((artworkDiv) => {
+  artworkElements.forEach((artworkElement, index) => {
+    console.log(`Processing artwork element ${index + 1}: ${artworkElement.getAttribute('data-artwork-title') || 'Untitled Artwork'}`);
+    const artworkHTML = artworkElement.outerHTML;
+    
+    // Create a complete HTML document for each page
     const pageHTML = `
       <!DOCTYPE html>
       <html>
       <head>
-        ${headContent}
+        ${headHTML}
       </head>
       <body${bodyAttributes}>
-        ${stationeryBackgroundHTML}
+        ${stationeryHTML}
         <div class="content-wrapper">
-          ${artworkDiv.outerHTML}
+          ${artworkHTML}
         </div>
       </body>
       </html>
@@ -197,6 +194,13 @@ function splitForcePages(html: string): string[] {
     pages.push(pageHTML);
   });
   
-  console.log(`Successfully split HTML into ${pages.length} artwork pages`);
+  if (pages.length > 0) {
+    console.log(`Successfully split HTML into ${pages.length} pages using force split.`);
+  } else {
+    // This case should ideally not be reached if artworkElements.length > 0
+    console.warn("Force splitting did not produce any pages, though artwork elements were found. This is unexpected. Returning original HTML.");
+    return [html];
+  }
+  
   return pages;
 }

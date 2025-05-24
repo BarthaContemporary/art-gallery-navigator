@@ -43,15 +43,21 @@ export function generateArtworkHTML(
   }
   
   // First artwork includes collection info, others are standalone pages
-  // Add more explicit page break styling for non-first artworks
   const pageClass = isFirstArtwork ? 'first-artwork' : 'artwork-page';
+  // Add data-artwork-page-boundary="true" for reliable splitting
+  // explicitPageBreakStyle is retained for CSS-based page breaking if forceSplitPages is false.
   const explicitPageBreakStyle = !isFirstArtwork 
     ? 'style="page-break-before: always; break-before: page;"' 
     : '';
   const includeCollectionInfo = isFirstArtwork ? collectionHeaderHTML : '';
   
   return `
-    <div class="${pageClass}" ${explicitPageBreakStyle} data-force-page-break="${!isFirstArtwork}">
+    <div 
+      class="${pageClass}" 
+      ${explicitPageBreakStyle} 
+      data-artwork-page-boundary="true" 
+      data-artwork-title="${escapeHtml(artwork.title || 'Untitled')}"
+    >
       ${includeCollectionInfo}
       
       <div class="artist-name-header">${escapeHtml(artistName)}</div>
@@ -73,3 +79,4 @@ export function generateArtworkHTML(
     </div>
   `;
 }
+
