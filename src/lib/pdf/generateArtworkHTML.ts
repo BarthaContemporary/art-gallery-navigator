@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
@@ -94,7 +93,7 @@ export async function generateArtworkHTML(
         }
 
         .artwork-details p {
-          margin-bottom: 0.3cm; 
+          margin-bottom: 0.15cm; /* Reduced spacing between caption lines */
           font-size: 10pt; 
         }
 
@@ -166,11 +165,12 @@ function generateArtworkDetails(artwork: Artwork, artistName: string): string {
   if (artwork.price !== null && artwork.currency) {
     try {
       const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
-      priceHtml = `<p style="margin-top: 0.5cm;"><strong>Price: ${escapeHtml(formattedPrice)}</strong></p>`;
+      // Adjusted margin-top for one line space before price
+      priceHtml = `<p style="margin-top: 0.35cm;"><strong>Price: ${escapeHtml(formattedPrice)}</strong></p>`;
     } catch (e) {
       console.error("Error formatting price for PDF:", e);
-      // Fallback to simple display if formatting fails
-      priceHtml = `<p style="margin-top: 0.5cm;"><strong>Price: ${escapeHtml(String(artwork.price))} ${escapeHtml(artwork.currency)}</strong></p>`;
+      // Fallback to simple display if formatting fails, with adjusted margin-top
+      priceHtml = `<p style="margin-top: 0.35cm;"><strong>Price: ${escapeHtml(String(artwork.price))} ${escapeHtml(artwork.currency)}</strong></p>`;
     }
   }
 
@@ -185,4 +185,3 @@ function generateArtworkDetails(artwork: Artwork, artistName: string): string {
     ${priceHtml}
   `;
 }
-

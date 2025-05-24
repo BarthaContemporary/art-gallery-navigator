@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { cmToInchFraction } from "@/lib/pdf/unit-conversion";
 
@@ -15,7 +14,7 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
     const widthInInches = cmToInchFraction(artwork.width);
     dimensionsInInches = artwork.depth 
       ? `${heightInInches} x ${widthInInches} x ${cmToInchFraction(artwork.depth)}"` 
-      : `${heightInInches} x ${widthInInches}"`;
+      : `${heightInInches} x ${widthInches}"`;
   }
   
   let editionInfo = '';
@@ -29,15 +28,15 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
   } else {
     editionInfo = artwork.classification || '';
   }
-
+  
   let formattedPriceDisplay = null;
   if (artwork.price !== null && artwork.currency) {
     try {
       const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
-      formattedPriceDisplay = <p className="mt-2"><strong>Price: {formatted}</strong></p>;
+      formattedPriceDisplay = <p className="mt-3"><strong>Price: {formatted}</strong></p>;
     } catch (e) {
       console.error("Error formatting price for preview:", e);
-      formattedPriceDisplay = <p className="mt-2"><strong>Price: {artwork.price} {artwork.currency}</strong></p>;
+      formattedPriceDisplay = <p className="mt-3"><strong>Price: {artwork.price} {artwork.currency}</strong></p>;
     }
   }
   
@@ -63,8 +62,8 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
         </div>
       )}
       
-      {/* Details Below Image */}
-      <div className="space-y-1">
+      {/* Details Below Image - Reduced spacing between caption lines */}
+      <div className="space-y-0.5"> 
         {/* Repeated Artist Name */}
         <p><strong>{artistName}</strong></p>
         
@@ -84,9 +83,9 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
 
         {artwork.medium_type && <p>{artwork.medium_type}</p>}
 
+        {/* Price is now rendered here, after other details */}
         {formattedPriceDisplay}
       </div>
     </div>
   );
 }
-
