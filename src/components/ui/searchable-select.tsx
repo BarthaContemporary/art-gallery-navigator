@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,9 +42,9 @@ export function SearchableSelect({
   placeholder,
   disabled,
   icon,
-  triggerClassName, // Destructure new prop
-  triggerVariant,   // Destructure new prop
-  triggerSize,      // Destructure new prop
+  triggerClassName, 
+  triggerVariant,   
+  triggerSize,      
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -63,11 +62,11 @@ export function SearchableSelect({
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant={triggerVariant || "outline"} // Apply triggerVariant
-          size={triggerSize || "default"}     // Apply triggerSize
+          variant={triggerVariant || "outline"} 
+          size={triggerSize || "default"}     
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", triggerClassName)} // Apply triggerClassName
+          className={cn("w-full justify-start", triggerClassName)} // Changed justify-between to justify-start
           disabled={disabled}
         >
           <div className="flex items-center">
