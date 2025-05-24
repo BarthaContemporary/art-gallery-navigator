@@ -27,7 +27,7 @@ export function ArtworkPreviewPanel({
   // The useStationery prop now primarily controls the visual overlay in this preview.
   
   const contentStyle = {
-    paddingTop: '13cm',
+    paddingTop: '7cm', // Adjusted top padding to 7cm
     paddingRight: '2cm',
     paddingBottom: '2cm',
     paddingLeft: '2cm',
@@ -116,4 +116,3 @@ export function ArtworkPreviewPanel({
     </>
   );
 }
-

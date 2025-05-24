@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
@@ -100,10 +99,8 @@ export async function generateArtworkHTML(
         }
 
         .content-wrapper {
-          /* Applied padding-top: 13cm to move content down by approx 500px. */
-          /* This is a large offset and might push content off-page or require adjustments */
-          /* to other elements or the stationery design. */
-          padding: 13cm 2cm 2cm 2cm; /* Top, Right, Bottom, Left. Adjusted side/bottom padding for balance */
+          /* Applied padding-top: 7cm to move content down. */
+          padding: 7cm 2cm 2cm 2cm; /* Top, Right, Bottom, Left. Adjusted top padding */
           position: relative;
           z-index: 1;
           box-sizing: border-box;
