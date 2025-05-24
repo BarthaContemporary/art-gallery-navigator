@@ -1,3 +1,4 @@
+
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -6,7 +7,7 @@ import { useState } from "react";
 import { EditArtworkDialog } from "./EditArtworkDialog";
 import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
-import { useArtists } from "./form/useArtists";
+import { useArtists } from "@/hooks/useArtists"; // Corrected import path
 import {
   AlertDialog,
   AlertDialogAction,
@@ -181,3 +182,4 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     </>
   );
 }
+

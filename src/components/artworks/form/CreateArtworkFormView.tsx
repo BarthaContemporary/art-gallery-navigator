@@ -14,11 +14,12 @@ import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { FramingCrateFields } from "./FramingCrateFields";
 import { ArtworkFormData } from "./types";
 import { UseFormReturn } from "react-hook-form";
+import { Artist } from "@/hooks/useArtists"; // Import the standardized Artist type
 
 interface CreateArtworkFormViewProps {
   form: UseFormReturn<ArtworkFormData>;
   classification: string;
-  artists: { id: string; full_name: string; }[] | undefined;
+  artists: Artist[] | undefined; // Use the standardized Artist type
   locations: { id: string; name: string; }[] | undefined;
   handleImagesUploaded: (urls: string[]) => void;
   initialData?: any;
@@ -72,3 +73,4 @@ export function CreateArtworkFormView({
     </Form>
   );
 }
+

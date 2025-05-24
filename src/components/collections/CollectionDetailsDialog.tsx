@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collection } from "@/hooks/use-collections";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
-import { useArtists } from "@/components/artworks/form/useArtists"; // Corrected path if it was moved, check project structure
+import { useArtists } from "@/hooks/useArtists"; // Corrected import path
 import { useCreateCollectionWebsite } from "@/hooks/collection-websites";
 import { CollectionDialogActions } from "./CollectionDialogActions";
 import { CollectionDialogArtworksList } from "./CollectionDialogArtworksList";
@@ -35,7 +35,7 @@ export function CollectionDetailsDialog({
   } = useCollectionDialogState({
     collection,
     documents,
-    artists,
+    artists, // artists here should be Artist[] | undefined
     createCollectionWebsiteMutation,
   });
 
@@ -67,7 +67,7 @@ export function CollectionDetailsDialog({
               <h3 className="text-lg font-medium mb-3">Artworks</h3>
               <CollectionDialogArtworksList
                 artworks={collection.artworks}
-                getArtistName={getArtistName}
+                getArtistName={getArtistName} // This function uses the artists data
               />
             </div>
 
@@ -85,3 +85,4 @@ export function CollectionDetailsDialog({
     </Dialog>
   );
 }
+

@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { useArtists } from "@/components/artworks/form/useArtists";
+import { useArtists } from "@/hooks/useArtists"; // Corrected import path
 import {
   Command,
   CommandEmpty,
@@ -86,3 +86,4 @@ export function ArtworkSearch({ artworks = [], selectedArtworks = [], onToggleAr
     </Command>
   );
 }
+
