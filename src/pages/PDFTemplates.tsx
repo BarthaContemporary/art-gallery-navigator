@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -14,7 +13,7 @@ import { Label } from "@/components/ui/label";
 export default function PDFTemplates() {
   const { type, id } = useParams();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
-  const [useStationery, setUseStationery] = useState<boolean>(type === "collection" ? true : false);
+  const [useStationery, setUseStationery] = useState<boolean>(true);
   const [isGenerating, setIsGenerating] = useState(false);
   
   const { data: artworks } = useArtworks();
@@ -32,7 +31,7 @@ export default function PDFTemplates() {
     
     try {
       if (artwork) {
-        await createArtworkPDF(artwork, selectedTemplate, useStationery);
+        await createArtworkPDF(artwork, useStationery);
         toast.success("Artwork PDF created successfully");
       } else if (collection) {
         await createCollectionPDF(collection, selectedTemplate, useStationery);
@@ -52,7 +51,6 @@ export default function PDFTemplates() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          {/* Removed h1 title: <h1 className="text-sm font-visby font-extrabold text-slate-700">PDF TEMPLATES</h1> */}
           <p className="text-muted-foreground">Generate PDF documents for artworks and collections</p>
         </div>
       </div>
@@ -69,20 +67,20 @@ export default function PDFTemplates() {
               }
             </h2>
             <p className="text-sm text-muted-foreground">
-              Select a template style and stationery option
+              {type === "artwork" 
+                ? "Preview the artwork PDF. Stationery options can be toggled for the preview." 
+                : "Select a template style and stationery option"}
             </p>
           </div>
           
-          {type === "artwork" && (
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="stationery-mode"
-                checked={useStationery}
-                onCheckedChange={setUseStationery}
-              />
-              <Label htmlFor="stationery-mode">Use Company Stationery</Label>
-            </div>
-          )}
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="stationery-mode-page"
+              checked={useStationery}
+              onCheckedChange={setUseStationery}
+            />
+            <Label htmlFor="stationery-mode-page">Use Company Stationery (for preview)</Label>
+          </div>
         </div>
         
         {type === "artwork" ? (
@@ -95,15 +93,16 @@ export default function PDFTemplates() {
             onStationeryChange={setUseStationery}
             onGeneratePDF={handleGeneratePDF}
           />
-        ) : (
+        ) : type === "collection" && collection ? (
           <CollectionPreviewPanel
             collection={collection}
             isGenerating={isGenerating}
             onGeneratePDF={handleGeneratePDF}
           />
+        ) : (
+          <p>Select an artwork or collection to preview.</p>
         )}
       </div>
     </div>
   );
 }
-

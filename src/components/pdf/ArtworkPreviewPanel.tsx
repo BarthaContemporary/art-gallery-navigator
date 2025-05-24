@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +8,11 @@ import { ArtworkPDFPreview } from "@/components/pdf/ArtworkPreview";
 
 interface ArtworkPreviewPanelProps {
   artwork: Artwork | undefined;
-  selectedTemplate: string;
+  selectedTemplate: string; // This prop is still here, but ArtworkPDFPreview doesn't use it.
+                           // The Tabs component itself still uses it to switch views.
+                           // However, the content of each tab will now be the same simplified preview.
+                           // We should consider if these tabs are still needed. For now, I'll keep them
+                           // but ensure ArtworkPDFPreview is called correctly.
   useStationery: boolean;
   isGenerating: boolean;
   onTemplateChange: (value: string) => void;
@@ -26,6 +29,11 @@ export function ArtworkPreviewPanel({
   onStationeryChange,
   onGeneratePDF
 }: ArtworkPreviewPanelProps) {
+  // Since we've unified the artwork PDF style, the "template" selection (Classic, Modern, Minimal)
+  // via Tabs might be misleading as they will all render the same preview style.
+  // For now, I'm keeping the Tabs structure as it wasn't explicitly asked to be removed from this page,
+  // but the content within each tab will be the same unified preview.
+  // The `templateStyle` prop is removed from ArtworkPDFPreview.
   return (
     <>
       <div className="flex items-center space-x-2 mb-6">
@@ -37,6 +45,11 @@ export function ArtworkPreviewPanel({
         <Label htmlFor="stationery-mode">Use Company Stationery</Label>
       </div>
 
+      {/* The Tabs for "Classic", "Modern", "Minimal" are less relevant now since the actual PDF is unified.
+          However, to minimize changes to this specific component's props and structure immediately,
+          I will keep the tabs but they will all show the same preview content.
+          The `selectedTemplate` state will still switch the active tab, but ArtworkPDFPreview won't use it.
+      */}
       <Tabs defaultValue="classic" value={selectedTemplate} onValueChange={onTemplateChange}>
         <TabsList className="grid grid-cols-3 mb-6 w-full max-w-md mx-auto">
           <TabsTrigger value="classic">Classic</TabsTrigger>
@@ -58,46 +71,29 @@ export function ArtworkPreviewPanel({
                 </div>
               )}
               
+              {/* All TabsContent will now render the same ArtworkPDFPreview without templateStyle */}
               <TabsContent value="classic" className="p-12 m-0 border-none h-full z-10 relative">
-                <div className="border-b-2 border-primary pb-6 mb-6">
-                  <h1 className="text-3xl font-bold text-primary">
-                    {artwork ? artwork.title : "Document Title"}
-                  </h1>
-                </div>
                 {artwork ? (
-                  <ArtworkPDFPreview artwork={artwork} templateStyle="classic" />
+                  <ArtworkPDFPreview artwork={artwork} />
                 ) : (
                   <p>Select an artwork to preview</p>
                 )}
               </TabsContent>
               
               <TabsContent value="modern" className="p-12 m-0 border-none h-full z-10 relative">
-                <div className="flex items-center justify-between mb-8">
-                  <h1 className="text-3xl font-light">
-                    {artwork ? artwork.title : "Document Title"}
-                  </h1>
-                  <div className="w-24 h-1 bg-primary"></div>
-                </div>
-                <div className="pl-6 border-l-4 border-primary">
-                  {artwork ? (
-                    <ArtworkPDFPreview artwork={artwork} templateStyle="modern" />
-                  ) : (
-                    <p>Select an artwork to preview</p>
-                  )}
-                </div>
+                 {artwork ? (
+                  <ArtworkPDFPreview artwork={artwork} />
+                ) : (
+                  <p>Select an artwork to preview</p>
+                )}
               </TabsContent>
               
               <TabsContent value="minimal" className="p-12 m-0 border-none h-full z-10 relative">
-                <h1 className="text-2xl uppercase tracking-widest mb-8">
-                  {artwork ? artwork.title : "Document Title"}
-                </h1>
-                <div className="grid grid-cols-1 gap-6">
-                  {artwork ? (
-                    <ArtworkPDFPreview artwork={artwork} templateStyle="minimal" />
-                  ) : (
-                    <p>Select an artwork to preview</p>
-                  )}
-                </div>
+                {artwork ? (
+                  <ArtworkPDFPreview artwork={artwork} />
+                ) : (
+                  <p>Select an artwork to preview</p>
+                )}
               </TabsContent>
             </div>
           </div>
