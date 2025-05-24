@@ -1,8 +1,9 @@
+
 import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useArtists } from "@/components/artworks/form/useArtists"; // Using the same hook as Artworks page
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users } from "lucide-react"; // Icon for the filter
+import { Filter, Users } from "lucide-react"; // Import Filter icon for consistency
 
 interface ArtistFilterProps {
   value: string | null;
@@ -13,7 +14,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   const { data: artists, isLoading } = useArtists();
 
   const artistOptions = useMemo(() => {
-    if (!artists) return [];
+    if (!artists || !Array.isArray(artists)) return [];
     return artists.map((artist) => ({
       value: artist.id,
       label: artist.full_name,
@@ -39,9 +40,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
         value={value || "_none"} // Pass "_none" if value is null
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
-        // We could add an icon here if desired, like <Users className="mr-2 h-4 w-4" />
-        // but SearchableSelect itself doesn't directly support a global icon for the button,
-        // only for options. Let's keep it simple for now.
+        icon={<Filter className="mr-2 h-4 w-4" />} // Add filter icon for consistency
       />
     </div>
   );

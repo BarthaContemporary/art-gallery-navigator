@@ -28,6 +28,7 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   placeholder: string;
   disabled?: boolean;
+  icon?: React.ReactNode; // Added icon prop
 }
 
 export function SearchableSelect({
@@ -35,7 +36,8 @@ export function SearchableSelect({
   value,
   onChange,
   placeholder,
-  disabled
+  disabled,
+  icon // Added icon parameter
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   
@@ -59,6 +61,7 @@ export function SearchableSelect({
           disabled={disabled}
         >
           <div className="flex items-center">
+            {icon} {/* Added the icon here */}
             {selectedOption?.icon && (
               <selectedOption.icon className="mr-2 h-4 w-4" />
             )}
