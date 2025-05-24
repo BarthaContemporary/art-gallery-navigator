@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -93,9 +92,9 @@ export function ArtworkOverviewDialog({
                 documents={documents}
                 handleDownloadAllFiles={handleDownloadAllFiles}
                 handleDownloadSingleFile={handleDownloadSingleFile}
-                showCreatePdf={false}
-                showDownloadFiles={false}
-                showDownloadAllImages={false}
+                showCreatePdf={true}
+                showDownloadFiles={true}
+                showDownloadAllImages={true}
               />
             </div>
           </DialogHeader>
