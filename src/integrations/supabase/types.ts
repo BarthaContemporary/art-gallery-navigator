@@ -316,6 +316,50 @@ export type Database = {
           },
         ]
       }
+      collection_websites: {
+        Row: {
+          collection_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string | null
+          password_hash: string | null
+          show_prices: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          password_hash?: string | null
+          show_prices?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          password_hash?: string | null
+          show_prices?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_websites_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collections: {
         Row: {
           created_at: string
