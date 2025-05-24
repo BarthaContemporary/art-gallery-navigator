@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 export default function PDFTemplates() {
   const { type, id } = useParams();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
-  const [useStationery, setUseStationery] = useState<boolean>(true);
+  const [useStationery, setUseStationery] = useState<boolean>(true); // This page-level state still controls preview
   const [isGenerating, setIsGenerating] = useState(false);
   
   const { data: artworks } = useArtworks();
@@ -31,7 +32,8 @@ export default function PDFTemplates() {
     
     try {
       if (artwork) {
-        await createArtworkPDF(artwork, useStationery);
+        // For artworks, useStationery is effectively always true for PDF generation
+        await createArtworkPDF(artwork, true); 
         toast.success("Artwork PDF created successfully");
       } else if (collection) {
         await createCollectionPDF(collection, selectedTemplate, useStationery);
@@ -68,18 +70,26 @@ export default function PDFTemplates() {
             </h2>
             <p className="text-sm text-muted-foreground">
               {type === "artwork" 
-                ? "Preview the artwork PDF. Stationery options can be toggled for the preview." 
+                ? "Preview the artwork PDF. Stationery is always used for generated artwork PDFs." 
                 : "Select a template style and stationery option"}
             </p>
           </div>
           
+          {/* This page-level switch controls the 'useStationery' prop for the PREVIEW panels */}
+          {/* For artwork PDF generation, stationery is always on. */}
+          {/* For collection PDF generation, this switch's value is used. */}
           <div className="flex items-center space-x-2">
             <Switch
               id="stationery-mode-page"
               checked={useStationery}
               onCheckedChange={setUseStationery}
+              disabled={type === "artwork"} // Optionally disable if artwork preview always shows stationery
             />
-            <Label htmlFor="stationery-mode-page">Use Company Stationery (for preview)</Label>
+            <Label htmlFor="stationery-mode-page">
+              {type === "artwork" 
+                ? "Stationery Preview (PDF always includes)" 
+                : "Use Company Stationery"}
+            </Label>
           </div>
         </div>
         
@@ -87,10 +97,10 @@ export default function PDFTemplates() {
           <ArtworkPreviewPanel
             artwork={artwork}
             selectedTemplate={selectedTemplate}
-            useStationery={useStationery}
+            useStationery={useStationery} // This controls the preview's stationery visibility
             isGenerating={isGenerating}
             onTemplateChange={setSelectedTemplate}
-            onStationeryChange={setUseStationery}
+            // onStationeryChange prop is removed
             onGeneratePDF={handleGeneratePDF}
           />
         ) : type === "collection" && collection ? (
@@ -98,6 +108,8 @@ export default function PDFTemplates() {
             collection={collection}
             isGenerating={isGenerating}
             onGeneratePDF={handleGeneratePDF}
+            // Assuming CollectionPreviewPanel might still have its own controls or rely on page-level.
+            // For now, ensuring ArtworkPreviewPanel changes are consistent.
           />
         ) : (
           <p>Select an artwork or collection to preview.</p>

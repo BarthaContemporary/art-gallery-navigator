@@ -4,11 +4,10 @@ import { cmToInchFraction } from "@/lib/pdf/unit-conversion";
 
 interface ArtworkPreviewProps {
   artwork: Artwork;
-  // templateStyle is no longer needed
 }
 
 export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
-  const artistName = artwork.artist_name || "Artist Name";
+  const artistName = artwork.artist_name || "Artist Name"; // Use artwork.artist_name
   
   let dimensionsInInches = '';
   if (artwork.height && artwork.width) {
@@ -28,12 +27,11 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
       editionInfo += ` + ${artwork.artist_proofs} AP`;
     }
   } else {
-    // Fallback for non-unique items without edition size
     editionInfo = artwork.classification || '';
   }
   
   return (
-    <div className="space-y-3 font-sans text-sm p-4"> {/* Added padding for standalone preview */}
+    <div className="space-y-3 font-sans text-sm p-4">
       {/* Artist Name (Header) */}
       <h1 className="font-bold text-lg mb-3">{artistName}</h1>
 
@@ -56,6 +54,9 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
       
       {/* Details Below Image */}
       <div className="space-y-1">
+        {/* Repeated Artist Name */}
+        <p><strong>{artistName}</strong></p>
+        
         <p><strong>{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</strong></p>
         
         {artwork.materials && <p>{artwork.materials}</p>}
@@ -72,9 +73,6 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
 
         {artwork.medium_type && <p>{artwork.medium_type}</p>}
       </div>
-
-      {/* Price, Story, Provenance, Exhibition History are removed from this preview as per simplification */}
-      {/* If they need to be re-added for some reason, it would be here. */}
     </div>
   );
 }
