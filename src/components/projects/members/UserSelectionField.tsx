@@ -10,7 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 
 interface UserSelectionFieldProps {
   projectId?: string;
-  disabled?: boolean;
+  disabled?: boolean; // Prop from parent
   onAddMember?: (userId: string) => Promise<void>;
   members: ProjectMember[];
 }
@@ -28,10 +28,23 @@ export function UserSelectionField({
 
   const { 
     rawUsers,
-    availableUsers, 
+    availableUsers: hookAvailableUsers, // Renamed to distinguish from filteredUsers
     isLoadingUsers, 
     usersQueryError 
   } = useUserSelectionData(open, disabled, members);
+
+  // Log critical states on every render
+  console.log("UserSelectionField Render State:", {
+    parentDisabled: disabled,
+    isAdding,
+    isLoadingUsers,
+    usersQueryError,
+    rawUsersCount: rawUsers?.length,
+    hookAvailableUsersCount: hookAvailableUsers?.length, // Users available before search (raw - members)
+    open,
+    search,
+    debouncedSearch,
+  });
 
   // Simpler useEffect to track 'open' state changes
   useEffect(() => {
@@ -43,16 +56,16 @@ export function UserSelectionField({
     }
   }, [open]);
 
-  // Filter availableUsers based on debouncedSearch term locally
+  // Filter hookAvailableUsers based on debouncedSearch term locally
   const filteredUsers = useMemo(() => {
-    return availableUsers.filter(user => {
+    if (!Array.isArray(hookAvailableUsers)) return [];
+    return hookAvailableUsers.filter(user => {
       const displayName = user.display_name || "";
       const email = user.email || "";
       return displayName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
              email.toLowerCase().includes(debouncedSearch.toLowerCase());
     });
-  }, [availableUsers, debouncedSearch]);
-
+  }, [hookAvailableUsers, debouncedSearch]);
 
   // Existing detailed useEffect (changed log message slightly for clarity)
   useEffect(() => {
@@ -63,13 +76,13 @@ export function UserSelectionField({
         usersQueryError,
         rawUsersCount: rawUsers?.length,
         currentMembersCount: members?.length,
-        availableUsersFromHookCount: availableUsers?.length,
+        hookAvailableUsersCount: hookAvailableUsers?.length,
         search, 
         debouncedSearch, 
         filteredUsersForDisplayCount: filteredUsers?.length, 
       });
     }
-  }, [open, isLoadingUsers, usersQueryError, rawUsers, members, availableUsers, search, debouncedSearch, filteredUsers]);
+  }, [open, isLoadingUsers, usersQueryError, rawUsers, members, hookAvailableUsers, search, debouncedSearch, filteredUsers]);
 
   const handleSelectUser = async (user: UserData) => {
     if (!projectId || !onAddMember || !user || !user.id) {
@@ -91,6 +104,16 @@ export function UserSelectionField({
       setIsAdding(false);
     }
   };
+
+  const noUsersInSystem = !isLoadingUsers && !usersQueryError && rawUsers?.length === 0;
+  const noUsersAvailableToAdd = !isLoadingUsers && !usersQueryError && (rawUsers?.length ?? 0) > 0 && (hookAvailableUsers?.length ?? 0) === 0;
+
+  const effectiveDisabled = 
+    disabled || // Disabled by parent
+    isAdding || // Currently performing an add operation
+    usersQueryError || // Error fetching users
+    noUsersInSystem || // No users in the system at all
+    noUsersAvailableToAdd; // All eligible users already added (nothing to select)
   
   return (
     <div>
@@ -101,9 +124,12 @@ export function UserSelectionField({
       }}>
         <PopoverTrigger asChild>
           <UserSelectionPopoverTrigger
-            disabled={disabled}
+            disabled={effectiveDisabled}
             isAdding={isAdding}
             queryError={usersQueryError}
+            noUsersInSystem={noUsersInSystem}
+            noUsersAvailableToAdd={noUsersAvailableToAdd}
+            parentDisabled={disabled}
           />
         </PopoverTrigger>
         <PopoverContent className="p-0 w-[300px]" align="start" side="bottom">
@@ -118,7 +144,8 @@ export function UserSelectionField({
               isLoading={isLoadingUsers}
               isAdding={isAdding}
               queryError={usersQueryError}
-              rawUsersCount={rawUsers.length} 
+              rawUsersCount={rawUsers?.length ?? 0}
+              preSearchAvailableUsersCount={hookAvailableUsers?.length ?? 0}
               onSelectUser={handleSelectUser}
             />
           </Command>
