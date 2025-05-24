@@ -1,9 +1,9 @@
 
 import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { useArtists } from "@/components/artworks/form/useArtists"; // Using the same hook as Artworks page
+import { useArtists } from "@/components/artworks/form/useArtists";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Filter, Users } from "lucide-react"; // Import Filter icon for consistency
+import { Filter } from "lucide-react";
 
 interface ArtistFilterProps {
   value: string | null;
@@ -14,11 +14,21 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   const { data: artists, isLoading } = useArtists();
 
   const artistOptions = useMemo(() => {
-    if (!artists || !Array.isArray(artists)) return [];
-    return artists.map((artist) => ({
-      value: artist.id,
-      label: artist.full_name,
-    }));
+    if (!artists || !Array.isArray(artists)) {
+      return [];
+    }
+    return artists
+      .filter(artist => 
+        artist && 
+        typeof artist.id === 'string' && 
+        artist.id.trim() !== '' &&
+        typeof artist.full_name === 'string' &&
+        artist.full_name.trim() !== ''
+      )
+      .map((artist) => ({
+        value: artist.id,
+        label: artist.full_name,
+      }));
   }, [artists]);
 
   const handleSelectionChange = (selectedValue: string) => {
@@ -37,10 +47,10 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
     <div className="min-w-[180px]">
       <SearchableSelect
         options={artistOptions}
-        value={value || "_none"} // Pass "_none" if value is null
+        value={value || "_none"}
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
-        icon={<Filter className="mr-2 h-4 w-4" />} // Add filter icon for consistency
+        icon={<Filter className="mr-2 h-4 w-4" />}
       />
     </div>
   );
