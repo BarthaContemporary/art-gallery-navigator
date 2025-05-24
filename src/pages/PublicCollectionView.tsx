@@ -1,17 +1,37 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
 
 export default function PublicCollectionView() {
   const { slug } = useParams<{ slug: string }>();
   const { data: website, isLoading, error } = useFetchPublicCollectionWebsite(slug);
+  const [isPasswordVerified, setIsPasswordVerified] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (website && slug) {
+      // Check session storage for verification status for this specific slug
+      const storedVerification = sessionStorage.getItem(`pwd_verified_${slug}`);
+      if (storedVerification === 'true') {
+        setIsPasswordVerified(true);
+      }
+    }
+    setSessionChecked(true); // Mark that we've checked session storage
+  }, [website, slug]);
+
+  const handlePasswordVerified = () => {
+    setIsPasswordVerified(true);
+    if (slug) {
+      sessionStorage.setItem(`pwd_verified_${slug}`, 'true');
+    }
+  };
+
+  if (isLoading || !sessionChecked) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -38,6 +58,12 @@ export default function PublicCollectionView() {
     );
   }
 
+  // If website has a password hash and it's not yet verified, show password prompt
+  if (website.password_hash && !isPasswordVerified) {
+    return <PasswordProtectView websiteSlug={website.slug} onVerified={handlePasswordVerified} />;
+  }
+
+  // Otherwise, show the website content
   return (
     <div className="container mx-auto p-4 sm:p-6">
       <PageHeader title={website.name || `Collection: ${website.slug}`} description="Public view of the collection website." />
@@ -60,12 +86,7 @@ export default function PublicCollectionView() {
               <h3 className="font-semibold">Prices Visible:</h3>
               <p>{website.show_prices ? 'Yes' : 'No'}</p>
             </div>
-            {website.password_hash && (
-              <div>
-                <h3 className="font-semibold">Password Protected:</h3>
-                <p>Yes</p>
-              </div>
-            )}
+            {/* We don't need to show "Password Protected: Yes" if they've already entered it */}
             <div className="mt-6 p-4 border rounded-md bg-muted text-muted-foreground">
               <p className="text-center">Artwork display for this collection website is not yet implemented.</p>
             </div>
