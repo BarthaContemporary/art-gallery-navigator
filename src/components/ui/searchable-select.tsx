@@ -1,8 +1,9 @@
+
 import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button"; // Import buttonVariants
-import type { VariantProps } from "class-variance-authority"; // Import VariantProps
+import { Button, buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
 import {
   Command,
   CommandEmpty,
@@ -30,9 +31,9 @@ interface SearchableSelectProps {
   placeholder: string;
   disabled?: boolean;
   icon?: React.ReactNode;
-  triggerClassName?: string; // New prop for custom class on trigger
-  triggerVariant?: VariantProps<typeof buttonVariants>['variant']; // New prop for trigger variant
-  triggerSize?: VariantProps<typeof buttonVariants>['size']; // New prop for trigger size
+  triggerClassName?: string;
+  triggerVariant?: VariantProps<typeof buttonVariants>['variant'];
+  triggerSize?: VariantProps<typeof buttonVariants>['size'];
 }
 
 export function SearchableSelect({
@@ -47,15 +48,9 @@ export function SearchableSelect({
   triggerSize,      
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
-
-  // console.log("SearchableSelect options:", options);
-  // console.log("SearchableSelect value:", value);
   
   const safeOptions = Array.isArray(options) ? options : [];
-  // console.log("SearchableSelect safeOptions:", safeOptions);
-  
   const safeValue = typeof value === 'string' ? value : '_none';
-  
   const selectedOption = safeOptions.find((option) => option.value === safeValue);
   
   return (
@@ -66,7 +61,8 @@ export function SearchableSelect({
           size={triggerSize || "default"}     
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-start", triggerClassName)} // Changed justify-between to justify-start
+          // Removed "w-full" to allow intrinsic width, removed "justify-start" to use default "justify-center" from buttonVariants
+          className={cn(triggerClassName)} 
           disabled={disabled}
         >
           <div className="flex items-center">
@@ -78,7 +74,8 @@ export function SearchableSelect({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      {/* Changed PopoverContent width from w-full to w-56 (224px) to match TypeFilter dropdown width */}
+      <PopoverContent className="w-56 p-0">
         <Command>
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
           <CommandList>
@@ -126,3 +123,4 @@ export function SearchableSelect({
     </Popover>
   );
 }
+
