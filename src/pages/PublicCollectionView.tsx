@@ -7,9 +7,10 @@ import { useFetchArtworksByCollectionId } from '@/hooks/artworks';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert'; // Renamed AlertTitle to avoid conflict
 import { AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
-import { ArtworkCard } from '@/components/artworks/ArtworkCard'; // Import ArtworkCard
+import { ArtworkCard } from '@/components/artworks/ArtworkCard';
 
 export default function PublicCollectionView() {
   const { slug } = useParams<{ slug: string }>();
@@ -18,10 +19,7 @@ export default function PublicCollectionView() {
   const [isPasswordVerified, setIsPasswordVerified] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  // Fetch collection details once website data is available
   const { data: collection, isLoading: isCollectionLoading, error: collectionError } = useFetchCollectionById(website?.collection_id);
-
-  // Fetch artworks once website data is available
   const { data: artworks, isLoading: isArtworksLoading, error: artworksError } = useFetchArtworksByCollectionId(website?.collection_id);
 
   useEffect(() => {
@@ -75,17 +73,43 @@ export default function PublicCollectionView() {
   return (
     <div className="container mx-auto p-4 sm:p-6">
       <PageHeader 
-        title={website.name || `Collection: ${website.slug}`} 
-        description={collection ? `Part of: ${collection.name}` : "Public view of the collection."}
+        title={website.name || `Collection Website: ${website.slug}`} 
+        description="Explore the content of this shared collection website."
       />
+
+      {/* Section for Collection Title and Description */}
+      {isCollectionLoading && (
+        <div className="my-6 text-center">
+          <Loader2 className="mr-2 h-6 w-6 animate-spin inline-block text-primary" />
+          <p className="text-muted-foreground inline-block">Loading collection information...</p>
+        </div>
+      )}
+      {collectionError && (
+        <Alert variant="destructive" className="my-6">
+          <AlertTriangle className="h-5 w-5" />
+          <ShadcnAlertTitle>Error Loading Collection</ShadcnAlertTitle>
+          <AlertDescription>{collectionError.message}</AlertDescription>
+        </Alert>
+      )}
+      {collection && !isCollectionLoading && !collectionError && (
+        <div className="my-6 text-left"> {/* Spacing and alignment for collection details */}
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            {collection.name}
+          </h2>
+          {collection.description && (
+            <p className="mt-2 text-md text-muted-foreground">
+              {collection.description}
+            </p>
+          )}
+        </div>
+      )}
       
-      <Card className="w-full max-w-4xl mx-auto mt-6">
+      <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
-          <CardTitle>{website.name || 'Unnamed Collection Website'}</CardTitle>
-          {isCollectionLoading && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading collection details...</p>}
-          {collectionError && <p className="text-sm text-red-500">Error loading collection: {collectionError.message}</p>}
-          {collection && <CardDescription>Collection: {collection.name}</CardDescription>}
-          <CardDescription>Slug: {website.slug}</CardDescription>
+          {/* Simplified CardHeader: Original CardTitle (website.name) is redundant with PageHeader. */}
+          {/* Collection loading/error/name display is now handled above this card. */}
+          <CardTitle>Website Details</CardTitle>
+          <CardDescription>Configuration and artworks for website: {website.slug}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -135,3 +159,4 @@ export default function PublicCollectionView() {
     </div>
   );
 }
+
