@@ -1,14 +1,14 @@
-
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
-import { useEffect, useRef, useCallback } from "react"; // Added useCallback
+import { useEffect, useRef, useCallback } from "react";
 
 interface ArtworkCarouselProps {
   artworkId: string;
   artistName?: string;
   artworkTitle?: string;
+  isDialogActive?: boolean; // New prop to indicate if the parent dialog is active
 }
 
 /**
@@ -18,11 +18,13 @@ interface ArtworkCarouselProps {
  * @param artworkId The ID of the artwork.
  * @param artistName Optional name of the artist for image alt text.
  * @param artworkTitle Optional title of the artwork for image alt text.
+ * @param isDialogActive Optional boolean indicating if the dialog containing the carousel is active.
  */
 export function ArtworkCarousel({ 
   artworkId,
   artistName = "Unknown_Artist",
-  artworkTitle = "Untitled"
+  artworkTitle = "Untitled",
+  isDialogActive = false // Default to false if not provided
 }: ArtworkCarouselProps) {
   const {
     images,
@@ -30,10 +32,10 @@ export function ArtworkCarousel({
     loading,
     error,
     emblaRef,
-    emblaApi, // Keep emblaApi for direct access if needed for prev/next buttons
+    emblaApi,
     handleDotClick,
-    scrollPrev, // Use dedicated scrollPrev from hook
-    scrollNext, // Use dedicated scrollNext from hook
+    scrollPrev,
+    scrollNext,
   } = useArtworkCarousel(artworkId);
   
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export function ArtworkCarousel({
   // Keyboard navigation handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!carouselWrapperRef.current || !emblaApi) return;
+      if (!emblaApi) return; // Only need emblaApi here, carouselWrapperRef not strictly needed for this logic anymore
 
       const targetElement = event.target as HTMLElement;
       const isInputFocused =
@@ -65,12 +67,8 @@ export function ArtworkCarousel({
         return;
       }
       
-      // Check if the carousel wrapper itself or one of its children has focus.
-      const isCarouselFocusedOrContainsFocus =
-        document.activeElement === carouselWrapperRef.current ||
-        carouselWrapperRef.current.contains(document.activeElement);
-
-      if (isCarouselFocusedOrContainsFocus) {
+      // Check if the dialog is active and then process keys
+      if (isDialogActive) {
         if (event.key === "ArrowLeft") {
           event.preventDefault(); // Prevent browser scroll
           scrollPrev();
@@ -85,7 +83,7 @@ export function ArtworkCarousel({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [emblaApi, scrollPrev, scrollNext, carouselWrapperRef]); // carouselWrapperRef is stable
+  }, [emblaApi, scrollPrev, scrollNext, isDialogActive]); // Added isDialogActive to dependencies
 
   if (loading) {
     return (
@@ -114,15 +112,15 @@ export function ArtworkCarousel({
   return (
     <div 
       className="relative" 
-      ref={carouselWrapperRef} // Use the ref for the outer wrapper
-      tabIndex={0} // Make the carousel focusable
-      aria-roledescription="carousel" // ARIA role description
+      ref={carouselWrapperRef} // Keep ref for focusability and ARIA
+      tabIndex={0} // Keep for accessibility, allowing users to tab to it
+      aria-roledescription="carousel" 
     >
       <div className="w-full group">
         {/* Embla viewport */}
         <div className="overflow-hidden h-[600px]" ref={emblaRef}>
           {/* Embla container */}
-          <div className="flex h-full" aria-live="polite"> {/* Announce slide changes */}
+          <div className="flex h-full" aria-live="polite"> 
             {displayImages.map((image, index) => (
               <CarouselImage
                 key={image.id}
@@ -131,8 +129,7 @@ export function ArtworkCarousel({
                 totalImages={displayImages.length}
                 artistName={artistName}
                 artworkTitle={artworkTitle}
-                // ARIA props for each slide item
-                role="group" // As per WAI-ARIA practices for carousel items
+                role="group" 
                 ariaRoledescription="slide"
                 ariaLabel={`Slide ${index + 1} of ${displayImages.length}`}
               />
@@ -144,7 +141,7 @@ export function ArtworkCarousel({
           <>
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={() => emblaApi?.scrollPrev()} // Or use scrollPrev from hook
+                onClick={scrollPrev} // Use scrollPrev from hook directly
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Previous image"
                 type="button"
@@ -156,7 +153,7 @@ export function ArtworkCarousel({
             </div>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={() => emblaApi?.scrollNext()} // Or use scrollNext from hook
+                onClick={scrollNext} // Use scrollNext from hook directly
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Next image"
                 type="button"

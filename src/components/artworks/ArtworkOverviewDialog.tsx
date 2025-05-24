@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from "react"; // Added useEffect
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -119,7 +118,8 @@ export function ArtworkOverviewDialog({
               <ArtworkCarousel 
                 artworkId={artwork.id} 
                 artistName={artist?.full_name || "Unknown_Artist"} 
-                artworkTitle={artwork.title} 
+                artworkTitle={artwork.title}
+                isDialogActive={open} // Pass the dialog's open state here
               />
             </div>
             
