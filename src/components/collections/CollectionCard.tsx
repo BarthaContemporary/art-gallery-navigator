@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, MoreVertical, Link as LinkIcon } from "lucide-react";
 import { CollectionDetailsDialog } from "./CollectionDetailsDialog";
 import { EditCollectionDialog } from "./EditCollectionDialog";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +23,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,6 +36,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showManageWebsitesDialog, setShowManageWebsitesDialog] = useState(false);
   const { mutate: deleteCollection } = useDeleteCollection();
   const { isAdmin } = useAuth();
   
@@ -49,6 +50,13 @@ export function CollectionCard({ collection }: CollectionCardProps) {
     e.preventDefault();
     e.stopPropagation();
     setShowDeleteConfirm(true);
+  };
+
+  const handleManageWebsites = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toast.info(`Manage shareable websites for "${collection.name}" (dialog coming soon).`);
+    // setShowManageWebsitesDialog(true);
   };
 
   const confirmDelete = async () => {
@@ -113,11 +121,16 @@ export function CollectionCard({ collection }: CollectionCardProps) {
                     className="h-8 w-8"
                     onClick={preventPropagation}
                   >
-                    <Edit className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4" />
                     <span className="sr-only">Actions for {collection.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={preventPropagation}>
+                  <DropdownMenuItem onClick={handleManageWebsites}>
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Shareable Websites
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleEdit}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
@@ -157,6 +170,16 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         open={showEdit}
         onOpenChange={setShowEdit}
       />
+
+      {/* Placeholder for ShareableWebsiteDialog - to be implemented later
+      {showManageWebsitesDialog && isAdmin && (
+        <ShareableWebsiteDialog
+          collection={collection}
+          open={showManageWebsitesDialog}
+          onOpenChange={setShowManageWebsitesDialog}
+        />
+      )}
+      */}
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>

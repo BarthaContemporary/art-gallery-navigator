@@ -227,11 +227,32 @@ export function usePublicCollectionWebsite(slug: string | undefined) {
   });
 }
 
-// Helper function to generate a simple slug (replace with a more robust solution if needed)
+// Helper function to generate a robust slug
 const generateSlug = (name: string = "collection"): string => {
-  const randomString = Math.random().toString(36).substring(2, 9);
-  const baseSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  return `${baseSlug || 'website'}-${randomString}`;
+  const cleanedName = name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters except hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+
+  const timestamp = Date.now().toString(36); // Base36 timestamp
+
+  // Generate a longer random part by combining two Math.random() outputs
+  // Math.random().toString(36) is '0.' + ~11-12 base36 chars. We take substring(2).
+  const randomPart1 = Math.random().toString(36).substring(2, 10); // 8 chars
+  const randomPart2 = Math.random().toString(36).substring(2, 10); // 8 chars
+  // Ensure consistent length for the random string part, e.g., 12 characters
+  const randomString = `${randomPart1}${randomPart2}`.slice(0, 12);
+
+  const base = cleanedName || 'website';
+  
+  // Truncate base name if it's too long to keep overall slug length reasonable
+  const maxBaseNameLength = 50; // Max length for the name part of the slug
+  const truncatedBase = base.length > maxBaseNameLength ? base.substring(0, maxBaseNameLength) : base;
+
+  return `${truncatedBase}-${timestamp}-${randomString}`;
 };
 
 // Create a new collection website
