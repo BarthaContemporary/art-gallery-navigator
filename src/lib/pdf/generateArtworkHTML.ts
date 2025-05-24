@@ -1,15 +1,17 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
-import { cmToInchFraction } from "./unit-conversion";
 import { escapeHtml, preloadImage } from "./utils";
+import { artworkPdfStyles } from "./artwork-pdf-styles"; // New import
+import { generateArtworkDetails } from "./artwork-pdf-utils"; // New import
 
 /**
  * Generates complete HTML for artwork PDF
  */
 export async function generateArtworkHTML(
   artwork: Artwork,
-  useStationery: boolean = true // Default to true, effectively always on
+  useStationery: boolean = true 
 ): Promise<string> {
   console.log(`Generating HTML for artwork: ${artwork.title}, stationery: ${useStationery}`);
   
@@ -22,9 +24,21 @@ export async function generateArtworkHTML(
     }
   }
   
-  const artistName = escapeHtml(artwork.artist_name || 'Artist Name'); // Use artwork.artist_name
+  // Preload stationery background if used
+  if (useStationery) {
+    // Assuming the stationery image path is fixed or fetched from a config
+    // For consistency with collection PDF, let's use the explicit path
+    try {
+      await preloadImage("/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png");
+      console.log("Stationery image preloaded for artwork PDF");
+    } catch (error) {
+      console.error("Error preloading stationery image for artwork PDF:", error);
+    }
+  }
+  
+  const artistName = escapeHtml(artwork.artist_name || 'Artist Name'); 
     
-  const stationeryStyle = getStationeryStyle(useStationery); 
+  const stationerySpecificStyles = getStationeryStyle(useStationery); 
   const stationeryBackground = useStationery ? getStationeryBackgroundHTML() : ''; 
   
   const artworkImageHtml = artwork.image_url 
@@ -36,11 +50,15 @@ export async function generateArtworkHTML(
            crossorigin="anonymous"
          />
        </div>`
-    : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: flex-start; border: 1px dashed #ccc; margin-bottom: 1cm;"><p>No image available</p></div>'; // Adjusted for left alignment
+    : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: flex-start; border: 1px dashed #ccc; margin-bottom: 1cm;"><p style="padding-left: 1cm;">No image available</p></div>'; 
   
-  // Pass artistName to generateArtworkDetails for repetition
   const detailsHtml = generateArtworkDetails(artwork, artistName);
   
+  // Define content wrapper padding. This was part of the inline styles.
+  // If stationery is used, specific padding from stationeryStyles might apply,
+  // or a default can be set here. The original had 7cm top padding for content-wrapper.
+  const contentWrapperPadding = useStationery ? "padding: 7cm 2cm 2cm 2cm;" : "padding: 2cm;"; // Example default if no stationery
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -49,59 +67,19 @@ export async function generateArtworkHTML(
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>${escapeHtml(artwork.title || 'Artwork')}</title>
       <style>
-        /* Ensure A4 page size */
-        @page {
-          size: A4;
-          margin: 0; 
-        }
-
-        body {
-          width: 210mm;
-          height: 297mm;
-          margin: 0;
-          padding: 0;
-          position: relative; /* For stationery background */
-        }
-
+        /* Base styles common to all PDF types */
         ${baseStyles}
-        ${stationeryStyle}
         
-        img {
-          /* max-width: 100%; */ /* Removed to allow artwork-image to control its size within container */
-          height: auto;
-          display: block;
-          /* margin: 0 auto; */ /* Removed to allow left alignment */
-        }
+        /* Styles specific to artwork PDF */
+        ${artworkPdfStyles}
         
-        .artwork-image {
-          max-width: 100%; /* Constrain image width within its container */
-          max-height: 400px; 
-          object-fit: contain;
-          margin: 0 0 1cm 0; /* Align to left, provide bottom margin */
-        }
-        
-        .artwork-image-container {
-          text-align: left; /* Align content (image) to the left */
-          margin-bottom: 1cm;
-        }
+        /* Stationery styles if enabled (could override/complement artworkPdfStyles) */
+        ${stationerySpecificStyles}
 
-        .artist-name-header {
-          font-size: 18pt; /* Or adjust as needed */
-          font-weight: bold;
-          margin-bottom: 0.5cm; /* Or adjust */
-          text-align: left; 
-        }
-
-        .artwork-details p {
-          margin-bottom: 0.15cm; /* Reduced spacing between caption lines */
-          font-size: 10pt; 
-        }
-
+        /* Dynamic content wrapper style, especially padding */
         .content-wrapper {
-          padding: 7cm 2cm 2cm 2cm; /* Top, Right, Bottom, Left. Adjusted top padding */
-          position: relative;
-          z-index: 1;
-          box-sizing: border-box;
+          ${contentWrapperPadding}
+          /* Other .content-wrapper styles like position, z-index, box-sizing are in artworkPdfStyles */
         }
       </style>
     </head>
@@ -121,67 +99,8 @@ export async function generateArtworkHTML(
     </html>
   `;
   
-  console.log("HTML generation complete");
+  console.log("Artwork HTML generation complete");
   return html;
 }
 
-/**
- * Generates the details section for the artwork
- */
-function generateArtworkDetails(artwork: Artwork, artistName: string): string {
-  const artworkTitle = escapeHtml(artwork.title || 'Untitled');
-  const artworkYear = artwork.year ? `, ${artwork.year}` : '';
-  
-  const repeatedArtistNameHtml = `<p><strong>${artistName}</strong></p>`;
-  const titleYear = `<p><strong>${artworkTitle}${artworkYear}</strong></p>`;
-  const materials = artwork.materials 
-    ? `<p>${escapeHtml(artwork.materials)}</p>` 
-    : '';
-  
-  let editionInfo = '';
-  if (artwork.classification === 'Unique') {
-    editionInfo = '<p>Unique</p>';
-  } else if (artwork.edition_size) {
-    editionInfo = `<p>Edition of ${artwork.edition_size}${
-      artwork.artist_proofs ? ' + ' + artwork.artist_proofs + ' AP' : ''
-    }</p>`;
-  } else {
-    editionInfo = artwork.classification ? `<p>${escapeHtml(artwork.classification)}</p>` : '';
-  }
-  
-  const dimensionsCm = artwork.height && artwork.width 
-    ? `<p>${artwork.height} x ${artwork.width}${artwork.depth ? ' x ' + artwork.depth : ''} cm</p>` 
-    : '';
-  
-  const dimensionsInches = artwork.height && artwork.width 
-    ? `<p>${cmToInchFraction(artwork.height)} x ${cmToInchFraction(artwork.width)}${
-        artwork.depth ? ' x ' + cmToInchFraction(artwork.depth) : ''
-      }"</p>` 
-    : '';
-  
-  const mediumType = artwork.medium_type ? `<p>${escapeHtml(artwork.medium_type)}</p>` : '';
-
-  let priceHtml = '';
-  if (artwork.price !== null && artwork.currency) {
-    try {
-      const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
-      // Adjusted margin-top for one line space before price
-      priceHtml = `<p style="margin-top: 0.35cm;"><strong>Price: ${escapeHtml(formattedPrice)}</strong></p>`;
-    } catch (e) {
-      console.error("Error formatting price for PDF:", e);
-      // Fallback to simple display if formatting fails, with adjusted margin-top
-      priceHtml = `<p style="margin-top: 0.35cm;"><strong>Price: ${escapeHtml(String(artwork.price))} ${escapeHtml(artwork.currency)}</strong></p>`;
-    }
-  }
-
-  return `
-    ${repeatedArtistNameHtml}
-    ${titleYear}
-    ${materials}
-    ${editionInfo}
-    ${dimensionsCm}
-    ${dimensionsInches}
-    ${mediumType}
-    ${priceHtml}
-  `;
-}
+// The generateArtworkDetails function has been moved to ./artwork-pdf-utils.ts
