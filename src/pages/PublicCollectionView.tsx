@@ -1,14 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
 import { useFetchCollectionById } from '@/hooks/collections';
 import { useFetchArtworksByCollectionId } from '@/hooks/artworks';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert'; // Renamed AlertTitle to avoid conflict
-import { AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, Loader2, Info } from 'lucide-react';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
 import { ArtworkCard } from '@/components/artworks/ArtworkCard';
 
@@ -92,7 +89,7 @@ export default function PublicCollectionView() {
         </Alert>
       )}
       {collection && !isCollectionLoading && !collectionError && (
-        <div className="my-6 text-left"> {/* Spacing and alignment for collection details */}
+        <div className="my-6 text-left">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
             {collection.name}
           </h2>
@@ -104,59 +101,41 @@ export default function PublicCollectionView() {
         </div>
       )}
       
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader>
-          {/* Simplified CardHeader: Original CardTitle (website.name) is redundant with PageHeader. */}
-          {/* Collection loading/error/name display is now handled above this card. */}
-          <CardTitle>Website Details</CardTitle>
-          <CardDescription>Configuration and artworks for website: {website.slug}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold">Status:</h3>
-              <Badge variant={website.is_active ? 'default' : 'outline'} className={website.is_active ? 'bg-green-500 text-white' : ''}>
-                {website.is_active ? <CheckCircle className="mr-2 h-4 w-4" /> : null}
-                {website.is_active ? 'Active' : 'Inactive'}
-              </Badge>
-            </div>
-            <div>
-              <h3 className="font-semibold">Prices Visible:</h3>
-              <p>{website.show_prices ? 'Yes' : 'No'}</p>
-            </div>
-            
-            <div className="mt-6">
-              <h2 className="text-xl font-semibold mb-4">Artworks</h2>
-              {isArtworksLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-                  <p className="text-muted-foreground">Loading artworks...</p>
-                </div>
-              )}
-              {artworksError && (
-                <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
-                  <AlertTriangle className="h-5 w-5 inline mr-2" />
-                  Failed to load artworks: {artworksError.message}
-                </div>
-              )}
-              {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
-                  {artworks.map(artwork => (
-                    <ArtworkCard key={artwork.id} artwork={artwork} />
-                  ))}
-                </div>
-              )}
-              {!isArtworksLoading && !artworksError && (!artworks || artworks.length === 0) && (
-                 <div className="mt-6 p-4 border rounded-md bg-muted text-muted-foreground">
-                   <Info className="h-5 w-5 inline mr-2" />
-                   <p className="inline">No artworks found in this collection or they could not be loaded.</p>
-                 </div>
-              )}
-            </div>
+      {/* Artworks Section - moved out of the Card component */}
+      <div className="mt-8">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Artworks</h2>
+        {isArtworksLoading && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+            <p className="text-muted-foreground">Loading artworks...</p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+        {artworksError && (
+          <Alert variant="destructive" className="my-6">
+            <AlertTriangle className="h-5 w-5" />
+            <ShadcnAlertTitle>Error Loading Artworks</ShadcnAlertTitle>
+            <AlertDescription>
+              Failed to load artworks: {artworksError.message}
+            </AlertDescription>
+          </Alert>
+        )}
+        {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
+            {artworks.map(artwork => (
+              <ArtworkCard key={artwork.id} artwork={artwork} />
+            ))}
+          </div>
+        )}
+        {!isArtworksLoading && !artworksError && (!artworks || artworks.length === 0) && (
+           <div className="mt-6 p-6 border rounded-md bg-muted/50 text-muted-foreground flex flex-col items-center text-center">
+             <Info className="h-10 w-10 mb-3 text-primary" />
+             <p className="text-lg font-medium">No Artworks to Display</p>
+             <p className="text-sm">
+               No artworks found in this collection, or they could not be loaded at this time.
+             </p>
+           </div>
+        )}
+      </div>
     </div>
   );
 }
-
