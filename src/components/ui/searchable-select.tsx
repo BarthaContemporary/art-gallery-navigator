@@ -41,13 +41,13 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   
-  // Ensure options is always an array and handle undefined/null values safely
+  // Ensure options is always a valid array
   const safeOptions = Array.isArray(options) ? options : [];
   
   // Ensure value is always a string
   const safeValue = typeof value === 'string' ? value : '_none';
   
-  // Get the display value (safely)
+  // Get the selected option (safely)
   const selectedOption = safeOptions.find((option) => option.value === safeValue);
   
   return (
@@ -67,7 +67,6 @@ export function SearchableSelect({
             )}
             {selectedOption ? selectedOption.label : placeholder}
           </div>
-          {/* Removed the ChevronsUpDown icon here */}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">

@@ -14,17 +14,20 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   const { data: artists, isLoading } = useArtists();
 
   const artistOptions = useMemo(() => {
-    // Ensure we have artists data and it's an array
+    // Make sure we have artists data and it's an array
     if (!artists || !Array.isArray(artists)) {
       return [];
     }
     
-    // Filter out any invalid artist entries
+    // Filter out any invalid artist entries and create the options array
     return artists
       .filter(artist => 
         artist && 
+        typeof artist === 'object' &&
+        artist.id && 
         typeof artist.id === 'string' && 
         artist.id.trim() !== '' &&
+        artist.full_name &&
         typeof artist.full_name === 'string' &&
         artist.full_name.trim() !== ''
       )
