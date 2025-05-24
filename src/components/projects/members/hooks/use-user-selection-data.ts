@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,8 +13,8 @@ export interface UserData {
 }
 
 export function useUserSelectionData(
-  isOpen: boolean,
-  isDisabled: boolean,
+  isOpen: boolean, // isOpen is no longer used to enable the query, but kept for potential future use or clarity
+  isDisabled: boolean, // This is the parent-level disabled state
   currentMembers: ProjectMember[]
 ) {
   const { data: rawUsers = [], isLoading, isError: queryError, error } = useQuery<UserData[], Error>({
@@ -88,7 +87,9 @@ export function useUserSelectionData(
         return []; // Return empty array on critical error
       }
     },
-    enabled: isOpen && !isDisabled,
+    // Fetch data if the component is not disabled by its parent.
+    // `isOpen` is removed from this condition to allow fetching on mount.
+    enabled: !isDisabled, 
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     retry: 1, // Retry once on failure
   });
