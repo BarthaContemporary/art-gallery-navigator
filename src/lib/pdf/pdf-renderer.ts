@@ -96,7 +96,7 @@ export async function renderHTMLPageToImage({
     
     container.offsetHeight; // Force layout calculation
 
-    await waitForResources(container.querySelector('body')!); // Wait for resources within the body
+    await waitForResources(container); // Wait for resources within the container itself
 
     const canvas = await html2canvas(container, {
       scale: 2,
@@ -122,3 +122,4 @@ export async function renderHTMLPageToImage({
     document.body.removeChild(container);
   }
 }
+
