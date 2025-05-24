@@ -7,7 +7,7 @@ interface ArtworkPreviewProps {
 }
 
 export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
-  const artistName = artwork.artist_name || "Artist Name"; // Use artwork.artist_name
+  const artistName = artwork.artist_name || "Artist Name";
   
   let dimensionsInInches = '';
   if (artwork.height && artwork.width) {
@@ -29,25 +29,36 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
   } else {
     editionInfo = artwork.classification || '';
   }
+
+  let formattedPriceDisplay = null;
+  if (artwork.price !== null && artwork.currency) {
+    try {
+      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
+      formattedPriceDisplay = <p className="mt-2"><strong>Price: {formatted}</strong></p>;
+    } catch (e) {
+      console.error("Error formatting price for preview:", e);
+      formattedPriceDisplay = <p className="mt-2"><strong>Price: {artwork.price} {artwork.currency}</strong></p>;
+    }
+  }
   
   return (
-    <div className="space-y-3 font-sans text-sm">
+    <div className="space-y-3 font-sans text-sm text-left"> {/* Ensure text-left for container */}
       {/* Artist Name (Header) */}
       <h1 className="font-bold text-lg mb-3">{artistName}</h1>
 
       {/* Artwork Image */}
       {artwork.image_url && (
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-start mb-4"> {/* Align image container to the left */}
           <img 
             src={artwork.image_url} 
-            alt={artwork.title} 
-            className="max-h-64 w-auto object-contain border"
+            alt={artwork.title ?? "Artwork image"} 
+            className="max-h-64 w-auto object-contain border" // w-auto helps maintain aspect ratio
             crossOrigin="anonymous"
           />
         </div>
       )}
       {!artwork.image_url && (
-        <div className="flex justify-center items-center mb-4 h-64 bg-gray-100 border">
+        <div className="flex justify-start items-center mb-4 h-64 bg-gray-100 border"> {/* Align placeholder to left */}
            <span className="text-gray-400">No image available</span>
         </div>
       )}
@@ -72,7 +83,10 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
         )}
 
         {artwork.medium_type && <p>{artwork.medium_type}</p>}
+
+        {formattedPriceDisplay}
       </div>
     </div>
   );
 }
+

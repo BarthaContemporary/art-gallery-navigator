@@ -1,8 +1,8 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react"; // Added useEffect
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
-import { useLocation } from "@/hooks/use-location"; // For fetching location data
+import { useLocation } from "@/hooks/use-location";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
-import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
-import { ArtworkPDFPreview } from "../pdf/ArtworkPreview"; // Ensure this doesn't expect templateStyle
+// PDFPreviewDialog is no longer directly used for preview before generation
+// import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog"; 
+// ArtworkPDFPreview is also not directly used here anymore if PDFPreviewDialog is removed
+// import { ArtworkPDFPreview } from "../pdf/ArtworkPreview"; 
 import { ArtworkCarousel } from "./ArtworkCarousel";
 import { DialogHeaderActions } from "./overview/DialogHeaderActions";
 import { useFileOperations } from "./overview/useFileOperations";
@@ -33,9 +35,11 @@ export function ArtworkOverviewDialog({
   onOpenChange,
 }: ArtworkOverviewDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  // setPDFPreviewOpen is still needed because DialogHeaderActions (read-only) calls it.
+  // We will use its change to trigger PDF generation directly via useEffect.
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
-  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id); // Fetch location
+  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
   
   const {
     documents,
@@ -56,15 +60,13 @@ export function ArtworkOverviewDialog({
     onOpenChange(newOpen); 
   }, [onOpenChange]);
 
-  // Updated: templateStyle is removed. useStationery is passed (and will be true for artworks).
-  const handleGeneratePDF = (useStationery: boolean) => {
+  const handleGeneratePDF = useCallback(() => { // useStationery is always true for artworks
     if (isGenerating) return;
     
     setIsGenerating(true);
-    // createArtworkPDF now only takes artwork and useStationery
-    createArtworkPDF(artwork, useStationery)
+    createArtworkPDF(artwork, true) // Pass true for useStationery
       .then(() => {
-        // Success is handled by the PDF generator
+        // createArtworkPDF handles success toast
       })
       .catch((error) => {
         console.error("Error generating PDF:", error);
@@ -73,7 +75,17 @@ export function ArtworkOverviewDialog({
       .finally(() => {
         setIsGenerating(false);
       });
-  };
+  }, [artwork, isGenerating]); // Dependencies for useCallback
+
+  // useEffect to skip PDF preview dialog
+  useEffect(() => {
+    if (pdfPreviewOpen) {
+      // Directly generate PDF when `setPDFPreviewOpen(true)` is called by DialogHeaderActions
+      handleGeneratePDF();
+      setPDFPreviewOpen(false); // Reset immediately
+    }
+  }, [pdfPreviewOpen, handleGeneratePDF, setPDFPreviewOpen]);
+
 
   return (
     <>
@@ -89,7 +101,8 @@ export function ArtworkOverviewDialog({
               </DialogTitle>
               <DialogHeaderActions
                 isGenerating={isGenerating}
-                setPDFPreviewOpen={setPDFPreviewOpen}
+                // setPDFPreviewOpen will trigger the useEffect hook above
+                setPDFPreviewOpen={setPDFPreviewOpen} 
                 handleDownloadAllImages={handleDownloadAllImages}
                 documents={documents}
                 handleDownloadAllFiles={handleDownloadAllFiles}
@@ -126,15 +139,8 @@ export function ArtworkOverviewDialog({
         </DialogContent>
       </Dialog>
       
-      <PDFPreviewDialog
-        open={pdfPreviewOpen}
-        onOpenChange={setPDFPreviewOpen}
-        onApply={handleGeneratePDF} // handleGeneratePDF signature updated
-        title={artwork.title}
-        // ArtworkPDFPreview no longer needs templateStyle.
-        content={<ArtworkPDFPreview artwork={artwork} />} 
-        type="artwork"
-      />
+      {/* PDFPreviewDialog is no longer rendered here to skip the preview step */}
     </>
   );
 }
+

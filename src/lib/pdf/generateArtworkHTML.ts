@@ -1,3 +1,4 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
@@ -34,10 +35,9 @@ export async function generateArtworkHTML(
            alt="${escapeHtml(artwork.title || 'Artwork')}" 
            class="artwork-image"
            crossorigin="anonymous"
-           style="max-width: 100%; max-height: 400px; object-fit: contain; margin-bottom: 1cm;" 
          />
        </div>`
-    : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; margin-bottom: 1cm;"><p>No image available</p></div>';
+    : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: flex-start; border: 1px dashed #ccc; margin-bottom: 1cm;"><p>No image available</p></div>'; // Adjusted for left alignment
   
   // Pass artistName to generateArtworkDetails for repetition
   const detailsHtml = generateArtworkDetails(artwork, artistName);
@@ -68,21 +68,21 @@ export async function generateArtworkHTML(
         ${stationeryStyle}
         
         img {
-          max-width: 100%;
+          /* max-width: 100%; */ /* Removed to allow artwork-image to control its size within container */
           height: auto;
           display: block;
-          margin: 0 auto;
+          /* margin: 0 auto; */ /* Removed to allow left alignment */
         }
         
         .artwork-image {
-          max-width: 100%;
+          max-width: 100%; /* Constrain image width within its container */
           max-height: 400px; 
           object-fit: contain;
-          margin: 0 auto 1cm auto;
+          margin: 0 0 1cm 0; /* Align to left, provide bottom margin */
         }
         
         .artwork-image-container {
-          text-align: center;
+          text-align: left; /* Align content (image) to the left */
           margin-bottom: 1cm;
         }
 
@@ -99,7 +99,6 @@ export async function generateArtworkHTML(
         }
 
         .content-wrapper {
-          /* Applied padding-top: 7cm to move content down. */
           padding: 7cm 2cm 2cm 2cm; /* Top, Right, Bottom, Left. Adjusted top padding */
           position: relative;
           z-index: 1;
@@ -130,15 +129,12 @@ export async function generateArtworkHTML(
 /**
  * Generates the details section for the artwork
  */
-function generateArtworkDetails(artwork: Artwork, artistName: string): string { // Added artistName parameter
+function generateArtworkDetails(artwork: Artwork, artistName: string): string {
   const artworkTitle = escapeHtml(artwork.title || 'Untitled');
   const artworkYear = artwork.year ? `, ${artwork.year}` : '';
   
-  // Repeated Artist Name
   const repeatedArtistNameHtml = `<p><strong>${artistName}</strong></p>`;
-  
   const titleYear = `<p><strong>${artworkTitle}${artworkYear}</strong></p>`;
-
   const materials = artwork.materials 
     ? `<p>${escapeHtml(artwork.materials)}</p>` 
     : '';
@@ -166,6 +162,18 @@ function generateArtworkDetails(artwork: Artwork, artistName: string): string { 
   
   const mediumType = artwork.medium_type ? `<p>${escapeHtml(artwork.medium_type)}</p>` : '';
 
+  let priceHtml = '';
+  if (artwork.price !== null && artwork.currency) {
+    try {
+      const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
+      priceHtml = `<p style="margin-top: 0.5cm;"><strong>Price: ${escapeHtml(formattedPrice)}</strong></p>`;
+    } catch (e) {
+      console.error("Error formatting price for PDF:", e);
+      // Fallback to simple display if formatting fails
+      priceHtml = `<p style="margin-top: 0.5cm;"><strong>Price: ${escapeHtml(String(artwork.price))} ${escapeHtml(artwork.currency)}</strong></p>`;
+    }
+  }
+
   return `
     ${repeatedArtistNameHtml}
     ${titleYear}
@@ -174,5 +182,7 @@ function generateArtworkDetails(artwork: Artwork, artistName: string): string { 
     ${dimensionsCm}
     ${dimensionsInches}
     ${mediumType}
+    ${priceHtml}
   `;
 }
+
