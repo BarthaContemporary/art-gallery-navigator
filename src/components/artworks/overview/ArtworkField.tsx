@@ -18,7 +18,7 @@ export const ArtworkField: React.FC<ArtworkFieldProps> = ({ label, value, classN
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="text-sm mt-0.5">
         {multiline && typeof value === 'string' ? (
-          <pre className="whitespace-pre-wrap font-sans text-sm">{value}</pre>
+          <div className="whitespace-pre-wrap font-sans text-sm">{value}</div>
         ) : (
           value
         )}
@@ -26,3 +26,4 @@ export const ArtworkField: React.FC<ArtworkFieldProps> = ({ label, value, classN
     </div>
   );
 };
+
