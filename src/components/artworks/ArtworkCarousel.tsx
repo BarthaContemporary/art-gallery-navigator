@@ -3,7 +3,7 @@ import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react"; // Added useCallback
 
 interface ArtworkCarouselProps {
   artworkId: string;
@@ -11,6 +11,14 @@ interface ArtworkCarouselProps {
   artworkTitle?: string;
 }
 
+/**
+ * Renders an image carousel for an artwork, supporting mouse, touch, and keyboard navigation.
+ * Includes loading/error states, navigation dots, and an optional download menu.
+ *
+ * @param artworkId The ID of the artwork.
+ * @param artistName Optional name of the artist for image alt text.
+ * @param artworkTitle Optional title of the artwork for image alt text.
+ */
 export function ArtworkCarousel({ 
   artworkId,
   artistName = "Unknown_Artist",
@@ -22,25 +30,63 @@ export function ArtworkCarousel({
     loading,
     error,
     emblaRef,
-    emblaApi,
+    emblaApi, // Keep emblaApi for direct access if needed for prev/next buttons
     handleDotClick,
+    scrollPrev, // Use dedicated scrollPrev from hook
+    scrollNext, // Use dedicated scrollNext from hook
   } = useArtworkCarousel(artworkId);
   
-  const carouselHeightRef = useRef<HTMLDivElement>(null);
+  const carouselWrapperRef = useRef<HTMLDivElement>(null);
   
   // Re-initialize the carousel when images change
   useEffect(() => {
     if (emblaApi && images.length > 0) {
       const timer = setTimeout(() => {
         emblaApi.reInit();
-        // Ensure we're on the first slide when images change
         emblaApi.scrollTo(0);
-      }, 100); // Short delay for DOM update
+      }, 100);
       
       return () => clearTimeout(timer);
     }
-  }, [images, emblaApi]);
-  
+  }, [images, emblaApi]); // images.length could also be used if images array identity is stable
+
+  // Keyboard navigation handler
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!carouselWrapperRef.current || !emblaApi) return;
+
+      const targetElement = event.target as HTMLElement;
+      const isInputFocused =
+        targetElement.tagName === 'INPUT' ||
+        targetElement.tagName === 'TEXTAREA' ||
+        targetElement.isContentEditable;
+
+      if (isInputFocused) {
+        return;
+      }
+      
+      // Check if the carousel wrapper itself or one of its children has focus.
+      const isCarouselFocusedOrContainsFocus =
+        document.activeElement === carouselWrapperRef.current ||
+        carouselWrapperRef.current.contains(document.activeElement);
+
+      if (isCarouselFocusedOrContainsFocus) {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault(); // Prevent browser scroll
+          scrollPrev();
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault(); // Prevent browser scroll
+          scrollNext();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [emblaApi, scrollPrev, scrollNext, carouselWrapperRef]); // carouselWrapperRef is stable
+
   if (loading) {
     return (
       <div className="w-full h-[600px] flex items-center justify-center bg-secondary/20">
@@ -57,7 +103,6 @@ export function ArtworkCarousel({
     );
   }
   
-  // Ensure we have at least one image to display, even if it's a placeholder
   const displayImages = images.length > 0 ? images : [{ 
     id: "placeholder", 
     artwork_id: artworkId, 
@@ -67,10 +112,17 @@ export function ArtworkCarousel({
   }];
 
   return (
-    <div className="relative" ref={carouselHeightRef}>
+    <div 
+      className="relative" 
+      ref={carouselWrapperRef} // Use the ref for the outer wrapper
+      tabIndex={0} // Make the carousel focusable
+      aria-roledescription="carousel" // ARIA role description
+    >
       <div className="w-full group">
+        {/* Embla viewport */}
         <div className="overflow-hidden h-[600px]" ref={emblaRef}>
-          <div className="flex h-full">
+          {/* Embla container */}
+          <div className="flex h-full" aria-live="polite"> {/* Announce slide changes */}
             {displayImages.map((image, index) => (
               <CarouselImage
                 key={image.id}
@@ -79,6 +131,10 @@ export function ArtworkCarousel({
                 totalImages={displayImages.length}
                 artistName={artistName}
                 artworkTitle={artworkTitle}
+                // ARIA props for each slide item
+                role="group" // As per WAI-ARIA practices for carousel items
+                ariaRoledescription="slide"
+                ariaLabel={`Slide ${index + 1} of ${displayImages.length}`}
               />
             ))}
           </div>
@@ -88,7 +144,7 @@ export function ArtworkCarousel({
           <>
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={() => emblaApi?.scrollPrev()} 
+                onClick={() => emblaApi?.scrollPrev()} // Or use scrollPrev from hook
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Previous image"
                 type="button"
@@ -100,7 +156,7 @@ export function ArtworkCarousel({
             </div>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={() => emblaApi?.scrollNext()} 
+                onClick={() => emblaApi?.scrollNext()} // Or use scrollNext from hook
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Next image"
                 type="button"
@@ -110,7 +166,6 @@ export function ArtworkCarousel({
                 </svg>
               </button>
             </div>
-            {/* Add the download button that appears on hover */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <CarouselDownloadMenu 
                 images={displayImages}

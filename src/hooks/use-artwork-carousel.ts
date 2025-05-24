@@ -11,6 +11,13 @@ interface ArtworkImage {
   display_order: number;
 }
 
+/**
+ * Custom hook to manage the state and logic for an artwork image carousel.
+ * Fetches artwork images from Supabase and integrates with Embla Carousel for navigation.
+ *
+ * @param artworkId The ID of the artwork for which to display images.
+ * @returns An object containing carousel state, images, and control functions.
+ */
 export function useArtworkCarousel(artworkId: string) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -21,8 +28,8 @@ export function useArtworkCarousel(artworkId: string) {
     align: "start",
     slidesToScroll: 1,
     containScroll: "trimSnaps",
-    watchDrag: false, // Reduce unnecessary reloads during drag
-    skipSnaps: false // Make navigation smoother
+    watchDrag: false, 
+    skipSnaps: false 
   });
 
   const onSelect = useCallback(() => {
@@ -51,15 +58,14 @@ export function useArtworkCarousel(artworkId: string) {
         setLoading(true);
         setError(null);
         
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from("artwork_images")
           .select("*")
           .eq("artwork_id", artworkId)
           .order("display_order", { ascending: true });
           
-        if (error) throw error;
+        if (fetchError) throw fetchError;
         
-        // Only update state if the component is still mounted
         if (!controller.signal.aborted) {
           setImages(data as ArtworkImage[]);
         }
@@ -82,10 +88,8 @@ export function useArtworkCarousel(artworkId: string) {
     };
   }, [artworkId]);
   
-  // This effect is separate to avoid resetting the carousel when it's not needed
   useEffect(() => {
     if (emblaApi && images.length > 0) {
-      // Use setTimeout to allow the DOM to update before reinitializing
       const timer = setTimeout(() => {
         emblaApi.reInit();
       }, 50);
@@ -94,11 +98,29 @@ export function useArtworkCarousel(artworkId: string) {
     }
   }, [images.length, emblaApi]);
   
-  const handleDotClick = (index: number) => {
+  /**
+   * Scrolls the carousel to the specified slide index.
+   * @param index The index of the slide to scroll to.
+   */
+  const handleDotClick = useCallback((index: number) => {
     if (emblaApi) {
       emblaApi.scrollTo(index);
     }
-  };
+  }, [emblaApi]);
+
+  /**
+   * Scrolls to the previous slide in the carousel.
+   */
+  const scrollPrev = useCallback(() => {
+    emblaApi?.scrollPrev();
+  }, [emblaApi]);
+
+  /**
+   * Scrolls to the next slide in the carousel.
+   */
+  const scrollNext = useCallback(() => {
+    emblaApi?.scrollNext();
+  }, [emblaApi]);
 
   return {
     images,
@@ -106,8 +128,10 @@ export function useArtworkCarousel(artworkId: string) {
     loading,
     error,
     emblaRef,
-    emblaApi,
+    emblaApi, // Exposes the full Embla API if needed for more advanced interactions
     handleDotClick,
+    scrollPrev,
+    scrollNext,
   };
 }
 

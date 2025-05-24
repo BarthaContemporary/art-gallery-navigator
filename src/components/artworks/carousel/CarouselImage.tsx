@@ -9,14 +9,35 @@ interface CarouselImageProps {
   totalImages: number;
   artistName?: string;
   artworkTitle?: string;
+  // ARIA attributes for accessibility
+  role?: string;
+  ariaRoledescription?: string;
+  ariaLabel?: string;
 }
 
+/**
+ * Displays a single image within the carousel.
+ * Handles image loading, placeholder, caching, and displays skeleton loaders.
+ * Includes ARIA attributes for accessibility.
+ *
+ * @param imageUrl URL of the image to display.
+ * @param index Current index of this image in the carousel.
+ * @param totalImages Total number of images in the carousel.
+ * @param artistName Optional artist name for alt text.
+ * @param artworkTitle Optional artwork title for alt text.
+ * @param role ARIA role for the slide item.
+ * @param ariaRoledescription ARIA role description for the slide item.
+ * @param ariaLabel ARIA label for the slide item, e.g., "Slide 1 of 5".
+ */
 export const CarouselImage = memo(function CarouselImage({
   imageUrl,
   index,
   totalImages,
   artistName = "Unknown_Artist",
-  artworkTitle = "Untitled"
+  artworkTitle = "Untitled",
+  role,
+  ariaRoledescription,
+  ariaLabel
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
@@ -31,7 +52,6 @@ export const CarouselImage = memo(function CarouselImage({
   }, []);
   
   useEffect(() => {
-    // Only reset loading state if the image URL actually changes
     if (optimizedUrl !== imageUrl) {
       setIsLoading(true);
       setPlaceholderUrl(null);
@@ -43,7 +63,6 @@ export const CarouselImage = memo(function CarouselImage({
         return;
       }
       
-      // Check cache for placeholder
       const cachedImage = getCachedImage(imageUrl);
       if (cachedImage) {
         setPlaceholderUrl(cachedImage.dataUrl);
@@ -51,10 +70,9 @@ export const CarouselImage = memo(function CarouselImage({
       
       setOptimizedUrl(imageUrl);
     }
-  }, [imageUrl, getCachedImage]);
+  }, [imageUrl, getCachedImage, optimizedUrl]); // Added optimizedUrl to dependencies
   
-  // Cache the loaded image at medium res if not already cached
-  const cacheImageIfNeeded = () => {
+  const cacheImageIfNeeded = useCallback(() => { // Wrapped in useCallback
     if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
     imageLoadAttempted.current = true;
@@ -65,18 +83,16 @@ export const CarouselImage = memo(function CarouselImage({
       img.onload = () => {
         if (!mountedRef.current) return;
         
-        // Create a higher quality version for cache
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        const maxDimension = 1200; // reduced from 2400px for better performance
+        const maxDimension = 1200;
         const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Using a lower JPEG quality for better performance
           const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setCachedImage(optimizedUrl, mediumResDataUrl);
         }
@@ -85,15 +101,19 @@ export const CarouselImage = memo(function CarouselImage({
     } catch (error) {
       console.error("Failed to cache image:", error);
     }
-  };
+  }, [optimizedUrl, setCachedImage]); // Added dependencies
 
   return (
-    <div className="relative w-full flex-[0_0_100%]">
+    <div 
+      className="relative w-full flex-[0_0_100%]"
+      role={role}
+      aria-roledescription={ariaRoledescription}
+      aria-label={ariaLabel}
+    >
       {isLoading && (
         <Skeleton className="absolute inset-0" />
       )}
       
-      {/* Show cached placeholder while loading */}
       {placeholderUrl && isLoading && (
         <img 
           src={placeholderUrl}
@@ -129,3 +149,4 @@ export const CarouselImage = memo(function CarouselImage({
     </div>
   );
 });
+
