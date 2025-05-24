@@ -10,6 +10,7 @@ interface EnhancedHTMLToPDFOptions {
   onProgress?: (message: string, percentage?: number) => void;
   addPageNumbers?: boolean;
   addTimeStamp?: boolean;
+  forceSplitPages?: boolean;
 }
 
 /**
@@ -22,7 +23,8 @@ export async function convertEnhancedHTMLToPDF({
   orientation = 'portrait',
   onProgress = () => {},
   addPageNumbers = false,
-  addTimeStamp = false
+  addTimeStamp = false,
+  forceSplitPages = false
 }: EnhancedHTMLToPDFOptions): Promise<Blob> {
   console.log("Starting enhanced PDF conversion process");
   
@@ -47,7 +49,8 @@ export async function convertEnhancedHTMLToPDF({
       fileName,
       pageSize,
       orientation,
-      onProgress
+      onProgress,
+      forceSplitPages
     });
     
   } catch (error) {

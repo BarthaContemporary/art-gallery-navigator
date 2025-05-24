@@ -23,6 +23,11 @@ export async function createCollectionPDF(
     
     const fileName = `${collection.name || 'Collection'}.pdf`;
     
+    // Add debug logging to track HTML content
+    console.log("Generated collection HTML with artworks, checking for page-break markers");
+    console.log("HTML contains page-break-before:", html.includes('page-break-before'));
+    console.log("HTML contains page-break-after:", html.includes('page-break-after'));
+    
     // Generate PDF from HTML
     const pdfUrl = await generatePDFFromHTML({
       html,
@@ -33,7 +38,8 @@ export async function createCollectionPDF(
       description: `PDF for collection: ${collection.name}`,
       addPageNumbers: options?.addPageNumbers || false,
       addTimeStamp: options?.addTimeStamp || true,
-      orientation: options?.orientation || 'portrait'
+      orientation: options?.orientation || 'portrait',
+      forceSplitPages: true  // Force the PDF generator to look for page breaks
     });
     
     return pdfUrl;

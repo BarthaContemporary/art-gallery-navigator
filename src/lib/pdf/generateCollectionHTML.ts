@@ -122,6 +122,37 @@ export async function generateCollectionHTML(
           z-index: 1;
           box-sizing: border-box;
         }
+        
+        /* Page break styles */
+        .page-break-before {
+          page-break-before: always;
+          break-before: page;
+        }
+        
+        .page-break-after {
+          page-break-after: always;
+          break-after: page;
+        }
+        
+        .avoid-break {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        
+        /* First page doesn't have page break */
+        .first-artwork {
+          page-break-before: auto;
+          break-before: auto;
+        }
+        
+        /* Subsequent artwork pages start on their own page */
+        .artwork-page {
+          page-break-before: always;
+          break-before: page;
+          height: auto;
+          position: relative;
+          padding-top: 3cm; /* Add space for header info */
+        }
       </style>
     </head>
     <body>

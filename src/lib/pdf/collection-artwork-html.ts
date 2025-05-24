@@ -43,11 +43,16 @@ export function generateArtworkHTML(
   }
   
   // First artwork includes collection info, others are standalone pages
-  const pageClass = isFirstArtwork ? 'first-artwork' : 'artwork-page';
+  const pageClass = isFirstArtwork ? 'first-artwork' : 'artwork-page page-break-before';
   const includeCollectionInfo = isFirstArtwork ? collectionHeaderHTML : '';
   
+  // Use more explicit page break styling for non-first artworks
+  const pageBreakStyle = !isFirstArtwork 
+    ? 'style="page-break-before: always; break-before: page;"' 
+    : '';
+  
   return `
-    <div class="${pageClass}" ${!isFirstArtwork ? 'style="page-break-before: always;"' : ''}>
+    <div class="${pageClass}" ${pageBreakStyle}>
       ${includeCollectionInfo}
       
       <div class="artist-name-header">${escapeHtml(artistName)}</div>

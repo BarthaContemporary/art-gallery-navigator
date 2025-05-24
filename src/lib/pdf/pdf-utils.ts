@@ -15,6 +15,7 @@ interface PDFGenerationOptions {
   orientation?: 'portrait' | 'landscape';
   addPageNumbers?: boolean;
   addTimeStamp?: boolean;
+  forceSplitPages?: boolean;
 }
 
 export async function generatePDFFromHTML({
@@ -27,7 +28,8 @@ export async function generatePDFFromHTML({
   pageSize = 'a4',
   orientation = 'portrait',
   addPageNumbers = false,
-  addTimeStamp = false
+  addTimeStamp = false,
+  forceSplitPages = false
 }: PDFGenerationOptions): Promise<string> {
   console.log(`Generating PDF for ${entityType} "${entityTitle}"`);
   
@@ -61,6 +63,7 @@ export async function generatePDFFromHTML({
       orientation,
       addPageNumbers,
       addTimeStamp,
+      forceSplitPages,
       onProgress: updateProgress
     });
     

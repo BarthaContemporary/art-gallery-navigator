@@ -334,20 +334,23 @@ export async function convertHTMLToMultiPagePDF({
   fileName,
   onProgress = () => {},
   pageSize = 'a4',
-  orientation = 'portrait'
+  orientation = 'portrait',
+  forceSplitPages = false
 }: {
   html: string;
   fileName: string;
   pageSize?: 'a4' | 'letter' | 'legal';
   orientation?: 'portrait' | 'landscape';
   onProgress?: (message: string, percentage?: number) => void;
+  forceSplitPages?: boolean;
 }): Promise<Blob> {
   onProgress("Preparing document...");
   console.log("Starting multi-page PDF conversion process");
   
   try {
     // Extract page content based on page-break markers
-    const pageContents = splitHTMLIntoPages(html);
+    const pageContents = splitHTMLIntoPages(html, forceSplitPages);
+    console.log(`Split HTML into ${pageContents.length} pages`);
     
     onProgress("Setting up pages...", 10);
     
@@ -377,53 +380,109 @@ export async function convertHTMLToMultiPagePDF({
 /**
  * Splits HTML into separate pages based on page-break markers
  */
-function splitHTMLIntoPages(html: string): string[] {
-  // If no explicit page breaks, return the whole HTML as a single page
-  if (!html.includes('page-break-before') && !html.includes('page-break-after')) {
+function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): string[] {
+  // Check if we should look for page breaks
+  if (!forceSplitPages && !html.includes('page-break-before') && !html.includes('page-break-after') && 
+      !html.includes('break-before') && !html.includes('break-after')) {
+    console.log("No page breaks found in HTML, using as single page");
     return [html];
   }
   
+  console.log("Attempting to split HTML into multiple pages");
+  
+  // Create a temporary container to analyze the HTML
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
   const pages: string[] = [];
+  let currentPageContent = '';
   let currentPage = document.createElement('div');
-  let pageContent = '';
   
-  // Process all top-level elements
-  Array.from(tempDiv.children).forEach((element) => {
-    const style = window.getComputedStyle(element);
-    const hasPageBreakBefore = element.hasAttribute('style') && 
-                             element.getAttribute('style')?.includes('page-break-before');
+  // Process all elements in the body
+  const bodyContent = tempDiv.querySelector('body');
+  if (!bodyContent) {
+    console.warn("Could not find body element in HTML");
+    return [html];
+  }
+  
+  // Find content wrapper (specific to our templates)
+  const contentWrapper = bodyContent.querySelector('.content-wrapper') || bodyContent;
+  
+  // Process all child elements of the content wrapper
+  Array.from(contentWrapper.children).forEach((element, index) => {
+    // Check for page break styles
+    const hasPageBreakBefore = 
+      element.classList.contains('page-break-before') || 
+      element.style.pageBreakBefore === 'always' ||
+      element.style.breakBefore === 'page' ||
+      (element.getAttribute('style') || '').includes('page-break-before') ||
+      (element.getAttribute('style') || '').includes('break-before');
     
-    // Start a new page if needed
-    if (hasPageBreakBefore && pageContent) {
-      pages.push(pageContent);
-      pageContent = '';
+    // For the first element, we don't need a page break
+    if (hasPageBreakBefore && index > 0) {
+      // Save the current page and start a new one
+      if (currentPageContent) {
+        pages.push(currentPageContent);
+        currentPageContent = '';
+        currentPage = document.createElement('div');
+      }
     }
     
-    // Add element to current page
-    pageContent += element.outerHTML;
+    // Add this element to the current page
+    currentPage.appendChild(element.cloneNode(true));
+    currentPageContent = currentPage.innerHTML;
     
     // Check for page break after
-    const hasPageBreakAfter = element.hasAttribute('style') && 
-                            element.getAttribute('style')?.includes('page-break-after');
+    const hasPageBreakAfter = 
+      element.classList.contains('page-break-after') || 
+      element.style.pageBreakAfter === 'always' ||
+      element.style.breakAfter === 'page' ||
+      (element.getAttribute('style') || '').includes('page-break-after') ||
+      (element.getAttribute('style') || '').includes('break-after');
     
     if (hasPageBreakAfter) {
-      pages.push(pageContent);
-      pageContent = '';
+      // Save the current page and start a new one
+      pages.push(currentPageContent);
+      currentPageContent = '';
+      currentPage = document.createElement('div');
     }
   });
   
-  // Add the last page if not empty
-  if (pageContent) {
-    pages.push(pageContent);
+  // Add the last page if there's content
+  if (currentPageContent) {
+    pages.push(currentPageContent);
   }
   
-  // If no pages were created (no page breaks found), use the entire HTML
+  // If we couldn't split the content, use the original HTML
   if (pages.length === 0) {
-    pages.push(html);
+    console.warn("Could not split HTML into pages, using as single page");
+    return [html];
   }
   
-  return pages;
+  console.log(`Successfully split HTML into ${pages.length} pages`);
+  
+  // Wrap each page content in proper HTML structure
+  return pages.map(pageContent => {
+    // Extract the head content for styles
+    const headMatch = html.match(/<head>([\s\S]*?)<\/head>/i);
+    const headContent = headMatch ? headMatch[1] : '';
+    
+    // Create a complete HTML document for each page
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        ${headContent}
+      </head>
+      <body>
+        ${bodyContent.innerHTML.includes('stationery-background') ? 
+          bodyContent.querySelector('.stationery-background')?.outerHTML || '' : ''}
+        <div class="content-wrapper">
+          ${pageContent}
+        </div>
+      </body>
+      </html>
+    `;
+  });
 }
+
