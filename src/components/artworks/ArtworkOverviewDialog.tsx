@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -11,7 +12,7 @@ import {
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
 import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
-import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
+import { ArtworkPDFPreview } from "../pdf/ArtworkPreview"; // Ensure this doesn't expect templateStyle
 import { ArtworkCarousel } from "./ArtworkCarousel";
 import { DialogHeaderActions } from "./overview/DialogHeaderActions";
 import { useFileOperations } from "./overview/useFileOperations";
@@ -52,14 +53,16 @@ export function ArtworkOverviewDialog({
   }, []);
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
-    onOpenChange(newOpen); // Simplified, as Radix handles focus and state well
+    onOpenChange(newOpen); 
   }, [onOpenChange]);
 
-  const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
+  // Updated: templateStyle is removed. useStationery is passed (and will be true for artworks).
+  const handleGeneratePDF = (useStationery: boolean) => {
     if (isGenerating) return;
     
     setIsGenerating(true);
-    createArtworkPDF(artwork, templateStyle, useStationery)
+    // createArtworkPDF now only takes artwork and useStationery
+    createArtworkPDF(artwork, useStationery)
       .then(() => {
         // Success is handled by the PDF generator
       })
@@ -76,15 +79,14 @@ export function ArtworkOverviewDialog({
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent 
-          className="max-w-4xl w-[90vw] md:w-full max-h-[90vh] overflow-hidden flex flex-col p-0" // Changed padding to p-0
-          onClick={handleDialogInteraction} // Keep this to prevent card click through if dialog is nested weirdly
+          className="max-w-4xl w-[90vw] md:w-full max-h-[90vh] overflow-hidden flex flex-col p-0"
+          onClick={handleDialogInteraction}
         >
-          <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b"> {/* Added padding, sticky, bg, border */}
-            <div className="flex justify-between items-center"> {/* Removed 'relative' from here */}
-              <DialogTitle className="text-2xl font-semibold"> {/* Adjusted font-bold to font-semibold */}
+          <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b">
+            <div className="flex justify-between items-center">
+              <DialogTitle className="text-2xl font-semibold">
                 {artwork.title}
               </DialogTitle>
-              {/* Ensure DialogHeaderActions is positioned by its parent or flex layout */}
               <DialogHeaderActions
                 isGenerating={isGenerating}
                 setPDFPreviewOpen={setPDFPreviewOpen}
@@ -99,8 +101,8 @@ export function ArtworkOverviewDialog({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto"> {/* Ensure this part scrolls */}
-            <div className="mb-6"> {/* Margin for carousel */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="mb-6">
               <ArtworkCarousel 
                 artworkId={artwork.id} 
                 artistName={artist?.full_name || "Unknown_Artist"} 
@@ -108,7 +110,7 @@ export function ArtworkOverviewDialog({
               />
             </div>
             
-            <div className="px-6 pb-6 space-y-6"> {/* Padding for content area, space between sections */}
+            <div className="px-6 pb-6 space-y-6">
               <ArtworkOverviewPrimaryInfo 
                 artwork={artwork} 
                 artist={artist} 
@@ -127,9 +129,10 @@ export function ArtworkOverviewDialog({
       <PDFPreviewDialog
         open={pdfPreviewOpen}
         onOpenChange={setPDFPreviewOpen}
-        onApply={handleGeneratePDF}
+        onApply={handleGeneratePDF} // handleGeneratePDF signature updated
         title={artwork.title}
-        content={<ArtworkPDFPreview artwork={artwork} templateStyle="basic" />}
+        // ArtworkPDFPreview no longer needs templateStyle.
+        content={<ArtworkPDFPreview artwork={artwork} />} 
         type="artwork"
       />
     </>

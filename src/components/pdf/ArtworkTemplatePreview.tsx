@@ -2,71 +2,49 @@
 import React from "react";
 
 interface ArtworkTemplatePreviewProps {
-  useStationery: boolean;
-  template: string;
-  title: string;
+  // useStationery is now always true implicitly
+  // template is no longer needed
+  title: string; // This likely represents artwork title for the preview
 }
 
 export function ArtworkTemplatePreview({ 
-  useStationery, 
-  template,
   title 
 }: ArtworkTemplatePreviewProps) {
+  // Dummy data for preview structure
+  const artistName = "Artist Name"; // Placeholder
+  const artworkTitle = title || "Artwork Title";
+  const year = "2023"; // Placeholder
+  const materials = "Oil on canvas"; // Placeholder
+  const editionInfo = "Edition of 10 + 2 AP"; // Placeholder
+  const dimensionsCm = "120 x 80 cm"; // Placeholder
+  const dimensionsIn = "47 1/4 x 31 1/2\""; // Placeholder
+  const mediumType = "Painting"; // Placeholder
+
   return (
     <div className="h-full overflow-auto font-sans relative">
-      <div className="py-10 px-8">
-        {/* Preview header based on template */}
-        {template === "classic" && (
-          <div className="border-b-2 border-primary pb-4 mb-6">
-            <h2 className="text-3xl font-bold text-primary">{title}</h2>
-          </div>
-        )}
-        
-        {template === "modern" && (
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-light">{title}</h2>
-            <div className="w-24 h-1 bg-primary"></div>
-          </div>
-        )}
-        
-        {template === "minimal" && (
-          <h2 className="text-2xl uppercase tracking-widest mb-8">{title}</h2>
-        )}
+      {/* Stationery implies content is already pushed down by parent styling (padding on content-wrapper) */}
+      {/* The parent div in PDFPreviewDocument handles the overall paper size and stationery background */}
+      
+      <div className="py-2 px-2"> {/* Minimal padding within the content area itself */}
+        {/* Artist Name Header */}
+        <div className="mb-4 text-left">
+          <h2 className="text-xl font-bold">{artistName}</h2>
+        </div>
         
         {/* Artwork image placeholder */}
         <div className="mb-6 text-center">
-          <div className="w-full h-48 bg-gray-100 border flex items-center justify-center mb-6">
+          <div className="w-full h-64 bg-gray-100 border flex items-center justify-center mb-4">
             <span className="text-gray-400">Artwork Image</span>
           </div>
           
-          <div className="text-left">
-            <p className="font-bold mb-1">Artist Name</p>
-            <p className="italic mb-4">{title}, 2023</p>
-            <p className="mb-2">Oil on canvas</p>
-            <p className="mb-2">Edition of 10 + 2 AP</p>
-            <p className="mb-2">120 x 80 cm</p>
-            <p className="mb-2">47 1/4 x 31 1/2"</p>
-            
-            {/* Additional info based on template */}
-            {template === "modern" && (
-              <p className="font-semibold mt-6">£ 5,000</p>
-            )}
-            
-            {template === "minimal" && (
-              <>
-                <p className="font-semibold mt-6">£ 5,000</p>
-                
-                <div className="mt-8">
-                  <h3 className="font-semibold text-lg mb-2">Story</h3>
-                  <p className="text-sm">Sample story text about the artwork and its creation.</p>
-                </div>
-                
-                <div className="mt-6">
-                  <h3 className="font-semibold text-lg mb-2">Provenance</h3>
-                  <p className="text-sm">Gallery collection, London</p>
-                </div>
-              </>
-            )}
+          {/* Details Below Image */}
+          <div className="text-left text-sm space-y-1">
+            <p><strong>{artworkTitle}{year ? `, ${year}` : ''}</strong></p>
+            <p>{materials}</p>
+            <p>{editionInfo}</p>
+            <p>{dimensionsCm}</p>
+            <p>{dimensionsIn}</p>
+            <p>{mediumType}</p>
           </div>
         </div>
       </div>

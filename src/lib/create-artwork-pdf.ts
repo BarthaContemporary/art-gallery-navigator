@@ -4,14 +4,14 @@ import { generatePDFFromHTML } from "./pdf/pdf-utils";
 import { generateArtworkHTML } from './pdf/generateArtworkHTML';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { preloadImage } from "./pdf/utils";
+import { preloadImage } from "./pdf/utils"; // preloadStationeryImage is in stationery-utils
 
 export async function createArtworkPDF(
   artwork: Artwork,
-  templateStyle: string = 'classic',
-  useStationery: boolean = false
+  // templateStyle: string = 'classic', // Removed templateStyle
+  useStationery: boolean = true // Retain useStationery, will be true for artworks
 ): Promise<string> {
-  console.log(`Creating PDF for artwork: ${artwork.title} with template: ${templateStyle} useStationery: ${useStationery}`);
+  console.log(`Creating PDF for artwork: ${artwork.title} useStationery: ${useStationery}`);
   
   // Fetch artist name if not already available
   let artworkWithArtistName = { ...artwork };
@@ -30,7 +30,7 @@ export async function createArtworkPDF(
       }
     } catch (error) {
       console.error("Error fetching artist name:", error);
-      toast.error("Couldn't retrieve artist information");
+      // toast.error("Couldn't retrieve artist information"); // Consider if this toast is too aggressive
     }
   }
   
@@ -47,8 +47,6 @@ export async function createArtworkPDF(
   // Log and preload image URL
   if (artwork.image_url) {
     console.log("Artwork has an image URL:", artwork.image_url);
-    
-    // Preload the image
     try {
       await preloadImage(artwork.image_url);
       console.log("Successfully preloaded artwork image");
@@ -61,7 +59,8 @@ export async function createArtworkPDF(
   
   // Generate HTML content (now async)
   console.log("Generating HTML content");
-  const htmlContent = await generateArtworkHTML(artworkWithArtistName, templateStyle, useStationery);
+  // generateArtworkHTML now only takes artwork and useStationery
+  const htmlContent = await generateArtworkHTML(artworkWithArtistName, useStationery); 
   
   // Generate and return PDF
   return generatePDFFromHTML({

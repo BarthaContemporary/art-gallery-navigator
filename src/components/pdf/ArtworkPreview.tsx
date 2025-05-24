@@ -4,14 +4,12 @@ import { cmToInchFraction } from "@/lib/pdf/unit-conversion";
 
 interface ArtworkPreviewProps {
   artwork: Artwork;
-  templateStyle: string;
+  // templateStyle is no longer needed
 }
 
-export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProps) {
-  // Get artist name from the artwork or default
+export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
   const artistName = artwork.artist_name || "Artist Name";
   
-  // Calculate dimensions in inches if height, width, depth are available
   let dimensionsInInches = '';
   if (artwork.height && artwork.width) {
     const heightInInches = cmToInchFraction(artwork.height);
@@ -21,96 +19,62 @@ export function ArtworkPDFPreview({ artwork, templateStyle }: ArtworkPreviewProp
       : `${heightInInches} x ${widthInInches}"`;
   }
   
-  // Calculate frame dimensions in inches if they exist
-  let frameDimensionsInInches = '';
-  if (artwork.is_framed && artwork.frame_height && artwork.frame_width) {
-    const frameHeightInInches = cmToInchFraction(artwork.frame_height);
-    const frameWidthInInches = cmToInchFraction(artwork.frame_width);
-    frameDimensionsInInches = artwork.frame_depth 
-      ? `${frameHeightInInches} x ${frameWidthInInches} x ${cmToInchFraction(artwork.frame_depth)}"` 
-      : `${frameHeightInInches} x ${frameWidthInInches}"`;
-  }
-  
-  // Format edition information
   let editionInfo = '';
-  if (artwork.edition_size && artwork.edition_size > 1) {
+  if (artwork.classification === 'Unique') {
+    editionInfo = 'Unique';
+  } else if (artwork.edition_size) {
     editionInfo = `Edition of ${artwork.edition_size}`;
     if (artwork.artist_proofs) {
       editionInfo += ` + ${artwork.artist_proofs} AP`;
     }
   } else {
-    editionInfo = 'Unique';
+    // Fallback for non-unique items without edition size
+    editionInfo = artwork.classification || '';
   }
   
   return (
-    <div className="space-y-4 font-sans">
+    <div className="space-y-3 font-sans text-sm p-4"> {/* Added padding for standalone preview */}
+      {/* Artist Name (Header) */}
+      <h1 className="font-bold text-lg mb-3">{artistName}</h1>
+
+      {/* Artwork Image */}
       {artwork.image_url && (
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4">
           <img 
             src={artwork.image_url} 
             alt={artwork.title} 
-            className="max-h-64 w-auto object-contain"
-            style={{ border: '1px solid #eee' }}
+            className="max-h-64 w-auto object-contain border"
             crossOrigin="anonymous"
           />
         </div>
       )}
-      
-      <h2 className="font-bold text-lg">{artistName}</h2>
-      <h3 className="italic text-md">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</h3>
-      
-      {artwork.materials && <p>{artwork.materials}</p>}
-      
-      <p>{editionInfo}</p>
-      
-      {artwork.dimensions && (
-        <p>{artwork.dimensions}</p>
+      {!artwork.image_url && (
+        <div className="flex justify-center items-center mb-4 h-64 bg-gray-100 border">
+           <span className="text-gray-400">No image available</span>
+        </div>
       )}
       
-      {artwork.height && artwork.width && (
-        <p>{artwork.height} x {artwork.width}{artwork.depth ? ` x ${artwork.depth}` : ''} cm</p>
-      )}
-      
-      {dimensionsInInches && (
-        <p>{dimensionsInInches}</p>
-      )}
-      
-      {artwork.is_framed && artwork.frame_height && artwork.frame_width && (
-        <p>Frame: {artwork.frame_height} x {artwork.frame_width}{artwork.frame_depth ? ` x ${artwork.frame_depth}` : ''} cm</p>
-      )}
-      
-      {frameDimensionsInInches && (
-        <p>Frame: {frameDimensionsInInches}</p>
-      )}
-      
-      {(templateStyle === 'modern' || templateStyle === 'minimal') && artwork.price && (
-        <p className="mt-4 font-semibold">{artwork.currency || '£'} {artwork.price.toLocaleString()}</p>
-      )}
-      
-      {templateStyle === 'minimal' && (
-        <>
-          {artwork.story && (
-            <div className="mt-6">
-              <h3 className="font-semibold text-lg mb-2">Story</h3>
-              <p className="text-sm">{artwork.story}</p>
-            </div>
-          )}
-          
-          {artwork.provenance && (
-            <div className="mt-6">
-              <h3 className="font-semibold text-lg mb-2">Provenance</h3>
-              <p className="text-sm">{artwork.provenance}</p>
-            </div>
-          )}
-          
-          {artwork.exhibition_history && (
-            <div className="mt-6">
-              <h3 className="font-semibold text-lg mb-2">Exhibition History</h3>
-              <p className="text-sm">{artwork.exhibition_history}</p>
-            </div>
-          )}
-        </>
-      )}
+      {/* Details Below Image */}
+      <div className="space-y-1">
+        <p><strong>{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</strong></p>
+        
+        {artwork.materials && <p>{artwork.materials}</p>}
+        
+        {editionInfo && <p>{editionInfo}</p>}
+        
+        {artwork.height && artwork.width && (
+          <p>{artwork.height} x {artwork.width}{artwork.depth ? ` x ${artwork.depth}` : ''} cm</p>
+        )}
+        
+        {dimensionsInInches && (
+          <p>{dimensionsInInches}</p>
+        )}
+
+        {artwork.medium_type && <p>{artwork.medium_type}</p>}
+      </div>
+
+      {/* Price, Story, Provenance, Exhibition History are removed from this preview as per simplification */}
+      {/* If they need to be re-added for some reason, it would be here. */}
     </div>
   );
 }

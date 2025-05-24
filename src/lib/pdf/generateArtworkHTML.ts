@@ -3,17 +3,17 @@ import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
 import { cmToInchFraction } from "./unit-conversion";
-import { escapeHtml, createImageTag, preloadImage } from "./utils";
+import { escapeHtml, preloadImage } from "./utils";
 
 /**
  * Generates complete HTML for artwork PDF
  */
 export async function generateArtworkHTML(
   artwork: Artwork,
-  templateStyle: string = "classic",
-  useStationery: boolean = false
+  // templateStyle: string = "classic", // Removed: templateStyle is no longer used
+  useStationery: boolean = true // Default to true, effectively always on
 ): Promise<string> {
-  console.log(`Generating HTML for artwork: ${artwork.title}, template: ${templateStyle}, stationery: ${useStationery}`);
+  console.log(`Generating HTML for artwork: ${artwork.title}, stationery: ${useStationery}`);
   
   // Preload artwork image if available
   if (artwork.image_url) {
@@ -27,14 +27,12 @@ export async function generateArtworkHTML(
   
   // Format artwork information safely
   const artistName = escapeHtml(artwork.artist_name || 'Artist Name');
-  const artworkTitle = escapeHtml(artwork.title || 'Untitled');
-  const artworkYear = artwork.year ? `, ${artwork.year}` : '';
-  
+    
   // Get styles
-  const stationeryStyle = getStationeryStyle(useStationery);
+  const stationeryStyle = getStationeryStyle(useStationery); // useStationery will always be true
   
   // Generate stationery background HTML if needed
-  const stationeryBackground = useStationery ? getStationeryBackgroundHTML() : '';
+  const stationeryBackground = useStationery ? getStationeryBackgroundHTML() : ''; // Will always generate
   
   // Generate artwork image HTML if available
   const artworkImageHtml = artwork.image_url 
@@ -44,19 +42,13 @@ export async function generateArtworkHTML(
            alt="${escapeHtml(artwork.title || 'Artwork')}" 
            class="artwork-image"
            crossorigin="anonymous"
-           style="max-width: 100%; max-height: 40%; object-fit: contain; margin-bottom: 1cm;"
+           style="max-width: 100%; max-height: 400px; object-fit: contain; margin-bottom: 1cm;" 
          />
        </div>`
-    : '';
+    : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; margin-bottom: 1cm;"><p>No image available</p></div>';
   
   // Generate details for the artwork
-  const details = generateArtworkDetails(artwork, templateStyle);
-  
-  // Generate artwork header based on template style
-  const header = generateArtworkHeader(artwork, templateStyle);
-  
-  // Generate template-specific styles
-  const templateStyles = getTemplateStyles(templateStyle);
+  const detailsHtml = generateArtworkDetails(artwork);
   
   // Generate complete HTML
   const html = `
@@ -73,9 +65,6 @@ export async function generateArtworkHTML(
         /* Stationery styles if enabled */
         ${stationeryStyle}
         
-        /* Template-specific styles */
-        ${templateStyles}
-        
         /* Additional styles for PDF optimization */
         img {
           max-width: 100%;
@@ -85,8 +74,8 @@ export async function generateArtworkHTML(
         }
         
         .artwork-image {
-          max-width: 80%;
-          max-height: 40%;
+          max-width: 100%; /* Changed from 80% */
+          max-height: 400px; /* Fixed max height for image */
           object-fit: contain;
           margin: 0 auto 1cm auto;
         }
@@ -95,21 +84,30 @@ export async function generateArtworkHTML(
           text-align: center;
           margin-bottom: 1cm;
         }
+
+        .artist-name-header {
+          font-size: 18pt;
+          font-weight: bold;
+          margin-bottom: 0.5cm;
+          text-align: left; /* Or center, depending on desired look with stationery */
+        }
+
+        .artwork-details p {
+          margin-bottom: 0.3cm; /* Spacing between detail lines */
+          font-size: 10pt; /* Consistent font size for details */
+        }
       </style>
     </head>
     <body>
       ${stationeryBackground}
       
       <div class="content-wrapper">
-        ${header}
+        <div class="artist-name-header">${artistName}</div>
         
         ${artworkImageHtml}
         
         <div class="artwork-details">
-          <p class="artist-name">${artistName}</p>
-          <p class="artwork-title">${artworkTitle}${artworkYear}</p>
-          
-          ${details}
+          ${detailsHtml}
         </div>
       </div>
     </body>
@@ -120,52 +118,31 @@ export async function generateArtworkHTML(
   return html;
 }
 
-/**
- * Generates the header section based on template style
- */
-function generateArtworkHeader(artwork: Artwork, templateStyle: string): string {
-  switch (templateStyle) {
-    case "classic":
-      return `
-        <div class="classic-header">
-          <h1>${escapeHtml(artwork.title || 'Artwork')}</h1>
-        </div>
-      `;
-    case "modern":
-      return `
-        <div class="modern-header">
-          <h1>${escapeHtml(artwork.title || 'Artwork')}</h1>
-          <div class="accent-line"></div>
-        </div>
-      `;
-    case "minimal":
-      return `
-        <div class="minimal-header">
-          <h1>${escapeHtml(artwork.title || 'Artwork').toUpperCase()}</h1>
-        </div>
-      `;
-    default:
-      return '';
-  }
-}
+// Removed generateArtworkHeader function as it's no longer needed.
+// Removed getTemplateStyles function as it's no longer needed.
 
 /**
- * Generates the details section for the artwork
+ * Generates the details section for the artwork (Title, Year, Materials, Edition, Dimensions, Medium Type)
  */
-function generateArtworkDetails(artwork: Artwork, templateStyle: string): string {
-  // Format materials info
+function generateArtworkDetails(artwork: Artwork): string {
+  const artworkTitle = escapeHtml(artwork.title || 'Untitled');
+  const artworkYear = artwork.year ? `, ${artwork.year}` : '';
+  const titleYear = `<p><strong>${artworkTitle}${artworkYear}</strong></p>`;
+
   const materials = artwork.materials 
     ? `<p>${escapeHtml(artwork.materials)}</p>` 
     : '';
   
-  // Format edition info
   let editionInfo = '';
-  if (artwork.edition_size && artwork.edition_size > 1) {
+  if (artwork.classification === 'Unique') {
+    editionInfo = '<p>Unique</p>';
+  } else if (artwork.edition_size) {
     editionInfo = `<p>Edition of ${artwork.edition_size}${
       artwork.artist_proofs ? ' + ' + artwork.artist_proofs + ' AP' : ''
     }</p>`;
   } else {
-    editionInfo = '<p>Unique</p>';
+    // Fallback for non-unique items without edition size
+    editionInfo = artwork.classification ? `<p>${escapeHtml(artwork.classification)}</p>` : '';
   }
   
   // Format dimensions in cm
@@ -180,125 +157,24 @@ function generateArtworkDetails(artwork: Artwork, templateStyle: string): string
       }"</p>` 
     : '';
   
-  // Format frame dimensions in cm if applicable
-  const frameDimensionsCm = artwork.is_framed && artwork.frame_height && artwork.frame_width 
-    ? `<p>Frame: ${artwork.frame_height} x ${artwork.frame_width}${
-        artwork.frame_depth ? ' x ' + artwork.frame_depth : ''
-      } cm</p>` 
-    : '';
-  
-  // Format frame dimensions in inches if applicable
-  const frameDimensionsInches = artwork.is_framed && artwork.frame_height && artwork.frame_width 
-    ? `<p>Frame: ${cmToInchFraction(artwork.frame_height)} x ${cmToInchFraction(artwork.frame_width)}${
-        artwork.frame_depth ? ' x ' + cmToInchFraction(artwork.frame_depth) : ''
-      }"</p>` 
-    : '';
-  
-  // Include price if template requires it
-  const priceInfo = (templateStyle === 'modern' || templateStyle === 'minimal') && artwork.price 
-    ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>` 
-    : '';
-  
-  // Additional sections for complete template
-  let additionalSections = '';
-  if (templateStyle === 'minimal') {
-    // Story section
-    if (artwork.story) {
-      additionalSections += `
-        <div class="section">
-          <h2>Story</h2>
-          <p>${escapeHtml(artwork.story)}</p>
-        </div>
-      `;
-    }
-    
-    // Provenance section
-    if (artwork.provenance) {
-      additionalSections += `
-        <div class="section">
-          <h2>Provenance</h2>
-          <p>${escapeHtml(artwork.provenance)}</p>
-        </div>
-      `;
-    }
-    
-    // Exhibition history section
-    if (artwork.exhibition_history) {
-      additionalSections += `
-        <div class="section">
-          <h2>Exhibition History</h2>
-          <p>${escapeHtml(artwork.exhibition_history)}</p>
-        </div>
-      `;
-    }
-  }
-  
-  // Combine all details
+  const mediumType = artwork.medium_type ? `<p>${escapeHtml(artwork.medium_type)}</p>` : '';
+
+  // Price is no longer part of this simplified template based on the request.
+  // If price is needed, it should be added here.
+  // const priceInfo = artwork.price
+  //   ? `<p class="price">${artwork.currency || '£'} ${artwork.price.toLocaleString()}</p>`
+  //   : '';
+
+  // Story, Provenance, Exhibition History are no longer part of this simplified template based on the request.
+  // If these are needed, they should be added here.
+
   return `
-    <div class="basic-details">
-      ${materials}
-      ${editionInfo}
-      ${dimensionsCm}
-      ${dimensionsInches}
-      ${frameDimensionsCm}
-      ${frameDimensionsInches}
-      ${priceInfo}
-    </div>
-    ${additionalSections}
+    ${titleYear}
+    ${materials}
+    ${editionInfo}
+    ${dimensionsCm}
+    ${dimensionsInches}
+    ${mediumType}
   `;
 }
 
-/**
- * Returns CSS styles specific to the template
- */
-function getTemplateStyles(templateStyle: string): string {
-  switch (templateStyle) {
-    case "classic":
-      return `
-        .classic-header {
-          border-bottom: 2px solid #333;
-          margin-bottom: 1.5cm;
-          padding-bottom: 0.5cm;
-        }
-        
-        .classic-header h1 {
-          color: #18465a;
-        }
-      `;
-    case "modern":
-      return `
-        .modern-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5cm;
-        }
-        
-        .accent-line {
-          width: 5cm;
-          height: 3px;
-          background-color: #18465a;
-        }
-        
-        .artwork-details {
-          padding-left: 0.5cm;
-          border-left: 3px solid #18465a;
-        }
-      `;
-    case "minimal":
-      return `
-        .minimal-header h1 {
-          font-size: 16pt;
-          font-weight: 400;
-          letter-spacing: 0.2cm;
-          margin-bottom: 2cm;
-        }
-        
-        .section {
-          margin-top: 1.5cm;
-        }
-      `;
-    default:
-      return '';
-  }
-}

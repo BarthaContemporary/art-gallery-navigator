@@ -1,18 +1,23 @@
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { PDFPreviewContent } from "./PDFPreviewContent";
+import { preloadStationeryImage } from "@/lib/pdf/stationery-utils"; // For preloading
 
-export interface PDFPreviewProps {
+interface PDFPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApply: (template: string, useStationery: boolean) => void;
+  onApply: (useStationery: boolean) => void; // Removed templateStyle from here
   title: string;
-  content: React.ReactNode;
+  content: React.ReactNode; // This will be ArtworkPDFPreview or CollectionPDFPreview
   type: "artwork" | "collection";
 }
 
@@ -21,123 +26,77 @@ export function PDFPreviewDialog({
   onOpenChange,
   onApply,
   title,
-  content,
-  type
-}: PDFPreviewProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(
-    type === "artwork" ? "classic" : "collection"
+  content, // Passed in, typically ArtworkPDFPreview or CollectionPDFPreview
+  type,
+}: PDFPreviewDialogProps) {
+  // const [selectedTemplate, setSelectedTemplate] = useState(type === "artwork" ? "classic" : "collection"); // "classic" was default
+  // For artwork, template is now fixed, so selectedTemplate is not directly used by artwork PDF generation
+  // For collections, it might still be relevant if collections have templates.
+  // The request focused on artwork, so let's assume collection template selection remains for now if it exists.
+  // Based on request, artwork always uses stationery and has one style.
+  const [effectiveSelectedTemplate, setEffectiveSelectedTemplate] = useState(
+    type === "artwork" ? "unified_artwork_style" : "collection_default" // Using placeholder names
   );
-  const [useStationery, setUseStationery] = useState<boolean>(
-    type === "collection" ? true : false
-  );
+
+  // Stationery is now always true for artworks as per request.
+  // For collections, it might still be a choice.
+  const [useStationery, setUseStationery] = useState(type === "artwork" ? true : false);
+
+  useEffect(() => {
+    if (open) {
+      preloadStationeryImage().catch(err => console.error("Failed to preload stationery", err));
+      // If artwork, always use stationery.
+      if (type === "artwork") {
+        setUseStationery(true);
+      }
+    }
+  }, [open, type]);
   
+  // If type is artwork, template selection is removed.
+  // onApply will just pass useStationery (which will be true for artworks)
   const handleApply = () => {
-    onApply(selectedTemplate, useStationery);
+    // For artworks, templateStyle is no longer relevant.
+    // onApply now only expects useStationery.
+    onApply(useStationery);
     onOpenChange(false);
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between relative pr-10">
-          <div>
-            <DialogTitle>PDF Template Preview</DialogTitle>
-            <DialogDescription>
-              {type === "artwork" ? "Select a template style for your artwork PDF" : "Collection PDF preview"}
-            </DialogDescription>
-          </div>
-          
-          <Button onClick={handleApply} className="flex items-center gap-2">
-            <Save className="h-4 w-4" />
-            Generate PDF
-          </Button>
+      <DialogContent className="max-w-4xl w-[90vw] md:w-full h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2 border-b">
+          <DialogTitle className="text-xl font-semibold">
+            Create PDF for: {title}
+          </DialogTitle>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-auto p-4">
-          {type === "artwork" && (
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <Tabs 
-                  defaultValue="classic" 
-                  value={selectedTemplate} 
-                  onValueChange={setSelectedTemplate}
-                  className="w-full"
-                >
-                  <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto">
-                    <TabsTrigger value="classic">Classic</TabsTrigger>
-                    <TabsTrigger value="modern">Modern</TabsTrigger>
-                    <TabsTrigger value="minimal">Minimal</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              
-              <div className="flex items-center space-x-2 mb-6">
-                <Switch
-                  id="preview-stationery-mode"
-                  checked={useStationery}
-                  onCheckedChange={setUseStationery}
-                />
-                <Label htmlFor="preview-stationery-mode">Use Company Stationery</Label>
-              </div>
-            </>
-          )}
-          
-          <div className="bg-gray-100 p-4 rounded flex items-center justify-center">
-            <div className="bg-white shadow-lg relative overflow-hidden" style={{ 
-              width: '100%', 
-              maxWidth: '595px',
-              minHeight: '842px', 
-              transform: 'scale(0.9)',
-              transformOrigin: 'top center',
-            }}>
-              {useStationery && (
-                <div className="absolute inset-0 pointer-events-none z-0">
-                  <img 
-                    src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png" 
-                    alt="Company Stationery" 
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                  />
-                </div>
-              )}
-              
-              <div className="relative z-10 p-12 min-h-full">
-                {type === "artwork" && (
-                  <>
-                    {selectedTemplate === "classic" && (
-                      <div className="border-b-2 border-primary pb-6 mb-6">
-                        <h1 className="text-3xl font-bold text-primary">{title}</h1>
-                      </div>
-                    )}
-                    
-                    {selectedTemplate === "modern" && (
-                      <div className="flex items-center justify-between mb-8">
-                        <h1 className="text-3xl font-light">{title}</h1>
-                        <div className="w-24 h-1 bg-primary"></div>
-                      </div>
-                    )}
-                    
-                    {selectedTemplate === "minimal" && (
-                      <h1 className="text-2xl uppercase tracking-widest mb-8">{title}</h1>
-                    )}
-                  </>
-                )}
-                
-                {content}
-              </div>
-            </div>
-          </div>
+
+        <div className="flex-1 overflow-hidden">
+          {/*
+            PDFPreviewContent handles the layout with controls on left and preview on right.
+            For artworks, template selection in PDFPreviewContent and PDFTemplateControls will be hidden/removed.
+          */}
+          <PDFPreviewContent
+            type={type}
+            // selectedTemplate and setSelectedTemplate are still passed for collections.
+            // For artworks, these will be ignored or hidden by PDFPreviewContent/PDFTemplateControls.
+            selectedTemplate={effectiveSelectedTemplate} 
+            setSelectedTemplate={setEffectiveSelectedTemplate}
+            useStationery={useStationery}
+            setUseStationery={setUseStationery} // Still allow toggling for collections, artworks fixed to true
+            title={title}
+            // The 'content' prop (actual ArtworkPDFPreview or CollectionPDFPreview) is rendered by PDFPreviewContent.
+            // This 'content' prop is distinct from the simplified ArtworkTemplatePreview used inside PDFPreviewContent.
+            // The actual `content` prop is passed from ArtworkOverviewDialog which already contains the ArtworkPDFPreview component.
+            // We need to ensure that the `content` prop (specifically `ArtworkPDFPreview`) is updated to not expect `templateStyle`.
+          />
         </div>
-        
-        <div className="flex justify-end mt-4 px-4 py-2 border-t">
-          <Button variant="outline" className="mr-2" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleApply} className="flex items-center gap-2">
-            <Save className="h-4 w-4" />
-            Generate PDF
-          </Button>
-        </div>
+
+        <DialogFooter className="p-4 border-t">
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleApply}>Apply & Generate PDF</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
