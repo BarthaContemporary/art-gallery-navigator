@@ -7,7 +7,7 @@ export interface CollectionWebsite {
   collection_id: string;
   name?: string | null;
   slug: string;
-  password_hash?: string | null; // TEMPORARY: Will store plain password. MUST be replaced by secure hashing via Edge Function.
+  password_hash?: string | null; // Will store hashed password
   show_prices: boolean;
   is_active: boolean;
   created_at?: string;
@@ -26,17 +26,13 @@ const generateSlug = (name: string = "collection"): string => {
 
   const timestamp = Date.now().toString(36); // Base36 timestamp
 
-  // Generate a longer random part by combining two Math.random() outputs
-  // Math.random().toString(36) is '0.' + ~11-12 base36 chars. We take substring(2).
-  const randomPart1 = Math.random().toString(36).substring(2, 10); // 8 chars
-  const randomPart2 = Math.random().toString(36).substring(2, 10); // 8 chars
-  // Ensure consistent length for the random string part, e.g., 12 characters
+  const randomPart1 = Math.random().toString(36).substring(2, 10); 
+  const randomPart2 = Math.random().toString(36).substring(2, 10); 
   const randomString = `${randomPart1}${randomPart2}`.slice(0, 12);
 
   const base = cleanedName || 'website';
   
-  // Truncate base name if it's too long to keep overall slug length reasonable
-  const maxBaseNameLength = 50; // Max length for the name part of the slug
+  const maxBaseNameLength = 50; 
   const truncatedBase = base.length > maxBaseNameLength ? base.substring(0, maxBaseNameLength) : base;
 
   return `${truncatedBase}-${timestamp}-${randomString}`;
@@ -88,7 +84,7 @@ export interface CreateCollectionWebsitePayload {
   collection_id: string;
   collection_name?: string; // Used for slug generation
   name?: string;
-  password?: string; // TEMPORARY: Plain text. MUST be hashed via Edge Function.
+  password?: string; // Plain text password, will be hashed by Edge Function
   show_prices?: boolean;
   is_active?: boolean;
 }
@@ -105,10 +101,33 @@ export function useCreateCollectionWebsite() {
       show_prices = true,
       is_active = true,
     }: CreateCollectionWebsitePayload): Promise<CollectionWebsite> => {
-      const slug = generateSlug(collection_name || "collection"); // Generate a unique slug
+      const slug = generateSlug(collection_name || "collection");
+      let password_hash: string | null = null;
 
-      // TEMPORARY: Storing password directly. MUST implement Edge Function for hashing.
-      const password_hash = password || null;
+      if (password && password.trim().length > 0) {
+        console.log("Invoking hash-collection-password Edge Function for create...");
+        const { data: hashData, error: hashError } = await supabase.functions.invoke<{ hashedPassword?: string; error?: string }>(
+          'hash-collection-password',
+          { body: { password } }
+        );
+
+        if (hashError) {
+          console.error("Edge function invocation error:", hashError);
+          throw new Error(hashError.message || "Failed to hash password via Edge Function.");
+        }
+        if (hashData?.error) {
+          console.error("Edge function returned error:", hashData.error);
+          throw new Error(hashData.error || "Failed to hash password.");
+        }
+        if (!hashData?.hashedPassword) {
+          console.error("Edge function did not return hashedPassword");
+          throw new Error("Failed to retrieve hashed password from Edge Function.");
+        }
+        password_hash = hashData.hashedPassword;
+        console.log("Password hashed successfully for create.");
+      } else {
+        console.log("No password provided or password is empty for create, setting hash to null.");
+      }
 
       const { data, error } = await supabase
         .from("collection_websites")
@@ -116,19 +135,23 @@ export function useCreateCollectionWebsite() {
           collection_id,
           name,
           slug,
-          password_hash, // Storing plain text or null
+          password_hash, // Store hashed password or null
           show_prices,
           is_active,
         })
         .select("*")
         .single();
 
-      if (error || !data) throw error || new Error("Failed to create collection website");
+      if (error || !data) {
+        console.error("Supabase insert error:", error);
+        throw error || new Error("Failed to create collection website");
+      }
+      console.log("Collection website created:", data.id);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["collectionWebsites", data.collection_id] });
-      queryClient.invalidateQueries({ queryKey: ["collections"] }); // If counts/derived data changes
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });
 }
@@ -138,10 +161,9 @@ export interface UpdateCollectionWebsitePayload {
   id: string;
   collection_id: string; // Needed for invalidation
   name?: string;
-  password?: string | null; // TEMPORARY: Plain text or null to remove. MUST be hashed.
+  password?: string | null; // Plain text or null to remove. Undefined to not change.
   show_prices?: boolean;
   is_active?: boolean;
-  // slug is generally not updated to avoid breaking links.
 }
 
 export function useUpdateCollectionWebsite() {
@@ -150,20 +172,50 @@ export function useUpdateCollectionWebsite() {
   return useMutation({
     mutationFn: async ({
       id,
-      collection_id,
+      collection_id, // used for invalidation key
       name,
-      password, // If undefined, password_hash is not changed. If null, it's cleared. If string, it's updated.
+      password, 
       show_prices,
       is_active,
     }: UpdateCollectionWebsitePayload): Promise<CollectionWebsite> => {
       
-      const updateData: Partial<CollectionWebsite> = {};
+      const updateData: Partial<Omit<CollectionWebsite, 'id' | 'collection_id' | 'created_at' | 'slug'>> & { updated_at: string } = {
+        updated_at: new Date().toISOString(),
+      };
+
       if (name !== undefined) updateData.name = name;
-      // TEMPORARY: Handling password directly. MUST implement Edge Function for hashing.
-      if (password !== undefined) updateData.password_hash = password; // password can be null to remove it
       if (show_prices !== undefined) updateData.show_prices = show_prices;
       if (is_active !== undefined) updateData.is_active = is_active;
-      updateData.updated_at = new Date().toISOString();
+
+      // Handle password update
+      if (password !== undefined) { // if password field is part of the payload
+        if (password && password.trim().length > 0) { // New password string provided
+          console.log("Invoking hash-collection-password Edge Function for update...");
+          const { data: hashData, error: hashError } = await supabase.functions.invoke<{ hashedPassword?: string; error?: string }>(
+            'hash-collection-password',
+            { body: { password } }
+          );
+
+          if (hashError) {
+            console.error("Edge function invocation error during update:", hashError);
+            throw new Error(hashError.message || "Failed to hash password via Edge Function for update.");
+          }
+          if (hashData?.error) {
+            console.error("Edge function returned error during update:", hashData.error);
+            throw new Error(hashData.error || "Failed to hash new password.");
+          }
+          if (!hashData?.hashedPassword) {
+            console.error("Edge function did not return hashedPassword during update");
+            throw new Error("Failed to retrieve hashed password from Edge Function for update.");
+          }
+          updateData.password_hash = hashData.hashedPassword;
+          console.log("Password hashed successfully for update.");
+        } else { // Password is null or empty string, so remove it
+          updateData.password_hash = null;
+          console.log("Password set to null (removed) for update.");
+        }
+      }
+      // If password is undefined, password_hash is not included in updateData, so it's not changed.
 
       const { data, error } = await supabase
         .from("collection_websites")
@@ -172,7 +224,11 @@ export function useUpdateCollectionWebsite() {
         .select("*")
         .single();
 
-      if (error || !data) throw error || new Error("Failed to update collection website");
+      if (error || !data) {
+        console.error("Supabase update error:", error);
+        throw error || new Error("Failed to update collection website");
+      }
+      console.log("Collection website updated:", data.id);
       return data;
     },
     onSuccess: (data) => {
@@ -198,7 +254,6 @@ export function useDeleteCollectionWebsite() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["collectionWebsites", variables.collection_id] });
-      // Optionally, invalidate public view if slug was known, but usually deletion makes it inaccessible
       queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });
