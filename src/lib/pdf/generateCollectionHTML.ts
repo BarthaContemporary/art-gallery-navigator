@@ -71,6 +71,7 @@ export async function generateCollectionHTML(
   }
   
   // First, create the collection header HTML
+  // The HTML structure already places collection name before description.
   const collectionHeader = `
     <div class="collection-name">${escapeHtml(collection.name)}</div>
     ${collection.description ? `<p class="collection-description">${escapeHtml(collection.description)}</p>` : ''}
@@ -183,18 +184,20 @@ export async function generateCollectionHTML(
         
         /* Additional collection-specific styles */
         .collection-name {
-          position: absolute;
-          top: 6cm;
-          left: 4cm;
+          /* position: absolute; REMOVED */
+          /* top: 6cm; REMOVED */
+          /* left: 4cm; REMOVED */
+          /* z-index: 10; REMOVED */
           font-weight: bold;
           font-size: 14pt;
-          z-index: 10;
+          text-align: left; /* Ensured left alignment */
+          margin-bottom: 0.5cm; /* Added for spacing below title */
         }
         
         .collection-description {
-          margin-bottom: 1cm;
+          margin-bottom: 1cm; /* Existing, provides space after description */
           font-style: italic;
-          text-align: left;
+          text-align: left; /* Ensured left alignment */
         }
         
         .artist-name-header {
@@ -249,7 +252,7 @@ export async function generateCollectionHTML(
         ${getStationeryStyle(useStationery)}
         
         .content-wrapper {
-          padding: 7cm 2cm 2cm 2cm;
+          padding: 7cm 2cm 2cm 2cm; /* Note: This padding might differ from stationeryStyles */
           position: relative;
           z-index: 1;
           box-sizing: border-box;
@@ -269,3 +272,4 @@ export async function generateCollectionHTML(
   console.log("Collection HTML generation complete");
   return html;
 }
+
