@@ -2,14 +2,15 @@
 import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button"; // Import buttonVariants
+import type { VariantProps } from "class-variance-authority"; // Import VariantProps
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList, // Import CommandList
+  CommandList,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -30,6 +31,9 @@ interface SearchableSelectProps {
   placeholder: string;
   disabled?: boolean;
   icon?: React.ReactNode;
+  triggerClassName?: string; // New prop for custom class on trigger
+  triggerVariant?: VariantProps<typeof buttonVariants>['variant']; // New prop for trigger variant
+  triggerSize?: VariantProps<typeof buttonVariants>['size']; // New prop for trigger size
 }
 
 export function SearchableSelect({
@@ -38,31 +42,32 @@ export function SearchableSelect({
   onChange,
   placeholder,
   disabled,
-  icon
+  icon,
+  triggerClassName, // Destructure new prop
+  triggerVariant,   // Destructure new prop
+  triggerSize,      // Destructure new prop
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
 
   // console.log("SearchableSelect options:", options);
   // console.log("SearchableSelect value:", value);
   
-  // Ensure options is always a valid array
   const safeOptions = Array.isArray(options) ? options : [];
   // console.log("SearchableSelect safeOptions:", safeOptions);
   
-  // Ensure value is always a string
   const safeValue = typeof value === 'string' ? value : '_none';
   
-  // Get the selected option (safely)
   const selectedOption = safeOptions.find((option) => option.value === safeValue);
   
   return (
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
+          variant={triggerVariant || "outline"} // Apply triggerVariant
+          size={triggerSize || "default"}     // Apply triggerSize
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn("w-full justify-between", triggerClassName)} // Apply triggerClassName
           disabled={disabled}
         >
           <div className="flex items-center">
@@ -77,13 +82,12 @@ export function SearchableSelect({
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-          <CommandList> {/* Wrap content in CommandList */}
+          <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
-              {/* The "_none" option is always available */}
               <CommandItem
                 key="_none"
-                value="_none" // Ensure value is a string
+                value="_none"
                 onSelect={() => {
                   onChange("_none");
                   setOpen(false);
@@ -97,11 +101,10 @@ export function SearchableSelect({
                 />
                 None
               </CommandItem>
-              {/* Map through safe options */}
               {safeOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value} // Ensure option.value is a string
+                  value={option.value}
                   onSelect={() => {
                     onChange(option.value);
                     setOpen(false);
@@ -124,4 +127,3 @@ export function SearchableSelect({
     </Popover>
   );
 }
-

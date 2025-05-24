@@ -17,6 +17,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
 
   const artistOptions = useMemo(() => {
     if (!artists || !Array.isArray(artists)) {
+      // console.log("ArtistFilter: artists data is not an array or is undefined/null", artists);
       return [];
     }
     
@@ -38,8 +39,11 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   }, [artists]);
 
   // console.log("ArtistFilter artistOptions:", artistOptions);
+  // console.log("ArtistFilter value:", value);
+
 
   const handleSelectionChange = (selectedValue: string) => {
+    // console.log("ArtistFilter handleSelectionChange selectedValue:", selectedValue);
     if (selectedValue === "_none") {
       onChange(null);
     } else {
@@ -48,24 +52,26 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-full min-w-[180px]" />;
+    return <Skeleton className="h-12 w-full min-w-[180px]" />; {/* Adjusted skeleton height */}
   }
 
   if (error) {
     // console.error("ArtistFilter error state:", error);
-    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md">Error loading artists.</div>;
+    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md h-12 flex items-center">Error loading artists.</div>; {/* Adjusted error state height */}
   }
+
+  // console.log("ArtistFilter rendering SearchableSelect with value:", value || "_none", "and options count:", artistOptions.length);
 
   return (
     <div className="min-w-[180px]">
       <SearchableSelect
         options={artistOptions}
-        value={value || "_none"} // Ensure value is always a string for SearchableSelect
+        value={value || "_none"} 
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
         icon={<Filter className="mr-2 h-4 w-4" />}
+        triggerClassName="h-12" // Make the button taller
       />
     </div>
   );
 }
-
