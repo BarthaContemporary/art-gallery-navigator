@@ -170,7 +170,7 @@ function generateArtworkDetails(artwork: Artwork, artistName: string): string { 
   const mediumType = artwork.medium_type ? `<p>${escapeHtml(artwork.medium_type)}</p>` : '';
 
   return `
-    ${repeatedArtistNameHtml} {/* Added repeated artist name */}
+    ${repeatedArtistNameHtml}
     ${titleYear}
     ${materials}
     ${editionInfo}

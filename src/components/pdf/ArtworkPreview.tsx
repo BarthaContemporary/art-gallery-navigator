@@ -31,7 +31,7 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
   }
   
   return (
-    <div className="space-y-3 font-sans text-sm p-4">
+    <div className="space-y-3 font-sans text-sm">
       {/* Artist Name (Header) */}
       <h1 className="font-bold text-lg mb-3">{artistName}</h1>
 
