@@ -2,18 +2,19 @@
 import React from "react";
 
 interface PageHeaderProps {
-  title: string;
-  description?: string; // Added optional description prop
+  title: string; // Title prop is still here, but won't be rendered as h1
+  description?: string;
 }
 
 export function PageHeader({ title, description }: PageHeaderProps) {
-  // Update component to render title and description
+  // Update component to render only description if present
   return (
     <div className="mb-6">
-      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
+      {/* The h1 element that displayed the title has been removed */}
       {description && (
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       )}
     </div>
   );
 }
+
