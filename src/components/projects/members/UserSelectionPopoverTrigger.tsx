@@ -1,8 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { Loader2, UserPlus } from "lucide-react";
 
 interface UserSelectionPopoverTriggerProps {
-  disabled: boolean; // Master disable from UserSelectionField
+  disabled: boolean; // Master disable from UserSelectionField (this is effectiveDisabled)
   isAdding: boolean;
   queryError: boolean;
   noUsersInSystem?: boolean;
@@ -20,12 +21,12 @@ export function UserSelectionPopoverTrigger({
 }: UserSelectionPopoverTriggerProps) {
   
   console.log("UserSelectionPopoverTrigger Props:", { 
-    disabled, 
+    effectiveDisabledFromParent: disabled, // Renamed for clarity in this log
     isAdding, 
     queryError, 
     noUsersInSystem, 
     noUsersAvailableToAdd,
-    parentDisabled 
+    parentDisabledProp: parentDisabled 
   });
 
   let title = "Add Team Member";
@@ -38,19 +39,26 @@ export function UserSelectionPopoverTrigger({
   } else if (noUsersAvailableToAdd) {
     title = "All eligible users have already been added.";
   } else if (disabled && !isAdding) { 
-    // This case might be redundant if `disabled` logic in UserSelectionField covers all scenarios
-    // leading to `disabled` being true. Keeping as a fallback.
+    // This `disabled` is `effectiveDisabled` from UserSelectionField
     title = "Cannot add team member at this time.";
   } else if (isAdding) {
     title = "Adding member...";
   }
+
+  // ADDED: Log the final computed disabled state for the Button
+  const finalButtonDisabledState = disabled || isAdding;
+  console.log("UserSelectionPopoverTrigger: Final button 'disabled' prop calculation:", {
+    receivedEffectiveDisabled: disabled,
+    receivedIsAdding: isAdding,
+    computedButtonDisabledProp: finalButtonDisabledState,
+  });
 
   return (
     <Button
       variant="outline"
       size="sm"
       className="flex items-center gap-1 w-full justify-start"
-      disabled={disabled || isAdding} // Main disable + isAdding for spinner interaction
+      disabled={finalButtonDisabledState} // Use the computed value for the button's disabled state
       title={title}
       // onClick removed, Radix PopoverTrigger will handle it
     >
@@ -63,3 +71,4 @@ export function UserSelectionPopoverTrigger({
     </Button>
   );
 }
+

@@ -115,6 +115,18 @@ export function UserSelectionField({
     noUsersInSystem || 
     noUsersAvailableToAdd;
   
+  // ADDED: Log the final calculated effectiveDisabled value just before rendering
+  console.log("UserSelectionField: Final effectiveDisabled calculation for render:", {
+    parentDisabledProp: disabled,
+    isAdding,
+    usersQueryError,
+    noUsersInSystem,
+    noUsersAvailableToAdd,
+    calculatedEffectiveDisabled: effectiveDisabled,
+    rawUsersCount: rawUsers?.length,
+    hookAvailableUsersCount: hookAvailableUsers?.length
+  });
+  
   const popoverContentDescriptionId = "user-selection-popover-description";
 
   return (
