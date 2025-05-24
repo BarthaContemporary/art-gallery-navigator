@@ -52,12 +52,12 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-12 w-full min-w-[180px]" />; {/* Adjusted skeleton height */}
+    return <Skeleton className="h-10 w-full min-w-[180px]" />; {/* Adjusted skeleton height to h-10 */}
   }
 
   if (error) {
     // console.error("ArtistFilter error state:", error);
-    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md h-12 flex items-center">Error loading artists.</div>; {/* Adjusted error state height */}
+    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md h-10 flex items-center">Error loading artists.</div>; {/* Adjusted error state height to h-10 */}
   }
 
   // console.log("ArtistFilter rendering SearchableSelect with value:", value || "_none", "and options count:", artistOptions.length);
@@ -70,7 +70,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
         icon={<Filter className="mr-2 h-4 w-4" />}
-        triggerClassName="h-12" // Make the button taller
+        triggerClassName="h-10" // Make the button h-10 (40px) tall
       />
     </div>
   );
