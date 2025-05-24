@@ -1,4 +1,5 @@
 
+import React, { useEffect, useRef } from 'react'; // Added useEffect, useRef
 import { Button } from "@/components/ui/button";
 import { Loader2, UserPlus } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface UserSelectionPopoverTriggerProps {
   noUsersInSystem?: boolean;
   noUsersAvailableToAdd?: boolean;
   parentDisabled?: boolean; // Was the disabling due to parent prop
+  onClick: () => void; // Added onClick prop
 }
 
 export function UserSelectionPopoverTrigger({
@@ -18,10 +20,12 @@ export function UserSelectionPopoverTrigger({
   noUsersInSystem,
   noUsersAvailableToAdd,
   parentDisabled,
+  onClick, // Destructure onClick
 }: UserSelectionPopoverTriggerProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null); // Ref for the button
   
   console.log("UserSelectionPopoverTrigger Props:", { 
-    effectiveDisabledFromParent: disabled, // Renamed for clarity in this log
+    effectiveDisabledFromParent: disabled,
     isAdding, 
     queryError, 
     noUsersInSystem, 
@@ -39,13 +43,11 @@ export function UserSelectionPopoverTrigger({
   } else if (noUsersAvailableToAdd) {
     title = "All eligible users have already been added.";
   } else if (disabled && !isAdding) { 
-    // This `disabled` is `effectiveDisabled` from UserSelectionField
     title = "Cannot add team member at this time.";
   } else if (isAdding) {
     title = "Adding member...";
   }
 
-  // ADDED: Log the final computed disabled state for the Button
   const finalButtonDisabledState = disabled || isAdding;
   console.log("UserSelectionPopoverTrigger: Final button 'disabled' prop calculation:", {
     receivedEffectiveDisabled: disabled,
@@ -53,14 +55,27 @@ export function UserSelectionPopoverTrigger({
     computedButtonDisabledProp: finalButtonDisabledState,
   });
 
+  useEffect(() => {
+    if (buttonRef.current) {
+      console.log("UserSelectionPopoverTrigger DOM Check:", {
+        buttonIsActuallyDisabled_via_JS: buttonRef.current.disabled,
+        buttonPointerEvents_via_getComputedStyle: getComputedStyle(buttonRef.current).pointerEvents,
+        buttonTitle_via_JS: buttonRef.current.title,
+      });
+    }
+  }, [finalButtonDisabledState, title]); // Re-run if disabled state or title changes
+
+  const borderColorClass = finalButtonDisabledState ? 'border-red-500' : 'border-green-500';
+
   return (
     <Button
+      ref={buttonRef} // Assign ref
       variant="outline"
       size="sm"
-      className="flex items-center gap-1 w-full justify-start"
-      disabled={finalButtonDisabledState} // Use the computed value for the button's disabled state
+      className={`flex items-center gap-1 w-full justify-start border-2 ${borderColorClass}`} // Added border-2 and borderColorClass
+      disabled={finalButtonDisabledState}
       title={title}
-      // onClick removed, Radix PopoverTrigger will handle it
+      onClick={onClick} // Use the passed onClick for the button
     >
       {isAdding ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -71,4 +86,3 @@ export function UserSelectionPopoverTrigger({
     </Button>
   );
 }
-

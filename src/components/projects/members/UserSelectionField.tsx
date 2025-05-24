@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Command, CommandInput } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { ProjectMember } from "@/hooks/projects";
 import { useUserSelectionData, UserData } from "./hooks/use-user-selection-data";
@@ -40,7 +40,7 @@ export function UserSelectionField({
     isLoadingUsers,
     usersQueryError,
     rawUsersCount: rawUsers?.length,
-    hookAvailableUsersCount: hookAvailableUsers?.length, // Users available before search (raw - members)
+    hookAvailableUsersCount: hookAvailableUsers?.length,
     open,
     search,
     debouncedSearch,
@@ -136,21 +136,28 @@ export function UserSelectionField({
         setOpen(isOpenValue);
         if (!isOpenValue) setSearch(""); 
       }}>
-        <PopoverTrigger asChild>
-          <UserSelectionPopoverTrigger
-            disabled={effectiveDisabled}
-            isAdding={isAdding}
-            queryError={usersQueryError}
-            noUsersInSystem={noUsersInSystem}
-            noUsersAvailableToAdd={noUsersAvailableToAdd}
-            parentDisabled={disabled}
-          />
-        </PopoverTrigger>
+        {/* PopoverTrigger is removed from here. UserSelectionPopoverTrigger now handles its own click. */}
+        <UserSelectionPopoverTrigger
+          disabled={effectiveDisabled}
+          isAdding={isAdding}
+          queryError={usersQueryError}
+          noUsersInSystem={noUsersInSystem}
+          noUsersAvailableToAdd={noUsersAvailableToAdd}
+          parentDisabled={disabled} // Pass the original parent disabled state for title logic
+          onClick={() => {
+            // This onClick will only be invoked if the button is not 'disabled' (finalButtonDisabledState in UserSelectionPopoverTrigger)
+            // which is based on `effectiveDisabled` from here.
+            console.log(`UserSelectionField: Custom trigger clicked. Current open: ${open}, effectiveDisabled: ${effectiveDisabled}`);
+            setOpen(!open); // Toggle open state
+          }}
+        />
         <PopoverContent 
           className="p-0 w-[300px]" 
           align="start" 
           side="bottom"
           aria-describedby={popoverContentDescriptionId}
+          // To prevent popover content from stealing focus immediately and re-closing on click outside:
+          onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focusing content initially
         >
           <span id={popoverContentDescriptionId} className="sr-only">
             Select a user to add as a team member. You can search by name or email.
@@ -159,7 +166,8 @@ export function UserSelectionField({
             <CommandInput 
               placeholder="Search users..."
               value={search} 
-              onValueChange={setSearch} 
+              onValueChange={setSearch}
+              aria-label="Search users by name or email"
             />
             <UserSelectionCommandList
               availableUsers={filteredUsers} 
