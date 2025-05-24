@@ -26,7 +26,7 @@ export function CollectionPDFPreview({ collection }: CollectionPreviewProps) {
   const artworks = useMemo(() => collection.artworks || [], [collection.artworks]);
   
   return (
-    <div className="space-y-1 text-[10px]">
+    <div className="space-y-1 text-[10px] text-left"> {/* Ensure text alignment is left */}
       {collection.description && (
         <div className="mt-0 mb-1">
           <p className="text-[10px] leading-tight">{collection.description}</p>
