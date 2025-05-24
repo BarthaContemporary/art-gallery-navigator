@@ -14,6 +14,7 @@ import { useState } from "react";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { useArtists } from "@/components/artworks/form/useArtists";
+import { useCreateCollectionWebsite } from "@/hooks/collection-websites";
 
 interface CollectionDetailsDialogProps {
   collection: Collection;
@@ -28,7 +29,10 @@ export function CollectionDetailsDialog({
 }: CollectionDetailsDialogProps) {
   const { data: documents } = useCollectionDocuments(collection?.id);
   const { data: artists } = useArtists();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isCreatingWebsite, setIsCreatingWebsite] = useState(false);
+
+  const createCollectionWebsiteMutation = useCreateCollectionWebsite();
 
   const handleDocumentDownload = (url: string, fileName: string) => {
     const link = document.createElement('a');
@@ -46,7 +50,7 @@ export function CollectionDetailsDialog({
   };
 
   const handleGeneratePDF = async () => {
-    setIsGenerating(true);
+    setIsGeneratingPDF(true);
     try {
       if (collection) {
         await createCollectionPDF(collection, "classic", true);
@@ -58,7 +62,7 @@ export function CollectionDetailsDialog({
       console.error('Error generating PDF:', error);
       toast.error("Failed to generate PDF");
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -68,8 +72,27 @@ export function CollectionDetailsDialog({
     return artist ? artist.full_name : "Unknown Artist";
   };
 
-  const handleCreateWebsite = () => {
-    toast.info("Website creation for this collection will be available here soon.");
+  const handleCreateWebsite = async () => {
+    if (!collection) {
+      toast.error("No collection selected to create a website for.");
+      return;
+    }
+    setIsCreatingWebsite(true);
+    try {
+      const newWebsite = await createCollectionWebsiteMutation.mutateAsync({
+        collection_id: collection.id,
+        collection_name: collection.name,
+        // You can add more default options here if needed, e.g., name, show_prices
+      });
+      toast.success(`Website "${newWebsite.name || newWebsite.slug}" created successfully!`);
+      // Optionally, you could open the new website or navigate to a management page.
+      // For now, we'll just show a success message.
+    } catch (error) {
+      console.error('Error creating website:', error);
+      toast.error("Failed to create website. Please try again.");
+    } finally {
+      setIsCreatingWebsite(false);
+    }
   };
 
   return (
@@ -85,10 +108,10 @@ export function CollectionDetailsDialog({
           <div className="flex flex-wrap gap-3">
             <Button 
               onClick={handleGeneratePDF}
-              disabled={!collection || isGenerating}
+              disabled={!collection || isGeneratingPDF || isCreatingWebsite}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90"
             >
-              {isGenerating ? "Generating..." : "Create Artworks PDF"}
+              {isGeneratingPDF ? "Generating PDF..." : "Create Artworks PDF"}
               <Download className="h-4 w-4" />
             </Button>
 
@@ -96,7 +119,7 @@ export function CollectionDetailsDialog({
               <DropdownMenuTrigger asChild>
                 <Button 
                   className="flex items-center gap-2"
-                  disabled={!documents?.length}
+                  disabled={!documents?.length || isGeneratingPDF || isCreatingWebsite}
                 >
                   Download Documents
                   <Download className="h-4 w-4" />
@@ -129,10 +152,10 @@ export function CollectionDetailsDialog({
 
             <Button 
               onClick={handleCreateWebsite}
-              disabled={!collection} // Disable if no collection is selected
+              disabled={!collection || isCreatingWebsite || isGeneratingPDF}
               className="flex items-center gap-2"
             >
-              Create Website
+              {isCreatingWebsite ? "Creating Website..." : "Create Website"}
               <Globe className="h-4 w-4" />
             </Button>
           </div>
