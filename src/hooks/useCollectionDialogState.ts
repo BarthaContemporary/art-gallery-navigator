@@ -2,23 +2,29 @@
 import { useState } from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Document } from "@/hooks/use-documents";
-import { Artist } from "@/hooks/useArtists";
+// Removed: import { Artist } from "@/hooks/useArtists";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { UseMutationResult } from "@tanstack/react-query";
 import { CollectionWebsite, CreateCollectionWebsitePayload } from "@/types/collection-website";
 
+// Define a type for the artist data actually needed by this hook
+interface DialogArtist {
+  id: string;
+  full_name: string;
+}
+
 interface UseCollectionDialogStateProps {
   collection: Collection | undefined;
   documents: Document[] | undefined;
-  artists: Artist[] | undefined;
+  artists: DialogArtist[] | undefined; // Use the new simpler type
   createCollectionWebsiteMutation: UseMutationResult<CollectionWebsite, Error, CreateCollectionWebsitePayload, unknown>;
 }
 
 export function useCollectionDialogState({
   collection,
   documents,
-  artists,
+  artists, // This will now correctly type the incoming data
   createCollectionWebsiteMutation,
 }: UseCollectionDialogStateProps) {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -56,7 +62,7 @@ export function useCollectionDialogState({
     }
   };
 
-  const getArtistName = (artistId: string | null) => {
+  const getArtistName = (artistId: string | null): string => {
     if (!artistId || !artists) return "Unknown Artist";
     const artist = artists.find(a => a.id === artistId);
     return artist ? artist.full_name : "Unknown Artist";
@@ -92,3 +98,4 @@ export function useCollectionDialogState({
     handleCreateWebsite,
   };
 }
+
