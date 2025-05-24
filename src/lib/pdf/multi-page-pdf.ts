@@ -410,13 +410,15 @@ function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): str
   
   // Process all child elements of the content wrapper
   Array.from(contentWrapper.children).forEach((element, index) => {
+    const htmlElement = element as HTMLElement; // Cast to HTMLElement
+
     // Check for page break styles
     const hasPageBreakBefore = 
-      element.classList.contains('page-break-before') || 
-      element.style.pageBreakBefore === 'always' ||
-      element.style.breakBefore === 'page' ||
-      (element.getAttribute('style') || '').includes('page-break-before') ||
-      (element.getAttribute('style') || '').includes('break-before');
+      htmlElement.classList.contains('page-break-before') || 
+      htmlElement.style.pageBreakBefore === 'always' ||
+      htmlElement.style.breakBefore === 'page' ||
+      (htmlElement.getAttribute('style') || '').includes('page-break-before') ||
+      (htmlElement.getAttribute('style') || '').includes('break-before');
     
     // For the first element, we don't need a page break
     if (hasPageBreakBefore && index > 0) {
@@ -429,16 +431,16 @@ function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): str
     }
     
     // Add this element to the current page
-    currentPage.appendChild(element.cloneNode(true));
+    currentPage.appendChild(htmlElement.cloneNode(true));
     currentPageContent = currentPage.innerHTML;
     
     // Check for page break after
     const hasPageBreakAfter = 
-      element.classList.contains('page-break-after') || 
-      element.style.pageBreakAfter === 'always' ||
-      element.style.breakAfter === 'page' ||
-      (element.getAttribute('style') || '').includes('page-break-after') ||
-      (element.getAttribute('style') || '').includes('break-after');
+      htmlElement.classList.contains('page-break-after') || 
+      htmlElement.style.pageBreakAfter === 'always' ||
+      htmlElement.style.breakAfter === 'page' ||
+      (htmlElement.getAttribute('style') || '').includes('page-break-after') ||
+      (htmlElement.getAttribute('style') || '').includes('break-after');
     
     if (hasPageBreakAfter) {
       // Save the current page and start a new one
@@ -467,6 +469,20 @@ function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): str
     const headMatch = html.match(/<head>([\s\S]*?)<\/head>/i);
     const headContent = headMatch ? headMatch[1] : '';
     
+    // Extract body attributes for stationery background compatibility
+    const bodyMatch = html.match(/<body([^>]*)>([\s\S]*?)<\/body>/i);
+    const bodyAttributes = bodyMatch && bodyMatch[1] ? bodyMatch[1] : '';
+    const originalBodyContent = bodyMatch && bodyMatch[2] ? bodyMatch[2] : '';
+    
+    // Reconstruct the stationery background if present
+    let stationeryBackgroundHTML = '';
+    const tempOriginalBodyDiv = document.createElement('div');
+    tempOriginalBodyDiv.innerHTML = originalBodyContent;
+    const stationeryBackgroundElement = tempOriginalBodyDiv.querySelector('.stationery-background');
+    if (stationeryBackgroundElement) {
+      stationeryBackgroundHTML = stationeryBackgroundElement.outerHTML;
+    }
+
     // Create a complete HTML document for each page
     return `
       <!DOCTYPE html>
@@ -474,9 +490,8 @@ function splitHTMLIntoPages(html: string, forceSplitPages: boolean = false): str
       <head>
         ${headContent}
       </head>
-      <body>
-        ${bodyContent.innerHTML.includes('stationery-background') ? 
-          bodyContent.querySelector('.stationery-background')?.outerHTML || '' : ''}
+      <body${bodyAttributes}>
+        ${stationeryBackgroundHTML}
         <div class="content-wrapper">
           ${pageContent}
         </div>
