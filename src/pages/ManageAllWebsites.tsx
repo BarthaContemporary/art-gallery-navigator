@@ -1,4 +1,5 @@
-import { useFetchAllCollectionWebsites } from "@/hooks/collection-websites";
+import React, { useState } from 'react';
+import { useFetchAllCollectionWebsites, useDeleteCollectionWebsite } from "@/hooks/collection-websites";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { 
   Table,
@@ -12,30 +13,59 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
+import { Link, useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { CollectionWebsiteWithCollectionName } from '@/types/collection-website';
 
 export default function ManageAllWebsites() {
-  const { data: websites, isLoading, error } = useFetchAllCollectionWebsites();
-  const navigate = useNavigate(); // Added useNavigate hook
+  const { data: websites, isLoading, error, refetch } = useFetchAllCollectionWebsites();
+  const navigate = useNavigate();
+  const { mutate: deleteWebsiteMutation, isPending: isDeletingWebsite } = useDeleteCollectionWebsite();
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [websiteToDelete, setWebsiteToDelete] = useState<CollectionWebsiteWithCollectionName | null>(null);
 
   const handleViewWebsite = (slug: string) => {
     const websiteUrl = `/view-collection/${slug}`;
-    window.open(websiteUrl, "_blank"); 
-    // toast.info(`Viewing website with slug: ${slug}. Public URL not yet implemented.`); // Removed toast
+    window.open(websiteUrl, "_blank");
   };
 
   const handleEditWebsite = (websiteId: string) => {
     toast.info(`Editing website ID: ${websiteId}. Edit functionality not yet implemented.`);
-    // Navigation to an edit page would go here, e.g., /manage-websites/${websiteId}/edit
-    // For now, let's keep the toast until edit is implemented.
     // navigate(`/manage-websites/${websiteId}/edit`);
   };
 
-  const handleDeleteWebsite = (websiteId: string) => {
-    toast.info(`Deleting website ID: ${websiteId}. Delete functionality not yet implemented.`);
-    // Confirmation and call to delete mutation would go here.
+  const openDeleteDialog = (website: CollectionWebsiteWithCollectionName) => {
+    setWebsiteToDelete(website);
+    setIsDeleteDialogOpen(true);
   };
 
+  const confirmDeleteWebsite = () => {
+    if (!websiteToDelete) return;
+
+    deleteWebsiteMutation({ id: websiteToDelete.id, collection_id: websiteToDelete.collection_id }, {
+      onSuccess: () => {
+        toast.success(`Website "${websiteToDelete.name || websiteToDelete.slug}" deleted successfully.`);
+        setIsDeleteDialogOpen(false);
+        setWebsiteToDelete(null);
+        refetch();
+      },
+      onError: (err) => {
+        toast.error(`Failed to delete website: ${err.message}`);
+        setIsDeleteDialogOpen(false);
+        setWebsiteToDelete(null);
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -97,7 +127,7 @@ export default function ManageAllWebsites() {
                     <Button variant="ghost" size="icon" onClick={() => handleEditWebsite(website.id)} title="Edit Website">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteWebsite(website.id)} className="text-destructive hover:text-destructive/90" title="Delete Website">
+                    <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(website)} className="text-destructive hover:text-destructive/90" title="Delete Website">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -108,6 +138,30 @@ export default function ManageAllWebsites() {
         </div>
       ) : (
         <p className="mt-6 text-muted-foreground">No collection websites found.</p>
+      )}
+
+      {websiteToDelete && (
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the website 
+                "{websiteToDelete.name || websiteToDelete.slug}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingWebsite}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDeleteWebsite} 
+                disabled={isDeletingWebsite}
+                className="bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+              >
+                {isDeletingWebsite ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
