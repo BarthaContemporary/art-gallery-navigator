@@ -1,4 +1,3 @@
-
 import { useFetchAllCollectionWebsites } from "@/hooks/collection-websites";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { 
@@ -13,22 +12,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
 
 export default function ManageAllWebsites() {
   const { data: websites, isLoading, error } = useFetchAllCollectionWebsites();
+  const navigate = useNavigate(); // Added useNavigate hook
 
   const handleViewWebsite = (slug: string) => {
-    // This would ideally open the public-facing website.
-    // For now, it can be a placeholder or link to a future preview page.
-    const websiteUrl = `/view-collection/${slug}`; // This route doesn't exist yet
-    // window.open(websiteUrl, "_blank"); 
-    toast.info(`Viewing website with slug: ${slug}. Public URL not yet implemented.`);
+    const websiteUrl = `/view-collection/${slug}`;
+    window.open(websiteUrl, "_blank"); 
+    // toast.info(`Viewing website with slug: ${slug}. Public URL not yet implemented.`); // Removed toast
   };
 
   const handleEditWebsite = (websiteId: string) => {
     toast.info(`Editing website ID: ${websiteId}. Edit functionality not yet implemented.`);
     // Navigation to an edit page would go here, e.g., /manage-websites/${websiteId}/edit
+    // For now, let's keep the toast until edit is implemented.
+    // navigate(`/manage-websites/${websiteId}/edit`);
   };
 
   const handleDeleteWebsite = (websiteId: string) => {

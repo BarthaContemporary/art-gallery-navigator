@@ -23,6 +23,7 @@ import PDFTemplates from "./pages/PDFTemplates";
 import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
 import ManageAllWebsites from "./pages/ManageAllWebsites"; // Added import
+import PublicCollectionView from "./pages/PublicCollectionView"; // Added import
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -66,6 +67,7 @@ const App = () => (
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/email-confirmation" element={<EmailConfirmation />} />
+                  <Route path="/view-collection/:slug" element={<PublicCollectionView />} /> {/* Added new public route */}
                   <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/artists" element={<Artists />} />
