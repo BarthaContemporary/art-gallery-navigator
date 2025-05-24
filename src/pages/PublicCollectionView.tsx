@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
@@ -55,7 +56,7 @@ export default function PublicCollectionView() {
   if (isWebsiteLoading || !sessionChecked) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '300px' }} />
+        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '250px' }} />
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading website...</p>
       </div>
@@ -65,7 +66,7 @@ export default function PublicCollectionView() {
   if (websiteError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '300px' }} />
+        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '250px' }} />
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <PageHeader title="Error" description={`Failed to load website: ${websiteError.message}`} />
       </div>
@@ -75,7 +76,7 @@ export default function PublicCollectionView() {
   if (!website) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '300px' }} />
+        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '250px' }} />
         <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
         <PageHeader title="Not Found" description="The requested collection website could not be found or is not active." />
       </div>
@@ -85,7 +86,7 @@ export default function PublicCollectionView() {
   if (website.password_hash && !isPasswordVerified) {
     return (
       <div className="flex flex-col items-center justify-start min-h-screen p-4 pt-10">
-        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '300px' }} />
+        <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '250px' }} />
         <PasswordProtectView websiteSlug={website.slug} onVerified={handlePasswordVerified} />
       </div>
     );
@@ -124,7 +125,7 @@ export default function PublicCollectionView() {
           src={LOGO_SRC} 
           alt="Gallery Logo" 
           className="h-auto"
-          style={{ maxWidth: '300px' }}
+          style={{ maxWidth: '250px' }}
         />
       </div>
 
@@ -191,3 +192,4 @@ export default function PublicCollectionView() {
     </div>
   );
 }
+
