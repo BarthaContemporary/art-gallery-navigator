@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
@@ -11,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
-import { useNavigate } from "react-router-dom";
+// Removed: import { useNavigate } from "react-router-dom";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
+import { Artwork } from "@/hooks/use-artworks"; // Added for explicit type
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,7 +34,7 @@ const Artworks = () => {
     data: artists
   } = useArtists();
 
-  const navigate = useNavigate();
+  // Removed: const navigate = useNavigate();
 
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
@@ -59,9 +61,9 @@ const Artworks = () => {
     }
   };
 
-  const handleGeneratePDF = (artwork: any) => { // Type for artwork should be more specific
-    navigate(`/pdf-templates/artwork/${artwork.id}`);
-  };
+  // Removed: const handleGeneratePDF = (artwork: Artwork) => { // Type for artwork should be more specific
+  //   navigate(`/pdf-templates/artwork/${artwork.id}`);
+  // };
 
   const handleClearImageCache = () => {
     clearImageCache();
@@ -111,8 +113,9 @@ const Artworks = () => {
 
       {letters.length > 0 && <AlphabeticalIndex letters={letters} onLetterClick={setActiveIndex} activeLetter={activeIndex} />}
 
-      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} onGeneratePDF={handleGeneratePDF}/>
+      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} />
     </div>;
 };
 
 export default Artworks;
+
