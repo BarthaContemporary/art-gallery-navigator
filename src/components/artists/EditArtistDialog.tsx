@@ -3,15 +3,20 @@ import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BasicInfoFields } from "./EditArtist/BasicInfoFields";
+import { ExtendedBasicInfoFields } from "./EditArtist/ExtendedBasicInfoFields"; // New import
 import { AdditionalInfoFields } from "./EditArtist/AdditionalInfoFields";
 import { ImageUploadField } from "./EditArtist/ImageUploadField";
-import { useEditArtistForm } from "@/hooks/use-edit-artist-form";
+import { useEditArtistForm, EditArtistForm } from "@/hooks/use-edit-artist-form"; // Import EditArtistForm
 
 interface EditArtistDialogProps {
   artist: {
     id: string;
     full_name: string;
+    surname_first_letter?: string | null; // New
     birth_year: number | null;
+    death_year?: number | null; // New
+    place_of_birth?: string | null; // New
+    place_of_death?: string | null; // New
     nationality: string | null;
     biography: string | null;
     image_url: string | null;
@@ -40,11 +45,16 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
     if (open) {
       reset({
         full_name: artist.full_name,
+        surname_first_letter: artist.surname_first_letter || "", // New
         birth_year: artist.birth_year || undefined,
+        death_year: artist.death_year || undefined, // New
+        place_of_birth: artist.place_of_birth || "", // New
+        place_of_death: artist.place_of_death || "", // New
         nationality: artist.nationality || "",
         biography: artist.biography || "",
-        representation_status: artist.representation_status as any || "not represented",
+        representation_status: artist.representation_status as EditArtistForm['representation_status'] || "not represented",
         email: artist.email || "",
+        image: undefined, // Reset image field
       });
     }
   }, [open, artist, reset]);
@@ -69,6 +79,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
           }}
         >
           <BasicInfoFields register={register} errors={errors} />
+          <ExtendedBasicInfoFields register={register} errors={errors} /> {/* New component */}
           <AdditionalInfoFields register={register} statusOptions={statusOptions} />
           <ImageUploadField 
             register={register}

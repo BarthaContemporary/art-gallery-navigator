@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,11 @@ type RepresentationStatus = "represented" | "formerly represented" | "not repres
 
 export interface EditArtistForm {
   full_name: string;
+  surname_first_letter?: string; // New field
   birth_year?: number;
+  death_year?: number; // New field
+  place_of_birth?: string; // New field
+  place_of_death?: string; // New field
   nationality?: string;
   biography?: string;
   image?: FileList;
@@ -21,7 +24,11 @@ interface UseEditArtistFormProps {
   artist: {
     id: string;
     full_name: string;
+    surname_first_letter?: string | null; // New field
     birth_year: number | null;
+    death_year?: number | null; // New field
+    place_of_birth?: string | null; // New field
+    place_of_death?: string | null; // New field
     nationality: string | null;
     biography: string | null;
     image_url: string | null;
@@ -38,7 +45,11 @@ export function useEditArtistForm({ artist, onSuccess }: UseEditArtistFormProps)
   const form = useForm<EditArtistForm>({
     defaultValues: {
       full_name: artist.full_name,
+      surname_first_letter: artist.surname_first_letter || "", // New field
       birth_year: artist.birth_year || undefined,
+      death_year: artist.death_year || undefined, // New field
+      place_of_birth: artist.place_of_birth || "", // New field
+      place_of_death: artist.place_of_death || "", // New field
       nationality: artist.nationality || "",
       biography: artist.biography || "",
       representation_status: (artist.representation_status as RepresentationStatus) || "not represented",
@@ -71,7 +82,11 @@ export function useEditArtistForm({ artist, onSuccess }: UseEditArtistFormProps)
 
       const { error } = await supabase.from('artists').update({
         full_name: data.full_name,
+        surname_first_letter: data.surname_first_letter || null, // New field
         birth_year: data.birth_year ?? null,
+        death_year: data.death_year ?? null, // New field
+        place_of_birth: data.place_of_birth || null, // New field
+        place_of_death: data.place_of_death || null, // New field
         nationality: data.nationality ?? null,
         biography: data.biography ?? null,
         representation_status: data.representation_status,

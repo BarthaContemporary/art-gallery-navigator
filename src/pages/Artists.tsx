@@ -12,7 +12,11 @@ import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
 interface Artist {
   id: string;
   full_name: string;
+  surname_first_letter?: string | null; // New
   birth_year: number | null;
+  death_year?: number | null; // New
+  place_of_birth?: string | null; // New
+  place_of_death?: string | null; // New
   nationality: string | null;
   representation_status: string;
   biography: string | null;
@@ -36,7 +40,14 @@ const Artists = () => {
       return data as Artist[];
     }
   });
-  const filteredArtists = artists?.filter(artist => artist.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || artist.nationality && artist.nationality.toLowerCase().includes(searchTerm.toLowerCase()) || artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase())) ?? [];
+  const filteredArtists = artists?.filter(artist => 
+    artist.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (artist.nationality && artist.nationality.toLowerCase().includes(searchTerm.toLowerCase())) || 
+    (artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (artist.surname_first_letter && artist.surname_first_letter.toLowerCase().includes(searchTerm.toLowerCase())) || // Include new field in search
+    (artist.place_of_birth && artist.place_of_birth.toLowerCase().includes(searchTerm.toLowerCase())) || // Include new field in search
+    (artist.place_of_death && artist.place_of_death.toLowerCase().includes(searchTerm.toLowerCase()))    // Include new field in search
+  ) ?? [];
   const formatCSVValue = (value: any): string => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
@@ -49,7 +60,11 @@ const Artists = () => {
       toast.error("No artists to export");
       return;
     }
-    const headers = ['id', 'full_name', 'email', 'birth_year', 'nationality', 'representation_status', 'biography', 'image_url'];
+    const headers = [
+      'id', 'full_name', 'surname_first_letter', 'email', 
+      'birth_year', 'death_year', 'place_of_birth', 'place_of_death', 
+      'nationality', 'representation_status', 'biography', 'image_url'
+    ]; // Added new headers
     const csvHeader = headers.map(formatCSVValue).join(',');
     const csvRows = artistsToExport.map(artist => {
       return headers.map(header => {
@@ -89,9 +104,9 @@ const Artists = () => {
             <Download className="h-4 w-4" />
             Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
           </Button>
-          {filteredArtists.length !== artists?.length && artists?.length > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
+          {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
               <Download className="h-4 w-4" />
-              Export All ({artists.length})
+              Export All ({artists?.length})
             </Button>}
           <Button variant="default" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
             <PlusCircle className="h-4 w-4" />

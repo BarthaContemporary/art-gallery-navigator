@@ -14,12 +14,16 @@ export type Database = {
           biography: string | null
           birth_year: number | null
           created_at: string | null
+          death_year: number | null
           email: string | null
           full_name: string
           id: string
           image_url: string | null
           nationality: string | null
+          place_of_birth: string | null
+          place_of_death: string | null
           representation_status: string
+          surname_first_letter: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -27,12 +31,16 @@ export type Database = {
           biography?: string | null
           birth_year?: number | null
           created_at?: string | null
+          death_year?: number | null
           email?: string | null
           full_name: string
           id?: string
           image_url?: string | null
           nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
           representation_status?: string
+          surname_first_letter?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -40,12 +48,16 @@ export type Database = {
           biography?: string | null
           birth_year?: number | null
           created_at?: string | null
+          death_year?: number | null
           email?: string | null
           full_name?: string
           id?: string
           image_url?: string | null
           nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
           representation_status?: string
+          surname_first_letter?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
