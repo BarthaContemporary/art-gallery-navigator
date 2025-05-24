@@ -1,6 +1,7 @@
 
 import { Collection } from "@/hooks/use-collections";
 import { escapeHtml } from "./utils";
+import { cmToInchFraction } from './unit-conversion'; // Added import here
 
 /**
  * Generates the collection header HTML with name and description
@@ -40,8 +41,7 @@ export function formatDimensions(height?: number, width?: number, depth?: number
   
   const dimensionsCm = `${height} x ${width}${depth ? ' x ' + depth : ''} cm`;
   
-  // Import needed here to avoid circular dependencies
-  const { cmToInchFraction } = require('./unit-conversion');
+  // const { cmToInchFraction } = require('./unit-conversion'); // Removed require from here
   const dimensionsInches = `${cmToInchFraction(height)} x ${cmToInchFraction(width)}${
     depth ? ' x ' + cmToInchFraction(depth) : ''
   }"`;
