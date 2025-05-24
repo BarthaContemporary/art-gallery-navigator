@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import type { UpdateCollectionWebsitePayload } from '@/types/collection-website';
+import { Button } from '@/components/ui/button'; // Added this import
 
 export default function EditCollectionWebsite() {
   const { websiteId } = useParams<{ websiteId: string }>();
