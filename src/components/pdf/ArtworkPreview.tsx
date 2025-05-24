@@ -1,3 +1,4 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 import { cmToInchFraction } from "@/lib/pdf/unit-conversion";
 
@@ -14,7 +15,7 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
     const widthInInches = cmToInchFraction(artwork.width);
     dimensionsInInches = artwork.depth 
       ? `${heightInInches} x ${widthInInches} x ${cmToInchFraction(artwork.depth)}"` 
-      : `${heightInInches} x ${widthInches}"`;
+      : `${heightInInches} x ${widthInInches}"`; // Corrected widthInches to widthInInches
   }
   
   let editionInfo = '';
