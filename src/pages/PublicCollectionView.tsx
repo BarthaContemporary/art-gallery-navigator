@@ -24,14 +24,14 @@ export default function PublicCollectionView() {
 
   useEffect(() => {
     if (!isWebsiteLoading && website) {
-      console.log("Fetched website data:", website);
-      console.log("Website collection_id:", website.collection_id);
+      console.log("[PublicCollectionView] Fetched website data:", website);
+      console.log("[PublicCollectionView] Website collection_id:", website.collection_id);
     }
     if (collectionId && !isCollectionLoading && collection) {
-      console.log("Fetched collection data:", collection);
+      console.log("[PublicCollectionView] Fetched collection data:", collection);
     }
     if (collectionId && !isArtworksLoading && artworks) {
-      console.log("Fetched artworks data:", artworks);
+      console.log("[PublicCollectionView] Artworks data from hook:", artworks);
     }
   }, [website, isWebsiteLoading, collection, isCollectionLoading, artworks, isArtworksLoading, collectionId]);
 
@@ -104,14 +104,27 @@ export default function PublicCollectionView() {
     }
   }
 
+  // Debug logs before rendering the artworks section
+  console.log('[PublicCollectionView Debug] State before rendering artworks section:');
+  console.log('[PublicCollectionView Debug] Slug:', slug);
+  console.log('[PublicCollectionView Debug] Website data:', website);
+  console.log('[PublicCollectionView Debug] Collection ID from website:', website?.collection_id);
+  console.log('[PublicCollectionView Debug] Derived collectionId variable:', collectionId);
+  console.log('[PublicCollectionView Debug] Collection data:', collection);
+  console.log('[PublicCollectionView Debug] Is Collection Loading:', isCollectionLoading);
+  console.log('[PublicCollectionView Debug] Collection Error:', collectionError);
+  console.log('[PublicCollectionView Debug] Artworks data:', artworks);
+  console.log('[PublicCollectionView Debug] Is Artworks Loading:', isArtworksLoading);
+  console.log('[PublicCollectionView Debug] Artworks Error:', artworksError);
+
   return (
     <div className="container mx-auto p-4 sm:p-6">
-      <div className="flex justify-start mb-6 sm:mb-8"> {/* Changed justify-center to justify-start */}
+      <div className="flex justify-start mb-6 sm:mb-8">
         <img 
           src={LOGO_SRC} 
           alt="Gallery Logo" 
           className="h-auto"
-          style={{ maxWidth: '300px' }} // Changed maxWidth to 300px
+          style={{ maxWidth: '300px' }}
         />
       </div>
 
@@ -120,16 +133,12 @@ export default function PublicCollectionView() {
         description={pageHeaderDescription}
       />
       
-      {/* Section for Collection Title and Description - This might be redundant now as it's in PageHeader description */}
-      {/* We'll keep this for now but simplify it, ensuring it only shows if collection is loaded successfully */}
       {website.collection_id && collection && !isCollectionLoading && !collectionError && (
         <div className="my-6 text-left border-t pt-6">
-          {/* Title is now mainly in PageHeader, description too, but we can keep this as a detailed view if desired */}
-          {/* For now, let's remove the redundant title and description from here as they are in pageHeaderDescription */}
+          {/* Content here is minimal as details are in PageHeader */}
         </div>
       )}
       
-      {/* Display a message if collection_id is present but collection couldn't be loaded and wasn't an error caught by collectionError */}
       {website.collection_id && !collection && !isCollectionLoading && !collectionError && (
         <Alert variant="default" className="my-6">
           <Info className="h-5 w-5" />
