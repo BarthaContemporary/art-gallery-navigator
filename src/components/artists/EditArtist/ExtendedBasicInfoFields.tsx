@@ -12,36 +12,10 @@ interface ExtendedBasicInfoFieldsProps {
 export function ExtendedBasicInfoFields({ register, errors }: ExtendedBasicInfoFieldsProps) {
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor="surname_first_letter">First Letter of Surname</Label>
-        <Input
-          id="surname_first_letter"
-          {...register("surname_first_letter", {
-            maxLength: { value: 1, message: "Should be a single letter" },
-            setValueAs: (value) => value?.toUpperCase() || ""
-          })}
-        />
-        {errors.surname_first_letter && (
-          <span className="text-red-500 text-xs">{errors.surname_first_letter.message}</span>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="death_year">Year of Death</Label>
-        <Input
-          id="death_year"
-          type="number"
-          {...register("death_year", {
-            valueAsNumber: true,
-            validate: value =>
-              !value || // Allow empty
-              (typeof value === 'number' && value > 1800 && value <= new Date().getFullYear() + 10) || // Allow future for recent deaths
-              "Please enter a valid year",
-          })}
-        />
-        {errors.death_year && (
-          <span className="text-red-500 text-xs">{errors.death_year.message}</span>
-        )}
-      </div>
+      {/* 
+        "First Letter of Surname" and "Year of Death" fields have been moved 
+        to BasicInfoFields.tsx for better layout grouping.
+      */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="place_of_birth">Place of Birth</Label>

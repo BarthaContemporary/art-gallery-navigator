@@ -12,15 +12,30 @@ interface BasicInfoFieldsProps {
 export function BasicInfoFields({ register, errors }: BasicInfoFieldsProps) {
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor="full_name">Full Name *</Label>
-        <Input
-          id="full_name"
-          {...register("full_name", { required: "Full name is required" })}
-        />
-        {errors.full_name && (
-          <span className="text-red-500 text-xs">{errors.full_name.message}</span>
-        )}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2 col-span-2">
+          <Label htmlFor="full_name">Full Name *</Label>
+          <Input
+            id="full_name"
+            {...register("full_name", { required: "Full name is required" })}
+          />
+          {errors.full_name && (
+            <span className="text-red-500 text-xs">{errors.full_name.message}</span>
+          )}
+        </div>
+        <div className="space-y-2 col-span-1">
+          <Label htmlFor="surname_first_letter">Sort Letter</Label>
+          <Input
+            id="surname_first_letter"
+            {...register("surname_first_letter", {
+              maxLength: { value: 1, message: "Should be a single letter" },
+              setValueAs: (value) => value?.toUpperCase() || ""
+            })}
+          />
+          {errors.surname_first_letter && (
+            <span className="text-red-500 text-xs">{errors.surname_first_letter.message}</span>
+          )}
+        </div>
       </div>
       
       <div className="space-y-2">
@@ -40,22 +55,41 @@ export function BasicInfoFields({ register, errors }: BasicInfoFieldsProps) {
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="birth_year">Birth Year</Label>
-        <Input
-          id="birth_year"
-          type="number"
-          {...register("birth_year", {
-            valueAsNumber: true,
-            validate: value =>
-              !value ||
-              (value > 1800 && value <= new Date().getFullYear()) ||
-              "Please enter a valid year",
-          })}
-        />
-        {errors.birth_year && (
-          <span className="text-red-500 text-xs">{errors.birth_year.message}</span>
-        )}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="birth_year">Birth Year</Label>
+          <Input
+            id="birth_year"
+            type="number"
+            {...register("birth_year", {
+              valueAsNumber: true,
+              validate: value =>
+                !value ||
+                (value > 1800 && value <= new Date().getFullYear()) ||
+                "Please enter a valid year",
+            })}
+          />
+          {errors.birth_year && (
+            <span className="text-red-500 text-xs">{errors.birth_year.message}</span>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="death_year">Year of Death</Label>
+          <Input
+            id="death_year"
+            type="number"
+            {...register("death_year", {
+              valueAsNumber: true,
+              validate: value =>
+                !value || // Allow empty
+                (typeof value === 'number' && value > 1800 && value <= new Date().getFullYear() + 10) || // Allow future for recent deaths
+                "Please enter a valid year",
+            })}
+          />
+          {errors.death_year && (
+            <span className="text-red-500 text-xs">{errors.death_year.message}</span>
+          )}
+        </div>
       </div>
     </>
   );

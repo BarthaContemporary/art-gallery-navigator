@@ -90,35 +90,36 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
           <DialogTitle>Add New Artist</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="full_name">Full Name *</Label>
-            <Input
-              id="full_name"
-              {...register("full_name", { required: "Full name is required" })}
-            />
-            {errors.full_name && (
-              <p className="text-sm text-red-500">{errors.full_name.message}</p>
-            )}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="full_name_create">Full Name *</Label> {/* Ensure unique ID if needed, or manage via form context */}
+              <Input
+                id="full_name_create"
+                {...register("full_name", { required: "Full name is required" })}
+              />
+              {errors.full_name && (
+                <p className="text-sm text-red-500">{errors.full_name.message}</p>
+              )}
+            </div>
+            <div className="space-y-2 col-span-1">
+              <Label htmlFor="surname_first_letter_create">Sort Letter</Label>
+              <Input
+                id="surname_first_letter_create"
+                {...register("surname_first_letter", { 
+                  maxLength: { value: 1, message: "Should be a single letter" },
+                  setValueAs: (value) => value?.toUpperCase() || ""
+                })}
+              />
+              {errors.surname_first_letter && (
+                <p className="text-sm text-red-500">{errors.surname_first_letter.message}</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="surname_first_letter">First Letter of Surname</Label>
+            <Label htmlFor="email_create">Email</Label>
             <Input
-              id="surname_first_letter"
-              {...register("surname_first_letter", { 
-                maxLength: { value: 1, message: "Should be a single letter" },
-                setValueAs: (value) => value?.toUpperCase() || ""
-              })}
-            />
-            {errors.surname_first_letter && (
-              <p className="text-sm text-red-500">{errors.surname_first_letter.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
+              id="email_create"
               type="email"
               {...register("email", {
                 pattern: {
@@ -134,9 +135,9 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="birth_year">Birth Year</Label>
+              <Label htmlFor="birth_year_create">Birth Year</Label>
               <Input
-                id="birth_year"
+                id="birth_year_create"
                 type="number"
                 {...register("birth_year", {
                   valueAsNumber: true,
@@ -150,9 +151,9 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="death_year">Death Year</Label>
+              <Label htmlFor="death_year_create">Death Year</Label>
               <Input
-                id="death_year"
+                id="death_year_create"
                 type="number"
                 {...register("death_year", {
                   valueAsNumber: true,
@@ -169,9 +170,9 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="place_of_birth">Place of Birth</Label>
+              <Label htmlFor="place_of_birth_create">Place of Birth</Label>
               <Input
-                id="place_of_birth"
+                id="place_of_birth_create"
                 {...register("place_of_birth")}
               />
               {errors.place_of_birth && (
@@ -179,9 +180,9 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="place_of_death">Place of Death</Label>
+              <Label htmlFor="place_of_death_create">Place of Death</Label>
               <Input
-                id="place_of_death"
+                id="place_of_death_create"
                 {...register("place_of_death")}
               />
               {errors.place_of_death && (
@@ -191,25 +192,25 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nationality">Nationality</Label>
+            <Label htmlFor="nationality_create">Nationality</Label>
             <Input
-              id="nationality"
+              id="nationality_create"
               {...register("nationality")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="biography">Biography</Label>
+            <Label htmlFor="biography_create">Biography</Label>
             <Textarea
-              id="biography"
+              id="biography_create"
               {...register("biography")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image">Profile Image</Label>
+            <Label htmlFor="image_create">Profile Image</Label>
             <Input
-              id="image"
+              id="image_create"
               type="file"
               accept="image/*"
               {...register("image")}
