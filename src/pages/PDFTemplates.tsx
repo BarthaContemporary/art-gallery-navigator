@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -51,7 +52,7 @@ export default function PDFTemplates() {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
-          <h1 className="text-sm font-visby font-extrabold text-slate-700">PDF TEMPLATES</h1>
+          {/* Removed h1 title: <h1 className="text-sm font-visby font-extrabold text-slate-700">PDF TEMPLATES</h1> */}
           <p className="text-muted-foreground">Generate PDF documents for artworks and collections</p>
         </div>
       </div>
@@ -105,3 +106,4 @@ export default function PDFTemplates() {
     </div>
   );
 }
+

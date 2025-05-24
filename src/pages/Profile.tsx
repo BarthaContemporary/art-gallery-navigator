@@ -10,9 +10,11 @@ export default function Profile() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
+        {/* Removed div containing h1 title:
         <div>
           <h1 className="text-sm font-visby font-extrabold text-slate-700">PROFILE</h1>
         </div>
+        */}
       </div>
       
       <Card className="w-full max-w-md mx-auto p-4 shadow-md">
@@ -38,3 +40,4 @@ export default function Profile() {
     </div>
   );
 }
+

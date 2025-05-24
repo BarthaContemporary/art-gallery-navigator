@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArtistHeader } from "@/components/artists/ArtistHeader";
 import { SearchBar } from "@/components/artists/SearchBar";
 import { ArtistCard } from "@/components/artists/ArtistCard";
 import { LoadingSkeleton } from "@/components/artists/LoadingSkeleton";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Download, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
+
 interface Artist {
   id: string;
   full_name: string;
@@ -82,9 +82,8 @@ const Artists = () => {
   };
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        <div>
-          <h1 className="font-visby text-slate-700 text-sm font-extrabold">ARTISTS</h1>
-        </div>
+        
+        <div /> {/* Added an empty div to maintain justify-between with buttons */}
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
             <Download className="h-4 w-4" />

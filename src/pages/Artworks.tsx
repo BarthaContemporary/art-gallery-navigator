@@ -59,7 +59,7 @@ const Artworks = () => {
     }
   };
 
-  const handleGeneratePDF = artwork => {
+  const handleGeneratePDF = (artwork: any) => { // Type for artwork should be more specific
     navigate(`/pdf-templates/artwork/${artwork.id}`);
   };
 
@@ -82,9 +82,8 @@ const Artworks = () => {
 
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        <div>
-          <h1 className="text-sm font-visby font-extrabold text-slate-700">ARTWORKS</h1>
-        </div>
+        
+        <div /> {/* Added an empty div to maintain justify-between with buttons */}
         <div className="flex flex-wrap gap-2">
           <ImportCSVDialog />
           <Button variant="outline" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtworks.length}>
@@ -112,7 +111,7 @@ const Artworks = () => {
 
       {letters.length > 0 && <AlphabeticalIndex letters={letters} onLetterClick={setActiveIndex} activeLetter={activeIndex} />}
 
-      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} />
+      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} onGeneratePDF={handleGeneratePDF}/>
     </div>;
 };
 
