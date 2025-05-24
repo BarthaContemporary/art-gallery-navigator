@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
-import { AuthProvider } from "./hooks/use-auth";
+import { AuthProvider } from "./providers/auth-provider"; // Updated import path
 import Dashboard from "./pages/Dashboard";
 import Artists from "./pages/Artists";
 import Artworks from "./pages/Artworks";
@@ -25,8 +25,6 @@ import FileTransfer from "./pages/FileTransfer";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
-// Removed ProjectMembersProvider import as it's no longer used
-// import { ProjectMembersProvider } from "./contexts/project-members-context";
 
 // Create a new QueryClient with enhanced error handling
 const queryClient = new QueryClient({
