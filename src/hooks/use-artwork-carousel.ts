@@ -1,5 +1,4 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,11 +13,13 @@ interface ArtworkImage {
 /**
  * Custom hook to manage the state and logic for an artwork image carousel.
  * Fetches artwork images from Supabase and integrates with Embla Carousel for navigation.
+ * Preloads images when the carousel becomes active.
  *
  * @param artworkId The ID of the artwork for which to display images.
+ * @param isDialogActive Boolean indicating if the parent dialog/context is active.
  * @returns An object containing carousel state, images, and control functions.
  */
-export function useArtworkCarousel(artworkId: string) {
+export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,7 @@ export function useArtworkCarousel(artworkId: string) {
     watchDrag: false, 
     skipSnaps: false 
   });
+  const preloadingInitiatedRef = useRef(false);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -57,6 +59,7 @@ export function useArtworkCarousel(artworkId: string) {
       try {
         setLoading(true);
         setError(null);
+        preloadingInitiatedRef.current = false;
         
         const { data, error: fetchError } = await supabase
           .from("artwork_images")
@@ -89,6 +92,19 @@ export function useArtworkCarousel(artworkId: string) {
   }, [artworkId]);
   
   useEffect(() => {
+    if (isDialogActive && images.length > 0 && !preloadingInitiatedRef.current) {
+      images.forEach((image) => {
+        const img = new Image();
+        img.src = image.image_url;
+      });
+      preloadingInitiatedRef.current = true;
+    }
+    if (!isDialogActive || images.length === 0) {
+      preloadingInitiatedRef.current = false;
+    }
+  }, [images, isDialogActive, artworkId]);
+  
+  useEffect(() => {
     if (emblaApi && images.length > 0) {
       const timer = setTimeout(() => {
         emblaApi.reInit();
@@ -98,26 +114,16 @@ export function useArtworkCarousel(artworkId: string) {
     }
   }, [images.length, emblaApi]);
   
-  /**
-   * Scrolls the carousel to the specified slide index.
-   * @param index The index of the slide to scroll to.
-   */
   const handleDotClick = useCallback((index: number) => {
     if (emblaApi) {
       emblaApi.scrollTo(index);
     }
   }, [emblaApi]);
 
-  /**
-   * Scrolls to the previous slide in the carousel.
-   */
   const scrollPrev = useCallback(() => {
     emblaApi?.scrollPrev();
   }, [emblaApi]);
 
-  /**
-   * Scrolls to the next slide in the carousel.
-   */
   const scrollNext = useCallback(() => {
     emblaApi?.scrollNext();
   }, [emblaApi]);
@@ -128,7 +134,7 @@ export function useArtworkCarousel(artworkId: string) {
     loading,
     error,
     emblaRef,
-    emblaApi, // Exposes the full Embla API if needed for more advanced interactions
+    emblaApi,
     handleDotClick,
     scrollPrev,
     scrollNext,

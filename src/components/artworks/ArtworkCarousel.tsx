@@ -8,12 +8,13 @@ interface ArtworkCarouselProps {
   artworkId: string;
   artistName?: string;
   artworkTitle?: string;
-  isDialogActive?: boolean; // New prop to indicate if the parent dialog is active
+  isDialogActive?: boolean; 
 }
 
 /**
  * Renders an image carousel for an artwork, supporting mouse, touch, and keyboard navigation.
  * Includes loading/error states, navigation dots, and an optional download menu.
+ * Preloads images when the dialog is active.
  *
  * @param artworkId The ID of the artwork.
  * @param artistName Optional name of the artist for image alt text.
@@ -24,7 +25,7 @@ export function ArtworkCarousel({
   artworkId,
   artistName = "Unknown_Artist",
   artworkTitle = "Untitled",
-  isDialogActive = false // Default to false if not provided
+  isDialogActive = false 
 }: ArtworkCarouselProps) {
   const {
     images,
@@ -36,7 +37,7 @@ export function ArtworkCarousel({
     handleDotClick,
     scrollPrev,
     scrollNext,
-  } = useArtworkCarousel(artworkId);
+  } = useArtworkCarousel(artworkId, isDialogActive); // Pass isDialogActive here
   
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
   
@@ -45,17 +46,17 @@ export function ArtworkCarousel({
     if (emblaApi && images.length > 0) {
       const timer = setTimeout(() => {
         emblaApi.reInit();
-        emblaApi.scrollTo(0);
+        emblaApi.scrollTo(0); // Ensure it scrolls to the first image on re-init with new images
       }, 100);
       
       return () => clearTimeout(timer);
     }
-  }, [images, emblaApi]); // images.length could also be used if images array identity is stable
+  }, [images, emblaApi]);
 
   // Keyboard navigation handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!emblaApi) return; // Only need emblaApi here, carouselWrapperRef not strictly needed for this logic anymore
+      if (!emblaApi) return;
 
       const targetElement = event.target as HTMLElement;
       const isInputFocused =
@@ -67,13 +68,12 @@ export function ArtworkCarousel({
         return;
       }
       
-      // Check if the dialog is active and then process keys
       if (isDialogActive) {
         if (event.key === "ArrowLeft") {
-          event.preventDefault(); // Prevent browser scroll
+          event.preventDefault(); 
           scrollPrev();
         } else if (event.key === "ArrowRight") {
-          event.preventDefault(); // Prevent browser scroll
+          event.preventDefault(); 
           scrollNext();
         }
       }
@@ -83,7 +83,7 @@ export function ArtworkCarousel({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [emblaApi, scrollPrev, scrollNext, isDialogActive]); // Added isDialogActive to dependencies
+  }, [emblaApi, scrollPrev, scrollNext, isDialogActive]);
 
   if (loading) {
     return (
@@ -112,8 +112,8 @@ export function ArtworkCarousel({
   return (
     <div 
       className="relative" 
-      ref={carouselWrapperRef} // Keep ref for focusability and ARIA
-      tabIndex={0} // Keep for accessibility, allowing users to tab to it
+      ref={carouselWrapperRef} 
+      tabIndex={0} 
       aria-roledescription="carousel" 
     >
       <div className="w-full group">
@@ -141,7 +141,7 @@ export function ArtworkCarousel({
           <>
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={scrollPrev} // Use scrollPrev from hook directly
+                onClick={scrollPrev} 
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Previous image"
                 type="button"
@@ -153,7 +153,7 @@ export function ArtworkCarousel({
             </div>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
               <button 
-                onClick={scrollNext} // Use scrollNext from hook directly
+                onClick={scrollNext} 
                 className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 aria-label="Next image"
                 type="button"
