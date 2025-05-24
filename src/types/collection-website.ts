@@ -8,8 +8,16 @@ export interface CollectionWebsite {
   password_hash?: string | null; // Will store hashed password
   show_prices: boolean;
   is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string; // Ensure this is not optional if API always returns it
+  updated_at: string; // Ensure this is not optional
+}
+
+// For fetching all websites with their collection name
+export interface CollectionWebsiteWithCollectionName extends CollectionWebsite {
+  collection: { // Changed from 'collections' to 'collection' for clarity, assuming one-to-one for this context
+    id: string;
+    name: string;
+  } | null; // Collection might be null if orphaned
 }
 
 // Payload for creating a new collection website

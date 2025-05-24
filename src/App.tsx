@@ -22,6 +22,7 @@ import EmailConfirmation from "./pages/EmailConfirmation";
 import PDFTemplates from "./pages/PDFTemplates";
 import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
+import ManageAllWebsites from "./pages/ManageAllWebsites"; // Added import
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -79,6 +80,7 @@ const App = () => (
                     <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
                     <Route path="/upload" element={<Upload />} />
                     <Route path="/file-transfer" element={<FileTransfer />} />
+                    <Route path="/manage-websites" element={<ManageAllWebsites />} /> {/* Added route */}
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
