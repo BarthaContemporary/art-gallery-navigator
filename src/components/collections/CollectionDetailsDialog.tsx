@@ -1,8 +1,7 @@
-
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collection } from "@/hooks/use-collections";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Globe } from "lucide-react";
 import { useCollectionDocuments } from "@/hooks/use-collection-documents";
 import {
   DropdownMenu,
@@ -63,11 +62,14 @@ export function CollectionDetailsDialog({
     }
   };
 
-  // Function to get artist name from artist_id
   const getArtistName = (artistId: string | null) => {
     if (!artistId || !artists) return "Unknown Artist";
     const artist = artists.find(a => a.id === artistId);
     return artist ? artist.full_name : "Unknown Artist";
+  };
+
+  const handleCreateWebsite = () => {
+    toast.info("Website creation for this collection will be available here soon.");
   };
 
   return (
@@ -124,6 +126,15 @@ export function CollectionDetailsDialog({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button 
+              onClick={handleCreateWebsite}
+              disabled={!collection} // Disable if no collection is selected
+              className="flex items-center gap-2"
+            >
+              Create Website
+              <Globe className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Collection Content */}
