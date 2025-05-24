@@ -1,4 +1,3 @@
-
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -67,9 +66,32 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     }
   };
 
+  const formatDimensions = (art: Artwork) => {
+    const parts = [];
+    if (art.height) parts.push(`H ${art.height}`);
+    if (art.width) parts.push(`W ${art.width}`);
+    if (art.depth) parts.push(`D ${art.depth}`);
+    // Assuming unit 'cm' if dimensions are present, not in schema though.
+    // For now, just the numbers. Example: "H 100 x W 80 x D 5 cm" or "N/A"
+    // The artwork type doesn't have dimension_unit. So just "H 100 W 80 D 5"
+    return parts.length > 0 ? parts.join(' ') : "N/A";
+  };
+  
+  const formatEditionInfo = (art: Artwork) => {
+    if (art.classification === 'Unique') {
+      return null; // Or return "Unique" if preferred as a line item
+    }
+    const parts = [];
+    if (art.edition_size) parts.push(`Ed. Size: ${art.edition_size}`);
+    if (art.available_works) parts.push(`Avail.: ${art.available_works}`);
+    // Could add inventory_quantity, artist_proofs for more detail if space allows or desired.
+    // For the card, let's keep it concise.
+    return parts.join(' / ');
+  };
+
   return (
     <>
-      <Card className="group relative">
+      <Card className="group relative flex flex-col h-full">
         {isAdmin && (
           <ArtworkCardActions
             onEdit={handleEdit}
@@ -86,23 +108,40 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         />
         
         <CardContent 
-          className="p-4 cursor-pointer space-y-1"
+          className="p-4 cursor-pointer space-y-1 flex-grow"
           onClick={() => setOverviewDialogOpen(true)}
         >
-          <h3 className="font-medium text-lg leading-tight">{artwork.title}</h3>
-          <p className="text-muted-foreground">{getArtistName()}</p>
-          <p className="text-sm">{artwork.medium_type}</p>
-          {artwork.price && (
-            <p className="font-medium">
-              {artwork.currency} {artwork.price.toLocaleString()}
-            </p>
+          <p className="text-muted-foreground text-sm">{getArtistName()}</p>
+          <h3 className="font-semibold text-base leading-tight min-h-[2.5rem]">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</h3>
+          
+          {artwork.materials && <p className="text-xs text-gray-600 truncate">{artwork.materials}</p>}
+          
+          {formatEditionInfo(artwork) && (
+            <p className="text-xs text-gray-600">{formatEditionInfo(artwork)}</p>
           )}
-          {artwork.status && statusIcons[artwork.status as keyof typeof statusIcons] && (
-            <div className="flex items-center">
-              {statusIcons[artwork.status as keyof typeof statusIcons]}
-              <span className="text-sm ml-1 capitalize">{artwork.status}</span>
-            </div>
-          )}
+          
+          <p className="text-xs text-gray-600">
+            {formatDimensions(artwork)}
+          </p>
+
+          <p className="text-xs text-gray-600">{artwork.medium_type}</p>
+          
+          <div className="flex justify-between items-center pt-2">
+            {artwork.price && (
+              <p className="font-medium text-sm">
+                {artwork.currency} {artwork.price.toLocaleString()}
+              </p>
+            )}
+            {/* Spacer if no price but status exists */}
+            {!artwork.price && artwork.status && statusIcons[artwork.status as keyof typeof statusIcons] && <div />} 
+            
+            {artwork.status && statusIcons[artwork.status as keyof typeof statusIcons] && (
+              <div className="flex items-center">
+                {statusIcons[artwork.status as keyof typeof statusIcons]}
+                <span className="text-xs ml-1 capitalize">{artwork.status}</span>
+              </div>
+            )}
+          </div>
         </CardContent>
         
         <EditArtworkDialog

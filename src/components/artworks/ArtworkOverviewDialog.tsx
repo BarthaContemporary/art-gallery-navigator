@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
+import { useLocation } from "@/hooks/use-location"; // For fetching location data
 import {
   Dialog,
   DialogContent,
@@ -13,12 +14,12 @@ import { toast } from "sonner";
 import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog";
 import { ArtworkPDFPreview } from "../pdf/ArtworkPreview";
 import { ArtworkCarousel } from "./ArtworkCarousel";
-import { ArtworkDetailsSection } from "./overview/ArtworkDetailsSection";
-import { DimensionsSection } from "./overview/DimensionsSection";
-import { AdditionalInfoSection } from "./overview/AdditionalInfoSection";
-import { useNavigate } from "react-router-dom";
 import { DialogHeaderActions } from "./overview/DialogHeaderActions";
 import { useFileOperations } from "./overview/useFileOperations";
+
+// New components
+import { ArtworkOverviewPrimaryInfo } from "./overview/ArtworkOverviewPrimaryInfo";
+import { ArtworkOverviewCollapsibleInfo } from "./overview/ArtworkOverviewCollapsibleInfo";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -34,7 +35,7 @@ export function ArtworkOverviewDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
-  const navigate = useNavigate();
+  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id); // Fetch location
   
   const {
     documents,
@@ -47,22 +48,12 @@ export function ArtworkOverviewDialog({
     artwork.title
   );
 
-  // Use a memoized handler to prevent re-renders and event propagation issues
   const handleDialogInteraction = useCallback((e: React.MouseEvent) => {
-    // Prevent event from bubbling up to parent elements
     e.stopPropagation();
   }, []);
 
-  // Safer dialog close handler
   const handleOpenChange = useCallback((newOpen: boolean) => {
-    if (!newOpen) {
-      // Add a small delay to ensure clean state transition
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 10);
-    } else {
-      onOpenChange(true);
-    }
+    onOpenChange(newOpen); // Simplified, as Radix handles focus and state well
   }, [onOpenChange]);
 
   const handleGeneratePDF = (templateStyle: string, useStationery: boolean) => {
@@ -86,14 +77,15 @@ export function ArtworkOverviewDialog({
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-          onClick={handleDialogInteraction}
+          className="max-w-4xl w-[90vw] md:w-full max-h-[90vh] overflow-hidden flex flex-col p-0" // Changed padding to p-0
+          onClick={handleDialogInteraction} // Keep this to prevent card click through if dialog is nested weirdly
         >
-          <DialogHeader>
-            <div className="flex justify-between items-center relative">
-              <DialogTitle className="text-2xl font-bold">
+          <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b"> {/* Added padding, sticky, bg, border */}
+            <div className="flex justify-between items-center"> {/* Removed 'relative' from here */}
+              <DialogTitle className="text-2xl font-semibold"> {/* Adjusted font-bold to font-semibold */}
                 {artwork.title}
               </DialogTitle>
+              {/* Ensure DialogHeaderActions is positioned by its parent or flex layout */}
               <DialogHeaderActions
                 isGenerating={isGenerating}
                 setPDFPreviewOpen={setPDFPreviewOpen}
@@ -101,12 +93,15 @@ export function ArtworkOverviewDialog({
                 documents={documents}
                 handleDownloadAllFiles={handleDownloadAllFiles}
                 handleDownloadSingleFile={handleDownloadSingleFile}
+                showCreatePdf={false}
+                showDownloadFiles={false}
+                showDownloadAllImages={false}
               />
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto">
-            <div className="mb-8">
+          <div className="flex-1 overflow-y-auto"> {/* Ensure this part scrolls */}
+            <div className="mb-6"> {/* Margin for carousel */}
               <ArtworkCarousel 
                 artworkId={artwork.id} 
                 artistName={artist?.full_name || "Unknown_Artist"} 
@@ -114,18 +109,17 @@ export function ArtworkOverviewDialog({
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6">
-              <div className="space-y-8">
-                <ArtworkDetailsSection 
-                  artwork={artwork} 
-                  artist={artist} 
-                  artistLoading={artistLoading} 
-                />
-                <DimensionsSection artwork={artwork} />
-              </div>
-              <div>
-                <AdditionalInfoSection artwork={artwork} />
-              </div>
+            <div className="px-6 pb-6 space-y-6"> {/* Padding for content area, space between sections */}
+              <ArtworkOverviewPrimaryInfo 
+                artwork={artwork} 
+                artist={artist} 
+                artistLoading={artistLoading} 
+              />
+              <ArtworkOverviewCollapsibleInfo 
+                artwork={artwork} 
+                location={location}
+                locationLoading={locationLoading}
+              />
             </div>
           </div>
         </DialogContent>
