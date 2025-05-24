@@ -25,11 +25,17 @@ export async function convertHTMLToMultiPagePDF({
 }: ConvertHTMLToMultiPagePDFOptions): Promise<Blob> {
   onProgress("Preparing document...");
   console.log("Starting multi-page PDF conversion process");
+  console.log("Force split pages option:", forceSplitPages);
   
   try {
-    // Extract page content based on page-break markers
+    // Extract page content based on page-break markers or force split by artwork
     const pageContents = splitHTMLIntoPages(html, forceSplitPages);
     console.log(`Split HTML into ${pageContents.length} pages`);
+    
+    if (pageContents.length <= 1 && forceSplitPages) {
+      console.warn("WARNING: Expected multiple pages but only got one page.");
+      console.log("HTML content sample:", html.substring(0, 500) + "...");
+    }
     
     onProgress("Setting up pages...", 10);
     
@@ -42,7 +48,8 @@ export async function convertHTMLToMultiPagePDF({
     });
     
     // Add each page to the PDF
-    pageContents.forEach((pageHTML) => {
+    pageContents.forEach((pageHTML, index) => {
+      console.log(`Adding page ${index + 1} of ${pageContents.length} to PDF`);
       pdfBuilder.addPage(pageHTML);
     });
     

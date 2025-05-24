@@ -99,7 +99,7 @@ export function CollectionPreviewPanel({
             {/* Stationery Background */}
             <div className="absolute inset-0">
               <img 
-                src="/lovable-uploads/55e90a54-96c5-47d5-8767-03b4347e6942.png"
+                src="/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png"
                 alt="Bartha Contemporary Stationery"
                 className="w-full h-full object-cover"
               />
@@ -107,13 +107,13 @@ export function CollectionPreviewPanel({
             
             {/* Content Container */}
             <div className="relative h-full">
-              {/* Collection Name Header */}
-              <div className="absolute top-[6cm] left-[4cm] font-bold text-[10px]">
+              {/* Collection Name Header - Adjusted vertical position from 6cm to 5.5cm */}
+              <div className="absolute top-[5.5cm] left-[4cm] font-bold text-[10px]">
                 {collection ? collection.name : "Collection Name"}
               </div>
               
-              {/* Main Content Area */}
-              <div className="pt-[8cm] pl-[4cm] pr-[2cm] pb-[3.5cm] h-full overflow-auto relative">
+              {/* Main Content Area - Changed padding-top from 8cm to 7cm */}
+              <div className="pt-[7cm] pl-[4cm] pr-[2cm] pb-[3.5cm] h-full overflow-auto relative">
                 <div className="relative">
                   {collection && <CollectionPDFPreview collection={collection} />}
                   {!collection && (

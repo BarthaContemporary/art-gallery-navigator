@@ -117,7 +117,7 @@ export async function generateCollectionHTML(
         ${getStationeryStyle(useStationery)}
         
         .content-wrapper {
-          padding: 7cm 2cm 2cm 2cm; /* Note: This padding might differ from stationeryStyles */
+          padding: 7cm 2cm 2cm 2cm; /* Reduced top padding from 8cm to 7cm */
           position: relative;
           z-index: 1;
           box-sizing: border-box;

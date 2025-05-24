@@ -1,7 +1,6 @@
-
 export const stationeryStyles = `
   .content-wrapper {
-    padding-top: 8cm;
+    padding-top: 7cm;
     padding-left: 4cm;
     padding-right: 3cm;
     padding-bottom: 3.5cm;
@@ -29,7 +28,7 @@ export const stationeryStyles = `
   
   .artist-name-header {
     position: absolute;
-    top: 9cm;
+    top: 8cm;
     left: 4cm;
     font-weight: 700;
     text-transform: uppercase;
@@ -75,23 +74,20 @@ export const stationeryStyles = `
   }
   
   .collection-name {
-    /* position: absolute; REMOVED */
-    /* top: 6cm; REMOVED */
-    /* left: 4cm; REMOVED */
     text-align: left;
-    font-weight: bold; /* Was 700 */
-    font-size: 14pt; /* Was 8px, aligning with general style for prominence */
+    font-weight: bold;
+    font-size: 14pt;
     font-family: 'Source Sans 3', sans-serif;
-    margin-bottom: 0.5cm; /* Added for spacing */
+    margin-bottom: 0.5cm;
   }
   
   .collection-description {
-    margin-top: 0; /* Ensure no extra top margin if collection-name provides bottom margin */
-    margin-bottom: 0.1cm; /* Kept existing, or adjust as needed */
-    font-size: 8px; /* Consistent with other text */
+    margin-top: 0;
+    margin-bottom: 0.1cm;
+    font-size: 8px;
     line-height: 1.2;
-    font-style: italic; /* Added from generateCollectionHTML for consistency if desired */
-    text-align: left; /* Explicitly ensure left alignment */
+    font-style: italic;
+    text-align: left;
   }
   
   .collection-items {
@@ -152,4 +148,3 @@ export const stationeryStyles = `
     z-index: -1;
   }
 `;
-
