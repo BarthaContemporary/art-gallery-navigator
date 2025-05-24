@@ -1,5 +1,6 @@
 
 import { extractCommonHTMLParts, reconstructPageHTML } from './html-utils';
+import { hasPageBreakBefore, hasPageBreakAfter } from './css-break-detectors';
 
 /**
  * Splits HTML into separate pages based on CSS page-break markers.
@@ -26,28 +27,16 @@ export function splitByCSSPageBreaks(html: string): string[] {
   Array.from(contentWrapper.children).forEach((element, index) => {
     const htmlElement = element as HTMLElement;
 
-    const hasPageBreakBefore = 
-      htmlElement.classList.contains('page-break-before') || 
-      htmlElement.style.pageBreakBefore === 'always' ||
-      htmlElement.style.breakBefore === 'page' ||
-      (htmlElement.getAttribute('style') || '').includes('page-break-before:') || // More specific check
-      (htmlElement.getAttribute('style') || '').includes('break-before: page');  // More specific check
-    
-    if (hasPageBreakBefore && index > 0 && currentPageAccumulator.children.length > 0) {
+    // Use the new utility function
+    if (hasPageBreakBefore(htmlElement) && index > 0 && currentPageAccumulator.children.length > 0) {
       pagesContents.push(currentPageAccumulator.innerHTML);
       currentPageAccumulator = document.createElement('div');
     }
     
     currentPageAccumulator.appendChild(htmlElement.cloneNode(true));
     
-    const hasPageBreakAfter = 
-      htmlElement.classList.contains('page-break-after') || 
-      htmlElement.style.pageBreakAfter === 'always' ||
-      htmlElement.style.breakAfter === 'page' ||
-      (htmlElement.getAttribute('style') || '').includes('page-break-after:') || // More specific check
-      (htmlElement.getAttribute('style') || '').includes('break-after: page'); // More specific check
-    
-    if (hasPageBreakAfter && currentPageAccumulator.children.length > 0) {
+    // Use the new utility function
+    if (hasPageBreakAfter(htmlElement) && currentPageAccumulator.children.length > 0) {
       pagesContents.push(currentPageAccumulator.innerHTML);
       currentPageAccumulator = document.createElement('div');
     }
