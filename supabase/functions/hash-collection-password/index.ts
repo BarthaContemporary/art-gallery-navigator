@@ -29,8 +29,9 @@ serve(async (req: Request) => {
       );
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Use synchronous bcrypt functions
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(password, salt);
     console.log('Password hashed successfully');
 
     return new Response(
