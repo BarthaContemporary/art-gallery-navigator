@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download } from "lucide-react";
@@ -24,6 +25,14 @@ export function ArtworkPreviewPanel({
   // The stationery switch is removed from this panel.
   // Artworks always use stationery for PDF generation.
   // The useStationery prop now primarily controls the visual overlay in this preview.
+  
+  const contentStyle = {
+    paddingTop: '13cm',
+    paddingRight: '2cm',
+    paddingBottom: '2cm',
+    paddingLeft: '2cm',
+  };
+
   return (
     <>
       {/* 
@@ -54,27 +63,39 @@ export function ArtworkPreviewPanel({
                 </div>
               )}
               
-              <TabsContent value="classic" className="p-12 m-0 border-none h-full z-10 relative">
+              <TabsContent 
+                value="classic" 
+                className="m-0 border-none h-full z-10 relative"
+                style={contentStyle}
+              >
                 {artwork ? (
                   <ArtworkPDFPreview artwork={artwork} />
                 ) : (
-                  <p>Select an artwork to preview</p>
+                  <p className="text-center">Select an artwork to preview</p>
                 )}
               </TabsContent>
               
-              <TabsContent value="modern" className="p-12 m-0 border-none h-full z-10 relative">
+              <TabsContent 
+                value="modern" 
+                className="m-0 border-none h-full z-10 relative"
+                style={contentStyle}
+              >
                  {artwork ? (
                   <ArtworkPDFPreview artwork={artwork} />
                 ) : (
-                  <p>Select an artwork to preview</p>
+                  <p className="text-center">Select an artwork to preview</p>
                 )}
               </TabsContent>
               
-              <TabsContent value="minimal" className="p-12 m-0 border-none h-full z-10 relative">
+              <TabsContent 
+                value="minimal" 
+                className="m-0 border-none h-full z-10 relative"
+                style={contentStyle}
+              >
                 {artwork ? (
                   <ArtworkPDFPreview artwork={artwork} />
                 ) : (
-                  <p>Select an artwork to preview</p>
+                  <p className="text-center">Select an artwork to preview</p>
                 )}
               </TabsContent>
             </div>
@@ -95,3 +116,4 @@ export function ArtworkPreviewPanel({
     </>
   );
 }
+
