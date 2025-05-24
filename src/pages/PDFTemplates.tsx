@@ -10,12 +10,19 @@ import { ArtworkPreviewPanel } from "@/components/pdf/ArtworkPreviewPanel";
 import { CollectionPreviewPanel } from "@/components/pdf/CollectionPreviewPanel";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function PDFTemplates() {
   const { type, id } = useParams();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
-  const [useStationery, setUseStationery] = useState<boolean>(true); // This page-level state still controls preview
+  const [useStationery, setUseStationery] = useState<boolean>(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // New PDF feature options
+  const [addPageNumbers, setAddPageNumbers] = useState<boolean>(true);
+  const [addTimeStamp, setAddTimeStamp] = useState<boolean>(false);
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   
   const { data: artworks } = useArtworks();
   const { data: collections } = useCollections();
@@ -33,10 +40,18 @@ export default function PDFTemplates() {
     try {
       if (artwork) {
         // For artworks, useStationery is effectively always true for PDF generation
-        await createArtworkPDF(artwork, true); 
+        await createArtworkPDF(artwork, true, {
+          addPageNumbers,
+          addTimeStamp,
+          orientation
+        });
         toast.success("Artwork PDF created successfully");
       } else if (collection) {
-        await createCollectionPDF(collection, selectedTemplate, useStationery);
+        await createCollectionPDF(collection, selectedTemplate, useStationery, {
+          addPageNumbers,
+          addTimeStamp,
+          orientation
+        });
         toast.success("Collection PDF created successfully");
       } else {
         toast.error("No item selected to create PDF");
@@ -75,15 +90,12 @@ export default function PDFTemplates() {
             </p>
           </div>
           
-          {/* This page-level switch controls the 'useStationery' prop for the PREVIEW panels */}
-          {/* For artwork PDF generation, stationery is always on. */}
-          {/* For collection PDF generation, this switch's value is used. */}
           <div className="flex items-center space-x-2">
             <Switch
               id="stationery-mode-page"
               checked={useStationery}
               onCheckedChange={setUseStationery}
-              disabled={type === "artwork"} // Optionally disable if artwork preview always shows stationery
+              disabled={type === "artwork"} // Disable if artwork preview always shows stationery
             />
             <Label htmlFor="stationery-mode-page">
               {type === "artwork" 
@@ -93,14 +105,57 @@ export default function PDFTemplates() {
           </div>
         </div>
         
+        {/* New PDF Options Section */}
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <h3 className="font-medium mb-3">PDF Options</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="add-page-numbers" 
+                checked={addPageNumbers}
+                onCheckedChange={(checked) => setAddPageNumbers(checked === true)}
+              />
+              <Label htmlFor="add-page-numbers">Add Page Numbers</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="add-timestamp" 
+                checked={addTimeStamp}
+                onCheckedChange={(checked) => setAddTimeStamp(checked === true)}
+              />
+              <Label htmlFor="add-timestamp">Add Generation Timestamp</Label>
+            </div>
+            
+            <div>
+              <Label className="mb-2 block">Page Orientation</Label>
+              <RadioGroup 
+                value={orientation} 
+                onValueChange={(value) => setOrientation(value as 'portrait' | 'landscape')}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-1">
+                  <RadioGroupItem value="portrait" id="portrait" />
+                  <Label htmlFor="portrait">Portrait</Label>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <RadioGroupItem value="landscape" id="landscape" />
+                  <Label htmlFor="landscape">Landscape</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+        </div>
+        
+        {/* Preview Panels */}
         {type === "artwork" ? (
           <ArtworkPreviewPanel
             artwork={artwork}
             selectedTemplate={selectedTemplate}
-            useStationery={useStationery} // This controls the preview's stationery visibility
+            useStationery={useStationery}
             isGenerating={isGenerating}
             onTemplateChange={setSelectedTemplate}
-            // onStationeryChange prop is removed
             onGeneratePDF={handleGeneratePDF}
           />
         ) : type === "collection" && collection ? (
@@ -108,8 +163,6 @@ export default function PDFTemplates() {
             collection={collection}
             isGenerating={isGenerating}
             onGeneratePDF={handleGeneratePDF}
-            // Assuming CollectionPreviewPanel might still have its own controls or rely on page-level.
-            // For now, ensuring ArtworkPreviewPanel changes are consistent.
           />
         ) : (
           <p>Select an artwork or collection to preview.</p>

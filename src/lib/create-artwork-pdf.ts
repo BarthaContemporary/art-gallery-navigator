@@ -1,74 +1,44 @@
 
 import { Artwork } from "@/hooks/use-artworks";
-import { generatePDFFromHTML } from "./pdf/pdf-utils";
-import { generateArtworkHTML } from './pdf/generateArtworkHTML';
-import { supabase } from "@/integrations/supabase/client";
+import { generateArtworkHTML } from "@/lib/pdf/generateArtworkHTML";
+import { generatePDFFromHTML } from "@/lib/pdf/pdf-utils";
 import { toast } from "sonner";
-import { preloadImage } from "./pdf/utils"; // preloadStationeryImage is in stationery-utils
 
+/**
+ * Creates a PDF for an artwork
+ */
 export async function createArtworkPDF(
   artwork: Artwork,
-  // templateStyle: string = 'classic', // Removed templateStyle
-  useStationery: boolean = true // Retain useStationery, will be true for artworks
+  useStationery: boolean = true,
+  options?: {
+    addPageNumbers?: boolean;
+    addTimeStamp?: boolean;
+    orientation?: 'portrait' | 'landscape';
+  }
 ): Promise<string> {
-  console.log(`Creating PDF for artwork: ${artwork.title} useStationery: ${useStationery}`);
-  
-  // Fetch artist name if not already available
-  let artworkWithArtistName = { ...artwork };
-  
-  if (artwork.artist_id && !artwork.artist_name) {
-    try {
-      const { data, error } = await supabase
-        .from('artists')
-        .select('full_name')
-        .eq('id', artwork.artist_id)
-        .single();
-        
-      if (!error && data) {
-        artworkWithArtistName.artist_name = data.full_name;
-        console.log("Retrieved artist name:", data.full_name);
-      }
-    } catch (error) {
-      console.error("Error fetching artist name:", error);
-      // toast.error("Couldn't retrieve artist information"); // Consider if this toast is too aggressive
-    }
+  try {
+    // Generate HTML for the artwork
+    const html = await generateArtworkHTML(artwork, useStationery);
+    
+    const fileName = `${artwork.artist_name || 'Artist'} - ${artwork.title || 'Artwork'}.pdf`;
+    
+    // Generate PDF from HTML
+    const pdfUrl = await generatePDFFromHTML({
+      html,
+      fileName,
+      entityType: 'artwork',
+      entityId: artwork.id,
+      entityTitle: artwork.title || 'Artwork',
+      description: `PDF for ${artwork.title} by ${artwork.artist_name}`,
+      addPageNumbers: options?.addPageNumbers || false,
+      addTimeStamp: options?.addTimeStamp || false,
+      orientation: options?.orientation || 'portrait'
+    });
+    
+    return pdfUrl;
+  } catch (error) {
+    console.error("Error creating artwork PDF:", error);
+    toast.error("Failed to create artwork PDF");
+    throw error;
   }
-  
-  // Generate safe filename
-  const safeArtistName = (artworkWithArtistName.artist_name || 'Unknown')
-    .replace(/[^a-z0-9]/gi, '_')
-    .toLowerCase();
-  const safeArtworkTitle = artwork.title
-    .replace(/[^a-z0-9]/gi, '_')
-    .toLowerCase();
-  const fileName = `B_c-${safeArtistName}-${safeArtworkTitle}.pdf`;
-  console.log("Generated filename:", fileName);
-  
-  // Log and preload image URL
-  if (artwork.image_url) {
-    console.log("Artwork has an image URL:", artwork.image_url);
-    try {
-      await preloadImage(artwork.image_url);
-      console.log("Successfully preloaded artwork image");
-    } catch (e) {
-      console.error("Error preloading image:", e);
-    }
-  } else {
-    console.log("Artwork has no image URL");
-  }
-  
-  // Generate HTML content (now async)
-  console.log("Generating HTML content");
-  // generateArtworkHTML now only takes artwork and useStationery
-  const htmlContent = await generateArtworkHTML(artworkWithArtistName, useStationery); 
-  
-  // Generate and return PDF
-  return generatePDFFromHTML({
-    html: htmlContent,
-    fileName,
-    entityType: 'artwork',
-    entityId: artwork.id,
-    entityTitle: artwork.title,
-    description: `Datasheet for ${artwork.title}`
-  });
 }

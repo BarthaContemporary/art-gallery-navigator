@@ -1,31 +1,45 @@
 
 import { Collection } from "@/hooks/use-collections";
-import { generatePDFFromHTML } from "./pdf/pdf-utils";
-import { generateCollectionHTML } from './pdf/generateCollectionHTML';
+import { generateCollectionHTML } from "@/lib/pdf/generateCollectionHTML";
+import { generatePDFFromHTML } from "@/lib/pdf/pdf-utils";
+import { toast } from "sonner";
 
+/**
+ * Creates a PDF for a collection
+ */
 export async function createCollectionPDF(
   collection: Collection,
   templateStyle: string = 'classic',
-  useStationery: boolean = true
+  useStationery: boolean = true,
+  options?: {
+    addPageNumbers?: boolean;
+    addTimeStamp?: boolean;
+    orientation?: 'portrait' | 'landscape';
+  }
 ): Promise<string> {
-  console.log("Creating PDF for collection:", collection.name);
-  
-  // Generate unique filename
-  const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  const safeCollectionName = collection.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  const fileName = `collection_${safeCollectionName}_${timestamp}_${randomStr}.pdf`;
-  
-  // Generate HTML content - this is async
-  const htmlContent = await generateCollectionHTML(collection, templateStyle, useStationery);
-  
-  // Generate and return PDF
-  return generatePDFFromHTML({
-    html: htmlContent,
-    fileName,
-    entityType: 'collection',
-    entityId: collection.id,
-    entityTitle: collection.name,
-    description: `Overview document for ${collection.name}`
-  });
+  try {
+    // Generate HTML for the collection
+    const html = await generateCollectionHTML(collection, templateStyle, useStationery);
+    
+    const fileName = `${collection.name || 'Collection'}.pdf`;
+    
+    // Generate PDF from HTML
+    const pdfUrl = await generatePDFFromHTML({
+      html,
+      fileName,
+      entityType: 'collection',
+      entityId: collection.id,
+      entityTitle: collection.name || 'Collection',
+      description: `PDF for collection: ${collection.name}`,
+      addPageNumbers: options?.addPageNumbers || false,
+      addTimeStamp: options?.addTimeStamp || true,
+      orientation: options?.orientation || 'portrait'
+    });
+    
+    return pdfUrl;
+  } catch (error) {
+    console.error("Error creating collection PDF:", error);
+    toast.error("Failed to create collection PDF");
+    throw error;
+  }
 }

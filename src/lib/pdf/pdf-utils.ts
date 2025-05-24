@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { convertHTMLToPDF } from "./html-to-pdf";
+import { convertEnhancedHTMLToPDF } from "./enhanced-html-to-pdf";
 import { uploadDocument } from "./document-storage";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
 
@@ -11,6 +11,10 @@ interface PDFGenerationOptions {
   entityId: string;
   entityTitle: string;
   description?: string;
+  pageSize?: 'a4' | 'letter' | 'legal';
+  orientation?: 'portrait' | 'landscape';
+  addPageNumbers?: boolean;
+  addTimeStamp?: boolean;
 }
 
 export async function generatePDFFromHTML({
@@ -19,7 +23,11 @@ export async function generatePDFFromHTML({
   entityType,
   entityId,
   entityTitle,
-  description
+  description,
+  pageSize = 'a4',
+  orientation = 'portrait',
+  addPageNumbers = false,
+  addTimeStamp = false
 }: PDFGenerationOptions): Promise<string> {
   console.log(`Generating PDF for ${entityType} "${entityTitle}"`);
   
@@ -38,19 +46,24 @@ export async function generatePDFFromHTML({
 
   try {
     // Update progress callback
-    const updateProgress = (message: string) => {
-      progressMessage = message;
+    const updateProgress = (message: string, percentage?: number) => {
+      progressMessage = percentage ? `${message} (${Math.round(percentage)}%)` : message;
       toast.loading(progressMessage, { id: toastId });
-      console.log(`PDF Generation Progress: ${message}`);
+      console.log(`PDF Generation Progress: ${progressMessage}`);
     };
 
-    // Convert HTML to PDF
+    // Convert HTML to PDF using enhanced multi-page system
     updateProgress("Converting HTML to PDF...");
-    const pdfBlob = await convertHTMLToPDF({ 
+    const pdfBlob = await convertEnhancedHTMLToPDF({ 
       html, 
       fileName,
+      pageSize,
+      orientation,
+      addPageNumbers,
+      addTimeStamp,
       onProgress: updateProgress
     });
+    
     console.log("PDF blob created, size:", Math.round(pdfBlob.size / 1024), "KB");
 
     // Upload document and create record
