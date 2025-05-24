@@ -28,7 +28,7 @@ export function UserSelectionField({
 
   const { 
     rawUsers,
-    availableUsers: hookAvailableUsers, // Renamed to distinguish from filteredUsers
+    availableUsers: hookAvailableUsers,
     isLoadingUsers, 
     usersQueryError 
   } = useUserSelectionData(open, disabled, members);
@@ -109,12 +109,14 @@ export function UserSelectionField({
   const noUsersAvailableToAdd = !isLoadingUsers && !usersQueryError && (rawUsers?.length ?? 0) > 0 && (hookAvailableUsers?.length ?? 0) === 0;
 
   const effectiveDisabled = 
-    disabled || // Disabled by parent
-    isAdding || // Currently performing an add operation
-    usersQueryError || // Error fetching users
-    noUsersInSystem || // No users in the system at all
-    noUsersAvailableToAdd; // All eligible users already added (nothing to select)
+    disabled || 
+    isAdding || 
+    usersQueryError || 
+    noUsersInSystem || 
+    noUsersAvailableToAdd;
   
+  const popoverContentDescriptionId = "user-selection-popover-description";
+
   return (
     <div>
       <Popover open={open} onOpenChange={(isOpenValue) => {
@@ -132,7 +134,15 @@ export function UserSelectionField({
             parentDisabled={disabled}
           />
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-[300px]" align="start" side="bottom">
+        <PopoverContent 
+          className="p-0 w-[300px]" 
+          align="start" 
+          side="bottom"
+          aria-describedby={popoverContentDescriptionId}
+        >
+          <span id={popoverContentDescriptionId} className="sr-only">
+            Select a user to add as a team member. You can search by name or email.
+          </span>
           <Command>
             <CommandInput 
               placeholder="Search users..."
