@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,6 +9,7 @@ export interface Artist {
   birth_year: number | null;
   image_url: string | null;
   representation_status: string;
+  surname_first_letter: string | null;
 }
 
 export function useArtists() {
@@ -18,7 +18,7 @@ export function useArtists() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('artists')
-        .select('id, full_name');
+        .select('id, full_name, surname_first_letter');
       if (error) throw error;
       return data as Artist[];
     }

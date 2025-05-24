@@ -3,11 +3,11 @@ import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
 import { TypeFilter } from "@/components/artworks/TypeFilter";
-import { ArtistFilter } from "@/components/artworks/ArtistFilter"; // Import the new filter
+import { ArtistFilter } from "@/components/artworks/ArtistFilter";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
-import { useArtists } from "@/components/artworks/form/useArtists";
+import { useArtists } from "@/hooks/useArtists";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
@@ -20,25 +20,27 @@ const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [artistFilter, setArtistFilter] = useState<string | null>(null); // New state for artist filter
+  const [artistFilter, setArtistFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
   const { clearImageCache } = useImageCache();
 
   const {
     data: artworks,
-    isLoading,
-    error
+    isLoading: artworksLoading,
+    error: artworksError
   } = useArtworks();
 
   const {
-    data: artists
+    data: artists,
+    isLoading: artistsLoading,
+    error: artistsError
   } = useArtists();
 
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter ? artwork.status === statusFilter : true;
     const matchesType = typeFilter ? artwork.medium_type === typeFilter : true;
-    const matchesArtist = artistFilter ? artwork.artist_id === artistFilter : true; // Add artist filter logic
+    const matchesArtist = artistFilter ? artwork.artist_id === artistFilter : true;
     return matchesSearch && matchesStatus && matchesType && matchesArtist;
   }) ?? [];
 
@@ -76,15 +78,19 @@ const Artworks = () => {
     toast.success("Image cache cleared. Refresh the page to reload images.");
   };
 
-  if (isLoading) {
+  if (artworksLoading || artistsLoading) {
     return <div className="flex items-center justify-center h-[50vh]">
-        <p className="text-muted-foreground">Loading artworks...</p>
+        <p className="text-muted-foreground">Loading artworks and artists...</p>
       </div>;
   }
 
-  if (error) {
+  if (artworksError || artistsError) {
     return <div className="flex items-center justify-center h-[50vh]">
-        <p className="text-red-500">Error loading artworks. Please try again.</p>
+        <p className="text-red-500">
+          {artworksError ? `Error loading artworks: ${artworksError.message}. ` : ''}
+          {artistsError ? `Error loading artists: ${artistsError.message}. ` : ''}
+          Please try again.
+        </p>
       </div>;
   }
 
@@ -98,7 +104,7 @@ const Artworks = () => {
             <Download className="h-4 w-4" />
             Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
           </Button>
-          {filteredArtworks.length !== artworks?.length && artworks?.length > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
+          {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
               <Download className="h-4 w-4" />
               Export All ({artworks.length})
             </Button>}
@@ -114,7 +120,7 @@ const Artworks = () => {
         <div className="flex flex-wrap gap-2"> {/* Ensure flex-wrap for smaller screens */}
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} />
-          <ArtistFilter value={artistFilter} onChange={setArtistFilter} /> {/* Add the new filter */}
+          <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
         </div>
       </div>
 

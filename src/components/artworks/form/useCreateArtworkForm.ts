@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
-import { useArtists } from "./useArtists";
+import { useArtists } from "@/hooks/useArtists";
 import { useLocations } from "./useLocations";
 import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";

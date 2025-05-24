@@ -1,8 +1,7 @@
-
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
 import { useEffect, useRef } from "react";
-import { useArtists } from "@/components/artworks/form/useArtists";
+import { useArtists } from "@/hooks/useArtists";
 
 interface ArtworksByArtist {
   [key: string]: Artwork[];

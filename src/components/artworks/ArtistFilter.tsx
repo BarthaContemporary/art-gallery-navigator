@@ -1,7 +1,7 @@
 
 import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { useArtists } from "@/components/artworks/form/useArtists";
+import { useArtists } from "@/hooks/useArtists"; // Updated import path
 import { Skeleton } from "@/components/ui/skeleton";
 import { Filter } from "lucide-react";
 
@@ -11,7 +11,7 @@ interface ArtistFilterProps {
 }
 
 export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
-  const { data: artists, isLoading } = useArtists();
+  const { data: artists, isLoading, error } = useArtists(); // Added error
 
   const artistOptions = useMemo(() => {
     // Make sure we have artists data and it's an array
@@ -48,6 +48,10 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
 
   if (isLoading) {
     return <Skeleton className="h-10 w-full min-w-[180px]" />;
+  }
+
+  if (error) {
+    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md">Error loading artists.</div>;
   }
 
   return (

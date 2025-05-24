@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UseFormReturn } from "react-hook-form";
 import { ArtworkFormData } from "./types";
+import { Artist } from "@/hooks/useArtists"; // Import the standardized Artist type
 
 interface BasicInformationFieldsProps {
   form: UseFormReturn<ArtworkFormData>;
-  artists: { id: string; full_name: string; }[] | undefined;
+  artists: Artist[] | undefined; // Use the standardized Artist type
 }
 
 export function BasicInformationFields({ form, artists }: BasicInformationFieldsProps) {
@@ -27,6 +28,7 @@ export function BasicInformationFields({ form, artists }: BasicInformationFields
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
+                {/* artists?.map will now iterate over Artist[] which includes full_name */}
                 {artists?.map((artist) => (
                   <SelectItem key={artist.id} value={artist.id}>
                     {artist.full_name}
