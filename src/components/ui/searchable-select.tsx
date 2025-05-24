@@ -9,6 +9,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList, // Import CommandList
 } from "@/components/ui/command";
 import {
   Popover,
@@ -40,9 +41,13 @@ export function SearchableSelect({
   icon
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
+
+  // console.log("SearchableSelect options:", options);
+  // console.log("SearchableSelect value:", value);
   
   // Ensure options is always a valid array
   const safeOptions = Array.isArray(options) ? options : [];
+  // console.log("SearchableSelect safeOptions:", safeOptions);
   
   // Ensure value is always a string
   const safeValue = typeof value === 'string' ? value : '_none';
@@ -72,48 +77,51 @@ export function SearchableSelect({
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup>
-            {/* The "_none" option is always available */}
-            <CommandItem
-              key="_none"
-              value="_none"
-              onSelect={() => {
-                onChange("_none");
-                setOpen(false);
-              }}
-            >
-              <Check
-                className={cn(
-                  "mr-2 h-4 w-4",
-                  safeValue === "_none" ? "opacity-100" : "opacity-0"
-                )}
-              />
-              None
-            </CommandItem>
-            {/* Map through safe options */}
-            {safeOptions.map((option) => (
+          <CommandList> {/* Wrap content in CommandList */}
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup>
+              {/* The "_none" option is always available */}
               <CommandItem
-                key={option.value}
-                value={option.value}
+                key="_none"
+                value="_none" // Ensure value is a string
                 onSelect={() => {
-                  onChange(option.value);
+                  onChange("_none");
                   setOpen(false);
                 }}
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    safeValue === option.value ? "opacity-100" : "opacity-0"
+                    safeValue === "_none" ? "opacity-100" : "opacity-0"
                   )}
                 />
-                {option.icon && <option.icon className="mr-2 h-4 w-4" />}
-                {option.label}
+                None
               </CommandItem>
-            ))}
-          </CommandGroup>
+              {/* Map through safe options */}
+              {safeOptions.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value} // Ensure option.value is a string
+                  onSelect={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      safeValue === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.icon && <option.icon className="mr-2 h-4 w-4" />}
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
   );
 }
+

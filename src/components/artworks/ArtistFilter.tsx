@@ -1,7 +1,7 @@
 
 import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { useArtists } from "@/hooks/useArtists"; // Updated import path
+import { useArtists } from "@/hooks/useArtists"; 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Filter } from "lucide-react";
 
@@ -11,15 +11,15 @@ interface ArtistFilterProps {
 }
 
 export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
-  const { data: artists, isLoading, error } = useArtists(); // Added error
+  const { data: artists, isLoading, error } = useArtists(); 
+
+  // console.log("ArtistFilter artists:", artists, "isLoading:", isLoading, "error:", error);
 
   const artistOptions = useMemo(() => {
-    // Make sure we have artists data and it's an array
     if (!artists || !Array.isArray(artists)) {
       return [];
     }
     
-    // Filter out any invalid artist entries and create the options array
     return artists
       .filter(artist => 
         artist && 
@@ -37,7 +37,8 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
       }));
   }, [artists]);
 
-  // Handle selection change
+  // console.log("ArtistFilter artistOptions:", artistOptions);
+
   const handleSelectionChange = (selectedValue: string) => {
     if (selectedValue === "_none") {
       onChange(null);
@@ -51,6 +52,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   }
 
   if (error) {
+    // console.error("ArtistFilter error state:", error);
     return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md">Error loading artists.</div>;
   }
 
@@ -58,7 +60,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
     <div className="min-w-[180px]">
       <SearchableSelect
         options={artistOptions}
-        value={value || "_none"}
+        value={value || "_none"} // Ensure value is always a string for SearchableSelect
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
         icon={<Filter className="mr-2 h-4 w-4" />}
@@ -66,3 +68,4 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
     </div>
   );
 }
+
