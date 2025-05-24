@@ -1,13 +1,13 @@
-
 import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
 import { TypeFilter } from "@/components/artworks/TypeFilter";
+import { ArtistFilter } from "@/components/artworks/ArtistFilter"; // Import the new filter
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
 import { useArtworks } from "@/hooks/use-artworks";
-import { useArtists } from "@/components/artworks/form/useArtists"; // Ensure this is the correct hook
+import { useArtists } from "@/components/artworks/form/useArtists";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv-utils";
@@ -20,6 +20,7 @@ const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [artistFilter, setArtistFilter] = useState<string | null>(null); // New state for artist filter
   const [activeIndex, setActiveIndex] = useState<string>();
   const { clearImageCache } = useImageCache();
 
@@ -30,14 +31,15 @@ const Artworks = () => {
   } = useArtworks();
 
   const {
-    data: artists // This now includes surname_first_letter
+    data: artists
   } = useArtists();
 
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter ? artwork.status === statusFilter : true;
     const matchesType = typeFilter ? artwork.medium_type === typeFilter : true;
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesArtist = artistFilter ? artwork.artist_id === artistFilter : true; // Add artist filter logic
+    return matchesSearch && matchesStatus && matchesType && matchesArtist;
   }) ?? [];
 
   const letters = Array.from(new Set(filteredArtworks.map(artwork => {
@@ -52,7 +54,6 @@ const Artworks = () => {
       }
     }
     
-    // Use surname_first_letter if available and not empty, otherwise use first letter of full_name
     return (sortLetter && sortLetter.trim() !== "") 
       ? sortLetter.trim().toUpperCase() 
       : artistName.charAt(0).toUpperCase();
@@ -110,9 +111,10 @@ const Artworks = () => {
 
       <div className="mb-8 flex flex-col sm:flex-row items-stretch gap-4">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2"> {/* Ensure flex-wrap for smaller screens */}
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} />
+          <ArtistFilter value={artistFilter} onChange={setArtistFilter} /> {/* Add the new filter */}
         </div>
       </div>
 
