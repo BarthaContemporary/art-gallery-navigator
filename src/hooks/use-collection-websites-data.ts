@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { generateSlug } from "@/utils/slugUtils"; // Import from new location
+import { hashPasswordWithEdgeFunction } from "@/utils/collectionWebsitePasswordUtils"; // Import new utility
 
 // Interface for Collection Websites
 export interface CollectionWebsite {
@@ -13,30 +15,6 @@ export interface CollectionWebsite {
   created_at?: string;
   updated_at?: string;
 }
-
-// Helper function to generate a robust slug
-const generateSlug = (name: string = "collection"): string => {
-  const cleanedName = name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters except hyphens
-    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-
-  const timestamp = Date.now().toString(36); // Base36 timestamp
-
-  const randomPart1 = Math.random().toString(36).substring(2, 10); 
-  const randomPart2 = Math.random().toString(36).substring(2, 10); 
-  const randomString = `${randomPart1}${randomPart2}`.slice(0, 12);
-
-  const base = cleanedName || 'website';
-  
-  const maxBaseNameLength = 50; 
-  const truncatedBase = base.length > maxBaseNameLength ? base.substring(0, maxBaseNameLength) : base;
-
-  return `${truncatedBase}-${timestamp}-${randomString}`;
-};
 
 // Fetch all websites for a specific collection
 export function useCollectionWebsites(collectionId: string | undefined) {
@@ -101,30 +79,11 @@ export function useCreateCollectionWebsite() {
       show_prices = true,
       is_active = true,
     }: CreateCollectionWebsitePayload): Promise<CollectionWebsite> => {
-      const slug = generateSlug(collection_name || "collection");
+      const slug = generateSlug(collection_name || name || "collection-website"); // Use collection_name or name for slug
       let password_hash: string | null = null;
 
       if (password && password.trim().length > 0) {
-        console.log("Invoking hash-collection-password Edge Function for create...");
-        const { data: hashData, error: hashError } = await supabase.functions.invoke<{ hashedPassword?: string; error?: string }>(
-          'hash-collection-password',
-          { body: { password } }
-        );
-
-        if (hashError) {
-          console.error("Edge function invocation error:", hashError);
-          throw new Error(hashError.message || "Failed to hash password via Edge Function.");
-        }
-        if (hashData?.error) {
-          console.error("Edge function returned error:", hashData.error);
-          throw new Error(hashData.error || "Failed to hash password.");
-        }
-        if (!hashData?.hashedPassword) {
-          console.error("Edge function did not return hashedPassword");
-          throw new Error("Failed to retrieve hashed password from Edge Function.");
-        }
-        password_hash = hashData.hashedPassword;
-        console.log("Password hashed successfully for create.");
+        password_hash = await hashPasswordWithEdgeFunction(password, "create");
       } else {
         console.log("No password provided or password is empty for create, setting hash to null.");
       }
@@ -190,26 +149,7 @@ export function useUpdateCollectionWebsite() {
       // Handle password update
       if (password !== undefined) { // if password field is part of the payload
         if (password && password.trim().length > 0) { // New password string provided
-          console.log("Invoking hash-collection-password Edge Function for update...");
-          const { data: hashData, error: hashError } = await supabase.functions.invoke<{ hashedPassword?: string; error?: string }>(
-            'hash-collection-password',
-            { body: { password } }
-          );
-
-          if (hashError) {
-            console.error("Edge function invocation error during update:", hashError);
-            throw new Error(hashError.message || "Failed to hash password via Edge Function for update.");
-          }
-          if (hashData?.error) {
-            console.error("Edge function returned error during update:", hashData.error);
-            throw new Error(hashData.error || "Failed to hash new password.");
-          }
-          if (!hashData?.hashedPassword) {
-            console.error("Edge function did not return hashedPassword during update");
-            throw new Error("Failed to retrieve hashed password from Edge Function for update.");
-          }
-          updateData.password_hash = hashData.hashedPassword;
-          console.log("Password hashed successfully for update.");
+          updateData.password_hash = await hashPasswordWithEdgeFunction(password, "update");
         } else { // Password is null or empty string, so remove it
           updateData.password_hash = null;
           console.log("Password set to null (removed) for update.");
