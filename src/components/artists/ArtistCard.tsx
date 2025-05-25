@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, Edit, Trash2 } from "lucide-react";
+import { Check, Clock, Edit, Trash2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
 import {
@@ -25,7 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const statusIcons = {
   represented: <Check className="h-4 w-4 text-green-500" />,
-  "formerly represented": <Clock className="h-4 w-4 text-amber-500" />,
+  "formerly represented": <X className="h-4 w-4 text-red-500" />,
+  "not represented": <X className="h-4 w-4 text-red-500" />,
 };
 
 export function ArtistCard({ artist }: { artist: any }) {
@@ -145,7 +146,7 @@ export function ArtistCard({ artist }: { artist: any }) {
 
         {artist.representation_status && (
           <div className="flex items-center mt-2">
-            {statusIcons[artist.representation_status as keyof typeof statusIcons] || null}
+            {statusIcons[artist.representation_status.toLowerCase() as keyof typeof statusIcons] || null}
             <span className="text-sm ml-1 capitalize">{artist.representation_status}</span>
           </div>
         )}
