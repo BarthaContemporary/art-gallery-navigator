@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -12,7 +13,7 @@ import {
 } from "@/hooks/projects"; // Standardized import path
 
 import { ProjectDetailHeader } from "./ProjectDetailHeader";
-import { ProjectTeamSection } from "./ProjectTeamSection";
+// ProjectTeamSection import removed
 import { ProjectTasksList } from "./ProjectTasksList";
 import { ProjectDialogsManager } from "./ProjectDialogsManager";
 import { useProjectDialogs } from "./useProjectDialogs";
@@ -91,15 +92,6 @@ const ProjectDetailPage = () => {
     );
   }
   
-  // const handleAddMemberClick = () => { // This function is no longer needed
-  //   try {
-  //     setAddMemberDialogOpen(true);
-  //   } catch (error) {
-  //     console.error("Error opening add member dialog:", error);
-  //     toast.error("Failed to open add member dialog");
-  //   }
-  // };
-  
   const handleCloseMemberDialog = () => {
     setAddMemberDialogOpen(false);
     setTimeout(() => {
@@ -110,20 +102,15 @@ const ProjectDetailPage = () => {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <ProjectDetailHeader 
-        project={project!} // Added non-null assertion as project is checked above
+        project={project!} 
         userIsMember={actualUserIsMember}
         isAdmin={isAdmin}
         onEditClick={() => projectDialogs.setEditDialogOpen(true)}
-        onDeleteClick={() => projectDialogs.setDeleteDialogOpen(true, project!, navigate)} // Added non-null assertion
+        onDeleteClick={() => projectDialogs.setDeleteDialogOpen(true, project!, navigate)} 
         onCalendarViewClick={() => projectDialogs.setCalendarViewOpen(true)}
       />
       
-      <ProjectTeamSection 
-        projectId={id}
-        // onAddMember={handleAddMemberClick} // Removed: onAddMember prop
-        // userIsMember={actualUserIsMember} // Prop already removed from ProjectTeamSection in previous step
-        // isAdmin={isAdmin} // Prop already removed from ProjectTeamSection in previous step
-      />
+      {/* ProjectTeamSection component usage removed */}
       
       <ProjectTasksList 
         tasks={projectTasks}
@@ -136,11 +123,11 @@ const ProjectDetailPage = () => {
       />
       
       <ProjectDialogsManager
-        project={project!} // Added non-null assertion
+        project={project!} 
         dialogStates={{
           ...projectDialogs,
-          addMemberDialogOpen, // This state variable might be vestigial now if no UI opens this.
-          onCloseMemberDialog: handleCloseMemberDialog // This handler might also be vestigial.
+          addMemberDialogOpen, 
+          onCloseMemberDialog: handleCloseMemberDialog 
         }}
         navigate={navigate}
       />
@@ -151,3 +138,4 @@ const ProjectDetailPage = () => {
 };
 
 export default ProjectDetailPage;
+
