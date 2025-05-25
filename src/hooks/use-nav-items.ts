@@ -39,11 +39,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: List,
     href: "/collections",
   },
-  {
-    name: "Projects",
-    icon: Calendar,
-    href: "/projects",
-  },
+  // Project Nav Item will be added conditionally below
   {
     name: "Locations",
     icon: MapPin,
@@ -64,9 +60,26 @@ const BASE_NAV_ITEMS: NavItem[] = [
 export function useNavItems() {
   const { isAdmin, isArtist, isExternal } = useAuth();
   
-  const navItems = [...BASE_NAV_ITEMS];
-  
+  let navItems = [...BASE_NAV_ITEMS];
+
   if (isAdmin) {
+    // Add Projects only for admins
+    // Find index of "Collections" to insert "Projects" after it
+    const collectionsIndex = navItems.findIndex(item => item.name === "Collections");
+    if (collectionsIndex !== -1) {
+      navItems.splice(collectionsIndex + 1, 0, {
+        name: "Projects",
+        icon: Calendar,
+        href: "/projects",
+      });
+    } else { // Fallback if "Collections" isn't found, add to end
+      navItems.push({
+        name: "Projects",
+        icon: Calendar,
+        href: "/projects",
+      });
+    }
+
     navItems.push({
       name: "User Management",
       icon: Shield,
@@ -75,10 +88,13 @@ export function useNavItems() {
   }
 
   // Remove Locations tab for external users
-  return navItems.filter(item => {
+  navItems = navItems.filter(item => {
     if (item.name === "Locations") {
       return !isExternal;
     }
     return true;
   });
+
+  return navItems;
 }
+

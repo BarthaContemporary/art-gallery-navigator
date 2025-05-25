@@ -1,5 +1,6 @@
 
-import { ProjectMember } from "../types/member-types";
+// import { ProjectMember } from "../types/member-types"; // Already in this file, or should be from base types
+import { ProjectMember } from "../types"; // Assuming ProjectMember is in ../types/index.ts or ../types/member-types.ts
 
 export interface UseProjectMembersResult {
   members: ProjectMember[];
@@ -7,8 +8,9 @@ export interface UseProjectMembersResult {
   isError: boolean;
   error: unknown;
   refetch: () => void;
-  addMemberById: (userId: string) => Promise<void>;
+  // addMemberById removed
   removeMember: (userId: string) => void;
-  isAddingMember: boolean;
+  // isAddingMember removed
   isRemovingMember: boolean;
 }
+

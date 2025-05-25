@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback } from "react"; // Keep useState if used for other things, useCallback might not be needed if onUserEmailsChange is gone
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { BasicInfoFields } from "./BasicInfoFields";
 import { ProjectTypeStatusFields } from "./ProjectTypeStatusFields";
 import { LocationField } from "./LocationField";
 import { DateFields } from "./DateFields";
-import { TeamMembersField } from "./TeamMembersField";
+// TeamMembersField import removed
+// import { TeamMembersField } from "./TeamMembersField";
 import { useProjectFormSubmit } from "./ProjectFormSubmit";
 import * as z from "zod";
 
@@ -24,7 +25,8 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ project, onClose }: ProjectFormProps) {
-  const [userEmails, setUserEmails] = useState<string[]>([]);
+  // userEmails state and handler removed
+  // const [userEmails, setUserEmails] = useState<string[]>([]);
   const { onSubmit, isSubmitting, formError } = useProjectFormSubmit(project, onClose);
   
   const form = useForm<FormValues>({
@@ -37,16 +39,18 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
       location_id: project?.location_id || undefined,
       start_date: project?.start_date ? format(new Date(project.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       end_date: project?.end_date ? format(new Date(project.end_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      // Removed 'users: []' default value as it's no longer in the schema
     }
   });
   
-  const handleUserEmailsChange = useCallback((emails: string[]) => {
-    setUserEmails(emails);
-  }, []);
+  // handleUserEmailsChange removed
+  // const handleUserEmailsChange = useCallback((emails: string[]) => {
+  //   setUserEmails(emails);
+  // }, []);
   
   const handleFormSubmit = form.handleSubmit((values) => {
-    onSubmit(values, userEmails);
+    // Pass empty array or undefined for userEmails if the hook still expects it,
+    // but ideally the hook is also changed.
+    onSubmit(values); // Removed userEmails from here
   });
   
   return (
@@ -60,10 +64,13 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         
         <DateFields control={form.control} />
         
+        {/* TeamMembersField usage removed */}
+        {/* 
         <TeamMembersField 
           project={project} 
           onUserEmailsChange={handleUserEmailsChange} 
-        />
+        /> 
+        */}
         
         {formError && (
           <div className="text-sm font-medium text-destructive">{formError}</div>

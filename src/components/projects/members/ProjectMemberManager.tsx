@@ -1,13 +1,9 @@
-
-import { useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useProjectMembers } from "@/hooks/projects/use-project-members";
 import { useAuth } from "@/hooks/use-auth";
-import { ProjectMember } from "@/hooks/projects"; // Updated import
-import { UserSelectionField } from "./UserSelectionField";
 import { MembersList } from "./MembersList";
 import { Button } from "@/components/ui/button";
-import { ErrorDisplay } from "@/components/ui/error-display";
+import { toast } from "sonner";
 
 interface ProjectMemberManagerProps {
   projectId?: string;
@@ -21,27 +17,25 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     isLoading,
     isError,
     error,
-    addMemberById,
     removeMember,
     refetch
   } = useProjectMembers(projectId);
 
-  // Make sure members is always an array
   const safeMembers = Array.isArray(members) ? members : [];
-  const [retryCount, setRetryCount] = useState(0);
 
   const handleRemoveMember = (userId: string) => {
-    // Safety checks first
+    if (readOnly || !isAdmin) return;
+    
     if (!userId) return;
     
-    // Don't allow removing yourself
     if (userId === user?.id) {
+      toast.warning("You cannot remove yourself from the project team.");
       return;
     }
     
-    // Admin users shouldn't be removable through the UI since they have access by default
     const memberToRemove = safeMembers.find(m => m.user_id === userId);
     if (memberToRemove?.is_admin) {
+      toast.info("Admin users cannot be removed from projects.");
       return;
     }
     
@@ -49,7 +43,6 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
   };
 
   const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
     refetch();
   };
 
@@ -62,9 +55,16 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
     );
   }
 
+  if (!isAdmin) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">
+        Project team members can only be managed by administrators.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {/* Error display with retry button */}
       {isError && (
         <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md flex items-center justify-between">
           <div className="flex items-center">
@@ -84,47 +84,29 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
         </div>
       )}
 
-      {/* Members list */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium">Team Members</label>
-          {isAdmin && (
-            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-              Admin Access
-            </span>
-          )}
         </div>
 
         <div className="space-y-2">
           {safeMembers.length === 0 && !isLoading && !isError ? (
-            <div className="text-sm text-muted-foreground">No team members added yet</div>
+            <div className="text-sm text-muted-foreground">No team members assigned to this project.</div>
           ) : (
             <MembersList
               members={safeMembers}
-              readOnly={readOnly}
+              readOnly={readOnly || !isAdmin}
               onRemoveMember={handleRemoveMember}
             />
           )}
         </div>
       </div>
 
-      {/* Add member selection */}
-      {!readOnly && projectId && (
-        <div>
-          <UserSelectionField
-            projectId={projectId}
-            members={safeMembers}
-            onAddMember={addMemberById}
-          />
-          
-          <p className="mt-2 text-xs text-muted-foreground">
-            {isAdmin 
-              ? "As an admin, you have access to all projects. Other users need to be added explicitly."
-              : "Select users from the dropdown to add them to this project."}
-          </p>
-        </div>
+      {!readOnly && projectId && isAdmin && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          As an admin, you can view and remove non-admin members. Adding members is handled via direct database assignments or future admin tools.
+        </p>
       )}
     </div>
   );
 }
-
