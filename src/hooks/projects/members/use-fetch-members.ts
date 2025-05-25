@@ -5,10 +5,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { ProjectMember, createMemberFromUser } from "../types/member-types";
 
 /**
- * Hook for fetching project members
+ * Hook for fetching project members.
+ * This hook ensures that all 'gallery_admin' users are always included in the member list for any project,
+ * in addition to users explicitly assigned to the project via the 'project_users' table.
  */
 export function useFetchMembers(projectId: string | undefined) {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth(); // user from useAuth might be used for enabled flag or logging
 
   return useQuery({
     queryKey: ['project-members', projectId],
@@ -21,112 +23,88 @@ export function useFetchMembers(projectId: string | undefined) {
       try {
         console.log(`Fetching members for project: ${projectId}`);
         
-        // Get project users
+        // 1. Get user_ids for users EXPLICITLY assigned to the project
         const { data: projectUsersData, error: projectUsersError } = await supabase
           .from('project_users')
-          .select('user_id, project_id')
+          .select('user_id') // Only need user_id
           .eq('project_id', projectId);
 
-        // Ensure projectUsers is always an array
-        const projectUsers = Array.isArray(projectUsersData) ? projectUsersData : [];
-
         if (projectUsersError) {
-          console.error("Error fetching project members:", projectUsersError);
-          throw new Error(`Error fetching project members: ${projectUsersError.message}`);
+          console.error("Error fetching explicit project members:", projectUsersError);
+          throw new Error(`Error fetching explicit project members: ${projectUsersError.message}`);
         }
-
-        console.log(`Found ${projectUsers.length} project users`);
+        const explicitMemberIds = (projectUsersData || []).map(pu => pu.user_id).filter(Boolean);
+        console.log(`Found ${explicitMemberIds.length} explicit project users for project ${projectId}`);
         
-        // If no members found and user is signed in, add current user as fallback
-        if (projectUsers.length === 0 && user && user.id && user.email) {
-          return [createMemberFromUser(user.id, projectId, user.email, user.email, null, isAdmin)];
-        }
-
-        // Add all valid user IDs to a set
-        let memberUserIds: string[] = [];
-        if (projectUsers.length > 0) {
-          // Filter out null/undefined ids
-          memberUserIds = projectUsers
-            .map(pu => pu.user_id)
-            .filter(Boolean);
-        }
-        
-        // If current user is admin, make sure they're included
-        if (user && isAdmin && user.id) {
-          if (!memberUserIds.includes(user.id)) {
-            memberUserIds.push(user.id);
-          }
-        }
-
-        // If we have no valid user IDs, return empty array
-        if (memberUserIds.length === 0) {
-          console.log("No valid member user IDs found");
-          return [];
-        }
-
-        console.log(`Fetching profiles for ${memberUserIds.length} users`);
-        
-        // Fetch profiles for these users, including the email field
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, email') // Added email here
-          .in('id', memberUserIds);
-
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
-          throw new Error(`Error fetching user profiles: ${profilesError.message}`);
-        }
-
-        // Ensure profiles is always an array
-        const profiles = Array.isArray(profilesData) ? profilesData : [];
-        console.log(`Found ${profiles.length} user profiles`);
-        
-        // Get admin users
+        // 2. Get user_ids for ALL gallery_admin users
         const { data: adminUsersData, error: adminError } = await supabase
           .from('user_roles')
           .select('user_id')
           .eq('role', 'gallery_admin');
 
-        // Ensure adminUsers is always an array
-        const adminUsers = Array.isArray(adminUsersData) ? adminUsersData : [];
-        
         if (adminError) {
           console.error("Error fetching admin users:", adminError);
+          // This is critical for ensuring all admins are listed.
+          throw new Error(`Error fetching admin users: ${adminError.message}`);
         }
-
-        // Create a set of admin user IDs
-        let adminUserIds: Set<string> = new Set();
-        if (adminUsers.length > 0) {
-            adminUsers
-              .filter(admin => admin && admin.user_id) // Filter out null/undefined
-              .forEach(admin => adminUserIds.add(admin.user_id));
+        const allGlobalAdminUsers = Array.isArray(adminUsersData) ? adminUsersData : [];
+        const allGlobalAdminIdsSet = new Set<string>();
+        if (allGlobalAdminUsers.length > 0) {
+            allGlobalAdminUsers
+              .filter(admin => admin && admin.user_id)
+              .forEach(admin => allGlobalAdminIdsSet.add(admin.user_id));
         }
+        console.log(`Found ${allGlobalAdminIdsSet.size} global admin users.`);
 
-        // Map profiles to members format
-        const members: ProjectMember[] = memberUserIds.map(userId => {
+        // 3. Combine explicit members and all global admins. Ensure uniqueness.
+        const allRelevantUserIds = Array.from(new Set([...explicitMemberIds, ...allGlobalAdminIdsSet]));
+
+        if (allRelevantUserIds.length === 0) {
+          // This means no explicit users for this project AND no global admins in the system.
+          console.log(`No relevant users (explicit members or global admins) for project ${projectId}.`);
+          return [];
+        }
+        
+        // 4. Fetch profiles for these combined users
+        console.log(`Fetching profiles for ${allRelevantUserIds.length} relevant users (explicit + admins).`);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, email')
+          .in('id', allRelevantUserIds);
+
+        if (profilesError) {
+          console.error("Error fetching profiles for relevant users:", profilesError);
+          throw new Error(`Error fetching user profiles: ${profilesError.message}`);
+        }
+        const profiles = Array.isArray(profilesData) ? profilesData : [];
+        console.log(`Found ${profiles.length} user profiles for relevant users.`);
+        
+        // 5. Construct ProjectMember objects for all relevant users
+        const members: ProjectMember[] = allRelevantUserIds.map(userId => {
           const profile = profiles.find(p => p.id === userId);
-          const isUserAdmin = adminUserIds.has(userId) || (user?.id === userId && isAdmin);
+          const isUserActuallyAdmin = allGlobalAdminIdsSet.has(userId); // Check if this user is in the set of all admins
 
           return createMemberFromUser(
             userId,
             projectId,
             profile?.display_name ?? null,
-            profile?.email ?? null, // Correctly use profile.email
+            profile?.email ?? null, // Pass email as string or null
             profile?.avatar_url ?? null,
-            isUserAdmin
+            isUserActuallyAdmin // Set is_admin flag based on whether they are a global admin
           );
         });
 
-        console.log(`Returning ${members.length} project members`);
+        console.log(`Returning ${members.length} project members for project ${projectId} (now includes all admins).`);
         return members;
+
       } catch (err) {
         console.error("Critical error in useFetchMembers:", err);
         throw err; // Re-throw the error to be caught by React Query's error handling
       }
     },
-    enabled: !!projectId && !!user,
+    enabled: !!projectId && !!user, // Query runs if projectId is present and a user is logged in
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    retry: 2, // Retry failed queries twice
+    retry: 2,
     meta: {
       onError: (error: Error) => {
         console.error("Error in useFetchMembers React Query:", error);
