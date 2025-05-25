@@ -18,7 +18,7 @@ import { ProjectTasksList } from "./ProjectTasksList";
 import { ProjectDialogsManager } from "./ProjectDialogsManager";
 import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
-import { DebugInfo } from "@/components/ui/debug-info";
+// DebugInfo import removed
 
 const ProjectDetailPage = () => {
   const navigate = useNavigate();
@@ -62,16 +62,7 @@ const ProjectDetailPage = () => {
   // Refined userIsMember logic
   const actualUserIsMember = isAdmin || (members?.some(member => member.user_id === user?.id) ?? false);
   
-  const debugData = {
-    project,
-    members,
-    memberCount: members?.length || 0,
-    user: user?.id,
-    isAdmin,
-    userIsMember: actualUserIsMember, // Use refined logic for debug
-    membersError: membersError ? 'Error loading members' : null,
-    tasksError: tasksError ? 'Error loading tasks' : null,
-  };
+  // debugData variable removed
   
   if (isLoading) {
     return <div className="p-6 text-center">Loading project details...</div>;
@@ -132,10 +123,9 @@ const ProjectDetailPage = () => {
         navigate={navigate}
       />
       
-      <DebugInfo data={debugData} title="Project Debug Info" />
+      {/* DebugInfo component usage removed */}
     </div>
   );
 };
 
 export default ProjectDetailPage;
-
