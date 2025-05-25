@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 
 interface TurnstileResponse {
@@ -30,8 +29,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Development mode flag - set to true to enable development mode
-const DEVELOPMENT_MODE = true; // Enable development mode for testing
+// Development mode flag - set to false to disable development mode
+const DEVELOPMENT_MODE = false; // Changed to false
 const DEVELOPMENT_TOKEN = "development-mode";
 
 // Helper function to debug domain issues
@@ -85,7 +84,7 @@ serve(async (req) => {
       );
     }
 
-    // Special case for development mode
+    // Special case for development mode (now effectively disabled by DEVELOPMENT_MODE = false)
     if (DEVELOPMENT_MODE && token === DEVELOPMENT_TOKEN) {
       console.log("Development mode token accepted");
       return new Response(
