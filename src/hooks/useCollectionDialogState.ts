@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Document } from "@/hooks/use-documents";
@@ -7,6 +6,7 @@ import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { UseMutationResult } from "@tanstack/react-query";
 import { CollectionWebsite, CreateCollectionWebsitePayload } from "@/types/collection-website";
+import { useNavigate } from "react-router-dom";
 
 // Define a type for the artist data actually needed by this hook
 interface DialogArtist {
@@ -29,6 +29,7 @@ export function useCollectionDialogState({
 }: UseCollectionDialogStateProps) {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isCreatingWebsite, setIsCreatingWebsite] = useState(false);
+  const navigate = useNavigate();
 
   const handleDocumentDownload = (url: string, fileName: string) => {
     const link = document.createElement('a');
@@ -80,6 +81,7 @@ export function useCollectionDialogState({
         collection_name: collection.name,
       });
       toast.success(`Website "${newWebsite.name || newWebsite.slug}" created successfully!`);
+      navigate('/manage-websites');
     } catch (error) {
       console.error('Error creating website:', error);
       toast.error("Failed to create website. Please try again.");
@@ -98,4 +100,3 @@ export function useCollectionDialogState({
     handleCreateWebsite,
   };
 }
-
