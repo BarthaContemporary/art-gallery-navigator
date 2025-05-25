@@ -8,46 +8,60 @@ import { Button } from "@/components/ui/button";
 import { Download, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
+import { RepresentationStatusFilter } from "@/components/artists/RepresentationStatusFilter";
 
 interface Artist {
   id: string;
   full_name: string;
-  surname_first_letter?: string | null; // New
+  surname_first_letter?: string | null;
   birth_year: number | null;
-  death_year?: number | null; // New
-  place_of_birth?: string | null; // New
-  place_of_death?: string | null; // New
+  death_year?: number | null;
+  place_of_birth?: string | null;
+  place_of_death?: string | null;
   nationality: string | null;
-  representation_status: string;
+  representation_status: string; // This is a string like "represented", "formerly represented", "not represented"
   biography: string | null;
   image_url: string | null;
   email?: string | null;
 }
+
+type RepresentationStatusFilterType = "all" | "represented" | "formerly represented" | "not represented";
+
 const Artists = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createArtistDialogOpen, setCreateArtistDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<RepresentationStatusFilterType>("all");
+
   const {
     data: artists,
     isLoading
   } = useQuery({
-    queryKey: ['artists'],
+    queryKey: ['artists', statusFilter],
     queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from('artists').select('*').order('full_name');
+      let query = supabase.from('artists').select('*').order('full_name');
+      const { data, error } = await query;
       if (error) throw error;
       return data as Artist[];
     }
   });
-  const filteredArtists = artists?.filter(artist => 
-    artist.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (artist.nationality && artist.nationality.toLowerCase().includes(searchTerm.toLowerCase())) || 
-    (artist.email && artist.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (artist.surname_first_letter && artist.surname_first_letter.toLowerCase().includes(searchTerm.toLowerCase())) || // Include new field in search
-    (artist.place_of_birth && artist.place_of_birth.toLowerCase().includes(searchTerm.toLowerCase())) || // Include new field in search
-    (artist.place_of_death && artist.place_of_death.toLowerCase().includes(searchTerm.toLowerCase()))    // Include new field in search
-  ) ?? [];
+
+  const filteredArtists = artists?.filter(artist => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const matchesSearchTerm =
+      artist.full_name.toLowerCase().includes(searchTermLower) ||
+      (artist.nationality && artist.nationality.toLowerCase().includes(searchTermLower)) ||
+      (artist.email && artist.email.toLowerCase().includes(searchTermLower)) ||
+      (artist.surname_first_letter && artist.surname_first_letter.toLowerCase().includes(searchTermLower)) ||
+      (artist.place_of_birth && artist.place_of_birth.toLowerCase().includes(searchTermLower)) ||
+      (artist.place_of_death && artist.place_of_death.toLowerCase().includes(searchTermLower));
+
+    const matchesStatusFilter =
+      statusFilter === "all" ||
+      artist.representation_status.toLowerCase() === statusFilter;
+
+    return matchesSearchTerm && matchesStatusFilter;
+  }) ?? [];
+
   const formatCSVValue = (value: any): string => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
@@ -64,7 +78,7 @@ const Artists = () => {
       'id', 'full_name', 'surname_first_letter', 'email', 
       'birth_year', 'death_year', 'place_of_birth', 'place_of_death', 
       'nationality', 'representation_status', 'biography', 'image_url'
-    ]; // Added new headers
+    ]; 
     const csvHeader = headers.map(formatCSVValue).join(',');
     const csvRows = artistsToExport.map(artist => {
       return headers.map(header => {
@@ -95,6 +109,7 @@ const Artists = () => {
       exportArtistsToCSV(filteredArtists, 'filtered_artists.csv');
     }
   };
+
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         
@@ -117,8 +132,9 @@ const Artists = () => {
       
       <CreateArtistDialog open={createArtistDialogOpen} onOpenChange={setCreateArtistDialogOpen} />
 
-      <div className="mt-6 mb-8">
+      <div className="mt-6 mb-8 flex flex-col sm:flex-row gap-4 items-center">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
+        <RepresentationStatusFilter value={statusFilter} onChange={setStatusFilter} /> 
       </div>
 
       {isLoading ? <LoadingSkeleton /> : <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
