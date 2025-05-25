@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 
 interface TurnstileResponse {
@@ -18,22 +19,18 @@ interface VerificationRequest {
 
 const TURNSTILE_SECRET_KEY = Deno.env.get("TURNSTILE_SECRET_KEY")!;
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-// List of allowed domains - use empty array to allow any domain
-// When testing locally, you might need to add localhost or your test domain here
-const ALLOWED_DOMAINS: string[] = [];
+const ALLOWED_DOMAINS: string[] = []; // Keep as per original: empty array allows any domain
 
-// Define CORS headers - make sure to allow all necessary origins for development/testing
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Development mode flag - set to false to disable development mode
-const DEVELOPMENT_MODE = false; // Changed to false
+const DEVELOPMENT_MODE = false; // Keep as per original
 const DEVELOPMENT_TOKEN = "development-mode";
 
-// Helper function to debug domain issues
+// Helper function to debug domain issues (kept from original)
 function logDomainInfo(requestDomain: string | undefined, responseDomain: string | undefined, body: any) {
   console.log("======== Domain Debug Info ========");
   console.log(`Request domain: ${requestDomain || 'undefined'}`);
@@ -43,176 +40,7 @@ function logDomainInfo(requestDomain: string | undefined, responseDomain: string
   console.log("==================================");
 }
 
-serve(async (req) => {
-  console.log("Turnstile verification request received");
-  
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log("Handling CORS preflight request");
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
-  }
-
-  if (req.method !== "POST") {
-    console.log(`Invalid method: ${req.method}`);
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { 
-        status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-  }
-
-  try {
-    const body: VerificationRequest = await req.json();
-    const { token, domain, ip, origin, url } = body;
-    console.log(`Verifying token with provided domain: ${domain || 'none'}`);
-    console.log(`Client origin: ${origin || 'none'}`);
-    console.log(`Client URL: ${url || 'none'}`);
-
-    if (!token) {
-      console.error("Token is missing");
-      return new Response(
-        JSON.stringify({ error: "Token is required" }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Special case for development mode (now effectively disabled by DEVELOPMENT_MODE = false)
-    if (DEVELOPMENT_MODE && token === DEVELOPMENT_TOKEN) {
-      console.log("Development mode token accepted");
-      return new Response(
-        JSON.stringify({
-          success: true,
-          hostname: domain || "development.local",
-          message: "Development mode verification successful"
-        }),
-        { 
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Check if domain is valid (if domain restriction is enabled)
-    if (ALLOWED_DOMAINS.length > 0 && domain && !ALLOWED_DOMAINS.includes(domain)) {
-      console.error(`Domain validation failed: ${domain} is not in allowed list`);
-      return new Response(
-        JSON.stringify({ 
-          error: "Domain validation failed",
-          details: ["invalid-domain"],
-          message: `${domain} is not authorized for CAPTCHA verification`
-        }),
-        { 
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    const formData = new FormData();
-    formData.append("secret", TURNSTILE_SECRET_KEY);
-    formData.append("response", token);
-    if (domain) formData.append("domain", domain);
-    if (ip) formData.append("remoteip", ip);
-
-    console.log("Sending verification request to Turnstile API...");
-    const result = await fetch(TURNSTILE_VERIFY_URL, {
-      body: formData,
-      method: "POST",
-    });
-
-    if (!result.ok) {
-      console.error(`Turnstile API request failed with status ${result.status}`);
-      return new Response(
-        JSON.stringify({ 
-          error: "CAPTCHA service error",
-          details: [`api-error-${result.status}`],
-          message: `Error contacting verification service: ${result.statusText}`
-        }),
-        { 
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    const data: TurnstileResponse = await result.json();
-    console.log("Turnstile response:", JSON.stringify(data));
-    
-    // Log detailed domain information for debugging
-    logDomainInfo(domain, data.hostname, body);
-
-    // Check for hostname mismatch
-    if (data.hostname && domain && data.hostname !== domain) {
-      console.error(`Domain mismatch: requested ${domain}, got ${data.hostname}`);
-      return new Response(
-        JSON.stringify({ 
-          error: "Domain validation failed",
-          details: ["hostname-mismatch"],
-          message: `Domain mismatch: widget is configured for ${data.hostname} but request came from ${domain}. Check your Turnstile site settings.`
-        }),
-        { 
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    if (!data.success) {
-      console.error("Turnstile verification failed:", {
-        errors: data["error-codes"],
-        token: token.substring(0, 10) + "...", // Log partial token for debugging
-        domain: domain || 'not provided'
-      });
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "CAPTCHA verification failed",
-          details: data["error-codes"],
-          message: getTurnstileErrorMessage(data["error-codes"][0])
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    console.log("Turnstile verification successful");
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        hostname: data.hostname,
-        message: "Verification successful"
-      }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-
-  } catch (error) {
-    console.error("Error verifying Turnstile token:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error"
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-  }
-});
-
+// Helper function to get error messages (kept from original)
 function getTurnstileErrorMessage(errorCode: string): string {
   const errorMessages: Record<string, string> = {
     "missing-input-secret": "The secret key is missing",
@@ -226,6 +54,175 @@ function getTurnstileErrorMessage(errorCode: string): string {
     "sitekey-secret-mismatch": "The sitekey is not registered with the provided secret",
     "hostname-mismatch": "Domain mismatch detected between widget and verification request"
   };
-  
   return errorMessages[errorCode] || `Unknown error occurred (code: ${errorCode})`;
 }
+
+// New helper functions for refactoring
+
+function buildJsonResponse(status: number, body: Record<string, any>): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function validateAndParseRequest(req: Request): Promise<{ body: VerificationRequest | null, errorResponse: Response | null }> {
+  if (req.method !== "POST") {
+    console.log(`Invalid method: ${req.method}`);
+    return { body: null, errorResponse: buildJsonResponse(405, { error: "Method not allowed" }) };
+  }
+
+  try {
+    const body: VerificationRequest = await req.json();
+    console.log(`Verifying token with provided domain: ${body.domain || 'none'}`);
+    console.log(`Client origin: ${body.origin || 'none'}`);
+    console.log(`Client URL: ${body.url || 'none'}`);
+
+    if (!body.token) {
+      console.error("Token is missing");
+      return { body: null, errorResponse: buildJsonResponse(400, { error: "Token is required" }) };
+    }
+    return { body, errorResponse: null };
+  } catch (e) {
+    console.error("Error parsing request body:", e);
+    return { body: null, errorResponse: buildJsonResponse(400, { error: "Invalid request body" }) };
+  }
+}
+
+function handleDevelopmentMode(token: string, domain?: string): Response | null {
+  if (DEVELOPMENT_MODE && token === DEVELOPMENT_TOKEN) {
+    console.log("Development mode token accepted");
+    return buildJsonResponse(200, {
+      success: true,
+      hostname: domain || "development.local",
+      message: "Development mode verification successful",
+    });
+  }
+  return null;
+}
+
+function checkAllowedDomain(domain?: string): Response | null {
+  if (ALLOWED_DOMAINS.length > 0 && domain && !ALLOWED_DOMAINS.includes(domain)) {
+    console.error(`Domain validation failed: ${domain} is not in allowed list`);
+    return buildJsonResponse(403, {
+      error: "Domain validation failed",
+      details: ["invalid-domain"],
+      message: `${domain} is not authorized for CAPTCHA verification`,
+    });
+  }
+  return null;
+}
+
+async function callTurnstileApi(token: string, domain?: string, ip?: string): Promise<{ data: TurnstileResponse | null, errorResponse: Response | null }> {
+  const formData = new FormData();
+  formData.append("secret", TURNSTILE_SECRET_KEY);
+  formData.append("response", token);
+  if (domain) formData.append("domain", domain);
+  if (ip) formData.append("remoteip", ip);
+
+  console.log("Sending verification request to Turnstile API...");
+  try {
+    const result = await fetch(TURNSTILE_VERIFY_URL, {
+      body: formData,
+      method: "POST",
+    });
+
+    if (!result.ok) {
+      console.error(`Turnstile API request failed with status ${result.status}`);
+      return {
+        data: null,
+        errorResponse: buildJsonResponse(502, {
+          error: "CAPTCHA service error",
+          details: [`api-error-${result.status}`],
+          message: `Error contacting verification service: ${result.statusText}`,
+        }),
+      };
+    }
+    const data: TurnstileResponse = await result.json();
+    console.log("Turnstile response:", JSON.stringify(data));
+    return { data, errorResponse: null };
+  } catch (fetchError) {
+    console.error("Error fetching Turnstile API:", fetchError);
+    return {
+      data: null,
+      errorResponse: buildJsonResponse(500, {
+        error: "CAPTCHA service connection error",
+        message: fetchError instanceof Error ? fetchError.message : "Unknown error during API call",
+      }),
+    };
+  }
+}
+
+function processTurnstileVerification(
+  turnstileData: TurnstileResponse,
+  requestDomain: string | undefined,
+  requestBody: VerificationRequest
+): Response {
+  logDomainInfo(requestDomain, turnstileData.hostname, requestBody);
+
+  if (turnstileData.hostname && requestDomain && turnstileData.hostname !== requestDomain) {
+    console.error(`Domain mismatch: requested ${requestDomain}, got ${turnstileData.hostname}`);
+    return buildJsonResponse(403, {
+      error: "Domain validation failed",
+      details: ["hostname-mismatch"],
+      message: `Domain mismatch: widget is configured for ${turnstileData.hostname} but request came from ${requestDomain}. Check your Turnstile site settings.`,
+    });
+  }
+
+  if (!turnstileData.success) {
+    console.error("Turnstile verification failed:", {
+      errors: turnstileData["error-codes"],
+      token: requestBody.token.substring(0, 10) + "...",
+      domain: requestDomain || 'not provided',
+    });
+    return buildJsonResponse(400, {
+      error: "CAPTCHA verification failed",
+      details: turnstileData["error-codes"],
+      message: getTurnstileErrorMessage(turnstileData["error-codes"][0]),
+    });
+  }
+
+  console.log("Turnstile verification successful");
+  return buildJsonResponse(200, {
+    success: true,
+    hostname: turnstileData.hostname,
+    message: "Verification successful",
+  });
+}
+
+
+serve(async (req) => {
+  console.log("Turnstile verification request received");
+
+  if (req.method === 'OPTIONS') {
+    console.log("Handling CORS preflight request");
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  try {
+    const { body: requestBody, errorResponse: validationError } = await validateAndParseRequest(req);
+    if (validationError) return validationError;
+    // requestBody is guaranteed to be non-null here if validationError is null
+    const { token, domain, ip } = requestBody!;
+
+    const devModeResponse = handleDevelopmentMode(token, domain);
+    if (devModeResponse) return devModeResponse;
+
+    const domainCheckResponse = checkAllowedDomain(domain);
+    if (domainCheckResponse) return domainCheckResponse;
+
+    const { data: turnstileData, errorResponse: apiCallError } = await callTurnstileApi(token, domain, ip);
+    if (apiCallError) return apiCallError;
+    // turnstileData is guaranteed to be non-null here
+    
+    return processTurnstileVerification(turnstileData!, domain, requestBody!);
+
+  } catch (error) {
+    // This catch block is for unexpected errors not caught by helper functions
+    console.error("Unexpected error in Turnstile verification process:", error);
+    return buildJsonResponse(500, {
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred",
+    });
+  }
+});
