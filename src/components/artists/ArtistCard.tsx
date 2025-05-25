@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 const statusIcons = {
   represented: <Check className="h-4 w-4 text-green-500" />,
@@ -60,7 +61,7 @@ export function ArtistCard({ artist }: { artist: any }) {
       toast.success("Artist deleted successfully");
       setShowDeleteConfirm(false);
     } catch (error) {
-      console.error('Error deleting artist:', error);
+      logger.error('Error deleting artist:', error);
       toast.error("Failed to delete artist");
     } finally {
       setIsDeleting(false);

@@ -1,7 +1,7 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -24,7 +24,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error("Error caught by ErrorBoundary:", error, errorInfo);
+    logger.error("Error caught by ErrorBoundary:", error, errorInfo);
   }
 
   render() {
@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           <p className="text-muted-foreground mb-6">
             {this.state.error?.message || "An unexpected error occurred"}
           </p>
-          <Button 
+          <Button
             onClick={() => this.setState({ hasError: false, error: null })}
             variant="default"
           >

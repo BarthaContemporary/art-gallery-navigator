@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { UseMutationResult } from "@tanstack/react-query";
 import { CollectionWebsite, CreateCollectionWebsitePayload } from "@/types/collection-website";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/lib/logger";
 
 // Define a type for the artist data actually needed by this hook
 interface DialogArtist {
@@ -31,6 +32,7 @@ export function useCollectionDialogState({
   const [isCreatingWebsite, setIsCreatingWebsite] = useState(false);
   const navigate = useNavigate();
 
+  // ... keep existing code (handleDocumentDownload, handleDownloadAllDocuments functions)
   const handleDocumentDownload = (url: string, fileName: string) => {
     const link = document.createElement('a');
     link.href = url;
@@ -56,13 +58,14 @@ export function useCollectionDialogState({
         toast.error("No collection selected to create PDF");
       }
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      logger.error('Error generating PDF:', error);
       toast.error("Failed to generate PDF");
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
+  // ... keep existing code (getArtistName function)
   const getArtistName = (artistId: string | null): string => {
     if (!artistId || !artists) return "Unknown Artist";
     const artist = artists.find(a => a.id === artistId);
@@ -83,7 +86,7 @@ export function useCollectionDialogState({
       toast.success(`Website "${newWebsite.name || newWebsite.slug}" created successfully!`);
       navigate('/manage-websites');
     } catch (error) {
-      console.error('Error creating website:', error);
+      logger.error('Error creating website:', error);
       toast.error("Failed to create website. Please try again.");
     } finally {
       setIsCreatingWebsite(false);

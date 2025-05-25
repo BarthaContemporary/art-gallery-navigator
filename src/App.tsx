@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,6 +28,8 @@ import EditCollectionWebsite from "./pages/EditCollectionWebsite"; // Added impo
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import { logger } from "@/lib/logger";
+
 
 // Create a new QueryClient with enhanced error handling
 const queryClient = new QueryClient({
@@ -39,7 +40,7 @@ const queryClient = new QueryClient({
       // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
-          console.error("Query error:", error);
+          logger.error("Query error:", error);
         }
       }
     },
@@ -47,7 +48,7 @@ const queryClient = new QueryClient({
       // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
-          console.error("Mutation error:", error);
+          logger.error("Mutation error:", error);
         }
       }
     }
