@@ -3,6 +3,8 @@ import { Artwork } from "@/hooks/use-artworks";
 import { ArtworkFormData } from "./types";
 import { Artist } from "@/hooks/useArtists"; // Import Artist type
 
+const artworkClassifications: ArtworkFormData['classification'][] = ['Unique', 'Limited Edition', 'Open Edition', 'Unknown Edition'];
+
 export const getArtworkInitialValues = (
   initialData?: Artwork,
   isAdmin?: boolean,
@@ -10,13 +12,19 @@ export const getArtworkInitialValues = (
 ): ArtworkFormData => {
   const defaultArtistId = (!isAdmin && currentUserArtist) ? currentUserArtist.id : initialData?.artist_id || "";
 
+  const initialClassification = initialData?.classification;
+  const validatedClassification =
+    initialClassification && artworkClassifications.includes(initialClassification as ArtworkFormData['classification'])
+      ? (initialClassification as ArtworkFormData['classification'])
+      : 'Unique';
+
   return {
     title: initialData?.title || "",
     artist_id: defaultArtistId,
     year: initialData?.year || null,
     medium_type: initialData?.medium_type || "Painting",
     materials: initialData?.materials || "",
-    classification: initialData?.classification || "Unique",
+    classification: validatedClassification, // Use validated classification
     edition_size: initialData?.edition_size || null,
     available_works: initialData?.available_works || "",
     artist_proofs: initialData?.artist_proofs || null,

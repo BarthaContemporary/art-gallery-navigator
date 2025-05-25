@@ -15,7 +15,11 @@ export function useCurrentUserArtist(): Artist | null {
     return null;
   }
 
-  const currentUserArtist = artists.find(artist => artist.user_id === user.id);
+  // Workaround: Type assertion used here because the imported Artist type
+  // might be missing user_id. Ideally, Artist type in useArtists.ts should include user_id.
+  const currentUserArtist = artists.find(
+    artist => (artist as Artist & { user_id?: string }).user_id === user.id
+  );
   
   return currentUserArtist || null;
 }

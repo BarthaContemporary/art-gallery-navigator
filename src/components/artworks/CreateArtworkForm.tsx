@@ -1,5 +1,5 @@
 
-import { CreateArtworkFormView } from "./CreateArtworkFormView";
+import { CreateArtworkFormView } from "./form/CreateArtworkFormView"; // Corrected import path
 import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
 
 export function CreateArtworkForm({ setOpen, initialData, preventFreeze }: UseCreateArtworkFormProps) {
