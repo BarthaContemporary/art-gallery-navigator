@@ -24,20 +24,18 @@ const statusOptions: { value: RepresentationStatus; label: string }[] = [
 
 export function RepresentationStatusFilter({ value, onChange }: RepresentationStatusFilterProps) {
   return (
-    <div className="flex items-center gap-2">
-      <Filter className="h-5 w-5 text-muted-foreground" />
-      <Select value={value} onValueChange={(newValue) => onChange(newValue as RepresentationStatus)}>
-        <SelectTrigger className="w-[220px]">
-          <SelectValue placeholder="Filter by status" />
-        </SelectTrigger>
-        <SelectContent>
-          {statusOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={value} onValueChange={(newValue) => onChange(newValue as RepresentationStatus)}>
+      <SelectTrigger className="w-[220px]">
+        <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+        <SelectValue placeholder="Filter Status" />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
