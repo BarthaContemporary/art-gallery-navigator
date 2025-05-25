@@ -151,7 +151,7 @@ const Dashboard = () => {
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="text-sm">Recent Activity</CardTitle>
             <CardDescription>Latest updates to your gallery inventory</CardDescription>
           </CardHeader>
           <CardContent>
@@ -179,7 +179,7 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Inventory Status</CardTitle>
+            <CardTitle className="text-sm">Inventory Status</CardTitle>
             <CardDescription>Current status of artworks</CardDescription>
           </CardHeader>
           <CardContent>
