@@ -14,3 +14,6 @@ export interface UseProjectMembersResult {
   isRemovingMember: boolean;
 }
 
+// Export ProjectMember if it's defined here and not re-exported from ../types
+// For consistency, it's better if ProjectMember is defined in ../types/member-types.ts and exported via ../types/index.ts
+// export type { ProjectMember }; 

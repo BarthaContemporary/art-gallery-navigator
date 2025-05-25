@@ -2,18 +2,17 @@
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { useFetchMembers } from "./use-fetch-members";
-import { useAddMember } from "./use-add-member";
+// import { useAddMember } from "./use-add-member"; // Removed: useAddMember import
 import { useRemoveMember } from "./use-remove-member";
-import { UseProjectMembersResult } from "./types";
+import { UseProjectMembersResult, ProjectMember } from "./types"; // Added ProjectMember import explicitly if needed, though types.ts should export it.
 
 /**
  * Custom hook for managing project members
- * Provides a centralized way to fetch, add, and remove project members
+ * Provides a centralized way to fetch and remove project members
  */
 export function useProjectMembers(projectId: string | undefined): UseProjectMembersResult {
   const { user, isAdmin } = useAuth();
   
-  // Fetch project members
   const { 
     data: membersData, 
     isLoading: isFetchLoading, 
@@ -22,53 +21,37 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
     refetch 
   } = useFetchMembers(projectId);
   
-  // Ensure members is always a valid array
   const members = Array.isArray(membersData) ? membersData : [];
   
-  // Add member mutation
-  const addMemberMutation = useAddMember(projectId);
+  // Add member mutation removed
+  // const addMemberMutation = useAddMember(projectId); 
   
-  // Remove member mutation
   const removeMemberMutation = useRemoveMember(projectId);
   
-  const addMemberById = async (userId: string) => {
-    if (!userId || !projectId) {
-      toast.error("Missing user ID or project ID");
-      return;
-    }
-    
-    try {
-      await addMemberMutation.mutateAsync(userId);
-    } catch (error) {
-      console.error("Error adding member:", error);
-      toast.error("Failed to add team member");
-    }
-  };
+  // addMemberById function removed
+  // const addMemberById = async (userId: string) => { ... };
   
   const removeMember = (userId: string) => {
-    // Safety check - don't continue if no project ID
     if (!projectId) {
       toast.error("Project ID is required");
       return;
     }
     
-    // Don't allow removing yourself
     if (userId === user?.id) {
       toast.warning("You cannot remove yourself from the project");
       return;
     }
     
-    // Don't allow removing admin users
     const memberToRemove = members.find(m => m.user_id === userId);
     if (memberToRemove?.is_admin) {
-      toast.info("Admin users automatically have access to all projects");
+      // This check might be redundant if RLS prevents removing admins, but good for UI feedback.
+      toast.info("Admin users automatically have access to all projects and cannot be removed this way.");
       return;
     }
     
-    // Don't allow removing the last non-admin member
     const nonAdminMembers = members.filter(m => !m.is_admin) || [];
     if (nonAdminMembers.length <= 1 && nonAdminMembers.some(m => m.user_id === userId)) {
-      toast.warning("Projects must have at least one member");
+      toast.warning("Projects must have at least one non-admin member if there are non-admin members.");
       return;
     }
     
@@ -80,27 +63,28 @@ export function useProjectMembers(projectId: string | undefined): UseProjectMemb
     }
   };
   
-  // In case of an error or empty array, ensure we still have the current user as a fallback
   const safeMembers = (Array.isArray(members) && members.length > 0) 
     ? members 
     : (user && user.id && user.email ? [{
         user_id: user.id,
         project_id: projectId || '',
         display_name: user.email || 'Current User',
-        avatar_url: null,
+        avatar_url: null, // Ensure avatar_url is present for ProjectMember type
         email: user.email,
-        is_admin: isAdmin
-      }] : []);
+        is_admin: isAdmin,
+        // Add any other required fields for ProjectMember with default/fallback values
+        role: null, // Example if 'role' was part of ProjectMember
+      } as ProjectMember] : []); // Cast to ProjectMember
   
   return {
     members: safeMembers,
-    isLoading: isFetchLoading || addMemberMutation.isPending || removeMemberMutation.isPending,
+    isLoading: isFetchLoading || removeMemberMutation.isPending, // Removed addMemberMutation.isPending
     isError,
     error,
     refetch,
-    addMemberById,
+    // addMemberById, // Removed
     removeMember,
-    isAddingMember: addMemberMutation.isPending,
+    // isAddingMember: addMemberMutation.isPending, // Removed
     isRemovingMember: removeMemberMutation.isPending
   };
 }

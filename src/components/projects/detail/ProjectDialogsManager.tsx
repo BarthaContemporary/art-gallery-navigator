@@ -3,7 +3,7 @@ import { ProjectDialog } from "@/components/projects/project-dialog/ProjectDialo
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { ProjectCalendarView } from "@/components/projects/ProjectCalendarView";
 import { ProjectTaskDialog } from "@/components/projects/ProjectTaskDialog";
-import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects"; // Standardized import
+import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects";
 import { NavigateFunction } from "react-router-dom";
 
 interface ProjectDialogsManagerProps {
@@ -20,9 +20,9 @@ interface ProjectDialogsManagerProps {
     setCreateTaskDialogOpen: (open: boolean) => void;
     editTaskDialogOpen: boolean;
     setEditTaskDialogOpen: (open: boolean) => void;
-    addMemberDialogOpen: boolean;
-    onCloseMemberDialog: () => void;
-    openTaskEditDialog: (task: TaskWithAssignee) => void; // Added this line
+    addMemberDialogOpen: boolean; // This controls the dialog for adding members, which is now removed.
+    onCloseMemberDialog: () => void; // Handler for the removed dialog.
+    openTaskEditDialog: (task: TaskWithAssignee) => void;
   };
   navigate: NavigateFunction;
 }
@@ -44,9 +44,9 @@ export function ProjectDialogsManager({
     setCreateTaskDialogOpen,
     editTaskDialogOpen,
     setEditTaskDialogOpen,
-    addMemberDialogOpen,
-    onCloseMemberDialog,
-    openTaskEditDialog // Destructure the new function
+    addMemberDialogOpen, // This prop is now vestigial.
+    onCloseMemberDialog, // This prop is now vestigial.
+    openTaskEditDialog
   } = dialogStates;
 
   return (
@@ -59,8 +59,6 @@ export function ProjectDialogsManager({
       
       <DeleteProjectDialog
         open={deleteDialogOpen}
-        // Pass navigate to onOpenChange for DeleteProjectDialog if it needs it for redirection
-        // The setDeleteDialogOpen in useProjectDialogs already handles navigate
         onOpenChange={(open) => setDeleteDialogOpen(open, project, navigate)}
         project={project}
       />
@@ -69,7 +67,7 @@ export function ProjectDialogsManager({
         open={calendarViewOpen}
         onOpenChange={setCalendarViewOpen}
         project={project}
-        onTaskClick={openTaskEditDialog} // Pass it to ProjectCalendarView
+        onTaskClick={openTaskEditDialog}
       />
       
       <ProjectTaskDialog
@@ -87,14 +85,20 @@ export function ProjectDialogsManager({
         />
       )}
       
-      {/* Add Member Dialog - Using initialTab="members" to directly open the members tab */}
+      {/* The "Add Member" Dialog is now fully removed.
+          The ProjectDialog instance below was intended for adding members.
+          Since the functionality is removed, this dialog instance is no longer needed.
+          We will comment it out or remove it entirely.
+          For now, let's remove it.
+      */}
+      {/* 
       <ProjectDialog
-        open={addMemberDialogOpen}
-        onOpenChange={onCloseMemberDialog} // This is correct for this specific dialog instance
+        open={addMemberDialogOpen} // This state might be removed from parent as well
+        onOpenChange={onCloseMemberDialog} // This handler might be removed from parent
         project={project}
-        initialTab="members"
+        // initialTab="members" // Removed: initialTab prop
       />
+      */}
     </>
   );
 }
-

@@ -1,9 +1,10 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserData } from "./hooks/use-user-selection-data";
+// import { UserData } from "./hooks/use-user-selection-data"; // This import is no longer valid
+import { ProjectMember } from "@/hooks/projects/types"; // Using ProjectMember type
 
 interface UserAvatarDisplayProps {
-  user: UserData;
+  user: ProjectMember; // Changed UserData to ProjectMember
 }
 
 export function UserAvatarDisplay({ user }: UserAvatarDisplayProps) {
@@ -24,7 +25,7 @@ export function UserAvatarDisplay({ user }: UserAvatarDisplayProps) {
           <span className="text-xs text-muted-foreground">{user.email}</span>
         )}
       </div>
-      {user.is_admin && (
+      {user.is_admin && ( // ProjectMember has is_admin
         <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
           Admin
         </span>
