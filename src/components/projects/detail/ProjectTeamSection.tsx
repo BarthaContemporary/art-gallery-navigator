@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card"; // Removed CardHeader
 import { Loader2, AlertCircle } from "lucide-react";
 // Button and UserPlus for "Add Member" removed
 // import { Button } from "@/components/ui/button";
@@ -27,11 +27,8 @@ export function ProjectTeamSection({
 
   return (
     <Card className="mb-6">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <h2 className="text-lg font-semibold">Project Team</h2>
-        {/* "Add Member" button removed */}
-      </CardHeader>
-      <CardContent>
+      {/* CardHeader removed */}
+      <CardContent className="pt-6"> {/* Added pt-6 to CardContent for spacing since header is removed */}
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -70,4 +67,3 @@ export function ProjectTeamSection({
     </Card>
   );
 }
-
