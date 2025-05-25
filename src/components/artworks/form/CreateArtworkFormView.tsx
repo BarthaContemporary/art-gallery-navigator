@@ -1,4 +1,3 @@
-
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { MultipleImageUploader } from "../MultipleImageUploader";
@@ -14,16 +13,18 @@ import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { FramingCrateFields } from "./FramingCrateFields";
 import { ArtworkFormData } from "./types";
 import { UseFormReturn } from "react-hook-form";
-import { Artist } from "@/hooks/useArtists"; // Import the standardized Artist type
+import { Artist } from "@/hooks/useArtists";
 
 interface CreateArtworkFormViewProps {
   form: UseFormReturn<ArtworkFormData>;
   classification: string;
-  artists: Artist[] | undefined; // Use the standardized Artist type
+  artists: Artist[] | undefined;
   locations: { id: string; name: string; }[] | undefined;
   handleImagesUploaded: (urls: string[]) => void;
   initialData?: any;
   onSubmit: (data: ArtworkFormData) => Promise<void>;
+  isAdmin: boolean;
+  currentUserArtist?: Artist | null;
 }
 
 export function CreateArtworkFormView({
@@ -34,16 +35,22 @@ export function CreateArtworkFormView({
   handleImagesUploaded,
   initialData,
   onSubmit,
+  isAdmin,
+  currentUserArtist,
 }: CreateArtworkFormViewProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <BasicInformationFields form={form} artists={artists} />
+        <BasicInformationFields
+          form={form}
+          artists={artists}
+          isAdmin={isAdmin}
+          currentUserArtistId={currentUserArtist?.id}
+        />
         <MaterialsFields form={form} />
         <ClassificationFields form={form} />
         <EditionFields form={form} show={classification !== 'Unique'} />
         <DimensionsFields form={form} />
-        {/* Moved price, then add new fields here */}
         <PricingFields form={form} />
         <FramingCrateFields form={form} />
         <ConditionSignatureFields form={form} />
@@ -56,21 +63,23 @@ export function CreateArtworkFormView({
             <FormItem>
               <FormLabel>Images</FormLabel>
               <FormControl>
-                <MultipleImageUploader onImagesUploaded={handleImagesUploaded} />
+                <MultipleImageUploader 
+                  onImagesUploaded={handleImagesUploaded}
+                  // Pass existing images if editing, this part needs more thought
+                  // initialImageUrls={initialData?.artwork_images?.map(img => img.image_url) || []}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Move Location and Status to the very end */}
         <LocationStatusFields form={form} locations={locations} />
 
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {initialData ? "Update Artwork" : "Create Artwork"}
         </Button>
       </form>
     </Form>
   );
 }
-

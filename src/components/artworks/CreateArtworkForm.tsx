@@ -1,15 +1,8 @@
 
-import { CreateArtworkFormView } from "./form/CreateArtworkFormView";
-import { useCreateArtworkForm } from "./form/useCreateArtworkForm";
-import { Artwork } from "@/hooks/use-artworks";
+import { CreateArtworkFormView } from "./CreateArtworkFormView";
+import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
 
-interface CreateArtworkFormProps {
-  setOpen: (open: boolean) => void;
-  initialData?: Artwork;
-  preventFreeze?: boolean;
-}
-
-export function CreateArtworkForm({ setOpen, initialData, preventFreeze = false }: CreateArtworkFormProps) {
+export function CreateArtworkForm({ setOpen, initialData, preventFreeze }: UseCreateArtworkFormProps) {
   const {
     form,
     classification,
@@ -17,12 +10,11 @@ export function CreateArtworkForm({ setOpen, initialData, preventFreeze = false 
     locations,
     onSubmit,
     handleImagesUploaded,
-    initialData: _initialData,
-  } = useCreateArtworkForm({ 
-    setOpen, 
-    initialData, 
-    preventFreeze 
-  });
+    // initialData: formInitialData, // already available via prop
+    isSaving,
+    isAdmin, // Get from the hook
+    currentUserArtist // Get from the hook
+  } = useCreateArtworkForm({ setOpen, initialData, preventFreeze });
 
   return (
     <CreateArtworkFormView
@@ -31,8 +23,10 @@ export function CreateArtworkForm({ setOpen, initialData, preventFreeze = false 
       artists={artists}
       locations={locations}
       handleImagesUploaded={handleImagesUploaded}
-      initialData={_initialData}
+      initialData={initialData}
       onSubmit={onSubmit}
+      isAdmin={isAdmin} // Pass down
+      currentUserArtist={currentUserArtist} // Pass down
     />
   );
 }

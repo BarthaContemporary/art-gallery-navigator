@@ -890,6 +890,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_artist_id_for_current_user: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_projects: {
         Args: { user_uuid: string }
         Returns: string[]
@@ -907,6 +911,18 @@ export type Database = {
       }
       is_artist_user: {
         Args: { _user_id: string; _artist_id: string }
+        Returns: boolean
+      }
+      is_artwork_owned_by_current_user: {
+        Args: { _artwork_id: string }
+        Returns: boolean
+      }
+      is_collection_accessible_by_current_artist: {
+        Args: { _collection_id: string }
+        Returns: boolean
+      }
+      is_document_accessible_by_current_artist: {
+        Args: { _document_id: string }
         Returns: boolean
       }
     }

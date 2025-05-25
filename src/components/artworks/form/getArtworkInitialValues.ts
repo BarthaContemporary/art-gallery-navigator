@@ -1,86 +1,49 @@
 
 import { Artwork } from "@/hooks/use-artworks";
 import { ArtworkFormData } from "./types";
+import { Artist } from "@/hooks/useArtists"; // Import Artist type
 
-export function getArtworkInitialValues(initialData?: Artwork): ArtworkFormData {
-  const currencyValue =
-    initialData?.currency && ["USD", "GBP", "EUR", "CHF"].includes(initialData.currency)
-      ? initialData.currency as ArtworkFormData["currency"]
-      : "USD";
-
-  const signatureTypeValue =
-    initialData?.signature_type &&
-    [
-      "not signed",
-      "hand-signed by artist",
-      "signed on plate",
-      "stamped by artist's estate",
-      "sticker label",
-      "other"
-    ].includes(initialData.signature_type)
-      ? initialData.signature_type as ArtworkFormData["signature_type"]
-      : "not signed";
-
-  const mediumTypeValue =
-    initialData?.medium_type &&
-    [
-      "Painting",
-      "Sculpture", 
-      "Photography", 
-      "Work on Paper", 
-      "Installation", 
-      "Video", 
-      "Textile Arts", 
-      "Book"
-    ].includes(initialData.medium_type)
-      ? initialData.medium_type as ArtworkFormData["medium_type"]
-      : "Painting";
-
-  const classificationValue =
-    initialData?.classification &&
-    [
-      "Unique", 
-      "Limited Edition", 
-      "Open Edition", 
-      "Unknown Edition"
-    ].includes(initialData.classification)
-      ? initialData.classification as ArtworkFormData["classification"]
-      : "Unique";
+export const getArtworkInitialValues = (
+  initialData?: Artwork,
+  isAdmin?: boolean,
+  currentUserArtist?: Artist | null
+): ArtworkFormData => {
+  const defaultArtistId = (!isAdmin && currentUserArtist) ? currentUserArtist.id : initialData?.artist_id || "";
 
   return {
     title: initialData?.title || "",
-    artist_id: initialData?.artist_id || "",
-    year: initialData?.year || undefined,
-    medium_type: mediumTypeValue,
+    artist_id: defaultArtistId,
+    year: initialData?.year || null,
+    medium_type: initialData?.medium_type || "Painting",
     materials: initialData?.materials || "",
-    classification: classificationValue,
-    edition_size: initialData?.edition_size || undefined,
-    dimensions: initialData?.dimensions || "",
-    price: initialData?.price || undefined,
-    currency: currencyValue,
-    inventory_quantity: initialData?.inventory_quantity || undefined,
+    classification: initialData?.classification || "Unique",
+    edition_size: initialData?.edition_size || null,
     available_works: initialData?.available_works || "",
-    artist_proofs: initialData?.artist_proofs || undefined,
-    height: initialData?.height || undefined,
-    width: initialData?.width || undefined,
-    depth: initialData?.depth || undefined,
-    is_framed: initialData?.is_framed ?? false,
-    frame_height: initialData?.frame_height || undefined,
-    frame_width: initialData?.frame_width || undefined,
-    frame_depth: initialData?.frame_depth || undefined,
-    weight: initialData?.weight || undefined,
-    has_crate: initialData?.has_crate ?? false,
-    crate_height: initialData?.crate_height || undefined,
-    crate_width: initialData?.crate_width || undefined,
-    crate_depth: initialData?.crate_depth || undefined,
-    location_id: initialData?.location_id || "",
-    status: initialData?.status || 'available',
-    image_url: initialData?.image_url || "",
+    artist_proofs: initialData?.artist_proofs || null,
+    dimensions: initialData?.dimensions || "",
+    height: initialData?.height || null,
+    width: initialData?.width || null,
+    depth: initialData?.depth || null,
+    price: initialData?.price || null,
+    currency: initialData?.currency || "USD",
+    status: initialData?.status || "available",
+    image_url: initialData?.image_url || "", // This is for the uploader, not a direct field
+    location_id: initialData?.location_id || null,
+    inventory_quantity: initialData?.inventory_quantity || null,
+    signature_type: initialData?.signature_type || null,
     condition: initialData?.condition || "",
-    signature_type: signatureTypeValue,
     signature_details: initialData?.signature_details || "",
     provenance: initialData?.provenance || "",
     story: initialData?.story || "",
-    exhibition_history: initialData?.exhibition_history || ""
+    exhibition_history: initialData?.exhibition_history || "",
+    is_framed: initialData?.is_framed || false,
+    frame_height: initialData?.frame_height || null,
+    frame_width: initialData?.frame_width || null,
+    frame_depth: initialData?.frame_depth || null,
+    weight: initialData?.weight || null,
+    has_crate: initialData?.has_crate || false,
+    crate_height: initialData?.crate_height || null,
+    crate_width: initialData?.crate_width || null,
+    crate_depth: initialData?.crate_depth || null,
   };
-}
+};

@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +11,8 @@ import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
 import { useSafeAsync } from "@/hooks/use-safe-async";
 import { useImageProcessing } from "@/hooks/use-image-processing";
+import { useAuth } from "@/hooks/use-auth"; // Import useAuth
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist"; // Import useCurrentUserArtist
 
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
@@ -22,14 +25,16 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   const queryClient = useQueryClient();
   const { execute, isLoading: isSaving } = useSafeAsync();
   const { processImage } = useImageProcessing();
+  const { isAdmin } = useAuth(); // Get admin status
+  const currentUserArtist = useCurrentUserArtist(); // Get current artist info
 
   const form = useForm<ArtworkFormData>({
-    defaultValues: getArtworkInitialValues(initialData),
+    defaultValues: getArtworkInitialValues(initialData, isAdmin, currentUserArtist),
   });
 
   const classification = form.watch('classification');
 
-  const { data: artists } = useArtists();
+  const { data: artists } = useArtists(); // Still needed for admin user or if artist list is shown for info
   const { data: locations } = useLocations();
 
   const {
@@ -39,39 +44,55 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   } = useImageUpload(form);
 
   const onSubmit = async (data: ArtworkFormData) => {
+    // Ensure artist_id is correctly set if current user is an artist and not admin
+    let submissionData = { ...data };
+    if (!isAdmin && currentUserArtist && !initialData) { // For new artwork by non-admin artist
+      submissionData.artist_id = currentUserArtist.id;
+    } else if (!isAdmin && currentUserArtist && initialData && initialData.artist_id !== currentUserArtist.id) {
+        // This case should ideally be prevented by RLS, but as a safeguard:
+        toast({
+            title: "Permission Denied",
+            description: "You can only edit your own artworks.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+
     execute(
       async () => {
         const dimensions = [
-          data.height ? `${data.height}cm H` : '',
-          data.width ? `${data.width}cm W` : '',
-          data.depth ? `${data.depth}cm D` : ''
+          submissionData.height ? `${submissionData.height}cm H` : '',
+          submissionData.width ? `${submissionData.width}cm W` : '',
+          submissionData.depth ? `${submissionData.depth}cm D` : ''
         ].filter(Boolean).join(' x ');
 
         const formattedData = {
-          ...data,
+          ...submissionData,
           dimensions: dimensions || null,
-          price: data.price ? Number(data.price) : null,
-          year: data.year ? Number(data.year) : null,
-          height: data.height ? Number(data.height) : null,
-          width: data.width ? Number(data.width) : null,
-          depth: data.depth ? Number(data.depth) : null,
-          edition_size: data.edition_size ? Number(data.edition_size) : null,
-          inventory_quantity: data.inventory_quantity ? Number(data.inventory_quantity) : null,
-          available_works: data.available_works || null,
-          artist_proofs: data.artist_proofs ? Number(data.artist_proofs) : null,
-          is_framed: !!data.is_framed,
-          frame_height: data.frame_height ? Number(data.frame_height) : null,
-          frame_width: data.frame_width ? Number(data.frame_width) : null,
-          frame_depth: data.frame_depth ? Number(data.frame_depth) : null,
-          weight: data.weight ? Number(data.weight) : null,
-          has_crate: !!data.has_crate,
-          crate_height: data.crate_height ? Number(data.crate_height) : null,
-          crate_width: data.crate_width ? Number(data.crate_width) : null,
-          crate_depth: data.crate_depth ? Number(data.crate_depth) : null,
+          price: submissionData.price ? Number(submissionData.price) : null,
+          year: submissionData.year ? Number(submissionData.year) : null,
+          height: submissionData.height ? Number(submissionData.height) : null,
+          width: submissionData.width ? Number(submissionData.width) : null,
+          depth: submissionData.depth ? Number(submissionData.depth) : null,
+          edition_size: submissionData.edition_size ? Number(submissionData.edition_size) : null,
+          inventory_quantity: submissionData.inventory_quantity ? Number(submissionData.inventory_quantity) : null,
+          available_works: submissionData.available_works || null,
+          artist_proofs: submissionData.artist_proofs ? Number(submissionData.artist_proofs) : null,
+          is_framed: !!submissionData.is_framed,
+          frame_height: submissionData.frame_height ? Number(submissionData.frame_height) : null,
+          frame_width: submissionData.frame_width ? Number(submissionData.frame_width) : null,
+          frame_depth: submissionData.frame_depth ? Number(submissionData.frame_depth) : null,
+          weight: submissionData.weight ? Number(submissionData.weight) : null,
+          has_crate: !!submissionData.has_crate,
+          crate_height: submissionData.crate_height ? Number(submissionData.crate_height) : null,
+          crate_width: submissionData.crate_width ? Number(submissionData.crate_width) : null,
+          crate_depth: submissionData.crate_depth ? Number(submissionData.crate_depth) : null,
         };
 
         let artworkId: string;
         if (initialData) {
+          // RLS policies on 'artworks' table will ensure an artist can only update their own.
           const { error } = await supabase
             .from('artworks')
             .update(formattedData as any)
@@ -81,6 +102,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           if (error) throw error;
           artworkId = initialData.id;
         } else {
+          // RLS policies on 'artworks' table will ensure an artist can only create for themselves.
           const { data: newArtwork, error } = await supabase
             .from('artworks')
             .insert([formattedData as any])
@@ -88,6 +110,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
             .single();
           
           if (error) throw error;
+          if (!newArtwork) throw new Error("Artwork creation failed.");
           artworkId = newArtwork.id;
         }
 
@@ -95,8 +118,8 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           const imagesToInsert = uploadedImageUrls.map((url, index) => ({
             artwork_id: artworkId,
             image_url: url,
-            is_primary: index === 0,
-            display_order: index,
+            is_primary: index === 0, // TODO: This logic needs to be smarter if editing and adding new images
+            display_order: index, // TODO: This needs to be smarter for existing images
             processed: false
           }));
 
@@ -120,7 +143,8 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           : "Artwork has been created successfully",
         onSuccess: () => {
           resetUploaded();
-          form.reset();
+          // Reset form with potentially new defaults if user role changed or for next creation
+          form.reset(getArtworkInitialValues(undefined, isAdmin, currentUserArtist)); 
           
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['artworks'] });
@@ -142,12 +166,14 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   return {
     form,
     classification,
-    artists,
+    artists, // Full list of artists for admins or display purposes
     locations,
     onSubmit,
     handleImagesUploaded,
     uploadedImageUrls,
     initialData,
-    isSaving
+    isSaving,
+    isAdmin, // Pass admin status down
+    currentUserArtist // Pass current artist info down
   };
 }
