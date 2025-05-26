@@ -16,17 +16,18 @@ export default function Collections() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        <div /> {/* Empty div for spacing, or for future title/controls */}
+      {/* Changed justify-between to justify-start, removed empty div */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleManageAllWebsites}>
+          <Button variant="outline" size="sm" onClick={handleManageAllWebsites}> {/* Added size="sm" */}
             <Globe className="mr-2 h-4 w-4" />
             Manage All Websites
           </Button>
-          <CollectionDialog />
+          <CollectionDialog /> {/* Size cannot be changed (read-only component) */}
         </div>
       </div>
       <CollectionGrid />
     </div>
   );
 }
+

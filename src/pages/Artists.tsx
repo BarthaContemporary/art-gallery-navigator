@@ -111,19 +111,18 @@ const Artists = () => {
   };
 
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        
-        <div /> {/* Added an empty div to maintain justify-between with buttons */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
+          <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
             <Download className="h-4 w-4" />
             Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
           </Button>
-          {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
+          {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && 
+            <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportAll}>
               <Download className="h-4 w-4" />
               Export All ({artists?.length})
             </Button>}
-          <Button variant="default" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
+          <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
             <PlusCircle className="h-4 w-4" />
             Add Artist
           </Button>
@@ -132,7 +131,7 @@ const Artists = () => {
       
       <CreateArtistDialog open={createArtistDialogOpen} onOpenChange={setCreateArtistDialogOpen} />
 
-      <div className="mt-6 mb-8 flex flex-col sm:flex-row gap-4 items-center">
+      <div className="mt-6 mb-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
         <RepresentationStatusFilter value={statusFilter} onChange={setStatusFilter} /> 
       </div>

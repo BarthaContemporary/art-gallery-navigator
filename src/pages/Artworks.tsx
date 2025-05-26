@@ -95,16 +95,15 @@ const Artworks = () => {
   }
 
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 sm:gap-0">
-        
-        <div /> {/* Added an empty div to maintain justify-between with buttons */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
           <ImportCSVDialog />
-          <Button variant="outline" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtworks.length}>
+          <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtworks.length}>
             <Download className="h-4 w-4" />
             Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
           </Button>
-          {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && <Button variant="outline" className="flex gap-2" onClick={handleExportAll}>
+          {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && 
+            <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportAll}>
               <Download className="h-4 w-4" />
               Export All ({artworks.length})
             </Button>}
@@ -115,7 +114,7 @@ const Artworks = () => {
         </div>
       </div>
 
-      <div className="mb-8 flex flex-col sm:flex-row items-stretch gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
         <div className="flex flex-wrap gap-2"> {/* Ensure flex-wrap for smaller screens */}
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />

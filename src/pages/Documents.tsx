@@ -1,4 +1,3 @@
-
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
@@ -19,10 +18,7 @@ export default function Documents() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 mb-8">
-        <div className="flex items-center justify-between">
-          {/* Removed h1 title: <h1 className="text-sm font-visby font-extrabold text-slate-700">DOCUMENTS</h1> */}
-          {/* If there's only UploadDocumentDialog, justify-between might push it. Consider adding an empty div on the left if needed. */}
-          <div /> {/* Placeholder for the left side of justify-between */}
+        <div className="flex items-center justify-start">
           <UploadDocumentDialog />
         </div>
       </div>
@@ -36,4 +32,3 @@ export default function Documents() {
     </div>
   );
 }
-

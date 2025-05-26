@@ -16,25 +16,22 @@ export function MobileSidebar() {
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerContent className="p-0 flex flex-col h-[calc(100vh-4rem)] mt-16 sm:h-[96vh] sm:mt-12">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          {/* Removed logo from here, it's fixed outside */}
+          {/* Logo moved here for left alignment */}
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 120 }}
+          />
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="ml-auto sm:ml-0" // Adjusted for alignment
+            className="ml-auto" // Removed sm:ml-0 as it's now correctly pushed by logo or ml-auto
           >
             <X />
           </Button>
-           {/* Centered Logo inside drawer header when open */}
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <img
-              src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-              alt="Bartha Logo"
-              className="h-7 w-auto"
-              style={{ maxWidth: 120 }}
-            />
-          </div>
         </div>
         <nav className="flex-1 py-6 px-4 flex flex-col gap-2 overflow-y-auto">
           {navItems.map((item) => (

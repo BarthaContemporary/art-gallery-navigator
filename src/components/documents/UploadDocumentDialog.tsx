@@ -21,7 +21,6 @@ export function UploadDocumentDialog() {
     if (!isUploading) {
       setOpen(newOpen);
       
-      // Reset form when dialog is closed
       if (!newOpen) {
         setTimeout(() => {
           form.reset({
@@ -40,7 +39,7 @@ export function UploadDocumentDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>
+        <Button size="sm"> {/* Added size="sm" */}
           <PlusCircle className="mr-2 h-4 w-4" />
           Upload Document
         </Button>
@@ -66,3 +65,4 @@ export function UploadDocumentDialog() {
     </Dialog>
   );
 }
+
