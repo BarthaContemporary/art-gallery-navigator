@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v1.5"; // Updated version to invalidate previous caches (was v1.4)
-const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const CACHE_VERSION = "v1.6"; // Updated version for new cache settings
+const CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+const MAX_CACHE_ITEM_SIZE_MB = 8; // Max cache item size in MB
+const MAX_CACHE_ITEM_SIZE = MAX_CACHE_ITEM_SIZE_MB * 1024 * 1024; // Convert MB to bytes
 
 export type CachedImage = {
   dataUrl: string;
@@ -56,10 +58,8 @@ export function useImageCache() {
     if (!isLocalStorageAvailable) return;
 
     try {
-      // Increased max size to 4MB (4 * 1024 * 1024 bytes)
-      const MAX_CACHE_ITEM_SIZE = 4 * 1024 * 1024; 
       if (dataUrl.length > MAX_CACHE_ITEM_SIZE) {
-        console.warn(`Image data URL too large to cache ( > 4MB ): ${imageUrl}, size: ${dataUrl.length}`);
+        console.warn(`Image data URL too large to cache ( > ${MAX_CACHE_ITEM_SIZE_MB}MB ): ${imageUrl}, size: ${dataUrl.length}`);
         return;
       }
 
@@ -100,3 +100,4 @@ export function useImageCache() {
 
   return { getCachedImage, setCachedImage, clearImageCache };
 }
+

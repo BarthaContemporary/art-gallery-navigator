@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef, memo, useCallback } from "react"; // Added useCallback
+import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
 
@@ -52,27 +52,29 @@ export const CarouselImage = memo(function CarouselImage({
   }, []);
   
   useEffect(() => {
-    if (optimizedUrl !== imageUrl) {
-      setIsLoading(true);
-      setPlaceholderUrl(null);
-      imageLoadAttempted.current = false;
-    
-      if (!imageUrl) {
-        setOptimizedUrl("/placeholder.svg");
-        setIsLoading(false);
-        return;
-      }
-      
-      const cachedImage = getCachedImage(imageUrl);
-      if (cachedImage) {
-        setPlaceholderUrl(cachedImage.dataUrl);
-      }
-      
-      setOptimizedUrl(imageUrl);
-    }
-  }, [imageUrl, getCachedImage, optimizedUrl]); // Added optimizedUrl to dependencies
+    // This effect runs when imageUrl (the prop) changes.
+    // It resets loading states and attempts to load a cached placeholder.
+    // Then it sets optimizedUrl to the new imageUrl, triggering the image load.
+    setIsLoading(true);
+    setPlaceholderUrl(null);
+    imageLoadAttempted.current = false; // Reset attempt flag for the new image
   
-  const cacheImageIfNeeded = useCallback(() => { // Wrapped in useCallback
+    if (!imageUrl) {
+      setOptimizedUrl("/placeholder.svg"); // Fallback if no URL
+      setIsLoading(false);
+      return;
+    }
+    
+    const cachedImage = getCachedImage(imageUrl); // Check cache using the original imageUrl
+    if (cachedImage) {
+      setPlaceholderUrl(cachedImage.dataUrl); // Use cached data as placeholder
+    }
+    
+    setOptimizedUrl(imageUrl); // Set the URL to be loaded by the <img> tag
+    
+  }, [imageUrl, getCachedImage]); // Removed optimizedUrl from dependencies here as it causes re-runs we want to control better
+  
+  const cacheImageIfNeeded = useCallback(() => {
     if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
     imageLoadAttempted.current = true;
@@ -86,22 +88,23 @@ export const CarouselImage = memo(function CarouselImage({
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        const maxDimension = 1200;
+        const maxDimension = 1800; // Increased max dimension for cached image
         const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
         canvas.width = Math.floor(img.width * scale);
         canvas.height = Math.floor(img.height * scale);
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          setCachedImage(optimizedUrl, mediumResDataUrl);
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.92); // Increased quality
+          // Cache using the original imageUrl as the key, but store the processed dataUrl
+          setCachedImage(imageUrl, mediumResDataUrl); 
         }
       };
-      img.src = optimizedUrl;
+      img.src = optimizedUrl; // This is the original imageUrl passed for processing
     } catch (error) {
       console.error("Failed to cache image:", error);
     }
-  }, [optimizedUrl, setCachedImage]); // Added dependencies
+  }, [optimizedUrl, setCachedImage, imageUrl]); // Added imageUrl to ensure the correct key is used for caching
 
   return (
     <div 
@@ -124,7 +127,7 @@ export const CarouselImage = memo(function CarouselImage({
       )}
       
       <img
-        src={optimizedUrl}
+        src={optimizedUrl} // This will be the original imageUrl
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
         className="w-full h-[600px] object-contain transition-opacity duration-300"
         style={{
@@ -133,12 +136,16 @@ export const CarouselImage = memo(function CarouselImage({
         onLoad={() => {
           if (mountedRef.current) {
             setIsLoading(false);
-            cacheImageIfNeeded();
+            // Attempt to cache after the original image has successfully loaded
+            // This ensures we cache the version that was confirmed to be loadable
+            if (optimizedUrl !== "/placeholder.svg") { // Don't cache the placeholder itself
+                 cacheImageIfNeeded();
+            }
           }
         }}
         onError={() => {
           if (mountedRef.current) {
-            console.log(`Failed to load image: ${imageUrl}`);
+            console.warn(`Failed to load image: ${imageUrl}. Falling back to placeholder.`);
             setOptimizedUrl("/placeholder.svg");
             setIsLoading(false);
           }
