@@ -2,50 +2,47 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"; // useEffect will be removed but keeping other imports
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { logger } from "@/lib/logger";
-import { TurnstileWidget } from "./TurnstileWidget"; // Import TurnstileWidget
+import { TurnstileWidget } from "./TurnstileWidget";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().optional()
-  // captchaToken is managed by component state, not form values directly submitted by react-hook-form
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 interface LoginFormProps {
-  onSubmit: (values: LoginFormValues, captchaToken: string) => void; // Added captchaToken to signature
+  onSubmit: (values: LoginFormValues, captchaToken: string) => void;
   isLoading: boolean;
   onOtpRequested?: (userEmail: string) => void;
   onError?: (error: Error) => void;
 }
 
-// It's good practice to get this from an env variable
-// Ensure VITE_TURNSTILE_SITE_KEY is set in your .env or project settings
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
-
+// Hardcode the Turnstile Site Key
+const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
-  const [isSiteKeyAvailable, setIsSiteKeyAvailable] = useState(false);
+  // Removed isSiteKeyAvailable state and the useEffect that set it.
 
   useEffect(() => {
-    if (TURNSTILE_SITE_KEY) {
-      setIsSiteKeyAvailable(true);
-      logger.log("Turnstile Site Key is available:", TURNSTILE_SITE_KEY);
-    } else {
-      setIsSiteKeyAvailable(false);
-      logger.error("Turnstile Site Key (VITE_TURNSTILE_SITE_KEY) is not configured.");
+    // Log if the hardcoded site key is empty, which would prevent Turnstile from working.
+    if (!TURNSTILE_SITE_KEY) {
+      logger.error("Turnstile Site Key is hardcoded but is an empty string. CAPTCHA will not function.");
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
+    } else {
+      logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY);
     }
   }, []);
+
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -58,36 +55,35 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   const handleCaptchaVerify = (token: string) => {
     logger.log("CAPTCHA verified in LoginForm, token received.");
     setCaptchaToken(token);
-    setCaptchaError(null); // Clear any previous errors
+    setCaptchaError(null); 
   };
 
   const handleCaptchaError = () => {
     logger.error("CAPTCHA error in LoginForm.");
     setCaptchaError("CAPTCHA challenge failed. Please try again.");
-    setCaptchaToken(null); // Ensure token is cleared on error
+    setCaptchaToken(null); 
     if (onError) onError(new Error("CAPTCHA challenge failed."));
   };
   
   const handleCaptchaExpire = () => {
     logger.warn("CAPTCHA expired in LoginForm.");
     setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
-    setCaptchaToken(null); // Token is no longer valid
+    setCaptchaToken(null); 
   };
 
-
   const handleSubmit = (values: LoginFormValues) => {
-    if (!captchaToken && isSiteKeyAvailable) {
+    if (!TURNSTILE_SITE_KEY) {
+      logger.error("Login attempt while Turnstile site key is missing (hardcoded as empty).");
+      // Error is already set by useEffect
+      return;
+    }
+    if (!captchaToken) {
       logger.warn("Login form submitted without CAPTCHA token.");
       setCaptchaError("Please complete the CAPTCHA challenge.");
       return;
     }
-    if (!isSiteKeyAvailable) {
-        logger.error("Login attempt while site key is unavailable.");
-        // Error is already set by useEffect
-        return;
-    }
     logger.log("Submitting login form:", values.email, "with CAPTCHA token.");
-    onSubmit(values, captchaToken as string); // Pass captchaToken, ensure it's string if available
+    onSubmit(values, captchaToken as string); 
   };
 
   return (
@@ -107,7 +103,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                   className="text-base sm:text-sm py-3"
                   inputMode="email"
                   autoComplete="email"
-                  disabled={isLoading || !isSiteKeyAvailable}
+                  disabled={isLoading || !TURNSTILE_SITE_KEY}
                 />
               </FormControl>
               <FormMessage />
@@ -128,14 +124,14 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                     placeholder="Password (optional)"
                     className="text-base sm:text-sm py-3 pr-10"
                     autoComplete="current-password"
-                    disabled={isLoading || !isSiteKeyAvailable}
+                    disabled={isLoading || !TURNSTILE_SITE_KEY}
                   />
                   <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     tabIndex={-1}
-                    disabled={!isSiteKeyAvailable}
+                    disabled={!TURNSTILE_SITE_KEY}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -150,15 +146,20 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           )}
         />
 
-        {isSiteKeyAvailable && (
+        {TURNSTILE_SITE_KEY ? (
           <div className="flex justify-center">
             <TurnstileWidget
               siteKey={TURNSTILE_SITE_KEY}
               onVerify={handleCaptchaVerify}
               onError={handleCaptchaError}
               onExpire={handleCaptchaExpire}
-              theme="light" // Or 'dark' or 'auto' based on your app's theme
+              theme="light"
             />
+          </div>
+        ) : (
+           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
+            <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>CAPTCHA is not configured (site key missing). Login disabled.</span>
           </div>
         )}
         
@@ -172,7 +173,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyAvailable}
+          disabled={isLoading || !form.formState.isValid || !captchaToken || !TURNSTILE_SITE_KEY}
         >
           {isLoading ? (
             <>
