@@ -1,4 +1,3 @@
-
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
@@ -77,24 +76,25 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         
         // Max dimension for the canvas-generated placeholder (consistency)
         // Keeping placeholder generation logic the same, but it's based on the higher quality optimizedUrl
-        const maxDimension = 600; 
+        const maxDimension = 800; // Updated max dimension for higher quality placeholder
         let scale = 1;
         if (img.width > 0 && img.height > 0) {
             scale = maxDimension / Math.max(img.width, img.height);
             scale = Math.min(1, scale); 
         } else { 
+            // Fallback if image dimensions are not available, though img.onload should ensure they are
             canvas.width = Math.min(maxDimension, img.width || maxDimension);
             canvas.height = Math.min(maxDimension, img.height || maxDimension);
         }
         
-        if (img.width > 0 && img.height > 0) {
+        if (img.width > 0 && img.height > 0) { // Ensure dimensions are positive
             canvas.width = Math.floor(img.width * scale);
             canvas.height = Math.floor(img.height * scale);
         }
 
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.85); // Updated quality to 0.85
+          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.92); // Updated quality for placeholder
           setCachedImage(imageUrl, placeholderDataUrl); // Cache using original imageUrl as key
           logger.log(`ArtworkCardImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}). Size: ${placeholderDataUrl.length}`);
         }
@@ -153,4 +153,3 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     </div>
   );
 }
-
