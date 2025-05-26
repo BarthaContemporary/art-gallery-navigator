@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -10,6 +11,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { DebugInfo } from "@/components/ui/debug-info";
 import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
 import { logger } from "@/lib/logger";
+import { Loader2 } from "lucide-react"; // Added this import
 
 type AuthTab = "login" | "otp";
 
@@ -57,8 +59,8 @@ function Auth() {
       logger.log("Auth page: handleLoginSubmit with captcha token:", captchaToken ? "Present" : "Absent");
       const { needsOTP } = await signIn(
         values.email, 
-        values.password || "",
-        captchaToken
+        values.password || "", // Provide empty string if password is not present (for OTP only flows)
+        captchaToken // Pass captcha token
       );
       if (needsOTP) {
         handleOtpRequested(values.email);
@@ -75,6 +77,9 @@ function Auth() {
   const handleOtpSubmit = async (values: { otp: string }) => {
     try {
       resetError();
+      // Note: OTP verification itself might not directly involve a captcha token in its current flow
+      // as the captcha was likely verified at the `signInWithOtp` (request OTP) stage.
+      // If verifyOTP itself needs a captcha for some reason, useAuth and its types would need update.
       await verifyOTP(email, values.otp);
     } catch (error) {
       if (error instanceof Error) {
@@ -94,6 +99,9 @@ function Auth() {
   }
   
   if (user) {
+    // If user is authenticated, useEffect above should handle redirection.
+    // This return null prevents rendering the auth form if user is already logged in
+    // and waiting for redirection.
     return null;
   }
   
@@ -111,7 +119,7 @@ function Auth() {
               <ErrorDisplay 
                 error={authError} 
                 resetError={resetError} 
-                showHomeButton={false}
+                showHomeButton={false} // No home button needed on auth page usually
                 title="Authentication Error" 
               />
             )}
@@ -127,9 +135,9 @@ function Auth() {
               <TabsContent value="login">
                 <LoginForm 
                   onSubmit={handleLoginSubmit}
-                  isLoading={isLoading}
+                  isLoading={isLoading} // isLoading from useAuth
                   onOtpRequested={handleOtpRequested}
-                  onError={handleAuthError}
+                  onError={handleAuthError} // Pass the error handler
                 />
               </TabsContent>
               
@@ -137,9 +145,9 @@ function Auth() {
                 <OTPVerification 
                   onSubmit={handleOtpSubmit}
                   onBack={() => setSelectedTab("login")}
-                  isLoading={isLoading}
-                  email={email}
-                  onError={handleAuthError}
+                  isLoading={isLoading} // isLoading from useAuth
+                  email={email} // Pass the email for context if needed
+                  onError={handleAuthError} // Pass the error handler
                 />
               </TabsContent>
             </Tabs>
