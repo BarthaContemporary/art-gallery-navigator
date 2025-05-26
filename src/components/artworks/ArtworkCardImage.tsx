@@ -141,7 +141,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
+          className={`h-full w-full object-cover transition-opacity duration-300 ${ // Removed group-hover:scale-105
             isLoading ? 'opacity-0' : 'opacity-100' 
           }`}
           style={{ display: isLoading && !placeholderUrl ? 'none' : 'block' }} // Hide if loader is shown, prevent layout shift
