@@ -1,9 +1,10 @@
 
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Skeleton } from "@/components/ui/skeleton";
+// Skeleton removed, Loader2 will be used
 import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
+import { Loader2 } from "lucide-react"; // Added Loader2
 
 interface ArtworkCardImageProps {
   imageUrl: string | null;
@@ -42,8 +43,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     let finalOptimizedUrl = imageUrl;
     // For thumbnails in cards, use a larger image size and higher quality if possible via Supabase transform
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
-      // Updated transform: fit within 800x600, quality 85, auto format
-      const transformParams = "w=800&h=600&resize=contain&q=85&f=auto"; // Quality changed from 90 to 85
+      // Updated transform: fit within 1500x1500, quality 95, auto format
+      const transformParams = "w=1500&h=1500&resize=contain&q=95&f=auto"; // Quality changed to 95, dimensions to 1500
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -117,22 +118,25 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
 
   return (
     <div 
-      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30" // Added a subtle bg
+      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30"
       onClick={onClick}
     >
-      <AspectRatio ratio={4/3}>
-        {isLoading && (
-          <Skeleton className="h-full w-full absolute inset-0" />
-        )}
-        
-        {placeholderUrl && isLoading && (
-          <img 
-            src={placeholderUrl}
-            alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-70" // Removed blur-sm
-            aria-hidden="true"
-          />
-        )}
+      <AspectRatio ratio={4/3} className="flex items-center justify-center"> {/* Added flex centering for loader */}
+        {isLoading ? (
+          placeholderUrl ? (
+            <img 
+              src={placeholderUrl}
+              alt={`Loading preview for ${title}`}
+              className="h-full w-full object-cover opacity-70"
+              aria-hidden="true"
+            />
+          ) : (
+            // Using Loader2 icon when no placeholder is available during loading
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          )
+        ) : null}
         
         <img
           src={optimizedUrl || "/placeholder.svg"}
@@ -140,10 +144,10 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
             isLoading ? 'opacity-0' : 'opacity-100' 
           }`}
+          style={{ display: isLoading && !placeholderUrl ? 'none' : 'block' }} // Hide if loader is shown, prevent layout shift
           onLoad={() => {
             logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
             setIsLoading(false);
-            // Only attempt to cache if it's not already the default placeholder
             if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
               cacheImageIfNeeded();
             }
