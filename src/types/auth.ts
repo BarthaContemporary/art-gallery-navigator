@@ -8,10 +8,12 @@ export interface AuthContextType {
   signInWithPassword: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signInWithOTP: (email: string, captchaToken?: string) => Promise<{ needsOTP: boolean }>;
   verifyOTP: (email: string, token: string) => Promise<void>;
-  signUp: (email: string, password: string, captchaToken?: string) => Promise<void>; // Added captchaToken here too for consistency
+  signUp: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
-  isLoading: boolean;
+  isLoading: boolean; // Core auth loading state
   isAdmin: boolean;
   isArtist: boolean;
   isExternal: boolean;
+  isLoadingRoles: boolean; // Specific loading state for roles
+  rolesError: Error | null; // Error state for roles fetching
 }
