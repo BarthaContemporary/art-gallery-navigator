@@ -1,4 +1,3 @@
-
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 // Skeleton removed, Loader2 will be used
 import { useState, useEffect, useRef } from "react";
@@ -121,30 +120,32 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30"
       onClick={onClick}
     >
-      <AspectRatio ratio={4/3} className="flex items-center justify-center"> {/* Added flex centering for loader */}
-        {isLoading ? (
-          placeholderUrl ? (
+      <AspectRatio ratio={4/3}>
+        {isLoading && placeholderUrl && (
             <img 
               src={placeholderUrl}
               alt={`Loading preview for ${title}`}
-              className="h-full w-full object-cover opacity-70"
+              className="absolute inset-0 h-full w-full object-cover opacity-70" // Added absolute inset-0
               aria-hidden="true"
             />
-          ) : (
+          )}
+        {isLoading && !placeholderUrl && (
             // Using Loader2 icon when no placeholder is available during loading
+            // This div is already absolute and centers the Loader2 icon.
             <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
-          )
-        ) : null}
+          )}
         
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-opacity duration-300 ${ // Removed group-hover:scale-105
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${ // Added absolute inset-0
             isLoading ? 'opacity-0' : 'opacity-100' 
           }`}
-          style={{ display: isLoading && !placeholderUrl ? 'none' : 'block' }} // Hide if loader is shown, prevent layout shift
+          // Hide main image completely if loader icon is shown (no placeholder) to prevent interference
+          // Otherwise, it can be display:block and opacity:0 behind placeholder, ready to fade in.
+          style={{ display: isLoading && !placeholderUrl ? 'none' : 'block' }} 
           onLoad={() => {
             logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
             setIsLoading(false);
