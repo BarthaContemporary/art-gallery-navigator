@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
@@ -96,7 +95,7 @@ const Artworks = () => {
   }
 
   return <div className="p-3 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-wrap items-center justify-start mb-4 md:mb-6 gap-2">
+      <div className="flex flex-wrap items-center justify-start mb-4 md:mb-6 gap-1 sm:gap-2">
         <ImportCSVDialog />
         <Button 
           variant="outline" 
@@ -134,7 +133,7 @@ const Artworks = () => {
         <div className="w-full mb-3 md:mb-4">
           <SearchBar value={searchTerm} onChange={setSearchTerm} />
         </div>
-        <div className="flex flex-row items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-row items-center gap-1 sm:gap-2 overflow-x-auto pb-1">
           <div className="flex-shrink-0">
             <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           </div>
