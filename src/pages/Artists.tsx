@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,16 +115,16 @@ const Artists = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
-            <Download className="h-4 w-4" />
+            <Download className="h-3 w-3 md:h-4 md:w-4" />
             Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
           </Button>
           {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && 
             <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportAll}>
-              <Download className="h-4 w-4" />
+              <Download className="h-3 w-3 md:h-4 md:w-4" />
               Export All ({artists?.length})
             </Button>}
           <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
-            <PlusCircle className="h-4 w-4" />
+            <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
             Add Artist
           </Button>
         </div>
@@ -131,9 +132,13 @@ const Artists = () => {
       
       <CreateArtistDialog open={createArtistDialogOpen} onOpenChange={setCreateArtistDialogOpen} />
 
-      <div className="mt-6 mb-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        <RepresentationStatusFilter value={statusFilter} onChange={setStatusFilter} /> 
+      <div className="mt-6 mb-8 grid grid-cols-1 sm:flex sm:flex-row gap-4 items-start sm:items-center">
+        <div className="w-full sm:max-w-sm">
+          <SearchBar value={searchTerm} onChange={setSearchTerm} />
+        </div>
+        <div className="w-full sm:w-auto">
+          <RepresentationStatusFilter value={statusFilter} onChange={setStatusFilter} /> 
+        </div>
       </div>
 
       {isLoading ? <LoadingSkeleton /> : <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
