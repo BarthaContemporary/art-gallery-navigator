@@ -21,10 +21,10 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-7 px-3 py-1 md:h-10 md:px-4 md:py-2",
-        sm: "h-7 rounded-md px-2 py-0.5 text-xs md:h-9 md:rounded-md md:px-3 md:text-sm", // Changed h-6 to h-7
-        lg: "h-9 rounded-md px-6 md:h-11 md:px-8",
-        icon: "h-6 w-6 md:h-10 md:w-10", // Note: size="icon" might need its own h-7 if desired for consistency, but current target is default/sm buttons.
+        default: "h-7 px-3 py-1 md:h-9 md:px-4 md:py-2", // Updated md:h-10 to md:h-9
+        sm: "h-7 rounded-md px-2 py-0.5 text-xs md:h-9 md:rounded-md md:px-3 md:text-sm", // Stays as is
+        lg: "h-7 rounded-md px-6 md:h-9 md:px-8", // Updated h-9 to h-7 and md:h-11 to md:h-9
+        icon: "h-7 w-7 md:h-9 md:w-9", // Updated h-6 w-6 to h-7 w-7 and md:h-10 md:w-10 to md:h-9 md:w-9
       },
     },
     defaultVariants: {
@@ -55,3 +55,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button, buttonVariants }
+
