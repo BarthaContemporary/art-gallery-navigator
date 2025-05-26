@@ -63,7 +63,7 @@ export const CarouselImage = memo(function CarouselImage({
     let finalOptimizedUrl = imageUrl;
     // Apply Supabase transform for carousel images (larger, higher quality)
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
-      const transformParams = "w=1920&h=1080&resize=contain&q=92&f=auto"; 
+      const transformParams = "w=1920&h=1080&resize=contain&q=90&f=auto"; // Quality changed from 92 to 90
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -144,7 +144,7 @@ export const CarouselImage = memo(function CarouselImage({
         <img 
           src={placeholderUrl}
           alt={`Loading preview for ${artworkTitle}`}
-          className={`w-full ${carouselHeightClass} object-contain opacity-70 blur-sm`} // Added blur-sm
+          className={`w-full ${carouselHeightClass} object-contain opacity-70`} // Removed blur-sm
           aria-hidden="true"
         />
       )}
@@ -178,4 +178,3 @@ export const CarouselImage = memo(function CarouselImage({
     </div>
   );
 });
-

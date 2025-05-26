@@ -42,8 +42,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     let finalOptimizedUrl = imageUrl;
     // For thumbnails in cards, use a larger image size and higher quality if possible via Supabase transform
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
-      // Updated transform: fit within 800x600, quality 90, auto format
-      const transformParams = "w=800&h=600&resize=contain&q=90&f=auto"; 
+      // Updated transform: fit within 800x600, quality 85, auto format
+      const transformParams = "w=800&h=600&resize=contain&q=85&f=auto"; // Quality changed from 90 to 85
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -129,7 +129,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <img 
             src={placeholderUrl}
             alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-70 blur-sm" // Added blur for placeholder
+            className="h-full w-full object-cover opacity-70" // Removed blur-sm
             aria-hidden="true"
           />
         )}
@@ -138,7 +138,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
           className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
-            isLoading ? 'opacity-0' : 'opacity-100' // Changed opacity-80 to opacity-100 for default loaded state
+            isLoading ? 'opacity-0' : 'opacity-100' 
           }`}
           onLoad={() => {
             logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
