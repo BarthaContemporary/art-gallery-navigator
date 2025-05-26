@@ -93,7 +93,7 @@ function Auth() {
   if (isLoading && !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
@@ -105,12 +105,12 @@ function Auth() {
   
   return (
     <ErrorBoundary>
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md px-4">
-          <Card className="p-6 shadow-lg">
-            <div className="mb-6 text-center">
-              <h1 className="text-3xl font-bold">Welcome</h1>
-              <p className="text-muted-foreground mt-2">Sign in to your account</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="w-full max-w-md">
+          <Card className="p-4 md:p-6 shadow-lg">
+            <div className="mb-4 md:mb-6 text-center">
+              <h1 className="text-2xl md:text-3xl font-bold">Welcome</h1>
+              <p className="text-muted-foreground mt-2 text-sm md:text-base">Sign in to your account</p>
             </div>
             
             {authError && (
@@ -123,9 +123,9 @@ function Auth() {
             )}
             
             <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as AuthTab)}>
-              <TabsList className="grid grid-cols-2 mb-6">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="otp" disabled={!email}>
+              <TabsList className="grid grid-cols-2 mb-4 md:mb-6 h-8 md:h-10">
+                <TabsTrigger value="login" className="text-xs md:text-sm">Login</TabsTrigger>
+                <TabsTrigger value="otp" disabled={!email} className="text-xs md:text-sm">
                   Verification
                 </TabsTrigger>
               </TabsList>

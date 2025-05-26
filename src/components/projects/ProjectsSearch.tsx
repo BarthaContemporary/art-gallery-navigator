@@ -26,15 +26,16 @@ export function ProjectsSearch({
   onTypeChange,
 }: ProjectsSearchProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 gap-3 mb-4 md:grid-cols-3 md:gap-4 md:mb-6">
       <Input
         placeholder="Search projects..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
+        className="h-8 md:h-10"
       />
 
       <Select value={status} onValueChange={onStatusChange}>
-        <SelectTrigger>
+        <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm">
           <SelectValue placeholder="Filter by status" />
         </SelectTrigger>
         <SelectContent>
@@ -47,7 +48,7 @@ export function ProjectsSearch({
       </Select>
 
       <Select value={type} onValueChange={onTypeChange}>
-        <SelectTrigger>
+        <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm">
           <SelectValue placeholder="Filter by type" />
         </SelectTrigger>
         <SelectContent>

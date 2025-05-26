@@ -24,13 +24,13 @@ export function DocumentsSearch({
   onTypeFilterChange,
 }: DocumentsSearchProps) {
   return (
-    <div className="mb-6 flex items-center gap-4">
-      <div className="relative flex-1 max-w-sm">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-4">
+      <div className="relative flex-1 w-full max-w-sm">
+        <Search className="absolute left-2 top-1.5 md:top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search documents..."
-          className="pl-8"
+          className="pl-7"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
@@ -38,12 +38,14 @@ export function DocumentsSearch({
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            {typeFilter ? `Type: ${typeFilter}` : "Filter by type"}
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
+            <Filter className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
+            <span className="text-xs md:text-sm truncate">
+              {typeFilter ? `Type: ${typeFilter}` : "Filter by type"}
+            </span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
+        <DropdownMenuContent className="w-48 md:w-56">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => onTypeFilterChange(null)}>
               <FileBox className="mr-2 h-4 w-4" />
