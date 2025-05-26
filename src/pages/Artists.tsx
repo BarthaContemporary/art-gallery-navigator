@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,16 +113,16 @@ const Artists = () => {
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
+          <Button variant="outline" size="sm" className="flex gap-2 h-7" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
             <Download className="h-3 w-3 md:h-4 md:w-4" />
             Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
           </Button>
           {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && 
-            <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportAll}>
+            <Button variant="outline" size="sm" className="flex gap-2 h-7" onClick={handleExportAll}>
               <Download className="h-3 w-3 md:h-4 md:w-4" />
               Export All ({artists?.length})
             </Button>}
-          <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
+          <Button variant="default" size="sm" className="flex gap-2 h-7" onClick={() => setCreateArtistDialogOpen(true)}>
             <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
             Add Artist
           </Button>
