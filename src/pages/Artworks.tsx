@@ -130,12 +130,20 @@ const Artworks = () => {
         </Button>
       </div>
 
-      <div className="mb-4 md:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4">
-        <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        <div className="flex flex-wrap gap-2">
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-          <TypeFilter value={typeFilter} onChange={setTypeFilter} />
-          <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
+      <div className="mb-4 md:mb-8">
+        <div className="w-full mb-3 md:mb-4">
+          <SearchBar value={searchTerm} onChange={setSearchTerm} />
+        </div>
+        <div className="flex flex-row items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex-shrink-0">
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          </div>
+          <div className="flex-shrink-0">
+            <TypeFilter value={typeFilter} onChange={setTypeFilter} />
+          </div>
+          <div className="flex-shrink-0 min-w-[140px] md:min-w-[180px]">
+            <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
+          </div>
         </div>
       </div>
 

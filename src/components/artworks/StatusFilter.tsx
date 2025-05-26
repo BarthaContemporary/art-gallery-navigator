@@ -1,53 +1,45 @@
-
-import { Filter, Check, Clock, DollarSign, Briefcase, ArrowDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface StatusFilterProps {
   value: string | null;
   onChange: (value: string | null) => void;
 }
 
+const statusOptions = [
+  { value: "all", label: "All Status" },
+  { value: "available", label: "Available" },
+  { value: "sold", label: "Sold" },
+  { value: "on loan", label: "On Loan" },
+  { value: "on hold", label: "On Hold" },
+  { value: "damaged", label: "Damaged" },
+  { value: "lost", label: "Lost" },
+  { value: "stolen", label: "Stolen" },
+];
+
 export function StatusFilter({ value, onChange }: StatusFilterProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">
-          <Filter className="mr-2 h-4 w-4" />
-          {value ? `Status: ${value}` : "Filter by status"}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => onChange(null)}>
-            All Statuses
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("available")}>
-            <Check className="mr-2 h-4 w-4 text-green-500" /> Available
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("on hold")}>
-            <Clock className="mr-2 h-4 w-4 text-amber-500" /> On Hold
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("sold")}>
-            <DollarSign className="mr-2 h-4 w-4 text-blue-500" /> Sold
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("consigned")}>
-            <Briefcase className="mr-2 h-4 w-4 text-purple-500" /> Consigned
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("not for sale")}>
-            <Check className="mr-2 h-4 w-4 text-gray-500" /> Not for Sale
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onChange("returned")}>
-            <ArrowDown className="mr-2 h-4 w-4 text-black" /> Returned
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Select
+      value={value || "all"}
+      onValueChange={(newValue) => onChange(newValue === "all" ? null : newValue)}
+    >
+      <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm min-w-[140px]">
+        <Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+        <SelectValue placeholder="Filter Status" />
+      </SelectTrigger>
+      <SelectContent>
+        {statusOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

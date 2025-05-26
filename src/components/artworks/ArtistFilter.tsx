@@ -13,11 +13,8 @@ interface ArtistFilterProps {
 export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   const { data: artists, isLoading, error } = useArtists(); 
 
-  // console.log("ArtistFilter artists:", artists, "isLoading:", isLoading, "error:", error);
-
   const artistOptions = useMemo(() => {
     if (!artists || !Array.isArray(artists)) {
-      // console.log("ArtistFilter: artists data is not an array or is undefined/null", artists);
       return [];
     }
     
@@ -38,12 +35,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
       }));
   }, [artists]);
 
-  // console.log("ArtistFilter artistOptions:", artistOptions);
-  // console.log("ArtistFilter value:", value);
-
-
   const handleSelectionChange = (selectedValue: string) => {
-    // console.log("ArtistFilter handleSelectionChange selectedValue:", selectedValue);
     if (selectedValue === "_none") {
       onChange(null);
     } else {
@@ -52,25 +44,22 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-full min-w-[180px]" />; {/* Adjusted skeleton height to h-10 */}
+    return <Skeleton className="h-8 md:h-10 w-full" />; 
   }
 
   if (error) {
-    // console.error("ArtistFilter error state:", error);
-    return <div className="min-w-[180px] text-red-500 text-sm p-2 border border-red-500 rounded-md h-10 flex items-center">Error loading artists.</div>; {/* Adjusted error state height to h-10 */}
+    return <div className="text-red-500 text-xs md:text-sm p-2 border border-red-500 rounded-md h-8 md:h-10 flex items-center">Error loading artists.</div>;
   }
 
-  // console.log("ArtistFilter rendering SearchableSelect with value:", value || "_none", "and options count:", artistOptions.length);
-
   return (
-    <div className="min-w-[180px]">
+    <div className="w-full">
       <SearchableSelect
         options={artistOptions}
         value={value || "_none"} 
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
-        icon={<Filter className="mr-2 h-4 w-4" />}
-        triggerClassName="h-10" // Make the button h-10 (40px) tall
+        icon={<Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4" />}
+        triggerClassName="h-8 md:h-10 text-xs md:text-sm"
       />
     </div>
   );
