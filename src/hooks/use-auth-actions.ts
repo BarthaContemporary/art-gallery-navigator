@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
@@ -10,12 +9,11 @@ import { logger } from "@/lib/logger";
 export function useAuthActions() {
   const navigate = useNavigate();
 
-  const signInWithPassword = async (email: string, password: string, captchaToken?: string) => {
-    logger.log("Signing in with password:", email, "CAPTCHA token provided:", !!captchaToken);
+  const signInWithPassword = async (email: string, password: string) => {
+    logger.log("Signing in with password:", email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: captchaToken ? { captchaToken } : undefined
     });
     if (error) {
       logger.error("Sign in with password error:", error);
@@ -24,13 +22,12 @@ export function useAuthActions() {
     logger.log("Password sign-in successful");
   };
 
-  const signInWithOTP = async (email: string, captchaToken?: string) => {
-    logger.log("Sending OTP to:", email, "CAPTCHA token provided:", !!captchaToken);
+  const signInWithOTP = async (email: string) => {
+    logger.log("Sending OTP to:", email);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
-        captchaToken: captchaToken
       }
     });
     if (error) {
@@ -41,21 +38,21 @@ export function useAuthActions() {
     return { needsOTP: true };
   };
   
-  const signIn = async (email: string, password: string, captchaToken?: string) => {
-    logger.log("Signing in with:", email, "CAPTCHA token provided:", !!captchaToken);
+  const signIn = async (email: string, password?: string) => {
+    logger.log("Signing in with:", email);
     if (password) {
       try {
-        await signInWithPassword(email, password, captchaToken);
+        await signInWithPassword(email, password);
         return { needsOTP: false };
       } catch (error) {
         logger.error("Password login failed:", error);
-        if (error instanceof Error && (error.message.includes("Invalid login credentials") || captchaToken === "development-mode")) {
-          return signInWithOTP(email, captchaToken);
+        if (error instanceof Error && error.message.includes("Invalid login credentials")) {
+          return signInWithOTP(email);
         }
         throw error;
       }
     } else {
-      return signInWithOTP(email, captchaToken);
+      return signInWithOTP(email);
     }
   };
 

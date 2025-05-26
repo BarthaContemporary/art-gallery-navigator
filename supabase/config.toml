@@ -7,9 +7,7 @@ verify_jwt = false
 [functions.delete-user]
 verify_jwt = true
 
-[functions.verify-turnstile]
-verify_jwt = false
+# Removed [functions.verify-turnstile] section
 
 [functions.hash-collection-password]
 verify_jwt = true # Ensures only authenticated users can call this
-

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -50,13 +51,13 @@ function Auth() {
     setAuthError(null);
   };
 
-  const handleLoginSubmit = async (values: { email: string; password: string }, captchaToken: string) => {
+  const handleLoginSubmit = async (values: { email: string; password?: string }) => { // Removed captchaToken from signature, made password optional
     try {
       resetError();
       const { needsOTP } = await signIn(
         values.email, 
-        values.password || "", 
-        captchaToken
+        values.password || ""
+        // Removed captchaToken
       );
       if (needsOTP) {
         handleOtpRequested(values.email);
@@ -119,7 +120,7 @@ function Auth() {
                   onSubmit={handleLoginSubmit}
                   isLoading={isLoading}
                   onOtpRequested={handleOtpRequested}
-                  onError={handleAuthError}
+                  onError={handleAuthError} // onError prop in LoginForm is generic, kept
                 />
               </TabsContent>
               
