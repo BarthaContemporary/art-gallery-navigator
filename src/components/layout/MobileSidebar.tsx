@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -75,22 +74,18 @@ export function MobileSidebar() {
       </DrawerContent>
 
       {/* Fixed top bar for logo and menu trigger */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-transparent flex items-center justify-between px-3 py-2 z-50 pointer-events-none sm:hidden">
-        <div className="bg-white p-2 rounded-md shadow-md pointer-events-auto">
-          <img
-            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-            alt="Bartha Logo"
-            className="h-7 w-auto"
-            style={{ maxWidth: 100 }} // Slightly smaller for mobile top bar
-          />
-        </div>
-        <div className="bg-white p-1 rounded-md shadow-md pointer-events-auto">
-          <DrawerTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Open menu">
-              <Menu className="h-6 w-6" />
-            </Button>
-          </DrawerTrigger>
-        </div>
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md flex items-center justify-between px-4 py-3 z-50 pointer-events-none sm:hidden">
+        <img
+          src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+          alt="Bartha Logo"
+          className="h-7 w-auto" // pointer-events-auto is not needed for a non-interactive image
+          style={{ maxWidth: 100 }}
+        />
+        <DrawerTrigger asChild className="pointer-events-auto"> {/* Ensures the button is interactive */}
+          <Button variant="ghost" size="icon" aria-label="Open menu">
+            <Menu className="h-6 w-6" />
+          </Button>
+        </DrawerTrigger>
       </div>
     </Drawer>
   );
