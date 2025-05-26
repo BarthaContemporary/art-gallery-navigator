@@ -99,7 +99,7 @@ export function ImportCSVDialog() {
           Import CSV
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Import Artworks from CSV</DialogTitle>
           <DialogDescription>
@@ -107,59 +107,61 @@ export function ImportCSVDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-center w-full">
-            <label
-              htmlFor="csv-file"
-              className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <Upload className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
-                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  CSV files only
+        <ScrollArea className="flex-grow p-1">
+          <div className="space-y-4 py-4 px-1">
+            <div className="flex items-center justify-center w-full">
+              <label
+                htmlFor="csv-file"
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
+              >
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
+                  <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    CSV files only
+                  </p>
+                </div>
+                <input
+                  id="csv-file"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            </div>
+
+            {file && (
+              <div>
+                <p className="text-sm font-medium">Selected file: {file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Found {artworks.length} artworks to import
                 </p>
               </div>
-              <input
-                id="csv-file"
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </label>
+            )}
+
+            {artworks.length > 0 && (
+              <div className="border rounded-md">
+                <ScrollArea className="h-56">
+                  <div className="p-4">
+                    <h3 className="font-medium mb-2">Preview (First 5 artworks)</h3>
+                    <ul className="space-y-2">
+                      {artworks.slice(0, 5).map((artwork, index) => (
+                        <li key={index} className="text-sm border-b pb-2">
+                          <span className="font-medium">{artwork.title}</span>
+                          {artwork.year && <span className="text-muted-foreground ml-2">({artwork.year})</span>}
+                          {artwork.medium_type && <p className="text-xs text-muted-foreground mt-1">Medium: {artwork.medium_type}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
           </div>
-
-          {file && (
-            <div>
-              <p className="text-sm font-medium">Selected file: {file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                Found {artworks.length} artworks to import
-              </p>
-            </div>
-          )}
-
-          {artworks.length > 0 && (
-            <div className="border rounded-md">
-              <ScrollArea className="h-56">
-                <div className="p-4">
-                  <h3 className="font-medium mb-2">Preview (First 5 artworks)</h3>
-                  <ul className="space-y-2">
-                    {artworks.slice(0, 5).map((artwork, index) => (
-                      <li key={index} className="text-sm border-b pb-2">
-                        <span className="font-medium">{artwork.title}</span>
-                        {artwork.year && <span className="text-muted-foreground ml-2">({artwork.year})</span>}
-                        {artwork.medium_type && <p className="text-xs text-muted-foreground mt-1">Medium: {artwork.medium_type}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </ScrollArea>
-            </div>
-          )}
-        </div>
+        </ScrollArea>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

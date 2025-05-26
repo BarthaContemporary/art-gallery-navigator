@@ -8,18 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectForm } from "./ProjectForm";
-// Tabs components are no longer needed as we remove the members tab from here.
-// If ProjectForm itself uses Tabs for internal layout, those would remain.
-// For now, assuming Tabs, TabsContent, TabsList, TabsTrigger are for the details/members split.
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { useState, useEffect } from "react";
-// ProjectMembersTab is deleted
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 interface ProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project?: ProjectWithLocation;
-  // initialTab is no longer needed
 }
 
 export function ProjectDialog({ 
@@ -27,17 +21,9 @@ export function ProjectDialog({
   onOpenChange, 
   project, 
 }: ProjectDialogProps) {
-  // const [activeTab, setActiveTab] = useState<"details" | "members">(initialTab);
-  
-  // useEffect(() => {
-  //   if (open) {
-  //     setActiveTab(initialTab);
-  //   }
-  // }, [open, initialTab]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]"> {/* Added flex flex-col and max-h */}
         <DialogHeader>
           <DialogTitle>
             {project ? "Edit Project" : "Create Project"}
@@ -47,14 +33,15 @@ export function ProjectDialog({
           </DialogDescription>
         </DialogHeader>
         
-        {/* Tabs system removed, directly rendering ProjectForm */}
-        <ProjectForm 
-          project={project} 
-          onClose={() => onOpenChange(false)} 
-        />
-        
+        <ScrollArea className="flex-grow"> {/* Added ScrollArea */}
+          {/* ProjectForm typically includes its own padding and DialogFooter */}
+          <ProjectForm 
+            project={project} 
+            onClose={() => onOpenChange(false)} 
+          />
+        </ScrollArea>
+        {/* Note: ProjectForm includes DialogFooter, so it's not needed here directly */}
       </DialogContent>
     </Dialog>
   );
 }
-
