@@ -10,7 +10,7 @@ export function ProjectsHeader() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
+    <div className="flex flex-col items-start gap-3 md:gap-4 mb-4 md:mb-6">
       <PageHeader title="PROJECTS" />
       
       {isAdmin && (
@@ -26,3 +26,4 @@ export function ProjectsHeader() {
     </div>
   );
 }
+
