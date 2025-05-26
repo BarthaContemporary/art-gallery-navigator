@@ -134,13 +134,13 @@ const Artworks = () => {
           <SearchBar value={searchTerm} onChange={setSearchTerm} />
         </div>
         <div className="flex flex-row items-center gap-1 sm:gap-2 overflow-x-auto pb-1">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
             <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
             <TypeFilter value={typeFilter} onChange={setTypeFilter} />
           </div>
-          <div className="flex-shrink-0 min-w-[140px] md:min-w-[180px]">
+          <div className="flex-shrink-0 w-[100px] sm:w-[140px] md:w-[180px]">
             <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
           </div>
         </div>

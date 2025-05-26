@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useArtists } from "@/hooks/useArtists"; 
@@ -58,8 +57,8 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
         value={value || "_none"} 
         onChange={handleSelectionChange}
         placeholder="Filter by artist"
-        icon={<Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4" />}
-        triggerClassName="h-8 md:h-10 text-xs md:text-sm"
+        icon={<Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />}
+        triggerClassName="w-full h-8 md:h-10 text-xs md:text-sm whitespace-nowrap overflow-hidden text-ellipsis"
       />
     </div>
   );
