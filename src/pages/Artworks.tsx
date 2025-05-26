@@ -161,11 +161,10 @@ const Artworks = () => {
           letters={letters} 
           onLetterClick={setActiveIndex} 
           activeLetter={activeIndex}
-          onScrollToTop={handleScrollToTop}
         />
       }
 
-      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} />
+      <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} onScrollToTop={handleScrollToTop} />
     </div>;
 };
 

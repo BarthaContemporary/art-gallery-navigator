@@ -1,7 +1,11 @@
+
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
 import { useEffect, useRef } from "react";
 import { useArtists } from "@/hooks/useArtists";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowUp } from "lucide-react";
 
 interface ArtworksByArtist {
   [key: string]: Artwork[];
@@ -10,9 +14,10 @@ interface ArtworksByArtist {
 interface ArtworkGridProps {
   artworks: Artwork[];
   activeIndex?: string;
+  onScrollToTop?: () => void; // Added prop
 }
 
-export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
+export function ArtworkGrid({ artworks, activeIndex, onScrollToTop }: ArtworkGridProps) {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const { data: artists } = useArtists();
   
@@ -29,7 +34,6 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
       }
     }
     
-    // Use surname_first_letter if available and not empty, otherwise use first letter of full_name
     const firstLetter = (sortLetter && sortLetter.trim() !== "") 
       ? sortLetter.trim().toUpperCase() 
       : artistName.charAt(0).toUpperCase();
@@ -41,7 +45,6 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
     return acc;
   }, {});
 
-  // Sort artworks within each group by artist name first, then by title
   Object.keys(groupedArtworks).forEach(letter => {
     groupedArtworks[letter].sort((a, b) => {
       const artistDetailsA = artists?.find(artist => artist.id === a.artist_id);
@@ -50,11 +53,9 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
       const artistNameA = artistDetailsA?.full_name || "Unknown Artist";
       const artistNameB = artistDetailsB?.full_name || "Unknown Artist";
       
-      // First sort by artist full name
       const artistCompare = artistNameA.localeCompare(artistNameB);
       if (artistCompare !== 0) return artistCompare;
       
-      // If same artist, sort by title
       return a.title.localeCompare(b.title);
     });
   });
@@ -72,9 +73,31 @@ export function ArtworkGrid({ artworks, activeIndex }: ArtworkGridProps) {
         <div 
           key={letter}
           ref={el => sectionRefs.current[letter] = el}
-          className="scroll-mt-16"
+          className="scroll-mt-16" // Ensures the heading isn't hidden by a sticky nav when scrolled to
         >
-          <h2 className="text-2xl font-bold mb-4">{letter}</h2>
+          <div className="flex items-center mb-4">
+            <h2 className="text-2xl font-bold">{letter}</h2>
+            {onScrollToTop && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost" // Using ghost for a less prominent look
+                      size="icon"
+                      className="w-8 h-8 ml-2 p-0 flex items-center justify-center"
+                      onClick={onScrollToTop}
+                      aria-label="Scroll to top"
+                    >
+                      <ArrowUp className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Scroll to Top</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {artworksInGroup.map((artworkEntry) => ( 
               <ArtworkCard key={artworkEntry.id} artwork={artworkEntry} />
