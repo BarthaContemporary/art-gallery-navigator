@@ -45,7 +45,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     }
   }, [imageUrl, getCachedImage]);
 
-  // Function to create and cache a medium-res version using a canvas
+  // Function to create and cache a version for placeholders
   const cacheImageIfNeeded = () => {
     if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
@@ -55,26 +55,38 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       const img = new Image();
       img.crossOrigin = "anonymous"; // This is needed for some external images
       img.onload = () => {
-        // Create a higher-quality version for cache with increased dimensions
+        // Create a smaller, more compressed version for card placeholders
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Increased max dimension for card thumbnails to 1000px
-        const maxDimension = 1000;
-        const scale = maxDimension / Math.max(img.width, img.height);
-        canvas.width = Math.floor(img.width * scale);
-        canvas.height = Math.floor(img.height * scale);
+        // Reduced max dimension for card placeholders to 600px (was 1000)
+        const maxDimension = 600; 
+        let scale = 1;
+        if (img.width > 0 && img.height > 0) { // Ensure dimensions are positive
+            scale = maxDimension / Math.max(img.width, img.height);
+            // Ensure scale is not greater than 1 to avoid upscaling
+            scale = Math.min(1, scale); 
+        } else { // Fallback if image dimensions are not available or zero
+            canvas.width = Math.min(maxDimension, img.width || maxDimension);
+            canvas.height = Math.min(maxDimension, img.height || maxDimension);
+        }
         
+        if (img.width > 0 && img.height > 0) {
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
+        }
+
+
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Using maximum JPEG quality of 1.0
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 1.0);
-          setCachedImage(optimizedUrl, mediumResDataUrl);
+          // Using JPEG quality of 0.8 (was 1.0)
+          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.8); 
+          setCachedImage(optimizedUrl, placeholderDataUrl);
         }
       };
       img.src = optimizedUrl;
     } catch (error) {
-      console.error("Failed to cache image:", error);
+      console.error("Failed to cache image for placeholder:", error);
     }
   };
 
@@ -88,7 +100,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <Skeleton className="h-full w-full absolute inset-0" />
         )}
         
-        {/* Show cached placeholder while loading - removed blur filter */}
+        {/* Show cached placeholder while loading */}
         {placeholderUrl && isLoading && (
           <img 
             src={placeholderUrl}
