@@ -39,9 +39,9 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     }
 
     let finalOptimizedUrl = imageUrl;
-    // For thumbnails in cards, use a smaller image size if possible via Supabase transform
+    // For thumbnails in cards, use a larger image size and higher quality if possible via Supabase transform
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
-      const transformParams = "w=600&q=80&f=auto"; // Width 600px, quality 80, auto format
+      const transformParams = "w=800&q=90&f=auto"; // Width 800px, quality 90, auto format
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -75,6 +75,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         const ctx = canvas.getContext("2d");
         
         // Max dimension for the canvas-generated placeholder (consistency)
+        // Keeping placeholder generation logic the same, but it's based on the higher quality optimizedUrl
         const maxDimension = 600; 
         let scale = 1;
         if (img.width > 0 && img.height > 0) {
