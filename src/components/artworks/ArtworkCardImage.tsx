@@ -41,7 +41,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     let finalOptimizedUrl = imageUrl;
     // For thumbnails in cards, use a larger image size and higher quality if possible via Supabase transform
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
-      const transformParams = "w=800&q=90&f=auto"; // Width 800px, quality 90, auto format
+      // Updated transform: fit within 800x600, quality 90, auto format
+      const transformParams = "w=800&h=600&resize=contain&q=90&f=auto"; 
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -76,13 +77,15 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         
         // Max dimension for the canvas-generated placeholder (consistency)
         // Keeping placeholder generation logic the same, but it's based on the higher quality optimizedUrl
-        const maxDimension = 800; // Updated max dimension for higher quality placeholder
+        const maxDimension = 800; 
         let scale = 1;
         if (img.width > 0 && img.height > 0) {
+            // Scale to fit within maxDimension, but don't upscale (Math.min(1, ...))
             scale = maxDimension / Math.max(img.width, img.height);
             scale = Math.min(1, scale); 
+             // Ensure scale is not zero or negative if image dimensions are unexpectedly small
+            if (scale <= 0) scale = 1;
         } else { 
-            // Fallback if image dimensions are not available, though img.onload should ensure they are
             canvas.width = Math.min(maxDimension, img.width || maxDimension);
             canvas.height = Math.min(maxDimension, img.height || maxDimension);
         }
@@ -90,6 +93,9 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         if (img.width > 0 && img.height > 0) { // Ensure dimensions are positive
             canvas.width = Math.floor(img.width * scale);
             canvas.height = Math.floor(img.height * scale);
+        } else { // Fallback if image dimensions are zero or invalid
+            canvas.width = maxDimension / 2; // Default small placeholder
+            canvas.height = maxDimension / 2;
         }
 
         if (ctx) {

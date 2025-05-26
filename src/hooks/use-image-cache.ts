@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v1.6"; // Updated version for new cache settings
-const CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-const MAX_CACHE_ITEM_SIZE_MB = 8; // Max cache item size in MB
+const CACHE_VERSION = "v1.7"; // Incremented version for new cache settings
+const CACHE_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days in milliseconds
+const MAX_CACHE_ITEM_SIZE_MB = 15; // Max cache item size in MB (increased from 8)
 const MAX_CACHE_ITEM_SIZE = MAX_CACHE_ITEM_SIZE_MB * 1024 * 1024; // Convert MB to bytes
 
 export type CachedImage = {
@@ -100,4 +99,3 @@ export function useImageCache() {
 
   return { getCachedImage, setCachedImage, clearImageCache };
 }
-
