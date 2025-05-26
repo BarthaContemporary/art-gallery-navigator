@@ -121,7 +121,8 @@ const Artworks = () => {
         <CreateArtworkDialog />
         <Button 
           variant="ghost" 
-          size="icon" 
+          size="sm" 
+          className="p-2" 
           title="Clear Image Cache" 
           onClick={handleClearImageCache}
         >
