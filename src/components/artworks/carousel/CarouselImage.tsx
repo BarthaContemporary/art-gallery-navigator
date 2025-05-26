@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
+import { Loader2 } from "lucide-react";
 
 interface CarouselImageProps {
   imageUrl: string;
@@ -145,7 +146,9 @@ export const CarouselImage = memo(function CarouselImage({
             aria-hidden="true"
           />
         ) : (
-          <Skeleton className={`absolute inset-0 ${carouselHeightClass}`} />
+          <div className={`absolute inset-0 flex items-center justify-center ${carouselHeightClass}`}>
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
         )
       ) : null}
       
