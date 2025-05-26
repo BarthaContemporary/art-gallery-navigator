@@ -39,6 +39,10 @@ const Artists = () => {
     queryKey: ['artists', statusFilter],
     queryFn: async () => {
       let query = supabase.from('artists').select('*').order('full_name');
+      // Apply status filter if not 'all'
+      if (statusFilter !== "all") {
+        query = query.eq('representation_status', statusFilter);
+      }
       const { data, error } = await query;
       if (error) throw error;
       return data as Artist[];
@@ -55,11 +59,12 @@ const Artists = () => {
       (artist.place_of_birth && artist.place_of_birth.toLowerCase().includes(searchTermLower)) ||
       (artist.place_of_death && artist.place_of_death.toLowerCase().includes(searchTermLower));
 
-    const matchesStatusFilter =
-      statusFilter === "all" ||
-      artist.representation_status.toLowerCase() === statusFilter;
+    // No need to filter by status here as it's done in the query
+    // const matchesStatusFilter =
+    //   statusFilter === "all" ||
+    //   artist.representation_status.toLowerCase() === statusFilter;
 
-    return matchesSearchTerm && matchesStatusFilter;
+    return matchesSearchTerm; // && matchesStatusFilter; - removed as filter is in query
   }) ?? [];
 
   const formatCSVValue = (value: any): string => {
@@ -140,7 +145,7 @@ const Artists = () => {
         </div>
       </div>
 
-      {isLoading ? <LoadingSkeleton /> : <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      {isLoading ? <LoadingSkeleton /> : <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {filteredArtists.map(artist => <ArtistCard key={artist.id} artist={artist} />)}
         </div>}
     </div>;
