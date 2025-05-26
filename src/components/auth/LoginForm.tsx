@@ -24,8 +24,8 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-// Use import.meta.env for Vite environment variables
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+// Hardcode the Turnstile Site Key as requested
+const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,11 +33,12 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   const [captchaError, setCaptchaError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Log that the key is hardcoded
+    logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY ? "****** (hardcoded)" : "NOT SET (this should not happen with hardcoding)");
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Turnstile Site Key is not configured (VITE_TURNSTILE_SITE_KEY is missing or empty). CAPTCHA will not function.");
-      setCaptchaError("CAPTCHA configuration error. Please contact support.");
-    } else {
-      logger.log("Using Turnstile Site Key from environment variable:", TURNSTILE_SITE_KEY ? "****** (loaded)" : "NOT LOADED");
+        // This case should ideally not be hit if hardcoded correctly
+        logger.error("Critical: Hardcoded Turnstile Site Key is unexpectedly empty. CAPTCHA will not function.");
+        setCaptchaError("CAPTCHA configuration error. Please contact support.");
     }
   }, []);
 
@@ -70,9 +71,10 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   };
 
   const handleSubmit = (values: LoginFormValues) => {
+    // The check for !TURNSTILE_SITE_KEY is somewhat redundant if hardcoded, but kept for safety.
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Login attempt while Turnstile site key is missing.");
-      // Error is already set by useEffect and displayed
+      logger.error("Login attempt while Turnstile site key is missing (hardcoded value issue).");
+      setCaptchaError("CAPTCHA configuration error. Please contact support."); // Should match error in useEffect
       return;
     }
     if (!captchaToken) {
@@ -101,7 +103,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                   className="text-base sm:text-sm py-3"
                   inputMode="email"
                   autoComplete="email"
-                  disabled={isLoading || !TURNSTILE_SITE_KEY}
+                  disabled={isLoading} // Removed !TURNSTILE_SITE_KEY as it's hardcoded
                 />
               </FormControl>
               <FormMessage />
@@ -122,14 +124,14 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                     placeholder="Password (optional)"
                     className="text-base sm:text-sm py-3 pr-10"
                     autoComplete="current-password"
-                    disabled={isLoading || !TURNSTILE_SITE_KEY}
+                    disabled={isLoading} // Removed !TURNSTILE_SITE_KEY
                   />
                   <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     tabIndex={-1}
-                    disabled={!TURNSTILE_SITE_KEY}
+                    // disabled={!TURNSTILE_SITE_KEY} // Not needed if key is hardcoded
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -144,22 +146,17 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           )}
         />
 
-        {TURNSTILE_SITE_KEY ? (
-          <div className="flex justify-center">
-            <TurnstileWidget
-              siteKey={TURNSTILE_SITE_KEY}
-              onVerify={handleCaptchaVerify}
-              onError={handleCaptchaError}
-              onExpire={handleCaptchaExpire}
-              theme="light"
-            />
-          </div>
-        ) : (
-           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
-            <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span>CAPTCHA is not configured (site key missing). Login disabled.</span>
-          </div>
-        )}
+        {/* TURNSTILE_SITE_KEY will always be true with hardcoding, so the TurnstileWidget will always attempt to render. */}
+        {/* The else branch for missing site key is effectively dead code now. */}
+        <div className="flex justify-center">
+          <TurnstileWidget
+            siteKey={TURNSTILE_SITE_KEY}
+            onVerify={handleCaptchaVerify}
+            onError={handleCaptchaError}
+            onExpire={handleCaptchaExpire}
+            theme="light"
+          />
+        </div>
         
         {captchaError && (
           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
@@ -171,7 +168,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken || !TURNSTILE_SITE_KEY}
+          disabled={isLoading || !form.formState.isValid || !captchaToken} // Removed !TURNSTILE_SITE_KEY
         >
           {isLoading ? (
             <>
@@ -184,4 +181,3 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     </Form>
   );
 }
-
