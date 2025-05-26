@@ -78,11 +78,11 @@ export function MobileSidebar() {
         <img
           src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
           alt="Bartha Logo"
-          className="h-7 w-auto" // pointer-events-auto is not needed for a non-interactive image
+          className="h-7 w-auto"
           style={{ maxWidth: 100 }}
         />
-        <DrawerTrigger asChild className="pointer-events-auto"> {/* Ensures the button is interactive */}
-          <Button variant="ghost" size="icon" aria-label="Open menu">
+        <DrawerTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Open menu" className="pointer-events-auto">
             <Menu className="h-6 w-6" />
           </Button>
         </DrawerTrigger>
