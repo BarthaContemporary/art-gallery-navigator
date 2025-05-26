@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useArtworks } from "@/hooks/use-artworks";
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArtworkSearch } from "./ArtworkSearch";
 import { PlusCircle, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Added ScrollArea import
 
 export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -89,76 +91,78 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           Add Collection
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="flex flex-col max-h-[90vh]"> {/* Modified className */}
         <DialogHeader>
           <DialogTitle>Create Collection</DialogTitle>
           <DialogDescription>
             Group artworks by concept, period, or exhibition.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div>
-            <p className="text-sm font-medium mb-2">Select Artworks</p>
-            {artworksLoading ? (
-              <span className="text-xs text-muted-foreground">Loading artworks…</span>
-            ) : (
-              <ArtworkSearch
-                artworks={artworks || []}
-                selectedArtworks={selectedArtworks}
-                onToggleArtwork={toggleArtwork}
-              />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">External Users (Optional)</label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                type="email"
-                value={currentEmail}
-                onChange={(e) => setCurrentEmail(e.target.value)}
-                placeholder="Enter email address"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddEmail();
-                  }
-                }}
-              />
-              <Button type="button" onClick={handleAddEmail} variant="secondary">
-                Add
-              </Button>
+        <ScrollArea className="flex-grow p-1"> {/* Added ScrollArea */}
+          <div className="space-y-4 py-2 px-4"> {/* Added px-4 for content padding */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
-            {emails.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {emails.map((email) => (
-                  <div key={email} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
-                    <span className="text-sm">{email}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0"
-                      onClick={() => removeEmail(email)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Select Artworks</p>
+              {artworksLoading ? (
+                <span className="text-xs text-muted-foreground">Loading artworks…</span>
+              ) : (
+                <ArtworkSearch
+                  artworks={artworks || []}
+                  selectedArtworks={selectedArtworks}
+                  onToggleArtwork={toggleArtwork}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">External Users (Optional)</label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  type="email"
+                  value={currentEmail}
+                  onChange={(e) => setCurrentEmail(e.target.value)}
+                  placeholder="Enter email address"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddEmail();
+                    }
+                  }}
+                />
+                <Button type="button" onClick={handleAddEmail} variant="secondary">
+                  Add
+                </Button>
               </div>
-            )}
+              {emails.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {emails.map((email) => (
+                    <div key={email} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                      <span className="text-sm">{email}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0"
+                        onClick={() => removeEmail(email)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
@@ -171,3 +175,4 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
     </Dialog>
   );
 }
+
