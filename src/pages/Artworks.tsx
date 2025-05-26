@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
@@ -96,6 +97,7 @@ const Artworks = () => {
 
   return <div className="p-3 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-wrap items-center justify-start mb-4 md:mb-6 gap-1 sm:gap-2">
+        <CreateArtworkDialog />
         <ImportCSVDialog />
         <Button 
           variant="outline" 
@@ -118,7 +120,6 @@ const Artworks = () => {
             Export All ({artworks.length})
           </Button>
         }
-        <CreateArtworkDialog />
         <Button 
           variant="ghost" 
           size="sm" 
@@ -160,3 +161,4 @@ const Artworks = () => {
 };
 
 export default Artworks;
+
