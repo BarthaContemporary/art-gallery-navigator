@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react"; // Added useRef
 import { Collection, useUpdateCollection } from "@/hooks/use-collections";
 import { useArtworks } from "@/hooks/use-artworks";
 import { toast } from "sonner";
@@ -21,11 +21,9 @@ export function useEditCollectionForm({ collection, onCloseDialog }: UseEditColl
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
   const { mutate: updateCollection, isPending: isUpdating } = useUpdateCollection();
 
-  // Using a ref to track mounted state is safer for async operations
-  const isMounted =_useIsMounted();
+  const isMounted = _useIsMounted();
 
   useEffect(() => {
-    // Reset form fields when the collection prop changes (e.g., dialog reopens with a different collection)
     setName(collection.name);
     setDescription(collection.description || "");
     setSelectedArtworks(collection.artworks?.map(artwork => artwork.id) || []);
@@ -40,8 +38,6 @@ export function useEditCollectionForm({ collection, onCloseDialog }: UseEditColl
       return;
     }
 
-    // Using setTimeout to ensure the update runs in the next tick, can be useful for UI updates.
-    // Consider if this is still necessary or if direct mutation is fine.
     setTimeout(() => {
       updateCollection(
         { 
@@ -91,7 +87,7 @@ export function useEditCollectionForm({ collection, onCloseDialog }: UseEditColl
   
   // Helper hook to track mounted state
   function _useIsMounted() {
-    const isMountedRef = React.useRef(true);
+    const isMountedRef = useRef(true); // Changed React.useRef to useRef
     useEffect(() => {
       isMountedRef.current = true;
       return () => { isMountedRef.current = false; };
@@ -118,3 +114,4 @@ export function useEditCollectionForm({ collection, onCloseDialog }: UseEditColl
     isUpdating,
   };
 }
+
