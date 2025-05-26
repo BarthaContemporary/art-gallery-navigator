@@ -1,7 +1,6 @@
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, FileText, FileImage, FileCheck, FileBox, FileClock, FileKey, FilePlus } from "lucide-react";
+import { Filter, FileText, FileImage, FileCheck, FileBox, FileClock, FileKey, FilePlus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,11 +25,10 @@ export function DocumentsSearch({
   return (
     <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-4">
       <div className="relative flex-1 w-full max-w-sm">
-        <Search className="absolute left-2 top-1.5 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search documents..."
-          className="pl-7"
+          className="px-3 h-8 md:h-10 text-xs md:text-sm py-1 md:py-2"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
