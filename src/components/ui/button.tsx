@@ -22,9 +22,9 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-7 px-3 py-1 md:h-10 md:px-4 md:py-2",
-        sm: "h-6 rounded-md px-2 py-0.5 text-xs md:h-9 md:rounded-md md:px-3 md:text-sm",
+        sm: "h-7 rounded-md px-2 py-0.5 text-xs md:h-9 md:rounded-md md:px-3 md:text-sm", // Changed h-6 to h-7
         lg: "h-9 rounded-md px-6 md:h-11 md:px-8",
-        icon: "h-6 w-6 md:h-10 md:w-10",
+        icon: "h-6 w-6 md:h-10 md:w-10", // Note: size="icon" might need its own h-7 if desired for consistency, but current target is default/sm buttons.
       },
     },
     defaultVariants: {

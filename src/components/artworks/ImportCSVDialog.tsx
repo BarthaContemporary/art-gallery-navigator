@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseCSVtoArtworks } from "@/lib/csv-utils";
@@ -95,8 +94,8 @@ export function ImportCSVDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex gap-2">
-          <FileUp className="h-4 w-4" />
+        <Button variant="outline" size="sm" className="flex gap-2">
+          <FileUp />
           Import CSV
         </Button>
       </DialogTrigger>
