@@ -113,6 +113,10 @@ const Artists = () => {
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
+          <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
+            <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
+            Add Artist
+          </Button>
           <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtists.length}>
             <Download className="h-3 w-3 md:h-4 md:w-4" />
             Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
@@ -122,10 +126,6 @@ const Artists = () => {
               <Download className="h-3 w-3 md:h-4 md:w-4" />
               Export All ({artists?.length})
             </Button>}
-          <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
-            <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
-            Add Artist
-          </Button>
         </div>
       </div>
       
