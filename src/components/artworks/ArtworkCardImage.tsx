@@ -1,3 +1,4 @@
+
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
@@ -93,7 +94,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
 
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.8); 
+          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.85); // Updated quality to 0.85
           setCachedImage(imageUrl, placeholderDataUrl); // Cache using original imageUrl as key
           logger.log(`ArtworkCardImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}). Size: ${placeholderDataUrl.length}`);
         }
@@ -152,3 +153,4 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     </div>
   );
 }
+
