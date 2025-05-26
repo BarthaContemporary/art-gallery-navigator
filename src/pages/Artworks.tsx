@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
 import { StatusFilter } from "@/components/artworks/StatusFilter";
@@ -23,6 +22,7 @@ const Artworks = () => {
   const [artistFilter, setArtistFilter] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<string>();
   const { clearImageCache } = useImageCache();
+  const pageTopRef = useRef<HTMLDivElement>(null);
 
   const {
     data: artworks,
@@ -79,6 +79,14 @@ const Artworks = () => {
     toast.success("Image cache cleared. Refresh the page to reload images.");
   };
 
+  const handleScrollToTop = () => {
+    if (pageTopRef.current) {
+      pageTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   if (artworksLoading || artistsLoading) {
     return <div className="flex items-center justify-center h-[50vh]">
         <p className="text-muted-foreground">Loading artworks and artists...</p>
@@ -95,7 +103,7 @@ const Artworks = () => {
       </div>;
   }
 
-  return <div className="p-3 md:p-6 max-w-7xl mx-auto">
+  return <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
       <div className="flex flex-wrap items-center justify-start mb-4 md:mb-6 gap-1 sm:gap-2">
         <CreateArtworkDialog />
         <ImportCSVDialog />
@@ -152,7 +160,8 @@ const Artworks = () => {
         <AlphabeticalIndex 
           letters={letters} 
           onLetterClick={setActiveIndex} 
-          activeLetter={activeIndex} 
+          activeLetter={activeIndex}
+          onScrollToTop={handleScrollToTop}
         />
       }
 
@@ -161,4 +170,3 @@ const Artworks = () => {
 };
 
 export default Artworks;
-
