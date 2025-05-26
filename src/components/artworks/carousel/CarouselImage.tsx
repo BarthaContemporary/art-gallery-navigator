@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
@@ -13,6 +12,7 @@ interface CarouselImageProps {
   role?: string;
   ariaRoledescription?: string;
   ariaLabel?: string;
+  carouselHeightClass?: string; // New prop for dynamic height
 }
 
 /**
@@ -28,6 +28,7 @@ interface CarouselImageProps {
  * @param role ARIA role for the slide item.
  * @param ariaRoledescription ARIA role description for the slide item.
  * @param ariaLabel ARIA label for the slide item, e.g., "Slide 1 of 5".
+ * @param carouselHeightClass Optional Tailwind CSS height class for the image container.
  */
 export const CarouselImage = memo(function CarouselImage({
   imageUrl,
@@ -37,7 +38,8 @@ export const CarouselImage = memo(function CarouselImage({
   artworkTitle = "Untitled",
   role,
   ariaRoledescription,
-  ariaLabel
+  ariaLabel,
+  carouselHeightClass = "h-[600px]", // Default height
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
@@ -72,7 +74,7 @@ export const CarouselImage = memo(function CarouselImage({
     
     setOptimizedUrl(imageUrl); // Set the URL to be loaded by the <img> tag
     
-  }, [imageUrl, getCachedImage]); // Removed optimizedUrl from dependencies here as it causes re-runs we want to control better
+  }, [imageUrl, getCachedImage]);
   
   const cacheImageIfNeeded = useCallback(() => {
     if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
@@ -104,24 +106,24 @@ export const CarouselImage = memo(function CarouselImage({
     } catch (error) {
       console.error("Failed to cache image:", error);
     }
-  }, [optimizedUrl, setCachedImage, imageUrl]); // Added imageUrl to ensure the correct key is used for caching
+  }, [optimizedUrl, setCachedImage, imageUrl]);
 
   return (
     <div 
-      className="relative w-full flex-[0_0_100%]"
+      className={`relative w-full flex-[0_0_100%] ${carouselHeightClass}`}
       role={role}
       aria-roledescription={ariaRoledescription}
       aria-label={ariaLabel}
     >
       {isLoading && (
-        <Skeleton className="absolute inset-0" />
+        <Skeleton className={`absolute inset-0 ${carouselHeightClass}`} />
       )}
       
       {placeholderUrl && isLoading && (
         <img 
           src={placeholderUrl}
           alt="Loading preview"
-          className="w-full h-[600px] object-contain opacity-70"
+          className={`w-full ${carouselHeightClass} object-contain opacity-70`}
           aria-hidden="true"
         />
       )}
@@ -129,16 +131,14 @@ export const CarouselImage = memo(function CarouselImage({
       <img
         src={optimizedUrl} // This will be the original imageUrl
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
-        className="w-full h-[600px] object-contain transition-opacity duration-300"
+        className={`w-full ${carouselHeightClass} object-contain transition-opacity duration-300`}
         style={{
           opacity: isLoading ? 0 : 1
         }}
         onLoad={() => {
           if (mountedRef.current) {
             setIsLoading(false);
-            // Attempt to cache after the original image has successfully loaded
-            // This ensures we cache the version that was confirmed to be loadable
-            if (optimizedUrl !== "/placeholder.svg") { // Don't cache the placeholder itself
+            if (optimizedUrl !== "/placeholder.svg") {
                  cacheImageIfNeeded();
             }
           }
@@ -156,4 +156,3 @@ export const CarouselImage = memo(function CarouselImage({
     </div>
   );
 });
-

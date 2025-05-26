@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react"; // Added useEffect
+import React, { useState, useCallback, useEffect } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
@@ -10,10 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
-// PDFPreviewDialog is no longer directly used for preview before generation
-// import { PDFPreviewDialog } from "../pdf/PDFPreviewDialog"; 
-// ArtworkPDFPreview is also not directly used here anymore if PDFPreviewDialog is removed
-// import { ArtworkPDFPreview } from "../pdf/ArtworkPreview"; 
 import { ArtworkCarousel } from "./ArtworkCarousel";
 import { DialogHeaderActions } from "./overview/DialogHeaderActions";
 import { useFileOperations } from "./overview/useFileOperations";
@@ -34,16 +30,14 @@ export function ArtworkOverviewDialog({
   onOpenChange,
 }: ArtworkOverviewDialogProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  // setPDFPreviewOpen is still needed because DialogHeaderActions (read-only) calls it.
-  // We will use its change to trigger PDF generation directly via useEffect.
   const [pdfPreviewOpen, setPDFPreviewOpen] = useState(false);
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
   
   const {
-    documents, // Kept for DialogHeaderActions even if button is hidden, might be used by other parts not visible
-    handleDownloadAllFiles, // Kept for DialogHeaderActions even if button is hidden
-    handleDownloadSingleFile, // Kept for DialogHeaderActions even if button is hidden
+    documents,
+    handleDownloadAllFiles,
+    handleDownloadSingleFile,
     handleDownloadAllImages
   } = useFileOperations(
     artwork.id, 
@@ -59,11 +53,11 @@ export function ArtworkOverviewDialog({
     onOpenChange(newOpen); 
   }, [onOpenChange]);
 
-  const handleGeneratePDF = useCallback(() => { // useStationery is always true for artworks
+  const handleGeneratePDF = useCallback(() => { 
     if (isGenerating) return;
     
     setIsGenerating(true);
-    createArtworkPDF(artwork, true) // Pass true for useStationery
+    createArtworkPDF(artwork, true)
       .then(() => {
         // createArtworkPDF handles success toast
       })
@@ -74,14 +68,12 @@ export function ArtworkOverviewDialog({
       .finally(() => {
         setIsGenerating(false);
       });
-  }, [artwork, isGenerating]); // Dependencies for useCallback
+  }, [artwork, isGenerating]);
 
-  // useEffect to skip PDF preview dialog
   useEffect(() => {
     if (pdfPreviewOpen) {
-      // Directly generate PDF when `setPDFPreviewOpen(true)` is called by DialogHeaderActions
       handleGeneratePDF();
-      setPDFPreviewOpen(false); // Reset immediately
+      setPDFPreviewOpen(false); 
     }
   }, [pdfPreviewOpen, handleGeneratePDF, setPDFPreviewOpen]);
 
@@ -94,32 +86,31 @@ export function ArtworkOverviewDialog({
           onClick={handleDialogInteraction}
         >
           <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b">
-            <div className="flex justify-between items-center">
-              <DialogTitle className="text-2xl font-semibold">
+            <div className="flex flex-col items-start gap-3 md:flex-row md:justify-between md:items-center md:gap-0">
+              <DialogTitle className="text-2xl font-semibold text-left">
                 {artwork.title}
               </DialogTitle>
               <DialogHeaderActions
                 isGenerating={isGenerating}
                 setPDFPreviewOpen={setPDFPreviewOpen} 
                 handleDownloadAllImages={handleDownloadAllImages}
-                documents={documents} // Pass documents prop
-                handleDownloadAllFiles={handleDownloadAllFiles} // Pass handleDownloadAllFiles prop
-                handleDownloadSingleFile={handleDownloadSingleFile} // Pass handleDownloadSingleFile prop
+                documents={documents}
+                handleDownloadAllFiles={handleDownloadAllFiles}
+                handleDownloadSingleFile={handleDownloadSingleFile}
                 showCreatePdf={true}
-                showDownloadFiles={false} // Hide the "Download Files" button
+                showDownloadFiles={false}
                 showDownloadAllImages={true}
               />
             </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto">
-            {/* Added px-6 for horizontal padding around the carousel */}
             <div className="mb-6 px-6 pt-6"> 
               <ArtworkCarousel 
                 artworkId={artwork.id} 
                 artistName={artist?.full_name || "Unknown_Artist"} 
                 artworkTitle={artwork.title}
-                isDialogActive={open} // Pass the dialog's open state here
+                isDialogActive={open}
               />
             </div>
             
@@ -138,8 +129,6 @@ export function ArtworkOverviewDialog({
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* PDFPreviewDialog is no longer rendered here to skip the preview step */}
     </>
   );
 }

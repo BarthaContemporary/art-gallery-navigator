@@ -2,7 +2,8 @@ import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ArtworkCarouselProps {
   artworkId: string;
@@ -15,6 +16,7 @@ interface ArtworkCarouselProps {
  * Renders an image carousel for an artwork, supporting mouse, touch, and keyboard navigation.
  * Includes loading/error states, navigation dots, and an optional download menu.
  * Preloads images when the dialog is active.
+ * Adjusts height for mobile devices.
  *
  * @param artworkId The ID of the artwork.
  * @param artistName Optional name of the artist for image alt text.
@@ -37,10 +39,12 @@ export function ArtworkCarousel({
     handleDotClick,
     scrollPrev,
     scrollNext,
-  } = useArtworkCarousel(artworkId, isDialogActive); // Pass isDialogActive here
+  } = useArtworkCarousel(artworkId, isDialogActive);
   
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
-  
+  const isMobile = useIsMobile();
+  const carouselHeightClass = isMobile ? "h-[350px]" : "h-[600px]"; // Dynamic height class
+
   // Re-initialize the carousel when images change
   useEffect(() => {
     if (emblaApi && images.length > 0) {
@@ -87,7 +91,7 @@ export function ArtworkCarousel({
 
   if (loading) {
     return (
-      <div className="w-full h-[600px] flex items-center justify-center bg-secondary/20">
+      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-secondary/20`}>
         <p className="text-muted-foreground">Loading images...</p>
       </div>
     );
@@ -95,7 +99,7 @@ export function ArtworkCarousel({
   
   if (error) {
     return (
-      <div className="w-full h-[600px] flex items-center justify-center bg-secondary/20">
+      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-secondary/20`}>
         <p className="text-red-500">{error}</p>
       </div>
     );
@@ -118,9 +122,9 @@ export function ArtworkCarousel({
     >
       <div className="w-full group">
         {/* Embla viewport */}
-        <div className="overflow-hidden h-[600px]" ref={emblaRef}>
+        <div className={`overflow-hidden ${carouselHeightClass}`} ref={emblaRef}>
           {/* Embla container */}
-          <div className="flex h-full" aria-live="polite"> 
+          <div className={`flex h-full`} aria-live="polite"> 
             {displayImages.map((image, index) => (
               <CarouselImage
                 key={image.id}
@@ -132,6 +136,7 @@ export function ArtworkCarousel({
                 role="group" 
                 ariaRoledescription="slide"
                 ariaLabel={`Slide ${index + 1} of ${displayImages.length}`}
+                carouselHeightClass={carouselHeightClass} // Pass dynamic height
               />
             ))}
           </div>
