@@ -10,7 +10,7 @@ const Locations = () => {
 
   return (
     <div className="p-3 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
+      <div className="flex flex-col items-start gap-3 md:gap-4 mb-4 md:mb-6">
         <PageHeader title="LOCATIONS" />
         <CreateLocationDialog />
       </div>
