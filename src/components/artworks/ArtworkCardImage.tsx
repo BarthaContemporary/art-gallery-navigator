@@ -1,3 +1,4 @@
+
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
@@ -136,8 +137,8 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-all duration-300 group-hover:opacity-100 group-hover:scale-105 ${
-            isLoading ? 'opacity-0' : 'opacity-80' // Start with opacity-80 when loaded
+          className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
+            isLoading ? 'opacity-0' : 'opacity-100' // Changed opacity-80 to opacity-100 for default loaded state
           }`}
           onLoad={() => {
             logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
