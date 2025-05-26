@@ -1,23 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useArtists } from "@/hooks/useArtists";
-import { useArtworks } from "@/hooks/use-artworks";
-import { useCollections } from "@/hooks/use-collections";
-import { useDocuments } from "@/hooks/use-documents";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
-
-interface Reference {
-  type: 'document' | 'collection' | 'artwork' | 'artist';
-  id: string;
-  name: string;
-}
+import { Reference } from "./reference-selector/types"; // Updated import
+import { useReferenceData } from "./reference-selector/useReferenceData"; // New hook
+import { SelectedReferencesDisplay } from "./reference-selector/SelectedReferencesDisplay"; // New component
+import { ReferenceList } from "./reference-selector/ReferenceList"; // New component
 
 interface ReferenceSelectorProps {
-  onReferencesChange: (references: { type: 'document' | 'collection' | 'artwork' | 'artist', id: string }[]) => void;
+  onReferencesChange: (references: { type: Reference['type'], id: string }[]) => void;
   initialReferences?: Reference[];
 }
 
@@ -25,43 +16,32 @@ export function ReferenceSelector({ onReferencesChange, initialReferences = [] }
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReferences, setSelectedReferences] = useState<Reference[]>([]);
   
-  // Initialize with initial references if provided
+  const {
+    artists,
+    collections,
+    artworks,
+    documents,
+  } = useReferenceData(searchTerm);
+
   useEffect(() => {
     if (initialReferences && initialReferences.length > 0) {
+      // Ensure initialReferences are not duplicated if component re-renders with same initial props
+      // This logic assumes initialReferences itself doesn't change frequently for the same instance
+      // or that if it does, it represents the new source of truth for selected items.
+      // A more robust solution might involve comparing with current selectedReferences
+      // if partial updates to initialReferences were possible and needed merging.
       setSelectedReferences(initialReferences);
+    } else if (initialReferences.length === 0 && selectedReferences.length > 0 && searchTerm === '') {
+      // This case might be if initialReferences was cleared, then local state should also clear.
+      // However, typically initialReferences are set once. If not, this logic might need adjustment.
+      // For now, only set from initialReferences if it's provided.
     }
-  }, [initialReferences]);
-  
-  // Fetch data from all reference types
-  const { data: artists, isLoading: artistsLoading } = useArtists();
-  const { data: collections, isLoading: collectionsLoading } = useCollections();
-  const { data: artworks, isLoading: artworksLoading } = useArtworks();
-  const { data: documents, isLoading: documentsLoading } = useDocuments();
-  
-  // Filter data based on search term
-  const filteredArtists = artists?.filter(a => 
-    a.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
-  
-  const filteredCollections = collections?.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
-  
-  const filteredArtworks = artworks?.filter(a => 
-    a.title.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
-  
-  const filteredDocuments = documents?.filter(d => 
-    d.file_name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  }, [initialReferences]); // Only re-run if initialReferences prop itself changes.
   
   const handleAddReference = (ref: Reference) => {
-    // Check if already selected
     if (!selectedReferences.find(r => r.id === ref.id && r.type === ref.type)) {
       const newReferences = [...selectedReferences, ref];
       setSelectedReferences(newReferences);
-      
-      // Notify parent component
       onReferencesChange(newReferences.map(r => ({ type: r.type, id: r.id })));
     }
   };
@@ -71,27 +51,15 @@ export function ReferenceSelector({ onReferencesChange, initialReferences = [] }
       r => !(r.id === ref.id && r.type === ref.type)
     );
     setSelectedReferences(newReferences);
-    
-    // Notify parent component
     onReferencesChange(newReferences.map(r => ({ type: r.type, id: r.id })));
   };
   
   return (
     <div className="space-y-4">
-      {/* Selected references display */}
-      {selectedReferences.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {selectedReferences.map(ref => (
-            <Badge key={`${ref.type}-${ref.id}`} variant="secondary" className="flex items-center gap-1">
-              {ref.type}: {ref.name}
-              <X 
-                className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={() => handleRemoveReference(ref)}
-              />
-            </Badge>
-          ))}
-        </div>
-      )}
+      <SelectedReferencesDisplay 
+        selectedReferences={selectedReferences}
+        onRemoveReference={handleRemoveReference}
+      />
       
       <Input
         placeholder="Search references..."
@@ -109,95 +77,51 @@ export function ReferenceSelector({ onReferencesChange, initialReferences = [] }
         </TabsList>
         
         <TabsContent value="artworks" className="max-h-48 overflow-y-auto">
-          {artworksLoading ? (
-            <div className="text-center text-sm text-muted-foreground py-4">Loading artworks...</div>
-          ) : filteredArtworks.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-4">No artworks found</div>
-          ) : (
-            <div className="space-y-1">
-              {filteredArtworks.map(artwork => (
-                <div key={artwork.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
-                  <div className="text-sm truncate">{artwork.title}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleAddReference({ type: 'artwork', id: artwork.id, name: artwork.title })}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <ReferenceList
+            items={artworks.data}
+            nameKey="title"
+            isLoading={artworks.isLoading}
+            itemType="artwork"
+            onAddReference={handleAddReference}
+            loadingMessage="Loading artworks..."
+            noItemsMessage="No artworks found"
+          />
         </TabsContent>
         
         <TabsContent value="artists" className="max-h-48 overflow-y-auto">
-          {artistsLoading ? (
-            <div className="text-center text-sm text-muted-foreground py-4">Loading artists...</div>
-          ) : filteredArtists.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-4">No artists found</div>
-          ) : (
-            <div className="space-y-1">
-              {filteredArtists.map(artist => (
-                <div key={artist.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
-                  <div className="text-sm truncate">{artist.full_name}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleAddReference({ type: 'artist', id: artist.id, name: artist.full_name })}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <ReferenceList
+            items={artists.data}
+            nameKey="full_name"
+            isLoading={artists.isLoading}
+            itemType="artist"
+            onAddReference={handleAddReference}
+            loadingMessage="Loading artists..."
+            noItemsMessage="No artists found"
+          />
         </TabsContent>
         
         <TabsContent value="collections" className="max-h-48 overflow-y-auto">
-          {collectionsLoading ? (
-            <div className="text-center text-sm text-muted-foreground py-4">Loading collections...</div>
-          ) : filteredCollections.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-4">No collections found</div>
-          ) : (
-            <div className="space-y-1">
-              {filteredCollections.map(collection => (
-                <div key={collection.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
-                  <div className="text-sm truncate">{collection.name}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleAddReference({ type: 'collection', id: collection.id, name: collection.name })}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <ReferenceList
+            items={collections.data}
+            nameKey="name"
+            isLoading={collections.isLoading}
+            itemType="collection"
+            onAddReference={handleAddReference}
+            loadingMessage="Loading collections..."
+            noItemsMessage="No collections found"
+          />
         </TabsContent>
         
         <TabsContent value="documents" className="max-h-48 overflow-y-auto">
-          {documentsLoading ? (
-            <div className="text-center text-sm text-muted-foreground py-4">Loading documents...</div>
-          ) : filteredDocuments.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-4">No documents found</div>
-          ) : (
-            <div className="space-y-1">
-              {filteredDocuments.map(document => (
-                <div key={document.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
-                  <div className="text-sm truncate">{document.file_name}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleAddReference({ type: 'document', id: document.id, name: document.file_name })}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <ReferenceList
+            items={documents.data}
+            nameKey="file_name"
+            isLoading={documents.isLoading}
+            itemType="document"
+            onAddReference={handleAddReference}
+            loadingMessage="Loading documents..."
+            noItemsMessage="No documents found"
+          />
         </TabsContent>
       </Tabs>
     </div>
