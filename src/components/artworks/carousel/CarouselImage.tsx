@@ -1,8 +1,7 @@
-
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
-import { logger } from "@/lib/logger"; // Added logger import
+import { logger } from "@/lib/logger";
 
 interface CarouselImageProps {
   imageUrl: string;
@@ -29,7 +28,7 @@ export const CarouselImage = memo(function CarouselImage({
   carouselHeightClass = "h-[600px]", 
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [optimizedUrl, setOptimizedUrl] = useState<string>("/placeholder.svg"); // Initialize with placeholder
+  const [optimizedUrl, setOptimizedUrl] = useState<string>("/placeholder.svg");
   const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
   const imageLoadAttempted = useRef(false);
@@ -44,26 +43,27 @@ export const CarouselImage = memo(function CarouselImage({
     if (!mountedRef.current) return;
 
     setIsLoading(true);
-    setPlaceholderUrl(null);
     imageLoadAttempted.current = false; 
   
     if (!imageUrl) {
       logger.debug(`CarouselImage: No imageUrl provided for index ${index}, using default placeholder.`);
+      setPlaceholderUrl(null);
       setOptimizedUrl("/placeholder.svg");
       setIsLoading(false);
       return;
     }
     
-    const cachedImage = getCachedImage(imageUrl);
-    if (cachedImage) {
+    const cachedData = getCachedImage(imageUrl);
+    if (cachedData) {
       logger.debug(`CarouselImage: Found cached placeholder for ${imageUrl} (index ${index})`);
-      setPlaceholderUrl(cachedImage.dataUrl);
+      setPlaceholderUrl(cachedData.dataUrl);
+    } else {
+      setPlaceholderUrl(null);
     }
     
     let finalOptimizedUrl = imageUrl;
-    // Apply Supabase transform for carousel images (larger, higher quality)
     if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
-      const transformParams = "w=1920&h=1080&resize=contain&q=90&f=auto"; // Quality changed from 92 to 90
+      const transformParams = "w=1920&h=1080&resize=contain&q=90&f=auto";
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
       } else {
@@ -75,7 +75,7 @@ export const CarouselImage = memo(function CarouselImage({
     }
     setOptimizedUrl(finalOptimizedUrl);
     
-  }, [imageUrl, getCachedImage, index]); // Added index to logger
+  }, [imageUrl, getCachedImage, index]);
   
   const cacheImageIfNeeded = useCallback(() => {
     if (!mountedRef.current || !imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
@@ -127,7 +127,7 @@ export const CarouselImage = memo(function CarouselImage({
     } catch (error) {
       logger.error(`CarouselImage: Failed to cache image for placeholder (index ${index}):`, error);
     }
-  }, [optimizedUrl, setCachedImage, imageUrl, index]); // Added index to logger
+  }, [optimizedUrl, setCachedImage, imageUrl, index]);
 
   return (
     <div 
@@ -136,18 +136,18 @@ export const CarouselImage = memo(function CarouselImage({
       aria-roledescription={ariaRoledescription}
       aria-label={ariaLabel}
     >
-      {isLoading && (
-        <Skeleton className={`absolute inset-0 ${carouselHeightClass}`} />
-      )}
-      
-      {placeholderUrl && isLoading && (
-        <img 
-          src={placeholderUrl}
-          alt={`Loading preview for ${artworkTitle}`}
-          className={`w-full ${carouselHeightClass} object-contain opacity-70`} // Removed blur-sm
-          aria-hidden="true"
-        />
-      )}
+      {isLoading ? (
+        placeholderUrl ? (
+          <img 
+            src={placeholderUrl}
+            alt={`Loading preview for ${artworkTitle}`}
+            className={`absolute inset-0 w-full ${carouselHeightClass} object-contain opacity-70`}
+            aria-hidden="true"
+          />
+        ) : (
+          <Skeleton className={`absolute inset-0 ${carouselHeightClass}`} />
+        )
+      ) : null}
       
       <img
         src={optimizedUrl} 
@@ -168,7 +168,7 @@ export const CarouselImage = memo(function CarouselImage({
         onError={() => {
           if (mountedRef.current) {
             logger.warn(`CarouselImage: Error loading image: ${optimizedUrl} (index ${index}). Falling back to placeholder.`);
-            setOptimizedUrl("/placeholder.svg"); // Fallback to default placeholder on error
+            setOptimizedUrl("/placeholder.svg"); 
             setIsLoading(false);
           }
         }}
