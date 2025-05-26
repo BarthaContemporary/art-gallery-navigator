@@ -1,6 +1,8 @@
+
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
+import { logger } from "@/lib/logger"; // Added logger import
 
 interface CarouselImageProps {
   imageUrl: string;
@@ -12,24 +14,9 @@ interface CarouselImageProps {
   role?: string;
   ariaRoledescription?: string;
   ariaLabel?: string;
-  carouselHeightClass?: string; // New prop for dynamic height
+  carouselHeightClass?: string; 
 }
 
-/**
- * Displays a single image within the carousel.
- * Handles image loading, placeholder, caching, and displays skeleton loaders.
- * Includes ARIA attributes for accessibility.
- *
- * @param imageUrl URL of the image to display.
- * @param index Current index of this image in the carousel.
- * @param totalImages Total number of images in the carousel.
- * @param artistName Optional artist name for alt text.
- * @param artworkTitle Optional artwork title for alt text.
- * @param role ARIA role for the slide item.
- * @param ariaRoledescription ARIA role description for the slide item.
- * @param ariaLabel ARIA label for the slide item, e.g., "Slide 1 of 5".
- * @param carouselHeightClass Optional Tailwind CSS height class for the image container.
- */
 export const CarouselImage = memo(function CarouselImage({
   imageUrl,
   index,
@@ -39,10 +26,10 @@ export const CarouselImage = memo(function CarouselImage({
   role,
   ariaRoledescription,
   ariaLabel,
-  carouselHeightClass = "h-[600px]", // Default height
+  carouselHeightClass = "h-[600px]", 
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [optimizedUrl, setOptimizedUrl] = useState<string>(imageUrl);
+  const [optimizedUrl, setOptimizedUrl] = useState<string>("/placeholder.svg"); // Initialize with placeholder
   const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
   const imageLoadAttempted = useRef(false);
@@ -54,32 +41,47 @@ export const CarouselImage = memo(function CarouselImage({
   }, []);
   
   useEffect(() => {
-    // This effect runs when imageUrl (the prop) changes.
-    // It resets loading states and attempts to load a cached placeholder.
-    // Then it sets optimizedUrl to the new imageUrl, triggering the image load.
+    if (!mountedRef.current) return;
+
     setIsLoading(true);
     setPlaceholderUrl(null);
-    imageLoadAttempted.current = false; // Reset attempt flag for the new image
+    imageLoadAttempted.current = false; 
   
     if (!imageUrl) {
-      setOptimizedUrl("/placeholder.svg"); // Fallback if no URL
+      logger.debug(`CarouselImage: No imageUrl provided for index ${index}, using default placeholder.`);
+      setOptimizedUrl("/placeholder.svg");
       setIsLoading(false);
       return;
     }
     
-    const cachedImage = getCachedImage(imageUrl); // Check cache using the original imageUrl
+    const cachedImage = getCachedImage(imageUrl);
     if (cachedImage) {
-      setPlaceholderUrl(cachedImage.dataUrl); // Use cached data as placeholder
+      logger.debug(`CarouselImage: Found cached placeholder for ${imageUrl} (index ${index})`);
+      setPlaceholderUrl(cachedImage.dataUrl);
     }
     
-    setOptimizedUrl(imageUrl); // Set the URL to be loaded by the <img> tag
+    let finalOptimizedUrl = imageUrl;
+    // Apply Supabase transform for carousel images (larger, higher quality)
+    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+      const transformParams = "w=1920&h=1080&resize=contain&q=92&f=auto"; 
+      if (imageUrl.includes('?')) {
+        finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
+      } else {
+        finalOptimizedUrl = `${imageUrl}?transform=${transformParams}`;
+      }
+      logger.debug(`CarouselImage: Applying Supabase transform for index ${index}. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
+    } else {
+      logger.debug(`CarouselImage: Not a Supabase public URL or no transformation applied for ${imageUrl} (index ${index})`);
+    }
+    setOptimizedUrl(finalOptimizedUrl);
     
-  }, [imageUrl, getCachedImage]);
+  }, [imageUrl, getCachedImage, index]); // Added index to logger
   
   const cacheImageIfNeeded = useCallback(() => {
-    if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
+    if (!mountedRef.current || !imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
     imageLoadAttempted.current = true;
+    logger.debug(`CarouselImage: Attempting to cache image. Original Key: ${imageUrl}, Source for Cache: ${optimizedUrl} (index ${index})`);
     
     try {
       const img = new Image();
@@ -87,26 +89,45 @@ export const CarouselImage = memo(function CarouselImage({
       img.onload = () => {
         if (!mountedRef.current) return;
         
+        logger.debug(`CarouselImage: Image loaded for caching (source: ${optimizedUrl}), creating canvas placeholder for index ${index}.`);
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        const maxDimension = 1800; // Increased max dimension for cached image
-        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
-        canvas.width = Math.floor(img.width * scale);
-        canvas.height = Math.floor(img.height * scale);
+        const maxDimension = 1800; 
+        let scale = 1;
+        if (img.width > 0 && img.height > 0) {
+            scale = maxDimension / Math.max(img.width, img.height);
+            scale = Math.min(1, scale); 
+            if (scale <= 0) scale = 1;
+        } else {
+            canvas.width = Math.min(maxDimension, img.width || maxDimension);
+            canvas.height = Math.min(maxDimension, img.height || maxDimension);
+        }
+        
+        if (img.width > 0 && img.height > 0) {
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
+        } else {
+            canvas.width = maxDimension / 2; 
+            canvas.height = maxDimension / 2;
+        }
         
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.92); // Increased quality
-          // Cache using the original imageUrl as the key, but store the processed dataUrl
+          const mediumResDataUrl = canvas.toDataURL("image/jpeg", 0.92); 
           setCachedImage(imageUrl, mediumResDataUrl); 
+          logger.log(`CarouselImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}, index ${index}). Size: ${mediumResDataUrl.length}`);
         }
       };
-      img.src = optimizedUrl; // This is the original imageUrl passed for processing
+      img.onerror = () => {
+          if (!mountedRef.current) return;
+          logger.error(`CarouselImage: Failed to load image for caching: ${optimizedUrl} (index ${index})`);
+      }
+      img.src = optimizedUrl; 
     } catch (error) {
-      console.error("Failed to cache image:", error);
+      logger.error(`CarouselImage: Failed to cache image for placeholder (index ${index}):`, error);
     }
-  }, [optimizedUrl, setCachedImage, imageUrl]);
+  }, [optimizedUrl, setCachedImage, imageUrl, index]); // Added index to logger
 
   return (
     <div 
@@ -122,14 +143,14 @@ export const CarouselImage = memo(function CarouselImage({
       {placeholderUrl && isLoading && (
         <img 
           src={placeholderUrl}
-          alt="Loading preview"
-          className={`w-full ${carouselHeightClass} object-contain opacity-70`}
+          alt={`Loading preview for ${artworkTitle}`}
+          className={`w-full ${carouselHeightClass} object-contain opacity-70 blur-sm`} // Added blur-sm
           aria-hidden="true"
         />
       )}
       
       <img
-        src={optimizedUrl} // This will be the original imageUrl
+        src={optimizedUrl} 
         alt={`${artworkTitle} by ${artistName} (${index + 1} of ${totalImages})`}
         className={`w-full ${carouselHeightClass} object-contain transition-opacity duration-300`}
         style={{
@@ -137,6 +158,7 @@ export const CarouselImage = memo(function CarouselImage({
         }}
         onLoad={() => {
           if (mountedRef.current) {
+            logger.debug(`CarouselImage: Image loaded: ${optimizedUrl} (index ${index})`);
             setIsLoading(false);
             if (optimizedUrl !== "/placeholder.svg") {
                  cacheImageIfNeeded();
@@ -145,8 +167,8 @@ export const CarouselImage = memo(function CarouselImage({
         }}
         onError={() => {
           if (mountedRef.current) {
-            console.warn(`Failed to load image: ${imageUrl}. Falling back to placeholder.`);
-            setOptimizedUrl("/placeholder.svg");
+            logger.warn(`CarouselImage: Error loading image: ${optimizedUrl} (index ${index}). Falling back to placeholder.`);
+            setOptimizedUrl("/placeholder.svg"); // Fallback to default placeholder on error
             setIsLoading(false);
           }
         }}
@@ -156,3 +178,4 @@ export const CarouselImage = memo(function CarouselImage({
     </div>
   );
 });
+
