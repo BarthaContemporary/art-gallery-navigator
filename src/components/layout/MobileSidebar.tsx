@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -14,24 +15,29 @@ export function MobileSidebar() {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="p-0 flex flex-col h-[96vh]">
-        <div className="flex items-center justify-between border-b px-4 py-4 mt-12">
+      <DrawerContent className="p-0 flex flex-col h-[calc(100vh-4rem)] mt-16 sm:h-[96vh] sm:mt-12">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          {/* Removed logo from here, it's fixed outside */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
+            className="ml-auto sm:ml-0" // Adjusted for alignment
           >
             <X />
           </Button>
-          <img
-            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-            alt="Bartha Logo"
-            className="h-7 w-auto"
-            style={{ maxWidth: 120 }}
-          />
+           {/* Centered Logo inside drawer header when open */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <img
+              src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+              alt="Bartha Logo"
+              className="h-7 w-auto"
+              style={{ maxWidth: 120 }}
+            />
+          </div>
         </div>
-        <nav className="flex-1 py-6 px-4 flex flex-col gap-2">
+        <nav className="flex-1 py-6 px-4 flex flex-col gap-2 overflow-y-auto">
           {navItems.map((item) => (
             <Link
               to={item.href}
@@ -67,20 +73,24 @@ export function MobileSidebar() {
           </Button>
         </div>
       </DrawerContent>
-      <div className="fixed top-3 left-4 z-40">
-        <img
-          src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-          alt="Bartha Logo"
-          className="h-7 w-auto"
-          style={{ maxWidth: 120 }}
-        />
-      </div>
-      <div className="absolute top-3 right-3 z-40">
-        <DrawerTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open menu">
-            <Menu />
-          </Button>
-        </DrawerTrigger>
+
+      {/* Fixed top bar for logo and menu trigger */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-transparent flex items-center justify-between px-3 py-2 z-50 pointer-events-none sm:hidden">
+        <div className="bg-white p-2 rounded-md shadow-md pointer-events-auto">
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 100 }} // Slightly smaller for mobile top bar
+          />
+        </div>
+        <div className="bg-white p-1 rounded-md shadow-md pointer-events-auto">
+          <DrawerTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Open menu">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </DrawerTrigger>
+        </div>
       </div>
     </Drawer>
   );
