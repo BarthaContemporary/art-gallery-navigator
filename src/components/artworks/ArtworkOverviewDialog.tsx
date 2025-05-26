@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -85,7 +86,7 @@ export function ArtworkOverviewDialog({
           className="max-w-4xl w-[90vw] md:w-full max-h-[90vh] overflow-hidden flex flex-col p-0"
           onClick={handleDialogInteraction}
         >
-          <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b">
+          <DialogHeader className="p-6 pb-2 pt-10 sticky top-0 bg-background z-10 border-b">
             <div className="flex flex-col items-start gap-3 md:flex-row md:justify-between md:items-center md:gap-0">
               <DialogTitle className="text-2xl font-semibold text-left">
                 {artwork.title}

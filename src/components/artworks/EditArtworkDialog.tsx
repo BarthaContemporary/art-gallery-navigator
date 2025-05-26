@@ -47,7 +47,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         onClick={handleDialogInteraction}
         onPointerDownOutside={(e) => e.preventDefault()} // Prevent accidental outside clicks
       >
-        <DialogHeader>
+        <DialogHeader className="pt-10">
           <DialogTitle>Edit Artwork</DialogTitle>
           <DialogDescription>
             Make changes to your artwork information below.
