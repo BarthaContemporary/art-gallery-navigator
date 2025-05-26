@@ -1,4 +1,3 @@
-
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
@@ -98,7 +97,7 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           logger.log(`ArtworkCardImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}). Size: ${placeholderDataUrl.length}`);
         }
       };
-      img.onerror = ()_ => {
+      img.onerror = () => {
           logger.error(`ArtworkCardImage: Failed to load image for caching: ${optimizedUrl}`);
       }
       img.src = optimizedUrl; // Load the (potentially server-optimized) image
