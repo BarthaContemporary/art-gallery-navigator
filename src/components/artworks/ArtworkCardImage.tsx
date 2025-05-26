@@ -3,6 +3,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
+import { logger } from "@/lib/logger";
 
 interface ArtworkCardImageProps {
   imageUrl: string | null;
@@ -20,53 +21,67 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
   useEffect(() => {
     // Reset states when image URL changes
     setIsLoading(true);
-    setPlaceholderUrl(null);
+    setPlaceholderUrl(null); // Clear previous placeholder
     imageLoadAttempted.current = false;
     
     if (!imageUrl) {
+      logger.debug("ArtworkCardImage: No imageUrl provided, using default placeholder.");
       setOptimizedUrl("/placeholder.svg");
       setIsLoading(false);
       return;
     }
 
     // Check cache first
-    const cachedImage = getCachedImage(imageUrl);
+    const cachedImage = getCachedImage(imageUrl); // Use original imageUrl as cache key
     if (cachedImage) {
+      logger.debug(`ArtworkCardImage: Found cached placeholder for ${imageUrl}`);
       setPlaceholderUrl(cachedImage.dataUrl);
-      // Still load the full image but with a nice placeholder
+      // Still load the full/optimized image but with a nice placeholder
     }
 
-    // For thumbnails in cards, use a smaller image size if possible
-    if (imageUrl.includes('supabase.co/storage')) {
-      // This could be enhanced with actual resize parameters if your storage supports it
-      setOptimizedUrl(imageUrl);
+    let finalOptimizedUrl = imageUrl;
+    // For thumbnails in cards, use a smaller image size if possible via Supabase transform
+    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
+      const transformParams = "w=600&q=80&f=auto"; // Width 600px, quality 80, auto format
+      if (imageUrl.includes('?')) {
+        finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
+      } else {
+        finalOptimizedUrl = `${imageUrl}?transform=${transformParams}`;
+      }
+      logger.debug(`ArtworkCardImage: Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
     } else {
-      setOptimizedUrl(imageUrl);
+      logger.debug(`ArtworkCardImage: Not a Supabase public URL or no transformation applied for ${imageUrl}`);
     }
+    setOptimizedUrl(finalOptimizedUrl);
+
   }, [imageUrl, getCachedImage]);
 
   // Function to create and cache a version for placeholders
+  // This will now cache the server-optimized image (if applicable) or the original image
   const cacheImageIfNeeded = () => {
-    if (!optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
+    // Use original imageUrl as the primary key for caching,
+    // but the content cached is derived from optimizedUrl (which might be server-transformed)
+    if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
-    imageLoadAttempted.current = true;
+    imageLoadAttempted.current = true; // Attempt to load and cache this version
     
+    logger.debug(`ArtworkCardImage: Attempting to cache image. Original Key: ${imageUrl}, Source for Cache: ${optimizedUrl}`);
+
     try {
       const img = new Image();
-      img.crossOrigin = "anonymous"; // This is needed for some external images
+      img.crossOrigin = "anonymous"; 
       img.onload = () => {
-        // Create a smaller, more compressed version for card placeholders
+        logger.debug(`ArtworkCardImage: Image loaded for caching (source: ${optimizedUrl}), creating canvas placeholder.`);
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Reduced max dimension for card placeholders to 600px (was 1000)
+        // Max dimension for the canvas-generated placeholder (consistency)
         const maxDimension = 600; 
         let scale = 1;
-        if (img.width > 0 && img.height > 0) { // Ensure dimensions are positive
+        if (img.width > 0 && img.height > 0) {
             scale = maxDimension / Math.max(img.width, img.height);
-            // Ensure scale is not greater than 1 to avoid upscaling
             scale = Math.min(1, scale); 
-        } else { // Fallback if image dimensions are not available or zero
+        } else { 
             canvas.width = Math.min(maxDimension, img.width || maxDimension);
             canvas.height = Math.min(maxDimension, img.height || maxDimension);
         }
@@ -76,23 +91,25 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
             canvas.height = Math.floor(img.height * scale);
         }
 
-
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Using JPEG quality of 0.8 (was 1.0)
           const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.8); 
-          setCachedImage(optimizedUrl, placeholderDataUrl);
+          setCachedImage(imageUrl, placeholderDataUrl); // Cache using original imageUrl as key
+          logger.log(`ArtworkCardImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}). Size: ${placeholderDataUrl.length}`);
         }
       };
-      img.src = optimizedUrl;
+      img.onerror = ()_ => {
+          logger.error(`ArtworkCardImage: Failed to load image for caching: ${optimizedUrl}`);
+      }
+      img.src = optimizedUrl; // Load the (potentially server-optimized) image
     } catch (error) {
-      console.error("Failed to cache image for placeholder:", error);
+      logger.error("ArtworkCardImage: Failed to cache image for placeholder:", error);
     }
   };
 
   return (
     <div 
-      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group"
+      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30" // Added a subtle bg
       onClick={onClick}
     >
       <AspectRatio ratio={4/3}>
@@ -100,12 +117,11 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           <Skeleton className="h-full w-full absolute inset-0" />
         )}
         
-        {/* Show cached placeholder while loading */}
         {placeholderUrl && isLoading && (
           <img 
             src={placeholderUrl}
             alt={`Loading ${title}`}
-            className="h-full w-full object-cover opacity-70"
+            className="h-full w-full object-cover opacity-70 blur-sm" // Added blur for placeholder
             aria-hidden="true"
           />
         )}
@@ -113,14 +129,19 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`h-full w-full object-cover transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:scale-105 ${
-            isLoading ? 'opacity-0' : ''
+          className={`h-full w-full object-cover transition-all duration-300 group-hover:opacity-100 group-hover:scale-105 ${
+            isLoading ? 'opacity-0' : 'opacity-80' // Start with opacity-80 when loaded
           }`}
           onLoad={() => {
+            logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
             setIsLoading(false);
-            cacheImageIfNeeded();
+            // Only attempt to cache if it's not already the default placeholder
+            if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
+              cacheImageIfNeeded();
+            }
           }}
           onError={() => {
+            logger.warn(`ArtworkCardImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
             setOptimizedUrl("/placeholder.svg");
             setIsLoading(false);
           }}
