@@ -16,10 +16,17 @@ export function TaskFormActions({ isSubmitting, onCancel, isEditing }: TaskFormA
         variant="outline"
         onClick={onCancel}
         disabled={isSubmitting}
+        size="sm"
+        className="text-xs md:text-sm"
       >
         Cancel
       </Button>
-      <Button type="submit" disabled={isSubmitting}>
+      <Button 
+        type="submit" 
+        disabled={isSubmitting}
+        size="sm"
+        className="text-xs md:text-sm"
+      >
         {isSubmitting
           ? isEditing
             ? "Updating..."

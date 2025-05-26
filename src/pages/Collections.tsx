@@ -3,31 +3,30 @@ import { CollectionGrid } from "@/components/collections/CollectionGrid";
 import { CollectionDialog } from "@/components/collections/CollectionDialog";
 import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
-// import { toast } from "sonner"; // No longer needed for this button
-import { useNavigate } from "react-router-dom"; // Added import
+import { useNavigate } from "react-router-dom";
 
 export default function Collections() {
-  const navigate = useNavigate(); // Added hook
+  const navigate = useNavigate();
 
   const handleManageAllWebsites = () => {
-    // toast.info("Global management of collection websites will be available here soon.");
-    navigate("/manage-websites"); // Navigate to the new page
+    navigate("/manage-websites");
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      {/* Changed justify-between to justify-start, removed empty div */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleManageAllWebsites}> {/* Added size="sm" */}
-            <Globe className="mr-2 h-4 w-4" />
-            Manage All Websites
-          </Button>
-          <CollectionDialog /> {/* Size cannot be changed (read-only component) */}
-        </div>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-start sm:items-center justify-start mb-4 md:mb-6 gap-3 md:gap-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleManageAllWebsites}
+          className="text-xs md:text-sm"
+        >
+          <Globe className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
+          Manage All Websites
+        </Button>
+        <CollectionDialog />
       </div>
       <CollectionGrid />
     </div>
   );
 }
-

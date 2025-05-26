@@ -10,7 +10,7 @@ const Projects = () => {
   const [type, setType] = useState("all");
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
       <ProjectsHeader />
       <ProjectsSearch
         search={search}

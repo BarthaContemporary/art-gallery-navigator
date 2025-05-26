@@ -17,7 +17,7 @@ export function DocumentActions({ onDownload, onDelete, isDeleting }: DocumentAc
         onClick={onDownload}
         aria-label="Download"
       >
-        <Download className="h-4 w-4" />
+        <Download className="h-3 w-3 md:h-4 md:w-4" />
       </Button>
       <Button
         variant="outline"
@@ -31,7 +31,7 @@ export function DocumentActions({ onDownload, onDelete, isDeleting }: DocumentAc
         }}
         aria-label="Delete"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
       </Button>
     </div>
   );

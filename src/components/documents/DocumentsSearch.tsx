@@ -26,7 +26,7 @@ export function DocumentsSearch({
   return (
     <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-4">
       <div className="relative flex-1 w-full max-w-sm">
-        <Search className="absolute left-2 top-1.5 md:top-2.5 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-2 top-1.5 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search documents..."
@@ -48,35 +48,35 @@ export function DocumentsSearch({
         <DropdownMenuContent className="w-48 md:w-56">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => onTypeFilterChange(null)}>
-              <FileBox className="mr-2 h-4 w-4" />
+              <FileBox className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               All Document Types
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("condition report")}>
-              <FileCheck className="mr-2 h-4 w-4" />
+              <FileCheck className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Condition Reports
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("invoice")}>
-              <FileText className="mr-2 h-4 w-4" />
+              <FileText className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Invoices
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("provenance")}>
-              <FileKey className="mr-2 h-4 w-4" />
+              <FileKey className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Provenance Documents
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("CoA")}>
-              <FileCheck className="mr-2 h-4 w-4" />
+              <FileCheck className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Certificates of Authenticity
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("loan agreement")}>
-              <FileText className="mr-2 h-4 w-4" />
+              <FileText className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Loan Agreement
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("image zip")}>
-              <FileImage className="mr-2 h-4 w-4" />
+              <FileImage className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Image ZIP
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTypeFilterChange("related file")}>
-              <FilePlus className="mr-2 h-4 w-4" />
+              <FilePlus className="mr-2 h-3 w-3 md:h-4 md:w-4" />
               Related File
             </DropdownMenuItem>
           </DropdownMenuGroup>

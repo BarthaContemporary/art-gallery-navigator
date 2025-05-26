@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { useArtists } from "@/hooks/useArtists"; // Corrected import path
+import { useArtists } from "@/hooks/useArtists"; 
 import {
   Command,
   CommandEmpty,
@@ -44,6 +44,7 @@ export function ArtworkSearch({ artworks = [], selectedArtworks = [], onToggleAr
         placeholder="Search artworks..."
         value={search}
         onValueChange={setSearch}
+        className="h-8 text-xs md:h-10 md:text-sm"
       />
       <CommandList>
         <ScrollArea className="h-[200px]">
@@ -54,23 +55,23 @@ export function ArtworkSearch({ artworks = [], selectedArtworks = [], onToggleAr
                   key={artwork.id}
                   value={artwork.title}
                   onSelect={() => onToggleArtwork(artwork.id)}
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex items-center gap-2 cursor-pointer text-xs md:text-sm"
                 >
                   <div className="flex items-center gap-2 flex-1">
                     <div
-                      className={`flex h-4 w-4 items-center justify-center rounded-sm border ${
+                      className={`flex h-3 w-3 md:h-4 md:w-4 items-center justify-center rounded-sm border ${
                         selectedArtworks.includes(artwork.id)
                           ? "bg-primary border-primary"
                           : "border-input"
                       }`}
                     >
                       {selectedArtworks.includes(artwork.id) && (
-                        <Check className="h-3 w-3 text-primary-foreground" />
+                        <Check className="h-2 w-2 md:h-3 md:w-3 text-primary-foreground" />
                       )}
                     </div>
                     <span className="flex-1">
                       {artwork.title}
-                      <span className="text-sm text-muted-foreground ml-2">
+                      <span className="text-xs text-muted-foreground ml-2">
                         by {getArtistName(artwork.artist_id)}
                       </span>
                     </span>
@@ -86,4 +87,3 @@ export function ArtworkSearch({ artworks = [], selectedArtworks = [], onToggleAr
     </Command>
   );
 }
-

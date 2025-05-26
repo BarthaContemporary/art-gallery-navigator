@@ -1,3 +1,4 @@
+
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
@@ -16,11 +17,9 @@ export default function Documents() {
   });
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-4 mb-8">
-        <div className="flex items-center justify-start">
-          <UploadDocumentDialog />
-        </div>
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-start mb-4 md:mb-6">
+        <UploadDocumentDialog />
       </div>
       <DocumentsSearch 
         searchTerm={searchTerm} 

@@ -10,12 +10,11 @@ export function ProjectsHeader() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   return (
-    // Changed justify-between to justify-start
-    <div className="flex flex-wrap justify-start items-center gap-4 mb-6">
+    <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
       <PageHeader title="PROJECTS" />
       
       {isAdmin && (
-        <Button size="sm" onClick={() => setCreateDialogOpen(true)}> {/* Added size="sm" */}
+        <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-xs md:text-sm">
           Create Project
         </Button>
       )}
@@ -27,4 +26,3 @@ export function ProjectsHeader() {
     </div>
   );
 }
-

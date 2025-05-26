@@ -9,11 +9,10 @@ const Locations = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      {/* Changed justify-between to justify-start */}
-      <div className="flex flex-wrap justify-start items-center gap-4 mb-6">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
         <PageHeader title="LOCATIONS" />
-        <CreateLocationDialog /> {/* Button size cannot be changed (read-only component) */}
+        <CreateLocationDialog />
       </div>
       <LocationSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
       <LocationGrid searchTerm={searchTerm} />
@@ -22,4 +21,3 @@ const Locations = () => {
 };
 
 export default Locations;
-

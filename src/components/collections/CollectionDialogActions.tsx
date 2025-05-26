@@ -37,23 +37,25 @@ export function CollectionDialogActions({
       <Button
         onClick={onGeneratePDF}
         disabled={!collection || isGeneratingPDF || isCreatingWebsite}
-        className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+        className="flex items-center gap-1 md:gap-2 bg-primary hover:bg-primary/90 text-xs md:text-sm"
+        size="sm"
       >
         {isGeneratingPDF ? "Generating PDF..." : "Create Artworks PDF"}
-        <Download className="h-4 w-4" />
+        <Download className="h-3 w-3 md:h-4 md:w-4" />
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            className="flex items-center gap-2"
+            className="flex items-center gap-1 md:gap-2 text-xs md:text-sm"
             disabled={!documents?.length || isGeneratingPDF || isCreatingWebsite}
+            size="sm"
           >
             Download Documents
-            <Download className="h-4 w-4" />
+            <Download className="h-3 w-3 md:h-4 md:w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-48 md:w-56">
           {documents?.length > 0 && (
             <>
               <DropdownMenuItem onClick={onDownloadAllDocuments}>
@@ -81,10 +83,11 @@ export function CollectionDialogActions({
       <Button
         onClick={onCreateWebsite}
         disabled={!collection || isCreatingWebsite || isGeneratingPDF}
-        className="flex items-center gap-2"
+        className="flex items-center gap-1 md:gap-2 text-xs md:text-sm"
+        size="sm"
       >
         {isCreatingWebsite ? "Creating Website..." : "Create Website"}
-        <Globe className="h-4 w-4" />
+        <Globe className="h-3 w-3 md:h-4 md:w-4" />
       </Button>
     </div>
   );

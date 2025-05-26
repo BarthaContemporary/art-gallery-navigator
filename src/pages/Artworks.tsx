@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
@@ -14,7 +15,6 @@ import { exportArtworksToCSV } from "@/lib/csv-utils";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
-import { Artwork } from "@/hooks/use-artworks";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +37,8 @@ const Artworks = () => {
   } = useArtists();
 
   const filteredArtworks = artworks?.filter(artwork => {
-    const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter ? artwork.status === statusFilter : true;
     const matchesType = typeFilter ? artwork.medium_type === typeFilter : true;
     const matchesArtist = artistFilter ? artwork.artist_id === artistFilter : true;
@@ -94,36 +95,57 @@ const Artworks = () => {
       </div>;
   }
 
-  return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
-        <div className="flex flex-wrap gap-2">
-          <ImportCSVDialog />
-          <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportFiltered} disabled={!filteredArtworks.length}>
-            <Download className="h-4 w-4" />
-            Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
+  return <div className="p-3 md:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-start mb-4 md:mb-6 gap-2">
+        <ImportCSVDialog />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex gap-1 md:gap-2 text-xs md:text-sm" 
+          onClick={handleExportFiltered} 
+          disabled={!filteredArtworks.length}
+        >
+          <Download className="h-3 w-3 md:h-4 md:w-4" />
+          Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
+        </Button>
+        {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && 
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex gap-1 md:gap-2 text-xs md:text-sm" 
+            onClick={handleExportAll}
+          >
+            <Download className="h-3 w-3 md:h-4 md:w-4" />
+            Export All ({artworks.length})
           </Button>
-          {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && 
-            <Button variant="outline" size="sm" className="flex gap-2" onClick={handleExportAll}>
-              <Download className="h-4 w-4" />
-              Export All ({artworks.length})
-            </Button>}
-          <CreateArtworkDialog />
-          <Button variant="ghost" size="icon" title="Clear Image Cache" onClick={handleClearImageCache}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+        }
+        <CreateArtworkDialog />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          title="Clear Image Cache" 
+          onClick={handleClearImageCache}
+        >
+          <RefreshCw className="h-3 w-3 md:h-4 md:w-4" />
+        </Button>
       </div>
 
-      <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="mb-4 md:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4">
         <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        <div className="flex flex-wrap gap-2"> {/* Ensure flex-wrap for smaller screens */}
+        <div className="flex flex-wrap gap-2">
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} />
           <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
         </div>
       </div>
 
-      {letters.length > 0 && <AlphabeticalIndex letters={letters} onLetterClick={setActiveIndex} activeLetter={activeIndex} />}
+      {letters.length > 0 && 
+        <AlphabeticalIndex 
+          letters={letters} 
+          onLetterClick={setActiveIndex} 
+          activeLetter={activeIndex} 
+        />
+      }
 
       <ArtworkGrid artworks={filteredArtworks} activeIndex={activeIndex} />
     </div>;
