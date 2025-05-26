@@ -105,7 +105,8 @@ function Auth() {
   
   return (
     <ErrorBoundary>
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-3 md:p-4">
+      {/* Changed bg-gray-50 to bg-background */}
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 p-3 md:p-4">
         <div className="w-full max-w-md">
           <Card className="p-3 md:p-6 shadow-lg">
             <div className="mb-3 md:mb-6 text-center">

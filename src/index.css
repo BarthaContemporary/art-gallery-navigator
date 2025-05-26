@@ -8,6 +8,10 @@
     font-family: "Source Sans 3", system-ui, sans-serif;
   }
   
+  body {
+    @apply bg-background; /* Apply the theme's background color, which is white */
+  }
+
   h1 {
     @apply font-sans font-normal text-slate-500; /* Changed from font-visby to font-sans */
   }
