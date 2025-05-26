@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useEffect } from "react"; // useEffect will be removed but keeping other imports
+import { useState, useEffect } from "react";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,22 +24,19 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-// Hardcode the Turnstile Site Key
-const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || "";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
-  // Removed isSiteKeyAvailable state and the useEffect that set it.
 
   useEffect(() => {
-    // Log if the hardcoded site key is empty, which would prevent Turnstile from working.
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Turnstile Site Key is hardcoded but is an empty string. CAPTCHA will not function.");
+      logger.error("Turnstile Site Key is not configured (VITE_TURNSTILE_SITE_KEY is missing or empty). CAPTCHA will not function.");
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
     } else {
-      logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY);
+      logger.log("Using Turnstile Site Key from environment variable.");
     }
   }, []);
 
@@ -73,8 +70,8 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
 
   const handleSubmit = (values: LoginFormValues) => {
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Login attempt while Turnstile site key is missing (hardcoded as empty).");
-      // Error is already set by useEffect
+      logger.error("Login attempt while Turnstile site key is missing.");
+      // Error is already set by useEffect and displayed
       return;
     }
     if (!captchaToken) {

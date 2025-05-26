@@ -11,7 +11,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { DebugInfo } from "@/components/ui/debug-info";
 import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
 import { logger } from "@/lib/logger";
-import { Loader2 } from "lucide-react"; // Added this import
+import { Loader2 } from "lucide-react";
 
 type AuthTab = "login" | "otp";
 
@@ -34,7 +34,7 @@ function Auth() {
   
   useEffect(() => {
     if (user && !isLoading) {
-      logger.log("User is authenticated, redirecting to:", from);
+      logger.log("Auth page: User is authenticated, redirecting to:", from);
       navigate(from, { replace: true });
     }
   }, [user, isLoading, navigate, from]);
@@ -56,11 +56,11 @@ function Auth() {
   const handleLoginSubmit = async (values: { email: string; password?: string }, captchaToken: string) => {
     try {
       resetError();
-      logger.log("Auth page: handleLoginSubmit with captcha token:", captchaToken ? "Present" : "Absent");
+      logger.log("Auth page: handleLoginSubmit for email:", values.email, "Captcha token present:", !!captchaToken);
       const { needsOTP } = await signIn(
         values.email, 
-        values.password || "", // Provide empty string if password is not present (for OTP only flows)
-        captchaToken // Pass captcha token
+        values.password || "", 
+        captchaToken
       );
       if (needsOTP) {
         handleOtpRequested(values.email);
@@ -69,6 +69,7 @@ function Auth() {
       if (error instanceof Error) {
         handleAuthError(error);
       } else {
+        logger.error("Auth page: Unknown login error occurred", error);
         handleAuthError(new Error("An unknown login error occurred"));
       }
     }
@@ -77,14 +78,13 @@ function Auth() {
   const handleOtpSubmit = async (values: { otp: string }) => {
     try {
       resetError();
-      // Note: OTP verification itself might not directly involve a captcha token in its current flow
-      // as the captcha was likely verified at the `signInWithOtp` (request OTP) stage.
-      // If verifyOTP itself needs a captcha for some reason, useAuth and its types would need update.
+      logger.log("Auth page: handleOtpSubmit for email:", email);
       await verifyOTP(email, values.otp);
     } catch (error) {
       if (error instanceof Error) {
         handleAuthError(error);
       } else {
+        logger.error("Auth page: Unknown OTP error occurred", error);
         handleAuthError(new Error("An unknown OTP error occurred"));
       }
     }
@@ -99,9 +99,7 @@ function Auth() {
   }
   
   if (user) {
-    // If user is authenticated, useEffect above should handle redirection.
-    // This return null prevents rendering the auth form if user is already logged in
-    // and waiting for redirection.
+    logger.log("Auth page: User is authenticated, awaiting redirection effect.");
     return null;
   }
   
@@ -119,7 +117,7 @@ function Auth() {
               <ErrorDisplay 
                 error={authError} 
                 resetError={resetError} 
-                showHomeButton={false} // No home button needed on auth page usually
+                showHomeButton={false}
                 title="Authentication Error" 
               />
             )}
@@ -135,9 +133,9 @@ function Auth() {
               <TabsContent value="login">
                 <LoginForm 
                   onSubmit={handleLoginSubmit}
-                  isLoading={isLoading} // isLoading from useAuth
+                  isLoading={isLoading} 
                   onOtpRequested={handleOtpRequested}
-                  onError={handleAuthError} // Pass the error handler
+                  onError={handleAuthError}
                 />
               </TabsContent>
               
@@ -145,9 +143,9 @@ function Auth() {
                 <OTPVerification 
                   onSubmit={handleOtpSubmit}
                   onBack={() => setSelectedTab("login")}
-                  isLoading={isLoading} // isLoading from useAuth
-                  email={email} // Pass the email for context if needed
-                  onError={handleAuthError} // Pass the error handler
+                  isLoading={isLoading} 
+                  email={email}
+                  onError={handleAuthError}
                 />
               </TabsContent>
             </Tabs>
