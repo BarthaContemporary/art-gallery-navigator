@@ -9,11 +9,14 @@ import { logger } from "@/lib/logger";
 export function useAuthActions() {
   const navigate = useNavigate();
 
-  const signInWithPassword = async (email: string, password: string) => {
-    logger.log("Signing in with password:", email);
+  const signInWithPassword = async (email: string, password: string, captchaToken?: string) => {
+    logger.log("Signing in with password:", email, "Captcha token present:", !!captchaToken);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+      options: {
+        captchaToken, // Pass the CAPTCHA token to Supabase
+      },
     });
     if (error) {
       logger.error("Sign in with password error:", error);
@@ -22,12 +25,13 @@ export function useAuthActions() {
     logger.log("Password sign-in successful");
   };
 
-  const signInWithOTP = async (email: string) => {
-    logger.log("Sending OTP to:", email);
+  const signInWithOTP = async (email: string, captchaToken?: string) => {
+    logger.log("Sending OTP to:", email, "Captcha token present:", !!captchaToken);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
+        captchaToken, // Pass the CAPTCHA token to Supabase
       }
     });
     if (error) {
@@ -38,21 +42,23 @@ export function useAuthActions() {
     return { needsOTP: true };
   };
   
-  const signIn = async (email: string, password?: string) => {
-    logger.log("Signing in with:", email);
+  const signIn = async (email: string, password?: string, captchaToken?: string) => {
+    logger.log("Signing in with:", email, "Captcha token present:", !!captchaToken);
     if (password) {
       try {
-        await signInWithPassword(email, password);
+        await signInWithPassword(email, password, captchaToken);
         return { needsOTP: false };
       } catch (error) {
         logger.error("Password login failed:", error);
+        // If password login fails (e.g. invalid credentials), try OTP, but still pass captcha
         if (error instanceof Error && error.message.includes("Invalid login credentials")) {
-          return signInWithOTP(email);
+          logger.log("Password failed, attempting OTP sign-in for:", email);
+          return signInWithOTP(email, captchaToken); 
         }
         throw error;
       }
     } else {
-      return signInWithOTP(email);
+      return signInWithOTP(email, captchaToken);
     }
   };
 
@@ -71,13 +77,23 @@ export function useAuthActions() {
     navigate("/");
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+  const signUp = async (email: string, password: string, captchaToken?: string) => {
+    logger.log("Signing up user:", email, "Captcha token present:", !!captchaToken);
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        captchaToken, // Pass the CAPTCHA token to Supabase for sign-up
+      }
+    });
     if (error) {
       logger.error("Sign up error:", error);
       throw error;
     }
-    logger.log("Sign up successful");
+    logger.log("Sign up successful, confirmation email sent (if enabled).");
+    // Typically, Supabase sends a confirmation email.
+    // You might want to navigate to a page indicating this, or to the login page.
+    // For now, let's assume the user will be redirected or prompted by Supabase's default behavior.
   };
 
   const signOut = async () => {

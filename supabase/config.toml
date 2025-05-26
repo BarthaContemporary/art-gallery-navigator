@@ -7,7 +7,10 @@ verify_jwt = false
 [functions.delete-user]
 verify_jwt = true
 
-# Removed [functions.verify-turnstile] section
-
 [functions.hash-collection-password]
-verify_jwt = true # Ensures only authenticated users can call this
+verify_jwt = true
+
+[functions.verify-turnstile]
+verify_jwt = false # Important: Should be callable without a user JWT during auth
+# You might also need to specify import_map if you use one
+# import_map = "./import_map.json" 

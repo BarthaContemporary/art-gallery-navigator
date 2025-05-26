@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -10,11 +9,12 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { DebugInfo } from "@/components/ui/debug-info";
 import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
+import { logger } from "@/lib/logger";
 
 type AuthTab = "login" | "otp";
 
 function Auth() {
-  const { user, isLoading, signIn, verifyOTP } = useAuth();
+  const { user, isLoading, signIn, verifyOTP, signUp } = useAuth();
   const [selectedTab, setSelectedTab] = useState<AuthTab>("login");
   const [email, setEmail] = useState<string>("");
   const [authError, setAuthError] = useState<Error | null>(null);
@@ -32,7 +32,7 @@ function Auth() {
   
   useEffect(() => {
     if (user && !isLoading) {
-      console.log("User is authenticated, redirecting to:", from);
+      logger.log("User is authenticated, redirecting to:", from);
       navigate(from, { replace: true });
     }
   }, [user, isLoading, navigate, from]);
@@ -43,7 +43,7 @@ function Auth() {
   };
   
   const handleAuthError = (error: Error) => {
-    console.error("Authentication error:", error);
+    logger.error("Authentication error on Auth page:", error);
     setAuthError(error);
   };
   
@@ -51,13 +51,14 @@ function Auth() {
     setAuthError(null);
   };
 
-  const handleLoginSubmit = async (values: { email: string; password?: string }) => { // Removed captchaToken from signature, made password optional
+  const handleLoginSubmit = async (values: { email: string; password?: string }, captchaToken: string) => {
     try {
       resetError();
+      logger.log("Auth page: handleLoginSubmit with captcha token:", captchaToken ? "Present" : "Absent");
       const { needsOTP } = await signIn(
         values.email, 
-        values.password || ""
-        // Removed captchaToken
+        values.password || "",
+        captchaToken
       );
       if (needsOTP) {
         handleOtpRequested(values.email);
@@ -65,6 +66,8 @@ function Auth() {
     } catch (error) {
       if (error instanceof Error) {
         handleAuthError(error);
+      } else {
+        handleAuthError(new Error("An unknown login error occurred"));
       }
     }
   };
@@ -76,12 +79,18 @@ function Auth() {
     } catch (error) {
       if (error instanceof Error) {
         handleAuthError(error);
+      } else {
+        handleAuthError(new Error("An unknown OTP error occurred"));
       }
     }
   };
   
-  if (isLoading) {
-    return null;
+  if (isLoading && !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
   
   if (user) {
@@ -120,7 +129,7 @@ function Auth() {
                   onSubmit={handleLoginSubmit}
                   isLoading={isLoading}
                   onOtpRequested={handleOtpRequested}
-                  onError={handleAuthError} // onError prop in LoginForm is generic, kept
+                  onError={handleAuthError}
                 />
               </TabsContent>
               
