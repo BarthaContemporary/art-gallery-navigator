@@ -24,7 +24,8 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-const TURNSTILE_SITE_KEY = process.env.VITE_TURNSTILE_SITE_KEY || "";
+// Use import.meta.env for Vite environment variables
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +37,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
       logger.error("Turnstile Site Key is not configured (VITE_TURNSTILE_SITE_KEY is missing or empty). CAPTCHA will not function.");
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
     } else {
-      logger.log("Using Turnstile Site Key from environment variable.");
+      logger.log("Using Turnstile Site Key from environment variable:", TURNSTILE_SITE_KEY ? "****** (loaded)" : "NOT LOADED");
     }
   }, []);
 
@@ -183,3 +184,4 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     </Form>
   );
 }
+
