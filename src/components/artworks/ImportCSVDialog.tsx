@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +34,8 @@ export function ImportCSVDialog() {
     handleMappingsChanged,
     goToPreviewStep,
     handleImport,
+    toggleArtworkSelection,
+    toggleSelectAllArtworks,
   } = useImportCSV(false);
   
   const renderStepContent = () => {
@@ -64,6 +65,8 @@ export function ImportCSVDialog() {
             parsedArtworks={parsedArtworks}
             onImport={handleImport}
             onBack={() => setCurrentStep("mapFields")}
+            toggleArtworkSelection={toggleArtworkSelection}
+            toggleSelectAllArtworks={toggleSelectAllArtworks}
           />
         );
       case "importing":

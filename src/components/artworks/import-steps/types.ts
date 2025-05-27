@@ -1,4 +1,3 @@
-
 import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types"; // Added ValidatedProcessedArtwork
 import { ReactNode } from "react";
 
@@ -24,7 +23,7 @@ export interface UseImportCSVReturn {
   setFile: (file: File | null) => void;
   csvPreviewData: CSVPreviewData | null;
   fieldMappings: FieldMappings;
-  parsedArtworks: ValidatedProcessedArtwork[]; // Changed type here
+  parsedArtworks: ValidatedProcessedArtwork[]; 
   isProcessingFile: boolean;
   importingProgress: number;
   importStats: ImportStats;
@@ -33,6 +32,8 @@ export interface UseImportCSVReturn {
   goToPreviewStep: () => void;
   handleImport: () => Promise<void>;
   resetState: () => void;
+  toggleArtworkSelection: (originalRowIndex: number) => void; // Added
+  toggleSelectAllArtworks: (selectAll: boolean) => void; // Added
 }
 
 export interface UploadStepProps {
@@ -42,9 +43,11 @@ export interface UploadStepProps {
 }
 
 export interface PreviewStepProps {
-  parsedArtworks: ValidatedProcessedArtwork[]; // Changed type here
+  parsedArtworks: ValidatedProcessedArtwork[]; 
   onImport: () => void;
   onBack: () => void;
+  toggleArtworkSelection: (originalRowIndex: number) => void; // Added
+  toggleSelectAllArtworks: (selectAll: boolean) => void; // Added
 }
 
 export interface ImportingStepProps {

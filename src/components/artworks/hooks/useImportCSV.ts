@@ -79,22 +79,45 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     const validatedArtworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
     setParsedArtworks(validatedArtworks);
     
-    const validToImportCount = validatedArtworks.filter(va => va.isValid).length;
+    const validToImportCount = validatedArtworks.filter(va => va.isValid && va.isSelectedForImport).length;
     if (validToImportCount === 0 && validatedArtworks.length > 0) {
-        toast.warning("No artworks could be confidently prepared for import. Please review warnings/errors and your field mappings.");
+        const anyValid = validatedArtworks.some(va => va.isValid);
+        if (anyValid) {
+            toast.warning("No artworks are currently selected for import, or none could be confidently prepared. Please review selections, warnings/errors and your field mappings.");
+        } else {
+            toast.warning("No artworks could be confidently prepared for import. Please review warnings/errors and your field mappings.");
+        }
     } else if (validatedArtworks.length === 0) {
         toast.warning("No artworks could be generated with the current mappings. Please check your field mappings or CSV content.");
     }
     setCurrentStep("preview");
   };
+
+  const toggleArtworkSelection = (originalRowIndex: number) => {
+    setParsedArtworks(prevArtworks =>
+      prevArtworks.map(artwork =>
+        artwork.originalRowIndex === originalRowIndex
+          ? { ...artwork, isSelectedForImport: !artwork.isSelectedForImport }
+          : artwork
+      )
+    );
+  };
+
+  const toggleSelectAllArtworks = (selectAll: boolean) => {
+    setParsedArtworks(prevArtworks =>
+      prevArtworks.map(artwork =>
+        artwork.isValid ? { ...artwork, isSelectedForImport: selectAll } : artwork
+      )
+    );
+  };
   
   const handleImport = async () => {
     const artworksToAttemptImport = parsedArtworks
-      .filter(va => va.isValid)
+      .filter(va => va.isValid && va.isSelectedForImport) // Only import valid AND selected artworks
       .map(va => va.artwork);
 
     if (!artworksToAttemptImport.length) {
-      toast.error("No valid artworks to import. Please check mappings, CSV data, and any validation messages.");
+      toast.error("No valid artworks selected to import. Please check selections, mappings, CSV data, and any validation messages.");
       return;
     }
 
@@ -137,5 +160,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     goToPreviewStep,
     handleImport,
     resetState,
+    toggleArtworkSelection, // Expose new function
+    toggleSelectAllArtworks, // Expose new function
   };
 }

@@ -1,4 +1,3 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 
 export type ArtworkKeys = keyof Artwork;
@@ -26,6 +25,7 @@ export interface ValidatedProcessedArtwork {
   warnings: string[];
   errors: string[];
   isValid: boolean; // True if errors array is empty
+  isSelectedForImport: boolean; // New flag for row exclusion
 }
 
 // Define the list of available artwork fields for mapping
@@ -67,4 +67,3 @@ export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys | 'artist_na
   { value: "crate_depth", label: "Crate Depth (cm)" },
   // 'id' is usually auto-generated, so not a direct import field
 ];
-

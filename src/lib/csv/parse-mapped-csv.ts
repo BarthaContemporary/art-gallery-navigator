@@ -1,4 +1,3 @@
-
 import type { FieldMappings, ProcessedArtworkForImport, CSVRowObject, ArtworkKeys, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types";
 
 export const parseMappedCSVToArtworks = (
@@ -47,7 +46,7 @@ export const parseMappedCSVToArtworks = (
       }
     }
     
-    if (!hasMappedData && Object.keys(rawRow).length > 0) { // Only add warning if row wasn't just empty
+    if (!hasMappedData && Object.keys(rawRow).length > 0) {
       // If no data was mapped from this row, we might skip it or note it.
       // For now, if it becomes an "empty" artwork, it might be filtered later.
       // Consider adding a specific warning if a row has data but none of it is mapped.
@@ -60,15 +59,15 @@ export const parseMappedCSVToArtworks = (
     }
     // These defaults ensure the fields are present for ProcessedArtworkForImport
     if (artwork.classification === undefined || artwork.classification === null || String(artwork.classification).trim() === '') {
-      artwork.classification = 'Unique'; // Default classification
+      artwork.classification = 'Unique'; 
       warnings.push(`Classification was missing or empty; defaulted to "Unique".`);
     }
     if (artwork.medium_type === undefined || artwork.medium_type === null || String(artwork.medium_type).trim() === '') {
-      artwork.medium_type = 'Painting'; // Default medium type
+      artwork.medium_type = 'Painting'; 
       warnings.push(`Medium Type was missing or empty; defaulted to "Painting".`);
     }
     if (artwork.currency === undefined || artwork.currency === null || String(artwork.currency).trim() === '') {
-      artwork.currency = 'USD'; // Default currency
+      artwork.currency = 'USD'; 
       warnings.push(`Currency was missing or empty; defaulted to "USD".`);
     }
 
@@ -80,19 +79,22 @@ export const parseMappedCSVToArtworks = (
     // For client-side, `isValid` means it can be *attempted* to be imported.
 
     const processedArtwork = artwork as ProcessedArtworkForImport;
-    const isValid = errors.length === 0; // Currently, no specific errors are generated here that would make it invalid for an import *attempt*.
+    const isValid = errors.length === 0; 
+    // Initialize isSelectedForImport based on isValid. User can then toggle it.
+    // Items with errors (isValid = false) should not be selectable for import.
+    const isSelectedForImport = isValid;
 
     // Only add if it's not an entirely empty object after processing (e.g. all mapped fields were empty)
     if (Object.keys(processedArtwork).some(key => processedArtwork[key as keyof ProcessedArtworkForImport] !== null && processedArtwork[key as keyof ProcessedArtworkForImport] !== undefined && String(processedArtwork[key as keyof ProcessedArtworkForImport]).trim() !== '')) {
       validatedArtworks.push({
         artwork: processedArtwork,
-        originalRowIndex: index + 1, // 1-based index for user readability
+        originalRowIndex: index + 1, 
         warnings,
         errors,
-        isValid
+        isValid,
+        isSelectedForImport 
       });
     }
   });
   return validatedArtworks;
 };
-
