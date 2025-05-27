@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,8 +14,8 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
-import RequestPasswordResetPage from "./pages/RequestPasswordReset"; // Added import
-import UpdatePasswordPage from "./pages/UpdatePassword"; // Added import
+import RequestPasswordResetPage from "./pages/RequestPasswordReset";
+import UpdatePasswordPage from "./pages/UpdatePassword";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import UserSignup from "./pages/UserSignup";
 import Collections from "./pages/Collections";
@@ -28,6 +27,7 @@ import FileTransfer from "./pages/FileTransfer";
 import ManageAllWebsites from "./pages/ManageAllWebsites";
 import PublicCollectionView from "./pages/PublicCollectionView";
 import EditCollectionWebsite from "./pages/EditCollectionWebsite";
+import BackupExportPage from "./pages/BackupExport";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -70,8 +70,8 @@ const App = () => (
                 <LoadingOverlay />
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/request-password-reset" element={<RequestPasswordResetPage />} /> {/* Added route */}
-                  <Route path="/update-password" element={<UpdatePasswordPage />} /> {/* Added route */}
+                  <Route path="/request-password-reset" element={<RequestPasswordResetPage />} />
+                  <Route path="/update-password" element={<UpdatePasswordPage />} />
                   <Route path="/email-confirmation" element={<EmailConfirmation />} />
                   <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                   <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
@@ -90,6 +90,7 @@ const App = () => (
                     <Route path="/file-transfer" element={<FileTransfer />} />
                     <Route path="/manage-websites" element={<ManageAllWebsites />} />
                     <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
+                    <Route path="/backup" element={<BackupExportPage />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
