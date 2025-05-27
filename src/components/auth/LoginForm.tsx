@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,26 +48,26 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     }
   });
 
-  const handleCaptchaVerify = (token: string) => {
+  const handleCaptchaVerify = useCallback((token: string) => {
     logger.log("CAPTCHA verified in LoginForm");
     setCaptchaToken(token);
     setCaptchaError(null); 
-  };
+  }, [setCaptchaToken, setCaptchaError]); // logger is stable
 
-  const handleCaptchaError = () => {
+  const handleCaptchaError = useCallback(() => {
     logger.error("CAPTCHA error in LoginForm");
     setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
     setCaptchaToken(null); 
     if (onError) onError(new Error("CAPTCHA challenge failed."));
-  };
-  
-  const handleCaptchaExpire = () => {
+  }, [onError, setCaptchaError, setCaptchaToken]); // logger is stable
+
+  const handleCaptchaExpire = useCallback(() => {
     logger.warn("CAPTCHA expired in LoginForm");
     setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
     setCaptchaToken(null); 
-  };
+  }, [setCaptchaError, setCaptchaToken]); // logger is stable
 
-  const handleSubmit = (values: LoginFormValues) => {
+  const handleSubmit = useCallback((values: LoginFormValues) => {
     if (!TURNSTILE_SITE_KEY) {
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
       return;
@@ -78,7 +78,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     }
     logger.log("Submitting login form with CAPTCHA token");
     onSubmit(values, captchaToken); 
-  };
+  }, [captchaToken, onSubmit, setCaptchaError]); // TURNSTILE_SITE_KEY is stable, logger is stable
 
   return (
     <Form {...form}>
@@ -145,7 +145,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
             onVerify={handleCaptchaVerify}
             onError={handleCaptchaError}
             onExpire={handleCaptchaExpire}
-            theme="light"
+            theme="light" // Consider making this configurable or 'auto' if preferred
           />
         </div>
         

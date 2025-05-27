@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { OTPVerification } from "@/components/auth/OTPVerification";
@@ -39,21 +38,21 @@ function Auth() {
     }
   }, [user, isLoading, navigate, from]);
   
-  const handleOtpRequested = (userEmail: string) => {
+  const handleOtpRequested = useCallback((userEmail: string) => {
     setEmail(userEmail);
     setSelectedTab("otp");
-  };
+  }, [setEmail, setSelectedTab]);
   
-  const handleAuthError = (error: Error) => {
+  const handleAuthError = useCallback((error: Error) => {
     logger.error("Authentication error on Auth page:", error);
     setAuthError(error);
-  };
+  }, [setAuthError]);
   
-  const resetError = () => {
+  const resetError = useCallback(() => {
     setAuthError(null);
-  };
+  }, [setAuthError]);
 
-  const handleLoginSubmit = async (values: { email: string; password?: string }, captchaToken: string) => {
+  const handleLoginSubmit = useCallback(async (values: { email: string; password?: string }, captchaToken: string) => {
     try {
       resetError();
       logger.log("Auth page: handleLoginSubmit for email:", values.email, "Captcha token present:", !!captchaToken);
@@ -73,9 +72,9 @@ function Auth() {
         handleAuthError(new Error("An unknown login error occurred"));
       }
     }
-  };
-
-  const handleOtpSubmit = async (values: { otp: string }) => {
+  }, [resetError, signIn, handleOtpRequested, handleAuthError]);
+  
+  const handleOtpSubmit = useCallback(async (values: { otp: string }) => {
     try {
       resetError();
       logger.log("Auth page: handleOtpSubmit for email:", email);
@@ -88,7 +87,7 @@ function Auth() {
         handleAuthError(new Error("An unknown OTP error occurred"));
       }
     }
-  };
+  }, [resetError, email, verifyOTP, handleAuthError]);
   
   if (isLoading && !user) {
     return (
