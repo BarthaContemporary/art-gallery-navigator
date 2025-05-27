@@ -46,7 +46,7 @@ export function UploadDocumentDialog() {
       <DialogTrigger asChild>
         <Button size="sm">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Upload Document
+          Add Document
         </Button>
       </DialogTrigger>
       <DialogContent 

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -16,7 +15,7 @@ export function CreateArtworkDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm"> {/* Added size="sm" */}
+        <Button size="sm">
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Artwork
         </Button>
@@ -35,4 +34,3 @@ export function CreateArtworkDialog() {
     </Dialog>
   );
 }
-
