@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -20,8 +19,6 @@ const requestPasswordResetSchema = z.object({
 
 type RequestPasswordResetFormValues = z.infer<typeof requestPasswordResetSchema>;
 
-// Re-use the hardcoded Turnstile Site Key from LoginForm or define it globally.
-// For simplicity here, we'll re-declare it. Ideally, this comes from env vars or a config file.
 const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF"; 
 
 export default function RequestPasswordResetPage() {
@@ -30,6 +27,7 @@ export default function RequestPasswordResetPage() {
   const [captchaError, setCaptchaError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState<string>(""); // Store email for success message
   const navigate = useNavigate();
 
   const form = useForm<RequestPasswordResetFormValues>({
@@ -73,6 +71,7 @@ export default function RequestPasswordResetPage() {
 
     setIsLoading(true);
     setFormError(null);
+    setSubmittedEmail(values.email); // Store email for success/toast message
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
@@ -82,22 +81,33 @@ export default function RequestPasswordResetPage() {
 
       if (error) {
         logger.error("Password reset request error:", error.message, { email: values.email, errorDetails: error });
-        setFormError(error.message || "Failed to send password reset email. Please try again.");
+        let userFriendlyError = "Failed to send password reset email. Please check the email address and try again.";
         if (error.message.toLowerCase().includes("captcha")) {
-          setCaptchaError("CAPTCHA verification failed with server. Please try again.");
-          setCaptchaToken(null); // Reset captcha token
+          userFriendlyError = "CAPTCHA verification failed. Please try the CAPTCHA again.";
+          setCaptchaToken(null); 
+        } else if (error.message.toLowerCase().includes("user not found") || error.message.toLowerCase().includes("no user found")) {
+          // To prevent email enumeration, show a generic success message even if user not found
+          logger.log("Password reset requested for non-existent email (standard behavior):", values.email);
+          setIsSuccess(true); 
+          toast({
+            title: "Check Your Email",
+            description: `If an account exists for ${values.email}, a password reset link has been sent. Please check your inbox (and spam folder).`,
+          });
+          return; // Exit early
         }
+        setFormError(userFriendlyError);
       } else {
         logger.log("Password reset email sent successfully to:", values.email);
         setIsSuccess(true);
         toast({
-          title: "Check your email",
-          description: `A password reset link has been sent to ${values.email}.`,
+          title: "Check Your Email",
+          description: `A password reset link has been sent to ${values.email}. Please check your inbox (and spam folder). It might take a few minutes for the email to arrive.`,
+          className: "bg-green-500 text-white", // Example custom styling
         });
       }
     } catch (error: any) {
       logger.error("Unexpected password reset request error:", error.message, { email: values.email });
-      setFormError("An unexpected error occurred. Please try again.");
+      setFormError("An unexpected error occurred. Please try again or contact support if the issue persists.");
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +120,8 @@ export default function RequestPasswordResetPage() {
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Password Reset Email Sent</h1>
           <p className="text-muted-foreground mb-6">
-            If an account exists for the email address you provided, a password reset link has been sent. Please check your inbox (and spam folder).
+            If an account exists for <strong>{submittedEmail}</strong>, a password reset link has been sent. 
+            Please check your inbox (and spam folder). It might take a few minutes to arrive.
           </p>
           <Button onClick={() => navigate("/auth")} className="w-full">
             Back to Login
@@ -126,7 +137,7 @@ export default function RequestPasswordResetPage() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold">Reset Password</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address below. If an account exists, we'll send you a link to reset your password.
           </p>
         </div>
 
@@ -152,6 +163,7 @@ export default function RequestPasswordResetPage() {
                       autoFocus
                       className="text-base sm:text-sm py-3"
                       disabled={isLoading || !TURNSTILE_SITE_KEY}
+                      autoComplete="email"
                     />
                   </FormControl>
                   <FormMessage />
@@ -178,11 +190,15 @@ export default function RequestPasswordResetPage() {
               </div>
             )}
 
-            <Button type="submit" className="w-full h-12 sm:h-10 text-lg sm:text-base" disabled={isLoading || !captchaToken || !TURNSTILE_SITE_KEY}>
+            <Button 
+              type="submit" 
+              className="w-full h-12 sm:h-10 text-lg sm:text-base" 
+              disabled={isLoading || !captchaToken || !TURNSTILE_SITE_KEY || !form.formState.isValid}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  Sending Reset Link...
                 </>
               ) : "Send Reset Link"}
             </Button>
