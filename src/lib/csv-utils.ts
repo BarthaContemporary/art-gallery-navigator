@@ -1,6 +1,7 @@
-
 import { Artwork } from "@/hooks/use-artworks";
 import { toast } from "sonner";
+import Papa from 'papaparse';
+import { CSVPreviewData, CSVRowObject, FieldMappings, ArtworkKeys } from "@/components/artworks/ArtworkFieldMapping.types";
 
 // Helper to format CSV values properly
 const formatCSVValue = (value: any): string => {
@@ -72,95 +73,104 @@ export const exportArtworksToCSV = (artworks: Artwork[], filename: string = 'art
   toast.success(`Exported ${artworks.length} artworks to CSV`);
 };
 
-// Parse CSV into artwork objects
-export const parseCSVtoArtworks = async (file: File): Promise<Partial<Artwork>[]> => {
+// New function to parse CSV for preview and mapping
+export const parseCSVForPreview = async (file: File): Promise<CSVPreviewData> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        if (!text) {
-          reject(new Error("Failed to read file"));
+    Papa.parse<CSVRowObject>(file, {
+      header: true, // Use the first row as headers
+      skipEmptyLines: true,
+      dynamicTyping: false, // Keep all values as strings for now
+      complete: (results) => {
+        if (results.errors.length) {
+          console.error("CSV parsing errors:", results.errors);
+          reject(new Error(results.errors.map(e => e.message).join(', ')));
           return;
         }
-        
-        // Split into lines and handle quoted fields properly
-        const lines = text.split('\n');
-        if (lines.length < 2) {
-          reject(new Error("CSV file must have a header row and at least one data row"));
+        if (!results.meta.fields) {
+          reject(new Error("Could not parse CSV headers."));
           return;
         }
-        
-        // Parse headers (first line)
-        const headers = parseCSVLine(lines[0]);
-        
-        // Parse data rows
-        const artworks: Partial<Artwork>[] = [];
-        
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue; // Skip empty lines
-          
-          const values = parseCSVLine(line);
-          if (values.length !== headers.length) {
-            console.warn(`Line ${i+1} has ${values.length} values but should have ${headers.length}`);
-            continue;
-          }
-          
-          const artwork: Record<string, any> = {};
-          headers.forEach((header, index) => {
-            const value = values[index];
-            
-            // Type conversion based on field name
-            if (value === '') {
-              artwork[header] = null;
-            } else if (['price', 'height', 'width', 'depth', 'frame_height', 'frame_width', 'frame_depth', 'weight', 'crate_height', 'crate_width', 'crate_depth'].includes(header)) {
-              artwork[header] = Number(value) || null;
-            } else if (['is_framed', 'has_crate'].includes(header)) {
-              artwork[header] = value.toLowerCase() === 'true';
-            } else if (['year', 'edition_size', 'inventory_quantity', 'artist_proofs'].includes(header)) {
-              artwork[header] = parseInt(value) || null;
-            } else {
-              artwork[header] = value;
-            }
-          });
-          
-          // Ensure required fields have at least default values
-          if (!artwork.classification) {
-            artwork.classification = 'Unique';
-          }
-          
-          if (!artwork.medium_type) {
-            artwork.medium_type = 'Painting';
-          }
-          
-          if (!artwork.title) {
-            artwork.title = 'Untitled';
-          }
-          
-          if (!artwork.currency) {
-            artwork.currency = 'USD';
-          }
-          
-          artworks.push(artwork as Partial<Artwork>);
+        if (results.data.length === 0) {
+          reject(new Error("CSV file has no data rows."));
+          return;
         }
-        
-        resolve(artworks);
-      } catch (error) {
+
+        const headers = results.meta.fields;
+        const rows = results.data;
+        const sampleData = results.data.slice(0, 5);
+
+        resolve({ headers, rows, sampleData });
+      },
+      error: (error) => {
+        console.error("PapaParse error:", error);
         reject(error);
       }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error("Error reading file"));
-    };
-    
-    reader.readAsText(file);
+    });
   });
 };
 
+// Modified parseCSVtoArtworks to use mappings
+export const parseMappedCSVToArtworks = (
+  csvRows: CSVRowObject[],
+  mappings: FieldMappings
+): Partial<Artwork>[] => {
+  const artworks: Partial<Artwork>[] = [];
+
+  for (const rawRow of csvRows) {
+    const artwork: Record<string, any> = {};
+    let hasMappedData = false;
+
+    for (const csvHeader in mappings) {
+      const artworkField = mappings[csvHeader];
+      if (artworkField && rawRow.hasOwnProperty(csvHeader)) {
+        const value = rawRow[csvHeader];
+        hasMappedData = true;
+
+        // Type conversion based on field name (similar to original logic)
+        if (value === null || value === undefined || value.trim() === '') {
+          artwork[artworkField] = null;
+        } else if (['price', 'height', 'width', 'depth', 'frame_height', 'frame_width', 'frame_depth', 'weight', 'crate_height', 'crate_width', 'crate_depth'].includes(artworkField)) {
+          artwork[artworkField] = Number(value) || null;
+        } else if (['is_framed', 'has_crate'].includes(artworkField)) {
+          artwork[artworkField] = value.toLowerCase() === 'true';
+        } else if (['year', 'edition_size', 'inventory_quantity', 'artist_proofs'].includes(artworkField)) {
+          artwork[artworkField] = parseInt(value, 10) || null;
+        } else {
+          artwork[artworkField] = value;
+        }
+      }
+    }
+    
+    if (!hasMappedData) continue; // Skip rows if no data was mapped from them
+
+    // Ensure required fields have at least default values if not mapped or empty
+    if (artwork.title === undefined || artwork.title === null || String(artwork.title).trim() === '') {
+      artwork.title = 'Untitled';
+    }
+    if (!artwork.classification) artwork.classification = 'Unique';
+    if (!artwork.medium_type) artwork.medium_type = 'Painting';
+    if (!artwork.currency) artwork.currency = 'USD';
+    
+    // This check helps avoid pushing empty objects if all mapped fields were empty
+    if (Object.keys(artwork).some(key => artwork[key] !== null && artwork[key] !== undefined && artwork[key] !== '')) {
+       artworks.push(artwork as Partial<Artwork>);
+    }
+  }
+  return artworks;
+};
+
+// The old parseCSVtoArtworks function is no longer directly used by ImportCSVDialog.
+// It can be removed or kept if used elsewhere. For now, I'll comment it out to avoid confusion.
+/*
+// Parse CSV into artwork objects
+export const parseCSVtoArtworks = async (file: File): Promise<Partial<Artwork>[]> => {
+  // ... old implementation ...
+};
+*/
+
 // Helper function to parse CSV line handling quoted fields
+// This function is no longer needed if using PapaParse, but I'll keep it for now in case other parts of the app use it.
+// If confirmed not used, it can be removed.
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = '';
