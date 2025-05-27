@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListChecks, StepBack, AlertTriangle, Info, CheckSquare, Square } from "lucide-react";
+import { ListChecks, StepBack, AlertTriangle, Info } from "lucide-react"; // Removed CheckSquare, Square as they are not directly used
 import { PreviewStepProps } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +12,10 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
   
   const selectedValidArtworksCount = parsedArtworks.filter(item => item.isValid && item.isSelectedForImport).length;
   const totalValidArtworks = parsedArtworks.filter(item => item.isValid).length;
-  const artworksWithWarnings = parsedArtworks.filter(item => item.warnings.length > 0 && item.isValid && item.isSelectedForImport).length;
+  // const artworksWithWarnings = parsedArtworks.filter(item => item.warnings.length > 0 && item.isValid && item.isSelectedForImport).length; // This specific count isn't used in the new summary
+
+  const totalInvalidArtworks = parsedArtworks.filter(item => !item.isValid).length;
+  const totalValidWithWarnings = parsedArtworks.filter(item => item.isValid && item.warnings.length > 0).length;
 
   const allValidSelected = totalValidArtworks > 0 && selectedValidArtworksCount === totalValidArtworks;
   const someValidSelected = selectedValidArtworksCount > 0 && selectedValidArtworksCount < totalValidArtworks;
@@ -25,16 +29,30 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Preview Import</h3>
-      <p className="text-sm text-muted-foreground">
-        Found {parsedArtworks.length} artworks after parsing. {totalValidArtworks} appear valid.
-        {artworksWithWarnings > 0 && (
-          <span className="ml-2 text-yellow-600">({artworksWithWarnings} selected with warnings)</span>
+      <div className="text-sm text-muted-foreground space-y-1">
+        <p>
+          Processed <span className="font-semibold">{parsedArtworks.length}</span> row{parsedArtworks.length === 1 ? '' : 's'} from your CSV.
+        </p>
+        {parsedArtworks.length > 0 && (
+          <>
+            <p>
+              <span className="font-semibold">{totalValidArtworks}</span> item{totalValidArtworks === 1 ? '' : 's'} are valid for import
+              {totalValidWithWarnings > 0 && (
+                <span className="text-yellow-600"> ({totalValidWithWarnings} with warnings)</span>
+              )}.
+            </p>
+            {totalInvalidArtworks > 0 && (
+              <p>
+                <span className="font-semibold text-destructive">{totalInvalidArtworks}</span> item{totalInvalidArtworks === 1 ? '' : 's'} cannot be imported due to errors.
+              </p>
+            )}
+          </>
         )}
-        <br />Review the entries, select items for import, and check validation messages below.
-      </p>
+        <p className="pt-1">Review the entries, select items for import, and check validation messages below.</p>
+      </div>
 
       {parsedArtworks.length > 0 && (
-        <div className="flex items-center space-x-2 mb-2 pl-1">
+        <div className="flex items-center space-x-2 mb-2 pl-1 pt-2">
           <Checkbox
             id="select-all-artworks"
             checked={allValidSelected ? true : (someValidSelected ? 'indeterminate' : false)}
@@ -50,8 +68,8 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
       {parsedArtworks.length > 0 ? (
         <ScrollArea className="h-72 border rounded-md p-4">
           <ul className="space-y-4">
-            {parsedArtworks.slice(0, 100).map((validatedArtwork, index) => ( // Show more items, up to 100
-              <li key={validatedArtwork.originalRowIndex} className={`text-sm border-b pb-3 ${!validatedArtwork.isValid ? 'opacity-60 bg-slate-50 p-2 rounded-md' : ''} ${!validatedArtwork.isSelectedForImport && validatedArtwork.isValid ? 'opacity-70' : ''}`}>
+            {parsedArtworks.slice(0, 100).map((validatedArtwork) => ( // Removed index as key is originalRowIndex
+              <li key={validatedArtwork.originalRowIndex} className={`text-sm border-b pb-3 last:border-b-0 ${!validatedArtwork.isValid ? 'opacity-60 bg-slate-50 p-2 rounded-md' : ''} ${!validatedArtwork.isSelectedForImport && validatedArtwork.isValid ? 'opacity-70' : ''}`}>
                 <div className="flex items-start space-x-3">
                   <Checkbox
                     id={`select-artwork-${validatedArtwork.originalRowIndex}`}
@@ -116,3 +134,4 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
     </div>
   );
 };
+
