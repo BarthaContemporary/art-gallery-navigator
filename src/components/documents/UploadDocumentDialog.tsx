@@ -45,7 +45,7 @@ export function UploadDocumentDialog() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <PlusCircle className="mr-2 h-4 w-4" />
+          <PlusCircle className="h-3 w-3 md:h-4 md:w-4" /> {/* Removed mr-2, standardized size */}
           Add Document
         </Button>
       </DialogTrigger>
