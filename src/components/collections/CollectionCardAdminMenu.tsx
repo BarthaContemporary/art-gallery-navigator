@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, MoreVertical, Link as LinkIcon } from "lucide-react";
@@ -12,37 +12,25 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
+import { useCollectionCardAdminMenuLogic } from "./hooks/useCollectionCardAdminMenuLogic"; // Import the new hook
 
 interface CollectionCardAdminMenuProps {
   collection: Collection;
 }
 
 export function CollectionCardAdminMenu({ collection }: CollectionCardAdminMenuProps) {
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  // const [showManageWebsitesDialog, setShowManageWebsitesDialog] = useState(false); // Placeholder
-
-  const preventPropagation = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    preventPropagation(e);
-    setShowEditDialog(true);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    preventPropagation(e);
-    setShowDeleteDialog(true);
-  };
-
-  const handleManageWebsitesClick = (e: React.MouseEvent) => {
-    preventPropagation(e);
-    toast.info(`Manage shareable websites for "${collection.name}" (dialog coming soon).`);
-    // setShowManageWebsitesDialog(true);
-  };
+  const {
+    showEditDialog,
+    setShowEditDialog,
+    showDeleteDialog,
+    setShowDeleteDialog,
+    // showManageWebsitesDialog, // Placeholder
+    // setShowManageWebsitesDialog, // Placeholder
+    preventPropagation,
+    handleEditClick,
+    handleDeleteClick,
+    handleManageWebsitesClick,
+  } = useCollectionCardAdminMenuLogic({ collection });
 
   return (
     <>
