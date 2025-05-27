@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,24 +24,27 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+// Hardcode the Turnstile Site Key
+const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
-  const [isSiteKeyConfigured, setIsSiteKeyConfigured] = useState(false);
+
+  // Determine configuration status based on the hardcoded key.
+  // This will be true if TURNSTILE_SITE_KEY is a non-empty string.
+  const isSiteKeyEffectivelyConfigured = !!TURNSTILE_SITE_KEY && TURNSTILE_SITE_KEY.length > 0;
 
   useEffect(() => {
-    if (TURNSTILE_SITE_KEY) {
-      logger.log("Using Turnstile Site Key:", TURNSTILE_SITE_KEY);
-      setIsSiteKeyConfigured(true);
+    if (isSiteKeyEffectivelyConfigured) {
+      logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY);
     } else {
-      logger.error("Turnstile Site Key NOT SET (VITE_TURNSTILE_SITE_KEY missing in .env). CAPTCHA will not be displayed.");
-      setCaptchaError("CAPTCHA configuration error: Site key not found. Please contact support.");
-      setIsSiteKeyConfigured(false);
+      // This branch should ideally not be hit if TURNSTILE_SITE_KEY is correctly hardcoded.
+      logger.error("Hardcoded Turnstile Site Key is empty. CAPTCHA will not be displayed.");
+      setCaptchaError("CAPTCHA configuration error: Site key not configured. Please contact support.");
     }
-  }, []);
+  }, [isSiteKeyEffectivelyConfigured, setCaptchaError]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -56,25 +58,26 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     logger.log("CAPTCHA verified in LoginForm, token received.");
     setCaptchaToken(token);
     setCaptchaError(null); 
-  }, []); // Dependencies setCaptchaToken, setCaptchaError are stable from useState
+  }, []);
 
   const handleCaptchaError = useCallback(() => {
     logger.error("CAPTCHA error in LoginForm callback.");
     setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
     setCaptchaToken(null); 
     if (onError) onError(new Error("CAPTCHA challenge failed."));
-  }, [onError]); // Dependencies setCaptchaError, setCaptchaToken, onError (prop)
+  }, [onError]);
 
   const handleCaptchaExpire = useCallback(() => {
     logger.warn("CAPTCHA expired in LoginForm callback.");
     setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
     setCaptchaToken(null); 
-  }, []); // Dependencies setCaptchaError, setCaptchaToken are stable
+  }, []);
 
   const handleSubmit = useCallback((values: LoginFormValues) => {
-    if (!isSiteKeyConfigured) {
+    if (!isSiteKeyEffectivelyConfigured) {
+      // This error message might need adjustment if the key is hardcoded but somehow "invalid"
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
-      // logger.error("Login submit attempted without configured site key."); // Already logged in useEffect
+      logger.error("Login submit attempted but site key is not effectively configured (hardcoded key issue).");
       return;
     }
     if (!captchaToken) {
@@ -84,10 +87,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     }
     logger.log("Submitting login form with CAPTCHA token.");
     onSubmit(values, captchaToken);
-    // Optionally reset captchaToken here if onSubmit is synchronous and successful,
-    // or if TurnstileWidget should be re-challenged after every attempt.
-    // For now, let Turnstile's 'refresh-expired: auto' handle re-challenge if needed.
-  }, [captchaToken, onSubmit, isSiteKeyConfigured]);
+  }, [captchaToken, onSubmit, isSiteKeyEffectivelyConfigured, setCaptchaError]); // Added setCaptchaError
 
   return (
     <Form {...form}>
@@ -148,10 +148,10 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           )}
         />
         
-        {isSiteKeyConfigured ? (
+        {isSiteKeyEffectivelyConfigured ? (
           <div className="flex justify-center">
             <TurnstileWidget
-              siteKey={TURNSTILE_SITE_KEY!} // Assert non-null as isSiteKeyConfigured is true
+              siteKey={TURNSTILE_SITE_KEY} // Use the hardcoded key
               onVerify={handleCaptchaVerify}
               onError={handleCaptchaError}
               onExpire={handleCaptchaExpire}
@@ -161,7 +161,8 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         ) : (
            <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
             <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            <span>CAPTCHA service is currently unavailable due to a configuration issue. Please contact support.</span>
+            {/* Updated error message for clarity */}
+            <span>CAPTCHA service is currently unavailable due to a site key configuration issue. Please contact support.</span>
           </div>
         )}
         
@@ -175,7 +176,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyConfigured}
+          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyEffectivelyConfigured}
         >
           {isLoading ? (
             <>
@@ -194,4 +195,3 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     </Form>
   );
 }
-
