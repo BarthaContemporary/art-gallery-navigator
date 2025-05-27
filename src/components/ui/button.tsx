@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3 [&_svg]:shrink-0 md:text-sm md:[&_svg]:size-4",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-3.5 md:[&_svg]:size-4", // Updated: rounded-lg, base icon size
   {
     variants: {
       variant: {
@@ -21,10 +21,10 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-7 px-3 py-1 md:h-9 md:px-4 md:py-2", // Updated md:h-10 to md:h-9
-        sm: "h-7 rounded-md px-2 py-0.5 text-xs md:h-9 md:rounded-md md:px-3 md:text-sm", // Stays as is
-        lg: "h-7 rounded-md px-6 md:h-9 md:px-8", // Updated h-9 to h-7 and md:h-11 to md:h-9
-        icon: "h-7 w-7 md:h-9 md:w-9", // Updated h-6 w-6 to h-7 w-7 and md:h-10 md:w-10 to md:h-9 md:w-9
+        default: "h-9 px-4 text-sm md:h-10 md:px-4 md:py-2", // Updated: height, padding, text size
+        sm: "h-8 rounded-md px-3 text-xs md:h-8 md:px-3", // Updated: height, padding, kept rounded-md for smaller feel
+        lg: "h-10 rounded-lg px-6 text-base md:h-12 md:px-8", // Updated: height, padding, text size
+        icon: "h-9 w-9 rounded-lg md:h-10 md:w-10", // Updated: height, width
       },
     },
     defaultVariants: {
