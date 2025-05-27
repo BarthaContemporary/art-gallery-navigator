@@ -1,23 +1,31 @@
+
 import type { FieldMappings, ProcessedArtworkForImport, CSVRowObject, ArtworkKeys, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types";
 
 export const parseMappedCSVToArtworks = (
   csvRows: CSVRowObject[],
   mappings: FieldMappings
 ): ValidatedProcessedArtwork[] => {
-  const validatedArtworks: ValidatedProcessedArtwork[] = [];
+  const tempValidatedArtworks: ValidatedProcessedArtwork[] = [];
 
   csvRows.forEach((rawRow, index) => {
     const artwork: Record<string, any> = {};
     const warnings: string[] = [];
-    const errors: string[] = []; // For critical issues making the row un-importable
+    const errors: string[] = []; 
     let hasMappedData = false;
+
+    // Check if the rawRow has any actual data (not just empty strings or nulls)
+    const rawRowHasContent = Object.values(rawRow).some(val => val !== null && String(val).trim() !== '');
 
     for (const csvHeader in mappings) {
       const artworkFieldKey = mappings[csvHeader];
       if (artworkFieldKey && rawRow.hasOwnProperty(csvHeader)) {
         const rawValue = rawRow[csvHeader];
         const valueStr = String(rawValue).trim();
-        hasMappedData = true;
+        
+        if (rawValue !== null && rawValue !== undefined && valueStr !== '') {
+          hasMappedData = true; // Set hasMappedData only if the mapped field has a non-empty value
+        }
+        
         const artworkField = artworkFieldKey as ArtworkKeys | 'artist_name';
 
         if (rawValue === null || rawValue === undefined || valueStr === '') {
@@ -41,52 +49,54 @@ export const parseMappedCSVToArtworks = (
             artwork[artworkField] = intValue;
           }
         } else {
-          artwork[artworkField] = rawValue; // Handles strings
+          artwork[artworkField] = rawValue; 
         }
       }
     }
     
-    if (!hasMappedData && Object.keys(rawRow).length > 0) {
-      // If no data was mapped from this row, we might skip it or note it.
-      // For now, if it becomes an "empty" artwork, it might be filtered later.
-      // Consider adding a specific warning if a row has data but none of it is mapped.
+    if (rawRowHasContent && !hasMappedData) {
+      errors.push("This row contains data, but no fields were successfully mapped from it. Please check your field mappings.");
     }
 
     // Defaulting and critical validation
     if (artwork.title === undefined || artwork.title === null || String(artwork.title).trim() === '') {
       artwork.title = 'Untitled';
-      warnings.push(`Title was missing or empty; defaulted to "Untitled".`);
+      if (hasMappedData || errors.length === 0) { // Add warning only if it's not already an error or completely unmapped
+         warnings.push(`Title was missing or empty; defaulted to "Untitled".`);
+      }
     }
-    // These defaults ensure the fields are present for ProcessedArtworkForImport
     if (artwork.classification === undefined || artwork.classification === null || String(artwork.classification).trim() === '') {
       artwork.classification = 'Unique'; 
-      warnings.push(`Classification was missing or empty; defaulted to "Unique".`);
+      if (hasMappedData || errors.length === 0) {
+        warnings.push(`Classification was missing or empty; defaulted to "Unique".`);
+      }
     }
     if (artwork.medium_type === undefined || artwork.medium_type === null || String(artwork.medium_type).trim() === '') {
       artwork.medium_type = 'Painting'; 
-      warnings.push(`Medium Type was missing or empty; defaulted to "Painting".`);
+      if (hasMappedData || errors.length === 0) {
+        warnings.push(`Medium Type was missing or empty; defaulted to "Painting".`);
+      }
     }
     if (artwork.currency === undefined || artwork.currency === null || String(artwork.currency).trim() === '') {
       artwork.currency = 'USD'; 
-      warnings.push(`Currency was missing or empty; defaulted to "USD".`);
+      if (hasMappedData || errors.length === 0) {
+        warnings.push(`Currency was missing or empty; defaulted to "USD".`);
+      }
     }
 
-    // Example of a critical error: If after mapping, artist_id is not set and artist_name is also missing/empty.
-    // This logic is handled more robustly in `performArtworkImport`, so we might not need explicit errors here for this.
-    // For now, `isValid` will primarily depend on if essential parsing created an importable object.
-    // Let's assume all rows that produce an artwork object (even with warnings) are "valid" for import attempt.
-    // True "errors" that prevent import attempt are better handled by `performArtworkImport`'s feedback.
-    // For client-side, `isValid` means it can be *attempted* to be imported.
-
     const processedArtwork = artwork as ProcessedArtworkForImport;
-    const isValid = errors.length === 0; 
-    // Initialize isSelectedForImport based on isValid. User can then toggle it.
-    // Items with errors (isValid = false) should not be selectable for import.
-    const isSelectedForImport = isValid;
+    let isValid = errors.length === 0; 
+    const isSelectedForImport = isValid; // Default selection based on validity
 
-    // Only add if it's not an entirely empty object after processing (e.g. all mapped fields were empty)
-    if (Object.keys(processedArtwork).some(key => processedArtwork[key as keyof ProcessedArtworkForImport] !== null && processedArtwork[key as keyof ProcessedArtworkForImport] !== undefined && String(processedArtwork[key as keyof ProcessedArtworkForImport]).trim() !== '')) {
-      validatedArtworks.push({
+    // Only add if it's not an entirely empty object or if there are errors to show
+    const artworkHasContent = Object.keys(processedArtwork).some(key => 
+        processedArtwork[key as keyof ProcessedArtworkForImport] !== null && 
+        processedArtwork[key as keyof ProcessedArtworkForImport] !== undefined && 
+        String(processedArtwork[key as keyof ProcessedArtworkForImport]).trim() !== ''
+    );
+
+    if (artworkHasContent || errors.length > 0 || warnings.length > 0) {
+      tempValidatedArtworks.push({
         artwork: processedArtwork,
         originalRowIndex: index + 1, 
         warnings,
@@ -96,5 +106,49 @@ export const parseMappedCSVToArtworks = (
       });
     }
   });
-  return validatedArtworks;
+
+  // Duplicate Detection
+  const finalValidatedArtworks: ValidatedProcessedArtwork[] = [];
+  const artworkSignatures = new Map<string, number[]>(); // Stores signature -> [originalRowIndex]
+
+  tempValidatedArtworks.forEach(item => {
+    if (!item.isValid) { // Skip duplicate check for already invalid items, but still include them
+      finalValidatedArtworks.push(item);
+      return;
+    }
+
+    const title = String(item.artwork.title || '').trim().toLowerCase();
+    const artistName = String(item.artwork.artist_name || '').trim().toLowerCase();
+    // Only consider items with a title for duplicate checking, or if artist_name is also present
+    if (title) { 
+      const signature = `${title}::${artistName}`;
+      if (artworkSignatures.has(signature)) {
+        artworkSignatures.get(signature)!.push(item.originalRowIndex);
+      } else {
+        artworkSignatures.set(signature, [item.originalRowIndex]);
+      }
+    }
+    finalValidatedArtworks.push(item); // Add current item to final list before processing its potential duplicates
+  });
+  
+  artworkSignatures.forEach((rowIndices) => {
+    if (rowIndices.length > 1) { // Found duplicates
+      rowIndices.forEach((rowIndex, idx) => {
+        const artworkIndex = finalValidatedArtworks.findIndex(art => art.originalRowIndex === rowIndex);
+        if (artworkIndex !== -1) {
+          const otherIndices = rowIndices.filter(r => r !== rowIndex).join(', ');
+          let warningMsg = `Possible duplicate: Matches title and artist name of row(s) ${otherIndices}.`;
+          if (idx > 0) { // Mark subsequent duplicates more clearly
+            warningMsg = `Possible duplicate of row ${rowIndices[0]} (and potentially others: ${otherIndices}). Matches title and artist name.`;
+          }
+          // Add warning only if it doesn't exist to prevent multiple same warnings from different runs
+          if (!finalValidatedArtworks[artworkIndex].warnings.includes(warningMsg)) {
+             finalValidatedArtworks[artworkIndex].warnings.push(warningMsg);
+          }
+        }
+      });
+    }
+  });
+
+  return finalValidatedArtworks;
 };

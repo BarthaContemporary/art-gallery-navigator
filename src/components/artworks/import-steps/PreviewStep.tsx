@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useMemo } from 'react'; // Added useMemo
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListChecks, StepBack, AlertTriangle, Info } from "lucide-react"; // Removed CheckSquare, Square as they are not directly used
+import { ListChecks, StepBack, AlertTriangle, Info } from "lucide-react";
 import { PreviewStepProps } from './types';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,15 +10,29 @@ import { Label } from "@/components/ui/label";
 
 export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImport, onBack, toggleArtworkSelection, toggleSelectAllArtworks }) => {
   
-  const selectedValidArtworksCount = parsedArtworks.filter(item => item.isValid && item.isSelectedForImport).length;
-  const totalValidArtworks = parsedArtworks.filter(item => item.isValid).length;
-  // const artworksWithWarnings = parsedArtworks.filter(item => item.warnings.length > 0 && item.isValid && item.isSelectedForImport).length; // This specific count isn't used in the new summary
+  const selectedValidArtworksCount = useMemo(() => {
+    return parsedArtworks.filter(item => item.isValid && item.isSelectedForImport).length;
+  }, [parsedArtworks]);
 
-  const totalInvalidArtworks = parsedArtworks.filter(item => !item.isValid).length;
-  const totalValidWithWarnings = parsedArtworks.filter(item => item.isValid && item.warnings.length > 0).length;
+  const totalValidArtworks = useMemo(() => {
+    return parsedArtworks.filter(item => item.isValid).length;
+  }, [parsedArtworks]);
 
-  const allValidSelected = totalValidArtworks > 0 && selectedValidArtworksCount === totalValidArtworks;
-  const someValidSelected = selectedValidArtworksCount > 0 && selectedValidArtworksCount < totalValidArtworks;
+  const totalInvalidArtworks = useMemo(() => {
+    return parsedArtworks.filter(item => !item.isValid).length;
+  }, [parsedArtworks]);
+
+  const totalValidWithWarnings = useMemo(() => {
+    return parsedArtworks.filter(item => item.isValid && item.warnings.length > 0).length;
+  }, [parsedArtworks]);
+
+  const allValidSelected = useMemo(() => {
+    return totalValidArtworks > 0 && selectedValidArtworksCount === totalValidArtworks;
+  }, [totalValidArtworks, selectedValidArtworksCount]);
+
+  const someValidSelected = useMemo(() => {
+    return selectedValidArtworksCount > 0 && selectedValidArtworksCount < totalValidArtworks;
+  }, [selectedValidArtworksCount, totalValidArtworks]);
 
   const handleSelectAllChange = (checked: boolean | 'indeterminate') => {
     if (typeof checked === 'boolean') {
@@ -68,7 +82,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
       {parsedArtworks.length > 0 ? (
         <ScrollArea className="h-72 border rounded-md p-4">
           <ul className="space-y-4">
-            {parsedArtworks.slice(0, 100).map((validatedArtwork) => ( // Removed index as key is originalRowIndex
+            {parsedArtworks.slice(0, 100).map((validatedArtwork) => (
               <li key={validatedArtwork.originalRowIndex} className={`text-sm border-b pb-3 last:border-b-0 ${!validatedArtwork.isValid ? 'opacity-60 bg-slate-50 p-2 rounded-md' : ''} ${!validatedArtwork.isSelectedForImport && validatedArtwork.isValid ? 'opacity-70' : ''}`}>
                 <div className="flex items-start space-x-3">
                   <Checkbox
@@ -134,4 +148,3 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({ parsedArtworks, onImpo
     </div>
   );
 };
-
