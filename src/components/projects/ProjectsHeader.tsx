@@ -15,9 +15,9 @@ export function ProjectsHeader() {
       <PageHeader title="PROJECTS" />
       
       {isAdmin && (
-        <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-xs md:text-sm">
-          <PlusCircle className="mr-2 h-3 w-3 md:h-4 md:w-4" />
-          Create Project
+        <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="flex gap-2">
+          <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
+          Add Project
         </Button>
       )}
       
@@ -28,3 +28,4 @@ export function ProjectsHeader() {
     </div>
   );
 }
+
