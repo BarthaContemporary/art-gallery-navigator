@@ -1,6 +1,5 @@
 
-import { useState } from "react";
-import { Collection, useDeleteCollection } from "@/hooks/use-collections";
+import { Collection } from "@/hooks/use-collections";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,9 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button"; // Button might be used if AlertDialogAction is customized
+import { useDeleteCollectionHandler } from "./hooks/useDeleteCollectionHandler";
 
 interface DeleteCollectionDialogProps {
   collection: Collection;
@@ -22,45 +19,7 @@ interface DeleteCollectionDialogProps {
 }
 
 export function DeleteCollectionDialog({ collection, open, onOpenChange }: DeleteCollectionDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { mutate: deleteCollection } = useDeleteCollection();
-
-  const confirmDelete = async () => {
-    try {
-      setIsDeleting(true);
-      
-      const { data: documents, error: documentsError } = await supabase
-        .from("documents")
-        .select("id")
-        .eq("collection_id", collection.id);
-      
-      if (documentsError) throw documentsError;
-      
-      if (documents && documents.length > 0) {
-        const { error: deleteDocsError } = await supabase
-          .from("documents")
-          .delete()
-          .eq("collection_id", collection.id);
-        
-        if (deleteDocsError) throw deleteDocsError;
-      }
-      
-      deleteCollection(collection.id, {
-        onSuccess: () => {
-          toast.success(`Collection "${collection.name}" deleted successfully`);
-          onOpenChange(false);
-          setIsDeleting(false);
-        },
-        onError: (error) => {
-          toast.error("Failed to delete collection: " + error.message);
-          setIsDeleting(false);
-        },
-      });
-    } catch (error: any) {
-      toast.error("Error during deletion: " + error.message);
-      setIsDeleting(false);
-    }
-  };
+  const { isDeleting, confirmDelete } = useDeleteCollectionHandler({ collection, onOpenChange });
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
