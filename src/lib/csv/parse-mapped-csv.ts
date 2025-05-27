@@ -1,5 +1,5 @@
 
-import type { FieldMappings, ProcessedArtworkForImport, CSVRowObject } from "@/components/artworks/ArtworkFieldMapping.types";
+import type { FieldMappings, ProcessedArtworkForImport, CSVRowObject, ArtworkKeys } from "@/components/artworks/ArtworkFieldMapping.types";
 
 // Modified parseCSVtoArtworks to use mappings and return a more specific type
 export const parseMappedCSVToArtworks = (
@@ -13,13 +13,14 @@ export const parseMappedCSVToArtworks = (
     let hasMappedData = false;
 
     for (const csvHeader in mappings) {
-      const artworkField = mappings[csvHeader];
-      if (artworkField && rawRow.hasOwnProperty(csvHeader)) {
+      const artworkFieldKey = mappings[csvHeader]; // This can be ArtworkKeys | 'artist_name' | null
+      if (artworkFieldKey && rawRow.hasOwnProperty(csvHeader)) {
         const value = rawRow[csvHeader];
         hasMappedData = true;
+        const artworkField = artworkFieldKey as ArtworkKeys | 'artist_name'; // Cast for use
 
         // Type conversion based on field name
-        if (value === null || value === undefined || String(value).trim() === '') { // Ensure value is string for trim
+        if (value === null || value === undefined || String(value).trim() === '') {
           artwork[artworkField] = null;
         } else if (['price', 'height', 'width', 'depth', 'frame_height', 'frame_width', 'frame_depth', 'weight', 'crate_height', 'crate_width', 'crate_depth'].includes(artworkField)) {
           artwork[artworkField] = Number(value) || null;
@@ -28,7 +29,7 @@ export const parseMappedCSVToArtworks = (
         } else if (['year', 'edition_size', 'inventory_quantity', 'artist_proofs'].includes(artworkField)) {
           artwork[artworkField] = parseInt(String(value), 10) || null;
         } else {
-          artwork[artworkField] = value;
+          artwork[artworkField] = value; // Handles strings like title, artist_name, etc.
         }
       }
     }
@@ -57,3 +58,4 @@ export const parseMappedCSVToArtworks = (
   }
   return artworks;
 };
+

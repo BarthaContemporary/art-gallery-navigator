@@ -20,9 +20,10 @@ export type ProcessedArtworkForImport = Partial<Artwork> &
   Pick<Artwork, 'title' | 'classification' | 'medium_type' | 'currency'>;
 
 // Define the list of available artwork fields for mapping
-export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys; label: string }> = [
+export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys | 'artist_name'; label: string }> = [
   { value: "title", label: "Title" },
-  { value: "artist_id", label: "Artist ID" },
+  { value: "artist_id", label: "Artist ID (Direct)" },
+  { value: "artist_name", label: "Artist Name (Lookup/Create)" }, // New field
   { value: "year", label: "Year" },
   { value: "medium_type", label: "Medium Type" },
   { value: "materials", label: "Materials" },
@@ -55,7 +56,6 @@ export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys; label: stri
   { value: "crate_height", label: "Crate Height (cm)" },
   { value: "crate_width", label: "Crate Width (cm)" },
   { value: "crate_depth", label: "Crate Depth (cm)" },
-  // 'artist_name' is usually derived, so not a direct import field unless specified
   // 'id' is usually auto-generated, so not a direct import field
 ];
 
