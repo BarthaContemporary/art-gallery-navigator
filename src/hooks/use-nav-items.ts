@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Users,
@@ -9,6 +8,10 @@ import {
   Shield,
   Upload,
   Calendar,
+  Settings,
+  UploadCloud,
+  Database,
+  Link2,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -16,6 +19,8 @@ export type NavItem = {
   name: string;
   icon: any;
   href: string;
+  adminOnly?: boolean;
+  externalHide?: boolean;
 };
 
 const BASE_NAV_ITEMS: NavItem[] = [
@@ -25,25 +30,25 @@ const BASE_NAV_ITEMS: NavItem[] = [
     href: "/",
   },
   {
-    name: "Artists",
-    icon: Users,
-    href: "/artists",
-  },
-  {
     name: "Artworks",
     icon: Image,
     href: "/artworks",
+  },
+  {
+    name: "Artists",
+    icon: Users,
+    href: "/artists",
   },
   {
     name: "Collections",
     icon: List,
     href: "/collections",
   },
-  // Project Nav Item will be added conditionally below
   {
     name: "Locations",
     icon: MapPin,
     href: "/locations",
+    externalHide: true,
   },
   {
     name: "Documents",
@@ -55,46 +60,75 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: Upload,
     href: "/file-transfer",
   },
+  {
+    name: "My Profile",
+    icon: Settings,
+    href: "/profile",
+  },
+];
+
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  {
+    name: "Projects",
+    icon: Calendar,
+    href: "/projects",
+    adminOnly: true,
+  },
+  {
+    name: "Upload Assets",
+    icon: UploadCloud,
+    href: "/upload",
+    adminOnly: true,
+  },
+  {
+    name: "Manage Websites",
+    icon: Link2,
+    href: "/manage-websites",
+    adminOnly: true,
+  },
+  {
+    name: "Backup & Export",
+    icon: Database,
+    href: "/backup",
+    adminOnly: true,
+  },
+  {
+    name: "User Management",
+    icon: Shield,
+    href: "/signup",
+    adminOnly: true,
+  },
 ];
 
 export function useNavItems() {
-  const { isAdmin, isArtist, isExternal } = useAuth();
+  const { isAdmin, isExternal } = useAuth();
   
   let navItems = [...BASE_NAV_ITEMS];
 
   if (isAdmin) {
-    // Add Projects only for admins
-    // Find index of "Collections" to insert "Projects" after it
-    const collectionsIndex = navItems.findIndex(item => item.name === "Collections");
-    if (collectionsIndex !== -1) {
-      navItems.splice(collectionsIndex + 1, 0, {
-        name: "Projects",
-        icon: Calendar,
-        href: "/projects",
-      });
-    } else { // Fallback if "Collections" isn't found, add to end
-      navItems.push({
-        name: "Projects",
-        icon: Calendar,
-        href: "/projects",
-      });
+    const projectsItem = ADMIN_NAV_ITEMS.find(item => item.name === "Projects");
+    if (projectsItem) {
+      const collectionsIndex = navItems.findIndex(item => item.name === "Collections");
+      if (collectionsIndex !== -1) {
+        navItems.splice(collectionsIndex + 1, 0, projectsItem);
+      } else {
+        navItems.push(projectsItem);
+      }
     }
 
-    navItems.push({
-      name: "User Management",
-      icon: Shield,
-      href: "/signup",
-    });
+    const otherAdminItems = ADMIN_NAV_ITEMS.filter(item => item.name !== "Projects");
+    navItems.push(...otherAdminItems);
   }
 
-  // Remove Locations tab for external users
   navItems = navItems.filter(item => {
-    if (item.name === "Locations") {
-      return !isExternal;
+    if (item.externalHide && isExternal) {
+      return false;
+    }
+    if (item.adminOnly && !isAdmin) {
+      return false;
     }
     return true;
   });
 
   return navItems;
 }
-

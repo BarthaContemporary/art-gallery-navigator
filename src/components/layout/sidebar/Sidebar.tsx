@@ -1,8 +1,9 @@
 
 import React from "react";
 import { Sidebar as SidebarComponent, SidebarContent } from "@/components/ui/sidebar";
-import { Navigation } from "./Navigation"; // Changed SidebarNavigation to Navigation
+import { Navigation } from "./Navigation";
 import { SidebarProfile } from "./Profile";
+import { SidebarNavLogo } from "./components/SidebarNavLogo"; // Added import
 
 export function Sidebar() {
   return (
@@ -13,8 +14,9 @@ export function Sidebar() {
         textAlign: "left"
       }}
     >
-      <Navigation /> {/* Changed SidebarNavigation to Navigation */}
-      <SidebarContent>
+      <SidebarNavLogo /> {/* Added logo here */}
+      <Navigation />
+      <SidebarContent> {/* This SidebarContent is for content below navigation, like profile */}
         <SidebarProfile />
       </SidebarContent>
     </SidebarComponent>
