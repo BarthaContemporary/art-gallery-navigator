@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/f
 import { Button } from "@/components/ui/button";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { UpdatePasswordFormValues } from '@/hooks/auth/useUpdatePasswordForm';
+import { UpdatePasswordFormValues } from '@/schemas/auth/updatePasswordSchema';
 
 interface UpdatePasswordFormFieldsProps {
   form: UseFormReturn<UpdatePasswordFormValues>;
