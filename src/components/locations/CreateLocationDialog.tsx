@@ -63,8 +63,8 @@ export const CreateLocationDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Location
+        <Button size="sm" className="flex gap-2">
+          <PlusCircle className="h-3 w-3 md:h-4 md:w-4" /> Add Location
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
