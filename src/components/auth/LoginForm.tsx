@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { logger } from "@/lib/logger";
 import { TurnstileWidget } from "./TurnstileWidget";
+import { Link } from "react-router-dom";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -103,7 +103,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                   className="text-base sm:text-sm py-3"
                   inputMode="email"
                   autoComplete="email"
-                  disabled={isLoading} // Removed !TURNSTILE_SITE_KEY as it's hardcoded
+                  disabled={isLoading}
                 />
               </FormControl>
               <FormMessage />
@@ -124,14 +124,13 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
                     placeholder="Password (optional)"
                     className="text-base sm:text-sm py-3 pr-10"
                     autoComplete="current-password"
-                    disabled={isLoading} // Removed !TURNSTILE_SITE_KEY
+                    disabled={isLoading}
                   />
                   <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     tabIndex={-1}
-                    // disabled={!TURNSTILE_SITE_KEY} // Not needed if key is hardcoded
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -145,9 +144,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
             </FormItem>
           )}
         />
-
-        {/* TURNSTILE_SITE_KEY will always be true with hardcoding, so the TurnstileWidget will always attempt to render. */}
-        {/* The else branch for missing site key is effectively dead code now. */}
+        
         <div className="flex justify-center">
           <TurnstileWidget
             siteKey={TURNSTILE_SITE_KEY}
@@ -168,7 +165,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken} // Removed !TURNSTILE_SITE_KEY
+          disabled={isLoading || !form.formState.isValid || !captchaToken}
         >
           {isLoading ? (
             <>
@@ -177,6 +174,12 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
             </>
           ) : "Login"}
         </Button>
+
+        <div className="text-center text-sm">
+          <Link to="/request-password-reset" className="text-primary hover:underline">
+            Forgot Password?
+          </Link>
+        </div>
       </form>
     </Form>
   );

@@ -1,10 +1,11 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
-import { AuthProvider } from "./providers/auth-provider"; // Updated import path
+import { AuthProvider } from "./providers/auth-provider";
 import Dashboard from "./pages/Dashboard";
 import Artists from "./pages/Artists";
 import Artworks from "./pages/Artworks";
@@ -14,6 +15,8 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import RequestPasswordResetPage from "./pages/RequestPasswordReset"; // Added import
+import UpdatePasswordPage from "./pages/UpdatePassword"; // Added import
 import { RequireAuth } from "./components/auth/RequireAuth";
 import UserSignup from "./pages/UserSignup";
 import Collections from "./pages/Collections";
@@ -24,7 +27,7 @@ import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
 import ManageAllWebsites from "./pages/ManageAllWebsites";
 import PublicCollectionView from "./pages/PublicCollectionView";
-import EditCollectionWebsite from "./pages/EditCollectionWebsite"; // Added import
+import EditCollectionWebsite from "./pages/EditCollectionWebsite";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -37,7 +40,6 @@ const queryClient = new QueryClient({
     queries: {
       retry: 2,
       refetchOnWindowFocus: false,
-      // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
           logger.error("Query error:", error);
@@ -45,7 +47,6 @@ const queryClient = new QueryClient({
       }
     },
     mutations: {
-      // Updated to use newer meta pattern for onError
       meta: {
         onError: (error: Error) => {
           logger.error("Mutation error:", error);
@@ -63,13 +64,14 @@ const App = () => (
         <ErrorBoundary>
           <AuthProvider>
             <LoadingProvider>
-              {/* Removed ProjectMembersProvider wrapper */}
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
                 <LoadingOverlay />
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/request-password-reset" element={<RequestPasswordResetPage />} /> {/* Added route */}
+                  <Route path="/update-password" element={<UpdatePasswordPage />} /> {/* Added route */}
                   <Route path="/email-confirmation" element={<EmailConfirmation />} />
                   <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                   <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
@@ -87,7 +89,7 @@ const App = () => (
                     <Route path="/upload" element={<Upload />} />
                     <Route path="/file-transfer" element={<FileTransfer />} />
                     <Route path="/manage-websites" element={<ManageAllWebsites />} />
-                    <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} /> {/* Added route */}
+                    <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
