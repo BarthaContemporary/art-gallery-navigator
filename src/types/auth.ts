@@ -16,4 +16,5 @@ export interface AuthContextType {
   isExternal: boolean;
   isLoadingRoles: boolean; // Specific loading state for roles
   rolesError: Error | null; // Error state for roles fetching
+  refreshUser?: () => Promise<void>; // Added refreshUser
 }
