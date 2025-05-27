@@ -1,4 +1,3 @@
-
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -6,8 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { EditArtworkDialog } from "./EditArtworkDialog";
 import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
-import { exportArtworksToCSV } from "@/lib/csv-utils";
-import { useArtists } from "@/hooks/useArtists"; // Corrected import path
+import { exportArtworksToCSV } from "@/lib/csv";
+import { useArtists } from "@/hooks/useArtists";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,21 +71,16 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     if (art.height) parts.push(`H ${art.height}`);
     if (art.width) parts.push(`W ${art.width}`);
     if (art.depth) parts.push(`D ${art.depth}`);
-    // Assuming unit 'cm' if dimensions are present, not in schema though.
-    // For now, just the numbers. Example: "H 100 x W 80 x D 5 cm" or "N/A"
-    // The artwork type doesn't have dimension_unit. So just "H 100 W 80 D 5"
     return parts.length > 0 ? parts.join(' ') : "N/A";
   };
   
   const formatEditionInfo = (art: Artwork) => {
     if (art.classification === 'Unique') {
-      return null; // Or return "Unique" if preferred as a line item
+      return null;
     }
     const parts = [];
     if (art.edition_size) parts.push(`Ed. Size: ${art.edition_size}`);
     if (art.available_works) parts.push(`Avail.: ${art.available_works}`);
-    // Could add inventory_quantity, artist_proofs for more detail if space allows or desired.
-    // For the card, let's keep it concise.
     return parts.join(' / ');
   };
 
@@ -133,7 +127,6 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                 {artwork.currency} {artwork.price.toLocaleString()}
               </p>
             )}
-            {/* Spacer if no price but status exists */}
             {!artwork.price && artwork.status && statusIcons[artwork.status as keyof typeof statusIcons] && <div />} 
             
             {artwork.status && statusIcons[artwork.status as keyof typeof statusIcons] && (
@@ -182,4 +175,3 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     </>
   );
 }
-

@@ -1,14 +1,12 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv";
-import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/integrations/supabase/client"; // Not directly used here anymore
 import { toast } from "sonner";
 import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport } from "@/components/artworks/ArtworkFieldMapping.types";
 import { ImportStep, ImportStats, UseImportCSVReturn } from "@/components/artworks/import-steps/types";
-import { performArtworkImport } from './artworkImporter'; // New import for refactored logic
-
-// Define the type for data to be inserted.
-type ArtworkInsertData = Omit<ProcessedArtworkForImport, 'id' | 'artist_name'>;
+import { performArtworkImport } from './artworkImporter';
 
 export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () => void): UseImportCSVReturn {
   const [open, setOpen] = useState(initialOpen);
@@ -21,7 +19,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [importingProgress, setImportingProgress] = useState(0);
-  const [importStats, setImportStats] = useState<ImportStats>({ successful: 0, failed: 0, total: 0 });
+  const [importStats, setImportStats] = useState<ImportStats>({ successful: 0, failed: 0, skipped: 0, total: 0 }); // Added skipped
 
   const queryClient = useQueryClient();
 
@@ -33,7 +31,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     setCurrentStep("upload");
     setIsProcessingFile(false);
     setImportingProgress(0);
-    setImportStats({ successful: 0, failed: 0, total: 0 });
+    setImportStats({ successful: 0, failed: 0, skipped: 0, total: 0 }); // Added skipped
   }, []);
 
   useEffect(() => {
@@ -97,15 +95,20 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     setCurrentStep("importing");
     setImportingProgress(0);
     const total = parsedArtworks.length;
-    setImportStats({ successful: 0, failed: 0, total });
+    setImportStats({ successful: 0, failed: 0, skipped: 0, total }); // Added skipped
 
-    const { successful, failed } = await performArtworkImport(
+    const { successful, failed, skipped } = await performArtworkImport(
       parsedArtworks,
       (progress) => setImportingProgress(progress),
-      (stats) => setImportStats(prevStats => ({...prevStats, successful: stats.successful, failed: stats.failed }))
+      (stats) => setImportStats(prevStats => ({
+        ...prevStats, 
+        successful: stats.successful, 
+        failed: stats.failed,
+        skipped: stats.skipped // Added skipped
+      }))
     );
     
-    setImportStats({ successful, failed, total });
+    setImportStats({ successful, failed, skipped, total }); // Added skipped
     queryClient.invalidateQueries({ queryKey: ["artworks"] });
     setCurrentStep("complete");
   };

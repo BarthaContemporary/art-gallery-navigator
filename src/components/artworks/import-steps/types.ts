@@ -1,4 +1,3 @@
-
 import { ProcessedArtworkForImport, CSVPreviewData, FieldMappings } from "@/components/artworks/ArtworkFieldMapping.types";
 import { ReactNode } from "react";
 
@@ -7,6 +6,7 @@ export type ImportStep = "upload" | "mapFields" | "preview" | "importing" | "com
 export interface ImportStats {
   successful: number;
   failed: number;
+  skipped: number;
   total: number;
 }
 
@@ -15,23 +15,23 @@ export interface UseImportCSVProps {
 }
 
 export interface UseImportCSVReturn {
+  open: boolean;
+  setOpen: (open: boolean) => void;
   currentStep: ImportStep;
-  setCurrentStep: React.Dispatch<React.SetStateAction<ImportStep>>;
+  setCurrentStep: (step: ImportStep) => void;
   file: File | null;
-  setFile: React.Dispatch<React.SetStateAction<File | null>>;
-  csvPreviewData: CSVPreviewData | null;
-  fieldMappings: FieldMappings;
-  parsedArtworks: ProcessedArtworkForImport[];
+  setFile: (file: File | null) => void;
+  csvPreviewData: import('@/components/artworks/ArtworkFieldMapping.types').CSVPreviewData | null;
+  fieldMappings: import('@/components/artworks/ArtworkFieldMapping.types').FieldMappings;
+  parsedArtworks: import('@/components/artworks/ArtworkFieldMapping.types').ProcessedArtworkForImport[];
   isProcessingFile: boolean;
   importingProgress: number;
   importStats: ImportStats;
-  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  handleMappingsChanged: (newMappings: FieldMappings) => void;
+  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleMappingsChanged: (mappings: import('@/components/artworks/ArtworkFieldMapping.types').FieldMappings) => void;
   goToPreviewStep: () => void;
   handleImport: () => Promise<void>;
   resetState: () => void;
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface UploadStepProps {
@@ -41,7 +41,7 @@ export interface UploadStepProps {
 }
 
 export interface PreviewStepProps {
-  parsedArtworks: ProcessedArtworkForImport[];
+  parsedArtworks: import('@/components/artworks/ArtworkFieldMapping.types').ProcessedArtworkForImport[];
   onImport: () => void;
   onBack: () => void;
 }
@@ -55,4 +55,3 @@ export interface CompleteStepProps {
   importStats: ImportStats;
   onClose: () => void;
 }
-
