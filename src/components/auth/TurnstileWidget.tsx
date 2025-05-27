@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { logger } from '@/lib/logger';
 
 interface TurnstileWidgetProps {
@@ -12,6 +12,7 @@ interface TurnstileWidgetProps {
 }
 
 const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+const SCRIPT_ID = 'turnstile-cloudflare-script'; // Unique ID for the script tag
 
 export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
   siteKey,
@@ -24,103 +25,164 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const [widgetId, setWidgetId] = useState<string | undefined>(undefined);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Load Turnstile script only once
+  // Stable callbacks
+  const stableOnVerify = useCallback(onVerify, [onVerify]);
+  const stableOnError = useCallback(() => { if (onError) onError(); }, [onError]);
+  const stableOnExpire = useCallback(() => { if (onExpire) onExpire(); }, [onExpire]);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+  
+  // Load Turnstile script only once per page
   useEffect(() => {
     if (!siteKey) {
       logger.error("TurnstileWidget: siteKey is not provided. Widget will not render.");
-      if (onError) onError();
+      stableOnError(); // Call error callback if siteKey is missing
       return;
     }
 
-    // Check if script is already loaded
     if (window.turnstile) {
-      setScriptLoaded(true);
+      if (isMounted) setScriptLoaded(true);
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = SCRIPT_URL;
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
+    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+
+    const handleLoad = () => {
       logger.log('Turnstile script loaded successfully.');
-      setScriptLoaded(true);
-    };
-    
-    script.onerror = () => {
-      logger.error('Failed to load Turnstile script.');
-      if (onError) onError();
-    };
-    
-    document.head.appendChild(script);
-    
-    return () => {
-      // Only remove if we added it and it still exists
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+      if (isMounted) setScriptLoaded(true);
+      if (script) {
+        script.removeEventListener('load', handleLoad);
+        script.removeEventListener('error', handleError);
       }
     };
-  }, [siteKey, onError]);
 
-  // Render widget when script is loaded and container is ready
+    const handleError = () => {
+      logger.error('Failed to load Turnstile script.');
+      stableOnError();
+      if (script) {
+        script.removeEventListener('load', handleLoad);
+        script.removeEventListener('error', handleError);
+      }
+    };
+
+    if (script) { // Script tag exists
+      // If window.turnstile is not yet there, it might be loading. Add listeners.
+      // Check if it has already loaded (e.g. race condition)
+      if (window.turnstile) {
+         if (isMounted) setScriptLoaded(true);
+      } else {
+        script.addEventListener('load', handleLoad);
+        script.addEventListener('error', handleError);
+      }
+    } else { // Script tag does not exist, create and append
+      script = document.createElement('script');
+      script.id = SCRIPT_ID;
+      script.src = SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      script.addEventListener('load', handleLoad);
+      script.addEventListener('error', handleError);
+      document.head.appendChild(script);
+    }
+    
+    // Cleanup: remove event listeners specific to this instance's attempt to load script
+    // The script tag itself is NOT removed, to allow it to be shared.
+    return () => {
+      if (script) {
+        script.removeEventListener('load', handleLoad);
+        script.removeEventListener('error', handleError);
+      }
+    };
+  }, [siteKey, stableOnError, isMounted]);
+
+  // Render and manage widget instance
   useEffect(() => {
-    // Don't render if script isn't loaded yet or ref isn't ready
-    if (!scriptLoaded || !window.turnstile || !ref.current) {
+    if (!scriptLoaded || !window.turnstile || !ref.current || !isMounted) {
       return;
     }
 
-    // If widget already exists, reset it before creating a new one
+    const container = ref.current;
+    let renderedWidgetId: string | undefined = undefined;
+
+    // If a widget was previously rendered by this instance, remove it first.
+    // This handles re-renders due to prop changes (like theme, action).
     if (widgetId) {
       try {
         window.turnstile.remove(widgetId);
+        logger.log('TurnstileWidget: Previous widget removed due to re-render:', widgetId);
       } catch (e) {
-        logger.warn('Error removing existing Turnstile widget:', e);
+        logger.warn('TurnstileWidget: Error removing existing widget on re-render:', e);
       }
+      // setWidgetId(undefined); // Clear it before rendering new one
+    }
+    
+    // Clear the container explicitly before rendering.
+    // This helps if a previous widget was left orphaned by another instance or error.
+    // However, be cautious as Turnstile might expect to manage its own iframe.
+    // A less invasive way is to ensure no other elements are in our specific ref.current
+    while(container.firstChild) {
+        container.removeChild(container.firstChild);
     }
 
+
     try {
-      logger.log('Rendering Turnstile widget with sitekey:', siteKey);
-      const newWidgetId = window.turnstile.render(ref.current, {
+      logger.log('TurnstileWidget: Rendering Turnstile widget. Sitekey:', siteKey, 'Action:', action, 'Theme:', theme);
+      renderedWidgetId = window.turnstile.render(container, {
         sitekey: siteKey,
         action: action,
-        callback: (token: string) => {
-          logger.log('Turnstile verified. Token received.');
-          onVerify(token);
-        },
-        'error-callback': () => {
-          logger.error('Turnstile error-callback triggered.');
-          if (onError) onError();
-        },
-        'expired-callback': () => {
-          logger.warn('Turnstile expired-callback triggered.');
-          if (onExpire) onExpire();
-        },
+        callback: stableOnVerify,
+        'error-callback': stableOnError,
+        'expired-callback': stableOnExpire,
         theme: theme,
-        // Adding refresh expired tokens automatically
-        'refresh-expired': 'auto'
+        'refresh-expired': 'auto', // Automatically manage token expiration
       });
       
-      if (newWidgetId) {
-        logger.log('Turnstile widget rendered successfully with ID:', newWidgetId);
-        setWidgetId(newWidgetId);
+      if (renderedWidgetId) {
+        logger.log('Turnstile widget rendered successfully with ID:', renderedWidgetId);
+        if (isMounted) setWidgetId(renderedWidgetId);
+      } else {
+        logger.error('Turnstile widget render call did not return an ID.');
+        stableOnError();
       }
     } catch (e) {
-      logger.error('Exception during Turnstile widget render:', e);
-      if (onError) onError();
+      logger.error('TurnstileWidget: Exception during Turnstile widget render:', e);
+      stableOnError();
     }
 
     return () => {
-      if (widgetId && window.turnstile) {
+      // Cleanup function: Only remove the widget if this effect instance successfully rendered it.
+      if (renderedWidgetId && window.turnstile && isMounted) {
         try {
+          logger.log('TurnstileWidget: Removing widget during cleanup:', renderedWidgetId);
+          window.turnstile.remove(renderedWidgetId);
+        } catch (e) {
+          logger.warn('TurnstileWidget: Error removing widget during cleanup:', e);
+        }
+      } else if (widgetId && window.turnstile && isMounted) {
+        // Fallback for the current widgetId if renderedWidgetId was not set in this run
+        // This might happen if the component unmounts before new ID is set or due to an error
+        try {
+          logger.log('TurnstileWidget: Removing widget (state widgetId) during cleanup:', widgetId);
           window.turnstile.remove(widgetId);
         } catch (e) {
-          logger.warn('Error removing Turnstile widget during cleanup:', e);
+          logger.warn('TurnstileWidget: Error removing widget (state widgetId) during cleanup:', e);
         }
       }
+      // When the component unmounts or dependencies change, ensure widgetId state is cleared if appropriate
+      // This is implicitly handled if new widget is rendered or component unmounts.
+      // if (isMounted) setWidgetId(undefined); // This could be too aggressive if simply re-rendering
     };
-  }, [scriptLoaded, siteKey, action, theme, onVerify, onError, onExpire]);
+  // Add all dependencies that, if changed, should trigger a re-render of the widget.
+  // stableOnVerify, stableOnError, stableOnExpire are used to ensure callbacks don't cause unnecessary re-renders.
+  }, [scriptLoaded, siteKey, action, theme, stableOnVerify, stableOnError, stableOnExpire, isMounted]);
+  // Note: widgetId was removed from dependencies to prevent re-render loops from setWidgetId.
+  // The logic now handles removing the "previous" widgetId at the start of the effect if it exists.
 
   return <div ref={ref} className="turnstile-container" />;
 };
+

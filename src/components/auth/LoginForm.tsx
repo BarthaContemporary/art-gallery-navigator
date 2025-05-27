@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,19 +25,22 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-// Hardcode the Turnstile Site Key as requested
-const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
+  const [isSiteKeyConfigured, setIsSiteKeyConfigured] = useState(false);
 
   useEffect(() => {
-    // Logging the site key to ensure it's properly configured
-    logger.log("Using Turnstile Site Key:", TURNSTILE_SITE_KEY ? "Key is configured" : "NOT SET");
-    if (!TURNSTILE_SITE_KEY) {
-        setCaptchaError("CAPTCHA configuration error. Please contact support.");
+    if (TURNSTILE_SITE_KEY) {
+      logger.log("Using Turnstile Site Key:", TURNSTILE_SITE_KEY);
+      setIsSiteKeyConfigured(true);
+    } else {
+      logger.error("Turnstile Site Key NOT SET (VITE_TURNSTILE_SITE_KEY missing in .env). CAPTCHA will not be displayed.");
+      setCaptchaError("CAPTCHA configuration error: Site key not found. Please contact support.");
+      setIsSiteKeyConfigured(false);
     }
   }, []);
 
@@ -49,36 +53,41 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   });
 
   const handleCaptchaVerify = useCallback((token: string) => {
-    logger.log("CAPTCHA verified in LoginForm");
+    logger.log("CAPTCHA verified in LoginForm, token received.");
     setCaptchaToken(token);
     setCaptchaError(null); 
-  }, [setCaptchaToken, setCaptchaError]); // logger is stable
+  }, []); // Dependencies setCaptchaToken, setCaptchaError are stable from useState
 
   const handleCaptchaError = useCallback(() => {
-    logger.error("CAPTCHA error in LoginForm");
+    logger.error("CAPTCHA error in LoginForm callback.");
     setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
     setCaptchaToken(null); 
     if (onError) onError(new Error("CAPTCHA challenge failed."));
-  }, [onError, setCaptchaError, setCaptchaToken]); // logger is stable
+  }, [onError]); // Dependencies setCaptchaError, setCaptchaToken, onError (prop)
 
   const handleCaptchaExpire = useCallback(() => {
-    logger.warn("CAPTCHA expired in LoginForm");
+    logger.warn("CAPTCHA expired in LoginForm callback.");
     setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
     setCaptchaToken(null); 
-  }, [setCaptchaError, setCaptchaToken]); // logger is stable
+  }, []); // Dependencies setCaptchaError, setCaptchaToken are stable
 
   const handleSubmit = useCallback((values: LoginFormValues) => {
-    if (!TURNSTILE_SITE_KEY) {
+    if (!isSiteKeyConfigured) {
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
+      // logger.error("Login submit attempted without configured site key."); // Already logged in useEffect
       return;
     }
     if (!captchaToken) {
       setCaptchaError("Please complete the CAPTCHA challenge before logging in.");
+      logger.warn("Login submit attempted without CAPTCHA token.");
       return;
     }
-    logger.log("Submitting login form with CAPTCHA token");
-    onSubmit(values, captchaToken); 
-  }, [captchaToken, onSubmit, setCaptchaError]); // TURNSTILE_SITE_KEY is stable, logger is stable
+    logger.log("Submitting login form with CAPTCHA token.");
+    onSubmit(values, captchaToken);
+    // Optionally reset captchaToken here if onSubmit is synchronous and successful,
+    // or if TurnstileWidget should be re-challenged after every attempt.
+    // For now, let Turnstile's 'refresh-expired: auto' handle re-challenge if needed.
+  }, [captchaToken, onSubmit, isSiteKeyConfigured]);
 
   return (
     <Form {...form}>
@@ -139,15 +148,22 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           )}
         />
         
-        <div className="flex justify-center">
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            onVerify={handleCaptchaVerify}
-            onError={handleCaptchaError}
-            onExpire={handleCaptchaExpire}
-            theme="light" // Consider making this configurable or 'auto' if preferred
-          />
-        </div>
+        {isSiteKeyConfigured ? (
+          <div className="flex justify-center">
+            <TurnstileWidget
+              siteKey={TURNSTILE_SITE_KEY!} // Assert non-null as isSiteKeyConfigured is true
+              onVerify={handleCaptchaVerify}
+              onError={handleCaptchaError}
+              onExpire={handleCaptchaExpire}
+              theme="light"
+            />
+          </div>
+        ) : (
+           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
+            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+            <span>CAPTCHA service is currently unavailable due to a configuration issue. Please contact support.</span>
+          </div>
+        )}
         
         {captchaError && (
           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
@@ -159,7 +175,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken}
+          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyConfigured}
         >
           {isLoading ? (
             <>
@@ -178,3 +194,4 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     </Form>
   );
 }
+
