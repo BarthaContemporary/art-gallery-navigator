@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Mail, Trash2, XCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, Mail, Trash2, XCircle, RefreshCw, Send, KeyRound } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,12 +22,29 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useUsersList } from "@/hooks/use-users-list";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 export function UsersTable() {
-  const { profiles, isLoading, getUserRoles, handleDeleteUser, handleResendConfirmation, isResendingEmail, refetch } = useUsersList();
+  const { 
+    profiles, 
+    isLoading, 
+    getUserRoles, 
+    handleDeleteUser, 
+    handleResendConfirmation, 
+    isResendingEmail, 
+    refetch,
+    handleAdminSendPasswordReset,
+    isSendingResetForUserId,
+  } = useUsersList();
+  
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
+
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userForPasswordReset, setUserForPasswordReset] = useState<{ id: string; email: string } | null>(null);
 
   // Force refresh on initial load to ensure we have the latest data
   useEffect(() => {
@@ -47,6 +63,12 @@ export function UsersTable() {
     setIsRefreshing(true);
     await refetch();
     setTimeout(() => setIsRefreshing(false), 1000); // Show refresh animation for at least 1 second
+  };
+
+  const onAdminSendPasswordReset = async () => {
+    if (!userForPasswordReset) return;
+    await handleAdminSendPasswordReset(userForPasswordReset.email, userForPasswordReset.id);
+    setUserForPasswordReset(null);
   };
 
   if (isLoading) return <div className="p-8 text-center">Loading users...</div>;
@@ -68,7 +90,7 @@ export function UsersTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
+            <TableHead>User (Email)</TableHead>
             <TableHead>Email Status</TableHead>
             <TableHead>Roles</TableHead>
             <TableHead className="hidden sm:table-cell">Created At</TableHead>
@@ -93,12 +115,54 @@ export function UsersTable() {
                 )}
               </TableCell>
               <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {getUserRoles(profile.id).map((role) => (
-                    <Badge key={role} variant="secondary" className="whitespace-nowrap">
-                      {role}
-                    </Badge>
-                  ))}
+                <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
+                  {!profile.email_confirmed && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Resend Confirmation Email"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={() => handleResendConfirmation(profile.display_name, profile.id)}
+                      disabled={isResendingEmail === profile.id || isSendingResetForUserId === profile.id}
+                    >
+                      {isResendingEmail === profile.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <AlertDialog open={userForPasswordReset?.id === profile.id} onOpenChange={(isOpen) => !isOpen && setUserForPasswordReset(null)}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Send Password Reset Link"
+                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          onClick={() => setUserForPasswordReset({ id: profile.id, email: profile.display_name })}
+                          disabled={isSendingResetForUserId === profile.id || isResendingEmail === profile.id}
+                        >
+                          {isSendingResetForUserId === profile.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Send Password Reset Link?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will send a password reset link to <strong>{profile.display_name}</strong>.
+                            Are you sure you want to proceed?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setUserForPasswordReset(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-orange-600 text-orange-foreground hover:bg-orange-600/90"
+                            onClick={onAdminSendPasswordReset}
+                            disabled={isSendingResetForUserId === profile.id}
+                          >
+                            {isSendingResetForUserId === profile.id ? "Sending..." : "Send Link"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </TableCell>
               <TableCell className="hidden sm:table-cell">
@@ -106,24 +170,15 @@ export function UsersTable() {
               </TableCell>
               <TableCell>
                 <div className="flex space-x-1">
-                  {!profile.email_confirmed && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      onClick={() => handleResendConfirmation(profile.display_name, profile.id)}
-                      disabled={isResendingEmail === profile.id}
-                    >
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  )}
                   <AlertDialog open={userToDelete === profile.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Delete User"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setUserToDelete(profile.id)}
+                        disabled={isSendingResetForUserId === profile.id || isResendingEmail === profile.id || isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

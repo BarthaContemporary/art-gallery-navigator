@@ -1,12 +1,12 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast"; // Ensure this is the shadcn useToast
 import { useState } from "react";
+import { logger } from "@/lib/logger"; // Added logger
 
 interface ProfileData {
   id: string;
-  display_name: string;
+  display_name: string; // This is typically the email
   created_at: string;
   email_confirmed: boolean;
 }
@@ -18,6 +18,7 @@ interface UserRoleData {
 
 export function useUsersList() {
   const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null);
+  const [isSendingResetForUserId, setIsSendingResetForUserId] = useState<string | null>(null); // New state
   
   const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
@@ -104,6 +105,36 @@ export function useUsersList() {
     }
   };
 
+  const handleAdminSendPasswordReset = async (email: string, userId: string) => {
+    setIsSendingResetForUserId(userId);
+    try {
+      const appBaseUrl = window.location.origin;
+      const { error } = await supabase.functions.invoke('admin-send-password-reset', {
+        body: { targetUserEmail: email, appBaseUrl: appBaseUrl }
+      });
+
+      if (error) {
+        logger.error('Error invoking admin-send-password-reset function:', error);
+        throw new Error(error.message || 'Function invocation failed');
+      }
+      
+      toast({
+        title: "Password Reset Sent",
+        description: `A password reset link has been sent to ${email}.`,
+      });
+      
+    } catch (error: any) {
+      logger.error('Error sending admin password reset:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send password reset link",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingResetForUserId(null);
+    }
+  };
+
   const getUserRoles = (userId: string) => {
     return userRoles?.filter(role => role.user_id === userId).map(ur => ur.role) || [];
   };
@@ -115,6 +146,8 @@ export function useUsersList() {
     handleDeleteUser,
     handleResendConfirmation,
     isResendingEmail,
+    handleAdminSendPasswordReset, // Expose new function
+    isSendingResetForUserId, // Expose new state
     refetch,
   };
 }
