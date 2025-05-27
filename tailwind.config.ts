@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -35,39 +36,38 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: '#ffffff',
-        foreground: '#000000',
-        card: {
-          DEFAULT: '#ffffff',
-          foreground: '#000000',
-        },
-        popover: {
-          DEFAULT: '#ffffff',
-          foreground: '#000000',
+        background: 'hsl(var(--background))', // Updated to use HSL
+        foreground: 'hsl(var(--foreground))', // Updated to use HSL
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: '#f4f4f4',
-          foreground: '#000000',
-        },
-        muted: {
-          DEFAULT: '#f9f9f9',
-          foreground: '#666666',
-        },
-        accent: {
-          DEFAULT: '#f5f5f5',
-          foreground: '#000000',
-        },
-        primary: {
-          DEFAULT: '#18465a',
-          foreground: '#fff',
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: '#910000',
-          foreground: '#fff',
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
-        hover: '#455118',
-        link: '#910000',
-        marine: "#18465a"
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        // Removed old direct color values like hover, link, marine
+        // These will be derived from primary, accent, etc. or defined as needed.
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -76,25 +76,39 @@ export default {
       },
       keyframes: {
         'accordion-down': {
-          from: {
-            height: '0'
-          },
-          to: {
-            height: 'var(--radix-accordion-content-height)'
-          }
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' }
         },
         'accordion-up': {
-          from: {
-            height: 'var(--radix-accordion-content-height)'
-          },
-          to: {
-            height: '0'
-          }
-        }
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' }
+        },
+        // Added new animations
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-out': {
+          '0%': { opacity: '1', transform: 'translateY(0)' },
+          '100%': { opacity: '0', transform: 'translateY(10px)' },
+        },
+        'scale-in': {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'slide-up': {
+          '0%': { transform: 'translateY(100%)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out'
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        // Added new animation utilities
+        'fade-in': 'fade-in 0.3s ease-out forwards',
+        'fade-out': 'fade-out 0.3s ease-out forwards',
+        'scale-in': 'scale-in 0.2s ease-out forwards',
+        'slide-up': 'slide-up 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
       }
     }
   },

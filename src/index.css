@@ -4,15 +4,97 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 100%; /* Light mode background - White */
+    --foreground: 224 71.4% 4.1%; /* Light mode foreground - Dark Blue/Black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 200 80% 30%; /* Bartha's Dark Teal */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 220 13% 91%; /* Light Gray */
+    --secondary-foreground: 224 71.4% 4.1%;
+
+    --muted: 220 14.3% 95.9%; /* Lighter Gray */
+    --muted-foreground: 220 8.9% 46.1%; /* Medium Gray */
+
+    --accent: 45 93% 47%; /* A vibrant accent, e.g., a warm yellow/gold */
+    --accent-foreground: 224 71.4% 4.1%;
+
+    --destructive: 0 72.2% 50.6%; /* Red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 86%; /* Slightly darker than secondary for borders */
+    --input: 220 13% 89%; /* Input field background */
+    --ring: 200 80% 40%; /* Ring color - slightly lighter primary */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%; /* Dark mode background */
+    --foreground: 210 20% 98%; /* Dark mode foreground */
+
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 200 80% 45%; /* Lighter Teal for dark mode */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 27.9% 16.9%; /* Darker Gray for dark mode */
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+
+    --accent: 45 93% 55%; /* Slightly brighter accent for dark mode */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 40.0%; /* Darker red for dark mode */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 27.9% 20.9%;
+    --input: 215 27.9% 20.9%;
+    --ring: 200 80% 50%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
   html {
     font-family: "Source Sans 3", system-ui, sans-serif;
   }
   
   body {
-    @apply bg-background; /* Apply the theme's background color, which is white */
+    @apply bg-background text-foreground; /* Apply the theme's background and text color */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  h1 {
-    @apply font-sans font-normal text-slate-500; /* Changed from font-visby to font-sans */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-sans font-semibold text-foreground; /* Updated heading styles */
+  }
+  h1 { @apply text-3xl md:text-4xl; }
+  h2 { @apply text-2xl md:text-3xl; }
+  h3 { @apply text-xl md:text-2xl; }
+
+  p {
+    @apply text-base leading-relaxed;
+  }
+
+  /* More specific styling for links if needed */
+  a {
+    @apply text-primary hover:text-primary/80 transition-colors;
   }
 }
+
+/* Ensure App.css #root styles don't interfere too much with body styles */

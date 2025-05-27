@@ -1,9 +1,8 @@
 
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: left;
+  /* text-align: left; -- This is fine, but specific padding and max-width might be better handled by layout components */
+  /* Let's remove max-width and padding from here, assuming MainLayout or page-specific layouts handle this. */
+  /* If this causes issues, we can re-evaluate. The goal is to let tailwind's body styles take precedence for global defaults. */
 }
 
 .logo {
@@ -34,10 +33,15 @@
   }
 }
 
+/* .card class might conflict with Shadcn's Card component styling. */
+/* It's better to rely on Shadcn Card or use more specific custom class names. */
+/* Commenting out to avoid conflicts. */
+/*
 .card {
   padding: 2em;
   text-align: left;
 }
+*/
 
 .read-the-docs {
   color: #888;
