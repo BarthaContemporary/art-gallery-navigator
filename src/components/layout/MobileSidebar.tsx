@@ -14,21 +14,16 @@ export function MobileSidebar() {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="p-0 flex flex-col h-[calc(100vh-4rem)] mt-16 sm:h-[96vh] sm:mt-12">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          {/* Logo moved here for left alignment */}
-          <img
-            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-            alt="Bartha Logo"
-            className="h-7 w-auto"
-            style={{ maxWidth: 120 }}
-          />
+      <DrawerContent className="p-0 flex flex-col h-[calc(100vh-4rem)] mt-16 rounded-t-none">
+        {/* Header inside DrawerContent: Only Close button */}
+        <div className="flex items-center justify-end border-b px-4 py-3">
+          {/* Logo removed from here */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="ml-auto" // Removed sm:ml-0 as it's now correctly pushed by logo or ml-auto
+            // className="ml-auto" // No longer needed if justify-end is used, but keeping for safety with current flex structure
           >
             <X />
           </Button>
@@ -71,13 +66,16 @@ export function MobileSidebar() {
       </DrawerContent>
 
       {/* Fixed top bar for logo and menu trigger */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md flex items-center justify-between px-4 py-3 z-50 pointer-events-none sm:hidden">
-        <img
-          src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
-          alt="Bartha Logo"
-          className="h-7 w-auto"
-          style={{ maxWidth: 100 }}
-        />
+      {/* Removed pointer-events-none from this container div */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md flex items-center justify-between px-4 py-3 z-50 sm:hidden">
+        <Link to="/" onClick={() => setOpen(false)}>
+          <img
+            src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            alt="Bartha Logo"
+            className="h-7 w-auto"
+            style={{ maxWidth: 100 }}
+          />
+        </Link>
         <DrawerTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Open menu" className="pointer-events-auto">
             <Menu className="h-6 w-6" />
