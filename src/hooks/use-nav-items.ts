@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   Users,
@@ -8,10 +9,10 @@ import {
   Shield,
   Upload,
   Calendar,
-  Settings,
+  // Settings, // Settings icon no longer needed for My Profile
   UploadCloud,
   Database,
-  Link2,
+  // Link2, // Link2 icon no longer needed for Manage Websites
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -38,6 +39,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Artists",
     icon: Users,
     href: "/artists",
+    adminOnly: true, // Restrict to admin
   },
   {
     name: "Collections",
@@ -49,6 +51,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: MapPin,
     href: "/locations",
     externalHide: true,
+    adminOnly: true, // Restrict to admin
   },
   {
     name: "Documents",
@@ -60,11 +63,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: Upload,
     href: "/file-transfer",
   },
-  {
-    name: "My Profile",
-    icon: Settings,
-    href: "/profile",
-  },
+  // { // Removed My Profile
+  //   name: "My Profile",
+  //   icon: Settings,
+  //   href: "/profile",
+  // },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -80,12 +83,12 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     href: "/upload",
     adminOnly: true,
   },
-  {
-    name: "Manage Websites",
-    icon: Link2,
-    href: "/manage-websites",
-    adminOnly: true,
-  },
+  // { // Removed Manage Websites
+  //   name: "Manage Websites",
+  //   icon: Link2,
+  //   href: "/manage-websites",
+  //   adminOnly: true,
+  // },
   {
     name: "Backup & Export",
     icon: Database,
@@ -112,7 +115,18 @@ export function useNavItems() {
       if (collectionsIndex !== -1) {
         navItems.splice(collectionsIndex + 1, 0, projectsItem);
       } else {
-        navItems.push(projectsItem);
+        // Fallback if "Collections" isn't found, though it should be.
+        // Or decide on a different insertion point if "Collections" can be adminOnly too.
+        // For now, let's find "Artworks" or "Dashboard" as alternative insertion points.
+        let insertionIndex = navItems.findIndex(item => item.name === "Artworks");
+        if (insertionIndex === -1) {
+            insertionIndex = navItems.findIndex(item => item.name === "Dashboard");
+        }
+        if (insertionIndex !== -1) {
+            navItems.splice(insertionIndex + 1, 0, projectsItem);
+        } else {
+            navItems.push(projectsItem); // Add to end if no suitable place found
+        }
       }
     }
 
@@ -124,6 +138,8 @@ export function useNavItems() {
     if (item.externalHide && isExternal) {
       return false;
     }
+    // If adminOnly is true, item should only show if isAdmin is true.
+    // If adminOnly is false or undefined, item should show for non-admins too (unless externalHide applies).
     if (item.adminOnly && !isAdmin) {
       return false;
     }
@@ -132,3 +148,4 @@ export function useNavItems() {
 
   return navItems;
 }
+
