@@ -13,17 +13,26 @@ export interface CSVPreviewData {
   sampleData: CSVRowObject[]; // A few rows for preview
 }
 
-export type FieldMappings = Record<string, ArtworkKeys | null | ''>; // Map CSV header to ArtworkKey or null/empty to ignore
+export type FieldMappings = Record<string, ArtworkKeys | 'artist_name' | null | ''>; // Updated to include 'artist_name'
 
 // This type ensures that after parsing and defaulting, these fields are definitely present.
 export type ProcessedArtworkForImport = Partial<Artwork> & 
   Pick<Artwork, 'title' | 'classification' | 'medium_type' | 'currency'>;
 
+// New type to include validation information alongside the parsed artwork
+export interface ValidatedProcessedArtwork {
+  artwork: ProcessedArtworkForImport;
+  originalRowIndex: number; // To help user identify the row in their CSV
+  warnings: string[];
+  errors: string[];
+  isValid: boolean; // True if errors array is empty
+}
+
 // Define the list of available artwork fields for mapping
 export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys | 'artist_name'; label: string }> = [
   { value: "title", label: "Title" },
   { value: "artist_id", label: "Artist ID (Direct)" },
-  { value: "artist_name", label: "Artist Name (Lookup/Create)" }, // New field
+  { value: "artist_name", label: "Artist Name (Lookup/Create)" },
   { value: "year", label: "Year" },
   { value: "medium_type", label: "Medium Type" },
   { value: "materials", label: "Materials" },

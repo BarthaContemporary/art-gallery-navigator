@@ -1,4 +1,5 @@
-import { ProcessedArtworkForImport, CSVPreviewData, FieldMappings } from "@/components/artworks/ArtworkFieldMapping.types";
+
+import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types"; // Added ValidatedProcessedArtwork
 import { ReactNode } from "react";
 
 export type ImportStep = "upload" | "mapFields" | "preview" | "importing" | "complete";
@@ -21,14 +22,14 @@ export interface UseImportCSVReturn {
   setCurrentStep: (step: ImportStep) => void;
   file: File | null;
   setFile: (file: File | null) => void;
-  csvPreviewData: import('@/components/artworks/ArtworkFieldMapping.types').CSVPreviewData | null;
-  fieldMappings: import('@/components/artworks/ArtworkFieldMapping.types').FieldMappings;
-  parsedArtworks: import('@/components/artworks/ArtworkFieldMapping.types').ProcessedArtworkForImport[];
+  csvPreviewData: CSVPreviewData | null;
+  fieldMappings: FieldMappings;
+  parsedArtworks: ValidatedProcessedArtwork[]; // Changed type here
   isProcessingFile: boolean;
   importingProgress: number;
   importStats: ImportStats;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleMappingsChanged: (mappings: import('@/components/artworks/ArtworkFieldMapping.types').FieldMappings) => void;
+  handleMappingsChanged: (mappings: FieldMappings) => void;
   goToPreviewStep: () => void;
   handleImport: () => Promise<void>;
   resetState: () => void;
@@ -41,7 +42,7 @@ export interface UploadStepProps {
 }
 
 export interface PreviewStepProps {
-  parsedArtworks: import('@/components/artworks/ArtworkFieldMapping.types').ProcessedArtworkForImport[];
+  parsedArtworks: ValidatedProcessedArtwork[]; // Changed type here
   onImport: () => void;
   onBack: () => void;
 }
