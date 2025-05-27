@@ -1,13 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import JSZip from 'jszip';
 import type { Database } from '@/integrations/supabase/types'; // Import Database type
-
-// Assuming these types are comprehensive or further defined elsewhere if specific fields are needed.
-// For this fix, we focus on Supabase client interaction.
-// import { Artwork } from "@/hooks/use-artworks";
-// import { Artist } from "@/hooks/useArtists"; 
 
 // Define a type for table names based on the Database schema
 type TableName = keyof Database['public']['Tables'];
@@ -215,25 +209,3 @@ export const exportDataAsCsvZip = async () => {
       toast.error("Failed to generate ZIP file for CSVs.");
     });
 };
-
-// Ensure formatCSVValue and convertToCSV are included if they were part of the original file
-function formatCSVValue(value: any): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  const strValue = String(value);
-  if (strValue.includes(',') || strValue.includes('\n') || strValue.includes('"')) {
-    return `"${strValue.replace(/"/g, '""')}"`;
-  }
-  return strValue;
-}
-
-function convertToCSV(data: any[], headers: string[]): string {
-  const headerRow = headers.map(formatCSVValue).join(',');
-  const dataRows = data.map(row => {
-    return headers.map(header => {
-      return formatCSVValue(row[header]);
-    }).join(',');
-  });
-  return [headerRow, ...dataRows].join('\n');
-}
