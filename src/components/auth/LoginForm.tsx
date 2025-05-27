@@ -33,15 +33,12 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   const [captchaError, setCaptchaError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Log that the key is hardcoded
-    logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY ? "****** (hardcoded)" : "NOT SET (this should not happen with hardcoding)");
+    // Logging the site key to ensure it's properly configured
+    logger.log("Using Turnstile Site Key:", TURNSTILE_SITE_KEY ? "Key is configured" : "NOT SET");
     if (!TURNSTILE_SITE_KEY) {
-        // This case should ideally not be hit if hardcoded correctly
-        logger.error("Critical: Hardcoded Turnstile Site Key is unexpectedly empty. CAPTCHA will not function.");
         setCaptchaError("CAPTCHA configuration error. Please contact support.");
     }
   }, []);
-
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -52,38 +49,35 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   });
 
   const handleCaptchaVerify = (token: string) => {
-    logger.log("CAPTCHA verified in LoginForm, token received.");
+    logger.log("CAPTCHA verified in LoginForm");
     setCaptchaToken(token);
     setCaptchaError(null); 
   };
 
   const handleCaptchaError = () => {
-    logger.error("CAPTCHA error in LoginForm.");
-    setCaptchaError("CAPTCHA challenge failed. Please try again.");
+    logger.error("CAPTCHA error in LoginForm");
+    setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
     setCaptchaToken(null); 
     if (onError) onError(new Error("CAPTCHA challenge failed."));
   };
   
   const handleCaptchaExpire = () => {
-    logger.warn("CAPTCHA expired in LoginForm.");
+    logger.warn("CAPTCHA expired in LoginForm");
     setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
     setCaptchaToken(null); 
   };
 
   const handleSubmit = (values: LoginFormValues) => {
-    // The check for !TURNSTILE_SITE_KEY is somewhat redundant if hardcoded, but kept for safety.
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Login attempt while Turnstile site key is missing (hardcoded value issue).");
-      setCaptchaError("CAPTCHA configuration error. Please contact support."); // Should match error in useEffect
+      setCaptchaError("CAPTCHA configuration error. Please contact support.");
       return;
     }
     if (!captchaToken) {
-      logger.warn("Login form submitted without CAPTCHA token.");
-      setCaptchaError("Please complete the CAPTCHA challenge.");
+      setCaptchaError("Please complete the CAPTCHA challenge before logging in.");
       return;
     }
-    logger.log("Submitting login form:", values.email, "with CAPTCHA token.");
-    onSubmit(values, captchaToken as string); 
+    logger.log("Submitting login form with CAPTCHA token");
+    onSubmit(values, captchaToken); 
   };
 
   return (

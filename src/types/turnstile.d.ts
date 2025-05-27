@@ -1,35 +1,29 @@
 
 declare global {
   interface Window {
-    turnstile: TurnstileObject;
+    turnstile?: {
+      render: (
+        container: HTMLElement | string,
+        options: {
+          sitekey: string;
+          action?: string;
+          callback?: (token: string) => void;
+          'expired-callback'?: () => void;
+          'error-callback'?: () => void;
+          theme?: 'light' | 'dark' | 'auto';
+          'refresh-expired'?: 'auto' | 'manual' | boolean;
+          language?: string;
+          tabindex?: number;
+          'response-field'?: boolean;
+          'response-field-name'?: string;
+          size?: string;
+        }
+      ) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+      getResponse: (widgetId?: string) => string;
+    };
   }
-}
-
-export interface TurnstileObject {
-  render: (container: string | HTMLElement, options: TurnstileOptions) => string | undefined;
-  reset: (widgetId?: string) => void;
-  getResponse: (widgetId?: string) => string | undefined;
-  remove: (widgetId?: string) => void;
-}
-
-export interface TurnstileOptions {
-  sitekey: string;
-  action?: string;
-  cData?: string;
-  callback?: (token: string) => void;
-  'error-callback'?: () => void;
-  'expired-callback'?: () => void;
-  theme?: 'light' | 'dark' | 'auto';
-  language?: string | 'auto';
-  tabindex?: number;
-  'response-field'?: boolean;
-  'response-field-name'?: string;
-  size?: 'normal' | 'compact';
-  retry?: 'auto' | 'never';
-  'retry-interval'?: number;
-  'refresh-expired'?: 'auto' | 'manual' | 'never';
-  execution?: 'render' | 'execute';
-  appearance?: 'always' | 'execute' | 'interaction-only';
 }
 
 export {};
