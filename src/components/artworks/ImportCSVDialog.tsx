@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv-utils"; // Updated import
@@ -17,11 +16,15 @@ import {
 } from "@/components/ui/dialog";
 import { Upload, FileUp, ListChecks, StepForward, StepBack, CheckCircle2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CSVPreviewData, FieldMappings } from "./ArtworkFieldMapping.types"; // New import
-import { FieldMappingStep } from "./FieldMappingStep"; // New import
+import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport } from "./ArtworkFieldMapping.types"; // Updated import
+import { FieldMappingStep } from "./FieldMappingStep";
 import { Progress } from "@/components/ui/progress";
 
 type ImportStep = "upload" | "mapFields" | "preview" | "importing" | "complete";
+
+// Define the type for data to be inserted, excluding DB-generated fields
+type ArtworkInsertData = Omit<ProcessedArtworkForImport, 'id' | 'created_at' | 'updated_at' | 'artist_name'>;
+
 
 export function ImportCSVDialog() {
   const [open, setOpen] = useState(false);
@@ -30,7 +33,7 @@ export function ImportCSVDialog() {
   
   const [csvPreviewData, setCsvPreviewData] = useState<CSVPreviewData | null>(null);
   const [fieldMappings, setFieldMappings] = useState<FieldMappings>({});
-  const [parsedArtworks, setParsedArtworks] = useState<Partial<Artwork>[]>([]);
+  const [parsedArtworks, setParsedArtworks] = useState<ProcessedArtworkForImport[]>([]); // Use the more specific type
   
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [importingProgress, setImportingProgress] = useState(0);
@@ -96,7 +99,7 @@ export function ImportCSVDialog() {
     const artworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
     setParsedArtworks(artworks);
     if (artworks.length === 0) {
-        toast.warn("No artworks could be generated with the current mappings. Please check your field mappings.");
+        toast.warning("No artworks could be generated with the current mappings. Please check your field mappings.");
     }
     setCurrentStep("preview");
   };
@@ -117,15 +120,21 @@ export function ImportCSVDialog() {
     for (let i = 0; i < total; i++) {
       const artwork = parsedArtworks[i];
       // Remove id if present (for insert operation)
-      const { id, ...artworkData } = artwork;
+      // Also remove artist_name as it's not a direct DB field for insert
+      const { id, artist_name, ...artworkData } = artwork;
 
-      const dataToInsert = {
-        ...artworkData,
-        // Default values are now handled in parseMappedCSVToArtworks
-      };
+      // Ensure artworkData matches the expected type for Supabase insert
+      // The ProcessedArtworkForImport type guarantees title, classification, medium_type, currency are present.
+      const dataToInsert: ArtworkInsertData = artworkData;
 
       try {
-        const { error } = await supabase.from("artworks").insert(dataToInsert);
+        // Supabase insert expects an object (or array of objects) matching table columns.
+        // ArtworkInsertData is now correctly typed.
+        const { error } = await supabase.from("artworks").insert(dataToInsert as any); // Use 'as any' if strict typing still causes issues, but prefer strong types. Ideally, ArtworkInsertData should be directly compatible.
+                                                                                      // Let's check Artwork type and table schema again.
+                                                                                      // If `dataToInsert` (which is `Omit<ProcessedArtworkForImport, 'id' | 'artist_name'>`)
+                                                                                      // is compatible with what `supabase.from("artworks").insert` expects (an object where keys are column names and values are corresponding types),
+                                                                                      // then this should work. The `ProcessedArtworkForImport` ensures required fields are there.
         if (error) {
           console.error("Error importing artwork:", artwork.title, error);
           failed++;
@@ -275,15 +284,15 @@ export function ImportCSVDialog() {
           )}
         </DialogHeader>
 
-        <ScrollArea className="flex-grow p-1 pr-2 -mr-1"> {/* Adjusted padding for better scrollbar visibility */}
-          <div className="py-4 px-1"> {/* Main content padding */}
+        <ScrollArea className="flex-grow p-1 pr-2 -mr-1">
+          <div className="py-4 px-1">
             {renderStepContent()}
           </div>
         </ScrollArea>
 
-        {currentStep !== "mapFields" && currentStep !== "preview" && currentStep !== "importing" && currentStep !== "complete" && (
+        {currentStep === "upload" && (
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isProcessingFile || currentStep === "importing"}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isProcessingFile}>
               Cancel
             </Button>
           </DialogFooter>

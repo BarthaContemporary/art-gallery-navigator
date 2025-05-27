@@ -15,6 +15,10 @@ export interface CSVPreviewData {
 
 export type FieldMappings = Record<string, ArtworkKeys | null | ''>; // Map CSV header to ArtworkKey or null/empty to ignore
 
+// This type ensures that after parsing and defaulting, these fields are definitely present.
+export type ProcessedArtworkForImport = Partial<Artwork> & 
+  Pick<Artwork, 'title' | 'classification' | 'medium_type' | 'currency'>;
+
 // Define the list of available artwork fields for mapping
 export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys; label: string }> = [
   { value: "title", label: "Title" },

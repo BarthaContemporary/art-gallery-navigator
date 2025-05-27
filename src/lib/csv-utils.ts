@@ -1,7 +1,7 @@
 import { Artwork } from "@/hooks/use-artworks";
 import { toast } from "sonner";
 import Papa from 'papaparse';
-import { CSVPreviewData, CSVRowObject, FieldMappings, ArtworkKeys } from "@/components/artworks/ArtworkFieldMapping.types";
+import { CSVPreviewData, CSVRowObject, FieldMappings, ProcessedArtworkForImport } from "@/components/artworks/ArtworkFieldMapping.types";
 
 // Helper to format CSV values properly
 const formatCSVValue = (value: any): string => {
@@ -109,15 +109,15 @@ export const parseCSVForPreview = async (file: File): Promise<CSVPreviewData> =>
   });
 };
 
-// Modified parseCSVtoArtworks to use mappings
+// Modified parseCSVtoArtworks to use mappings and return a more specific type
 export const parseMappedCSVToArtworks = (
   csvRows: CSVRowObject[],
   mappings: FieldMappings
-): Partial<Artwork>[] => {
-  const artworks: Partial<Artwork>[] = [];
+): ProcessedArtworkForImport[] => {
+  const artworks: ProcessedArtworkForImport[] = [];
 
   for (const rawRow of csvRows) {
-    const artwork: Record<string, any> = {};
+    const artwork: Record<string, any> = {}; // Start with a less specific type internally
     let hasMappedData = false;
 
     for (const csvHeader in mappings) {
@@ -147,13 +147,15 @@ export const parseMappedCSVToArtworks = (
     if (artwork.title === undefined || artwork.title === null || String(artwork.title).trim() === '') {
       artwork.title = 'Untitled';
     }
+    // These defaults ensure the fields are present and correctly typed for ProcessedArtworkForImport
     if (!artwork.classification) artwork.classification = 'Unique';
     if (!artwork.medium_type) artwork.medium_type = 'Painting';
     if (!artwork.currency) artwork.currency = 'USD';
     
     // This check helps avoid pushing empty objects if all mapped fields were empty
     if (Object.keys(artwork).some(key => artwork[key] !== null && artwork[key] !== undefined && artwork[key] !== '')) {
-       artworks.push(artwork as Partial<Artwork>);
+       // Cast to ProcessedArtworkForImport here, as we've ensured the required fields are set
+       artworks.push(artwork as ProcessedArtworkForImport);
     }
   }
   return artworks;
