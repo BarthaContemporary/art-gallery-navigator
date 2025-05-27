@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Download, FileSpreadsheet as ExcelIcon } from "lucide-react"; // Using FileSpreadsheet as Excel icon
-import { exportDatabaseAsJson, exportAllMediaAsZip, exportDataAsCsvZip } from '@/lib/backupUtils';
+import { Database, Download, FileSpreadsheet as ExcelIcon } from "lucide-react";
+import { exportDatabaseAsJson, exportAllMediaAsZip, exportDataAsCsvZip } from '@/lib/backup'; // Updated import path
 
 const BackupExportPage = () => {
   const [isJsonExporting, setIsJsonExporting] = useState(false);
@@ -55,7 +55,7 @@ const BackupExportPage = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Download className="mr-2 h-5 w-5" /> {/* Using generic Download icon as "archive" is not on the list */}
+              <Download className="mr-2 h-5 w-5" />
               Media Files Export (ZIP)
             </CardTitle>
             <CardDescription>
@@ -95,3 +95,4 @@ const BackupExportPage = () => {
 };
 
 export default BackupExportPage;
+
