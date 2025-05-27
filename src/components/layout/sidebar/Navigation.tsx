@@ -1,7 +1,7 @@
 
-import { NavItem } from "@/components/layout/sidebar/components/SidebarNavItem";
+import { SidebarNavItem } from "@/components/layout/sidebar/components/SidebarNavItem"; // Changed NavItem to SidebarNavItem
 import {
-  Palette, Users, Landmark, Calendar, Folder, FileText, Settings, UploadCloud, Link2, Database, FileUp // Added Database, FileUp
+  Palette, Users, Landmark, Calendar, Folder, FileText, Settings, UploadCloud, Link2, Database, FileUp
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -9,20 +9,20 @@ export const Navigation = () => {
   const { user, isAdmin } = useAuth();
 
   const navItems = [
-    { href: "/", icon: Palette, label: "Dashboard" },
-    { href: "/artworks", icon: Palette, label: "Artworks" },
-    { href: "/artists", icon: Users, label: "Artists" },
-    { href: "/collections", icon: Folder, label: "Collections" },
-    { href: "/projects", icon: Calendar, label: "Projects" },
-    { href: "/locations", icon: Landmark, label: "Locations" },
-    { href: "/documents", icon: FileText, label: "Documents" },
-    { href: "/manage-websites", icon: Link2, label: "Websites" , adminOnly: true },
+    { href: "/", icon: Palette, name: "Dashboard" }, // Changed label to name
+    { href: "/artworks", icon: Palette, name: "Artworks" }, // Changed label to name
+    { href: "/artists", icon: Users, name: "Artists" }, // Changed label to name
+    { href: "/collections", icon: Folder, name: "Collections" }, // Changed label to name
+    { href: "/projects", icon: Calendar, name: "Projects" }, // Changed label to name
+    { href: "/locations", icon: Landmark, name: "Locations" }, // Changed label to name
+    { href: "/documents", icon: FileText, name: "Documents" }, // Changed label to name
+    { href: "/manage-websites", icon: Link2, name: "Websites" , adminOnly: true }, // Changed label to name
     { type: "divider", adminOnly: true },
-    { href: "/upload", icon: UploadCloud, label: "Upload Assets", adminOnly: true },
-    { href: "/file-transfer", icon: FileUp, label: "File Transfers", adminOnly: true }, // Using FileUp for File Transfers
-    { href: "/backup", icon: Database, label: "Backup & Export", adminOnly: true }, // Added Backup & Export link
+    { href: "/upload", icon: UploadCloud, name: "Upload Assets", adminOnly: true }, // Changed label to name
+    { href: "/file-transfer", icon: FileUp, name: "File Transfers", adminOnly: true }, // Changed label to name
+    { href: "/backup", icon: Database, name: "Backup & Export", adminOnly: true }, // Changed label to name
     { type: "divider" },
-    { href: "/profile", icon: Settings, label: "My Profile" },
+    { href: "/profile", icon: Settings, name: "My Profile" }, // Changed label to name
   ];
 
   const filteredNavItems = navItems.filter(item => {
@@ -38,7 +38,7 @@ export const Navigation = () => {
         item.type === "divider" ? (
           <hr key={`divider-${index}`} className="my-3 border-gray-200 dark:border-gray-700" />
         ) : (
-          <NavItem key={item.href} href={item.href!} icon={item.icon!} label={item.label!} />
+          <SidebarNavItem key={item.href} href={item.href!} icon={item.icon!} name={item.name!} /> // Changed label to name
         )
       )}
     </nav>

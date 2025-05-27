@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Sidebar as SidebarComponent, SidebarContent } from "@/components/ui/sidebar";
-import { SidebarNavigation } from "./Navigation";
+import { Navigation } from "./Navigation"; // Changed SidebarNavigation to Navigation
 import { SidebarProfile } from "./Profile";
 
 export function Sidebar() {
@@ -13,7 +13,7 @@ export function Sidebar() {
         textAlign: "left"
       }}
     >
-      <SidebarNavigation />
+      <Navigation /> {/* Changed SidebarNavigation to Navigation */}
       <SidebarContent>
         <SidebarProfile />
       </SidebarContent>

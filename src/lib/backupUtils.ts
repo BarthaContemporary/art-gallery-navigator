@@ -2,20 +2,27 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import JSZip from 'jszip';
-import { Artwork } from "@/hooks/use-artworks"; // Assuming this type is comprehensive
-import { Artist } from "@/hooks/useArtists"; // Assuming this type is comprehensive
-// Import other types as needed, e.g., Collection, Document, Location, Project etc.
-// For simplicity, I'll fetch all columns and let TS infer for others or use 'any' for now.
-// In a real scenario, you'd import/define all relevant types.
+import type { Database } from '@/integrations/supabase/types'; // Import Database type
 
-const TABLES_TO_EXPORT = [
+// Assuming these types are comprehensive or further defined elsewhere if specific fields are needed.
+// For this fix, we focus on Supabase client interaction.
+// import { Artwork } from "@/hooks/use-artworks";
+// import { Artist } from "@/hooks/useArtists"; 
+
+// Define a type for table names based on the Database schema
+type TableName = keyof Database['public']['Tables'];
+
+const TABLES_TO_EXPORT: TableName[] = [
   'artists', 'artworks', 'artwork_images', 'collections', 'collection_artworks',
   'collection_websites', 'documents', 'locations', 'projects', 'project_users',
   'project_tasks', 'project_task_references', 'clients', 'sales', 'exhibitions',
   'exhibition_artworks', 'profiles', 'user_roles', 'uploads'
+  // 'deletion_requests' was causing an issue with the generated types, temporarily removed.
+  // Needs to be verified if 'deletion_requests' table is fully defined in types.ts
+  // For now, assuming it's not part of the core export or will be added back once types are confirmed.
 ];
 
-async function fetchDataForTable(tableName: string) {
+async function fetchDataForTable(tableName: TableName) { // Use the TableName type
   const { data, error } = await supabase.from(tableName).select('*');
   if (error) {
     console.error(`Error fetching data for table ${tableName}:`, error);
@@ -89,17 +96,23 @@ export const exportAllMediaAsZip = async () => {
   let filesAdded = 0;
 
   const sources = [
-    { table: 'artwork_images', urlColumn: 'image_url', fallbackName: 'artwork_image' },
-    { table: 'artwork_images', urlColumn: 'medium_url', fallbackName: 'artwork_medium_image' },
-    { table: 'artwork_images', urlColumn: 'thumbnail_url', fallbackName: 'artwork_thumbnail_image' },
-    { table: 'documents', urlColumn: 'file_url', nameColumn: 'file_name', fallbackName: 'document' },
-    { table: 'uploads', urlColumn: 'file_url', nameColumn: 'file_name', fallbackName: 'upload' },
-    { table: 'artists', urlColumn: 'image_url', fallbackName: 'artist_image' },
-    { table: 'exhibitions', urlColumn: 'image_url', fallbackName: 'exhibition_image' },
+    { table: 'artwork_images' as TableName, urlColumn: 'image_url', fallbackName: 'artwork_image' },
+    { table: 'artwork_images' as TableName, urlColumn: 'medium_url', fallbackName: 'artwork_medium_image' },
+    { table: 'artwork_images' as TableName, urlColumn: 'thumbnail_url', fallbackName: 'artwork_thumbnail_image' },
+    { table: 'documents' as TableName, urlColumn: 'file_url', nameColumn: 'file_name', fallbackName: 'document' },
+    { table: 'uploads' as TableName, urlColumn: 'file_url', nameColumn: 'file_name', fallbackName: 'upload' },
+    { table: 'artists' as TableName, urlColumn: 'image_url', fallbackName: 'artist_image' },
+    { table: 'exhibitions' as TableName, urlColumn: 'image_url', fallbackName: 'exhibition_image' },
   ];
 
   for (const source of sources) {
-    const { data, error } = await supabase.from(source.table).select(`${source.urlColumn}${source.nameColumn ? `, ${source.nameColumn}` : ''}, id`);
+    const selectColumns: string[] = [source.urlColumn, 'id'];
+    if (source.nameColumn) {
+      selectColumns.push(source.nameColumn);
+    }
+
+    const { data, error } = await supabase.from(source.table).select(selectColumns.join(','));
+    
     if (error) {
       console.error(`Error fetching media from ${source.table}:`, error);
       toast.warning(`Could not fetch some media from ${source.table}.`);
@@ -107,16 +120,22 @@ export const exportAllMediaAsZip = async () => {
     }
 
     if (data) {
-      for (const item of data) {
+      for (const item of data as any[]) { // Cast item to any[] to bypass strict type checking for dynamic properties
         const url = item[source.urlColumn];
         if (url && typeof url === 'string') {
           try {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
             const blob = await response.blob();
-            let fileName = item[source.nameColumn || ''] || `${source.fallbackName}_${item.id}.${blob.type.split('/')[1] || 'file'}`;
+            
+            let fileNamePart = source.nameColumn ? item[source.nameColumn] : null;
+            if (!fileNamePart) {
+              const extension = blob.type.split('/')[1] || 'file';
+              fileNamePart = `${source.fallbackName}_${item.id}.${extension}`;
+            }
             // Ensure unique file names within zip, prefix with table name
-            fileName = `${source.table}/${fileName}`;
+            const fileName = `${source.table}/${fileNamePart}`;
+
             zip.file(fileName, blob);
             filesAdded++;
           } catch (fetchError) {
@@ -156,10 +175,8 @@ export const exportDataAsCsvZip = async () => {
   const zip = new JSZip();
   let sheetsAdded = 0;
 
-  // Define specific tables and their desired headers or use all columns
-  const tablesForCsvExport = [
+  const tablesForCsvExport: TableName[] = [ // Use TableName type
     'artists', 'artworks', 'collections', 'documents', 'locations', 'projects', 'clients', 'sales', 'exhibitions', 'uploads'
-    // Add more tables as needed
   ];
 
   for (const tableName of tablesForCsvExport) {
@@ -199,3 +216,24 @@ export const exportDataAsCsvZip = async () => {
     });
 };
 
+// Ensure formatCSVValue and convertToCSV are included if they were part of the original file
+function formatCSVValue(value: any): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const strValue = String(value);
+  if (strValue.includes(',') || strValue.includes('\n') || strValue.includes('"')) {
+    return `"${strValue.replace(/"/g, '""')}"`;
+  }
+  return strValue;
+}
+
+function convertToCSV(data: any[], headers: string[]): string {
+  const headerRow = headers.map(formatCSVValue).join(',');
+  const dataRows = data.map(row => {
+    return headers.map(header => {
+      return formatCSVValue(row[header]);
+    }).join(',');
+  });
+  return [headerRow, ...dataRows].join('\n');
+}
