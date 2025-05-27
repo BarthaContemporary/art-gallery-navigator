@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport } from "@/components/artworks/ArtworkFieldMapping.types";
 import { ImportStep, ImportStats, UseImportCSVReturn } from "@/components/artworks/import-steps/types";
+import { performArtworkImport } from './artworkImporter'; // New import for refactored logic
 
 // Define the type for data to be inserted.
 type ArtworkInsertData = Omit<ProcessedArtworkForImport, 'id' | 'artist_name'>;
@@ -82,7 +83,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     const artworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
     setParsedArtworks(artworks);
     if (artworks.length === 0) {
-        toast.warn("No artworks could be generated with the current mappings. Please check your field mappings.");
+        toast.warning("No artworks could be generated with the current mappings. Please check your field mappings.");
     }
     setCurrentStep("preview");
   };
@@ -95,43 +96,16 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
 
     setCurrentStep("importing");
     setImportingProgress(0);
-    let successful = 0;
-    let failed = 0;
     const total = parsedArtworks.length;
-    setImportStats({ successful, failed, total });
+    setImportStats({ successful: 0, failed: 0, total });
 
-    for (let i = 0; i < total; i++) {
-      const artwork = parsedArtworks[i];
-      const { id, artist_name, ...artworkFieldsToInsert } = artwork;
-      
-      const dataToInsert: ArtworkInsertData = {
-        ...artworkFieldsToInsert,
-        title: artworkFieldsToInsert.title!,
-        classification: artworkFieldsToInsert.classification!,
-        medium_type: artworkFieldsToInsert.medium_type!,
-        currency: artworkFieldsToInsert.currency!,
-      };
-
-      try {
-        // Casting to `any` for insert. A more robust solution would be to ensure
-        // ArtworkInsertData perfectly matches the expected type for Supabase `artworks` table insert.
-        const { error } = await supabase.from("artworks").insert(dataToInsert as any); 
-                                                                                      
-        if (error) {
-          console.error("Error importing artwork:", artwork.title, error);
-          failed++;
-        } else {
-          successful++;
-        }
-      } catch (dbError) {
-        console.error("Database Error importing artwork:", artwork.title, dbError);
-        failed++;
-      }
-      
-      setImportingProgress(((i + 1) / total) * 100);
-      setImportStats({ successful, failed, total });
-    }
+    const { successful, failed } = await performArtworkImport(
+      parsedArtworks,
+      (progress) => setImportingProgress(progress),
+      (stats) => setImportStats(prevStats => ({...prevStats, successful: stats.successful, failed: stats.failed }))
+    );
     
+    setImportStats({ successful, failed, total });
     queryClient.invalidateQueries({ queryKey: ["artworks"] });
     setCurrentStep("complete");
   };

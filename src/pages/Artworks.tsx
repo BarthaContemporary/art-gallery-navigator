@@ -10,7 +10,7 @@ import { useArtworks } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
-import { exportArtworksToCSV } from "@/lib/csv-utils";
+import { exportArtworksToCSV } from "@/lib/csv";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
