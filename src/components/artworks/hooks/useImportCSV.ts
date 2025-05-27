@@ -1,14 +1,13 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv-utils";
+import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport } from "@/components/artworks/ArtworkFieldMapping.types";
 import { ImportStep, ImportStats, UseImportCSVReturn } from "@/components/artworks/import-steps/types";
 
-// Define the type for data to be inserted, excluding DB-generated fields
-type ArtworkInsertData = Omit<ProcessedArtworkForImport, 'id' | 'created_at' | 'updated_at' | 'artist_name'>;
+// Define the type for data to be inserted.
+type ArtworkInsertData = Omit<ProcessedArtworkForImport, 'id' | 'artist_name'>;
 
 export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () => void): UseImportCSVReturn {
   const [open, setOpen] = useState(initialOpen);
@@ -83,11 +82,11 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     const artworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
     setParsedArtworks(artworks);
     if (artworks.length === 0) {
-        toast.warning("No artworks could be generated with the current mappings. Please check your field mappings.");
+        toast.warn("No artworks could be generated with the current mappings. Please check your field mappings.");
     }
     setCurrentStep("preview");
   };
-
+  
   const handleImport = async () => {
     if (!parsedArtworks.length) {
       toast.error("No artworks to import. Please check mappings or CSV data.");
@@ -103,19 +102,20 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
 
     for (let i = 0; i < total; i++) {
       const artwork = parsedArtworks[i];
-      const { id, artist_name, created_at, updated_at, ...artworkData } = artwork; // id, artist_name, created_at, updated_at are not direct insert fields or are auto-generated
+      const { id, artist_name, ...artworkFieldsToInsert } = artwork;
       
       const dataToInsert: ArtworkInsertData = {
-        ...artworkData,
-        // Ensure required fields from ProcessedArtworkForImport are present
-        title: artworkData.title!,
-        classification: artworkData.classification!,
-        medium_type: artworkData.medium_type!,
-        currency: artworkData.currency!,
+        ...artworkFieldsToInsert,
+        title: artworkFieldsToInsert.title!,
+        classification: artworkFieldsToInsert.classification!,
+        medium_type: artworkFieldsToInsert.medium_type!,
+        currency: artworkFieldsToInsert.currency!,
       };
 
       try {
-        const { error } = await supabase.from("artworks").insert(dataToInsert);
+        // Casting to `any` for insert. A more robust solution would be to ensure
+        // ArtworkInsertData perfectly matches the expected type for Supabase `artworks` table insert.
+        const { error } = await supabase.from("artworks").insert(dataToInsert as any); 
                                                                                       
         if (error) {
           console.error("Error importing artwork:", artwork.title, error);
