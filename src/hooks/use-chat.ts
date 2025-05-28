@@ -109,10 +109,7 @@ export function useChat() {
 
     const { data, error } = await supabase
       .from('user_presence')
-      .select(`
-        *,
-        profiles(display_name, avatar_url)
-      `)
+      .select('*')
       .eq('is_online', true)
       .neq('user_id', user.id);
 
@@ -121,14 +118,28 @@ export function useChat() {
       return;
     }
 
-    // Transform the data to match our interface
-    const transformedData = (data || []).map(item => ({
-      ...item,
-      profile: item.profiles ? {
-        display_name: item.profiles.display_name || 'Unknown User',
-        avatar_url: item.profiles.avatar_url
-      } : { display_name: 'Unknown User' }
-    }));
+    // Fetch profile data separately
+    const userIds = (data || []).map(item => item.user_id);
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    // Combine presence data with profile data
+    const transformedData = (data || []).map(item => {
+      const profile = (profilesData || []).find(p => p.id === item.user_id);
+      return {
+        ...item,
+        profile: profile ? {
+          display_name: profile.display_name || 'Unknown User',
+          avatar_url: profile.avatar_url
+        } : { display_name: 'Unknown User' }
+      };
+    });
 
     setOnlineUsers(transformedData);
   };
@@ -140,11 +151,7 @@ export function useChat() {
     setLoading(true);
     const { data, error } = await supabase
       .from('chat_rooms')
-      .select(`
-        *,
-        participant_1_profiles:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
-        participant_2_profiles:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
-      `)
+      .select('*')
       .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false, nullsFirst: false });
 
@@ -155,18 +162,36 @@ export function useChat() {
       return;
     }
 
+    // Fetch profile data for all participants
+    const participantIds = (data || []).flatMap(room => [room.participant_1_id, room.participant_2_id]);
+    const uniqueParticipantIds = [...new Set(participantIds)];
+    
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', uniqueParticipantIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
     // Transform the data to match our interface
-    const transformedData = (data || []).map(room => ({
-      ...room,
-      participant_1_profile: room.participant_1_profiles ? {
-        display_name: room.participant_1_profiles.display_name || 'Unknown User',
-        avatar_url: room.participant_1_profiles.avatar_url
-      } : { display_name: 'Unknown User' },
-      participant_2_profile: room.participant_2_profiles ? {
-        display_name: room.participant_2_profiles.display_name || 'Unknown User',
-        avatar_url: room.participant_2_profiles.avatar_url
-      } : { display_name: 'Unknown User' }
-    }));
+    const transformedData = (data || []).map(room => {
+      const participant1Profile = (profilesData || []).find(p => p.id === room.participant_1_id);
+      const participant2Profile = (profilesData || []).find(p => p.id === room.participant_2_id);
+      
+      return {
+        ...room,
+        participant_1_profile: participant1Profile ? {
+          display_name: participant1Profile.display_name || 'Unknown User',
+          avatar_url: participant1Profile.avatar_url
+        } : { display_name: 'Unknown User' },
+        participant_2_profile: participant2Profile ? {
+          display_name: participant2Profile.display_name || 'Unknown User',
+          avatar_url: participant2Profile.avatar_url
+        } : { display_name: 'Unknown User' }
+      };
+    });
 
     setChatRooms(transformedData);
     setLoading(false);
@@ -202,26 +227,35 @@ export function useChat() {
       // Fetch the complete room data
       const { data: roomData, error: roomError } = await supabase
         .from('chat_rooms')
-        .select(`
-          *,
-          participant_1_profiles:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
-          participant_2_profiles:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
-        `)
+        .select('*')
         .eq('id', roomId)
         .single();
 
       if (roomError) throw roomError;
 
+      // Fetch profile data for participants
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', [roomData.participant_1_id, roomData.participant_2_id]);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      const participant1Profile = (profilesData || []).find(p => p.id === roomData.participant_1_id);
+      const participant2Profile = (profilesData || []).find(p => p.id === roomData.participant_2_id);
+
       // Transform the data
       const transformedRoom = {
         ...roomData,
-        participant_1_profile: roomData.participant_1_profiles ? {
-          display_name: roomData.participant_1_profiles.display_name || 'Unknown User',
-          avatar_url: roomData.participant_1_profiles.avatar_url
+        participant_1_profile: participant1Profile ? {
+          display_name: participant1Profile.display_name || 'Unknown User',
+          avatar_url: participant1Profile.avatar_url
         } : { display_name: 'Unknown User' },
-        participant_2_profile: roomData.participant_2_profiles ? {
-          display_name: roomData.participant_2_profiles.display_name || 'Unknown User',
-          avatar_url: roomData.participant_2_profiles.avatar_url
+        participant_2_profile: participant2Profile ? {
+          display_name: participant2Profile.display_name || 'Unknown User',
+          avatar_url: participant2Profile.avatar_url
         } : { display_name: 'Unknown User' }
       };
 
@@ -278,10 +312,7 @@ export function useChat() {
     setLoading(true);
     const { data, error } = await supabase
       .from('chat_messages')
-      .select(`
-        *,
-        sender_profiles:profiles!chat_messages_sender_id_fkey(display_name, avatar_url)
-      `)
+      .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
 
@@ -292,18 +323,33 @@ export function useChat() {
       return;
     }
 
+    // Fetch profile data for all senders
+    const senderIds = (data || []).map(message => message.sender_id);
+    const uniqueSenderIds = [...new Set(senderIds)];
+    
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', uniqueSenderIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
     // Decrypt messages and transform data
     const key = await getRoomEncryptionKey(roomId);
     const decryptedMessages = await Promise.all(
       (data || []).map(async (message) => {
+        const senderProfile = (profilesData || []).find(p => p.id === message.sender_id);
+        
         try {
           const decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, key);
           return { 
             ...message, 
             decrypted_content: decryptedContent,
-            sender_profile: message.sender_profiles ? {
-              display_name: message.sender_profiles.display_name || 'Unknown User',
-              avatar_url: message.sender_profiles.avatar_url
+            sender_profile: senderProfile ? {
+              display_name: senderProfile.display_name || 'Unknown User',
+              avatar_url: senderProfile.avatar_url
             } : { display_name: 'Unknown User' }
           };
         } catch (error) {
@@ -311,9 +357,9 @@ export function useChat() {
           return { 
             ...message, 
             decrypted_content: '[Unable to decrypt message]',
-            sender_profile: message.sender_profiles ? {
-              display_name: message.sender_profiles.display_name || 'Unknown User',
-              avatar_url: message.sender_profiles.avatar_url
+            sender_profile: senderProfile ? {
+              display_name: senderProfile.display_name || 'Unknown User',
+              avatar_url: senderProfile.avatar_url
             } : { display_name: 'Unknown User' }
           };
         }
