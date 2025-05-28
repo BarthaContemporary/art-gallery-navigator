@@ -111,7 +111,7 @@ export function useChat() {
       .from('user_presence')
       .select(`
         *,
-        profile:profiles(display_name, avatar_url)
+        profiles(display_name, avatar_url)
       `)
       .eq('is_online', true)
       .neq('user_id', user.id);
@@ -121,7 +121,16 @@ export function useChat() {
       return;
     }
 
-    setOnlineUsers(data || []);
+    // Transform the data to match our interface
+    const transformedData = (data || []).map(item => ({
+      ...item,
+      profile: item.profiles ? {
+        display_name: item.profiles.display_name || 'Unknown User',
+        avatar_url: item.profiles.avatar_url
+      } : { display_name: 'Unknown User' }
+    }));
+
+    setOnlineUsers(transformedData);
   };
 
   // Fetch chat rooms
@@ -133,8 +142,8 @@ export function useChat() {
       .from('chat_rooms')
       .select(`
         *,
-        participant_1_profile:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
-        participant_2_profile:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
+        participant_1_profiles:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
+        participant_2_profiles:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
       `)
       .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
       .order('last_message_at', { ascending: false, nullsFirst: false });
@@ -146,7 +155,20 @@ export function useChat() {
       return;
     }
 
-    setChatRooms(data || []);
+    // Transform the data to match our interface
+    const transformedData = (data || []).map(room => ({
+      ...room,
+      participant_1_profile: room.participant_1_profiles ? {
+        display_name: room.participant_1_profiles.display_name || 'Unknown User',
+        avatar_url: room.participant_1_profiles.avatar_url
+      } : { display_name: 'Unknown User' },
+      participant_2_profile: room.participant_2_profiles ? {
+        display_name: room.participant_2_profiles.display_name || 'Unknown User',
+        avatar_url: room.participant_2_profiles.avatar_url
+      } : { display_name: 'Unknown User' }
+    }));
+
+    setChatRooms(transformedData);
     setLoading(false);
   };
 
@@ -182,18 +204,31 @@ export function useChat() {
         .from('chat_rooms')
         .select(`
           *,
-          participant_1_profile:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
-          participant_2_profile:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
+          participant_1_profiles:profiles!chat_rooms_participant_1_id_fkey(display_name, avatar_url),
+          participant_2_profiles:profiles!chat_rooms_participant_2_id_fkey(display_name, avatar_url)
         `)
         .eq('id', roomId)
         .single();
 
       if (roomError) throw roomError;
 
+      // Transform the data
+      const transformedRoom = {
+        ...roomData,
+        participant_1_profile: roomData.participant_1_profiles ? {
+          display_name: roomData.participant_1_profiles.display_name || 'Unknown User',
+          avatar_url: roomData.participant_1_profiles.avatar_url
+        } : { display_name: 'Unknown User' },
+        participant_2_profile: roomData.participant_2_profiles ? {
+          display_name: roomData.participant_2_profiles.display_name || 'Unknown User',
+          avatar_url: roomData.participant_2_profiles.avatar_url
+        } : { display_name: 'Unknown User' }
+      };
+
       // Update chat rooms list
       await fetchChatRooms();
       
-      return roomData;
+      return transformedRoom;
     } catch (error) {
       console.error('Error starting chat:', error);
       toast.error('Failed to start chat');
@@ -245,7 +280,7 @@ export function useChat() {
       .from('chat_messages')
       .select(`
         *,
-        sender_profile:profiles!chat_messages_sender_id_fkey(display_name, avatar_url)
+        sender_profiles:profiles!chat_messages_sender_id_fkey(display_name, avatar_url)
       `)
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
@@ -257,16 +292,30 @@ export function useChat() {
       return;
     }
 
-    // Decrypt messages
+    // Decrypt messages and transform data
     const key = await getRoomEncryptionKey(roomId);
     const decryptedMessages = await Promise.all(
       (data || []).map(async (message) => {
         try {
           const decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, key);
-          return { ...message, decrypted_content: decryptedContent };
+          return { 
+            ...message, 
+            decrypted_content: decryptedContent,
+            sender_profile: message.sender_profiles ? {
+              display_name: message.sender_profiles.display_name || 'Unknown User',
+              avatar_url: message.sender_profiles.avatar_url
+            } : { display_name: 'Unknown User' }
+          };
         } catch (error) {
           console.error('Failed to decrypt message:', error);
-          return { ...message, decrypted_content: '[Unable to decrypt message]' };
+          return { 
+            ...message, 
+            decrypted_content: '[Unable to decrypt message]',
+            sender_profile: message.sender_profiles ? {
+              display_name: message.sender_profiles.display_name || 'Unknown User',
+              avatar_url: message.sender_profiles.avatar_url
+            } : { display_name: 'Unknown User' }
+          };
         }
       })
     );

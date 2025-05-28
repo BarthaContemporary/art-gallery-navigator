@@ -29,7 +29,7 @@ import ManageAllWebsites from "./pages/ManageAllWebsites";
 import PublicCollectionView from "./pages/PublicCollectionView";
 import EditCollectionWebsite from "./pages/EditCollectionWebsite";
 import BackupExportPage from "./pages/BackupExport";
-import Chat from "./pages/Chat"; // Added chat import
+import Chat from "./pages/Chat";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -81,6 +81,7 @@ const App = () => (
                     <Route path="/artists" element={<Artists />} />
                     <Route path="/artworks" element={<Artworks />} />
                     <Route path="/collections" element={<Collections />} />
+                    <Route path="/chat" element={<Chat />} />
                     <Route path="/projects" element={<Projects />} />
                     <Route path="/projects/:id" element={<ProjectDetail />} />
                     <Route path="/locations" element={<Locations />} />

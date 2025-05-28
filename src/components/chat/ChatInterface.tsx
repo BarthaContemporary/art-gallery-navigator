@@ -132,6 +132,8 @@ interface MessageBubbleProps {
 }
 
 function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+  const isMobile = useIsMobile();
+  
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] ${isMobile ? 'max-w-[85%]' : ''}`}>
