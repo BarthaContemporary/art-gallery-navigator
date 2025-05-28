@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +29,7 @@ import ManageAllWebsites from "./pages/ManageAllWebsites";
 import PublicCollectionView from "./pages/PublicCollectionView";
 import EditCollectionWebsite from "./pages/EditCollectionWebsite";
 import BackupExportPage from "./pages/BackupExport";
+import Chat from "./pages/Chat"; // Added chat import
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
 import { ErrorBoundary } from "./components/ui/error-boundary";

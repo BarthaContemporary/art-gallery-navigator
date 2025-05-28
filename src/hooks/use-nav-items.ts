@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Users,
@@ -9,10 +8,9 @@ import {
   Shield,
   Upload,
   Calendar,
-  // Settings, // Settings icon no longer needed for My Profile
   UploadCloud,
   Database,
-  // Link2, // Link2 icon no longer needed for Manage Websites
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -39,7 +37,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Artists",
     icon: Users,
     href: "/artists",
-    adminOnly: true, // Restrict to admin
+    adminOnly: true,
   },
   {
     name: "Collections",
@@ -47,11 +45,16 @@ const BASE_NAV_ITEMS: NavItem[] = [
     href: "/collections",
   },
   {
+    name: "Chat",
+    icon: MessageCircle,
+    href: "/chat",
+  },
+  {
     name: "Locations",
     icon: MapPin,
     href: "/locations",
     externalHide: true,
-    adminOnly: true, // Restrict to admin
+    adminOnly: true,
   },
   {
     name: "Documents",
@@ -63,11 +66,6 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: Upload,
     href: "/file-transfer",
   },
-  // { // Removed My Profile
-  //   name: "My Profile",
-  //   icon: Settings,
-  //   href: "/profile",
-  // },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -83,12 +81,6 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     href: "/upload",
     adminOnly: true,
   },
-  // { // Removed Manage Websites
-  //   name: "Manage Websites",
-  //   icon: Link2,
-  //   href: "/manage-websites",
-  //   adminOnly: true,
-  // },
   {
     name: "Backup & Export",
     icon: Database,
@@ -148,4 +140,3 @@ export function useNavItems() {
 
   return navItems;
 }
-

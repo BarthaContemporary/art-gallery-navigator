@@ -262,6 +262,74 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          created_at: string
+          edited_at: string | null
+          encrypted_content: string
+          id: string
+          message_type: Database["public"]["Enums"]["message_type"]
+          read_by: string[] | null
+          room_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_at?: string | null
+          encrypted_content: string
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_by?: string[] | null
+          room_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_at?: string | null
+          encrypted_content?: string
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_by?: string[] | null
+          room_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string | null
+          participant_1_id: string
+          participant_2_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1_id: string
+          participant_2_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1_id?: string
+          participant_2_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -864,6 +932,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          is_online: boolean
+          last_seen: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean
+          last_seen?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean
+          last_seen?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -890,6 +979,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_or_create_chat_room: {
+        Args: { _participant_1_id: string; _participant_2_id: string }
+        Returns: string
+      }
       get_artist_id_for_current_user: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -928,6 +1021,7 @@ export type Database = {
     }
     Enums: {
       deletion_request_status: "pending" | "approved" | "rejected"
+      message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
       project_type: "exhibition" | "fair" | "publication" | "talk" | "other"
       reference_type: "document" | "collection" | "artwork" | "artist"
@@ -1048,6 +1142,7 @@ export const Constants = {
   public: {
     Enums: {
       deletion_request_status: ["pending", "approved", "rejected"],
+      message_type: ["text", "file", "image"],
       project_status: ["active", "scheduled", "completed", "abandoned"],
       project_type: ["exhibition", "fair", "publication", "talk", "other"],
       reference_type: ["document", "collection", "artwork", "artist"],
