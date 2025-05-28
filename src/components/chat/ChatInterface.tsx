@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, ArrowLeft } from 'lucide-react';
-import { ChatRoom, ChatMessage, useChat } from '@/hooks/use-chat';
+import { ChatRoom, ChatMessage, useChat } from '@/hooks/chat/use-chat';
 import { useAuth } from '@/hooks/use-auth';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';

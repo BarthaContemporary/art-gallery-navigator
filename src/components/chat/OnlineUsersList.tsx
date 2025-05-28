@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Search } from 'lucide-react';
-import { UserPresence, useChat } from '@/hooks/use-chat';
+import { UserPresence, useChat } from '@/hooks/chat/use-chat';
 
 interface OnlineUsersListProps {
   onStartChat: (userId: string) => void;

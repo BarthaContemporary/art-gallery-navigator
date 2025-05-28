@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle } from 'lucide-react';
-import { ChatRoom, useChat } from '@/hooks/use-chat';
+import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
 import { useAuth } from '@/hooks/use-auth';
 import { format } from 'date-fns';
 

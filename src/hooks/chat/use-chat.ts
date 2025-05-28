@@ -6,7 +6,7 @@ import { useChatRooms } from './use-chat-rooms';
 import { useChatMessages } from './use-chat-messages';
 import { ChatRoom } from './types';
 
-export { ChatRoom, ChatMessage, UserPresence } from './types';
+export type { ChatRoom, ChatMessage, UserPresence } from './types';
 
 export function useChat() {
   const { user } = useAuth();

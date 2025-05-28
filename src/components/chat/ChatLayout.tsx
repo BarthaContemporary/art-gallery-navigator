@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatInterface } from './ChatInterface';
-import { ChatRoom, useChat } from '@/hooks/use-chat';
+import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Users, MessageCircle } from 'lucide-react';
