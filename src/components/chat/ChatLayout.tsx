@@ -4,13 +4,25 @@ import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ChatMobileLayout } from './ChatMobileLayout';
 import { ChatDesktopLayout } from './ChatDesktopLayout';
+import { ChatPopupLayout } from './ChatPopupLayout';
+import { useLocation } from 'react-router-dom';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 
-export function ChatLayout() {
+interface ChatLayoutProps {
+  isPopup?: boolean;
+}
+
+export function ChatLayout({ isPopup = false }: ChatLayoutProps) {
   const { startChatWithUser, setActiveRoomAndFetchMessages, activeRoom } = useChat();
   const [currentView, setCurrentView] = useState<ViewType>('rooms');
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Use popup layout if this is a popup or if we're on a mobile device in popup mode
+  if (isPopup || (location.pathname !== '/chat' && !isMobile)) {
+    return <ChatPopupLayout />;
+  }
 
   const handleStartChat = async (userId: string) => {
     const room = await startChatWithUser(userId);
