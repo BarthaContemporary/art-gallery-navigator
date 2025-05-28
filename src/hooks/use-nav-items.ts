@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   Users,
@@ -10,7 +11,6 @@ import {
   Calendar,
   UploadCloud,
   Database,
-  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
 
@@ -43,11 +43,6 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Collections",
     icon: List,
     href: "/collections",
-  },
-  {
-    name: "Chat",
-    icon: MessageCircle,
-    href: "/chat",
   },
   {
     name: "Locations",
