@@ -20,7 +20,7 @@ export function MainLayout() {
         {isMobile && <MobileSidebar />}
         
         <div className="flex-1 flex flex-col">
-          <main className={`flex-1 overflow-auto ${isMobile ? 'pt-16' : ''}`}>
+          <main className={`flex-1 overflow-auto ${isMobile ? 'pt-14' : ''}`}>
             <Outlet />
           </main>
         </div>
