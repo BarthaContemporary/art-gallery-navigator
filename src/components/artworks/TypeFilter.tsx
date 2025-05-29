@@ -1,4 +1,3 @@
-
 import { Filter, Palette, Hammer, Printer, Camera, PenTool, Layers, Monitor, Building, Video, Music, Shirt, CircleDot, MoreHorizontal } from "lucide-react";
 import {
   Select,
@@ -14,7 +13,7 @@ interface TypeFilterProps {
 }
 
 const typeOptions = [
-  { value: "all", label: "All Types", icon: Filter },
+  { value: "all", label: "All Types" },
   { value: "painting", label: "Painting", icon: Palette },
   { value: "sculpture", label: "Sculpture", icon: Hammer },
   { value: "print", label: "Print", icon: Printer },
@@ -42,6 +41,13 @@ export function TypeFilter({ value, onChange }: TypeFilterProps) {
       </SelectTrigger>
       <SelectContent>
         {typeOptions.map((option) => {
+          if (option.value === "all") {
+            return (
+              <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
+                {option.label}
+              </SelectItem>
+            );
+          }
           const IconComponent = option.icon;
           return (
             <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">

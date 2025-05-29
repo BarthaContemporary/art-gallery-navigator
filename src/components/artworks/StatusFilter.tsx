@@ -1,4 +1,3 @@
-
 import { Filter, CheckCircle, XCircle, Clock, AlertTriangle, Hammer, HelpCircle, Shield } from "lucide-react";
 import {
   Select,
@@ -14,7 +13,7 @@ interface StatusFilterProps {
 }
 
 const statusOptions = [
-  { value: "all", label: "All Status", icon: Filter },
+  { value: "all", label: "All Status" },
   { value: "available", label: "Available", icon: CheckCircle },
   { value: "sold", label: "Sold", icon: XCircle },
   { value: "on loan", label: "On Loan", icon: Clock },
@@ -36,6 +35,13 @@ export function StatusFilter({ value, onChange }: StatusFilterProps) {
       </SelectTrigger>
       <SelectContent>
         {statusOptions.map((option) => {
+          if (option.value === "all") {
+            return (
+              <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
+                {option.label}
+              </SelectItem>
+            );
+          }
           const IconComponent = option.icon;
           return (
             <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
