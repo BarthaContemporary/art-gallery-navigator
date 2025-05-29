@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -19,7 +20,7 @@ const requestPasswordResetSchema = z.object({
 
 type RequestPasswordResetFormValues = z.infer<typeof requestPasswordResetSchema>;
 
-const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF"; 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export default function RequestPasswordResetPage() {
   const [isLoading, setIsLoading] = useState(false);

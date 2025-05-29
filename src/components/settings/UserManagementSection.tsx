@@ -13,8 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 
-// Hardcode the Turnstile Site Key
-const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function UserManagementSection() {
   const { isAdmin } = useAuth();
