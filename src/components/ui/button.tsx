@@ -10,15 +10,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border border-input bg-background hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
+        ghost: "hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
+        link: "text-primary underline-offset-4 hover:underline hover:text-[#e8c858]",
       },
       size: {
         default: "h-9 px-4 text-sm md:h-10 md:px-4 md:py-2", // Updated: height, padding, text size
@@ -55,4 +55,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button, buttonVariants }
-
