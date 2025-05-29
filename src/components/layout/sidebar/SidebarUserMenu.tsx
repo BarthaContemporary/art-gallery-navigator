@@ -20,18 +20,13 @@ export function SidebarUserMenu() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 hover:bg-accent"
+            className="flex w-full items-center justify-center rounded-md px-2 py-1.5 hover:bg-[#e8c858] hover:text-black"
           >
-            <div className="flex items-center gap-2">
-              <UserAvatar 
-                imageUrl={user?.user_metadata.avatar_url}
-                email={user?.email}
-              />
-              <span className="text-xs font-semibold truncate max-w-[100px]">
-                {user?.email}
-              </span>
-            </div>
-            <Settings className="h-4 w-4 text-muted-foreground ml-1" />
+            <UserAvatar 
+              imageUrl={user?.user_metadata.avatar_url}
+              email={user?.email}
+            />
+            <Settings className="h-4 w-4 text-muted-foreground ml-2" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white">
