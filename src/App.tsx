@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,12 +22,10 @@ import Collections from "./pages/Collections";
 import Profile from "./pages/Profile";
 import EmailConfirmation from "./pages/EmailConfirmation";
 import PDFTemplates from "./pages/PDFTemplates";
-import Upload from "./pages/Upload";
 import FileTransfer from "./pages/FileTransfer";
 import ManageAllWebsites from "./pages/ManageAllWebsites";
 import PublicCollectionView from "./pages/PublicCollectionView";
 import EditCollectionWebsite from "./pages/EditCollectionWebsite";
-import BackupExportPage from "./pages/BackupExport";
 import Chat from "./pages/Chat";
 import { LoadingProvider } from "./contexts/loading-context";
 import { LoadingOverlay } from "./components/ui/loading-overlay";
@@ -89,11 +86,9 @@ const App = () => (
                     <Route path="/signup" element={<UserSignup />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
-                    <Route path="/upload" element={<Upload />} />
                     <Route path="/file-transfer" element={<FileTransfer />} />
                     <Route path="/manage-websites" element={<ManageAllWebsites />} />
                     <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
-                    <Route path="/backup" element={<BackupExportPage />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

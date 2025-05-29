@@ -9,7 +9,6 @@ import {
   Shield,
   Upload,
   Calendar,
-  UploadCloud,
   Database,
 } from "lucide-react";
 import { useAuth } from "./use-auth";
@@ -71,19 +70,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     adminOnly: true,
   },
   {
-    name: "Upload Assets",
-    icon: UploadCloud,
-    href: "/upload",
-    adminOnly: true,
-  },
-  {
-    name: "Backup & Export",
-    icon: Database,
-    href: "/backup",
-    adminOnly: true,
-  },
-  {
-    name: "User Management",
+    name: "Settings",
     icon: Shield,
     href: "/signup",
     adminOnly: true,
