@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ProjectWithLocation, TaskWithAssignee } from "@/hooks/projects";
@@ -43,7 +44,7 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
   
   return (
     <Card 
-      className="group relative cursor-pointer transition-all hover:shadow-md"
+      className="group relative cursor-pointer transition-all hover:shadow-md pt-4"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >

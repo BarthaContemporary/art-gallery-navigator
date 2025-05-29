@@ -1,5 +1,5 @@
 
-import { MoreHorizontal, Edit, Trash2, Calendar } from "lucide-react";
+import { Edit, Trash2, Calendar } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ProjectWithLocation } from "@/hooks/projects"; // Updated import
+import { ProjectWithLocation } from "@/hooks/projects";
 import { useAuth } from "@/hooks/use-auth";
 
 interface ProjectCardActionsProps {
@@ -25,7 +25,7 @@ export function ProjectCardActions({ project, onEdit, onDelete, onCalendar }: Pr
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreHorizontal className="h-4 w-4" />
+            <Edit className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -35,13 +35,13 @@ export function ProjectCardActions({ project, onEdit, onDelete, onCalendar }: Pr
               Calendar View
             </DropdownMenuItem>
           )}
-          {isAdmin && onEdit && ( // Ensure onEdit is only available to admin or if user has specific edit rights (not implemented here, but good practice)
+          {isAdmin && onEdit && (
             <DropdownMenuItem onClick={() => onEdit(project)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
             </DropdownMenuItem>
           )}
-          {isAdmin && onDelete && ( // Ensure onDelete is only available to admin
+          {isAdmin && onDelete && (
             <DropdownMenuItem
               onClick={() => onDelete(project)}
               className="text-red-600 focus:text-red-600"

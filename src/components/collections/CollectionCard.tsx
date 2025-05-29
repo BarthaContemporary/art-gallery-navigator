@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Card } from "@/components/ui/card";
@@ -17,7 +18,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   return (
     <>
       <Card 
-        className="cursor-pointer hover:shadow-md transition-shadow group relative"
+        className="cursor-pointer hover:shadow-md transition-shadow group relative pt-4"
         onClick={() => setShowDetailsDialog(true)}
         role="button"
         tabIndex={0}
@@ -37,7 +38,6 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
       />
-      {/* EditCollectionDialog and DeleteCollectionDialog are now managed by CollectionCardAdminMenu */}
     </>
   );
 }

@@ -2,7 +2,7 @@
 import React from "react";
 import { Collection } from "@/hooks/use-collections";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, MoreVertical, Link as LinkIcon } from "lucide-react";
+import { Edit, Trash2, Link as LinkIcon } from "lucide-react";
 import { EditCollectionDialog } from "./EditCollectionDialog";
 import { DeleteCollectionDialog } from "./DeleteCollectionDialog";
 import {
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useCollectionCardAdminMenuLogic } from "./hooks/useCollectionCardAdminMenuLogic"; // Import the new hook
+import { useCollectionCardAdminMenuLogic } from "./hooks/useCollectionCardAdminMenuLogic";
 
 interface CollectionCardAdminMenuProps {
   collection: Collection;
@@ -24,8 +24,6 @@ export function CollectionCardAdminMenu({ collection }: CollectionCardAdminMenuP
     setShowEditDialog,
     showDeleteDialog,
     setShowDeleteDialog,
-    // showManageWebsitesDialog, // Placeholder
-    // setShowManageWebsitesDialog, // Placeholder
     preventPropagation,
     handleEditClick,
     handleDeleteClick,
@@ -43,7 +41,7 @@ export function CollectionCardAdminMenu({ collection }: CollectionCardAdminMenuP
               className="h-8 w-8"
               onClick={preventPropagation}
             >
-              <MoreVertical className="h-4 w-4" />
+              <Edit className="h-4 w-4" />
               <span className="sr-only">Actions for {collection.name}</span>
             </Button>
           </DropdownMenuTrigger>
@@ -79,16 +77,6 @@ export function CollectionCardAdminMenu({ collection }: CollectionCardAdminMenuP
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
       />
-      
-      {/* Placeholder for ShareableWebsiteDialog - to be implemented later
-      {showManageWebsitesDialog && (
-        <ShareableWebsiteDialog
-          collection={collection}
-          open={showManageWebsitesDialog}
-          onOpenChange={setShowManageWebsitesDialog}
-        />
-      )}
-      */}
     </>
   );
 }
