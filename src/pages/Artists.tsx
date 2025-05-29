@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,7 +117,7 @@ const Artists = () => {
   };
 
   return <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-8 gap-4 sm:gap-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-4 md:mb-6 gap-4 sm:gap-0">
         <div className="flex flex-wrap gap-2">
           <Button variant="default" size="sm" className="flex gap-2" onClick={() => setCreateArtistDialogOpen(true)}>
             <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
@@ -136,7 +137,7 @@ const Artists = () => {
       
       <CreateArtistDialog open={createArtistDialogOpen} onOpenChange={setCreateArtistDialogOpen} />
 
-      <div className="mt-6 mb-8 grid grid-cols-1 sm:flex sm:flex-row gap-4 items-start sm:items-center">
+      <div className="mb-4 md:mb-8 grid grid-cols-1 sm:flex sm:flex-row gap-4 items-start sm:items-center">
         <div className="w-full sm:max-w-sm">
           <SearchBar value={searchTerm} onChange={setSearchTerm} />
         </div>
