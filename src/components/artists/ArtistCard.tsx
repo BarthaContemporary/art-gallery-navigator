@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, Edit, Trash2, X } from "lucide-react";
+import { Check, Clock, Edit, Trash2, X, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
 import {
@@ -125,25 +126,25 @@ export function ArtistCard({ artist }: { artist: any }) {
         className="p-4 cursor-pointer space-y-1"
         onClick={handleCardClick}
       >
-        <h3 className="font-medium text-lg leading-tight">{artist.full_name}</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-lg leading-tight">{artist.full_name}</h3>
+          {artist.email && (
+            <a
+              href={`mailto:${artist.email}`}
+              className="text-muted-foreground hover:text-primary transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              title={`Email ${artist.full_name}`}
+            >
+              <Mail className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+        
         <p className="text-muted-foreground">
           {artist.nationality}
           {artist.nationality && artist.birth_year ? ", " : ""}
           {artist.birth_year && <span className="font-medium">b. {artist.birth_year}</span>}
         </p>
-        
-        {artist.email && (
-          <p className="text-sm">
-            <span className="text-muted-foreground">Email: </span>
-            <a
-              href={`mailto:${artist.email}`}
-              className="underline hover:text-primary transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {artist.email}
-            </a>
-          </p>
-        )}
 
         {artist.representation_status && (
           <div className="flex items-center mt-2">
