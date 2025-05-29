@@ -1,9 +1,15 @@
 
 import { useMemo } from "react";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useArtists } from "@/hooks/useArtists"; 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ArtistFilterProps {
   value: string | null;
@@ -15,10 +21,10 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
 
   const artistOptions = useMemo(() => {
     if (!artists || !Array.isArray(artists)) {
-      return [];
+      return [{ value: "all", label: "All Artists" }];
     }
     
-    return artists
+    const validArtists = artists
       .filter(artist => 
         artist && 
         typeof artist === 'object' &&
@@ -33,15 +39,9 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
         value: artist.id,
         label: artist.full_name,
       }));
-  }, [artists]);
 
-  const handleSelectionChange = (selectedValue: string) => {
-    if (selectedValue === "_none") {
-      onChange(null);
-    } else {
-      onChange(selectedValue);
-    }
-  };
+    return [{ value: "all", label: "All Artists" }, ...validArtists];
+  }, [artists]);
 
   if (isLoading) {
     return <Skeleton className="h-8 md:h-10 w-full" />; 
@@ -52,15 +52,21 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   }
 
   return (
-    <div className="w-full">
-      <SearchableSelect
-        options={artistOptions}
-        value={value || "_none"} 
-        onChange={handleSelectionChange}
-        placeholder="Filter Artist"
-        icon={<Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />}
-        triggerClassName="w-full h-8 md:h-10 text-xs md:text-sm whitespace-nowrap overflow-hidden text-ellipsis"
-      />
-    </div>
+    <Select
+      value={value || "all"}
+      onValueChange={(newValue) => onChange(newValue === "all" ? null : newValue)}
+    >
+      <SelectTrigger className="w-full h-8 md:h-10 text-xs md:text-sm">
+        <Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
+        <SelectValue placeholder="Filter Artist" />
+      </SelectTrigger>
+      <SelectContent>
+        {artistOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
