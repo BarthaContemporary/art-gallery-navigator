@@ -44,7 +44,7 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
   
   return (
     <Card 
-      className="group relative cursor-pointer transition-all hover:shadow-md pt-4"
+      className="group relative cursor-pointer transition-all hover:shadow-md pt-6"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -65,9 +65,6 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <h3 className="font-semibold text-lg truncate pr-2">{project.name}</h3>
-          <Badge className={`${getStatusColor(project.status)}`}>
-            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-          </Badge>
         </div>
         <div className="flex items-center text-sm text-muted-foreground gap-1">
           <Calendar className="h-3.5 w-3.5" />
@@ -109,9 +106,14 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
           </div>
         )}
         
-        <Badge className="mt-3" variant="outline">
-          {project.type.charAt(0).toUpperCase() + project.type.slice(1)}
-        </Badge>
+        <div className="flex gap-2 mt-3">
+          <Badge variant="outline">
+            {project.type.charAt(0).toUpperCase() + project.type.slice(1)}
+          </Badge>
+          <Badge className={`${getStatusColor(project.status)}`}>
+            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+          </Badge>
+        </div>
       </CardContent>
     </Card>
   );
