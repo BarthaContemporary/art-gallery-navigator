@@ -1,5 +1,5 @@
 
-import { Filter } from "lucide-react";
+import { Filter, CheckCircle, XCircle, Clock, AlertTriangle, Hammer, HelpCircle, Shield } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,14 +14,14 @@ interface StatusFilterProps {
 }
 
 const statusOptions = [
-  { value: "all", label: "All Status" },
-  { value: "available", label: "Available" },
-  { value: "sold", label: "Sold" },
-  { value: "on loan", label: "On Loan" },
-  { value: "on hold", label: "On Hold" },
-  { value: "damaged", label: "Damaged" },
-  { value: "lost", label: "Lost" },
-  { value: "stolen", label: "Stolen" },
+  { value: "all", label: "All Status", icon: Filter },
+  { value: "available", label: "Available", icon: CheckCircle },
+  { value: "sold", label: "Sold", icon: XCircle },
+  { value: "on loan", label: "On Loan", icon: Clock },
+  { value: "on hold", label: "On Hold", icon: AlertTriangle },
+  { value: "damaged", label: "Damaged", icon: Hammer },
+  { value: "lost", label: "Lost", icon: HelpCircle },
+  { value: "stolen", label: "Stolen", icon: Shield },
 ];
 
 export function StatusFilter({ value, onChange }: StatusFilterProps) {
@@ -35,11 +35,17 @@ export function StatusFilter({ value, onChange }: StatusFilterProps) {
         <SelectValue placeholder="Filter Status" />
       </SelectTrigger>
       <SelectContent>
-        {statusOptions.map((option) => (
-          <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
-            {option.label}
-          </SelectItem>
-        ))}
+        {statusOptions.map((option) => {
+          const IconComponent = option.icon;
+          return (
+            <SelectItem key={option.value} value={option.value} className="text-xs md:text-sm">
+              <div className="flex items-center">
+                <IconComponent className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                {option.label}
+              </div>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
