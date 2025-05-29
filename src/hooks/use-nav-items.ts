@@ -19,6 +19,7 @@ export type NavItem = {
   href: string;
   adminOnly?: boolean;
   externalHide?: boolean;
+  artistHide?: boolean;
 };
 
 const BASE_NAV_ITEMS: NavItem[] = [
@@ -26,6 +27,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
     name: "Dashboard",
     icon: LayoutDashboard,
     href: "/",
+    artistHide: true,
   },
   {
     name: "Artworks",
@@ -78,7 +80,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
 ];
 
 export function useNavItems() {
-  const { isAdmin, isExternal } = useAuth();
+  const { isAdmin, isExternal, isArtist } = useAuth();
   
   let navItems = [...BASE_NAV_ITEMS];
 
@@ -110,6 +112,9 @@ export function useNavItems() {
 
   navItems = navItems.filter(item => {
     if (item.externalHide && isExternal) {
+      return false;
+    }
+    if (item.artistHide && isArtist && !isAdmin) {
       return false;
     }
     // If adminOnly is true, item should only show if isAdmin is true.
