@@ -31,7 +31,7 @@ export function ProjectsSearch({
         placeholder="Search projects..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="h-8 md:h-10"
+        className="px-3 h-8 md:h-10 text-xs md:text-sm py-1 md:py-2"
       />
 
       <Select value={status} onValueChange={onStatusChange}>
