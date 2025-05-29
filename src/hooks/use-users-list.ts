@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast"; // Ensure this is the shadcn useToast
+import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { logger } from "@/lib/logger"; // Added logger
+import { logger } from "@/lib/logger";
 
 interface ProfileData {
   id: string;
@@ -18,7 +18,8 @@ interface UserRoleData {
 
 export function useUsersList() {
   const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null);
-  const [isSendingResetForUserId, setIsSendingResetForUserId] = useState<string | null>(null); // New state
+  const [isSendingResetForUserId, setIsSendingResetForUserId] = useState<string | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   
   const { data: profiles, isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
@@ -46,26 +47,59 @@ export function useUsersList() {
   });
 
   const handleDeleteUser = async (userId: string) => {
+    setIsDeletingUser(userId);
     try {
-      const { error } = await supabase.functions.invoke('delete-user', {
+      console.log(`Attempting to delete user: ${userId}`);
+      
+      const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete user function error:', error);
+        throw new Error(error.message || 'Failed to delete user');
+      }
+
+      if (data?.error) {
+        console.error('Delete user response error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('User deletion successful:', data);
 
       toast({
-        title: "User deleted",
-        description: "The user has been successfully deleted.",
+        title: "User deleted successfully",
+        description: data?.details?.unassignedTasks > 0 
+          ? `User deleted and ${data.details.unassignedTasks} tasks were unassigned.`
+          : "The user has been successfully deleted.",
       });
 
       refetch();
     } catch (error: any) {
       console.error('Error deleting user:', error);
+      
+      let errorMessage = "Failed to delete user";
+      let errorDescription = error.message || "An unknown error occurred";
+
+      // Handle specific error cases
+      if (error.message?.includes('foreign key constraint')) {
+        errorMessage = "Cannot delete user";
+        errorDescription = "This user has associated data that prevents deletion. Please contact support.";
+      } else if (error.message?.includes('Unauthorized')) {
+        errorMessage = "Permission denied";
+        errorDescription = "You don't have permission to delete users.";
+      } else if (error.message?.includes('dependencies')) {
+        errorMessage = "User has dependencies";
+        errorDescription = "This user has associated tasks or data. Please reassign or remove them first.";
+      }
+
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete user",
+        title: errorMessage,
+        description: errorDescription,
         variant: "destructive",
       });
+    } finally {
+      setIsDeletingUser(null);
     }
   };
 
@@ -146,8 +180,9 @@ export function useUsersList() {
     handleDeleteUser,
     handleResendConfirmation,
     isResendingEmail,
-    handleAdminSendPasswordReset, // Expose new function
-    isSendingResetForUserId, // Expose new state
+    handleAdminSendPasswordReset,
+    isSendingResetForUserId,
+    isDeletingUser,
     refetch,
   };
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -36,6 +37,7 @@ export function UsersTable() {
     refetch,
     handleAdminSendPasswordReset,
     isSendingResetForUserId,
+    isDeletingUser,
   } = useUsersList();
   
   const { isAdmin } = useAuth();
@@ -178,9 +180,13 @@ export function UsersTable() {
                         title="Delete User"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setUserToDelete(profile.id)}
-                        disabled={isSendingResetForUserId === profile.id || isResendingEmail === profile.id || isDeleting}
+                        disabled={isSendingResetForUserId === profile.id || isResendingEmail === profile.id || isDeletingUser === profile.id}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeletingUser === profile.id ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -188,7 +194,10 @@ export function UsersTable() {
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
                           This action cannot be undone. This will permanently delete the user
-                          account and remove all associated data.
+                          account "{profile.display_name}" and remove all associated data.
+                          <br /><br />
+                          <strong>Note:</strong> Any tasks assigned to this user will be automatically unassigned, 
+                          and their project memberships will be removed.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -196,9 +205,9 @@ export function UsersTable() {
                         <AlertDialogAction
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           onClick={onDeleteUser}
-                          disabled={isDeleting}
+                          disabled={isDeleting || isDeletingUser === profile.id}
                         >
-                          {isDeleting ? "Deleting..." : "Delete"}
+                          {isDeleting || isDeletingUser === profile.id ? "Deleting..." : "Delete User"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
