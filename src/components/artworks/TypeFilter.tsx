@@ -36,7 +36,7 @@ export function TypeFilter({ value, onChange }: TypeFilterProps) {
       value={value || "all"}
       onValueChange={(newValue) => onChange(newValue === "all" ? null : newValue)}
     >
-      <SelectTrigger className="w-full h-8 md:h-10 text-xs md:text-sm [&_svg:last-child]:hidden">
+      <SelectTrigger className="w-full h-8 md:h-10 text-xs md:text-sm">
         <Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
         <SelectValue placeholder="Filter Type" />
       </SelectTrigger>
