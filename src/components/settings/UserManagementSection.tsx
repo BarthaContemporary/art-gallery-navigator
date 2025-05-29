@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeletionRequestsTable } from "@/components/auth/DeletionRequestsTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
+
+// Hardcode the Turnstile Site Key
+const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function UserManagementSection() {
   const { isAdmin } = useAuth();
@@ -21,6 +25,8 @@ export function UserManagementSection() {
   const [role, setRole] = useState<"gallery_admin" | "artist" | "external">("artist");
   const [isLoading, setIsLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
 
   if (!isAdmin) {
     return (
@@ -32,17 +38,42 @@ export function UserManagementSection() {
     );
   }
 
+  const handleCaptchaVerify = useCallback((token: string) => {
+    console.log("CAPTCHA verified in UserManagementSection, token received.");
+    setCaptchaToken(token);
+    setCaptchaError(null);
+  }, []);
+
+  const handleCaptchaError = useCallback(() => {
+    console.error("CAPTCHA error in UserManagementSection callback.");
+    setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
+    setCaptchaToken(null);
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    console.warn("CAPTCHA expired in UserManagementSection callback.");
+    setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
+    setCaptchaToken(null);
+  }, []);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setSignupError(null);
+
+    if (!captchaToken) {
+      setCaptchaError("Please complete the CAPTCHA challenge before creating a user.");
+      setIsLoading(false);
+      return;
+    }
     
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin + '/email-confirmation'
+          emailRedirectTo: window.location.origin + '/email-confirmation',
+          captchaToken
         }
       });
       
@@ -70,6 +101,7 @@ export function UserManagementSection() {
       setEmail("");
       setPassword("");
       setRole("artist");
+      setCaptchaToken(null);
     } catch (error: any) {
       console.error("User signup error:", error);
       setSignupError(error.message || "An unknown error occurred.");
@@ -120,10 +152,31 @@ export function UserManagementSection() {
             <option value="external">External</option>
           </select>
           
-          <Button type="submit" className="whitespace-nowrap" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            className="whitespace-nowrap" 
+            disabled={isLoading || !captchaToken}
+          >
             {isLoading ? "Creating..." : "Add User"}
           </Button>
         </form>
+
+        <div className="mt-4 flex justify-center">
+          <TurnstileWidget
+            siteKey={TURNSTILE_SITE_KEY}
+            onVerify={handleCaptchaVerify}
+            onError={handleCaptchaError}
+            onExpire={handleCaptchaExpire}
+            theme="light"
+          />
+        </div>
+
+        {captchaError && (
+          <Alert variant="destructive" className="mt-2 max-w-3xl">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{captchaError}</AlertDescription>
+          </Alert>
+        )}
         
         {signupError && (
           <Alert variant="destructive" className="mt-2 max-w-3xl">
