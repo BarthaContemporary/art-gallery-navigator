@@ -4,13 +4,16 @@ import { ChatInterface } from './ChatInterface';
 import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
-import { ChatRoom } from '@/hooks/chat/use-chat';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/use-chat';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 
 interface ChatMobileLayoutProps {
   currentView: ViewType;
   activeRoom: ChatRoom | null;
+  messages: ChatMessage[];
+  onSendMessage: (message: string) => Promise<void>;
+  sending: boolean;
   onViewChange: (view: ViewType) => void;
   onStartChat: (userId: string) => Promise<void>;
   onSelectRoom: (room: ChatRoom) => Promise<void>;
@@ -20,13 +23,24 @@ interface ChatMobileLayoutProps {
 export function ChatMobileLayout({
   currentView,
   activeRoom,
+  messages,
+  onSendMessage,
+  sending,
   onViewChange,
   onStartChat,
   onSelectRoom,
   onBackToList
 }: ChatMobileLayoutProps) {
   if (currentView === 'chat' && activeRoom) {
-    return <ChatInterface room={activeRoom} onBack={onBackToList} />;
+    return (
+      <ChatInterface 
+        room={activeRoom} 
+        messages={messages}
+        onSendMessage={onSendMessage}
+        sending={sending}
+        onBack={onBackToList} 
+      />
+    );
   }
 
   return (

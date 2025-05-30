@@ -5,13 +5,16 @@ import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
 import { ChatEmptyState } from './ChatEmptyState';
-import { ChatRoom } from '@/hooks/chat/use-chat';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/use-chat';
 
 type ViewType = 'rooms' | 'online';
 
 interface ChatDesktopLayoutProps {
   currentView: ViewType;
   activeRoom: ChatRoom | null;
+  messages: ChatMessage[];
+  onSendMessage: (message: string) => Promise<void>;
+  sending: boolean;
   onViewChange: (view: ViewType) => void;
   onStartChat: (userId: string) => Promise<void>;
   onSelectRoom: (room: ChatRoom) => Promise<void>;
@@ -20,6 +23,9 @@ interface ChatDesktopLayoutProps {
 export function ChatDesktopLayout({
   currentView,
   activeRoom,
+  messages,
+  onSendMessage,
+  sending,
   onViewChange,
   onStartChat,
   onSelectRoom
@@ -50,7 +56,12 @@ export function ChatDesktopLayout({
       {/* Right content - 2/3 width */}
       <div className="flex-1">
         {activeRoom ? (
-          <ChatInterface room={activeRoom} />
+          <ChatInterface 
+            room={activeRoom} 
+            messages={messages}
+            onSendMessage={onSendMessage}
+            sending={sending}
+          />
         ) : (
           <ChatEmptyState />
         )}

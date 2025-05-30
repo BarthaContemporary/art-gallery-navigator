@@ -14,7 +14,7 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ isPopup = false }: ChatLayoutProps) {
-  const { startChatWithUser, setActiveRoomAndFetchMessages, activeRoom } = useChat();
+  const { messages, sending, startChatWithUser, setActiveRoomAndFetchMessages, sendMessage, activeRoom } = useChat();
   const [currentView, setCurrentView] = useState<ViewType>('rooms');
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -52,6 +52,9 @@ export function ChatLayout({ isPopup = false }: ChatLayoutProps) {
       <ChatMobileLayout
         currentView={currentView}
         activeRoom={activeRoom}
+        messages={messages}
+        onSendMessage={sendMessage}
+        sending={sending}
         onViewChange={handleViewChange}
         onStartChat={handleStartChat}
         onSelectRoom={handleSelectRoom}
@@ -64,6 +67,9 @@ export function ChatLayout({ isPopup = false }: ChatLayoutProps) {
     <ChatDesktopLayout
       currentView={currentView as 'rooms' | 'online'}
       activeRoom={activeRoom}
+      messages={messages}
+      onSendMessage={sendMessage}
+      sending={sending}
       onViewChange={handleViewChange}
       onStartChat={handleStartChat}
       onSelectRoom={handleSelectRoom}
