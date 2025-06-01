@@ -2,14 +2,38 @@
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
-import { useDocuments } from "@/hooks/use-documents";
+import { DocumentsErrorBoundary } from "@/components/documents/DocumentsErrorBoundary";
+import { DocumentsLoadingSkeleton } from "@/components/documents/DocumentsLoadingSkeleton";
+import { useDocumentsSimplified } from "@/hooks/use-documents-simplified";
+import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Documents() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const { data: documents = [] } = useDocuments();
+  const { user, session } = useAuth();
+  const { data: documents = [], isLoading, error, refetch, debugInfo } = useDocumentsSimplified();
 
+  // Show authentication required message if not logged in
+  if (!session || !user) {
+    return (
+      <DocumentsErrorBoundary>
+        <div className="p-3 md:p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+            <AlertCircle className="h-12 w-12 text-yellow-500 mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+            <p className="text-muted-foreground">
+              Please log in to access your documents.
+            </p>
+          </div>
+        </div>
+      </DocumentsErrorBoundary>
+    );
+  }
+
+  // Filter documents based on search and type
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.file_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !typeFilter || doc.type.toLowerCase() === typeFilter.toLowerCase();
@@ -17,17 +41,67 @@ export default function Documents() {
   });
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-start mb-4 md:mb-6">
-        <UploadDocumentDialog />
+    <DocumentsErrorBoundary>
+      <div className="p-3 md:p-6 max-w-7xl mx-auto">
+        {/* Header with Upload Button */}
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <h1 className="text-2xl font-bold">Documents</h1>
+          <UploadDocumentDialog />
+        </div>
+
+        {/* Search and Filters */}
+        <DocumentsSearch 
+          searchTerm={searchTerm} 
+          onSearchChange={setSearchTerm} 
+          typeFilter={typeFilter} 
+          onTypeFilterChange={setTypeFilter} 
+        />
+
+        {/* Error State */}
+        {error && (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Failed to Load Documents</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">
+              {error instanceof Error ? error.message : "An unexpected error occurred while loading documents."}
+            </p>
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+            
+            {/* Debug Info (only in development) */}
+            {process.env.NODE_ENV === 'development' && debugInfo && (
+              <details className="mt-4 text-left">
+                <summary className="cursor-pointer text-sm text-gray-500">Debug Info</summary>
+                <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto max-w-md">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && !error && <DocumentsLoadingSkeleton />}
+
+        {/* Documents List */}
+        {!isLoading && !error && <DocumentsList documents={filteredDocuments} />}
+
+        {/* Debug Panel for Development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-semibold mb-2">Debug Information</h4>
+            <div className="text-sm space-y-1">
+              <div>User: {user?.email || 'Not authenticated'}</div>
+              <div>Session: {session ? 'Active' : 'None'}</div>
+              <div>Documents count: {documents.length}</div>
+              <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+              <div>Error: {error ? 'Yes' : 'No'}</div>
+            </div>
+          </div>
+        )}
       </div>
-      <DocumentsSearch 
-        searchTerm={searchTerm} 
-        onSearchChange={setSearchTerm} 
-        typeFilter={typeFilter} 
-        onTypeFilterChange={setTypeFilter} 
-      />
-      <DocumentsList documents={filteredDocuments} />
-    </div>
+    </DocumentsErrorBoundary>
   );
 }

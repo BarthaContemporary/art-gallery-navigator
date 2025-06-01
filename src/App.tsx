@@ -51,6 +51,14 @@ function AppContent() {
     }
   }, [user, isSupported, requestPermission]);
 
+  // Set up environment variable
+  useEffect(() => {
+    // Ensure VITE_TURNSTILE_SITE_KEY is available
+    if (typeof window !== 'undefined') {
+      (window as any).VITE_TURNSTILE_SITE_KEY = '0x4AAAAAABVNY-RtAZWQwtdF';
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Routes>
