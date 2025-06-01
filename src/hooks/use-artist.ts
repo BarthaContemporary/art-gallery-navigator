@@ -10,6 +10,8 @@ export interface Artist {
   birth_year: number | null;
   image_url: string | null;
   representation_status: string;
+  surname_first_letter: string | null;
+  user_id?: string;
 }
 
 export function useArtist(artistId: string | null) {
