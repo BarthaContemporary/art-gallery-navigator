@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ChatRoom } from '@/hooks/chat/use-chat';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useImprovedChat } from '@/hooks/chat/use-improved-chat';
+import { useSimplifiedChat } from '@/hooks/chat/use-simplified-chat';
 import { ChatMobileLayout } from './ChatMobileLayout';
 import { ChatDesktopLayout } from './ChatDesktopLayout';
 import { ChatPopupLayout } from './ChatPopupLayout';
@@ -17,7 +17,7 @@ interface ImprovedChatLayoutProps {
 }
 
 export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps) {
-  const chat = useImprovedChat();
+  const chat = useSimplifiedChat();
   const [currentView, setCurrentView] = useState<ViewType>('rooms');
   const isMobile = useIsMobile();
   const location = useLocation();
