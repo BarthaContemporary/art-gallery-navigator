@@ -1,6 +1,5 @@
 
-import { useMemo, useState, useEffect } from "react";
-import { FixedSizeGrid as Grid } from "react-window";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -12,45 +11,16 @@ interface VirtualizedArtworkGridProps {
   onScrollToTop?: () => void;
 }
 
-interface CellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  data: {
-    artworks: Artwork[];
-    columnCount: number;
-    itemWidth: number;
-    itemHeight: number;
-  };
-}
-
-const Cell = ({ columnIndex, rowIndex, style, data }: CellProps) => {
-  const { artworks, columnCount, itemWidth, itemHeight } = data;
-  const index = rowIndex * columnCount + columnIndex;
-  
-  if (index >= artworks.length) {
-    return <div style={style} />;
-  }
-
-  const artwork = artworks[index];
-  
-  return (
-    <div style={style} className="p-3">
-      <div style={{ width: itemWidth - 24, height: itemHeight - 24 }}>
-        <ArtworkCard artwork={artwork} />
-      </div>
-    </div>
-  );
-};
-
 export function VirtualizedArtworkGrid({ 
   artworks, 
   containerHeight,
   onScrollToTop 
 }: VirtualizedArtworkGridProps) {
   const [containerWidth, setContainerWidth] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
   const isMobile = useIsMobile();
   const { data: artists } = useArtists();
+  const scrollElementRef = useRef<HTMLDivElement>(null);
 
   // Calculate grid dimensions
   const { columnCount, itemWidth, itemHeight, rowCount } = useMemo(() => {
@@ -121,6 +91,28 @@ export function VirtualizedArtworkGrid({
       .flatMap(([letter, works]) => works);
   }, [groupedArtworks]);
 
+  // Calculate visible range
+  const visibleRange = useMemo(() => {
+    const startRow = Math.floor(scrollTop / itemHeight);
+    const endRow = Math.min(
+      rowCount - 1,
+      Math.ceil((scrollTop + containerHeight) / itemHeight)
+    );
+    
+    const startIndex = startRow * columnCount;
+    const endIndex = Math.min(
+      flattenedArtworks.length - 1,
+      (endRow + 1) * columnCount - 1
+    );
+    
+    return { startIndex, endIndex, startRow, endRow };
+  }, [scrollTop, itemHeight, containerHeight, rowCount, columnCount, flattenedArtworks.length]);
+
+  // Handle scroll
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
   // Measure container width
   useEffect(() => {
     const measureWidth = () => {
@@ -143,24 +135,45 @@ export function VirtualizedArtworkGrid({
     );
   }
 
+  const totalHeight = rowCount * itemHeight;
+  const { startIndex, endIndex, startRow } = visibleRange;
+
   return (
     <div id="virtualized-grid-container" className="w-full">
-      <Grid
-        columnCount={columnCount}
-        columnWidth={itemWidth}
-        height={containerHeight}
-        rowCount={rowCount}
-        rowHeight={itemHeight}
-        width={containerWidth}
-        itemData={{
-          artworks: flattenedArtworks,
-          columnCount,
-          itemWidth,
-          itemHeight
-        }}
+      <div
+        ref={scrollElementRef}
+        className="overflow-auto"
+        style={{ height: containerHeight }}
+        onScroll={handleScroll}
       >
-        {Cell}
-      </Grid>
+        <div style={{ height: totalHeight, position: 'relative' }}>
+          {Array.from({ length: endIndex - startIndex + 1 }, (_, i) => {
+            const index = startIndex + i;
+            if (index >= flattenedArtworks.length) return null;
+            
+            const artwork = flattenedArtworks[index];
+            const row = Math.floor(index / columnCount);
+            const col = index % columnCount;
+            
+            return (
+              <div
+                key={artwork.id}
+                className="absolute p-3"
+                style={{
+                  left: col * itemWidth,
+                  top: row * itemHeight,
+                  width: itemWidth,
+                  height: itemHeight,
+                }}
+              >
+                <div style={{ width: itemWidth - 24, height: itemHeight - 24 }}>
+                  <ArtworkCard artwork={artwork} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
