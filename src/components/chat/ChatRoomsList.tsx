@@ -78,21 +78,21 @@ export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className={`font-medium text-sm truncate ${hasUnread ? 'font-semibold' : ''}`}>
-                      {otherParticipant?.display_name || 'Unknown User'}
-                    </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col">
+                      <h3 className={`font-medium text-sm truncate ${hasUnread ? 'font-semibold' : ''}`}>
+                        {otherParticipant?.display_name || 'Unknown User'}
+                      </h3>
                       {room.last_message_at && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 mt-0.5">
                           {formatLastMessageTime(room.last_message_at)}
                         </span>
                       )}
-                      {hasUnread && (
-                        <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                          {room.unread_count}
-                        </Badge>
-                      )}
                     </div>
+                    {hasUnread && (
+                      <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs ml-2">
+                        {room.unread_count}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="mt-1">
