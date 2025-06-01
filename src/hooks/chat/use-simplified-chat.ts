@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../use-auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -89,12 +88,13 @@ export function useSimplifiedChat() {
     }
   }, [user]);
 
-  // Fetch messages for a room with fallback for failed decryption
+  // Fetch messages for a room with enhanced fallback for failed decryption
   const fetchMessages = useCallback(async (roomId: string) => {
     if (!user) return;
 
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      console.log('Fetching messages for room:', roomId, 'user:', user.id);
 
       const { data, error } = await supabase
         .from('chat_messages')
@@ -116,17 +116,13 @@ export function useSimplifiedChat() {
         .select('id, display_name, avatar_url')
         .in('id', senderIds);
 
-      // Decrypt messages with fallback
+      // Decrypt messages with comprehensive fallback
       let encryptionKey: CryptoKey | null = null;
       try {
+        console.log('Generating encryption key for message decryption...');
         encryptionKey = await ChatEncryption.generateRoomKey(roomId, user.id);
-        const keyIsValid = await ChatEncryption.testKey(encryptionKey);
-        if (!keyIsValid) {
-          console.warn('Generated key failed validation test');
-          encryptionKey = null;
-        }
       } catch (error) {
-        console.error('Failed to generate encryption key:', error);
+        console.error('Failed to generate encryption key for decryption:', error);
         encryptionKey = null;
       }
 
@@ -138,13 +134,28 @@ export function useSimplifiedChat() {
           
           if (encryptionKey) {
             try {
+              console.log('Attempting to decrypt message:', message.id);
               decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, encryptionKey);
+              console.log('Successfully decrypted message:', message.id);
             } catch (error) {
-              console.error('Failed to decrypt message:', error);
-              decryptedContent = '[Message could not be decrypted]';
+              console.error('Failed to decrypt message, trying fallback:', message.id, error);
+              try {
+                // Try fallback decoding
+                decryptedContent = ChatEncryption.decodeFallbackEncoding(message.encrypted_content);
+                console.log('Successfully decoded fallback message:', message.id);
+              } catch (fallbackError) {
+                console.error('Fallback decoding also failed:', message.id, fallbackError);
+                decryptedContent = '[Message could not be decrypted]';
+              }
             }
           } else {
-            decryptedContent = '[Encryption key unavailable]';
+            console.log('No encryption key available, trying fallback decoding for message:', message.id);
+            try {
+              decryptedContent = ChatEncryption.decodeFallbackEncoding(message.encrypted_content);
+            } catch (error) {
+              console.error('Fallback decoding failed:', message.id, error);
+              decryptedContent = '[Encryption key unavailable]';
+            }
           }
 
           return {
@@ -165,36 +176,47 @@ export function useSimplifiedChat() {
     }
   }, [user]);
 
-  // Send message with robust error handling and fallback
+  // Send message with robust error handling and comprehensive fallback
   const sendMessage = useCallback(async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!user || !content.trim()) {
-      console.error('Missing user or empty content');
+      console.error('Missing user or empty content for sendMessage');
+      toast.error('Cannot send empty message');
+      return;
+    }
+
+    if (!roomId) {
+      console.error('Missing roomId for sendMessage');
+      toast.error('Invalid chat room');
       return;
     }
 
     setState(prev => ({ ...prev, sending: true, error: null }));
+    console.log('Attempting to send message:', { content: content.substring(0, 50), roomId, userId: user.id, type });
 
     try {
-      console.log('Attempting to send message:', { content: content.substring(0, 50), roomId, userId: user.id });
-
-      // Generate encryption key
+      // Attempt encryption with comprehensive fallback
       let encryptedContent: string;
+      let encryptionSuccessful = false;
+
       try {
+        console.log('Generating encryption key for message sending...');
         const key = await ChatEncryption.generateRoomKey(roomId, user.id);
         
-        // Test the key first
-        const keyIsValid = await ChatEncryption.testKey(key);
-        if (!keyIsValid) {
-          throw new Error('Generated encryption key failed validation');
-        }
-        
+        console.log('Encrypting message content...');
         encryptedContent = await ChatEncryption.encryptMessage(content, key);
+        encryptionSuccessful = true;
         console.log('Message encrypted successfully');
       } catch (encryptionError) {
-        console.error('Encryption failed, sending unencrypted fallback:', encryptionError);
-        // Fallback: store as base64 encoded (not secure but ensures message delivery)
-        encryptedContent = btoa(content);
-        toast.warning('Message sent without encryption');
+        console.error('Encryption failed, using fallback encoding:', encryptionError);
+        try {
+          encryptedContent = ChatEncryption.createFallbackEncoding(content);
+          console.log('Fallback encoding successful');
+          toast.warning('Message sent with reduced security');
+        } catch (fallbackError) {
+          console.error('Fallback encoding also failed:', fallbackError);
+          encryptedContent = content; // Last resort: send unencrypted
+          toast.warning('Message sent without encryption');
+        }
       }
 
       console.log('Inserting message to database...');
@@ -215,19 +237,25 @@ export function useSimplifiedChat() {
         throw error;
       }
 
-      console.log('Message sent successfully:', data);
+      console.log('Message sent successfully:', data.id);
       retryCount.current = 0; // Reset retry count on success
+
+      if (encryptionSuccessful) {
+        toast.success('Message sent securely');
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
       retryCount.current++;
       
       if (retryCount.current < maxRetries) {
-        console.log(`Retrying... (${retryCount.current}/${maxRetries})`);
+        console.log(`Retrying send message... (${retryCount.current}/${maxRetries})`);
+        toast.info(`Retrying... (${retryCount.current}/${maxRetries})`);
         setTimeout(() => {
           sendMessage(content, roomId, type);
         }, 1000 * retryCount.current);
       } else {
+        console.error('Max retries reached for sending message');
         toast.error('Failed to send message after multiple attempts');
         retryCount.current = 0;
       }
@@ -299,7 +327,7 @@ export function useSimplifiedChat() {
     subscribeToMessages(room.id);
   }, [fetchMessages]);
 
-  // Subscribe to real-time messages with fallback decryption
+  // Subscribe to real-time messages with comprehensive fallback decryption
   const subscribeToMessages = useCallback(async (roomId: string) => {
     if (messagesChannel.current) {
       supabase.removeChannel(messagesChannel.current);
@@ -324,17 +352,17 @@ export function useSimplifiedChat() {
               .eq('id', newMessage.sender_id)
               .single();
 
-            // Decrypt message with fallback
+            // Decrypt message with comprehensive fallback
             let decryptedContent: string;
             try {
               const key = await ChatEncryption.generateRoomKey(roomId, user?.id);
               decryptedContent = await ChatEncryption.decryptMessage(newMessage.encrypted_content, key);
             } catch (error) {
-              console.error('Real-time decryption failed, trying base64 fallback:', error);
+              console.error('Real-time decryption failed, trying fallback:', error);
               try {
-                decryptedContent = atob(newMessage.encrypted_content);
+                decryptedContent = ChatEncryption.decodeFallbackEncoding(newMessage.encrypted_content);
               } catch (fallbackError) {
-                console.error('Fallback decryption also failed:', fallbackError);
+                console.error('Real-time fallback decoding also failed:', fallbackError);
                 decryptedContent = '[Message could not be decrypted]';
               }
             }
