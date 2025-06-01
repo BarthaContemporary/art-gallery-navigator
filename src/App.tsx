@@ -1,104 +1,106 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { MainLayout } from "./components/layout/MainLayout";
-import { AuthProvider } from "./providers/auth-provider";
-import Dashboard from "./pages/Dashboard";
-import Artists from "./pages/Artists";
-import Artworks from "./pages/Artworks";
-import Locations from "./pages/Locations";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import Documents from "./pages/Documents";
-import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import RequestPasswordResetPage from "./pages/RequestPasswordReset";
-import UpdatePasswordPage from "./pages/UpdatePassword";
-import { RequireAuth } from "./components/auth/RequireAuth";
-import UserSignup from "./pages/UserSignup";
-import Collections from "./pages/Collections";
-import Profile from "./pages/Profile";
-import EmailConfirmation from "./pages/EmailConfirmation";
-import PDFTemplates from "./pages/PDFTemplates";
-import FileTransfer from "./pages/FileTransfer";
-import ManageAllWebsites from "./pages/ManageAllWebsites";
-import PublicCollectionView from "./pages/PublicCollectionView";
-import EditCollectionWebsite from "./pages/EditCollectionWebsite";
-import Chat from "./pages/Chat";
-import { LoadingProvider } from "./contexts/loading-context";
-import { LoadingOverlay } from "./components/ui/loading-overlay";
-import { ErrorBoundary } from "./components/ui/error-boundary";
-import { logger } from "@/lib/logger";
+import { AuthProvider } from "@/providers/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useEffect } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import Dashboard from "@/pages/Dashboard";
+import Artists from "@/pages/Artists";
+import Artworks from "@/pages/Artworks";
+import Collections from "@/pages/Collections";
+import Documents from "@/pages/Documents";
+import Locations from "@/pages/Locations";
+import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
+import Chat from "@/pages/Chat";
+import Upload from "@/pages/Upload";
+import Auth from "@/pages/Auth";
+import Profile from "@/pages/Profile";
+import NotFound from "@/pages/NotFound";
+import PDFTemplates from "@/pages/PDFTemplates";
+import BackupExport from "@/pages/BackupExport";
+import EmailConfirmation from "@/pages/EmailConfirmation";
+import RequestPasswordReset from "@/pages/RequestPasswordReset";
+import UpdatePassword from "@/pages/UpdatePassword";
+import FileTransfer from "@/pages/FileTransfer";
+import UserSignup from "@/pages/UserSignup";
+import PublicCollectionView from "@/pages/PublicCollectionView";
+import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
+import ManageAllWebsites from "@/pages/ManageAllWebsites";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
+const queryClient = new QueryClient();
 
-// Create a new QueryClient with enhanced error handling
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      refetchOnWindowFocus: false,
-      meta: {
-        onError: (error: Error) => {
-          logger.error("Query error:", error);
-        }
-      }
-    },
-    mutations: {
-      meta: {
-        onError: (error: Error) => {
-          logger.error("Mutation error:", error);
-        }
+function AppContent() {
+  const { user } = useAuth();
+  const { requestPermission, isSupported } = useNotifications();
+
+  useEffect(() => {
+    // Request notification permission when user logs in
+    if (user && isSupported) {
+      // Only request if permission hasn't been granted or denied yet
+      if (Notification.permission === 'default') {
+        requestPermission();
       }
     }
-  }
-});
+  }, [user, isSupported, requestPermission]);
 
-
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <BrowserRouter>
-        <ErrorBoundary>
-          <AuthProvider>
-            <LoadingProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <LoadingOverlay />
-                <Routes>
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/request-password-reset" element={<RequestPasswordResetPage />} />
-                  <Route path="/update-password" element={<UpdatePasswordPage />} />
-                  <Route path="/email-confirmation" element={<EmailConfirmation />} />
-                  <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
-                  <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/artists" element={<Artists />} />
-                    <Route path="/artworks" element={<Artworks />} />
-                    <Route path="/collections" element={<Collections />} />
-                    <Route path="/chat" element={<Chat />} />
-                    <Route path="/projects" element={<Projects />} />
-                    <Route path="/projects/:id" element={<ProjectDetail />} />
-                    <Route path="/locations" element={<Locations />} />
-                    <Route path="/documents" element={<Documents />} />
-                    <Route path="/signup" element={<UserSignup />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/pdf/:type/:id" element={<PDFTemplates />} />
-                    <Route path="/file-transfer" element={<FileTransfer />} />
-                    <Route path="/manage-websites" element={<ManageAllWebsites />} />
-                    <Route path="/manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </TooltipProvider>
-            </LoadingProvider>
-          </AuthProvider>
-        </ErrorBoundary>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/email-confirmation" element={<EmailConfirmation />} />
+          <Route path="/request-password-reset" element={<RequestPasswordReset />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/signup" element={<UserSignup />} />
+          <Route path="/collection/:slug" element={<PublicCollectionView />} />
+          
+          {/* Protected routes */}
+          <Route path="/" element={<RequireAuth><MainLayout /></RequireAuth>}>
+            <Route index element={<Dashboard />} />
+            <Route path="artists" element={<Artists />} />
+            <Route path="artworks" element={<Artworks />} />
+            <Route path="collections" element={<Collections />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="locations" element={<Locations />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="upload" element={<Upload />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="pdf-templates" element={<PDFTemplates />} />
+            <Route path="backup-export" element={<BackupExport />} />
+            <Route path="file-transfer" element={<FileTransfer />} />
+            <Route path="edit-collection-website/:id" element={<EditCollectionWebsite />} />
+            <Route path="manage-all-websites" element={<ManageAllWebsites />} />
+          </Route>
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
+      <Toaster />
+      <Sonner />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <AppContent />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
-  </ErrorBoundary>
-);
+  );
+}
 
 export default App;

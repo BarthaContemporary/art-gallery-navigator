@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from './types';
 import { ChatEncryption } from '@/lib/encryption';
+import { NotificationService } from '@/services/notification-service';
 
 export function useChatMessages(userId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -169,6 +170,29 @@ export function useChatMessages(userId?: string) {
           const decryptedMessage = await decryptMessageWithProfile(newMessage, key, profilesMap);
 
           setMessages(prev => [...prev, decryptedMessage]);
+
+          // Show notification if message is from another user
+          if (newMessage.sender_id !== userId) {
+            const notificationService = NotificationService.getInstance();
+            const senderName = senderProfile?.display_name || 'Unknown User';
+            const messageContent = decryptedMessage.decrypted_content || 'New message';
+            
+            // Show in-app notification
+            notificationService.showInAppNotification(
+              'New Message',
+              messageContent,
+              senderName
+            );
+
+            // Show push notification if the app is in background
+            if (document.hidden) {
+              notificationService.showPushNotification(
+                `Message from ${senderName}`,
+                messageContent,
+                { roomId, senderId: newMessage.sender_id }
+              );
+            }
+          }
         } catch (error) {
           console.error('Error handling real-time message:', error);
           // Add message without decryption as fallback
