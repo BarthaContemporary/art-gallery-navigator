@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../use-auth';
 import { useChatPresence } from './use-chat-presence';
@@ -46,6 +45,22 @@ export function useChat() {
     return cleanup;
   }, []);
 
+  // Add comprehensive cache clearing function
+  const clearAllChatCache = () => {
+    // Clear messages cache
+    cleanup();
+    
+    // Reset active room
+    setActiveRoom(null);
+    
+    // Clear loading state
+    setLoading(false);
+    
+    // Use the cache manager for comprehensive clearing
+    const cacheManager = require('@/utils/chat-cache-manager').ChatCacheManager.getInstance();
+    cacheManager.clearAllChatCache();
+  };
+
   return {
     chatRooms,
     activeRoom,
@@ -58,5 +73,6 @@ export function useChat() {
     sendMessage: sendMessageToActiveRoom,
     fetchChatRooms,
     fetchOnlineUsers,
+    clearAllChatCache, // Add the comprehensive cache clearing function
   };
 }

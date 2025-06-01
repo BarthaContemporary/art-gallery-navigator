@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -6,6 +5,7 @@ import { ChatMobileLayout } from './ChatMobileLayout';
 import { ChatDesktopLayout } from './ChatDesktopLayout';
 import { ChatPopupLayout } from './ChatPopupLayout';
 import { useLocation } from 'react-router-dom';
+import { ChatClearCacheButton } from './ChatClearCacheButton';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 
@@ -64,15 +64,20 @@ export function ChatLayout({ isPopup = false }: ChatLayoutProps) {
   }
 
   return (
-    <ChatDesktopLayout
-      currentView={currentView as 'rooms' | 'online'}
-      activeRoom={activeRoom}
-      messages={messages}
-      onSendMessage={sendMessage}
-      sending={sending}
-      onViewChange={handleViewChange}
-      onStartChat={handleStartChat}
-      onSelectRoom={handleSelectRoom}
-    />
+    <div className="flex flex-col h-full">
+      <div className="p-2 border-b bg-gray-50 flex justify-end">
+        <ChatClearCacheButton />
+      </div>
+      <ChatDesktopLayout
+        currentView={currentView as 'rooms' | 'online'}
+        activeRoom={activeRoom}
+        messages={messages}
+        onSendMessage={sendMessage}
+        sending={sending}
+        onViewChange={handleViewChange}
+        onStartChat={handleStartChat}
+        onSelectRoom={handleSelectRoom}
+      />
+    </div>
   );
 }

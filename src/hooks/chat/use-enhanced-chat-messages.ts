@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -382,6 +381,28 @@ export function useEnhancedChatMessages(userId?: string) {
     setMessages([]);
   };
 
+  // Add enhanced cache clearing function
+  const clearCache = () => {
+    setMessages([]);
+    encryptionKeys.current.clear();
+    
+    // Remove any active message subscriptions
+    if (messagesChannel.current) {
+      supabase.removeChannel(messagesChannel.current);
+      messagesChannel.current = null;
+    }
+
+    // Log cache clearing for security monitoring
+    securityMonitor.logSecurityEvent({
+      type: 'data_access',
+      severity: 'low',
+      userId,
+      details: {
+        action: 'chat_cache_cleared'
+      }
+    });
+  };
+
   return {
     messages,
     sending,
@@ -389,5 +410,6 @@ export function useEnhancedChatMessages(userId?: string) {
     sendMessage,
     subscribeToMessages,
     cleanup,
+    clearCache, // Add the new clear cache function
   };
 }
