@@ -41,6 +41,9 @@ export interface Artwork {
   crate_depth?: number | null;
   // Add the artist_name property for use in PDF generation and previews
   artist_name?: string;
+  // Add timestamp fields
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export function useArtworks() {
