@@ -21,21 +21,7 @@ export function BasicInformationFields({
 }: BasicInformationFieldsProps) {
   return (
     <div className="space-y-4">
-      <FormField
-        control={form.control}
-        name="title"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Title *</FormLabel>
-            <FormControl>
-              <Input placeholder="Enter artwork title" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Only show artist selection if user is admin */}
+      {/* Show artist selection first if user is admin */}
       {isAdmin && (
         <FormField
           control={form.control}
@@ -62,6 +48,20 @@ export function BasicInformationFields({
           )}
         />
       )}
+
+      <FormField
+        control={form.control}
+        name="title"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Title *</FormLabel>
+            <FormControl>
+              <Input placeholder="Enter artwork title" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Show read-only artist name if user is not admin */}
       {!isAdmin && currentUserArtistId && (
