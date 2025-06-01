@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/providers/auth-provider";
+import { LoadingProvider } from "@/contexts/loading-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useEffect } from "react";
@@ -94,9 +95,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <TooltipProvider>
-            <AppContent />
-          </TooltipProvider>
+          <LoadingProvider>
+            <TooltipProvider>
+              <AppContent />
+            </TooltipProvider>
+          </LoadingProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
