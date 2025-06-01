@@ -8,15 +8,14 @@ import { Eye, EyeOff, Shield, AlertTriangle } from 'lucide-react';
 import { useEnhancedSecureAuth } from '@/hooks/use-enhanced-secure-auth';
 import { TurnstileWidget } from './TurnstileWidget';
 import { EnhancedInputValidator } from '@/utils/enhanced-input-validation';
-import { SecurityMonitor, logAuthEvent } from '@/utils/security-monitoring';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface SecureLoginFormProps {
+interface SecurityEnhancedLoginFormProps {
   onNeedsOTP: (email: string) => void;
 }
 
-export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
+export function SecurityEnhancedLoginForm({ onNeedsOTP }: SecurityEnhancedLoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +27,6 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
   const [attemptCount, setAttemptCount] = useState(0);
 
   const { secureSignIn } = useEnhancedSecureAuth();
-  const securityMonitor = SecurityMonitor.getInstance();
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -36,6 +34,18 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
 
     if (!EnhancedInputValidator.validateEmail(email)) {
       errors.email = 'Please enter a valid email address';
+    } else {
+      // Check for common typos in email domains
+      const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (emailDomain && !commonDomains.includes(emailDomain)) {
+        const suggestions = commonDomains.filter(domain => 
+          domain.includes(emailDomain.substring(0, 3))
+        );
+        if (suggestions.length > 0) {
+          warnings.push(`Did you mean ${suggestions[0]}?`);
+        }
+      }
     }
 
     if (password) {
@@ -44,9 +54,9 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
         errors.password = passwordValidation.errors[0];
       }
 
-      // Security warning if password contains email
+      // Check for weak password patterns
       if (password.toLowerCase().includes(email.split('@')[0]?.toLowerCase() || '')) {
-        warnings.push('Security recommendation: Avoid using your email in your password');
+        warnings.push('Your password contains part of your email address');
       }
     }
 
@@ -60,22 +70,15 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
     
     setAttemptCount(prev => prev + 1);
 
-    // Check for brute force attempts
-    if (securityMonitor.detectBruteForceAttempt()) {
-      toast.error('Too many failed attempts detected. Please try again later.');
-      logAuthEvent(false, undefined, { reason: 'brute_force_detected' });
-      return;
-    }
-
     if (!validateForm()) {
       toast.error('Please fix the validation errors');
       return;
     }
 
-    // Progressive security measures based on attempt count
+    // Show captcha after 2 failed attempts
     if (attemptCount >= 2 && !captchaToken) {
       setShowCaptcha(true);
-      toast.error('Additional security verification required');
+      toast.error('Please complete the security verification');
       return;
     }
 
@@ -86,30 +89,16 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
       
       if (result.needsOTP) {
         onNeedsOTP(email);
-        logAuthEvent(true, undefined, { method: 'otp_requested' });
       } else if ('error' in result && result.error) {
-        logAuthEvent(false, undefined, { 
-          error: result.error, 
-          attempt: attemptCount,
-          captcha_used: !!captchaToken 
-        });
-        
         if (result.error.includes('captcha') || result.error.includes('security')) {
           setShowCaptcha(true);
           toast.error('Please complete the security verification');
         } else if (result.error.includes('rate limit')) {
           toast.error('Too many attempts. Please wait before trying again.');
         }
-      } else {
-        // Successful login
-        logAuthEvent(true, undefined, { method: 'password' });
       }
     } catch (error) {
       console.error('Login error:', error);
-      logAuthEvent(false, undefined, { 
-        error: 'exception_thrown', 
-        attempt: attemptCount 
-      });
       setShowCaptcha(true);
       toast.error('Authentication failed. Please try again.');
     } finally {
@@ -147,7 +136,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
           Secure Sign In
         </CardTitle>
         <CardDescription className="text-center">
-          Enhanced security authentication
+          Enter your credentials to access your account securely
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -174,7 +163,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
               required
               className={validationErrors.email ? 'border-red-500' : ''}
               autoComplete="email"
-              maxLength={254}
+              maxLength={254} // RFC 5321 limit
             />
             {validationErrors.email && (
               <p className="text-sm text-red-500">{validationErrors.email}</p>
@@ -192,7 +181,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
                 onChange={handlePasswordChange}
                 className={validationErrors.password ? 'border-red-500' : ''}
                 autoComplete="current-password"
-                maxLength={128}
+                maxLength={128} // Prevent extremely long passwords
               />
               <Button
                 type="button"
@@ -221,7 +210,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
                 siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
                 onVerify={setCaptchaToken}
                 onError={() => {
-                  toast.error('Captcha verification failed');
+                  toast.error('Security verification failed');
                   setCaptchaToken(null);
                 }}
               />
@@ -242,7 +231,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
             </p>
             {attemptCount > 0 && (
               <p className="text-xs text-gray-500">
-                Security Level: {attemptCount >= 3 ? 'High' : attemptCount >= 2 ? 'Medium' : 'Standard'}
+                Attempt {attemptCount}/5 - Enhanced security after 2 attempts
               </p>
             )}
           </div>
