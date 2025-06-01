@@ -1,3 +1,4 @@
+
 // Enhanced client-side encryption utilities using Web Crypto API
 export class ChatEncryption {
   private static readonly ALGORITHM = "AES-GCM";
