@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChatRoom } from '@/hooks/chat/use-chat';
+import { ChatRoom } from '@/hooks/chat/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSimpleChat } from '@/hooks/chat/use-simple-chat';
 import { ChatMobileLayout } from './ChatMobileLayout';

@@ -56,7 +56,7 @@ export function useMessageOperations(user: any, setState: any) {
     }
   }, [user, setState]);
 
-  // Send message (no encryption)
+  // Send message (plain text - no encryption)
   const sendMessage = useCallback(async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!user || !content.trim()) {
       toast.error('Cannot send empty message');
@@ -76,7 +76,7 @@ export function useMessageOperations(user: any, setState: any) {
         .insert({
           room_id: roomId,
           sender_id: user.id,
-          encrypted_content: content, // Store as plain text
+          encrypted_content: content, // Storing as plain text (field name kept for compatibility)
           message_type: type,
         })
         .select()
