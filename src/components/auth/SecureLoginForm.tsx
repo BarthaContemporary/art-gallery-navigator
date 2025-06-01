@@ -58,7 +58,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
       
       if (result.needsOTP) {
         onNeedsOTP(email);
-      } else if (result.error) {
+      } else if ('error' in result && result.error) {
         if (result.error.includes('captcha') || result.error.includes('security')) {
           setShowCaptcha(true);
           toast.error('Please complete the security verification');
@@ -154,6 +154,7 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
             <div className="space-y-2">
               <Label>Security Verification</Label>
               <TurnstileWidget
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAABVNY-RtAZWQwtdF'}
                 onVerify={setCaptchaToken}
                 onError={() => {
                   toast.error('Captcha verification failed');

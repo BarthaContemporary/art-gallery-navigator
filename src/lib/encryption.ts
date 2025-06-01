@@ -1,4 +1,3 @@
-
 // Enhanced client-side encryption utilities using Web Crypto API
 export class ChatEncryption {
   private static readonly ALGORITHM = "AES-GCM";
@@ -43,16 +42,28 @@ export class ChatEncryption {
   }
 
   // Generate a secure room key using user-specific entropy
-  static async generateRoomKey(roomId: string, userId: string): Promise<CryptoKey> {
-    // Create a more secure salt using both room ID and user ID
-    const saltString = `chat-room-${roomId}-user-${userId}-v2`;
-    const salt = new TextEncoder().encode(saltString);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', salt);
-    const finalSalt = new Uint8Array(hashBuffer.slice(0, this.SALT_LENGTH));
-    
-    // Use a combination of room ID and random entropy for better security
-    const keyMaterial = `${roomId}-${Date.now()}-${Math.random()}`;
-    return await this.deriveKey(keyMaterial, finalSalt);
+  static async generateRoomKey(roomId: string, userId?: string): Promise<CryptoKey> {
+    // Use roomId as base for key derivation to ensure same key for all room participants
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(roomId + 'chat-encryption-salt'),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: new TextEncoder().encode('lovable-chat-salt-2024'),
+        iterations: 100000,
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
   }
 
   // Generate a shared room key that all participants can derive

@@ -18,8 +18,8 @@ export function useChatMessages(userId?: string) {
       return encryptionKeys.current.get(roomId)!;
     }
 
-    // Generate shared room key (not user-specific)
-    const key = await ChatEncryption.generateRoomKey(roomId);
+    // Generate shared room key (not user-specific) - fix the function call
+    const key = await ChatEncryption.generateRoomKey(roomId, userId);
     encryptionKeys.current.set(roomId, key);
     return key;
   };
