@@ -131,6 +131,61 @@ export type Database = {
           },
         ]
       }
+      artwork_location_history: {
+        Row: {
+          artwork_id: string
+          changed_at: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          location_id: string | null
+          notes: string | null
+          previous_location_id: string | null
+        }
+        Insert: {
+          artwork_id: string
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          previous_location_id?: string | null
+        }
+        Update: {
+          artwork_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          previous_location_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artwork_location_history_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_location_history_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_location_history_previous_location_id_fkey"
+            columns: ["previous_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artworks: {
         Row: {
           artist_id: string | null

@@ -14,10 +14,7 @@ import { toast } from "sonner";
 import { ArtworkCarousel } from "./ArtworkCarousel";
 import { DialogHeaderActions } from "./overview/DialogHeaderActions";
 import { useFileOperations } from "./overview/useFileOperations";
-
-// New components
-import { ArtworkOverviewPrimaryInfo } from "./overview/ArtworkOverviewPrimaryInfo";
-import { ArtworkOverviewCollapsibleInfo } from "./overview/ArtworkOverviewCollapsibleInfo";
+import { ArtworkOverviewTabs } from "./overview/ArtworkOverviewTabs";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -78,7 +75,6 @@ export function ArtworkOverviewDialog({
     }
   }, [pdfPreviewOpen, handleGeneratePDF, setPDFPreviewOpen]);
 
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -115,14 +111,11 @@ export function ArtworkOverviewDialog({
               />
             </div>
             
-            <div className="px-6 pb-6 space-y-6">
-              <ArtworkOverviewPrimaryInfo 
-                artwork={artwork} 
-                artist={artist} 
-                artistLoading={artistLoading} 
-              />
-              <ArtworkOverviewCollapsibleInfo 
-                artwork={artwork} 
+            <div className="px-6 pb-6">
+              <ArtworkOverviewTabs
+                artwork={artwork}
+                artist={artist}
+                artistLoading={artistLoading}
                 location={location}
                 locationLoading={locationLoading}
               />
