@@ -52,39 +52,37 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/email-confirmation" element={<EmailConfirmation />} />
-          <Route path="/request-password-reset" element={<RequestPasswordReset />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
-          <Route path="/signup" element={<UserSignup />} />
-          <Route path="/collection/:slug" element={<PublicCollectionView />} />
-          
-          {/* Protected routes */}
-          <Route path="/" element={<RequireAuth><MainLayout /></RequireAuth>}>
-            <Route index element={<Dashboard />} />
-            <Route path="artists" element={<Artists />} />
-            <Route path="artworks" element={<Artworks />} />
-            <Route path="collections" element={<Collections />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="locations" element={<Locations />} />
-            <Route path="projects" element={<Projects />} />
-            <Route path="projects/:id" element={<ProjectDetail />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="upload" element={<Upload />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="pdf-templates" element={<PDFTemplates />} />
-            <Route path="backup-export" element={<BackupExport />} />
-            <Route path="file-transfer" element={<FileTransfer />} />
-            <Route path="edit-collection-website/:id" element={<EditCollectionWebsite />} />
-            <Route path="manage-all-websites" element={<ManageAllWebsites />} />
-          </Route>
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/email-confirmation" element={<EmailConfirmation />} />
+        <Route path="/request-password-reset" element={<RequestPasswordReset />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
+        <Route path="/signup" element={<UserSignup />} />
+        <Route path="/collection/:slug" element={<PublicCollectionView />} />
+        
+        {/* Protected routes */}
+        <Route path="/" element={<RequireAuth><MainLayout /></RequireAuth>}>
+          <Route index element={<Dashboard />} />
+          <Route path="artists" element={<Artists />} />
+          <Route path="artworks" element={<Artworks />} />
+          <Route path="collections" element={<Collections />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="locations" element={<Locations />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:id" element={<ProjectDetail />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="upload" element={<Upload />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="pdf-templates" element={<PDFTemplates />} />
+          <Route path="backup-export" element={<BackupExport />} />
+          <Route path="file-transfer" element={<FileTransfer />} />
+          <Route path="edit-collection-website/:id" element={<EditCollectionWebsite />} />
+          <Route path="manage-all-websites" element={<ManageAllWebsites />} />
+        </Route>
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       <Toaster />
       <Sonner />
     </div>
@@ -94,11 +92,13 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <AppContent />
-        </TooltipProvider>
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <AppContent />
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }
