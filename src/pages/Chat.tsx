@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ChatLayout } from '@/components/chat/ChatLayout';
+import { ImprovedChatLayout } from '@/components/chat/ImprovedChatLayout';
 
 export default function Chat() {
   return (
@@ -10,7 +10,7 @@ export default function Chat() {
         <PageHeader title="CHAT" />
       </div>
       <div className="flex-1 min-h-0">
-        <ChatLayout />
+        <ImprovedChatLayout />
       </div>
     </div>
   );
