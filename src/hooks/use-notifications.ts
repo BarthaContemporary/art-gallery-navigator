@@ -29,7 +29,7 @@ export function useNotifications() {
     if (!isSupported) return false;
     
     const notificationService = NotificationService.getInstance();
-    const permission = await notificationService.requestNotissionPermission();
+    const permission = await notificationService.requestNotificationPermission();
     setNotificationPermission(permission);
     
     if (permission === 'granted' && user) {

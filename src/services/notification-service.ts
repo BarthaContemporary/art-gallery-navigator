@@ -57,16 +57,6 @@ export class NotificationService {
           tag: 'chat-message',
           data: data,
           requireInteraction: true,
-          actions: [
-            {
-              action: 'reply',
-              title: 'Reply'
-            },
-            {
-              action: 'view',
-              title: 'View Chat'
-            }
-          ]
         });
       } catch (error) {
         console.error('Error showing push notification:', error);

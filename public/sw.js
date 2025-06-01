@@ -9,16 +9,6 @@ self.addEventListener('push', function(event) {
       tag: 'chat-message',
       data: data.data,
       requireInteraction: true,
-      actions: [
-        {
-          action: 'reply',
-          title: 'Reply'
-        },
-        {
-          action: 'view',
-          title: 'View Chat'
-        }
-      ]
     };
 
     event.waitUntil(
@@ -30,22 +20,10 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
-  if (event.action === 'reply') {
-    // Handle reply action
-    event.waitUntil(
-      clients.openWindow('/chat')
-    );
-  } else if (event.action === 'view') {
-    // Handle view action
-    event.waitUntil(
-      clients.openWindow('/chat')
-    );
-  } else {
-    // Default click action
-    event.waitUntil(
-      clients.openWindow('/chat')
-    );
-  }
+  // Default click action - open the chat
+  event.waitUntil(
+    clients.openWindow('/chat')
+  );
 });
 
 self.addEventListener('install', function(event) {
