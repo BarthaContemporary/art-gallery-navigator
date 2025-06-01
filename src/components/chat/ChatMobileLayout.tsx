@@ -4,7 +4,7 @@ import { ChatInterface } from './ChatInterface';
 import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
-import { ChatRoom, ChatMessage } from '@/hooks/chat/use-chat';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 

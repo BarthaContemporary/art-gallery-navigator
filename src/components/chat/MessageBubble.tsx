@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { format } from 'date-fns';
-import { ChatMessage } from '@/hooks/chat/use-chat';
+import { ChatMessage } from '@/hooks/chat/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MessageBubbleProps {
@@ -23,7 +23,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
           }`}
         >
           <p className="text-sm whitespace-pre-wrap break-words">
-            {message.decrypted_content || message.encrypted_content}
+            {message.content || message.encrypted_content}
           </p>
         </div>
         <div className={`mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>

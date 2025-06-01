@@ -2,7 +2,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ChatMessage } from './types';
 
 export function useMessageOperations(user: any, setState: any) {
   // Mark messages as read when viewing them

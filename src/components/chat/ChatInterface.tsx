@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChatRoom, ChatMessage } from '@/hooks/chat/use-chat';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessagesList } from './ChatMessagesList';
 import { ChatMessageInput } from './ChatMessageInput';

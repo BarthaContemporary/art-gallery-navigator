@@ -57,7 +57,7 @@ export function useChatData(user: any, setState: any) {
     }
   }, [user, setState]);
 
-  // Fetch messages for a room (no encryption - plain text)
+  // Fetch messages for a room (plain text - no encryption)
   const fetchMessages = useCallback(async (roomId: string, markMessagesAsRead: any) => {
     if (!user) return;
 
@@ -88,7 +88,7 @@ export function useChatData(user: any, setState: any) {
         
         return {
           ...message,
-          decrypted_content: message.encrypted_content, // Using as plain text
+          content: message.encrypted_content, // Using plain text content
           sender_profile: senderProfile ? {
             display_name: senderProfile.display_name || 'Unknown User',
             avatar_url: senderProfile.avatar_url

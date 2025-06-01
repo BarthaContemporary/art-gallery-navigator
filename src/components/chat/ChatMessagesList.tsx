@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChatMessage } from '@/hooks/chat/use-chat';
+import { ChatMessage } from '@/hooks/chat/types';
 import { MessageBubble } from './MessageBubble';
 import { useAuth } from '@/hooks/use-auth';
 
