@@ -7,7 +7,7 @@ import { ChatMobileLayout } from './ChatMobileLayout';
 import { ChatDesktopLayout } from './ChatDesktopLayout';
 import { ChatPopupLayout } from './ChatPopupLayout';
 import { ChatStatusBar } from './ChatStatusBar';
-import { ChatClearCacheButton } from './ChatClearCacheButton';
+import { ImprovedChatClearCacheButton } from './ImprovedChatClearCacheButton';
 import { useLocation } from 'react-router-dom';
 
 type ViewType = 'rooms' | 'online' | 'chat';
@@ -50,6 +50,12 @@ export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps)
     setCurrentView(view);
   };
 
+  // Create a wrapper function that matches the expected interface
+  const handleSendMessage = async (message: string) => {
+    if (!chat.activeRoom) return;
+    await chat.sendMessage(message, chat.activeRoom.id);
+  };
+
   if (isMobile) {
     return (
       <div className="flex flex-col h-full">
@@ -58,7 +64,7 @@ export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps)
           currentView={currentView}
           activeRoom={chat.activeRoom}
           messages={chat.messages}
-          onSendMessage={chat.sendMessage}
+          onSendMessage={handleSendMessage}
           sending={chat.sending}
           onViewChange={handleViewChange}
           onStartChat={handleStartChat}
@@ -73,13 +79,13 @@ export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps)
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
-        <ChatClearCacheButton onClear={chat.clearAllChatCache} />
+        <ImprovedChatClearCacheButton onClear={chat.clearAllChatCache} />
       </div>
       <ChatDesktopLayout
         currentView={currentView as 'rooms' | 'online'}
         activeRoom={chat.activeRoom}
         messages={chat.messages}
-        onSendMessage={chat.sendMessage}
+        onSendMessage={handleSendMessage}
         sending={chat.sending}
         onViewChange={handleViewChange}
         onStartChat={handleStartChat}
