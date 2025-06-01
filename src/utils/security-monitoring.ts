@@ -1,3 +1,4 @@
+
 export interface SecurityEvent {
   type: 'authentication' | 'authorization' | 'data_access' | 'file_upload' | 'suspicious_activity';
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -155,7 +156,7 @@ export class SecurityMonitor {
   // Clear old events (should be called periodically)
   cleanupOldEvents(maxAgeMs: number = 24 * 60 * 60 * 1000): void {
     const cutoff = Date.now() - maxAgeMs;
-    return this.events = this.events.filter(event => event.timestamp > cutoff);
+    this.events = this.events.filter(event => event.timestamp > cutoff);
   }
 }
 
