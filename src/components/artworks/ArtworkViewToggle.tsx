@@ -17,35 +17,35 @@ export function ArtworkViewToggle({
   className 
 }: ArtworkViewToggleProps) {
   return (
-    <div className={cn("flex items-center border rounded-lg p-1", className)}>
+    <div className={cn("flex items-center border rounded-md p-0.5", className)}>
       <Button
         variant={viewMode === 'grid' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewModeChange('grid')}
-        className="px-3"
+        className="h-7 px-2 text-xs"
       >
-        <Grid3X3 className="h-4 w-4" />
-        <span className="hidden sm:inline ml-2">Grid</span>
+        <Grid3X3 className="h-3 w-3" />
+        <span className="hidden sm:inline ml-1">Grid</span>
       </Button>
       
       <Button
         variant={viewMode === 'list' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewModeChange('list')}
-        className="px-3"
+        className="h-7 px-2 text-xs"
       >
-        <List className="h-4 w-4" />
-        <span className="hidden sm:inline ml-2">List</span>
+        <List className="h-3 w-3" />
+        <span className="hidden sm:inline ml-1">List</span>
       </Button>
       
       <Button
         variant={viewMode === 'table' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewModeChange('table')}
-        className="px-3"
+        className="h-7 px-2 text-xs"
       >
-        <Table className="h-4 w-4" />
-        <span className="hidden sm:inline ml-2">Table</span>
+        <Table className="h-3 w-3" />
+        <span className="hidden sm:inline ml-1">Table</span>
       </Button>
     </div>
   );

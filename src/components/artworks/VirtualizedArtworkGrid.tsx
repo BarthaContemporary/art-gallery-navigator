@@ -22,15 +22,36 @@ export function VirtualizedArtworkGrid({
   const { data: artists } = useArtists();
   const scrollElementRef = useRef<HTMLDivElement>(null);
 
-  // Filter and validate artworks first
+  // Comprehensive artwork validation and filtering
   const validArtworks = useMemo(() => {
-    if (!artworks || !Array.isArray(artworks)) return [];
-    return artworks.filter(artwork => 
-      artwork && 
-      typeof artwork === 'object' && 
-      artwork.id && 
-      artwork.title
-    );
+    if (!Array.isArray(artworks)) {
+      console.warn('Artworks is not an array:', artworks);
+      return [];
+    }
+    
+    return artworks.filter(artwork => {
+      if (!artwork) {
+        console.warn('Found null/undefined artwork');
+        return false;
+      }
+      
+      if (typeof artwork !== 'object') {
+        console.warn('Artwork is not an object:', artwork);
+        return false;
+      }
+      
+      if (!artwork.id) {
+        console.warn('Artwork missing id:', artwork);
+        return false;
+      }
+      
+      if (!artwork.title) {
+        console.warn('Artwork missing title:', artwork);
+        return false;
+      }
+      
+      return true;
+    });
   }, [artworks]);
 
   // Calculate grid dimensions
@@ -40,7 +61,7 @@ export function VirtualizedArtworkGrid({
     const minItemWidth = isMobile ? 280 : 320;
     const cols = Math.max(1, Math.floor(containerWidth / minItemWidth));
     const width = Math.floor(containerWidth / cols);
-    const height = Math.floor(width * 1.4); // Maintain aspect ratio
+    const height = Math.floor(width * 1.4);
     const rows = Math.ceil(validArtworks.length / cols);
     
     return {
@@ -51,22 +72,28 @@ export function VirtualizedArtworkGrid({
     };
   }, [containerWidth, validArtworks.length, isMobile]);
 
-  // Group artworks by artist's sort letter (maintain existing grouping logic)
+  // Group artworks by artist's sort letter with comprehensive null safety
   const groupedArtworks = useMemo(() => {
+    if (!Array.isArray(validArtworks) || !Array.isArray(artists)) {
+      return {};
+    }
+
     const grouped = validArtworks.reduce((acc: { [key: string]: Artwork[] }, artwork) => {
+      if (!artwork) return acc;
+      
       let artistName = "Unknown Artist";
       let sortLetter: string | null = null;
       
-      // Safe access to artist_id with null checks
-      if (artwork && artwork.artist_id && artists && Array.isArray(artists)) {
-        const artist = artists.find(a => a && a.id === artwork.artist_id);
-        if (artist) {
+      // Safe access to artist_id with comprehensive null checks
+      if (artwork.artist_id && artists && Array.isArray(artists)) {
+        const artist = artists.find(a => a && typeof a === 'object' && a.id === artwork.artist_id);
+        if (artist && typeof artist === 'object') {
           artistName = artist.full_name || "Unknown Artist";
           sortLetter = artist.surname_first_letter;
         }
       }
       
-      const firstLetter = (sortLetter && sortLetter.trim() !== "") 
+      const firstLetter = (sortLetter && typeof sortLetter === 'string' && sortLetter.trim() !== "") 
         ? sortLetter.trim().toUpperCase() 
         : artistName.charAt(0).toUpperCase();
       
@@ -77,33 +104,43 @@ export function VirtualizedArtworkGrid({
       return acc;
     }, {});
 
-    // Sort within each group
+    // Sort within each group with null safety
     Object.keys(grouped).forEach(letter => {
-      grouped[letter].sort((a, b) => {
-        if (!a || !b || !artists) return 0;
-        
-        const artistDetailsA = artists.find(artist => artist && artist.id === a.artist_id);
-        const artistDetailsB = artists.find(artist => artist && artist.id === b.artist_id);
+      if (Array.isArray(grouped[letter])) {
+        grouped[letter].sort((a, b) => {
+          if (!a || !b || !Array.isArray(artists)) return 0;
+          
+          const artistDetailsA = artists.find(artist => artist && typeof artist === 'object' && artist.id === a.artist_id);
+          const artistDetailsB = artists.find(artist => artist && typeof artist === 'object' && artist.id === b.artist_id);
 
-        const artistNameA = artistDetailsA?.full_name || "Unknown Artist";
-        const artistNameB = artistDetailsB?.full_name || "Unknown Artist";
-        
-        const artistCompare = artistNameA.localeCompare(artistNameB);
-        if (artistCompare !== 0) return artistCompare;
-        
-        return (a.title || "").localeCompare(b.title || "");
-      });
+          const artistNameA = (artistDetailsA && typeof artistDetailsA === 'object') ? (artistDetailsA.full_name || "Unknown Artist") : "Unknown Artist";
+          const artistNameB = (artistDetailsB && typeof artistDetailsB === 'object') ? (artistDetailsB.full_name || "Unknown Artist") : "Unknown Artist";
+          
+          const artistCompare = artistNameA.localeCompare(artistNameB);
+          if (artistCompare !== 0) return artistCompare;
+          
+          const titleA = (a && typeof a.title === 'string') ? a.title : "";
+          const titleB = (b && typeof b.title === 'string') ? b.title : "";
+          return titleA.localeCompare(titleB);
+        });
+      }
     });
 
     return grouped;
   }, [validArtworks, artists]);
 
-  // Flatten grouped artworks for virtualization
+  // Flatten grouped artworks for virtualization with additional safety
   const flattenedArtworks = useMemo(() => {
+    if (!groupedArtworks || typeof groupedArtworks !== 'object') {
+      return [];
+    }
+    
     return Object.entries(groupedArtworks)
       .sort()
-      .flatMap(([letter, works]) => works)
-      .filter(artwork => artwork && artwork.id); // Additional safety filter
+      .flatMap(([letter, works]) => {
+        if (!Array.isArray(works)) return [];
+        return works.filter(artwork => artwork && typeof artwork === 'object' && artwork.id);
+      });
   }, [groupedArtworks]);
 
   // Calculate visible range

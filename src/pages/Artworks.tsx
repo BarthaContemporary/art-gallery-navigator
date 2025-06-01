@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { SearchBar } from "@/components/artworks/SearchBar";
@@ -153,7 +152,7 @@ const Artworks = () => {
   }
 
   const renderContent = () => {
-    if (viewMode === 'list') {
+    if (viewMode === 'list' || viewMode === 'table') {
       return <ArtworkListView artworks={filteredArtworks} />;
     }
 
@@ -176,7 +175,6 @@ const Artworks = () => {
       );
     }
 
-    // Table view (future implementation)
     return <ArtworkListView artworks={filteredArtworks} />;
   };
 
@@ -245,6 +243,12 @@ const Artworks = () => {
                 className={viewMode === 'list' ? 'bg-accent' : ''}
               >
                 List View
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setViewMode('table')}
+                className={viewMode === 'table' ? 'bg-accent' : ''}
+              >
+                Table View
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Performance</DropdownMenuLabel>

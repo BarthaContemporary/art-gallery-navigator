@@ -19,9 +19,9 @@ interface OptimizedArtworkImageProps {
 }
 
 const defaultSizes = {
-  thumbnail: { width: 400, height: 300, quality: 75 },
-  medium: { width: 800, height: 600, quality: 85 },
-  full: { width: 1600, height: 1200, quality: 95 }
+  thumbnail: { width: 400, height: 300, quality: 85 },
+  medium: { width: 1200, height: 900, quality: 95 },
+  full: { width: 2000, height: 1500, quality: 98 }
 };
 
 export function OptimizedArtworkImage({ 
@@ -134,7 +134,7 @@ export function OptimizedArtworkImage({
           className={cn(
             "absolute inset-0 h-full w-full object-cover transition-all duration-500",
             isLoading ? 'opacity-0' : 'opacity-100',
-            currentTier === 'medium' && 'scale-[1.02]' // Subtle scale for medium quality
+            currentTier === 'medium' && 'scale-[1.02]'
           )}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
