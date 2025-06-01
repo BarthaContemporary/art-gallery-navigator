@@ -1,18 +1,22 @@
 
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { DocumentsSearch } from "@/components/documents/DocumentsSearch";
-import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
+import { EnhancedUploadDocumentDialog } from "@/components/documents/EnhancedUploadDocumentDialog";
 import { DocumentsErrorBoundary } from "@/components/documents/DocumentsErrorBoundary";
 import { DocumentsLoadingSkeleton } from "@/components/documents/DocumentsLoadingSkeleton";
+import { DocumentsEmptyState } from "@/components/documents/DocumentsEmptyState";
+import { RetryButton } from "@/components/documents/RetryButton";
 import { useDocumentsSimplified } from "@/hooks/use-documents-simplified";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Documents() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const { user, session } = useAuth();
   const { data: documents = [], isLoading, error, refetch, debugInfo } = useDocumentsSimplified();
 
@@ -44,49 +48,82 @@ export default function Documents() {
     <DocumentsErrorBoundary>
       <div className="p-3 md:p-6 max-w-7xl mx-auto">
         {/* Header with Upload Button */}
-        <div className="flex items-center justify-between mb-4 md:mb-6">
-          <h1 className="text-2xl font-bold">Documents</h1>
-          <UploadDocumentDialog />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <FileText className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">Documents</h1>
+          </div>
+          <EnhancedUploadDocumentDialog />
         </div>
 
         {/* Search and Filters */}
-        <DocumentsSearch 
-          searchTerm={searchTerm} 
-          onSearchChange={setSearchTerm} 
-          typeFilter={typeFilter} 
-          onTypeFilterChange={setTypeFilter} 
-        />
+        <div className="mb-6">
+          <DocumentsSearch 
+            searchTerm={searchTerm} 
+            onSearchChange={setSearchTerm} 
+            typeFilter={typeFilter} 
+            onTypeFilterChange={setTypeFilter} 
+          />
+        </div>
 
         {/* Error State */}
         {error && (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Failed to Load Documents</h3>
-            <p className="text-muted-foreground mb-4 max-w-md">
-              {error instanceof Error ? error.message : "An unexpected error occurred while loading documents."}
-            </p>
-            <Button onClick={() => refetch()} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-            
-            {/* Debug Info (only in development) */}
-            {process.env.NODE_ENV === 'development' && debugInfo && (
-              <details className="mt-4 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500">Debug Info</summary>
-                <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto max-w-md">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
+          <Card className="mb-6">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Failed to Load Documents</h3>
+              <p className="text-muted-foreground mb-4 max-w-md">
+                {error instanceof Error ? error.message : "An unexpected error occurred while loading documents."}
+              </p>
+              <RetryButton onRetry={() => refetch()} />
+              
+              {/* Debug Info (only in development) */}
+              {process.env.NODE_ENV === 'development' && debugInfo && (
+                <details className="mt-4 text-left">
+                  <summary className="cursor-pointer text-sm text-gray-500">Debug Info</summary>
+                  <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto max-w-md">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Loading State */}
         {isLoading && !error && <DocumentsLoadingSkeleton />}
 
+        {/* Empty State */}
+        {!isLoading && !error && filteredDocuments.length === 0 && documents.length === 0 && (
+          <DocumentsEmptyState onUploadClick={() => setShowUploadDialog(true)} />
+        )}
+
+        {/* No Search Results */}
+        {!isLoading && !error && filteredDocuments.length === 0 && documents.length > 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No documents found</h3>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your search terms or filters.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setTypeFilter(null);
+                }}
+              >
+                Clear filters
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Documents List */}
-        {!isLoading && !error && <DocumentsList documents={filteredDocuments} />}
+        {!isLoading && !error && filteredDocuments.length > 0 && (
+          <DocumentsList documents={filteredDocuments} />
+        )}
 
         {/* Debug Panel for Development */}
         {process.env.NODE_ENV === 'development' && (
@@ -96,6 +133,7 @@ export default function Documents() {
               <div>User: {user?.email || 'Not authenticated'}</div>
               <div>Session: {session ? 'Active' : 'None'}</div>
               <div>Documents count: {documents.length}</div>
+              <div>Filtered count: {filteredDocuments.length}</div>
               <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
               <div>Error: {error ? 'Yes' : 'No'}</div>
             </div>

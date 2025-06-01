@@ -10,16 +10,26 @@ import {
 } from "@/components/ui/dialog";
 import { PlusCircle } from "lucide-react";
 import { UploadDocumentForm } from "./UploadDocumentForm";
-import { useDocumentUpload } from "./use-document-upload";
-import React from "react";
+import { UploadProgress } from "./UploadProgress";
+import { RetryButton } from "./RetryButton";
+import { useEnhancedDocumentUpload } from "@/hooks/use-enhanced-document-upload";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export function UploadDocumentDialog() {
-  const { form, handleUpload, isUploading, open, setOpen } = useDocumentUpload();
+export function EnhancedUploadDocumentDialog() {
+  const { 
+    form, 
+    open, 
+    setOpen, 
+    handleUpload, 
+    handleRetry,
+    uploadStatus,
+    uploadProgress,
+    uploadError
+  } = useEnhancedDocumentUpload();
 
   const handleOpenChange = (newOpen: boolean) => {
     // Only allow closing if not currently uploading
-    if (!isUploading) {
+    if (uploadStatus !== 'uploading') {
       setOpen(newOpen);
       
       if (!newOpen) {
@@ -37,6 +47,8 @@ export function UploadDocumentDialog() {
     }
   };
 
+  const currentFileName = form.watch('file')?.name;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -47,9 +59,8 @@ export function UploadDocumentDialog() {
       </DialogTrigger>
       <DialogContent 
         className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
         onPointerDownOutside={e => {
-          if (isUploading) {
+          if (uploadStatus === 'uploading') {
             e.preventDefault();
           }
         }}
@@ -60,9 +71,30 @@ export function UploadDocumentDialog() {
             Attach a document to an artwork, collection, or artist. Please select exactly one.
           </DialogDescription>
         </DialogHeader>
+        
         <ScrollArea className="flex-grow p-1">
-          <div className="py-4">
-            <UploadDocumentForm form={form} onSubmit={handleUpload} isUploading={isUploading} />
+          <div className="space-y-4">
+            {/* Upload Progress */}
+            <UploadProgress
+              progress={uploadProgress}
+              status={uploadStatus}
+              fileName={currentFileName}
+              error={uploadError}
+            />
+            
+            {/* Upload Form */}
+            <UploadDocumentForm 
+              form={form} 
+              onSubmit={handleUpload} 
+              isUploading={uploadStatus === 'uploading'} 
+            />
+            
+            {/* Retry Button for Failed Uploads */}
+            {uploadStatus === 'error' && (
+              <div className="flex justify-center pt-2">
+                <RetryButton onRetry={handleRetry} />
+              </div>
+            )}
           </div>
         </ScrollArea>
       </DialogContent>
