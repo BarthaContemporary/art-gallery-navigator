@@ -60,7 +60,7 @@ export function useSimpleChat() {
         .select('id, display_name, avatar_url')
         .in('id', uniqueParticipantIds);
 
-      // Transform data with profiles
+      // Transform data with profiles, using display_name or falling back to 'Unknown User'
       const roomsWithProfiles = data.map(room => {
         const participant1Profile = profilesData?.find(p => p.id === room.participant_1_id);
         const participant2Profile = profilesData?.find(p => p.id === room.participant_2_id);
@@ -275,7 +275,7 @@ export function useSimpleChat() {
 
             setState(prev => ({ ...prev, messages: [...prev.messages, messageWithProfile] }));
 
-            // Show notification for messages from others
+            // Show notification for messages from others using display_name
             if (newMessage.sender_id !== user?.id) {
               toast.info(`New message from ${senderProfile?.display_name || 'Unknown User'}`);
             }
