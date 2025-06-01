@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,27 +25,23 @@ interface LoginFormProps {
   onError?: (error: Error) => void;
 }
 
-// Hardcode the Turnstile Site Key
-const TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
 
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
 
-  // Determine configuration status based on the hardcoded key.
-  // This will be true if TURNSTILE_SITE_KEY is a non-empty string.
-  const isSiteKeyEffectivelyConfigured = !!TURNSTILE_SITE_KEY && TURNSTILE_SITE_KEY.length > 0;
+  const isSiteKeyConfigured = !!TURNSTILE_SITE_KEY && TURNSTILE_SITE_KEY.length > 0;
 
   useEffect(() => {
-    if (isSiteKeyEffectivelyConfigured) {
-      logger.log("Using hardcoded Turnstile Site Key:", TURNSTILE_SITE_KEY);
+    if (isSiteKeyConfigured) {
+      logger.log("Using Turnstile Site Key from environment:", TURNSTILE_SITE_KEY);
     } else {
-      // This branch should ideally not be hit if TURNSTILE_SITE_KEY is correctly hardcoded.
-      logger.error("Hardcoded Turnstile Site Key is empty. CAPTCHA will not be displayed.");
+      logger.error("Turnstile Site Key is not configured. CAPTCHA will not be displayed.");
       setCaptchaError("CAPTCHA configuration error: Site key not configured. Please contact support.");
     }
-  }, [isSiteKeyEffectivelyConfigured, setCaptchaError]);
+  }, [isSiteKeyConfigured]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -74,10 +71,9 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   }, []);
 
   const handleSubmit = useCallback((values: LoginFormValues) => {
-    if (!isSiteKeyEffectivelyConfigured) {
-      // This error message might need adjustment if the key is hardcoded but somehow "invalid"
+    if (!isSiteKeyConfigured) {
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
-      logger.error("Login submit attempted but site key is not effectively configured (hardcoded key issue).");
+      logger.error("Login submit attempted but site key is not configured.");
       return;
     }
     if (!captchaToken) {
@@ -87,7 +83,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
     }
     logger.log("Submitting login form with CAPTCHA token.");
     onSubmit(values, captchaToken);
-  }, [captchaToken, onSubmit, isSiteKeyEffectivelyConfigured, setCaptchaError]); // Added setCaptchaError
+  }, [captchaToken, onSubmit, isSiteKeyConfigured]);
 
   return (
     <Form {...form}>
@@ -148,10 +144,10 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           )}
         />
         
-        {isSiteKeyEffectivelyConfigured ? (
+        {isSiteKeyConfigured ? (
           <div className="flex justify-center">
             <TurnstileWidget
-              siteKey={TURNSTILE_SITE_KEY} // Use the hardcoded key
+              siteKey={TURNSTILE_SITE_KEY}
               onVerify={handleCaptchaVerify}
               onError={handleCaptchaError}
               onExpire={handleCaptchaExpire}
@@ -161,7 +157,6 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         ) : (
            <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
             <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            {/* Updated error message for clarity */}
             <span>CAPTCHA service is currently unavailable due to a site key configuration issue. Please contact support.</span>
           </div>
         )}
@@ -176,7 +171,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
         <Button 
           type="submit" 
           className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyEffectivelyConfigured}
+          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyConfigured}
         >
           {isLoading ? (
             <>
