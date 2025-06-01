@@ -20,9 +20,22 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
-  // Default click action - open the chat
+  // Handle notification click
   event.waitUntil(
-    clients.openWindow('/chat')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      // Check if there's already a window/tab open
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.includes('/chat') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      
+      // If no chat window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow('/chat');
+      }
+    })
   );
 });
 

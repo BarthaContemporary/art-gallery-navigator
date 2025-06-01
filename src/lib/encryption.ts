@@ -36,14 +36,14 @@ export class ChatEncryption {
     );
   }
 
-  static async generateRoomKey(roomId: string, userId: string): Promise<CryptoKey> {
-    // Create a deterministic salt from room and user IDs
-    const saltString = `${roomId}-${userId}-chat-encryption`;
+  static async generateRoomKey(roomId: string): Promise<CryptoKey> {
+    // Create a deterministic salt from room ID only (not user-specific)
+    const saltString = `chat-room-${roomId}-encryption-key`;
     const salt = new TextEncoder().encode(saltString);
     const hashBuffer = await window.crypto.subtle.digest('SHA-256', salt);
     const finalSalt = new Uint8Array(hashBuffer.slice(0, 16));
     
-    // Use room ID as password material
+    // Use room ID as password material to ensure all users get the same key
     return await this.deriveKey(roomId, finalSalt);
   }
 

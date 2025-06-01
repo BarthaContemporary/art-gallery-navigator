@@ -34,20 +34,50 @@ export class NotificationService {
   }
 
   showInAppNotification(title: string, message: string, senderName?: string) {
+    const displayMessage = senderName ? `${senderName}: ${message}` : message;
+    
     toast(title, {
-      description: senderName ? `${senderName}: ${message}` : message,
+      description: displayMessage,
       duration: 5000,
       action: {
-        label: 'View',
+        label: 'View Chat',
         onClick: () => {
-          // This could navigate to the chat or bring focus to it
-          console.log('Navigate to chat');
+          // Navigate to chat page
+          window.location.href = '/chat';
         },
       },
     });
   }
 
   async showPushNotification(title: string, message: string, data?: any) {
+    // First try to show browser notification if permission is granted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notification = new Notification(title, {
+          body: message,
+          icon: '/lovable-uploads/3ba18906-49f8-43ba-ad34-1ff106219d42.png',
+          badge: '/lovable-uploads/3ba18906-49f8-43ba-ad34-1ff106219d42.png',
+          tag: 'chat-message',
+          data: data,
+          requireInteraction: true,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          window.location.href = '/chat';
+          notification.close();
+        };
+
+        // Auto close after 5 seconds
+        setTimeout(() => notification.close(), 5000);
+        
+        return;
+      } catch (error) {
+        console.error('Error showing browser notification:', error);
+      }
+    }
+
+    // Fallback to service worker notification if available
     if (this.registration && 'showNotification' in this.registration) {
       try {
         await this.registration.showNotification(title, {
@@ -59,7 +89,7 @@ export class NotificationService {
           requireInteraction: true,
         });
       } catch (error) {
-        console.error('Error showing push notification:', error);
+        console.error('Error showing service worker notification:', error);
       }
     }
   }
@@ -71,25 +101,10 @@ export class NotificationService {
     }
 
     try {
-      const subscription = await this.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(
-          // This would be your VAPID public key - you'd need to generate this
-          'your-vapid-public-key-here'
-        )
-      });
-
-      // Store subscription in Supabase
-      await supabase
-        .from('push_subscriptions')
-        .upsert({
-          user_id: userId,
-          endpoint: subscription.endpoint,
-          p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!))) : null,
-          auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!))) : null,
-        });
-
-      return subscription;
+      // For now, we'll skip actual push subscription setup
+      // This would require VAPID keys and a backend push service
+      console.log('Push notifications would be set up for user:', userId);
+      return null;
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
       return null;

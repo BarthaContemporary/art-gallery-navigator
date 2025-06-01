@@ -12,15 +12,14 @@ export function useChatMessages(userId?: string) {
   const encryptionKeys = useRef<Map<string, CryptoKey>>(new Map());
   const messagesChannel = useRef<any>(null);
 
-  // Get or create encryption key for room
+  // Get or create encryption key for room (shared key for all users in the room)
   const getRoomEncryptionKey = async (roomId: string): Promise<CryptoKey> => {
-    if (!userId) throw new Error('User not authenticated');
-    
     if (encryptionKeys.current.has(roomId)) {
       return encryptionKeys.current.get(roomId)!;
     }
 
-    const key = await ChatEncryption.generateRoomKey(roomId, userId);
+    // Generate shared room key (not user-specific)
+    const key = await ChatEncryption.generateRoomKey(roomId);
     encryptionKeys.current.set(roomId, key);
     return key;
   };
@@ -112,7 +111,7 @@ export function useChatMessages(userId?: string) {
 
     setSending(true);
     try {
-      // Encrypt message
+      // Encrypt message using shared room key
       const key = await getRoomEncryptionKey(roomId);
       const encryptedContent = await ChatEncryption.encryptMessage(content, key);
 
@@ -165,7 +164,7 @@ export function useChatMessages(userId?: string) {
             profilesMap.set(senderProfile.id, senderProfile);
           }
 
-          // Decrypt the message with profile data
+          // Decrypt the message with profile data using shared room key
           const key = await getRoomEncryptionKey(roomId);
           const decryptedMessage = await decryptMessageWithProfile(newMessage, key, profilesMap);
 
@@ -184,8 +183,8 @@ export function useChatMessages(userId?: string) {
               senderName
             );
 
-            // Show push notification if the app is in background
-            if (document.hidden) {
+            // Show push notification if the app is in background or not on chat page
+            if (document.hidden || !window.location.pathname.includes('/chat')) {
               notificationService.showPushNotification(
                 `Message from ${senderName}`,
                 messageContent,
