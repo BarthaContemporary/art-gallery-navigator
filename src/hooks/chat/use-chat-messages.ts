@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,10 +18,18 @@ export function useChatMessages(userId?: string) {
       return encryptionKeys.current.get(roomId)!;
     }
 
-    // Generate shared room key (not user-specific) - fix the function call
-    const key = await ChatEncryption.generateRoomKey(roomId, userId);
-    encryptionKeys.current.set(roomId, key);
-    return key;
+    try {
+      // Generate shared room key (not user-specific)
+      const key = await ChatEncryption.generateSharedRoomKey(roomId);
+      encryptionKeys.current.set(roomId, key);
+      return key;
+    } catch (error) {
+      console.error('Failed to generate encryption key:', error);
+      // Fallback: try without user-specific key
+      const fallbackKey = await ChatEncryption.generateSharedRoomKey(roomId);
+      encryptionKeys.current.set(roomId, fallbackKey);
+      return fallbackKey;
+    }
   };
 
   // Decrypt a single message with profile data
@@ -104,30 +113,58 @@ export function useChatMessages(userId?: string) {
     }
   };
 
-  // Send message
+  // Send message with improved error handling
   const sendMessage = async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
-    if (!userId || !content.trim()) return;
+    if (!userId || !content.trim()) {
+      console.error('Missing userId or empty content');
+      return;
+    }
 
     setSending(true);
     try {
-      // Encrypt message using shared room key
+      console.log('Sending message:', { content: content.substring(0, 50), roomId, userId });
+      
+      // Get encryption key
       const key = await getRoomEncryptionKey(roomId);
+      
+      // Encrypt message using shared room key
       const encryptedContent = await ChatEncryption.encryptMessage(content, key);
-
-      const { error } = await supabase
+      
+      console.log('Message encrypted, inserting to database...');
+      
+      const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           sender_id: userId,
           encrypted_content: encryptedContent,
           message_type: type,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
+
+      console.log('Message sent successfully:', data);
 
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message');
+      
+      // Show specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('encryption')) {
+          toast.error('Failed to encrypt message. Please try again.');
+        } else if (error.message.includes('permission')) {
+          toast.error('You do not have permission to send messages to this room.');
+        } else {
+          toast.error(`Failed to send message: ${error.message}`);
+        }
+      } else {
+        toast.error('Failed to send message. Please try again.');
+      }
     } finally {
       setSending(false);
     }
@@ -230,6 +267,6 @@ export function useChatMessages(userId?: string) {
     sendMessage,
     subscribeToMessages,
     cleanup,
-    clearCache, // Add the new clear cache function
+    clearCache,
   };
 }

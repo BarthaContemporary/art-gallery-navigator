@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface ChatMessageInputProps {
   onSendMessage: (message: string) => Promise<void>;
@@ -18,7 +18,14 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
 
     const messageToSend = newMessage.trim();
     setNewMessage('');
-    await onSendMessage(messageToSend);
+    
+    try {
+      await onSendMessage(messageToSend);
+    } catch (error) {
+      // If sending fails, restore the message
+      setNewMessage(messageToSend);
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -44,7 +51,11 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
           size="icon"
           disabled={!newMessage.trim() || sending}
         >
-          <Send className="h-4 w-4" />
+          {sending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
         </Button>
       </form>
     </div>
