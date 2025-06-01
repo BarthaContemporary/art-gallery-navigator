@@ -42,7 +42,10 @@ export function VirtualizedArtworkGrid({
 
   // Group artworks by artist's sort letter (maintain existing grouping logic)
   const groupedArtworks = useMemo(() => {
-    const grouped = artworks.reduce((acc: { [key: string]: Artwork[] }, artwork) => {
+    // Filter out any null or undefined artworks first
+    const validArtworks = artworks.filter(artwork => artwork && artwork.id);
+    
+    const grouped = validArtworks.reduce((acc: { [key: string]: Artwork[] }, artwork) => {
       let artistName = "Unknown Artist";
       let sortLetter: string | null = null;
       
@@ -152,6 +155,9 @@ export function VirtualizedArtworkGrid({
             if (index >= flattenedArtworks.length) return null;
             
             const artwork = flattenedArtworks[index];
+            // Add safety check for artwork
+            if (!artwork || !artwork.id) return null;
+            
             const row = Math.floor(index / columnCount);
             const col = index % columnCount;
             
