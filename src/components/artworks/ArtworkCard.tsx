@@ -1,3 +1,4 @@
+
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ArtworkCardActions } from "./ArtworkCardActions";
-import { ArtworkCardImage } from "./ArtworkCardImage";
+import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 
 interface ArtworkCardProps {
@@ -96,7 +97,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
           />
         )}
         
-        <ArtworkCardImage
+        <OptimizedArtworkImage
           imageUrl={artwork.image_url}
           title={artwork.title}
           onClick={() => setOverviewDialogOpen(true)}
