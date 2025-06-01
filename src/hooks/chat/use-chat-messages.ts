@@ -24,71 +24,85 @@ export function useChatMessages(userId?: string) {
     return key;
   };
 
+  // Decrypt a single message with profile data
+  const decryptMessageWithProfile = async (message: any, key: CryptoKey, profilesMap: Map<string, any>) => {
+    const senderProfile = profilesMap.get(message.sender_id);
+    
+    try {
+      const decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, key);
+      return { 
+        ...message, 
+        decrypted_content: decryptedContent,
+        sender_profile: senderProfile ? {
+          display_name: senderProfile.display_name || 'Unknown User',
+          avatar_url: senderProfile.avatar_url
+        } : { display_name: 'Unknown User' }
+      };
+    } catch (error) {
+      console.error('Failed to decrypt message:', error);
+      return { 
+        ...message, 
+        decrypted_content: '[Unable to decrypt message]',
+        sender_profile: senderProfile ? {
+          display_name: senderProfile.display_name || 'Unknown User',
+          avatar_url: senderProfile.avatar_url
+        } : { display_name: 'Unknown User' }
+      };
+    }
+  };
+
   // Fetch messages for a room
   const fetchMessages = async (roomId: string) => {
     if (!userId) return;
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching messages:', error);
+      if (error) {
+        console.error('Error fetching messages:', error);
+        toast.error('Failed to load messages');
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setMessages([]);
+        return;
+      }
+
+      // Fetch profile data for all senders
+      const senderIds = data.map(message => message.sender_id);
+      const uniqueSenderIds = [...new Set(senderIds)];
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', uniqueSenderIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Create profiles map for efficient lookup
+      const profilesMap = new Map();
+      (profilesData || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Decrypt messages and transform data
+      const key = await getRoomEncryptionKey(roomId);
+      const decryptedMessages = await Promise.all(
+        data.map(message => decryptMessageWithProfile(message, key, profilesMap))
+      );
+
+      setMessages(decryptedMessages);
+    } catch (error) {
+      console.error('Error in fetchMessages:', error);
       toast.error('Failed to load messages');
-      return;
     }
-
-    // Fetch profile data for all senders
-    const senderIds = (data || []).map(message => message.sender_id);
-    const uniqueSenderIds = [...new Set(senderIds)];
-    
-    if (uniqueSenderIds.length === 0) {
-      setMessages([]);
-      return;
-    }
-
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, display_name, avatar_url')
-      .in('id', uniqueSenderIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-    }
-
-    // Decrypt messages and transform data
-    const key = await getRoomEncryptionKey(roomId);
-    const decryptedMessages = await Promise.all(
-      (data || []).map(async (message) => {
-        const senderProfile = (profilesData || []).find(p => p.id === message.sender_id);
-        
-        try {
-          const decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, key);
-          return { 
-            ...message, 
-            decrypted_content: decryptedContent,
-            sender_profile: senderProfile ? {
-              display_name: senderProfile.display_name || 'Unknown User',
-              avatar_url: senderProfile.avatar_url
-            } : { display_name: 'Unknown User' }
-          };
-        } catch (error) {
-          console.error('Failed to decrypt message:', error);
-          return { 
-            ...message, 
-            decrypted_content: '[Unable to decrypt message]',
-            sender_profile: senderProfile ? {
-              display_name: senderProfile.display_name || 'Unknown User',
-              avatar_url: senderProfile.avatar_url
-            } : { display_name: 'Unknown User' }
-          };
-        }
-      })
-    );
-
-    setMessages(decryptedMessages);
   };
 
   // Send message
@@ -137,17 +151,33 @@ export function useChatMessages(userId?: string) {
       }, async (payload) => {
         const newMessage = payload.new as ChatMessage;
         
-        // Decrypt the message
         try {
-          const key = await getRoomEncryptionKey(roomId);
-          const decryptedContent = await ChatEncryption.decryptMessage(newMessage.encrypted_content, key);
-          newMessage.decrypted_content = decryptedContent;
-        } catch (error) {
-          console.error('Failed to decrypt message:', error);
-          newMessage.decrypted_content = '[Unable to decrypt message]';
-        }
+          // Fetch sender profile for the new message
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url')
+            .eq('id', newMessage.sender_id)
+            .single();
 
-        setMessages(prev => [...prev, newMessage]);
+          const profilesMap = new Map();
+          if (senderProfile) {
+            profilesMap.set(senderProfile.id, senderProfile);
+          }
+
+          // Decrypt the message with profile data
+          const key = await getRoomEncryptionKey(roomId);
+          const decryptedMessage = await decryptMessageWithProfile(newMessage, key, profilesMap);
+
+          setMessages(prev => [...prev, decryptedMessage]);
+        } catch (error) {
+          console.error('Error handling real-time message:', error);
+          // Add message without decryption as fallback
+          setMessages(prev => [...prev, {
+            ...newMessage,
+            decrypted_content: '[Unable to decrypt message]',
+            sender_profile: { display_name: 'Unknown User' }
+          }]);
+        }
       })
       .subscribe();
   };
