@@ -1,164 +1,192 @@
 
 import React from "react";
-import { UseFormReturn, FieldErrors } from "react-hook-form";
+import { UseFormReturn } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { CreateArtistForm } from "./types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CreateArtistFormData } from "./types";
+import { useAuth } from "@/hooks/use-auth";
 
 interface CreateArtistFormViewProps {
-  form: UseFormReturn<CreateArtistForm>;
+  form: UseFormReturn<CreateArtistFormData>;
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
   isLoading: boolean;
-  errors: FieldErrors<CreateArtistForm>;
+  errors: Record<string, any>;
   onCancel: () => void;
 }
 
-export const CreateArtistFormView: React.FC<CreateArtistFormViewProps> = ({
-  form,
-  onSubmit,
-  isLoading,
-  errors,
-  onCancel,
-}) => {
-  const { register } = form;
+const statusOptions = [
+  { label: "Represented", value: "represented" },
+  { label: "Formerly Represented", value: "formerly represented" },
+  { label: "Not Represented", value: "not represented" },
+];
+
+export const CreateArtistFormView = ({ 
+  form, 
+  onSubmit, 
+  isLoading, 
+  errors, 
+  onCancel 
+}: CreateArtistFormViewProps) => {
+  const { user } = useAuth();
+  const { register, setValue, watch } = form;
+  const fullNameValue = watch("full_name");
+
+  // Pre-populate with user's full name if available and field is empty
+  React.useEffect(() => {
+    const userFullName = user?.user_metadata?.full_name || user?.user_metadata?.display_name;
+    if (userFullName && !fullNameValue) {
+      setValue("full_name", userFullName);
+    }
+  }, [user, fullNameValue, setValue]);
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 p-4">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2 col-span-2">
-          <Label htmlFor="full_name_create">Full Name *</Label>
-          <Input
-            id="full_name_create"
-            {...register("full_name", { required: "Full name is required" })}
-          />
-          {errors.full_name && (
-            <p className="text-sm text-red-500">{errors.full_name.message}</p>
-          )}
-        </div>
-        <div className="space-y-2 col-span-1">
-          <Label htmlFor="surname_first_letter_create">Sort Letter</Label>
-          <Input
-            id="surname_first_letter_create"
-            {...register("surname_first_letter", { 
-              maxLength: { value: 1, message: "Should be a single letter" },
-              setValueAs: (value) => value?.toUpperCase() || ""
-            })}
-          />
-          {errors.surname_first_letter && (
-            <p className="text-sm text-red-500">{errors.surname_first_letter.message}</p>
-          )}
-        </div>
-      </div>
-
+    <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email_create">Email</Label>
+        <Label htmlFor="full_name">Full Name *</Label>
         <Input
-          id="email_create"
-          type="email"
-          {...register("email", {
-            pattern: {
-              value: /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/,
-              message: "Invalid email address"
-            }
-          })}
+          id="full_name"
+          {...register("full_name", { required: "Full name is required" })}
+          placeholder="Enter full name"
         />
-        {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message as string}</p>
+        {errors.full_name && (
+          <p className="text-sm text-destructive">{errors.full_name.message}</p>
+        )}
+        {user?.user_metadata?.full_name && (
+          <p className="text-xs text-muted-foreground">
+            Suggested from your profile: {user.user_metadata.full_name}
+          </p>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="surname_first_letter">Surname First Letter</Label>
+        <Input
+          id="surname_first_letter"
+          {...register("surname_first_letter")}
+          placeholder="Enter first letter of surname"
+          maxLength={1}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="birth_year_create">Birth Year</Label>
+          <Label htmlFor="birth_year">Birth Year</Label>
           <Input
-            id="birth_year_create"
+            id="birth_year"
             type="number"
-            {...register("birth_year", {
+            {...register("birth_year", { 
               valueAsNumber: true,
-              validate: (value) =>
-                !value || (value > 1000 && value <= new Date().getFullYear()) || // Adjusted min year
-                "Please enter a valid year (e.g., >1000)"
+              min: { value: 1800, message: "Birth year must be after 1800" },
+              max: { value: new Date().getFullYear(), message: "Birth year cannot be in the future" }
             })}
+            placeholder="e.g. 1980"
           />
           {errors.birth_year && (
-            <p className="text-sm text-red-500">{errors.birth_year.message}</p>
+            <p className="text-sm text-destructive">{errors.birth_year.message}</p>
           )}
         </div>
+
         <div className="space-y-2">
-          <Label htmlFor="death_year_create">Death Year</Label>
+          <Label htmlFor="death_year">Death Year</Label>
           <Input
-            id="death_year_create"
+            id="death_year"
             type="number"
-            {...register("death_year", {
+            {...register("death_year", { 
               valueAsNumber: true,
-              validate: (value, formValues) => {
-                if (!value) return true;
-                const birthYear = formValues.birth_year;
-                if (birthYear && value < birthYear) return "Death year cannot be before birth year";
-                return (value > 1000 && value <= new Date().getFullYear() + 100) || // Adjusted max year
-                       "Please enter a valid year (e.g., >1000)";
-              }
+              min: { value: 1800, message: "Death year must be after 1800" },
+              max: { value: new Date().getFullYear(), message: "Death year cannot be in the future" }
             })}
+            placeholder="e.g. 2020"
           />
           {errors.death_year && (
-            <p className="text-sm text-red-500">{errors.death_year.message}</p>
+            <p className="text-sm text-destructive">{errors.death_year.message}</p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="place_of_birth_create">Place of Birth</Label>
+          <Label htmlFor="place_of_birth">Place of Birth</Label>
           <Input
-            id="place_of_birth_create"
+            id="place_of_birth"
             {...register("place_of_birth")}
+            placeholder="e.g. New York, USA"
           />
-          {errors.place_of_birth && (
-            <p className="text-sm text-red-500">{errors.place_of_birth.message}</p>
-          )}
         </div>
+
         <div className="space-y-2">
-          <Label htmlFor="place_of_death_create">Place of Death</Label>
+          <Label htmlFor="place_of_death">Place of Death</Label>
           <Input
-            id="place_of_death_create"
+            id="place_of_death"
             {...register("place_of_death")}
+            placeholder="e.g. Paris, France"
           />
-          {errors.place_of_death && (
-            <p className="text-sm text-red-500">{errors.place_of_death.message}</p>
-          )}
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="nationality_create">Nationality</Label>
+        <Label htmlFor="nationality">Nationality</Label>
         <Input
-          id="nationality_create"
+          id="nationality"
           {...register("nationality")}
+          placeholder="e.g. American"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="biography_create">Biography</Label>
-        <Textarea
-          id="biography_create"
-          {...register("biography")}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="image_create">Profile Image</Label>
+        <Label htmlFor="email">Email</Label>
         <Input
-          id="image_create"
-          type="file"
-          accept="image/*"
-          {...register("image")}
+          id="email"
+          type="email"
+          {...register("email")}
+          placeholder="artist@example.com"
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="representation_status">Representation Status</Label>
+        <Select onValueChange={(value) => setValue("representation_status", value as any)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select representation status" />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="biography">Biography</Label>
+        <Textarea
+          id="biography"
+          {...register("biography")}
+          placeholder="Enter artist biography..."
+          rows={4}
         />
       </div>
 
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button variant="outline" type="button" onClick={onCancel}>
+      <div className="space-y-2">
+        <Label htmlFor="image">Profile Image</Label>
+        <Input
+          id="image"
+          type="file"
+          {...register("image")}
+          accept="image/*"
+        />
+      </div>
+
+      <div className="flex gap-2 justify-end pt-2">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
@@ -168,4 +196,3 @@ export const CreateArtistFormView: React.FC<CreateArtistFormViewProps> = ({
     </form>
   );
 };
-

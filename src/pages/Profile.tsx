@@ -7,9 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, UploadCloud, Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Mail, UploadCloud, Loader2, Edit2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from '@/lib/logger';
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Profile() {
   const { user, isArtist } = useAuth();
@@ -17,6 +19,9 @@ export default function Profile() {
   const { uploadAvatar, isUploading, uploadError } = useProfileAvatarUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | undefined>(undefined);
+  const [isEditingFullName, setIsEditingFullName] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [isUpdatingFullName, setIsUpdatingFullName] = useState(false);
 
   useEffect(() => {
     if (isArtist && currentUserArtist?.image_url) {
@@ -29,8 +34,10 @@ export default function Profile() {
         logger.log('No avatar URL found, using fallback.');
         setCurrentAvatarUrl(undefined);
     }
-  }, [user, isArtist, currentUserArtist]);
 
+    // Set initial full name from user metadata
+    setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+  }, [user, isArtist, currentUserArtist]);
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,6 +51,35 @@ export default function Profile() {
         setCurrentAvatarUrl(newAvatarUrl); // Update local state immediately
       }
     }
+  };
+
+  const handleUpdateFullName = async () => {
+    if (!user || !fullName.trim()) return;
+
+    setIsUpdatingFullName(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName.trim(),
+          display_name: fullName.trim()
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success("Full name updated successfully");
+      setIsEditingFullName(false);
+    } catch (error) {
+      console.error('Error updating full name:', error);
+      toast.error("Failed to update full name");
+    } finally {
+      setIsUpdatingFullName(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+    setIsEditingFullName(false);
   };
 
   const triggerFileInput = () => {
@@ -92,10 +128,59 @@ export default function Profile() {
               disabled={isUploading}
             />
           </div>
-          <CardTitle className="mt-2 text-xl font-semibold">{user.user_metadata?.display_name || user.email}</CardTitle>
+          <CardTitle className="mt-2 text-xl font-semibold">{fullName || user.email}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 mt-4">
           {uploadError && <p className="text-sm text-destructive text-center">{uploadError}</p>}
+          
+          {/* Full Name Field */}
+          <div className="border rounded-md p-3 bg-muted/50">
+            <Label className="text-xs text-muted-foreground font-semibold">Full Name</Label>
+            {isEditingFullName ? (
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="flex-1"
+                  disabled={isUpdatingFullName}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleUpdateFullName}
+                  disabled={isUpdatingFullName || !fullName.trim()}
+                  className="h-8 w-8"
+                >
+                  {isUpdatingFullName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  disabled={isUpdatingFullName}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between mt-1">
+                <div className="text-sm font-medium">
+                  {fullName || 'Not set'}
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setIsEditingFullName(true)}
+                  className="h-8 w-8"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3 border rounded-md p-3 bg-muted/50">
             <Mail className="w-5 h-5 text-muted-foreground" />
             <div>
