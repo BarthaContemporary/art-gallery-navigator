@@ -10,5 +10,5 @@ export interface CreateArtistForm {
   biography?: string;
   image?: FileList;
   email?: string;
+  representation_status?: "represented" | "formerly represented" | "not represented";
 }
-
