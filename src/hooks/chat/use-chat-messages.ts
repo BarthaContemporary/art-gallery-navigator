@@ -19,16 +19,13 @@ export function useChatMessages(userId?: string) {
     }
 
     try {
-      // Generate shared room key (not user-specific)
+      // Always use shared room key for consistency
       const key = await ChatEncryption.generateSharedRoomKey(roomId);
       encryptionKeys.current.set(roomId, key);
       return key;
     } catch (error) {
       console.error('Failed to generate encryption key:', error);
-      // Fallback: try without user-specific key
-      const fallbackKey = await ChatEncryption.generateSharedRoomKey(roomId);
-      encryptionKeys.current.set(roomId, fallbackKey);
-      return fallbackKey;
+      throw new Error('Failed to generate secure encryption key');
     }
   };
 
@@ -113,7 +110,7 @@ export function useChatMessages(userId?: string) {
     }
   };
 
-  // Send message with improved error handling
+  // Send message with simplified encryption approach
   const sendMessage = async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!userId || !content.trim()) {
       console.error('Missing userId or empty content');
@@ -121,16 +118,19 @@ export function useChatMessages(userId?: string) {
     }
 
     setSending(true);
+    
     try {
       console.log('Sending message:', { content: content.substring(0, 50), roomId, userId });
       
-      // Get encryption key
+      // Get encryption key using shared room key approach
       const key = await getRoomEncryptionKey(roomId);
       
-      // Encrypt message using shared room key
+      // Encrypt message
+      console.log('Encrypting message...');
       const encryptedContent = await ChatEncryption.encryptMessage(content, key);
+      console.log('Message encrypted successfully');
       
-      console.log('Message encrypted, inserting to database...');
+      console.log('Inserting message to database...');
       
       const { data, error } = await supabase
         .from('chat_messages')
@@ -155,7 +155,7 @@ export function useChatMessages(userId?: string) {
       
       // Show specific error messages
       if (error instanceof Error) {
-        if (error.message.includes('encryption')) {
+        if (error.message.includes('encrypt')) {
           toast.error('Failed to encrypt message. Please try again.');
         } else if (error.message.includes('permission')) {
           toast.error('You do not have permission to send messages to this room.');
@@ -165,6 +165,9 @@ export function useChatMessages(userId?: string) {
       } else {
         toast.error('Failed to send message. Please try again.');
       }
+      
+      // Re-throw the error so the UI can handle it
+      throw error;
     } finally {
       setSending(false);
     }
