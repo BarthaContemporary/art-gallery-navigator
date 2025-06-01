@@ -22,6 +22,17 @@ export function VirtualizedArtworkGrid({
   const { data: artists } = useArtists();
   const scrollElementRef = useRef<HTMLDivElement>(null);
 
+  // Filter and validate artworks first
+  const validArtworks = useMemo(() => {
+    if (!artworks || !Array.isArray(artworks)) return [];
+    return artworks.filter(artwork => 
+      artwork && 
+      typeof artwork === 'object' && 
+      artwork.id && 
+      artwork.title
+    );
+  }, [artworks]);
+
   // Calculate grid dimensions
   const { columnCount, itemWidth, itemHeight, rowCount } = useMemo(() => {
     if (containerWidth === 0) return { columnCount: 1, itemWidth: 300, itemHeight: 400, rowCount: 0 };
@@ -30,7 +41,7 @@ export function VirtualizedArtworkGrid({
     const cols = Math.max(1, Math.floor(containerWidth / minItemWidth));
     const width = Math.floor(containerWidth / cols);
     const height = Math.floor(width * 1.4); // Maintain aspect ratio
-    const rows = Math.ceil(artworks.length / cols);
+    const rows = Math.ceil(validArtworks.length / cols);
     
     return {
       columnCount: cols,
@@ -38,21 +49,19 @@ export function VirtualizedArtworkGrid({
       itemHeight: height,
       rowCount: rows
     };
-  }, [containerWidth, artworks.length, isMobile]);
+  }, [containerWidth, validArtworks.length, isMobile]);
 
   // Group artworks by artist's sort letter (maintain existing grouping logic)
   const groupedArtworks = useMemo(() => {
-    // Filter out any null or undefined artworks first
-    const validArtworks = artworks.filter(artwork => artwork && artwork.id);
-    
     const grouped = validArtworks.reduce((acc: { [key: string]: Artwork[] }, artwork) => {
       let artistName = "Unknown Artist";
       let sortLetter: string | null = null;
       
-      if (artwork.artist_id && artists) {
-        const artist = artists.find(a => a.id === artwork.artist_id);
+      // Safe access to artist_id with null checks
+      if (artwork && artwork.artist_id && artists && Array.isArray(artists)) {
+        const artist = artists.find(a => a && a.id === artwork.artist_id);
         if (artist) {
-          artistName = artist.full_name;
+          artistName = artist.full_name || "Unknown Artist";
           sortLetter = artist.surname_first_letter;
         }
       }
@@ -71,8 +80,10 @@ export function VirtualizedArtworkGrid({
     // Sort within each group
     Object.keys(grouped).forEach(letter => {
       grouped[letter].sort((a, b) => {
-        const artistDetailsA = artists?.find(artist => artist.id === a.artist_id);
-        const artistDetailsB = artists?.find(artist => artist.id === b.artist_id);
+        if (!a || !b || !artists) return 0;
+        
+        const artistDetailsA = artists.find(artist => artist && artist.id === a.artist_id);
+        const artistDetailsB = artists.find(artist => artist && artist.id === b.artist_id);
 
         const artistNameA = artistDetailsA?.full_name || "Unknown Artist";
         const artistNameB = artistDetailsB?.full_name || "Unknown Artist";
@@ -80,18 +91,19 @@ export function VirtualizedArtworkGrid({
         const artistCompare = artistNameA.localeCompare(artistNameB);
         if (artistCompare !== 0) return artistCompare;
         
-        return a.title.localeCompare(b.title);
+        return (a.title || "").localeCompare(b.title || "");
       });
     });
 
     return grouped;
-  }, [artworks, artists]);
+  }, [validArtworks, artists]);
 
   // Flatten grouped artworks for virtualization
   const flattenedArtworks = useMemo(() => {
     return Object.entries(groupedArtworks)
       .sort()
-      .flatMap(([letter, works]) => works);
+      .flatMap(([letter, works]) => works)
+      .filter(artwork => artwork && artwork.id); // Additional safety filter
   }, [groupedArtworks]);
 
   // Calculate visible range
@@ -138,8 +150,16 @@ export function VirtualizedArtworkGrid({
     );
   }
 
+  if (!validArtworks.length) {
+    return (
+      <div id="virtualized-grid-container" className="w-full">
+        <div className="text-center py-8 text-muted-foreground">No valid artworks to display</div>
+      </div>
+    );
+  }
+
   const totalHeight = rowCount * itemHeight;
-  const { startIndex, endIndex, startRow } = visibleRange;
+  const { startIndex, endIndex } = visibleRange;
 
   return (
     <div id="virtualized-grid-container" className="w-full">
@@ -150,12 +170,11 @@ export function VirtualizedArtworkGrid({
         onScroll={handleScroll}
       >
         <div style={{ height: totalHeight, position: 'relative' }}>
-          {Array.from({ length: endIndex - startIndex + 1 }, (_, i) => {
+          {Array.from({ length: Math.max(0, endIndex - startIndex + 1) }, (_, i) => {
             const index = startIndex + i;
-            if (index >= flattenedArtworks.length) return null;
+            if (index >= flattenedArtworks.length || index < 0) return null;
             
             const artwork = flattenedArtworks[index];
-            // Add safety check for artwork
             if (!artwork || !artwork.id) return null;
             
             const row = Math.floor(index / columnCount);
@@ -163,7 +182,7 @@ export function VirtualizedArtworkGrid({
             
             return (
               <div
-                key={artwork.id}
+                key={`${artwork.id}-${index}`}
                 className="absolute p-3"
                 style={{
                   left: col * itemWidth,
