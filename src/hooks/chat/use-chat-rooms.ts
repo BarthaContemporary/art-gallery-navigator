@@ -23,15 +23,15 @@ export function useChatRooms(userId?: string) {
       return;
     }
 
-    // Fetch profile data for all participants
-    const participantIds = (data || []).flatMap(room => [room.participant_1_id, room.participant_2_id]);
-    const uniqueParticipantIds = [...new Set(participantIds)];
-    
-    if (uniqueParticipantIds.length === 0) {
+    if (!data || data.length === 0) {
       setChatRooms([]);
       return;
     }
 
+    // Fetch profile data for all participants
+    const participantIds = data.flatMap(room => [room.participant_1_id, room.participant_2_id]);
+    const uniqueParticipantIds = [...new Set(participantIds)];
+    
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
       .select('id, display_name, avatar_url')
@@ -41,25 +41,44 @@ export function useChatRooms(userId?: string) {
       console.error('Error fetching profiles:', profilesError);
     }
 
-    // Transform the data to match our interface
-    const transformedData = (data || []).map(room => {
-      const participant1Profile = (profilesData || []).find(p => p.id === room.participant_1_id);
-      const participant2Profile = (profilesData || []).find(p => p.id === room.participant_2_id);
-      
-      return {
-        ...room,
-        participant_1_profile: participant1Profile ? {
-          display_name: participant1Profile.display_name || 'Unknown User',
-          avatar_url: participant1Profile.avatar_url
-        } : { display_name: 'Unknown User' },
-        participant_2_profile: participant2Profile ? {
-          display_name: participant2Profile.display_name || 'Unknown User',
-          avatar_url: participant2Profile.avatar_url
-        } : { display_name: 'Unknown User' }
-      };
-    });
+    // Fetch last message for each room and message counts
+    const roomsWithMessages = await Promise.all(
+      data.map(async (room) => {
+        // Get last message for this room
+        const { data: lastMessageData } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('room_id', room.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-    setChatRooms(transformedData);
+        // Get unread message count for current user
+        const { count: unreadCount } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', room.id)
+          .not('read_by', 'cs', `{${userId}}`);
+
+        const participant1Profile = (profilesData || []).find(p => p.id === room.participant_1_id);
+        const participant2Profile = (profilesData || []).find(p => p.id === room.participant_2_id);
+        
+        return {
+          ...room,
+          participant_1_profile: participant1Profile ? {
+            display_name: participant1Profile.display_name || 'Unknown User',
+            avatar_url: participant1Profile.avatar_url
+          } : { display_name: 'Unknown User' },
+          participant_2_profile: participant2Profile ? {
+            display_name: participant2Profile.display_name || 'Unknown User',
+            avatar_url: participant2Profile.avatar_url
+          } : { display_name: 'Unknown User' },
+          last_message: lastMessageData && lastMessageData.length > 0 ? lastMessageData[0] : undefined,
+          unread_count: unreadCount || 0
+        };
+      })
+    );
+
+    setChatRooms(roomsWithMessages);
   };
 
   // Start or find chat with user
@@ -108,7 +127,8 @@ export function useChatRooms(userId?: string) {
         participant_2_profile: participant2Profile ? {
           display_name: participant2Profile.display_name || 'Unknown User',
           avatar_url: participant2Profile.avatar_url
-        } : { display_name: 'Unknown User' }
+        } : { display_name: 'Unknown User' },
+        unread_count: 0
       };
 
       // Update chat rooms list

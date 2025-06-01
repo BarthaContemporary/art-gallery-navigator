@@ -1,22 +1,26 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useEffect } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle } from 'lucide-react';
 import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
 import { useAuth } from '@/hooks/use-auth';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ChatRoomsListProps {
-  onSelectRoom: (room: ChatRoom) => void;
+  onSelectRoom: (room: ChatRoom) => Promise<void>;
   selectedRoomId?: string;
 }
 
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
-  const { chatRooms } = useChat();
   const { user } = useAuth();
+  const { chatRooms, fetchChatRooms } = useChat();
+
+  useEffect(() => {
+    if (user) {
+      fetchChatRooms();
+    }
+  }, [user, fetchChatRooms]);
 
   const getOtherParticipant = (room: ChatRoom) => {
     if (room.participant_1_id === user?.id) {
@@ -25,77 +29,90 @@ export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
     return room.participant_1_profile;
   };
 
+  const formatLastMessageTime = (timestamp: string) => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } catch (error) {
+      return '';
+    }
+  };
+
   if (chatRooms.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-white border-r">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold">Chats</h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center py-8 text-gray-500">
-            <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No conversations yet</p>
-            <p className="text-xs mt-1">Start a chat with someone online</p>
-          </div>
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="text-center">
+          <p className="text-gray-500 text-sm">No conversations yet</p>
+          <p className="text-gray-400 text-xs mt-1">Start chatting with someone online!</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white border-r">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">Chats</h2>
-      </div>
+    <ScrollArea className="flex-1">
+      <div className="p-2">
+        {chatRooms.map((room) => {
+          const otherParticipant = getOtherParticipant(room);
+          const isSelected = selectedRoomId === room.id;
+          const hasUnread = (room.unread_count || 0) > 0;
 
-      <ScrollArea className="flex-1">
-        <div className="p-2">
-          {chatRooms.map((room) => {
-            const otherParticipant = getOtherParticipant(room);
-            const isSelected = selectedRoomId === room.id;
-            
-            return (
-              <Button
-                key={room.id}
-                variant={isSelected ? "secondary" : "ghost"}
-                className="w-full p-3 h-auto justify-start mb-1 hover:bg-gray-50"
-                onClick={() => onSelectRoom(room)}
-              >
-                <div className="flex items-center space-x-3 w-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={otherParticipant?.avatar_url} />
-                    <AvatarFallback>
-                      {otherParticipant?.display_name?.slice(0, 2).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm truncate">
-                        {otherParticipant?.display_name || 'Unknown User'}
-                      </p>
+          return (
+            <div
+              key={room.id}
+              onClick={() => onSelectRoom(room)}
+              className={`
+                p-3 rounded-lg cursor-pointer transition-colors mb-2
+                ${isSelected 
+                  ? 'bg-blue-100 border border-blue-200' 
+                  : 'hover:bg-gray-50 border border-transparent'
+                }
+              `}
+            >
+              <div className="flex items-start gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={otherParticipant?.avatar_url} />
+                  <AvatarFallback>
+                    {otherParticipant?.display_name?.charAt(0)?.toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h3 className={`font-medium text-sm truncate ${hasUnread ? 'font-semibold' : ''}`}>
+                      {otherParticipant?.display_name || 'Unknown User'}
+                    </h3>
+                    <div className="flex items-center gap-2">
                       {room.last_message_at && (
                         <span className="text-xs text-gray-500">
-                          {format(new Date(room.last_message_at), 'HH:mm')}
+                          {formatLastMessageTime(room.last_message_at)}
                         </span>
                       )}
+                      {hasUnread && (
+                        <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                          {room.unread_count}
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate">
-                      {room.last_message?.decrypted_content || 'No messages yet'}
-                    </p>
                   </div>
-                  
-                  {room.unread_count && room.unread_count > 0 && (
-                    <Badge variant="destructive" className="text-xs">
-                      {room.unread_count}
-                    </Badge>
-                  )}
+
+                  <div className="mt-1">
+                    {room.last_message ? (
+                      <p className={`text-sm text-gray-600 truncate ${hasUnread ? 'font-medium' : ''}`}>
+                        {room.last_message.message_type === 'text' 
+                          ? (room.last_message.encrypted_content ? 'New message' : 'Message')
+                          : `${room.last_message.message_type} message`
+                        }
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Start the conversation...</p>
+                    )}
+                  </div>
                 </div>
-              </Button>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ScrollArea>
   );
 }

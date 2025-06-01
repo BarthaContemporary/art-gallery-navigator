@@ -26,10 +26,12 @@ export function useChat() {
     setLoading(false);
   };
 
-  // Send message wrapper that uses the active room
+  // Send message wrapper that uses the active room and refreshes chat rooms
   const sendMessageToActiveRoom = async (content: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!activeRoom) return;
     await sendMessage(content, activeRoom.id, type);
+    // Refresh chat rooms to update last message and timestamps
+    await fetchChatRooms();
   };
 
   // Load chat rooms on mount
