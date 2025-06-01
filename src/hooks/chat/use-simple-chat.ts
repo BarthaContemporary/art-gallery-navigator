@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../use-auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +29,60 @@ export function useSimpleChat() {
   });
 
   const messagesChannel = useRef<any>(null);
+
+  // Mark messages as read when viewing them
+  const markMessagesAsRead = useCallback(async (roomId: string) => {
+    if (!user) return;
+
+    try {
+      // Get unread messages in this room
+      const { data: unreadMessages } = await supabase
+        .from('chat_messages')
+        .select('id')
+        .eq('room_id', roomId)
+        .not('sender_id', 'eq', user.id)
+        .or(`read_by.is.null,not.read_by.cs.{${user.id}}`);
+
+      if (unreadMessages && unreadMessages.length > 0) {
+        // Mark each message as read using the database function
+        for (const message of unreadMessages) {
+          await supabase.rpc('mark_message_as_read', {
+            message_id: message.id,
+            reader_id: user.id
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  }, [user]);
+
+  // Clean up old messages
+  const cleanupOldMessages = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setState(prev => ({ ...prev, loading: true }));
+      
+      const { error } = await supabase.rpc('cleanup_old_chat_messages');
+      
+      if (error) {
+        console.error('Error cleaning up old messages:', error);
+        toast.error('Failed to cleanup old messages');
+      } else {
+        toast.success('Old messages cleaned up successfully');
+        // Refresh current room messages
+        if (state.activeRoom) {
+          await fetchMessages(state.activeRoom.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+      toast.error('Failed to cleanup old messages');
+    } finally {
+      setState(prev => ({ ...prev, loading: false }));
+    }
+  }, [user, state.activeRoom]);
 
   // Fetch chat rooms
   const fetchChatRooms = useCallback(async () => {
@@ -128,11 +181,14 @@ export function useSimpleChat() {
       });
 
       setState(prev => ({ ...prev, messages: messagesWithProfiles, loading: false }));
+
+      // Mark messages as read after loading them
+      await markMessagesAsRead(roomId);
     } catch (error) {
       console.error('Error fetching messages:', error);
       setState(prev => ({ ...prev, error: 'Failed to load messages', loading: false }));
     }
-  }, [user]);
+  }, [user, markMessagesAsRead]);
 
   // Send message (no encryption)
   const sendMessage = useCallback(async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
@@ -278,6 +334,13 @@ export function useSimpleChat() {
             // Show notification for messages from others using display_name
             if (newMessage.sender_id !== user?.id) {
               toast.info(`New message from ${senderProfile?.display_name || 'Unknown User'}`);
+              // Mark new message as read if the chat room is currently active
+              if (user) {
+                await supabase.rpc('mark_message_as_read', {
+                  message_id: newMessage.id,
+                  reader_id: user.id
+                });
+              }
             }
           } catch (error) {
             console.error('Error handling real-time message:', error);
@@ -380,5 +443,7 @@ export function useSimpleChat() {
     sendMessage,
     fetchOnlineUsers,
     clearAllChatCache,
+    cleanupOldMessages,
+    markMessagesAsRead,
   };
 }

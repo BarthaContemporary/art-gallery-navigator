@@ -8,6 +8,7 @@ import { ChatDesktopLayout } from './ChatDesktopLayout';
 import { ChatPopupLayout } from './ChatPopupLayout';
 import { ChatStatusBar } from './ChatStatusBar';
 import { ImprovedChatClearCacheButton } from './ImprovedChatClearCacheButton';
+import { ChatCleanupButton } from './ChatCleanupButton';
 import { useLocation } from 'react-router-dom';
 
 type ViewType = 'rooms' | 'online' | 'chat';
@@ -78,7 +79,10 @@ export function SimpleChatLayout({ isPopup = false }: SimpleChatLayoutProps) {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
-        <ImprovedChatClearCacheButton onClear={chat.clearAllChatCache} />
+        <div className="flex items-center gap-2">
+          <ChatCleanupButton onCleanup={chat.cleanupOldMessages} loading={chat.loading} />
+          <ImprovedChatClearCacheButton onClear={chat.clearAllChatCache} />
+        </div>
       </div>
       <ChatDesktopLayout
         currentView={currentView as 'rooms' | 'online'}

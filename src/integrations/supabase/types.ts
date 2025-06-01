@@ -267,6 +267,7 @@ export type Database = {
           created_at: string
           edited_at: string | null
           encrypted_content: string
+          first_read_at: string | null
           id: string
           message_type: Database["public"]["Enums"]["message_type"]
           read_by: string[] | null
@@ -277,6 +278,7 @@ export type Database = {
           created_at?: string
           edited_at?: string | null
           encrypted_content: string
+          first_read_at?: string | null
           id?: string
           message_type?: Database["public"]["Enums"]["message_type"]
           read_by?: string[] | null
@@ -287,6 +289,7 @@ export type Database = {
           created_at?: string
           edited_at?: string | null
           encrypted_content?: string
+          first_read_at?: string | null
           id?: string
           message_type?: Database["public"]["Enums"]["message_type"]
           read_by?: string[] | null
@@ -1009,6 +1012,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_chat_messages: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       find_or_create_chat_room: {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
@@ -1047,6 +1054,10 @@ export type Database = {
       is_document_accessible_by_current_artist: {
         Args: { _document_id: string }
         Returns: boolean
+      }
+      mark_message_as_read: {
+        Args: { message_id: string; reader_id: string }
+        Returns: undefined
       }
     }
     Enums: {
