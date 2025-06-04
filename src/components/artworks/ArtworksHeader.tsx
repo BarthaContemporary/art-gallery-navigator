@@ -4,36 +4,24 @@ import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
 import { ArtworkViewToggle, ViewMode } from "./ArtworkViewToggle";
 import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, Settings } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
 import { Artwork } from "@/hooks/use-artworks";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface ArtworksHeaderProps {
   artworks: Artwork[];
   filteredArtworks: Artwork[];
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  useVirtualization: boolean;
-  onVirtualizationChange: (enabled: boolean) => void;
 }
 
 export function ArtworksHeader({
   artworks,
   filteredArtworks,
   viewMode,
-  onViewModeChange,
-  useVirtualization,
-  onVirtualizationChange
+  onViewModeChange
 }: ArtworksHeaderProps) {
   const { clearImageCache } = useImageCache();
 
@@ -95,49 +83,7 @@ export function ArtworksHeader({
         <ArtworkViewToggle 
           viewMode={viewMode} 
           onViewModeChange={onViewModeChange}
-          className="hidden md:flex"
         />
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4" />
-              <span className="hidden md:inline ml-2">Settings</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>View Options</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => onViewModeChange('grid')}
-              className={viewMode === 'grid' ? 'bg-accent' : ''}
-            >
-              Grid View
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onViewModeChange('list')}
-              className={viewMode === 'list' ? 'bg-accent' : ''}
-            >
-              List View
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onViewModeChange('table')}
-              className={viewMode === 'table' ? 'bg-accent' : ''}
-            >
-              Table View
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Performance</DropdownMenuLabel>
-            <DropdownMenuItem 
-              onClick={() => onVirtualizationChange(!useVirtualization)}
-            >
-              {useVirtualization ? '✓' : '○'} Virtualization
-              <span className="text-xs text-muted-foreground ml-2">
-                (Large datasets)
-              </span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

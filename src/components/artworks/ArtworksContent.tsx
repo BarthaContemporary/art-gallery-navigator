@@ -28,7 +28,7 @@ export function ArtworksContent({
   onScrollToTop
 }: ArtworksContentProps) {
   const renderContent = () => {
-    if (viewMode === 'list' || viewMode === 'table') {
+    if (viewMode === 'list') {
       return <ArtworkListView artworks={artworks} />;
     }
 

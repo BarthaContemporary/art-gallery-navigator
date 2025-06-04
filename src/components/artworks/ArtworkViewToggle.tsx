@@ -1,9 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { Grid3X3, List, Table } from "lucide-react";
+import { Grid3X3, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ViewMode = 'grid' | 'list' | 'table';
+export type ViewMode = 'grid' | 'list';
 
 interface ArtworkViewToggleProps {
   viewMode: ViewMode;
@@ -36,16 +36,6 @@ export function ArtworkViewToggle({
       >
         <List className="h-3 w-3" />
         <span className="hidden sm:inline ml-1">List</span>
-      </Button>
-      
-      <Button
-        variant={viewMode === 'table' ? 'default' : 'ghost'}
-        size="sm"
-        onClick={() => onViewModeChange('table')}
-        className="h-7 px-2 text-xs"
-      >
-        <Table className="h-3 w-3" />
-        <span className="hidden sm:inline ml-1">Table</span>
       </Button>
     </div>
   );

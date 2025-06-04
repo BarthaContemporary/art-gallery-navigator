@@ -164,8 +164,6 @@ const Artworks = () => {
         filteredArtworks={filteredArtworks}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        useVirtualization={useVirtualization}
-        onVirtualizationChange={setUseVirtualization}
       />
 
       <ArtworksFilters
