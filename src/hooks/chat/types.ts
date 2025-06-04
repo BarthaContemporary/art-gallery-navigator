@@ -17,7 +17,7 @@ export interface ChatMessage {
   room_id: string;
   sender_id: string;
   encrypted_content: string;
-  content?: string; // Added content property for plain text display
+  content?: string; // Plain text content for display
   message_type: 'text' | 'file' | 'image';
   created_at: string;
   edited_at?: string;

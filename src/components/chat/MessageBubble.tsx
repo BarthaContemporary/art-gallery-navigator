@@ -12,8 +12,8 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const isMobile = useIsMobile();
   
-  // Use decrypted_content if available, otherwise fallback to encrypted_content (which now contains plain text)
-  const messageContent = message.decrypted_content || message.content || message.encrypted_content || '[No content]';
+  // Use content if available, otherwise fallback to encrypted_content (which now contains plain text)
+  const messageContent = message.content || message.encrypted_content || '[No content]';
   
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
