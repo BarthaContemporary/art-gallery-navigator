@@ -14,7 +14,7 @@ interface ArtworksByArtist {
 interface ArtworkGridProps {
   artworks: Artwork[];
   activeIndex?: string;
-  onScrollToTop?: () => void; // Added prop
+  onScrollToTop?: () => void;
 }
 
 export function ArtworkGrid({ artworks, activeIndex, onScrollToTop }: ArtworkGridProps) {
@@ -45,6 +45,7 @@ export function ArtworkGrid({ artworks, activeIndex, onScrollToTop }: ArtworkGri
     return acc;
   }, {});
 
+  // Sort artworks within each group by artist name, then by price descending
   Object.keys(groupedArtworks).forEach(letter => {
     groupedArtworks[letter].sort((a, b) => {
       const artistDetailsA = artists?.find(artist => artist.id === a.artist_id);
@@ -53,10 +54,14 @@ export function ArtworkGrid({ artworks, activeIndex, onScrollToTop }: ArtworkGri
       const artistNameA = artistDetailsA?.full_name || "Unknown Artist";
       const artistNameB = artistDetailsB?.full_name || "Unknown Artist";
       
+      // First sort by artist name
       const artistCompare = artistNameA.localeCompare(artistNameB);
       if (artistCompare !== 0) return artistCompare;
       
-      return a.title.localeCompare(b.title);
+      // Then sort by price descending (higher prices first)
+      const priceA = a.price || 0;
+      const priceB = b.price || 0;
+      return priceB - priceA;
     });
   });
 

@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
@@ -72,7 +71,7 @@ export function VirtualizedArtworkGrid({
     };
   }, [containerWidth, validArtworks.length, isMobile]);
 
-  // Group artworks by artist's sort letter with comprehensive null safety
+  // Group artworks by artist's sort letter with comprehensive null safety and sort by price descending
   const groupedArtworks = useMemo(() => {
     if (!Array.isArray(validArtworks) || !Array.isArray(artists)) {
       return {};
@@ -104,7 +103,7 @@ export function VirtualizedArtworkGrid({
       return acc;
     }, {});
 
-    // Sort within each group with null safety
+    // Sort within each group with null safety - by artist name, then by price descending
     Object.keys(grouped).forEach(letter => {
       if (Array.isArray(grouped[letter])) {
         grouped[letter].sort((a, b) => {
@@ -116,12 +115,14 @@ export function VirtualizedArtworkGrid({
           const artistNameA = (artistDetailsA && typeof artistDetailsA === 'object') ? (artistDetailsA.full_name || "Unknown Artist") : "Unknown Artist";
           const artistNameB = (artistDetailsB && typeof artistDetailsB === 'object') ? (artistDetailsB.full_name || "Unknown Artist") : "Unknown Artist";
           
+          // First sort by artist name
           const artistCompare = artistNameA.localeCompare(artistNameB);
           if (artistCompare !== 0) return artistCompare;
           
-          const titleA = (a && typeof a.title === 'string') ? a.title : "";
-          const titleB = (b && typeof b.title === 'string') ? b.title : "";
-          return titleA.localeCompare(titleB);
+          // Then sort by price descending (higher prices first)
+          const priceA = (a && typeof a.price === 'number') ? a.price : 0;
+          const priceB = (b && typeof b.price === 'number') ? b.price : 0;
+          return priceB - priceA;
         });
       }
     });

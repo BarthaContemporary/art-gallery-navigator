@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
 import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
@@ -46,6 +45,23 @@ const Artworks = () => {
     const matchesType = typeFilter ? artwork.medium_type === typeFilter : true;
     const matchesArtist = artistFilter ? artwork.artist_id === artistFilter : true;
     return matchesSearch && matchesStatus && matchesType && matchesArtist;
+  })?.sort((a, b) => {
+    // Get artist details for sorting
+    const artistA = artists?.find(artist => artist.id === a.artist_id);
+    const artistB = artists?.find(artist => artist.id === b.artist_id);
+    
+    // Get sorting letters, fallback to first letter of full name, then to "Unknown"
+    const sortLetterA = artistA?.surname_first_letter || artistA?.full_name?.charAt(0) || "Z";
+    const sortLetterB = artistB?.surname_first_letter || artistB?.full_name?.charAt(0) || "Z";
+    
+    // First sort by artist sorting letter alphabetically
+    const letterCompare = sortLetterA.localeCompare(sortLetterB);
+    if (letterCompare !== 0) return letterCompare;
+    
+    // Then sort by price descending (higher prices first)
+    const priceA = a.price || 0;
+    const priceB = b.price || 0;
+    return priceB - priceA;
   }) ?? [];
 
   const letters = Array.from(new Set(filteredArtworks.map(artwork => {
