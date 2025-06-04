@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RefreshCw, ArrowDown } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 
@@ -30,15 +30,15 @@ export function PullToRefresh({
   });
 
   const showIndicator = isPulling || isRefreshing;
-  const indicatorHeight = isRefreshing ? 60 : Math.min(pullDistance, 60);
+  const indicatorHeight = isRefreshing ? 40 : Math.min(pullDistance, 40);
 
   return (
     <div ref={elementRef} className={cn('relative', className)}>
-      {/* Pull indicator */}
+      {/* Pull indicator - just icon, no text */}
       <div 
         className={cn(
           'absolute top-0 left-0 right-0 z-50 flex items-center justify-center transition-all duration-200',
-          'bg-background/95 backdrop-blur-sm border-b',
+          'bg-background/95 backdrop-blur-sm',
           showIndicator ? 'opacity-100' : 'opacity-0'
         )}
         style={{
@@ -46,29 +46,13 @@ export function PullToRefresh({
           transform: `translateY(-${showIndicator ? 0 : indicatorHeight}px)`
         }}
       >
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {isRefreshing ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Refreshing...</span>
-            </>
-          ) : canRefresh ? (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              <span>Release to refresh</span>
-            </>
-          ) : (
-            <>
-              <ArrowDown 
-                className={cn(
-                  'h-4 w-4 transition-transform duration-200',
-                  progress > 0.5 ? 'rotate-180' : ''
-                )} 
-              />
-              <span>Pull to refresh</span>
-            </>
-          )}
-        </div>
+        <RefreshCw 
+          className={cn(
+            'h-5 w-5 text-muted-foreground transition-transform duration-200',
+            isRefreshing ? 'animate-spin' : '',
+            canRefresh ? 'rotate-180' : ''
+          )} 
+        />
       </div>
 
       {/* Content with padding for indicator */}
