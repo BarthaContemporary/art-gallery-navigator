@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchBar } from "@/components/artists/SearchBar";
 import { ArtistCard } from "@/components/artists/ArtistCard";
@@ -10,6 +9,8 @@ import { Download, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
 import { RepresentationStatusFilter } from "@/components/artists/RepresentationStatusFilter";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Artist {
   id: string;
@@ -32,11 +33,14 @@ const Artists = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createArtistDialogOpen, setCreateArtistDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<RepresentationStatusFilterType>("all");
+  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   const {
     data: artists,
     isLoading,
-    error
+    error,
+    refetch
   } = useQuery({
     queryKey: ['artists', statusFilter],
     queryFn: async () => {
@@ -121,6 +125,18 @@ const Artists = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      // Also invalidate related queries
+      await queryClient.invalidateQueries({ queryKey: ['artists'] });
+      toast.success("Artists refreshed successfully");
+    } catch (error) {
+      console.error('Refresh error:', error);
+      toast.error("Failed to refresh artists");
+    }
+  };
+
   if (error) {
     console.error('Artists page error:', error);
     return (
@@ -137,7 +153,7 @@ const Artists = () => {
     );
   }
 
-  return (
+  const content = (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-4 md:mb-6 gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
@@ -202,6 +218,17 @@ const Artists = () => {
       )}
     </div>
   );
+
+  // Wrap with PullToRefresh only on mobile
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} enabled={!isLoading}>
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 };
 
 export default Artists;

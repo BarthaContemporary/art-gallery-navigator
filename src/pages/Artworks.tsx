@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
 import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
 import { ArtworksStats } from "@/components/artworks/ArtworksStats";
@@ -7,6 +8,8 @@ import { ViewMode } from "@/components/artworks/ArtworkViewToggle";
 import { useArtworks } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
 import { useImagePrefetch } from "@/hooks/use-image-prefetch";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { toast } from "sonner";
 
 const Artworks = () => {
@@ -23,17 +26,21 @@ const Artworks = () => {
   });
   const pageTopRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(800);
+  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   const {
     data: artworks,
     isLoading: artworksLoading,
-    error: artworksError
+    error: artworksError,
+    refetch: refetchArtworks
   } = useArtworks();
 
   const {
     data: artists,
     isLoading: artistsLoading,
-    error: artistsError
+    error: artistsError,
+    refetch: refetchArtists
   } = useArtists();
 
   const { prefetchArtworkImages } = useImagePrefetch();
@@ -137,6 +144,22 @@ const Artworks = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      await Promise.all([
+        refetchArtworks(),
+        refetchArtists()
+      ]);
+      // Invalidate related queries
+      await queryClient.invalidateQueries({ queryKey: ['artworks'] });
+      await queryClient.invalidateQueries({ queryKey: ['artists'] });
+      toast.success("Data refreshed successfully");
+    } catch (error) {
+      console.error('Refresh error:', error);
+      toast.error("Failed to refresh data");
+    }
+  };
+
   if (artworksLoading || artistsLoading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -157,7 +180,7 @@ const Artworks = () => {
     );
   }
 
-  return (
+  const content = (
     <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
       <ArtworksHeader
         artworks={artworks || []}
@@ -195,6 +218,17 @@ const Artworks = () => {
       />
     </div>
   );
+
+  // Wrap with PullToRefresh only on mobile
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} enabled={!artworksLoading && !artistsLoading}>
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 };
 
 export default Artworks;
