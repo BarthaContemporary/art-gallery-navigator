@@ -19,9 +19,9 @@ interface OptimizedArtworkImageProps {
 }
 
 const defaultSizes = {
-  thumbnail: { width: 400, height: 300, quality: 85 },
-  medium: { width: 1200, height: 900, quality: 95 },
-  full: { width: 2000, height: 1500, quality: 98 }
+  thumbnail: { width: 400, height: 300, quality: 80 },
+  medium: { width: 1200, height: 1200, quality: 100 },
+  full: { width: 2400, height: 2400, quality: 100 }
 };
 
 export function OptimizedArtworkImage({ 
@@ -50,7 +50,7 @@ export function OptimizedArtworkImage({
     sizes
   });
 
-  // Intersection Observer for lazy loading
+  // Intersection Observer for lazy loading and prefetching
   useEffect(() => {
     if (priority) return;
 
@@ -59,11 +59,15 @@ export function OptimizedArtworkImage({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setIsInView(true);
+            // Immediately start loading medium quality for better UX
+            if (canUpgrade.toMedium) {
+              setTimeout(() => upgradeToTier('medium'), 50);
+            }
             observer.unobserve(entry.target);
           }
         });
       },
-      { rootMargin: '100px' }
+      { rootMargin: '200px' } // Increased rootMargin for earlier prefetching
     );
 
     if (imageRef.current) {
@@ -71,12 +75,14 @@ export function OptimizedArtworkImage({
     }
 
     return () => observer.disconnect();
-  }, [priority]);
+  }, [priority, canUpgrade.toMedium, upgradeToTier]);
 
   const handleInteraction = () => {
     setHasInteracted(true);
     if (currentTier === 'thumbnail' && canUpgrade.toMedium) {
       upgradeToTier('medium');
+    } else if (currentTier === 'medium' && canUpgrade.toFull) {
+      upgradeToTier('full');
     }
     onClick?.();
   };
@@ -134,7 +140,8 @@ export function OptimizedArtworkImage({
           className={cn(
             "absolute inset-0 h-full w-full object-cover transition-all duration-500",
             isLoading ? 'opacity-0' : 'opacity-100',
-            currentTier === 'medium' && 'scale-[1.02]'
+            currentTier === 'medium' && 'scale-[1.01]',
+            currentTier === 'full' && 'scale-[1.02]'
           )}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
@@ -144,7 +151,7 @@ export function OptimizedArtworkImage({
         {currentTier !== 'thumbnail' && (
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
-              {currentTier === 'medium' ? 'HD' : 'Full'}
+              {currentTier === 'medium' ? 'HD' : currentTier === 'full' ? 'Ultra HD' : ''}
             </div>
           </div>
         )}

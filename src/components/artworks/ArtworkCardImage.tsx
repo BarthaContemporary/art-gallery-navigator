@@ -1,9 +1,9 @@
+
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-// Skeleton removed, Loader2 will be used
 import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
-import { Loader2 } from "lucide-react"; // Added Loader2
+import { Loader2 } from "lucide-react";
 
 interface ArtworkCardImageProps {
   imageUrl: string | null;
@@ -14,14 +14,13 @@ interface ArtworkCardImageProps {
 export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
-  const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
+  const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
   const imageLoadAttempted = useRef(false);
 
   useEffect(() => {
-    // Reset states when image URL changes
     setIsLoading(true);
-    setPlaceholderUrl(null); // Clear previous placeholder
+    setCachedImageUrl(null);
     imageLoadAttempted.current = false;
     
     if (!imageUrl) {
@@ -31,87 +30,81 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       return;
     }
 
-    // Check cache first
-    const cachedImage = getCachedImage(imageUrl); // Use original imageUrl as cache key
-    if (cachedImage) {
-      logger.debug(`ArtworkCardImage: Found cached placeholder for ${imageUrl}`);
-      setPlaceholderUrl(cachedImage.dataUrl);
-      // Still load the full/optimized image but with a nice placeholder
+    // Check for cached medium quality image first (preferred)
+    const cachedMedium = getCachedImage(imageUrl, 'medium');
+    if (cachedMedium) {
+      logger.debug(`ArtworkCardImage: Found cached medium quality image for ${imageUrl}`);
+      setCachedImageUrl(cachedMedium.dataUrl);
+      setIsLoading(false);
+      setOptimizedUrl(cachedMedium.dataUrl);
+      return;
     }
 
+    // Fallback to cached thumbnail
+    const cachedThumbnail = getCachedImage(imageUrl, 'thumbnail');
+    if (cachedThumbnail) {
+      logger.debug(`ArtworkCardImage: Found cached thumbnail for ${imageUrl}`);
+      setCachedImageUrl(cachedThumbnail.dataUrl);
+    }
+
+    // Generate optimized URL for medium quality (1200x1200 at 100%)
     let finalOptimizedUrl = imageUrl;
-    // For thumbnails in cards, use a larger image size and higher quality if possible via Supabase transform
-    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) { // Ensure it's a public Supabase storage URL
-      // Updated transform: fit within 1500x1500, quality 95, auto format
-      const transformParams = "w=1500&h=1500&resize=contain&q=95&f=auto"; // Quality changed to 95, dimensions to 1500
-      if (imageUrl.includes('?')) {
-        finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
-      } else {
-        finalOptimizedUrl = `${imageUrl}?transform=${transformParams}`;
-      }
-      logger.debug(`ArtworkCardImage: Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
-    } else {
-      logger.debug(`ArtworkCardImage: Not a Supabase public URL or no transformation applied for ${imageUrl}`);
+    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+      const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
+      finalOptimizedUrl = imageUrl.includes('?') 
+        ? `${imageUrl}&transform=${transformParams}`
+        : `${imageUrl}?transform=${transformParams}`;
+      logger.debug(`ArtworkCardImage: Applying high-quality transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
     }
     setOptimizedUrl(finalOptimizedUrl);
 
   }, [imageUrl, getCachedImage]);
 
-  // Function to create and cache a version for placeholders
-  // This will now cache the server-optimized image (if applicable) or the original image
   const cacheImageIfNeeded = () => {
-    // Use original imageUrl as the primary key for caching,
-    // but the content cached is derived from optimizedUrl (which might be server-transformed)
     if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
-    imageLoadAttempted.current = true; // Attempt to load and cache this version
+    imageLoadAttempted.current = true;
     
-    logger.debug(`ArtworkCardImage: Attempting to cache image. Original Key: ${imageUrl}, Source for Cache: ${optimizedUrl}`);
+    logger.debug(`ArtworkCardImage: Attempting to cache medium quality image. Original Key: ${imageUrl}, Source: ${optimizedUrl}`);
 
     try {
       const img = new Image();
       img.crossOrigin = "anonymous"; 
       img.onload = () => {
-        logger.debug(`ArtworkCardImage: Image loaded for caching (source: ${optimizedUrl}), creating canvas placeholder.`);
+        logger.debug(`ArtworkCardImage: Image loaded for caching (source: ${optimizedUrl}), creating high-quality cache.`);
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Max dimension for the canvas-generated placeholder (consistency)
-        // Keeping placeholder generation logic the same, but it's based on the higher quality optimizedUrl
-        const maxDimension = 800; 
+        // Use higher resolution for caching (1200x1200)
+        const maxDimension = 1200;
         let scale = 1;
         if (img.width > 0 && img.height > 0) {
-            // Scale to fit within maxDimension, but don't upscale (Math.min(1, ...))
-            scale = maxDimension / Math.max(img.width, img.height);
-            scale = Math.min(1, scale); 
-             // Ensure scale is not zero or negative if image dimensions are unexpectedly small
+            scale = Math.min(maxDimension / Math.max(img.width, img.height), 1);
             if (scale <= 0) scale = 1;
-        } else { 
-            canvas.width = Math.min(maxDimension, img.width || maxDimension);
-            canvas.height = Math.min(maxDimension, img.height || maxDimension);
         }
         
-        if (img.width > 0 && img.height > 0) { // Ensure dimensions are positive
+        if (img.width > 0 && img.height > 0) {
             canvas.width = Math.floor(img.width * scale);
             canvas.height = Math.floor(img.height * scale);
-        } else { // Fallback if image dimensions are zero or invalid
-            canvas.width = maxDimension / 2; // Default small placeholder
-            canvas.height = maxDimension / 2;
+        } else {
+            canvas.width = maxDimension;
+            canvas.height = maxDimension;
         }
 
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const placeholderDataUrl = canvas.toDataURL("image/jpeg", 0.92); // Updated quality for placeholder
-          setCachedImage(imageUrl, placeholderDataUrl); // Cache using original imageUrl as key
-          logger.log(`ArtworkCardImage: Cached placeholder for ${imageUrl} (from ${optimizedUrl}). Size: ${placeholderDataUrl.length}`);
+          // Use high quality for medium tier caching
+          const highQualityDataUrl = canvas.toDataURL("image/webp", 0.98);
+          setCachedImage(imageUrl, highQualityDataUrl, 'medium');
+          logger.log(`ArtworkCardImage: Cached high-quality medium image for ${imageUrl}. Size: ${highQualityDataUrl.length}`);
         }
       };
       img.onerror = () => {
           logger.error(`ArtworkCardImage: Failed to load image for caching: ${optimizedUrl}`);
       }
-      img.src = optimizedUrl; // Load the (potentially server-optimized) image
+      img.src = optimizedUrl;
     } catch (error) {
-      logger.error("ArtworkCardImage: Failed to cache image for placeholder:", error);
+      logger.error("ArtworkCardImage: Failed to cache image:", error);
     }
   };
 
@@ -121,33 +114,32 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       onClick={onClick}
     >
       <AspectRatio ratio={4/3}>
-        {isLoading && placeholderUrl && (
+        {/* Show cached image while main image loads */}
+        {isLoading && cachedImageUrl && (
             <img 
-              src={placeholderUrl}
-              alt={`Loading preview for ${title}`}
-              className="absolute inset-0 h-full w-full object-cover opacity-70" // Added absolute inset-0
+              src={cachedImageUrl}
+              alt={`Preview for ${title}`}
+              className="absolute inset-0 h-full w-full object-cover opacity-80"
               aria-hidden="true"
             />
           )}
-        {isLoading && !placeholderUrl && (
-            // Using Loader2 icon when no placeholder is available during loading
-            // This div is already absolute and centers the Loader2 icon.
+        
+        {/* Loading indicator when no cached image available */}
+        {isLoading && !cachedImageUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
           )}
         
+        {/* Main high-quality image */}
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${ // Added absolute inset-0
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
             isLoading ? 'opacity-0' : 'opacity-100' 
           }`}
-          // Hide main image completely if loader icon is shown (no placeholder) to prevent interference
-          // Otherwise, it can be display:block and opacity:0 behind placeholder, ready to fade in.
-          style={{ display: isLoading && !placeholderUrl ? 'none' : 'block' }} 
           onLoad={() => {
-            logger.debug(`ArtworkCardImage: Image loaded: ${optimizedUrl}`);
+            logger.debug(`ArtworkCardImage: High-quality image loaded: ${optimizedUrl}`);
             setIsLoading(false);
             if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
               cacheImageIfNeeded();
@@ -161,6 +153,13 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           loading="lazy"
           decoding="async"
         />
+        
+        {/* Quality indicator */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
+            HD
+          </div>
+        </div>
       </AspectRatio>
     </div>
   );

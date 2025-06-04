@@ -17,6 +17,7 @@ import { exportArtworksToCSV } from "@/lib/csv";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { toast } from "sonner";
+import { useImagePrefetch } from "@/hooks/use-image-prefetch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +55,8 @@ const Artworks = () => {
     error: artistsError
   } = useArtists();
 
+  const { prefetchArtworkImages } = useImagePrefetch();
+
   const filteredArtworks = artworks?.filter(artwork => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          (artwork.materials || "").toLowerCase().includes(searchTerm.toLowerCase());
@@ -79,6 +82,24 @@ const Artworks = () => {
       ? sortLetter.trim().toUpperCase() 
       : artistName.charAt(0).toUpperCase();
   }))).sort();
+
+  // Prefetch images for better UX
+  useEffect(() => {
+    if (filteredArtworks.length > 0 && viewMode === 'grid') {
+      const imagesToPrefetch = filteredArtworks.slice(0, 20).map((artwork, index) => ({
+        imageUrl: artwork.image_url,
+        priority: index < 10 ? 10 - index : 1 // Higher priority for first 10 images
+      }));
+      
+      const defaultSizes = {
+        thumbnail: { width: 400, height: 300, quality: 80 },
+        medium: { width: 1200, height: 1200, quality: 100 },
+        full: { width: 2400, height: 2400, quality: 100 }
+      };
+      
+      prefetchArtworkImages(imagesToPrefetch, defaultSizes);
+    }
+  }, [filteredArtworks, viewMode, prefetchArtworkImages]);
 
   // Persist view mode preference
   useEffect(() => {

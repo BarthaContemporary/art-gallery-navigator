@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
@@ -61,7 +60,6 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
           
-          // Create very small blur placeholder
           canvas.width = 20;
           canvas.height = 15;
           
@@ -87,11 +85,11 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
     if (!mountedRef.current) return;
     
     const imageUrl = generateImageUrl(tier);
-    const cacheKey = `${config.originalUrl}_${tier}`;
     
-    // Check cache first
-    const cached = getCachedImage(cacheKey);
+    // Check cache first for this specific tier
+    const cached = getCachedImage(config.originalUrl, tier);
     if (cached) {
+      logger.debug(`Using cached ${tier} image: ${config.originalUrl}`);
       setLoadedTiers(prev => new Set(prev).add(tier));
       if (tier === 'thumbnail' && !blurDataUrl) {
         setBlurDataUrl(cached.dataUrl);
@@ -109,13 +107,41 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
           
           setLoadedTiers(prev => new Set(prev).add(tier));
           
-          // Create and cache blur placeholder for thumbnail
-          if (tier === 'thumbnail') {
-            const blur = await createBlurPlaceholder(imageUrl);
-            if (blur) {
-              setCachedImage(cacheKey, blur);
-              setBlurDataUrl(blur);
+          // Create high-quality cached version
+          try {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            
+            if (ctx) {
+              // Use appropriate dimensions for each tier
+              const maxDimension = tier === 'thumbnail' ? 400 : tier === 'medium' ? 1200 : 2400;
+              let scale = 1;
+              
+              if (img.width > 0 && img.height > 0) {
+                scale = Math.min(maxDimension / Math.max(img.width, img.height), 1);
+                if (scale <= 0) scale = 1;
+              }
+              
+              canvas.width = Math.floor(img.width * scale);
+              canvas.height = Math.floor(img.height * scale);
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // Use high quality for caching
+              const quality = tier === 'thumbnail' ? 0.85 : tier === 'medium' ? 0.98 : 1.0;
+              const cachedDataUrl = canvas.toDataURL("image/webp", quality);
+              setCachedImage(config.originalUrl, cachedDataUrl, tier);
+              
+              // Create blur placeholder from thumbnail
+              if (tier === 'thumbnail') {
+                const blur = await createBlurPlaceholder(imageUrl);
+                if (blur) {
+                  setBlurDataUrl(blur);
+                }
+              }
             }
+          } catch (cacheError) {
+            logger.error(`Error caching ${tier} image:`, cacheError);
           }
           
           resolve(imageUrl);
@@ -152,7 +178,7 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
     }
   }, [loadedTiers, loadTier]);
 
-  // Initial load
+  // Initial load with enhanced caching check
   useEffect(() => {
     let isCancelled = false;
     
@@ -160,18 +186,29 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
       try {
         setIsLoading(true);
         setError(null);
+        
+        // Check if medium quality is already cached and use it directly
+        const cachedMedium = getCachedImage(config.originalUrl, 'medium');
+        if (cachedMedium) {
+          logger.debug(`Using cached medium image directly: ${config.originalUrl}`);
+          setLoadedTiers(prev => new Set(prev).add('medium'));
+          setCurrentTier('medium');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Otherwise load thumbnail first
         await loadTier('thumbnail');
         
         if (!isCancelled) {
           setIsLoading(false);
-          // Preload medium tier after thumbnail loads
+          
+          // Aggressively preload medium tier
           setTimeout(() => {
             if (!isCancelled && mountedRef.current) {
-              loadTier('medium').catch(err => 
-                logger.debug("Medium tier preload failed:", err)
-              );
+              upgradeToTier('medium');
             }
-          }, 100);
+          }, 50);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -186,7 +223,7 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
     return () => {
       isCancelled = true;
     };
-  }, [loadTier]);
+  }, [loadTier, upgradeToTier, getCachedImage, config.originalUrl]);
 
   return {
     currentImageUrl: generateImageUrl(currentTier),
