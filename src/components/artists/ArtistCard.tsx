@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Clock, Edit, Trash2, X, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
+import { OptimizedArtistImage } from "./OptimizedArtistImage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,10 +89,10 @@ export function ArtistCard({ artist }: { artist: any }) {
             <Button 
               size="icon" 
               variant="ghost" 
-              className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={preventPropagation}
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="sr-only">Actions for {artist.full_name}</span>
             </Button>
           </DropdownMenuTrigger>
@@ -111,36 +112,31 @@ export function ArtistCard({ artist }: { artist: any }) {
         </DropdownMenu>
       )}
       
-      <div 
-        className="aspect-[4/3] w-full overflow-hidden cursor-pointer"
+      <OptimizedArtistImage
+        imageUrl={artist.image_url}
+        artistName={artist.full_name}
         onClick={handleCardClick}
-      >
-        <img
-          src={artist.image_url || "/placeholder.svg"}
-          alt={artist.full_name}
-          className="h-full w-full object-cover transition-all hover:scale-105"
-        />
-      </div>
+      />
       
       <CardContent 
-        className="p-4 cursor-pointer space-y-1"
+        className="p-3 sm:p-4 cursor-pointer space-y-1"
         onClick={handleCardClick}
       >
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium text-lg leading-tight">{artist.full_name}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-medium text-sm sm:text-lg leading-tight line-clamp-2">{artist.full_name}</h3>
           {artist.email && (
             <a
               href={`mailto:${artist.email}`}
-              className="text-muted-foreground hover:text-primary transition-colors"
+              className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
               onClick={(e) => e.stopPropagation()}
               title={`Email ${artist.full_name}`}
             >
-              <Mail className="h-4 w-4" />
+              <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
             </a>
           )}
         </div>
         
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-xs sm:text-sm">
           {artist.nationality}
           {artist.nationality && artist.birth_year ? ", " : ""}
           {artist.birth_year && <span className="font-medium">b. {artist.birth_year}</span>}
@@ -149,7 +145,7 @@ export function ArtistCard({ artist }: { artist: any }) {
         {artist.representation_status && (
           <div className="flex items-center mt-2">
             {statusIcons[artist.representation_status.toLowerCase() as keyof typeof statusIcons] || null}
-            <span className="text-sm ml-1 capitalize">{artist.representation_status}</span>
+            <span className="text-xs sm:text-sm ml-1 capitalize">{artist.representation_status}</span>
           </div>
         )}
       </CardContent>
