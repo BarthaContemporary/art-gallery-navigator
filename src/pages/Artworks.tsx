@@ -1,31 +1,14 @@
+
 import { useState, useRef, useEffect } from "react";
-import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
-import { SearchBar } from "@/components/artworks/SearchBar";
-import { StatusFilter } from "@/components/artworks/StatusFilter";
-import { TypeFilter } from "@/components/artworks/TypeFilter";
-import { ArtistFilter } from "@/components/artworks/ArtistFilter";
-import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
-import { VirtualizedArtworkGrid } from "@/components/artworks/VirtualizedArtworkGrid";
-import { ArtworkListView } from "@/components/artworks/ArtworkListView";
-import { ArtworkViewToggle, ViewMode } from "@/components/artworks/ArtworkViewToggle";
-import { AlphabeticalIndex } from "@/components/artworks/AlphabeticalIndex";
+import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
+import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
+import { ArtworksStats } from "@/components/artworks/ArtworksStats";
+import { ArtworksContent } from "@/components/artworks/ArtworksContent";
+import { ViewMode } from "@/components/artworks/ArtworkViewToggle";
 import { useArtworks } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
-import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, Settings } from "lucide-react";
-import { exportArtworksToCSV } from "@/lib/csv";
-import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
-import { useImageCache } from "@/hooks/use-image-cache";
-import { toast } from "sonner";
 import { useImagePrefetch } from "@/hooks/use-image-prefetch";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,7 +22,6 @@ const Artworks = () => {
   const [useVirtualization, setUseVirtualization] = useState(() => {
     return localStorage.getItem('artworks-virtualization') === 'true';
   });
-  const { clearImageCache } = useImageCache();
   const pageTopRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(800);
 
@@ -131,23 +113,6 @@ const Artworks = () => {
     }
   }, [filteredArtworks.length, useVirtualization]);
 
-  const handleExportAll = () => {
-    if (artworks) {
-      exportArtworksToCSV(artworks, 'all_artworks.csv');
-    }
-  };
-
-  const handleExportFiltered = () => {
-    if (filteredArtworks.length) {
-      exportArtworksToCSV(filteredArtworks, 'filtered_artworks.csv');
-    }
-  };
-
-  const handleClearImageCache = () => {
-    clearImageCache();
-    toast.success("Image cache cleared. Refresh the page to reload images.");
-  };
-
   const handleScrollToTop = () => {
     if (pageTopRef.current) {
       pageTopRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -157,171 +122,65 @@ const Artworks = () => {
   };
 
   if (artworksLoading || artistsLoading) {
-    return <div className="flex items-center justify-center h-[50vh]">
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
         <p className="text-muted-foreground">Loading artworks and artists...</p>
-      </div>;
+      </div>
+    );
   }
 
   if (artworksError || artistsError) {
-    return <div className="flex items-center justify-center h-[50vh]">
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
         <p className="text-red-500">
           {artworksError ? `Error loading artworks: ${artworksError.message}. ` : ''}
           {artistsError ? `Error loading artists: ${artistsError.message}. ` : ''}
           Please try again.
         </p>
-      </div>;
+      </div>
+    );
   }
 
-  const renderContent = () => {
-    if (viewMode === 'list' || viewMode === 'table') {
-      return <ArtworkListView artworks={filteredArtworks} />;
-    }
+  return (
+    <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
+      <ArtworksHeader
+        artworks={artworks || []}
+        filteredArtworks={filteredArtworks}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        useVirtualization={useVirtualization}
+        onVirtualizationChange={setUseVirtualization}
+      />
 
-    if (viewMode === 'grid') {
-      if (useVirtualization && filteredArtworks.length > 50) {
-        return (
-          <VirtualizedArtworkGrid 
-            artworks={filteredArtworks} 
-            containerHeight={containerHeight}
-            onScrollToTop={handleScrollToTop}
-          />
-        );
-      }
-      return (
-        <ArtworkGrid 
-          artworks={filteredArtworks} 
-          activeIndex={activeIndex} 
-          onScrollToTop={handleScrollToTop} 
-        />
-      );
-    }
+      <ArtworksFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        artistFilter={artistFilter}
+        onArtistFilterChange={setArtistFilter}
+      />
 
-    return <ArtworkListView artworks={filteredArtworks} />;
-  };
+      <ArtworksStats
+        filteredCount={filteredArtworks.length}
+        totalCount={artworks?.length || 0}
+        useVirtualization={useVirtualization}
+      />
 
-  return <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
-      <div className="flex flex-wrap items-center justify-between mb-4 md:mb-6 gap-2">
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          <CreateArtworkDialog />
-          <ImportCSVDialog />
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex gap-1 md:gap-2 text-xs md:text-sm" 
-            onClick={handleExportFiltered} 
-            disabled={!filteredArtworks.length}
-          >
-            <Download className="h-3 w-3 md:h-4 md:w-4" />
-            Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
-          </Button>
-          {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && 
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex gap-1 md:gap-2 text-xs md:text-sm" 
-              onClick={handleExportAll}
-            >
-              <Download className="h-3 w-3 md:h-4 md:w-4" />
-              Export All ({artworks.length})
-            </Button>
-          }
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="p-2" 
-            title="Clear Image Cache" 
-            onClick={handleClearImageCache}
-          >
-            <RefreshCw className="h-3 w-3 md:h-4 md:w-4" />
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ArtworkViewToggle 
-            viewMode={viewMode} 
-            onViewModeChange={setViewMode}
-            className="hidden md:flex"
-          />
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4" />
-                <span className="hidden md:inline ml-2">Settings</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>View Options</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => setViewMode('grid')}
-                className={viewMode === 'grid' ? 'bg-accent' : ''}
-              >
-                Grid View
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setViewMode('list')}
-                className={viewMode === 'list' ? 'bg-accent' : ''}
-              >
-                List View
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => setViewMode('table')}
-                className={viewMode === 'table' ? 'bg-accent' : ''}
-              >
-                Table View
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Performance</DropdownMenuLabel>
-              <DropdownMenuItem 
-                onClick={() => setUseVirtualization(!useVirtualization)}
-              >
-                {useVirtualization ? '✓' : '○'} Virtualization
-                <span className="text-xs text-muted-foreground ml-2">
-                  (Large datasets)
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="mb-4 md:mb-8">
-        <div className="w-full mb-3 md:mb-4">
-          <SearchBar value={searchTerm} onChange={setSearchTerm} />
-        </div>
-        <div className="flex flex-row items-center gap-1 sm:gap-2 overflow-x-auto pb-1">
-          <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
-            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-          </div>
-          <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
-            <TypeFilter value={typeFilter} onChange={setTypeFilter} />
-          </div>
-          <div className="flex-shrink-0 w-[100px] sm:w-[140px] md:w-[180px]">
-            <ArtistFilter value={artistFilter} onChange={setArtistFilter} />
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-4 text-sm text-muted-foreground">
-        Showing {filteredArtworks.length} of {artworks?.length || 0} artworks
-        {filteredArtworks.length > 100 && !useVirtualization && (
-          <span className="ml-2 text-amber-600">
-            • Consider enabling virtualization for better performance
-          </span>
-        )}
-      </div>
-
-      {viewMode === 'grid' && letters.length > 0 && !useVirtualization && (
-        <AlphabeticalIndex 
-          letters={letters} 
-          onLetterClick={setActiveIndex} 
-          activeLetter={activeIndex}
-        />
-      )}
-
-      {renderContent()}
-    </div>;
+      <ArtworksContent
+        artworks={filteredArtworks}
+        viewMode={viewMode}
+        useVirtualization={useVirtualization}
+        containerHeight={containerHeight}
+        letters={letters}
+        activeIndex={activeIndex}
+        onActiveIndexChange={setActiveIndex}
+        onScrollToTop={handleScrollToTop}
+      />
+    </div>
+  );
 };
 
 export default Artworks;
