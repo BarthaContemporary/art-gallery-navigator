@@ -1,5 +1,6 @@
 
 import { useArtists } from "@/hooks/useArtists";
+import { Filter } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,7 +24,8 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   if (isLoading) {
     return (
       <Select disabled>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full h-8 md:h-10 text-xs md:text-sm">
+          <Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
           <SelectValue placeholder="Loading..." />
         </SelectTrigger>
       </Select>
@@ -32,7 +34,8 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
 
   return (
     <Select value={value || "all"} onValueChange={handleValueChange}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full h-8 md:h-10 text-xs md:text-sm">
+        <Filter className="mr-1.5 md:mr-2 h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
         <SelectValue placeholder="All Artists" />
       </SelectTrigger>
       <SelectContent>
