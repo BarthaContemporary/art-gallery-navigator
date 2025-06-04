@@ -30,7 +30,7 @@ export function usePullToRefresh({
 
   const startY = useRef<number>(0);
   const currentY = useRef<number>(0);
-  const elementRef = useRef<HTMLElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!enabled || state.isRefreshing) return;
