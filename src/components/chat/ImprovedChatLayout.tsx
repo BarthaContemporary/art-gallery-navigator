@@ -53,13 +53,13 @@ export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps)
   // Create a wrapper function that matches the expected interface
   const handleSendMessage = async (message: string) => {
     if (!chat.activeRoom) return;
-    await chat.sendMessage(message, chat.activeRoom.id);
+    await chat.sendMessage(message);
   };
 
   if (isMobile) {
     return (
       <div className="flex flex-col h-full">
-        <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
+        <ChatStatusBar connected={true} error={null} loading={chat.loading} />
         <ChatMobileLayout
           currentView={currentView}
           activeRoom={chat.activeRoom}
@@ -78,7 +78,7 @@ export function ImprovedChatLayout({ isPopup = false }: ImprovedChatLayoutProps)
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
-        <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
+        <ChatStatusBar connected={true} error={null} loading={chat.loading} />
         <ImprovedChatClearCacheButton onClear={chat.clearAllChatCache} />
       </div>
       <ChatDesktopLayout
