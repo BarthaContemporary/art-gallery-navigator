@@ -147,9 +147,9 @@ export function OptimizedArtworkImage({
           decoding="async"
         />
 
-        {/* Quality indicator */}
+        {/* Quality indicator - moved to bottom right */}
         {currentTier !== 'thumbnail' && (
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
               {currentTier === 'medium' ? 'HD' : currentTier === 'full' ? 'Ultra HD' : ''}
             </div>
