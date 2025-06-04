@@ -1,7 +1,8 @@
 
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ChatRoom, ChatMessage } from './types';
+import { toast } from 'sonner';
+import { ChatRoom } from './types';
 
 export function useChatData(user: any, setState: any) {
   // Fetch chat rooms
@@ -24,6 +25,7 @@ export function useChatData(user: any, setState: any) {
         return;
       }
 
+      // Fetch profile data
       const participantIds = data.flatMap(room => [room.participant_1_id, room.participant_2_id]);
       const uniqueParticipantIds = [...new Set(participantIds)];
       
@@ -32,6 +34,7 @@ export function useChatData(user: any, setState: any) {
         .select('id, display_name, avatar_url')
         .in('id', uniqueParticipantIds);
 
+      // Transform data with profiles
       const roomsWithProfiles = data.map(room => {
         const participant1Profile = profilesData?.find(p => p.id === room.participant_1_id);
         const participant2Profile = profilesData?.find(p => p.id === room.participant_2_id);
@@ -57,8 +60,8 @@ export function useChatData(user: any, setState: any) {
     }
   }, [user, setState]);
 
-  // Fetch messages for a room (plain text - no encryption)
-  const fetchMessages = useCallback(async (roomId: string, markMessagesAsRead: any) => {
+  // Fetch messages for a room (plain text - no decryption needed)
+  const fetchMessages = useCallback(async (roomId: string, markAsRead?: (roomId: string) => Promise<void>) => {
     if (!user) return;
 
     try {
@@ -77,18 +80,20 @@ export function useChatData(user: any, setState: any) {
         return;
       }
 
+      // Fetch sender profiles
       const senderIds = [...new Set(data.map(msg => msg.sender_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
         .in('id', senderIds);
 
+      // Transform messages with profile data (encrypted_content now contains plain text)
       const messagesWithProfiles = data.map((message) => {
         const senderProfile = profilesData?.find(p => p.id === message.sender_id);
         
         return {
           ...message,
-          content: message.encrypted_content, // Using plain text content
+          content: message.encrypted_content, // encrypted_content field now contains plain text
           sender_profile: senderProfile ? {
             display_name: senderProfile.display_name || 'Unknown User',
             avatar_url: senderProfile.avatar_url
@@ -98,7 +103,10 @@ export function useChatData(user: any, setState: any) {
 
       setState((prev: any) => ({ ...prev, messages: messagesWithProfiles, loading: false }));
 
-      await markMessagesAsRead(roomId);
+      // Mark messages as read if function provided
+      if (markAsRead) {
+        await markAsRead(roomId);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       setState((prev: any) => ({ ...prev, error: 'Failed to load messages', loading: false }));
@@ -119,6 +127,7 @@ export function useChatData(user: any, setState: any) {
 
       if (error) throw error;
 
+      // Fetch the complete room data
       const { data: roomData, error: roomError } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -127,6 +136,7 @@ export function useChatData(user: any, setState: any) {
 
       if (roomError) throw roomError;
 
+      // Fetch profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
@@ -177,6 +187,7 @@ export function useChatData(user: any, setState: any) {
         return;
       }
 
+      // Fetch profiles
       const userIds = data.map(item => item.user_id);
       const { data: profilesData } = await supabase
         .from('profiles')

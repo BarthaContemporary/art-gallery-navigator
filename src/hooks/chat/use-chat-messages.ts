@@ -3,60 +3,14 @@ import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from './types';
-import { ChatEncryption } from '@/lib/encryption';
 import { NotificationService } from '@/services/notification-service';
 
 export function useChatMessages(userId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
-  const encryptionKeys = useRef<Map<string, CryptoKey>>(new Map());
   const messagesChannel = useRef<any>(null);
 
-  // Get or create encryption key for room (shared key for all users in the room)
-  const getRoomEncryptionKey = async (roomId: string): Promise<CryptoKey> => {
-    if (encryptionKeys.current.has(roomId)) {
-      return encryptionKeys.current.get(roomId)!;
-    }
-
-    try {
-      // Always use shared room key for consistency
-      const key = await ChatEncryption.generateSharedRoomKey(roomId);
-      encryptionKeys.current.set(roomId, key);
-      return key;
-    } catch (error) {
-      console.error('Failed to generate encryption key:', error);
-      throw new Error('Failed to generate secure encryption key');
-    }
-  };
-
-  // Decrypt a single message with profile data
-  const decryptMessageWithProfile = async (message: any, key: CryptoKey, profilesMap: Map<string, any>) => {
-    const senderProfile = profilesMap.get(message.sender_id);
-    
-    try {
-      const decryptedContent = await ChatEncryption.decryptMessage(message.encrypted_content, key);
-      return { 
-        ...message, 
-        decrypted_content: decryptedContent,
-        sender_profile: senderProfile ? {
-          display_name: senderProfile.display_name || 'Unknown User',
-          avatar_url: senderProfile.avatar_url
-        } : { display_name: 'Unknown User' }
-      };
-    } catch (error) {
-      console.error('Failed to decrypt message:', error);
-      return { 
-        ...message, 
-        decrypted_content: '[Unable to decrypt message]',
-        sender_profile: senderProfile ? {
-          display_name: senderProfile.display_name || 'Unknown User',
-          avatar_url: senderProfile.avatar_url
-        } : { display_name: 'Unknown User' }
-      };
-    }
-  };
-
-  // Fetch messages for a room
+  // Fetch messages for a room (plain text - no decryption needed)
   const fetchMessages = async (roomId: string) => {
     if (!userId) return;
 
@@ -97,20 +51,29 @@ export function useChatMessages(userId?: string) {
         profilesMap.set(profile.id, profile);
       });
 
-      // Decrypt messages and transform data
-      const key = await getRoomEncryptionKey(roomId);
-      const decryptedMessages = await Promise.all(
-        data.map(message => decryptMessageWithProfile(message, key, profilesMap))
-      );
+      // Transform messages with profile data (encrypted_content field now contains plain text)
+      const transformedMessages = data.map(message => {
+        const senderProfile = profilesMap.get(message.sender_id);
+        
+        return {
+          ...message,
+          decrypted_content: message.encrypted_content, // encrypted_content now contains plain text
+          content: message.encrypted_content, // Also set content for compatibility
+          sender_profile: senderProfile ? {
+            display_name: senderProfile.display_name || 'Unknown User',
+            avatar_url: senderProfile.avatar_url
+          } : { display_name: 'Unknown User' }
+        };
+      });
 
-      setMessages(decryptedMessages);
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error in fetchMessages:', error);
       toast.error('Failed to load messages');
     }
   };
 
-  // Send message with simplified encryption approach
+  // Send message (plain text - no encryption)
   const sendMessage = async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!userId || !content.trim()) {
       console.error('Missing userId or empty content');
@@ -122,22 +85,13 @@ export function useChatMessages(userId?: string) {
     try {
       console.log('Sending message:', { content: content.substring(0, 50), roomId, userId });
       
-      // Get encryption key using shared room key approach
-      const key = await getRoomEncryptionKey(roomId);
-      
-      // Encrypt message
-      console.log('Encrypting message...');
-      const encryptedContent = await ChatEncryption.encryptMessage(content, key);
-      console.log('Message encrypted successfully');
-      
-      console.log('Inserting message to database...');
-      
+      // Store plain text directly in encrypted_content field (field name kept for database compatibility)
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           sender_id: userId,
-          encrypted_content: encryptedContent,
+          encrypted_content: content, // Now storing plain text
           message_type: type,
         })
         .select()
@@ -153,11 +107,8 @@ export function useChatMessages(userId?: string) {
     } catch (error) {
       console.error('Error sending message:', error);
       
-      // Show specific error messages
       if (error instanceof Error) {
-        if (error.message.includes('encrypt')) {
-          toast.error('Failed to encrypt message. Please try again.');
-        } else if (error.message.includes('permission')) {
+        if (error.message.includes('permission')) {
           toast.error('You do not have permission to send messages to this room.');
         } else {
           toast.error(`Failed to send message: ${error.message}`);
@@ -166,14 +117,13 @@ export function useChatMessages(userId?: string) {
         toast.error('Failed to send message. Please try again.');
       }
       
-      // Re-throw the error so the UI can handle it
       throw error;
     } finally {
       setSending(false);
     }
   };
 
-  // Set up real-time subscription for messages
+  // Set up real-time subscription for messages (plain text - no decryption needed)
   const subscribeToMessages = async (roomId: string) => {
     // Clean up existing subscription
     if (messagesChannel.current) {
@@ -198,22 +148,24 @@ export function useChatMessages(userId?: string) {
             .eq('id', newMessage.sender_id)
             .single();
 
-          const profilesMap = new Map();
-          if (senderProfile) {
-            profilesMap.set(senderProfile.id, senderProfile);
-          }
+          // Transform message with profile data (encrypted_content field now contains plain text)
+          const transformedMessage = {
+            ...newMessage,
+            decrypted_content: newMessage.encrypted_content, // encrypted_content now contains plain text
+            content: newMessage.encrypted_content, // Also set content for compatibility
+            sender_profile: senderProfile ? {
+              display_name: senderProfile.display_name || 'Unknown User',
+              avatar_url: senderProfile.avatar_url
+            } : { display_name: 'Unknown User' }
+          };
 
-          // Decrypt the message with profile data using shared room key
-          const key = await getRoomEncryptionKey(roomId);
-          const decryptedMessage = await decryptMessageWithProfile(newMessage, key, profilesMap);
-
-          setMessages(prev => [...prev, decryptedMessage]);
+          setMessages(prev => [...prev, transformedMessage]);
 
           // Show notification if message is from another user
           if (newMessage.sender_id !== userId) {
             const notificationService = NotificationService.getInstance();
             const senderName = senderProfile?.display_name || 'Unknown User';
-            const messageContent = decryptedMessage.decrypted_content || 'New message';
+            const messageContent = newMessage.encrypted_content || 'New message';
             
             // Show in-app notification
             notificationService.showInAppNotification(
@@ -233,10 +185,11 @@ export function useChatMessages(userId?: string) {
           }
         } catch (error) {
           console.error('Error handling real-time message:', error);
-          // Add message without decryption as fallback
+          // Add message without full processing as fallback
           setMessages(prev => [...prev, {
             ...newMessage,
-            decrypted_content: '[Unable to decrypt message]',
+            decrypted_content: newMessage.encrypted_content || '[Message could not be processed]',
+            content: newMessage.encrypted_content || '[Message could not be processed]',
             sender_profile: { display_name: 'Unknown User' }
           }]);
         }
@@ -251,10 +204,9 @@ export function useChatMessages(userId?: string) {
     }
   };
 
-  // Add cache clearing function
+  // Clear cache function
   const clearCache = () => {
     setMessages([]);
-    encryptionKeys.current.clear();
     
     // Remove any active message subscriptions
     if (messagesChannel.current) {

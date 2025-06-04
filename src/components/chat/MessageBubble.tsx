@@ -12,6 +12,9 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const isMobile = useIsMobile();
   
+  // Use decrypted_content if available, otherwise fallback to encrypted_content (which now contains plain text)
+  const messageContent = message.decrypted_content || message.content || message.encrypted_content || '[No content]';
+  
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] ${isMobile ? 'max-w-[85%]' : ''}`}>
@@ -23,7 +26,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
           }`}
         >
           <p className="text-sm whitespace-pre-wrap break-words">
-            {message.content || message.encrypted_content}
+            {messageContent}
           </p>
         </div>
         <div className={`mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>

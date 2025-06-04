@@ -7,7 +7,7 @@ import { ChatMessage } from './types';
 export function useChatRealtime(user: any, setState: any) {
   const messagesChannel = useRef<any>(null);
 
-  // Subscribe to real-time messages (plain text - no encryption)
+  // Subscribe to real-time messages (plain text - no decryption needed)
   const subscribeToMessages = useCallback(async (roomId: string) => {
     if (messagesChannel.current) {
       supabase.removeChannel(messagesChannel.current);
@@ -33,7 +33,7 @@ export function useChatRealtime(user: any, setState: any) {
 
             const messageWithProfile = {
               ...newMessage,
-              content: newMessage.encrypted_content, // Using plain text content
+              content: newMessage.encrypted_content, // encrypted_content field now contains plain text
               sender_profile: senderProfile ? {
                 display_name: senderProfile.display_name || 'Unknown User',
                 avatar_url: senderProfile.avatar_url
