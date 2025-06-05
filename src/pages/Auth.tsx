@@ -112,7 +112,7 @@ function Auth() {
             <div className="mb-6 md:mb-8 text-center">
               <div className="flex justify-center mb-4">
                 <img
-                  src="/lovable-uploads/d7bfd4a5-c1d1-4827-971b-ca3bbe193513.png"
+                  src="/lovable-uploads/71e438d3-4f7d-4489-9aae-752771abaf09.png"
                   alt="B_c Logo"
                   className="h-12 md:h-16 w-auto object-contain"
                 />
