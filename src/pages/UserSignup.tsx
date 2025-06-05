@@ -1,6 +1,5 @@
 
 import { useAuth } from "@/hooks/use-auth";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { UserManagementSection } from "@/components/settings/UserManagementSection";
 import { BackupExportSection } from "@/components/settings/BackupExportSection";
 import { UploadAssetsSection } from "@/components/settings/UploadAssetsSection";
@@ -20,8 +19,6 @@ export default function UserSignup() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
-      <PageHeader title="SETTINGS" />
-      
       <UserManagementSection />
       <BackupExportSection />
       <UploadAssetsSection />

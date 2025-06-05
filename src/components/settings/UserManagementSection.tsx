@@ -116,8 +116,6 @@ export function UserManagementSection() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">User Management</h2>
-      
       <div className="mb-6">
         <form onSubmit={handleSignup} className="flex flex-wrap gap-2 max-w-3xl">
           <Input 
