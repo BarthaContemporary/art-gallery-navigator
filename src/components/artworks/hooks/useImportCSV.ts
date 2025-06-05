@@ -1,9 +1,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv";
+import { parseCSVForPreview } from "@/lib/csv/parse-csv-preview";
+import { parseMappedCSVToArtworks } from "@/lib/csv/parse-mapped-csv";
 import { toast } from "sonner";
-import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types";
+import { CSVPreviewData, FieldMappings, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types";
 import { ImportStep, ImportStats, UseImportCSVReturn } from "@/components/artworks/import-steps/types";
 import { performArtworkImport } from './artworkImporter';
 
@@ -42,7 +43,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   }, [open, resetState, onCloseDialog]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("File change event triggered");
+    console.log("File change event triggered in useImportCSV");
     
     if (!e.target.files || e.target.files.length === 0) {
       console.log("No files selected, resetting state");
@@ -53,17 +54,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     const selectedFile = e.target.files[0];
     console.log("Selected file:", selectedFile.name, "Size:", selectedFile.size, "Type:", selectedFile.type);
     
-    // Basic file validation
-    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
-      toast.error("Please select a CSV file.");
-      return;
-    }
-
-    if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
-      toast.error("File is too large. Please select a file smaller than 10MB.");
-      return;
-    }
-
+    // File validation is now handled in UploadStep component
     setFile(selectedFile);
     setIsProcessingFile(true);
 
@@ -73,11 +64,14 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       console.log("CSV parsing successful:", previewData);
       
       setCsvPreviewData(previewData);
+      
+      // Initialize field mappings
       const initialMappings: FieldMappings = {};
       previewData.headers.forEach(header => {
         initialMappings[header] = null;
       });
       setFieldMappings(initialMappings);
+      
       setCurrentStep("mapFields");
       toast.success(`CSV file parsed successfully! Found ${previewData.headers.length} columns and ${previewData.rows.length} rows.`);
     } catch (error: any) {
@@ -113,9 +107,9 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       if (validToImportCount === 0 && validatedArtworks.length > 0) {
           const anyValid = validatedArtworks.some(va => va.isValid);
           if (anyValid) {
-              toast.warning("No artworks are currently selected for import, or none could be confidently prepared. Please review selections, warnings/errors and your field mappings.");
+              toast.warning("No artworks are currently selected for import. Please review selections and validation messages.");
           } else {
-              toast.warning("No artworks could be confidently prepared for import. Please review warnings/errors and your field mappings.");
+              toast.warning("No artworks could be prepared for import. Please review validation errors and your field mappings.");
           }
       } else if (validatedArtworks.length === 0) {
           toast.warning("No artworks could be generated with the current mappings. Please check your field mappings or CSV content.");
@@ -158,7 +152,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       .map(va => va.artwork);
 
     if (!artworksToAttemptImport.length) {
-      toast.error("No valid artworks selected to import. Please check selections, mappings, CSV data, and any validation messages.");
+      toast.error("No valid artworks selected to import. Please check selections, mappings, and validation messages.");
       return;
     }
 
