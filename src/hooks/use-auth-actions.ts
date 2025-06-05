@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,30 +10,17 @@ export function useAuthActions() {
   const signInWithPassword = useCallback(async (email: string, password: string, captchaToken?: string) => {
     logger.log("AuthActions: Signing in with password for:", email, "Captcha token present:", !!captchaToken);
     
-    const authOptions: any = {};
-    
-    // Only add captcha token if it's actually provided and not empty
-    if (captchaToken && captchaToken.trim() !== '') {
-      authOptions.captchaToken = captchaToken;
+    if (!captchaToken || captchaToken.trim() === '') {
+      throw new Error("Security verification is required for login");
     }
     
-    let { error, data } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: Object.keys(authOptions).length > 0 ? authOptions : undefined,
+      options: {
+        captchaToken: captchaToken
+      }
     });
-    
-    // If captcha-related error and we had a token, try without it
-    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
-      logger.warn("AuthActions: Captcha failed, retrying without captcha token");
-      const retryResult = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      error = retryResult.error;
-      data = retryResult.data;
-    }
     
     if (error) {
       logger.error("AuthActions: Sign in with password error:", error.message, { email, errorDetails: error });
@@ -45,29 +33,17 @@ export function useAuthActions() {
   const signInWithOTP = useCallback(async (email: string, captchaToken?: string) => {
     logger.log("AuthActions: Sending OTP to:", email, "Captcha token present:", !!captchaToken);
     
-    const authOptions: any = { shouldCreateUser: false };
-    
-    // Only add captcha token if it's actually provided and not empty
-    if (captchaToken && captchaToken.trim() !== '') {
-      authOptions.captchaToken = captchaToken;
+    if (!captchaToken || captchaToken.trim() === '') {
+      throw new Error("Security verification is required for OTP requests");
     }
     
-    let { error, data } = await supabase.auth.signInWithOtp({
+    const { error, data } = await supabase.auth.signInWithOtp({
       email,
-      options: authOptions
+      options: { 
+        shouldCreateUser: false,
+        captchaToken: captchaToken
+      }
     });
-    
-    // If captcha-related error and we had a token, try without it
-    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
-      logger.warn("AuthActions: Captcha failed for OTP, retrying without captcha token");
-      const retryResult = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false }
-      });
-      
-      error = retryResult.error;
-      data = retryResult.data;
-    }
     
     if (error) {
       logger.error("AuthActions: Sign in with OTP error:", error.message, { email, errorDetails: error });
@@ -80,6 +56,11 @@ export function useAuthActions() {
   
   const signIn = useCallback(async (email: string, password?: string, captchaToken?: string) => {
     logger.log("AuthActions: Unified sign-in attempt for:", email, "Password provided:", !!password, "Captcha token present:", !!captchaToken);
+    
+    if (!captchaToken || captchaToken.trim() === '') {
+      throw new Error("Security verification is required");
+    }
+    
     if (password) {
       try {
         await signInWithPassword(email, password, captchaToken);
@@ -115,30 +96,17 @@ export function useAuthActions() {
   const signUp = useCallback(async (email: string, password: string, captchaToken?: string) => {
     logger.log("AuthActions: Signing up user:", email, "Captcha token present:", !!captchaToken);
     
-    const authOptions: any = {};
-    
-    // Only add captcha token if it's actually provided and not empty
-    if (captchaToken && captchaToken.trim() !== '') {
-      authOptions.captchaToken = captchaToken;
+    if (!captchaToken || captchaToken.trim() === '') {
+      throw new Error("Security verification is required for registration");
     }
     
-    let { error, data } = await supabase.auth.signUp({ 
+    const { error, data } = await supabase.auth.signUp({ 
       email, 
       password,
-      options: Object.keys(authOptions).length > 0 ? authOptions : undefined
+      options: {
+        captchaToken: captchaToken
+      }
     });
-    
-    // If captcha-related error and we had a token, try without it
-    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
-      logger.warn("AuthActions: Captcha failed for signup, retrying without captcha token");
-      const retryResult = await supabase.auth.signUp({ 
-        email, 
-        password
-      });
-      
-      error = retryResult.error;
-      data = retryResult.data;
-    }
     
     if (error) {
       logger.error("AuthActions: Sign up error:", error.message, { email, errorDetails: error });
