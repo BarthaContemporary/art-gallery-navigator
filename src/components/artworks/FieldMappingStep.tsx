@@ -23,10 +23,12 @@ export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
 }) => {
   const { headers, sampleData } = csvPreviewData;
 
-  const handleMappingChange = (csvHeader: string, artworkField: string | null) => {
+  const handleMappingChange = (csvHeader: string, artworkField: string) => {
+    // Convert "do_not_import" back to null for the mappings
+    const fieldValue = artworkField === "do_not_import" ? null : (artworkField as ArtworkKeys | null);
     onMappingsChange({
       ...mappings,
-      [csvHeader]: artworkField as ArtworkKeys | null,
+      [csvHeader]: fieldValue,
     });
   };
 
@@ -53,7 +55,6 @@ export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [headers]); // Run only when headers change, not onMappingsChange to avoid loop
-
 
   return (
     <div className="space-y-6">
@@ -82,14 +83,14 @@ export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={mappings[header] || ''}
-                    onValueChange={(value) => handleMappingChange(header, value === '' ? null : value)}
+                    value={mappings[header] || 'do_not_import'}
+                    onValueChange={(value) => handleMappingChange(header, value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Artwork Property" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">
+                      <SelectItem value="do_not_import">
                         <em>-- Do Not Import --</em>
                       </SelectItem>
                       {ARTWORK_FIELDS_FOR_MAPPING.map((field) => (
