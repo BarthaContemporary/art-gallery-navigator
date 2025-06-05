@@ -137,8 +137,8 @@ export function useEnhancedUserCreation() {
       if (parsedError.type === 'email') {
         // Check if user actually exists
         try {
-          const { data: users } = await supabase.auth.admin.listUsers();
-          const userExists = users.users?.find(u => u.email === email);
+          const { data: usersData } = await supabase.auth.admin.listUsers();
+          const userExists = usersData.users?.find((u: any) => u.email === email);
           
           if (userExists) {
             logger.log("Enhanced user creation: User exists despite email error, attempting role assignment");
