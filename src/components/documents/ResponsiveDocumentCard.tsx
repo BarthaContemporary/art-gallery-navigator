@@ -95,7 +95,7 @@ export function ResponsiveDocumentCard({ document }: ResponsiveDocumentCardProps
           {/* File Icon */}
           <div className="w-full sm:w-20 flex items-center justify-center py-4 px-4 bg-muted">
             <div className="flex flex-col items-center gap-1">
-              <FileText className="h-8 w-8 text-muted-foreground" />
+              <FileText className="h-8 w-8" style={{ color: '#18465a' }} />
               <Badge variant="outline" className="text-xs">
                 {getFileExtension()}
               </Badge>
