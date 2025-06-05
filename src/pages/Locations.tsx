@@ -50,7 +50,7 @@ const Locations = () => {
         {/* Header with title and action buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <PageHeader title="LOCATIONS" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <CreateLocationDialog />
             <div className="hidden md:block">
               <ViewToggle 
@@ -62,7 +62,7 @@ const Locations = () => {
         </div>
         
         {/* Mobile view toggle - show below header on mobile */}
-        <div className="md:hidden">
+        <div className="md:hidden flex justify-end">
           <ViewToggle 
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
