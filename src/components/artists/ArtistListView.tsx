@@ -78,8 +78,8 @@ export function ArtistListView({ artists }: ArtistListViewProps) {
               {/* Artist Image */}
               <div className="flex-shrink-0">
                 <OptimizedArtistImage
-                  src={artist.image_url}
-                  alt={artist.full_name}
+                  imageUrl={artist.image_url}
+                  artistName={artist.full_name}
                   className="w-16 h-16 rounded-lg object-cover"
                 />
               </div>
