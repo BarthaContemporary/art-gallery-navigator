@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -117,7 +116,6 @@ function Auth() {
                   className="h-12 md:h-16 w-auto object-contain"
                 />
               </div>
-              <h1 className="text-xl md:text-2xl font-bold mb-1">Welcome</h1>
               <p className="text-muted-foreground text-sm">Sign in to your account</p>
             </div>
             
