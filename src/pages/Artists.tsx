@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -168,7 +169,6 @@ const Artists = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
           <Button 
-            variant="default" 
             size="sm" 
             className="flex gap-1 sm:gap-2 text-xs sm:text-sm" 
             onClick={() => setCreateArtistDialogOpen(true)}
