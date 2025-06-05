@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchBar } from "@/components/artists/SearchBar";
 import { ArtistCard } from "@/components/artists/ArtistCard";
+import { ArtistListView } from "@/components/artists/ArtistListView";
 import { LoadingSkeleton } from "@/components/artists/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
+import { ViewToggle, ViewMode } from "@/components/ui/view-toggle";
 import { Download, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
@@ -33,6 +35,9 @@ const Artists = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createArtistDialogOpen, setCreateArtistDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<RepresentationStatusFilterType>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    return (localStorage.getItem('artists-view-mode') as ViewMode) || 'grid';
+  });
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
@@ -137,6 +142,11 @@ const Artists = () => {
     }
   };
 
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('artists-view-mode', mode);
+  };
+
   if (error) {
     console.error('Artists page error:', error);
     return (
@@ -155,7 +165,7 @@ const Artists = () => {
 
   const content = (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start mb-4 md:mb-6 gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
           <Button 
             variant="default" 
@@ -188,6 +198,11 @@ const Artists = () => {
             </Button>
           }
         </div>
+        
+        <ViewToggle 
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
       </div>
       
       <CreateArtistDialog open={createArtistDialogOpen} onOpenChange={setCreateArtistDialogOpen} />
@@ -209,6 +224,8 @@ const Artists = () => {
             {searchTerm || statusFilter !== "all" ? "No artists found matching your criteria" : "No artists found"}
           </p>
         </div>
+      ) : viewMode === 'list' ? (
+        <ArtistListView artists={filteredArtists} />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {filteredArtists.map(artist => (
