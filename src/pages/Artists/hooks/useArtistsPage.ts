@@ -42,7 +42,7 @@ export const useArtistsPage = () => {
     queryKey: ['artists', statusFilter],
     queryFn: async () => {
       console.log('Fetching artists for mobile...');
-      let query = supabase.from('artists').select('*').order('full_name');
+      let query = supabase.from('artists').select('*').order('surname_first_letter', { ascending: true }).order('full_name', { ascending: true });
       if (statusFilter !== "all") {
         query = query.eq('representation_status', statusFilter);
       }
@@ -58,7 +58,21 @@ export const useArtistsPage = () => {
     retryDelay: 1000
   });
 
-  const filteredArtists = artists?.filter(artist => {
+  // Sort the artists by surname_first_letter, then by full_name
+  const sortedArtists = artists ? [...artists].sort((a, b) => {
+    // First sort by surname_first_letter
+    const letterA = a.surname_first_letter || 'Z'; // Put nulls at the end
+    const letterB = b.surname_first_letter || 'Z';
+    
+    if (letterA !== letterB) {
+      return letterA.localeCompare(letterB);
+    }
+    
+    // If same letter or both null, sort by full_name
+    return a.full_name.localeCompare(b.full_name);
+  }) : [];
+
+  const filteredArtists = sortedArtists?.filter(artist => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearchTerm =
       artist.full_name.toLowerCase().includes(searchTermLower) ||
@@ -97,7 +111,7 @@ export const useArtistsPage = () => {
     viewMode,
     handleViewModeChange,
     isMobile,
-    artists,
+    artists: sortedArtists,
     filteredArtists,
     isLoading,
     error,

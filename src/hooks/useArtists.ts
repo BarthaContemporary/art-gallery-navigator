@@ -20,10 +20,11 @@ export function useArtists() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('artists')
-        .select('id, full_name, surname_first_letter, user_id'); // Added user_id to select
+        .select('id, full_name, surname_first_letter, user_id') // Added user_id to select
+        .order('surname_first_letter', { ascending: true })
+        .order('full_name', { ascending: true });
       if (error) throw error;
       return data as Artist[];
     }
   });
 }
-
