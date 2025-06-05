@@ -33,10 +33,10 @@ export function MobileSidebar() {
             </Button>
           </DrawerTrigger>
           
-          <DrawerContent className="h-[70vh] mt-14">
-            <div className="flex flex-col h-full">
+          <DrawerContent className="h-[70vh] mt-14 bg-white">
+            <div className="flex flex-col h-full bg-white">
               {/* Header with close button */}
-              <div className="flex items-center justify-between border-b px-3 py-2">
+              <div className="flex items-center justify-between border-b px-3 py-2 bg-white">
                 <h2 className="text-base font-semibold">Menu</h2>
                 <Button
                   variant="ghost"
@@ -49,7 +49,7 @@ export function MobileSidebar() {
               </div>
               
               {/* Navigation items */}
-              <nav className="flex-1 py-2 px-3 overflow-y-auto">
+              <nav className="flex-1 py-2 px-3 overflow-y-auto bg-white">
                 <div className="space-y-1">
                   {navItems.map((item) => (
                     <Link
@@ -71,7 +71,7 @@ export function MobileSidebar() {
               </nav>
               
               {/* Logout button */}
-              <div className="border-t p-3">
+              <div className="border-t p-3 bg-white">
                 <Button 
                   variant="ghost" 
                   size="sm"

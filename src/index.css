@@ -5,13 +5,13 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* Light mode background - White */
+    --background: 0 0% 100%; /* Ensure white background */
     --foreground: 224 71.4% 4.1%; /* Light mode foreground - Dark Blue/Black */
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* White card background */
     --card-foreground: 224 71.4% 4.1%;
 
-    --popover: 0 0% 100%;
+    --popover: 0 0% 100%; /* White popover background */
     --popover-foreground: 224 71.4% 4.1%;
 
     --primary: 200 80% 30%; /* Bartha's Dark Teal */
@@ -37,33 +37,33 @@
   }
 
   .dark {
-    --background: 224 71.4% 4.1%; /* Dark mode background */
-    --foreground: 210 20% 98%; /* Dark mode foreground */
+    --background: 0 0% 100%; /* Force white background even in dark mode */
+    --foreground: 224 71.4% 4.1%; /* Keep dark text for readability */
 
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
+    --card: 0 0% 100%; /* Force white card background */
+    --card-foreground: 224 71.4% 4.1%;
 
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 100%; /* Force white popover background */
+    --popover-foreground: 224 71.4% 4.1%;
 
-    --primary: 200 80% 45%; /* Lighter Teal for dark mode */
+    --primary: 200 80% 30%; /* Keep primary color consistent */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 27.9% 16.9%; /* Darker Gray for dark mode */
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 220 13% 91%; /* Light Gray */
+    --secondary-foreground: 224 71.4% 4.1%;
 
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
+    --muted: 220 14.3% 95.9%; /* Light muted background */
+    --muted-foreground: 220 8.9% 46.1%;
 
-    --accent: 45 93% 55%; /* Slightly brighter accent for dark mode */
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 93% 47%; /* Keep accent consistent */
+    --accent-foreground: 224 71.4% 4.1%;
 
-    --destructive: 0 62.8% 40.0%; /* Darker red for dark mode */
+    --destructive: 0 72.2% 50.6%; /* Red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 27.9% 20.9%;
-    --input: 215 27.9% 20.9%;
-    --ring: 200 80% 50%;
+    --border: 220 13% 86%;
+    --input: 220 13% 89%;
+    --ring: 200 80% 40%;
 
     --radius: 0.5rem;
   }
@@ -75,7 +75,7 @@
   }
   
   body {
-    @apply bg-background text-foreground; /* Apply the theme's background and text color */
+    @apply bg-white text-foreground; /* Force white background */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

@@ -19,7 +19,7 @@ export function MainLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
+      <div className="flex h-screen w-full bg-white">
         {/* Desktop sidebar - always visible on desktop */}
         {!isMobile && (
           <div className="flex-shrink-0">
@@ -30,8 +30,8 @@ export function MainLayout() {
         {/* Mobile sidebar */}
         {isMobile && <MobileSidebar />}
         
-        <div className="flex-1 flex flex-col min-w-0">
-          <main className={`flex-1 overflow-auto ${isMobile ? 'pt-12' : ''} touch-pan-y`}>
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <main className={`flex-1 overflow-auto bg-white ${isMobile ? 'pt-12' : ''} touch-pan-y`}>
             <Outlet />
           </main>
         </div>
