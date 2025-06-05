@@ -49,6 +49,12 @@ export function LocationListView({ locations }: LocationListViewProps) {
                     
                     <div className="text-sm text-muted-foreground mt-1">
                       <span className="capitalize font-medium">{location.type}</span>
+                      {location.notes && (
+                        <>
+                          <span className="mx-2">•</span>
+                          <span>{location.notes}</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="flex items-start gap-2 mt-2 text-sm">
@@ -57,17 +63,11 @@ export function LocationListView({ locations }: LocationListViewProps) {
                         {location.address || "No address provided"}
                       </span>
                     </div>
-
-                    {location.notes && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        <p className="line-clamp-2">{location.notes}</p>
-                      </div>
-                    )}
                   </div>
 
                   {/* Admin Actions */}
                   {isAdmin && (
-                    <div className="flex items-center gap-1 ml-4">
+                    <div className="flex items-center gap-1 ml-4 flex-shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
