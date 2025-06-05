@@ -46,15 +46,28 @@ const Locations = () => {
 
   const content = (
     <div className="p-3 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col items-start gap-3 md:gap-4 mb-4 md:mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-3 sm:gap-4">
+      <div className="flex flex-col gap-4 mb-4 md:mb-6">
+        {/* Header with title and action buttons */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <PageHeader title="LOCATIONS" />
+          <div className="flex items-center gap-2">
+            <CreateLocationDialog />
+            <div className="hidden md:block">
+              <ViewToggle 
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Mobile view toggle - show below header on mobile */}
+        <div className="md:hidden">
           <ViewToggle 
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
           />
         </div>
-        <CreateLocationDialog />
       </div>
       
       <LocationSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
