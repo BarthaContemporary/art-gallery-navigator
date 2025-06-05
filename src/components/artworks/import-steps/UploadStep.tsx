@@ -1,11 +1,59 @@
 
 import React, { useRef } from 'react';
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, AlertCircle } from "lucide-react";
 import { UploadStepProps } from './types';
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isProcessingFile }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const validateFile = (file: File): { isValid: boolean; error?: string } => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      return { isValid: false, error: "Please select a CSV file" };
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return { isValid: false, error: "File is too large. Please select a file smaller than 10MB" };
+    }
+
+    if (file.size === 0) {
+      return { isValid: false, error: "File appears to be empty" };
+    }
+
+    return { isValid: true };
+  };
+
+  const processFile = (file: File) => {
+    const validation = validateFile(file);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    console.log("Processing valid file:", {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    // Create a proper file input element and trigger the change event
+    if (fileInputRef.current) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInputRef.current.files = dataTransfer.files;
+      
+      // Create and dispatch a proper change event
+      const event = new Event('change', { bubbles: true }) as any;
+      Object.defineProperty(event, 'target', {
+        value: fileInputRef.current,
+        writable: false
+      });
+      
+      // Call the handler directly with the synthetic event
+      onFileChange(event);
+    }
+  };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("File input change triggered:", e.target.files);
@@ -16,26 +64,15 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
     }
 
     const selectedFile = e.target.files[0];
-    console.log("File selected:", {
-      name: selectedFile.name,
-      size: selectedFile.size,
-      type: selectedFile.type
-    });
-
-    // Validate file type
-    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
-      toast.error("Please select a CSV file");
+    const validation = validateFile(selectedFile);
+    
+    if (!validation.isValid) {
+      toast.error(validation.error);
       e.target.value = ''; // Clear the input
       return;
     }
 
-    // Validate file size (10MB limit)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error("File is too large. Please select a file smaller than 10MB");
-      e.target.value = ''; // Clear the input
-      return;
-    }
-
+    console.log("File input validation passed, calling onFileChange");
     onFileChange(e);
   };
 
@@ -54,34 +91,14 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
     e.preventDefault();
     e.stopPropagation();
     
-    if (isProcessingFile) return;
+    if (isProcessingFile) {
+      toast.warning("Please wait for the current file to finish processing");
+      return;
+    }
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      const file = files[0];
-      
-      // Validate file type
-      if (!file.name.toLowerCase().endsWith('.csv')) {
-        toast.error("Please select a CSV file");
-        return;
-      }
-
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File is too large. Please select a file smaller than 10MB");
-        return;
-      }
-
-      // Create a proper file input element and trigger the change event
-      if (fileInputRef.current) {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        fileInputRef.current.files = dataTransfer.files;
-        
-        // Create and dispatch a proper change event
-        const event = new Event('change', { bubbles: true });
-        fileInputRef.current.dispatchEvent(event);
-      }
+      processFile(files[0]);
     }
   };
 
@@ -94,7 +111,11 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
       >
         <div
           onClick={handleDropZoneClick}
-          className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors"
+          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+            isProcessingFile 
+              ? 'border-gray-300 bg-gray-50 cursor-not-allowed' 
+              : 'border-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
+          }`}
         >
           <div className="flex flex-col items-center justify-center pt-5 pb-6">
             {isProcessingFile ? (
@@ -123,6 +144,16 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
           />
         </div>
       </div>
+
+      {!isProcessingFile && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            <strong>CSV Requirements:</strong> Your file should have headers in the first row. 
+            Common columns include: title, artist_name, classification, medium_type, price, currency, year, materials.
+          </AlertDescription>
+        </Alert>
+      )}
       
       {file && (
         <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-md">

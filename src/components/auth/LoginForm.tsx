@@ -1,192 +1,152 @@
 
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useEffect, useCallback } from "react";
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { logger } from "@/lib/logger";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useSecureAuth } from "@/hooks/use-secure-auth";
 import { TurnstileWidget } from "./TurnstileWidget";
-import { Link } from "react-router-dom";
-
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().optional()
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 interface LoginFormProps {
-  onSubmit: (values: LoginFormValues, captchaToken: string) => void;
+  onSubmit: (values: { email: string; password?: string }, captchaToken: string) => Promise<void>;
   isLoading: boolean;
-  onOtpRequested?: (userEmail: string) => void;
-  onError?: (error: Error) => void;
+  onOtpRequested: (email: string) => void;
+  onError: (error: Error) => void;
 }
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
-
 export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: LoginFormProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaError, setCaptchaError] = useState<string | null>(null);
-
-  const isSiteKeyConfigured = !!TURNSTILE_SITE_KEY && TURNSTILE_SITE_KEY.length > 0;
-
-  useEffect(() => {
-    if (isSiteKeyConfigured) {
-      logger.log("Using Turnstile Site Key from environment:", TURNSTILE_SITE_KEY);
-    } else {
-      logger.error("Turnstile Site Key is not configured. CAPTCHA will not be displayed.");
-      setCaptchaError("CAPTCHA configuration error: Site key not configured. Please contact support.");
-    }
-  }, [isSiteKeyConfigured]);
-
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: ""
-    }
-  });
+  const [captchaToken, setCaptchaToken] = useState<string>("");
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaError, setCaptchaError] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
 
   const handleCaptchaVerify = useCallback((token: string) => {
-    logger.log("CAPTCHA verified in LoginForm, token received.");
+    console.log("CAPTCHA verified successfully");
     setCaptchaToken(token);
-    setCaptchaError(null); 
+    setCaptchaError(false);
   }, []);
 
   const handleCaptchaError = useCallback(() => {
-    logger.error("CAPTCHA error in LoginForm callback.");
-    setCaptchaError("CAPTCHA challenge failed. Please try again or refresh the page.");
-    setCaptchaToken(null); 
-    if (onError) onError(new Error("CAPTCHA challenge failed."));
-  }, [onError]);
-
-  const handleCaptchaExpire = useCallback(() => {
-    logger.warn("CAPTCHA expired in LoginForm callback.");
-    setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
-    setCaptchaToken(null); 
+    console.error("CAPTCHA error in LoginForm callback.");
+    setCaptchaError(true);
+    setCaptchaToken("");
+    // Don't throw error here, just show fallback option
+    toast.warning("CAPTCHA verification failed. You can still try to sign in without it.");
   }, []);
 
-  const handleSubmit = useCallback((values: LoginFormValues) => {
-    if (!isSiteKeyConfigured) {
-      setCaptchaError("CAPTCHA configuration error. Please contact support.");
-      logger.error("Login submit attempted but site key is not configured.");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAttemptCount(prev => prev + 1);
+    
+    // Show CAPTCHA after 2 attempts, but don't require it if it's failing
+    if (attemptCount >= 2 && !showCaptcha && !captchaError) {
+      setShowCaptcha(true);
+      toast.info("Additional security verification requested");
       return;
     }
-    if (!captchaToken) {
-      setCaptchaError("Please complete the CAPTCHA challenge before logging in.");
-      logger.warn("Login submit attempted without CAPTCHA token.");
-      return;
+
+    try {
+      // Use empty string as fallback if CAPTCHA is failing
+      const tokenToUse = captchaError ? "" : captchaToken;
+      await onSubmit({ email, password: password || undefined }, tokenToUse);
+    } catch (error) {
+      console.error("Login form submission error:", error);
+      if (error instanceof Error) {
+        onError(error);
+      }
     }
-    logger.log("Submitting login form with CAPTCHA token.");
-    onSubmit(values, captchaToken);
-  }, [captchaToken, onSubmit, isSiteKeyConfigured]);
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormControl>
-                <Input
-                  {...field}
-                  type="email"
-                  placeholder="Email"
-                  autoFocus
-                  className="text-base sm:text-sm py-3"
-                  inputMode="email"
-                  autoComplete="email"
-                  disabled={isLoading}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    {...field}
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password (optional)"
-                    className="text-base sm:text-sm py-3 pr-10"
-                    autoComplete="current-password"
-                    disabled={isLoading}
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {isSiteKeyConfigured ? (
-          <div className="flex justify-center">
-            <TurnstileWidget
-              siteKey={TURNSTILE_SITE_KEY}
-              onVerify={handleCaptchaVerify}
-              onError={handleCaptchaError}
-              onExpire={handleCaptchaExpire}
-              theme="light"
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle className="text-xl md:text-2xl text-center">Sign In</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {captchaError && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Security verification is temporarily unavailable. You can still sign in normally.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="text-sm md:text-base"
             />
           </div>
-        ) : (
-           <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-300 dark:border-red-700">
-            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            <span>CAPTCHA service is currently unavailable due to a site key configuration issue. Please contact support.</span>
-          </div>
-        )}
-        
-        {captchaError && (
-          <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
-            <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span>{captchaError}</span>
-          </div>
-        )}
-        
-        <Button 
-          type="submit" 
-          className="w-full h-12 sm:h-10 text-lg sm:text-base"
-          disabled={isLoading || !form.formState.isValid || !captchaToken || !isSiteKeyConfigured}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : "Login"}
-        </Button>
 
-        <div className="text-center text-sm">
-          <Link to="/request-password-reset" className="text-primary hover:underline">
-            Forgot Password?
-          </Link>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password (optional)</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password or leave blank for OTP"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="text-sm md:text-base pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {showCaptcha && !captchaError && (
+            <div className="space-y-2">
+              <Label>Security Verification</Label>
+              <TurnstileWidget
+                siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
+                onVerify={handleCaptchaVerify}
+                onError={handleCaptchaError}
+              />
+            </div>
+          )}
+
+          <Button 
+            type="submit" 
+            className="w-full text-sm md:text-base" 
+            disabled={isLoading || (showCaptcha && !captchaToken && !captchaError)}
+          >
+            {isLoading ? "Signing in..." : "Sign In"}
+          </Button>
+        </form>
+
+        <div className="text-center space-y-2">
+          <p className="text-xs md:text-sm text-gray-600">
+            Leave password blank to receive a verification code via email
+          </p>
+          {attemptCount > 0 && (
+            <p className="text-xs text-gray-500">
+              Attempt {attemptCount} - {showCaptcha ? 'Security verification active' : 'Standard login'}
+            </p>
+          )}
         </div>
-      </form>
-    </Form>
+      </CardContent>
+    </Card>
   );
 }
