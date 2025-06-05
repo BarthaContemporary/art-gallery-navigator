@@ -9,7 +9,7 @@ import { RetryButton } from "@/components/documents/RetryButton";
 import { useDocumentsSimplified } from "@/hooks/use-documents-simplified";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
-import { AlertCircle, FileText } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -47,12 +47,8 @@ export default function Documents() {
   return (
     <DocumentsErrorBoundary>
       <div className="p-3 md:p-6 max-w-7xl mx-auto">
-        {/* Header with Upload Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Documents</h1>
-          </div>
+        {/* Add Documents Button moved to the left */}
+        <div className="mb-6">
           <EnhancedUploadDocumentDialog />
         </div>
 
@@ -102,7 +98,7 @@ export default function Documents() {
         {!isLoading && !error && filteredDocuments.length === 0 && documents.length > 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No documents found</h3>
               <p className="text-muted-foreground mb-4">
                 Try adjusting your search terms or filters.
