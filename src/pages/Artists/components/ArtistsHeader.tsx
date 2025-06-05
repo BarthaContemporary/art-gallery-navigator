@@ -51,30 +51,30 @@ export const ArtistsHeader = ({
       <div className="flex flex-wrap gap-2">
         <Button 
           size="sm" 
-          className="flex gap-1 sm:gap-2 text-xs sm:text-sm" 
+          className="flex gap-2" 
           onClick={onCreateArtist}
         >
-          <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+          <PlusCircle className="h-4 w-4" />
           Add Artist
         </Button>
         <Button 
           variant="outline" 
           size="sm" 
-          className="flex gap-1 sm:gap-2 text-xs sm:text-sm" 
+          className="flex gap-2" 
           onClick={handleExportFiltered} 
           disabled={!filteredArtists.length}
         >
-          <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+          <Download className="h-4 w-4" />
           Export {filteredArtists.length !== artists?.length ? 'Filtered' : 'All'}
         </Button>
         {filteredArtists.length !== artists?.length && (artists?.length ?? 0) > 0 && 
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex gap-1 sm:gap-2 text-xs sm:text-sm" 
+            className="flex gap-2" 
             onClick={handleExportAll}
           >
-            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Download className="h-4 w-4" />
             Export All ({artists?.length})
           </Button>
         }
