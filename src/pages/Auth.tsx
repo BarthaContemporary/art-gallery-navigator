@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -104,13 +105,20 @@ function Auth() {
   
   return (
     <ErrorBoundary>
-      {/* Changed bg-gray-50 to bg-background */}
       <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 p-3 md:p-4">
         <div className="w-full max-w-md">
           <Card className="p-3 md:p-6 shadow-lg">
-            <div className="mb-3 md:mb-6 text-center">
-              <h1 className="text-xl md:text-3xl font-bold">Welcome</h1>
-              <p className="text-muted-foreground mt-1 md:mt-2 text-sm">Sign in to your account</p>
+            {/* Logo Header */}
+            <div className="mb-6 md:mb-8 text-center">
+              <div className="flex justify-center mb-4">
+                <img
+                  src="/lovable-uploads/d7bfd4a5-c1d1-4827-971b-ca3bbe193513.png"
+                  alt="B_c Logo"
+                  className="h-12 md:h-16 w-auto object-contain"
+                />
+              </div>
+              <h1 className="text-xl md:text-2xl font-bold mb-1">Welcome</h1>
+              <p className="text-muted-foreground text-sm">Sign in to your account</p>
             </div>
             
             {authError && (
