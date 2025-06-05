@@ -47,12 +47,9 @@ export default function Documents() {
   return (
     <DocumentsErrorBoundary>
       <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
-        {/* Header with consistent layout */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
-          <h1 className="text-3xl tracking-wide font-semibold text-slate-500">DOCUMENTS</h1>
-          <div className="flex flex-wrap gap-2">
-            <EnhancedUploadDocumentDialog />
-          </div>
+        {/* Add Document button aligned to the left */}
+        <div className="mb-6">
+          <EnhancedUploadDocumentDialog />
         </div>
 
         {/* Search and Filters */}
