@@ -59,7 +59,7 @@ export function ArtistField({ form, disabled }: ArtistFieldProps) {
               disabled={disabled}
               value={field.value || ""}
               onValueChange={(value) => {
-                field.onChange(value);
+                field.onChange(value === "no_artist" ? "" : value);
               }}
             >
               <SelectTrigger>
@@ -74,7 +74,7 @@ export function ArtistField({ form, disabled }: ArtistFieldProps) {
                     className="mb-2"
                   />
                 </div>
-                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="no_artist">None</SelectItem>
                 {filteredArtists.map((artist) => (
                   <SelectItem key={artist.id} value={artist.id}>
                     {artist.full_name || "Unnamed artist"}

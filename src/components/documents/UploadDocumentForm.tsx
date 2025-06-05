@@ -28,34 +28,34 @@ export function UploadDocumentForm({ form, onSubmit, isUploading = false }: Uplo
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (artworkId && artworkId !== "_none") {
-      form.setValue("collection_id", "_none");
+    if (artworkId && artworkId !== "no_artwork" && artworkId !== "") {
+      form.setValue("collection_id", "");
       form.setValue("artist_id", "");
       setValidationError(null);
     }
   }, [artworkId, form]);
 
   useEffect(() => {
-    if (collectionId && collectionId !== "_none") {
-      form.setValue("artwork_id", "_none");
+    if (collectionId && collectionId !== "no_collection" && collectionId !== "") {
+      form.setValue("artwork_id", "");
       form.setValue("artist_id", "");
       setValidationError(null);
     }
   }, [collectionId, form]);
 
   useEffect(() => {
-    if (artistId && artistId !== "_none" && artistId !== "") {
-      form.setValue("artwork_id", "_none");
-      form.setValue("collection_id", "_none");
+    if (artistId && artistId !== "no_artist" && artistId !== "") {
+      form.setValue("artwork_id", "");
+      form.setValue("collection_id", "");
       setValidationError(null);
     }
   }, [artistId, form]);
 
   const handleSubmit = async (data: UploadFormData) => {
     try {
-      const hasArtwork = data.artwork_id && data.artwork_id !== "_none";
-      const hasCollection = data.collection_id && data.collection_id !== "_none";
-      const hasArtist = data.artist_id && data.artist_id !== "_none" && data.artist_id !== "";
+      const hasArtwork = data.artwork_id && data.artwork_id !== "no_artwork" && data.artwork_id !== "";
+      const hasCollection = data.collection_id && data.collection_id !== "no_collection" && data.collection_id !== "";
+      const hasArtist = data.artist_id && data.artist_id !== "no_artist" && data.artist_id !== "";
       
       const selectedEntities = [hasArtwork, hasCollection, hasArtist].filter(Boolean).length;
       
@@ -76,9 +76,9 @@ export function UploadDocumentForm({ form, onSubmit, isUploading = false }: Uplo
     }
   };
 
-  const hasArtworkSelected = artworkId && artworkId !== "_none";
-  const hasCollectionSelected = collectionId && collectionId !== "_none";
-  const hasArtistSelected = artistId && artistId !== "_none" && artistId !== "";
+  const hasArtworkSelected = artworkId && artworkId !== "no_artwork" && artworkId !== "";
+  const hasCollectionSelected = collectionId && collectionId !== "no_collection" && collectionId !== "";
+  const hasArtistSelected = artistId && artistId !== "no_artist" && artistId !== "";
 
   return (
     <Form {...form}>

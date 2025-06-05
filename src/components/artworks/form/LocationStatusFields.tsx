@@ -25,7 +25,7 @@ export function LocationStatusFields({ form, locations }: LocationStatusFieldsPr
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="">No location</SelectItem>
+                <SelectItem value="no_location">No location</SelectItem>
                 {locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id}>
                     {location.name}

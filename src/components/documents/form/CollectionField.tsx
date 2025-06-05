@@ -59,7 +59,7 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
               disabled={disabled}
               value={field.value || ""}
               onValueChange={(value) => {
-                field.onChange(value);
+                field.onChange(value === "no_collection" ? "" : value);
               }}
             >
               <SelectTrigger>
@@ -74,7 +74,7 @@ export function CollectionField({ form, disabled }: CollectionFieldProps) {
                     className="mb-2"
                   />
                 </div>
-                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="no_collection">None</SelectItem>
                 {filteredCollections.map((collection) => (
                   <SelectItem key={collection.id} value={collection.id}>
                     {collection.name || "Untitled collection"}

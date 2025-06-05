@@ -63,7 +63,7 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
               disabled={disabled}
               value={field.value || ""}
               onValueChange={(value) => {
-                field.onChange(value);
+                field.onChange(value === "no_artwork" ? "" : value);
               }}
             >
               <SelectTrigger>
@@ -78,7 +78,7 @@ export function ArtworkField({ form, disabled }: ArtworkFieldProps) {
                     className="mb-2"
                   />
                 </div>
-                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="no_artwork">None</SelectItem>
                 {options.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
