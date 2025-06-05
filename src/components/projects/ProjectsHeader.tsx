@@ -11,15 +11,17 @@ export function ProjectsHeader() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   return (
-    <div className="flex flex-col items-start gap-3 md:gap-4 mb-4 md:mb-6">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
       <PageHeader title="PROJECTS" />
       
-      {isAdmin && (
-        <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="flex gap-2">
-          <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
-          Add Project
-        </Button>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {isAdmin && (
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="flex gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Add Project
+          </Button>
+        )}
+      </div>
       
       <ProjectDialog 
         open={createDialogOpen} 
@@ -28,4 +30,3 @@ export function ProjectsHeader() {
     </div>
   );
 }
-

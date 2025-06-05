@@ -52,7 +52,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="flex gap-2">
-          <PlusCircle className="h-3 w-3 md:h-4 md:w-4" />
+          <PlusCircle className="h-4 w-4" />
           Add Collection
         </Button>
       </DialogTrigger>
@@ -92,4 +92,3 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
     </Dialog>
   );
 }
-
