@@ -88,9 +88,9 @@ export function parseMappedCSVToArtworks(
     
     const artwork: Partial<ProcessedArtworkForImport> = {
       // Set default required values
-      classification: 'Other',
-      medium_type: 'Mixed Media',
-      currency: 'USD',
+      classification: 'Other' as const,
+      medium_type: 'Painting' as const,
+      currency: 'USD' as const,
     };
 
     // Process each mapped field
@@ -119,11 +119,17 @@ export function parseMappedCSVToArtworks(
         case 'signature_type':
         case 'artist_id':
         case 'location_id':
-          artwork[artworkField] = cleanFieldValue(rawValue);
+          const cleanValue = cleanFieldValue(rawValue);
+          if (cleanValue !== null) {
+            (artwork as any)[artworkField] = cleanValue;
+          }
           break;
 
         case 'artist_name':
-          artwork.artist_name = cleanFieldValue(rawValue);
+          const artistName = cleanFieldValue(rawValue);
+          if (artistName !== null) {
+            (artwork as any).artist_name = artistName;
+          }
           break;
 
         case 'year':
@@ -142,12 +148,18 @@ export function parseMappedCSVToArtworks(
         case 'crate_height':
         case 'crate_width':
         case 'crate_depth':
-          artwork[artworkField] = parseNumericValue(rawValue);
+          const numericValue = parseNumericValue(rawValue);
+          if (numericValue !== null) {
+            (artwork as any)[artworkField] = numericValue;
+          }
           break;
 
         case 'is_framed':
         case 'has_crate':
-          artwork[artworkField] = parseBooleanValue(rawValue);
+          const boolValue = parseBooleanValue(rawValue);
+          if (boolValue !== null) {
+            (artwork as any)[artworkField] = boolValue;
+          }
           break;
 
         default:

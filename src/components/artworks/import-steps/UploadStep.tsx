@@ -60,12 +60,28 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
     if (files.length > 0) {
       const file = files[0];
       
-      // Create a synthetic event to mimic file input change
-      const syntheticEvent = {
-        target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>;
-      
-      handleFileInputChange(syntheticEvent);
+      // Validate file type
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        toast.error("Please select a CSV file");
+        return;
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File is too large. Please select a file smaller than 10MB");
+        return;
+      }
+
+      // Create a proper file input element and trigger the change event
+      if (fileInputRef.current) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInputRef.current.files = dataTransfer.files;
+        
+        // Create and dispatch a proper change event
+        const event = new Event('change', { bubbles: true });
+        fileInputRef.current.dispatchEvent(event);
+      }
     }
   };
 
