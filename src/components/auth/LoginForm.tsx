@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useSecureAuth } from "@/hooks/use-secure-auth";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -27,34 +26,38 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
   const [attemptCount, setAttemptCount] = useState(0);
 
   const handleCaptchaVerify = useCallback((token: string) => {
-    console.log("CAPTCHA verified successfully");
+    console.log("CAPTCHA verified successfully, token:", token ? "present" : "missing");
     setCaptchaToken(token);
     setCaptchaError(false);
   }, []);
 
   const handleCaptchaError = useCallback(() => {
-    console.error("CAPTCHA error in LoginForm callback.");
+    console.error("CAPTCHA verification failed");
     setCaptchaError(true);
     setCaptchaToken("");
-    // Don't throw error here, just show fallback option
-    toast.warning("CAPTCHA verification failed. You can still try to sign in without it.");
+    toast.error("CAPTCHA verification failed. You can still try to sign in without it.");
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    console.warn("CAPTCHA token expired");
+    setCaptchaToken("");
+    toast.warning("CAPTCHA expired. Please complete it again or try without it.");
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAttemptCount(prev => prev + 1);
     
-    // Show CAPTCHA after 2 attempts, but don't require it if it's failing
-    if (attemptCount >= 2 && !showCaptcha && !captchaError) {
+    // Show CAPTCHA after 2 attempts, but don't block submission if CAPTCHA is having issues
+    if (attemptCount >= 2 && !showCaptcha) {
       setShowCaptcha(true);
       toast.info("Additional security verification requested");
       return;
     }
 
     try {
-      // Use empty string as fallback if CAPTCHA is failing
-      const tokenToUse = captchaError ? "" : captchaToken;
-      await onSubmit({ email, password: password || undefined }, tokenToUse);
+      // Always pass the current captcha token (could be empty string if not available)
+      await onSubmit({ email, password: password || undefined }, captchaToken);
     } catch (error) {
       console.error("Login form submission error:", error);
       if (error instanceof Error) {
@@ -116,21 +119,25 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
             </div>
           </div>
 
-          {showCaptcha && !captchaError && (
+          {showCaptcha && (
             <div className="space-y-2">
               <Label>Security Verification</Label>
               <TurnstileWidget
                 siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
                 onVerify={handleCaptchaVerify}
                 onError={handleCaptchaError}
+                onExpire={handleCaptchaExpire}
               />
+              {captchaToken && (
+                <p className="text-xs text-green-600">✓ Security verification completed</p>
+              )}
             </div>
           )}
 
           <Button 
             type="submit" 
             className="w-full text-sm md:text-base" 
-            disabled={isLoading || (showCaptcha && !captchaToken && !captchaError)}
+            disabled={isLoading}
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
@@ -142,7 +149,7 @@ export function LoginForm({ onSubmit, isLoading, onOtpRequested, onError }: Logi
           </p>
           {attemptCount > 0 && (
             <p className="text-xs text-gray-500">
-              Attempt {attemptCount} - {showCaptcha ? 'Security verification active' : 'Standard login'}
+              Attempt {attemptCount} - {showCaptcha ? (captchaToken ? 'Security verified' : 'Complete security check') : 'Standard login'}
             </p>
           )}
         </div>

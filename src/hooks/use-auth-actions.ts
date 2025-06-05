@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,33 +9,32 @@ export function useAuthActions() {
   const signInWithPassword = useCallback(async (email: string, password: string, captchaToken?: string) => {
     logger.log("AuthActions: Signing in with password for:", email, "Captcha token present:", !!captchaToken);
     
-    // Try with captcha first if provided, then fallback without it
-    const authOptions = captchaToken ? { captchaToken } : {};
+    const authOptions: any = {};
     
-    const { error, data } = await supabase.auth.signInWithPassword({
+    // Only add captcha token if it's actually provided and not empty
+    if (captchaToken && captchaToken.trim() !== '') {
+      authOptions.captchaToken = captchaToken;
+    }
+    
+    let { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: authOptions,
+      options: Object.keys(authOptions).length > 0 ? authOptions : undefined,
     });
     
-    if (error) {
-      // If captcha-related error and we had a token, try without it
-      if (captchaToken && error.message.toLowerCase().includes('captcha')) {
-        logger.warn("AuthActions: Captcha failed, retrying without captcha token");
-        const { error: retryError, data: retryData } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (retryError) {
-          logger.error("AuthActions: Sign in retry error:", retryError.message, { email, errorDetails: retryError });
-          throw retryError;
-        }
-        
-        logger.log("AuthActions: Password sign-in successful (retry) for:", email, "Session:", retryData.session ? "Present" : "Absent");
-        return;
-      }
+    // If captcha-related error and we had a token, try without it
+    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
+      logger.warn("AuthActions: Captcha failed, retrying without captcha token");
+      const retryResult = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
+      error = retryResult.error;
+      data = retryResult.data;
+    }
+    
+    if (error) {
       logger.error("AuthActions: Sign in with password error:", error.message, { email, errorDetails: error });
       throw error;
     }
@@ -47,32 +45,31 @@ export function useAuthActions() {
   const signInWithOTP = useCallback(async (email: string, captchaToken?: string) => {
     logger.log("AuthActions: Sending OTP to:", email, "Captcha token present:", !!captchaToken);
     
-    // Try with captcha first if provided, then fallback without it
-    const authOptions = captchaToken ? { shouldCreateUser: false, captchaToken } : { shouldCreateUser: false };
+    const authOptions: any = { shouldCreateUser: false };
     
-    const { error, data } = await supabase.auth.signInWithOtp({
+    // Only add captcha token if it's actually provided and not empty
+    if (captchaToken && captchaToken.trim() !== '') {
+      authOptions.captchaToken = captchaToken;
+    }
+    
+    let { error, data } = await supabase.auth.signInWithOtp({
       email,
       options: authOptions
     });
     
-    if (error) {
-      // If captcha-related error and we had a token, try without it
-      if (captchaToken && error.message.toLowerCase().includes('captcha')) {
-        logger.warn("AuthActions: Captcha failed for OTP, retrying without captcha token");
-        const { error: retryError, data: retryData } = await supabase.auth.signInWithOtp({
-          email,
-          options: { shouldCreateUser: false }
-        });
-        
-        if (retryError) {
-          logger.error("AuthActions: OTP retry error:", retryError.message, { email, errorDetails: retryError });
-          throw retryError;
-        }
-        
-        logger.log("AuthActions: OTP sent successfully (retry) to:", email, "Data:", retryData);
-        return { needsOTP: true };
-      }
+    // If captcha-related error and we had a token, try without it
+    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
+      logger.warn("AuthActions: Captcha failed for OTP, retrying without captcha token");
+      const retryResult = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false }
+      });
       
+      error = retryResult.error;
+      data = retryResult.data;
+    }
+    
+    if (error) {
       logger.error("AuthActions: Sign in with OTP error:", error.message, { email, errorDetails: error });
       throw error;
     }
@@ -118,33 +115,32 @@ export function useAuthActions() {
   const signUp = useCallback(async (email: string, password: string, captchaToken?: string) => {
     logger.log("AuthActions: Signing up user:", email, "Captcha token present:", !!captchaToken);
     
-    // Try with captcha first if provided, then fallback without it
-    const authOptions = captchaToken ? { captchaToken } : {};
+    const authOptions: any = {};
     
-    const { error, data } = await supabase.auth.signUp({ 
+    // Only add captcha token if it's actually provided and not empty
+    if (captchaToken && captchaToken.trim() !== '') {
+      authOptions.captchaToken = captchaToken;
+    }
+    
+    let { error, data } = await supabase.auth.signUp({ 
       email, 
       password,
-      options: authOptions
+      options: Object.keys(authOptions).length > 0 ? authOptions : undefined
     });
     
-    if (error) {
-      // If captcha-related error and we had a token, try without it
-      if (captchaToken && error.message.toLowerCase().includes('captcha')) {
-        logger.warn("AuthActions: Captcha failed for signup, retrying without captcha token");
-        const { error: retryError, data: retryData } = await supabase.auth.signUp({ 
-          email, 
-          password
-        });
-        
-        if (retryError) {
-          logger.error("AuthActions: Signup retry error:", retryError.message, { email, errorDetails: retryError });
-          throw retryError;
-        }
-        
-        logger.log("AuthActions: Sign up successful (retry) for:", email, "User created:", !!retryData.user, "Session provided:", !!retryData.session);
-        return;
-      }
+    // If captcha-related error and we had a token, try without it
+    if (error && captchaToken && error.message.toLowerCase().includes('captcha')) {
+      logger.warn("AuthActions: Captcha failed for signup, retrying without captcha token");
+      const retryResult = await supabase.auth.signUp({ 
+        email, 
+        password
+      });
       
+      error = retryResult.error;
+      data = retryResult.data;
+    }
+    
+    if (error) {
       logger.error("AuthActions: Sign up error:", error.message, { email, errorDetails: error });
       throw error;
     }
