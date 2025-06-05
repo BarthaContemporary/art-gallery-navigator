@@ -5,9 +5,13 @@ export const parseMappedCSVToArtworks = (
   csvRows: CSVRowObject[],
   mappings: FieldMappings
 ): ValidatedProcessedArtwork[] => {
+  console.log("Starting CSV parsing with", csvRows.length, "rows and mappings:", mappings);
+  
   const tempValidatedArtworks: ValidatedProcessedArtwork[] = [];
 
   csvRows.forEach((rawRow, index) => {
+    console.log(`Processing row ${index + 1}:`, rawRow);
+    
     const artwork: Record<string, any> = {};
     const warnings: string[] = [];
     const errors: string[] = []; 
@@ -28,28 +32,34 @@ export const parseMappedCSVToArtworks = (
         
         const artworkField = artworkFieldKey as ArtworkKeys | 'artist_name';
 
-        if (rawValue === null || rawValue === undefined || valueStr === '') {
+        try {
+          if (rawValue === null || rawValue === undefined || valueStr === '') {
+            artwork[artworkField] = null;
+          } else if (['price', 'height', 'width', 'depth', 'frame_height', 'frame_width', 'frame_depth', 'weight', 'crate_height', 'crate_width', 'crate_depth'].includes(artworkField)) {
+            const numValue = Number(valueStr);
+            if (isNaN(numValue)) {
+              warnings.push(`Value "${rawValue}" for CSV column "${csvHeader}" (mapped to ${artworkField}) is not a valid number and was set to null.`);
+              artwork[artworkField] = null;
+            } else {
+              artwork[artworkField] = numValue;
+            }
+          } else if (['is_framed', 'has_crate'].includes(artworkField)) {
+            artwork[artworkField] = valueStr.toLowerCase() === 'true' || valueStr.toLowerCase() === 'yes' || valueStr === '1';
+          } else if (['year', 'edition_size', 'inventory_quantity', 'artist_proofs'].includes(artworkField)) {
+            const intValue = parseInt(valueStr, 10);
+            if (isNaN(intValue)) {
+              warnings.push(`Value "${rawValue}" for CSV column "${csvHeader}" (mapped to ${artworkField}) is not a valid integer and was set to null.`);
+              artwork[artworkField] = null;
+            } else {
+              artwork[artworkField] = intValue;
+            }
+          } else {
+            artwork[artworkField] = rawValue; 
+          }
+        } catch (parseError) {
+          console.error(`Error parsing field ${artworkField}:`, parseError);
+          warnings.push(`Error parsing field ${artworkField}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
           artwork[artworkField] = null;
-        } else if (['price', 'height', 'width', 'depth', 'frame_height', 'frame_width', 'frame_depth', 'weight', 'crate_height', 'crate_width', 'crate_depth'].includes(artworkField)) {
-          const numValue = Number(valueStr);
-          if (isNaN(numValue)) {
-            warnings.push(`Value "${rawValue}" for CSV column "${csvHeader}" (mapped to ${artworkField}) is not a valid number and was set to null.`);
-            artwork[artworkField] = null;
-          } else {
-            artwork[artworkField] = numValue;
-          }
-        } else if (['is_framed', 'has_crate'].includes(artworkField)) {
-          artwork[artworkField] = valueStr.toLowerCase() === 'true';
-        } else if (['year', 'edition_size', 'inventory_quantity', 'artist_proofs'].includes(artworkField)) {
-          const intValue = parseInt(valueStr, 10);
-          if (isNaN(intValue)) {
-            warnings.push(`Value "${rawValue}" for CSV column "${csvHeader}" (mapped to ${artworkField}) is not a valid integer and was set to null.`);
-            artwork[artworkField] = null;
-          } else {
-            artwork[artworkField] = intValue;
-          }
-        } else {
-          artwork[artworkField] = rawValue; 
         }
       }
     }
@@ -58,30 +68,50 @@ export const parseMappedCSVToArtworks = (
       errors.push("This row contains data, but no fields were successfully mapped from it. Please check your field mappings.");
     }
 
-    // Defaulting and critical validation
-    if (artwork.title === undefined || artwork.title === null || String(artwork.title).trim() === '') {
-      artwork.title = 'Untitled';
-      if (hasMappedData || errors.length === 0) { // Add warning only if it's not already an error or completely unmapped
-         warnings.push(`Title was missing or empty; defaulted to "Untitled".`);
+    // Defaulting and critical validation with better error handling
+    try {
+      if (artwork.title === undefined || artwork.title === null || String(artwork.title).trim() === '') {
+        artwork.title = 'Untitled';
+        if (hasMappedData || errors.length === 0) {
+           warnings.push(`Title was missing or empty; defaulted to "Untitled".`);
+        }
       }
-    }
-    if (artwork.classification === undefined || artwork.classification === null || String(artwork.classification).trim() === '') {
-      artwork.classification = 'Unique'; 
-      if (hasMappedData || errors.length === 0) {
-        warnings.push(`Classification was missing or empty; defaulted to "Unique".`);
+      
+      if (artwork.classification === undefined || artwork.classification === null || String(artwork.classification).trim() === '') {
+        artwork.classification = 'Unique'; 
+        if (hasMappedData || errors.length === 0) {
+          warnings.push(`Classification was missing or empty; defaulted to "Unique".`);
+        }
       }
-    }
-    if (artwork.medium_type === undefined || artwork.medium_type === null || String(artwork.medium_type).trim() === '') {
-      artwork.medium_type = 'Painting'; 
-      if (hasMappedData || errors.length === 0) {
-        warnings.push(`Medium Type was missing or empty; defaulted to "Painting".`);
+      
+      if (artwork.medium_type === undefined || artwork.medium_type === null || String(artwork.medium_type).trim() === '') {
+        artwork.medium_type = 'Painting'; 
+        if (hasMappedData || errors.length === 0) {
+          warnings.push(`Medium Type was missing or empty; defaulted to "Painting".`);
+        }
       }
-    }
-    if (artwork.currency === undefined || artwork.currency === null || String(artwork.currency).trim() === '') {
-      artwork.currency = 'USD'; 
-      if (hasMappedData || errors.length === 0) {
-        warnings.push(`Currency was missing or empty; defaulted to "USD".`);
+      
+      if (artwork.currency === undefined || artwork.currency === null || String(artwork.currency).trim() === '') {
+        artwork.currency = 'USD'; 
+        if (hasMappedData || errors.length === 0) {
+          warnings.push(`Currency was missing or empty; defaulted to "USD".`);
+        }
       }
+
+      // Validate required enum values
+      const validMediumTypes = ['Painting', 'Sculpture', 'Photography', 'Work on Paper', 'Installation', 'Video', 'Textile Arts', 'Book'];
+      if (!validMediumTypes.includes(artwork.medium_type)) {
+        errors.push(`Invalid medium type: ${artwork.medium_type}. Must be one of: ${validMediumTypes.join(', ')}`);
+      }
+
+      const validCurrencies = ['USD', 'GBP', 'EUR', 'CHF'];
+      if (!validCurrencies.includes(artwork.currency)) {
+        errors.push(`Invalid currency: ${artwork.currency}. Must be one of: ${validCurrencies.join(', ')}`);
+      }
+
+    } catch (validationError) {
+      console.error("Error during artwork validation:", validationError);
+      errors.push(`Validation error: ${validationError instanceof Error ? validationError.message : 'Unknown validation error'}`);
     }
 
     const processedArtwork = artwork as ProcessedArtworkForImport;
@@ -106,6 +136,8 @@ export const parseMappedCSVToArtworks = (
       });
     }
   });
+
+  console.log("Parsed artworks:", tempValidatedArtworks);
 
   // Duplicate Detection
   const finalValidatedArtworks: ValidatedProcessedArtwork[] = [];
@@ -150,5 +182,6 @@ export const parseMappedCSVToArtworks = (
     }
   });
 
+  console.log("Final validated artworks:", finalValidatedArtworks);
   return finalValidatedArtworks;
 };

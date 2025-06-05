@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseCSVForPreview, parseMappedCSVToArtworks } from "@/lib/csv";
@@ -22,6 +23,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   const queryClient = useQueryClient();
 
   const resetState = useCallback(() => {
+    console.log("Resetting import state");
     setFile(null);
     setCsvPreviewData(null);
     setFieldMappings({});
@@ -40,17 +42,36 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   }, [open, resetState, onCloseDialog]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File change event triggered");
+    
     if (!e.target.files || e.target.files.length === 0) {
+      console.log("No files selected, resetting state");
       resetState();
       return;
     }
 
     const selectedFile = e.target.files[0];
+    console.log("Selected file:", selectedFile.name, "Size:", selectedFile.size, "Type:", selectedFile.type);
+    
+    // Basic file validation
+    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
+      toast.error("Please select a CSV file.");
+      return;
+    }
+
+    if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error("File is too large. Please select a file smaller than 10MB.");
+      return;
+    }
+
     setFile(selectedFile);
     setIsProcessingFile(true);
 
     try {
+      console.log("Starting CSV parsing...");
       const previewData = await parseCSVForPreview(selectedFile);
+      console.log("CSV parsing successful:", previewData);
+      
       setCsvPreviewData(previewData);
       const initialMappings: FieldMappings = {};
       previewData.headers.forEach(header => {
@@ -58,9 +79,10 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       });
       setFieldMappings(initialMappings);
       setCurrentStep("mapFields");
+      toast.success(`CSV file parsed successfully! Found ${previewData.headers.length} columns and ${previewData.rows.length} rows.`);
     } catch (error: any) {
       console.error("Error parsing CSV for preview:", error);
-      toast.error(`Failed to parse CSV: ${error.message || "Please check format."}`);
+      toast.error(`Failed to parse CSV: ${error.message || "Please check the file format."}`);
       resetState();
     } finally {
       setIsProcessingFile(false);
@@ -68,32 +90,48 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   };
 
   const handleMappingsChanged = (newMappings: FieldMappings) => {
+    console.log("Field mappings updated:", newMappings);
     setFieldMappings(newMappings);
   };
 
   const goToPreviewStep = () => {
+    console.log("Going to preview step");
+    
     if (!csvPreviewData || !csvPreviewData.rows.length) {
         toast.error("No CSV data available to preview.");
         return;
     }
-    const validatedArtworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
-    setParsedArtworks(validatedArtworks);
-    
-    const validToImportCount = validatedArtworks.filter(va => va.isValid && va.isSelectedForImport).length;
-    if (validToImportCount === 0 && validatedArtworks.length > 0) {
-        const anyValid = validatedArtworks.some(va => va.isValid);
-        if (anyValid) {
-            toast.warning("No artworks are currently selected for import, or none could be confidently prepared. Please review selections, warnings/errors and your field mappings.");
-        } else {
-            toast.warning("No artworks could be confidently prepared for import. Please review warnings/errors and your field mappings.");
-        }
-    } else if (validatedArtworks.length === 0) {
-        toast.warning("No artworks could be generated with the current mappings. Please check your field mappings or CSV content.");
+
+    try {
+      console.log("Parsing CSV data to artworks...");
+      const validatedArtworks = parseMappedCSVToArtworks(csvPreviewData.rows, fieldMappings);
+      console.log("Parsed artworks:", validatedArtworks);
+      
+      setParsedArtworks(validatedArtworks);
+      
+      const validToImportCount = validatedArtworks.filter(va => va.isValid && va.isSelectedForImport).length;
+      if (validToImportCount === 0 && validatedArtworks.length > 0) {
+          const anyValid = validatedArtworks.some(va => va.isValid);
+          if (anyValid) {
+              toast.warning("No artworks are currently selected for import, or none could be confidently prepared. Please review selections, warnings/errors and your field mappings.");
+          } else {
+              toast.warning("No artworks could be confidently prepared for import. Please review warnings/errors and your field mappings.");
+          }
+      } else if (validatedArtworks.length === 0) {
+          toast.warning("No artworks could be generated with the current mappings. Please check your field mappings or CSV content.");
+      } else {
+          toast.success(`${validToImportCount} artworks ready for import!`);
+      }
+      
+      setCurrentStep("preview");
+    } catch (error: any) {
+      console.error("Error during preview step:", error);
+      toast.error(`Error processing CSV data: ${error.message || "Unknown error"}`);
     }
-    setCurrentStep("preview");
   };
 
   const toggleArtworkSelection = (originalRowIndex: number) => {
+    console.log("Toggling artwork selection for row:", originalRowIndex);
     setParsedArtworks(prevArtworks =>
       prevArtworks.map(artwork =>
         artwork.originalRowIndex === originalRowIndex
@@ -104,6 +142,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   };
 
   const toggleSelectAllArtworks = (selectAll: boolean) => {
+    console.log("Toggling select all artworks:", selectAll);
     setParsedArtworks(prevArtworks =>
       prevArtworks.map(artwork =>
         artwork.isValid ? { ...artwork, isSelectedForImport: selectAll } : artwork
@@ -112,8 +151,10 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   };
   
   const handleImport = async () => {
+    console.log("Starting import process");
+    
     const artworksToAttemptImport = parsedArtworks
-      .filter(va => va.isValid && va.isSelectedForImport) // Only import valid AND selected artworks
+      .filter(va => va.isValid && va.isSelectedForImport)
       .map(va => va.artwork);
 
     if (!artworksToAttemptImport.length) {
@@ -121,25 +162,49 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       return;
     }
 
+    console.log("Importing", artworksToAttemptImport.length, "artworks");
     setCurrentStep("importing");
     setImportingProgress(0);
     const totalToImport = artworksToAttemptImport.length;
     setImportStats({ successful: 0, failed: 0, skipped: 0, total: totalToImport });
 
-    const { successful, failed, skipped } = await performArtworkImport(
-      artworksToAttemptImport,
-      (progress) => setImportingProgress(progress),
-      (stats) => setImportStats(prevStats => ({
-        ...prevStats, 
-        successful: stats.successful, 
-        failed: stats.failed,
-        skipped: stats.skipped
-      }))
-    );
-    
-    setImportStats({ successful, failed, skipped, total: totalToImport });
-    queryClient.invalidateQueries({ queryKey: ["artworks"] });
-    setCurrentStep("complete");
+    try {
+      const { successful, failed, skipped } = await performArtworkImport(
+        artworksToAttemptImport,
+        (progress) => {
+          console.log("Import progress:", progress);
+          setImportingProgress(progress);
+        },
+        (stats) => {
+          console.log("Import stats update:", stats);
+          setImportStats(prevStats => ({
+            ...prevStats, 
+            successful: stats.successful, 
+            failed: stats.failed,
+            skipped: stats.skipped
+          }));
+        }
+      );
+      
+      console.log("Import completed with final stats:", { successful, failed, skipped, total: totalToImport });
+      setImportStats({ successful, failed, skipped, total: totalToImport });
+      queryClient.invalidateQueries({ queryKey: ["artworks"] });
+      setCurrentStep("complete");
+      
+      if (successful > 0) {
+        toast.success(`Successfully imported ${successful} artwork${successful === 1 ? '' : 's'}!`);
+      }
+      if (failed > 0) {
+        toast.error(`Failed to import ${failed} artwork${failed === 1 ? '' : 's'}.`);
+      }
+      if (skipped > 0) {
+        toast.warning(`Skipped ${skipped} duplicate artwork${skipped === 1 ? '' : 's'}.`);
+      }
+    } catch (error: any) {
+      console.error("Error during import:", error);
+      toast.error(`Import failed: ${error.message || "Unknown error"}`);
+      setCurrentStep("preview"); // Return to preview on error
+    }
   };
 
   return {
@@ -160,7 +225,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     goToPreviewStep,
     handleImport,
     resetState,
-    toggleArtworkSelection, // Expose new function
-    toggleSelectAllArtworks, // Expose new function
+    toggleArtworkSelection,
+    toggleSelectAllArtworks,
   };
 }

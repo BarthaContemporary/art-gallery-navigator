@@ -1,3 +1,4 @@
+
 import { Artwork } from "@/hooks/use-artworks";
 
 export type ArtworkKeys = keyof Artwork;
@@ -12,7 +13,7 @@ export interface CSVPreviewData {
   sampleData: CSVRowObject[]; // A few rows for preview
 }
 
-export type FieldMappings = Record<string, ArtworkKeys | 'artist_name' | null | ''>; // Updated to include 'artist_name'
+export type FieldMappings = Record<string, ArtworkKeys | 'artist_name' | null | ''>; 
 
 // This type ensures that after parsing and defaulting, these fields are definitely present.
 export type ProcessedArtworkForImport = Partial<Artwork> & 
@@ -65,5 +66,4 @@ export const ARTWORK_FIELDS_FOR_MAPPING: Array<{ value: ArtworkKeys | 'artist_na
   { value: "crate_height", label: "Crate Height (cm)" },
   { value: "crate_width", label: "Crate Width (cm)" },
   { value: "crate_depth", label: "Crate Depth (cm)" },
-  // 'id' is usually auto-generated, so not a direct import field
 ];
