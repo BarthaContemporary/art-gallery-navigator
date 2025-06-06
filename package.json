@@ -47,6 +47,7 @@
     "@types/papaparse": "^5.3.14",
     "@types/react-window": "^1.8.8",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.6.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",

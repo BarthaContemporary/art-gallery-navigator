@@ -28,13 +28,13 @@ export interface ProcessingResult {
 }
 
 export function useEnhancedImageProcessing() {
-  const processImageWithMagick = useCallback(async (
+  const processImageWithCloudinary = useCallback(async (
     imageUrl: string, 
     artworkImageId: string,
     options: ImageProcessingOptions = {}
   ): Promise<ProcessingResult> => {
     try {
-      logger.log('Starting enhanced image processing with ImageMagick:', {
+      logger.log('Starting enhanced image processing with Cloudinary:', {
         imageUrl,
         artworkImageId,
         options
@@ -50,7 +50,7 @@ export function useEnhancedImageProcessing() {
         ...options
       };
 
-      const { data, error } = await supabase.functions.invoke('process-artwork-image-enhanced', {
+      const { data, error } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
         body: { 
           image_url: imageUrl, 
           artwork_image_id: artworkImageId,
@@ -69,7 +69,7 @@ export function useEnhancedImageProcessing() {
 
       logger.log('Enhanced image processing successful:', data);
       
-      toast.success('Image processed successfully with ImageMagick', {
+      toast.success('Image processed successfully with Cloudinary', {
         description: `Created ${data.processing_details?.formats_created?.length || 0} optimized versions`
       });
 
@@ -101,41 +101,42 @@ export function useEnhancedImageProcessing() {
     artworkImageId: string,
     customOptions: Partial<ImageProcessingOptions> = {}
   ) => {
-    return processImageWithMagick(imageUrl, artworkImageId, {
+    return processImageWithCloudinary(imageUrl, artworkImageId, {
       ...customOptions,
       watermark: true,
       quality: 95
     });
-  }, [processImageWithMagick]);
+  }, [processImageWithCloudinary]);
 
   const processForGallery = useCallback((
     imageUrl: string, 
     artworkImageId: string
   ) => {
-    return processImageWithMagick(imageUrl, artworkImageId, {
+    return processImageWithCloudinary(imageUrl, artworkImageId, {
       quality: 95,
       format: 'webp',
       sharpen: true,
       autoOrient: true,
       watermark: false
     });
-  }, [processImageWithMagick]);
+  }, [processImageWithCloudinary]);
 
   const processForArchive = useCallback((
     imageUrl: string, 
     artworkImageId: string
   ) => {
-    return processImageWithMagick(imageUrl, artworkImageId, {
+    return processImageWithCloudinary(imageUrl, artworkImageId, {
       quality: 100,
       format: 'png',
       sharpen: false,
       autoOrient: true,
       watermark: true
     });
-  }, [processImageWithMagick]);
+  }, [processImageWithCloudinary]);
 
   return {
-    processImageWithMagick,
+    processImageWithMagick: processImageWithCloudinary, // Keep the same interface
+    processImageWithCloudinary,
     processWithWatermark,
     processForGallery,
     processForArchive

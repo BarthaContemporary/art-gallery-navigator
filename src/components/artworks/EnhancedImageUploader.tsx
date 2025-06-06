@@ -1,4 +1,3 @@
-
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Wand2, Settings } from "lucide-react";
@@ -36,7 +35,7 @@ export function EnhancedImageUploader({
   });
   const [showOptions, setShowOptions] = useState(false);
   
-  const { processImageWithMagick } = useEnhancedImageProcessing();
+  const { processImageWithCloudinary } = useEnhancedImageProcessing();
 
   const uploadAndProcessImage = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -75,12 +74,12 @@ export function EnhancedImageUploader({
 
       onImageUploaded(publicUrl);
 
-      // Process with ImageMagick
-      toast.info('Processing image with ImageMagick...', {
+      // Process with Cloudinary
+      toast.info('Processing image with Cloudinary...', {
         description: 'This may take a few moments'
       });
 
-      const result = await processImageWithMagick(
+      const result = await processImageWithCloudinary(
         publicUrl, 
         imageRecord.id, 
         processingOptions
@@ -98,7 +97,7 @@ export function EnhancedImageUploader({
     } finally {
       setIsUploading(false);
     }
-  }, [onImageUploaded, onProcessingComplete, processImageWithMagick, processingOptions]);
+  }, [onImageUploaded, onProcessingComplete, processImageWithCloudinary, processingOptions]);
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -128,7 +127,7 @@ export function EnhancedImageUploader({
         {isUploading ? (
           <>
             <Wand2 className="mr-2 h-4 w-4 animate-spin" />
-            Processing with ImageMagick...
+            Processing with Cloudinary...
           </>
         ) : (
           <>
