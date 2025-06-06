@@ -1,10 +1,10 @@
-
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
 import { useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Loader2 } from "lucide-react";
 
 interface ArtworkCarouselProps {
   artworkId: string;
