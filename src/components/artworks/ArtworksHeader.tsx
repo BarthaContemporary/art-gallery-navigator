@@ -1,14 +1,21 @@
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Plus, Upload, FileDown, Settings, Wand2 } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
-import { ArtworkViewToggle, ViewMode } from "./ArtworkViewToggle";
-import { Button } from "@/components/ui/button";
-import { Download, RefreshCw } from "lucide-react";
 import { exportArtworksToCSV } from "@/lib/csv";
-import { useImageCache } from "@/hooks/use-image-cache";
-import { toast } from "sonner";
+import { ArtworkViewToggle, ViewMode } from "./ArtworkViewToggle";
 import { Artwork } from "@/hooks/use-artworks";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { BulkImageOptimizer } from "./BulkImageOptimizer";
 
 interface ArtworksHeaderProps {
   artworks: Artwork[];
@@ -21,69 +28,74 @@ export function ArtworksHeader({
   artworks,
   filteredArtworks,
   viewMode,
-  onViewModeChange
+  onViewModeChange,
 }: ArtworksHeaderProps) {
-  const { clearImageCache } = useImageCache();
+  const { isAdmin } = useAuth();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [optimizerDialogOpen, setOptimizerDialogOpen] = useState(false);
 
-  const handleExportAll = () => {
-    if (artworks) {
-      exportArtworksToCSV(artworks, 'all_artworks.csv');
-    }
-  };
-
-  const handleExportFiltered = () => {
-    if (filteredArtworks.length) {
-      exportArtworksToCSV(filteredArtworks, 'filtered_artworks.csv');
-    }
-  };
-
-  const handleClearImageCache = () => {
-    clearImageCache();
-    toast.success("Image cache cleared. Refresh the page to reload images.");
+  const handleExportCSV = () => {
+    exportArtworksToCSV(filteredArtworks, "artworks.csv");
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between mb-4 md:mb-6 gap-2">
-      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-        <CreateArtworkDialog />
-        <ImportCSVDialog />
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex gap-1 md:gap-2 text-xs md:text-sm" 
-          onClick={handleExportFiltered} 
-          disabled={!filteredArtworks.length}
-        >
-          <Download className="h-3 w-3 md:h-4 md:w-4" />
-          Export {filteredArtworks.length !== artworks?.length ? 'Filtered' : 'All'}
-        </Button>
-        {filteredArtworks.length !== artworks?.length && artworks?.length && artworks.length > 0 && 
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex gap-1 md:gap-2 text-xs md:text-sm" 
-            onClick={handleExportAll}
-          >
-            <Download className="h-3 w-3 md:h-4 md:w-4" />
-            Export All ({artworks.length})
-          </Button>
-        }
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="p-2" 
-          title="Clear Image Cache" 
-          onClick={handleClearImageCache}
-        >
-          <RefreshCw className="h-3 w-3 md:h-4 md:w-4" />
-        </Button>
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Artworks</h1>
+        <p className="text-muted-foreground">
+          Showing {filteredArtworks.length} of {artworks.length} artworks
+        </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <ArtworkViewToggle 
-          viewMode={viewMode} 
-          onViewModeChange={onViewModeChange}
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        
+        {isAdmin && (
+          <>
+            <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Optimize Images
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Image Optimization</DialogTitle>
+                </DialogHeader>
+                <BulkImageOptimizer />
+              </DialogContent>
+            </Dialog>
+
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+
+            <ImportCSVDialog
+              open={importDialogOpen}
+              onOpenChange={setImportDialogOpen}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import CSV
+                </Button>
+              }
+            />
+
+            <CreateArtworkDialog
+              open={createDialogOpen}
+              onOpenChange={setCreateDialogOpen}
+              trigger={
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Artwork
+                </Button>
+              }
+            />
+          </>
+        )}
       </div>
     </div>
   );
