@@ -50,9 +50,11 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
     // Check if this is already a Cloudinary URL (processed image)
     let finalOptimizedUrl = imageUrl;
     if (imageUrl.includes('res.cloudinary.com')) {
-      // Already a Cloudinary URL, use it directly
-      logger.debug(`ArtworkCardImage: Using Cloudinary URL directly: ${imageUrl}`);
-      finalOptimizedUrl = imageUrl;
+      // Already a Cloudinary URL, optimize for card view
+      const baseUrl = imageUrl.split('/upload/')[0];
+      const imagePath = imageUrl.split('/upload/')[1];
+      finalOptimizedUrl = `${baseUrl}/upload/w_600,h_450,c_limit,q_90,f_webp/${imagePath}`;
+      logger.debug(`ArtworkCardImage: Using optimized Cloudinary URL: ${finalOptimizedUrl}`);
     } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
       // Supabase storage URL - apply transforms for backwards compatibility
       const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Image, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Wand2, Image, CheckCircle, AlertCircle, Loader2, Users } from "lucide-react";
 import { useBulkImageProcessing } from "@/hooks/use-bulk-image-processing";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -26,8 +26,17 @@ export function BulkImageOptimizer() {
     return null;
   }
 
-  const progressPercentage = progress.total > 0 ? 
+  const artworkProgressPercentage = progress.total > 0 ? 
     Math.round(((progress.processed + progress.failed) / progress.total) * 100) : 0;
+
+  const artistProgressPercentage = (progress.artistsTotal || 0) > 0 ? 
+    Math.round((((progress.artistsProcessed || 0) + (progress.artistsFailed || 0)) / (progress.artistsTotal || 0)) * 100) : 0;
+
+  const totalImages = progress.total + (progress.artistsTotal || 0);
+  const totalProcessed = progress.processed + (progress.artistsProcessed || 0);
+  const totalFailed = progress.failed + (progress.artistsFailed || 0);
+  const overallProgressPercentage = totalImages > 0 ? 
+    Math.round(((totalProcessed + totalFailed) / totalImages) * 100) : 0;
 
   return (
     <Card className="w-full max-w-2xl">
@@ -37,7 +46,7 @@ export function BulkImageOptimizer() {
           Bulk Image Optimization
         </CardTitle>
         <CardDescription>
-          Optimize existing artwork images through Cloudinary for better performance and quality
+          Optimize existing artwork images and artist profile photos through Cloudinary for better performance and quality
         </CardDescription>
       </CardHeader>
       
@@ -53,24 +62,60 @@ export function BulkImageOptimizer() {
         </div>
 
         {progress.isRunning && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>Processing Progress</span>
-              <span>{progressPercentage}%</span>
+          <div className="space-y-4">
+            {/* Overall Progress */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>Overall Progress</span>
+                <span>{overallProgressPercentage}%</span>
+              </div>
+              <Progress value={overallProgressPercentage} className="w-full" />
             </div>
-            <Progress value={progressPercentage} className="w-full" />
+
+            {/* Artwork Images Progress */}
+            {progress.total > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    Artwork Images
+                  </span>
+                  <span>{artworkProgressPercentage}%</span>
+                </div>
+                <Progress value={artworkProgressPercentage} className="w-full h-2" />
+              </div>
+            )}
+
+            {/* Artist Profile Images Progress */}
+            {(progress.artistsTotal || 0) > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Artist Profiles
+                  </span>
+                  <span>{artistProgressPercentage}%</span>
+                </div>
+                <Progress value={artistProgressPercentage} className="w-full h-2" />
+              </div>
+            )}
             
             {progress.current && (
               <p className="text-xs text-muted-foreground">{progress.current}</p>
             )}
             
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-2 gap-4 text-center">
               <div className="space-y-1">
                 <div className="flex items-center justify-center gap-1">
                   <CheckCircle className="h-3 w-3 text-green-500" />
                   <span className="text-xs text-muted-foreground">Processed</span>
                 </div>
-                <div className="text-sm font-medium">{progress.processed}</div>
+                <div className="text-sm font-medium">
+                  {totalProcessed}
+                  {progress.isRunning && totalImages > 0 && (
+                    <span className="text-xs text-muted-foreground">/{totalImages}</span>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-1">
@@ -78,15 +123,7 @@ export function BulkImageOptimizer() {
                   <AlertCircle className="h-3 w-3 text-red-500" />
                   <span className="text-xs text-muted-foreground">Failed</span>
                 </div>
-                <div className="text-sm font-medium">{progress.failed}</div>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-1">
-                  <Image className="h-3 w-3 text-blue-500" />
-                  <span className="text-xs text-muted-foreground">Total</span>
-                </div>
-                <div className="text-sm font-medium">{progress.total}</div>
+                <div className="text-sm font-medium">{totalFailed}</div>
               </div>
             </div>
           </div>
@@ -117,7 +154,7 @@ export function BulkImageOptimizer() {
         {unprocessedCount === 0 && !progress.isRunning && (
           <div className="text-center text-sm text-green-600 flex items-center justify-center gap-2">
             <CheckCircle className="h-4 w-4" />
-            All images have been optimized through Cloudinary
+            All artwork and artist profile images have been optimized through Cloudinary
           </div>
         )}
       </CardContent>

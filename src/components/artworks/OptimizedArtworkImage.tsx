@@ -1,4 +1,3 @@
-
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
@@ -62,9 +61,15 @@ export function OptimizedArtworkImage({
     // Check if this is already a Cloudinary URL (processed image)
     let finalOptimizedUrl = imageUrl;
     if (imageUrl.includes('res.cloudinary.com')) {
-      // Already a Cloudinary URL, use it directly
-      logger.debug(`OptimizedArtworkImage: Using Cloudinary URL directly: ${imageUrl}`);
-      finalOptimizedUrl = imageUrl;
+      // Already a Cloudinary URL, optimize for component size
+      const baseUrl = imageUrl.split('/upload/')[0];
+      const imagePath = imageUrl.split('/upload/')[1];
+      // Use appropriate size based on className presence (list view vs card view)
+      const transform = className 
+        ? 'w_256,h_192,c_limit,q_85,f_webp' // List view - smaller
+        : 'w_600,h_450,c_limit,q_90,f_webp'; // Card view - larger
+      finalOptimizedUrl = `${baseUrl}/upload/${transform}/${imagePath}`;
+      logger.debug(`OptimizedArtworkImage: Using optimized Cloudinary URL: ${finalOptimizedUrl}`);
     } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
       // Supabase storage URL - apply transforms for backwards compatibility
       const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
@@ -76,7 +81,7 @@ export function OptimizedArtworkImage({
     
     setOptimizedUrl(finalOptimizedUrl);
 
-  }, [imageUrl, getCachedImage]);
+  }, [imageUrl, getCachedImage, className]);
 
   const cacheImageIfNeeded = () => {
     if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;

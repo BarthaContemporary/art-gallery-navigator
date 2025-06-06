@@ -10,6 +10,9 @@ export interface BulkProcessingProgress {
   failed: number;
   current?: string;
   isRunning: boolean;
+  artistsTotal?: number;
+  artistsProcessed?: number;
+  artistsFailed?: number;
 }
 
 export function useBulkImageProcessing() {
@@ -25,53 +28,146 @@ export function useBulkImageProcessing() {
       setProgress(prev => ({ ...prev, isRunning: true }));
       
       // Get all unprocessed artwork images
-      const { data: unprocessedImages, error } = await supabase
+      const { data: unprocessedImages, error: artworkError } = await supabase
         .from('artwork_images')
         .select('id, image_url')
         .eq('processed', false);
 
-      if (error) {
-        throw error;
+      if (artworkError) {
+        throw artworkError;
       }
 
-      if (!unprocessedImages || unprocessedImages.length === 0) {
+      // Get all artists with image_url that haven't been processed
+      const { data: artistsWithImages, error: artistError } = await supabase
+        .from('artists')
+        .select('id, image_url')
+        .not('image_url', 'is', null)
+        .neq('image_url', '');
+
+      if (artistError) {
+        throw artistError;
+      }
+
+      const artworkCount = unprocessedImages?.length || 0;
+      const artistCount = artistsWithImages?.length || 0;
+      const totalImages = artworkCount + artistCount;
+
+      if (totalImages === 0) {
         toast.info("No unprocessed images found");
         setProgress(prev => ({ ...prev, isRunning: false }));
         return;
       }
 
-      const total = unprocessedImages.length;
       setProgress({
-        total,
+        total: artworkCount,
         processed: 0,
         failed: 0,
+        artistsTotal: artistCount,
+        artistsProcessed: 0,
+        artistsFailed: 0,
         isRunning: true
       });
 
-      logger.log(`Starting bulk processing of ${total} images`);
-      toast.info(`Starting optimization of ${total} images through Cloudinary`);
+      logger.log(`Starting bulk processing of ${totalImages} images (${artworkCount} artworks, ${artistCount} artists)`);
+      toast.info(`Starting optimization of ${totalImages} images through Cloudinary`);
 
       let processed = 0;
       let failed = 0;
+      let artistsProcessed = 0;
+      let artistsFailed = 0;
 
-      // Process images in batches to avoid overwhelming the system
-      const batchSize = 3;
-      for (let i = 0; i < unprocessedImages.length; i += batchSize) {
-        const batch = unprocessedImages.slice(i, i + batchSize);
-        
-        const batchPromises = batch.map(async (image) => {
+      // Process artwork images first
+      if (unprocessedImages && unprocessedImages.length > 0) {
+        const batchSize = 3;
+        for (let i = 0; i < unprocessedImages.length; i += batchSize) {
+          const batch = unprocessedImages.slice(i, i + batchSize);
+          
+          const batchPromises = batch.map(async (image) => {
+            try {
+              setProgress(prev => ({ 
+                ...prev, 
+                current: `Processing artwork image ${image.id}...` 
+              }));
+
+              const { data, error } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
+                body: { 
+                  image_url: image.image_url, 
+                  artwork_image_id: image.id,
+                  options: {
+                    quality: 90,
+                    format: 'webp',
+                    sharpen: true,
+                    autoOrient: true,
+                    watermark: false
+                  }
+                }
+              });
+
+              if (error || !data.success) {
+                throw new Error(data?.error || 'Processing failed');
+              }
+
+              logger.log(`Successfully processed artwork image ${image.id}`);
+              return { success: true, id: image.id };
+            } catch (error) {
+              logger.error(`Failed to process artwork image ${image.id}:`, error);
+              return { success: false, id: image.id, error };
+            }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          
+          batchResults.forEach(result => {
+            if (result.success) {
+              processed++;
+            } else {
+              failed++;
+            }
+          });
+
+          setProgress(prev => ({
+            ...prev,
+            processed,
+            failed,
+            current: `Processed ${processed + failed} of ${artworkCount} artwork images`,
+          }));
+
+          // Small delay between batches
+          if (i + batchSize < unprocessedImages.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      // Process artist profile images
+      if (artistsWithImages && artistsWithImages.length > 0) {
+        for (const artist of artistsWithImages) {
           try {
             setProgress(prev => ({ 
               ...prev, 
-              current: `Processing image ${image.id}...` 
+              current: `Processing artist profile image for ${artist.id}...` 
             }));
+
+            // Create a temporary artwork_images record for the artist profile
+            const { data: tempImageRecord, error: insertError } = await supabase
+              .from('artwork_images')
+              .insert({
+                image_url: artist.image_url,
+                processed: false
+              })
+              .select()
+              .single();
+
+            if (insertError) {
+              throw insertError;
+            }
 
             const { data, error } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
               body: { 
-                image_url: image.image_url, 
-                artwork_image_id: image.id,
+                image_url: artist.image_url, 
+                artwork_image_id: tempImageRecord.id,
                 options: {
-                  quality: 90,
+                  quality: 95,
                   format: 'webp',
                   sharpen: true,
                   autoOrient: true,
@@ -84,53 +180,63 @@ export function useBulkImageProcessing() {
               throw new Error(data?.error || 'Processing failed');
             }
 
-            logger.log(`Successfully processed image ${image.id}`);
-            return { success: true, id: image.id };
+            // Update the artist with the processed image URL
+            const { error: updateError } = await supabase
+              .from('artists')
+              .update({ image_url: data.processed_url })
+              .eq('id', artist.id);
+
+            if (updateError) {
+              throw updateError;
+            }
+
+            // Clean up the temporary record
+            await supabase
+              .from('artwork_images')
+              .delete()
+              .eq('id', tempImageRecord.id);
+
+            artistsProcessed++;
+            logger.log(`Successfully processed artist profile image ${artist.id}`);
+
           } catch (error) {
-            logger.error(`Failed to process image ${image.id}:`, error);
-            return { success: false, id: image.id, error };
+            artistsFailed++;
+            logger.error(`Failed to process artist profile image ${artist.id}:`, error);
           }
-        });
 
-        const batchResults = await Promise.all(batchPromises);
-        
-        batchResults.forEach(result => {
-          if (result.success) {
-            processed++;
-          } else {
-            failed++;
-          }
-        });
+          setProgress(prev => ({
+            ...prev,
+            artistsProcessed,
+            artistsFailed,
+            current: `Processed ${artistsProcessed + artistsFailed} of ${artistCount} artist profile images`,
+          }));
 
-        setProgress({
-          total,
-          processed,
-          failed,
-          current: `Processed ${processed + failed} of ${total} images`,
-          isRunning: true
-        });
-
-        // Small delay between batches to prevent overwhelming the system
-        if (i + batchSize < unprocessedImages.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Small delay between artist images
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
       setProgress({
-        total,
+        total: artworkCount,
         processed,
         failed,
+        artistsTotal: artistCount,
+        artistsProcessed,
+        artistsFailed,
         current: undefined,
         isRunning: false
       });
 
-      if (failed === 0) {
-        toast.success(`Successfully optimized all ${processed} images through Cloudinary!`);
+      const totalProcessed = processed + artistsProcessed;
+      const totalFailed = failed + artistsFailed;
+
+      if (totalFailed === 0) {
+        toast.success(`Successfully optimized all ${totalProcessed} images through Cloudinary!`);
       } else {
-        toast.warning(`Optimized ${processed} images. ${failed} images failed to process.`);
+        toast.warning(`Optimized ${totalProcessed} images. ${totalFailed} images failed to process.`);
       }
 
-      logger.log(`Bulk processing completed. Processed: ${processed}, Failed: ${failed}`);
+      logger.log(`Bulk processing completed. Artworks - Processed: ${processed}, Failed: ${failed}. Artists - Processed: ${artistsProcessed}, Failed: ${artistsFailed}`);
 
     } catch (error) {
       logger.error('Bulk image processing failed:', error);
@@ -141,16 +247,26 @@ export function useBulkImageProcessing() {
 
   const getUnprocessedCount = useCallback(async () => {
     try {
-      const { count, error } = await supabase
+      const { count: artworkCount, error: artworkError } = await supabase
         .from('artwork_images')
         .select('*', { count: 'exact', head: true })
         .eq('processed', false);
 
-      if (error) {
-        throw error;
+      if (artworkError) {
+        throw artworkError;
       }
 
-      return count || 0;
+      const { count: artistCount, error: artistError } = await supabase
+        .from('artists')
+        .select('*', { count: 'exact', head: true })
+        .not('image_url', 'is', null)
+        .neq('image_url', '');
+
+      if (artistError) {
+        throw artistError;
+      }
+
+      return (artworkCount || 0) + (artistCount || 0);
     } catch (error) {
       logger.error('Failed to get unprocessed count:', error);
       return 0;

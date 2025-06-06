@@ -63,7 +63,14 @@ export const CarouselImage = memo(function CarouselImage({
     }
     
     let finalOptimizedUrl = imageUrl;
-    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+    if (imageUrl.includes('res.cloudinary.com')) {
+      // Already a Cloudinary URL, use it directly with carousel-optimized transforms
+      const baseUrl = imageUrl.split('/upload/')[0];
+      const imagePath = imageUrl.split('/upload/')[1];
+      finalOptimizedUrl = `${baseUrl}/upload/w_1920,h_1080,c_limit,q_90,f_webp/${imagePath}`;
+      logger.debug(`CarouselImage: Using optimized Cloudinary URL for index ${index}: ${finalOptimizedUrl}`);
+    } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+      // Supabase storage URL - apply transforms for backwards compatibility
       const transformParams = "w=1920&h=1080&resize=contain&q=90&f=auto";
       if (imageUrl.includes('?')) {
         finalOptimizedUrl = `${imageUrl}&transform=${transformParams}`;
@@ -72,7 +79,7 @@ export const CarouselImage = memo(function CarouselImage({
       }
       logger.debug(`CarouselImage: Applying Supabase transform for index ${index}. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
     } else {
-      logger.debug(`CarouselImage: Not a Supabase public URL or no transformation applied for ${imageUrl} (index ${index})`);
+      logger.debug(`CarouselImage: No transformation applied for ${imageUrl} (index ${index})`);
     }
     setOptimizedUrl(finalOptimizedUrl);
     
