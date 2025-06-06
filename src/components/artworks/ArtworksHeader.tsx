@@ -31,8 +31,6 @@ export function ArtworksHeader({
   onViewModeChange,
 }: ArtworksHeaderProps) {
   const { isAdmin } = useAuth();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [optimizerDialogOpen, setOptimizerDialogOpen] = useState(false);
 
   const handleExportCSV = () => {
@@ -73,27 +71,9 @@ export function ArtworksHeader({
               Export CSV
             </Button>
 
-            <ImportCSVDialog
-              open={importDialogOpen}
-              onOpenChange={setImportDialogOpen}
-              trigger={
-                <Button variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </Button>
-              }
-            />
+            <ImportCSVDialog />
 
-            <CreateArtworkDialog
-              open={createDialogOpen}
-              onOpenChange={setCreateDialogOpen}
-              trigger={
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Artwork
-                </Button>
-              }
-            />
+            <CreateArtworkDialog />
           </>
         )}
       </div>
