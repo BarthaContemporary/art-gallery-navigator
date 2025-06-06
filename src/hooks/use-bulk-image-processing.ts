@@ -37,7 +37,8 @@ export function useBulkImageProcessing() {
         throw artworkError;
       }
 
-      // Get all artists with image_url that haven't been processed
+      // Get all artists with image_url that haven't been processed through Cloudinary
+      // Check if the image_url contains 'res.cloudinary.com' to determine if it's already processed
       const { data: artistsWithImages, error: artistError } = await supabase
         .from('artists')
         .select('id, image_url')
@@ -48,8 +49,13 @@ export function useBulkImageProcessing() {
         throw artistError;
       }
 
+      // Filter out artists whose images are already processed through Cloudinary
+      const unprocessedArtists = artistsWithImages?.filter(artist => 
+        artist.image_url && !artist.image_url.includes('res.cloudinary.com')
+      ) || [];
+
       const artworkCount = unprocessedImages?.length || 0;
-      const artistCount = artistsWithImages?.length || 0;
+      const artistCount = unprocessedArtists.length;
       const totalImages = artworkCount + artistCount;
 
       if (totalImages === 0) {
@@ -139,9 +145,9 @@ export function useBulkImageProcessing() {
         }
       }
 
-      // Process artist profile images
-      if (artistsWithImages && artistsWithImages.length > 0) {
-        for (const artist of artistsWithImages) {
+      // Process artist profile images (only unprocessed ones)
+      if (unprocessedArtists.length > 0) {
+        for (const artist of unprocessedArtists) {
           try {
             setProgress(prev => ({ 
               ...prev, 
@@ -256,9 +262,10 @@ export function useBulkImageProcessing() {
         throw artworkError;
       }
 
-      const { count: artistCount, error: artistError } = await supabase
+      // Get artists with non-Cloudinary image URLs (unprocessed)
+      const { data: artistsWithImages, error: artistError } = await supabase
         .from('artists')
-        .select('*', { count: 'exact', head: true })
+        .select('image_url')
         .not('image_url', 'is', null)
         .neq('image_url', '');
 
@@ -266,7 +273,11 @@ export function useBulkImageProcessing() {
         throw artistError;
       }
 
-      return (artworkCount || 0) + (artistCount || 0);
+      const unprocessedArtists = artistsWithImages?.filter(artist => 
+        artist.image_url && !artist.image_url.includes('res.cloudinary.com')
+      ) || [];
+
+      return (artworkCount || 0) + unprocessedArtists.length;
     } catch (error) {
       logger.error('Failed to get unprocessed count:', error);
       return 0;
