@@ -19,7 +19,10 @@ export function OptimizedArtistImage({
   const [hasError, setHasError] = useState(false);
 
   const getOptimizedUrl = useCallback((url: string | null): string => {
-    if (!url || url === 'null' || url === 'undefined') {
+    console.log(`Processing image URL for ${artistName}:`, url);
+    
+    if (!url || url === 'null' || url === 'undefined' || url.trim() === '') {
+      console.log(`No valid URL for ${artistName}, using placeholder`);
       return "/placeholder.svg";
     }
 
@@ -30,10 +33,12 @@ export function OptimizedArtistImage({
         if (urlParts.length === 2 && urlParts[1] && urlParts[1] !== 'undefined') {
           const baseUrl = urlParts[0];
           const imagePath = urlParts[1];
-          return `${baseUrl}/upload/w_400,h_300,c_fill,q_85,f_webp/${imagePath}`;
+          const optimizedUrl = `${baseUrl}/upload/w_400,h_300,c_fill,q_85,f_webp/${imagePath}`;
+          console.log(`Optimized Cloudinary URL for ${artistName}:`, optimizedUrl);
+          return optimizedUrl;
         }
       } catch (error) {
-        console.warn(`Failed to optimize Cloudinary URL: ${url}`, error);
+        console.warn(`Failed to optimize Cloudinary URL for ${artistName}:`, url, error);
         return url;
       }
     }
@@ -42,23 +47,41 @@ export function OptimizedArtistImage({
     if (url.includes('supabase.co/storage') && url.includes('/public/')) {
       const transformParams = "w=400&h=300&resize=cover&q=85&f=auto";
       const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}transform=${transformParams}`;
+      const optimizedUrl = `${url}${separator}transform=${transformParams}`;
+      console.log(`Optimized Supabase URL for ${artistName}:`, optimizedUrl);
+      return optimizedUrl;
     }
 
+    console.log(`Using original URL for ${artistName}:`, url);
     return url;
-  }, []);
+  }, [artistName]);
 
   const handleImageLoad = useCallback(() => {
+    console.log(`Image loaded successfully for ${artistName}`);
     setIsLoading(false);
     setHasError(false);
-  }, []);
+  }, [artistName]);
 
-  const handleImageError = useCallback(() => {
+  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const imgElement = e.target as HTMLImageElement;
+    console.error(`Image failed to load for ${artistName}:`, imgElement.src);
     setIsLoading(false);
     setHasError(true);
-  }, []);
+  }, [artistName]);
 
   const optimizedUrl = getOptimizedUrl(imageUrl);
+
+  // Always show placeholder if no valid URL
+  if (!imageUrl || imageUrl === 'null' || imageUrl === 'undefined' || imageUrl.trim() === '') {
+    return (
+      <div 
+        className={`aspect-[4/3] w-full overflow-hidden cursor-pointer relative bg-muted/30 flex items-center justify-center ${className}`}
+        onClick={onClick}
+      >
+        <User className="h-8 w-8 text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div 
