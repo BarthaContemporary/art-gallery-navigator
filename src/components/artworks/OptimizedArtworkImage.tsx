@@ -9,9 +9,21 @@ interface OptimizedArtworkImageProps {
   imageUrl: string | null;
   title: string;
   onClick: () => void;
+  className?: string;
+  sizes?: {
+    thumbnail: { width: number; height: number; quality: number };
+    medium: { width: number; height: number; quality: number };
+    full: { width: number; height: number; quality: number };
+  };
 }
 
-export function OptimizedArtworkImage({ imageUrl, title, onClick }: OptimizedArtworkImageProps) {
+export function OptimizedArtworkImage({ 
+  imageUrl, 
+  title, 
+  onClick, 
+  className = "",
+  sizes 
+}: OptimizedArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
   const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
@@ -113,6 +125,32 @@ export function OptimizedArtworkImage({ imageUrl, title, onClick }: OptimizedArt
       logger.error("OptimizedArtworkImage: Failed to cache image:", error);
     }
   };
+
+  // If className is provided, render as a simple img tag for list view
+  if (className) {
+    return (
+      <img
+        src={optimizedUrl || "/placeholder.svg"}
+        alt={title}
+        className={className}
+        onClick={onClick}
+        onLoad={() => {
+          logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
+          setIsLoading(false);
+          if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
+            cacheImageIfNeeded();
+          }
+        }}
+        onError={() => {
+          logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
+          setOptimizedUrl("/placeholder.svg");
+          setIsLoading(false);
+        }}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
 
   return (
     <div 
