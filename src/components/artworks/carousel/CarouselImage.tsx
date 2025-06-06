@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useImageCache } from "@/hooks/use-image-cache";
@@ -67,8 +68,15 @@ export const CarouselImage = memo(function CarouselImage({
       // Already a Cloudinary URL, use it directly with carousel-optimized transforms
       const baseUrl = imageUrl.split('/upload/')[0];
       const imagePath = imageUrl.split('/upload/')[1];
-      finalOptimizedUrl = `${baseUrl}/upload/w_1920,h_1080,c_limit,q_90,f_webp/${imagePath}`;
-      logger.debug(`CarouselImage: Using optimized Cloudinary URL for index ${index}: ${finalOptimizedUrl}`);
+      
+      // Only proceed if we have a valid image path
+      if (imagePath && imagePath !== 'undefined') {
+        finalOptimizedUrl = `${baseUrl}/upload/w_1920,h_1080,c_limit,q_90,f_webp/${imagePath}`;
+        logger.debug(`CarouselImage: Using optimized Cloudinary URL for index ${index}: ${finalOptimizedUrl}`);
+      } else {
+        logger.warn(`CarouselImage: Invalid Cloudinary URL structure for ${imageUrl}, using original`);
+        finalOptimizedUrl = imageUrl;
+      }
     } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
       // Supabase storage URL - apply transforms for backwards compatibility
       const transformParams = "w=1920&h=1080&resize=contain&q=90&f=auto";
