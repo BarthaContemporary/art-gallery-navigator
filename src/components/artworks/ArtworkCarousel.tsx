@@ -1,3 +1,4 @@
+
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
@@ -12,17 +13,6 @@ interface ArtworkCarouselProps {
   isDialogActive?: boolean; 
 }
 
-/**
- * Renders an image carousel for an artwork, supporting mouse, touch, and keyboard navigation.
- * Includes loading/error states, navigation dots, and an optional download menu.
- * Preloads images when the dialog is active.
- * Adjusts height for mobile devices.
- *
- * @param artworkId The ID of the artwork.
- * @param artistName Optional name of the artist for image alt text.
- * @param artworkTitle Optional title of the artwork for image alt text.
- * @param isDialogActive Optional boolean indicating if the dialog containing the carousel is active.
- */
 export function ArtworkCarousel({ 
   artworkId,
   artistName = "Unknown_Artist",
@@ -43,14 +33,14 @@ export function ArtworkCarousel({
   
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const carouselHeightClass = isMobile ? "h-[350px]" : "h-[600px]"; // Dynamic height class
+  const carouselHeightClass = isMobile ? "h-[350px]" : "h-[600px]";
 
   // Re-initialize the carousel when images change
   useEffect(() => {
     if (emblaApi && images.length > 0) {
       const timer = setTimeout(() => {
         emblaApi.reInit();
-        emblaApi.scrollTo(0); // Ensure it scrolls to the first image on re-init with new images
+        emblaApi.scrollTo(0);
       }, 100);
       
       return () => clearTimeout(timer);
@@ -60,7 +50,7 @@ export function ArtworkCarousel({
   // Keyboard navigation handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!emblaApi) return;
+      if (!emblaApi || !isDialogActive) return;
 
       const targetElement = event.target as HTMLElement;
       const isInputFocused =
@@ -68,18 +58,14 @@ export function ArtworkCarousel({
         targetElement.tagName === 'TEXTAREA' ||
         targetElement.isContentEditable;
 
-      if (isInputFocused) {
-        return;
-      }
+      if (isInputFocused) return;
       
-      if (isDialogActive) {
-        if (event.key === "ArrowLeft") {
-          event.preventDefault(); 
-          scrollPrev();
-        } else if (event.key === "ArrowRight") {
-          event.preventDefault(); 
-          scrollNext();
-        }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault(); 
+        scrollPrev();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault(); 
+        scrollNext();
       }
     };
 
@@ -92,7 +78,10 @@ export function ArtworkCarousel({
   if (loading) {
     return (
       <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-secondary/20`}>
-        <p className="text-muted-foreground">Loading images...</p>
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading images...</p>
+        </div>
       </div>
     );
   }
@@ -127,7 +116,7 @@ export function ArtworkCarousel({
           <div className={`flex h-full`} aria-live="polite"> 
             {displayImages.map((image, index) => (
               <CarouselImage
-                key={image.id}
+                key={`${image.id}-${artworkId}`}
                 imageUrl={image.image_url}
                 index={index}
                 totalImages={displayImages.length}
@@ -136,7 +125,7 @@ export function ArtworkCarousel({
                 role="group" 
                 ariaRoledescription="slide"
                 ariaLabel={`Slide ${index + 1} of ${displayImages.length}`}
-                carouselHeightClass={carouselHeightClass} // Pass dynamic height
+                carouselHeightClass={carouselHeightClass}
               />
             ))}
           </div>
@@ -147,7 +136,7 @@ export function ArtworkCarousel({
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
               <button 
                 onClick={scrollPrev} 
-                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
+                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-gray-50"
                 aria-label="Previous image"
                 type="button"
               >
@@ -159,7 +148,7 @@ export function ArtworkCarousel({
             <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
               <button 
                 onClick={scrollNext} 
-                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
+                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-gray-50"
                 aria-label="Next image"
                 type="button"
               >

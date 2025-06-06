@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Loader2, User } from "lucide-react";
 
 interface OptimizedArtistImageProps {
@@ -18,15 +18,45 @@ export function OptimizedArtistImage({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  const handleImageLoad = () => {
+  const getOptimizedUrl = useCallback((url: string | null): string => {
+    if (!url) return "/placeholder.svg";
+
+    // If already a Cloudinary URL, use it with artist-specific optimizations
+    if (url.includes('res.cloudinary.com')) {
+      try {
+        const urlParts = url.split('/upload/');
+        if (urlParts.length === 2 && urlParts[1] && urlParts[1] !== 'undefined') {
+          const baseUrl = urlParts[0];
+          const imagePath = urlParts[1];
+          return `${baseUrl}/upload/w_400,h_300,c_fill,q_85,f_webp/${imagePath}`;
+        }
+      } catch (error) {
+        console.warn(`Failed to optimize Cloudinary URL: ${url}`, error);
+        return url;
+      }
+    }
+
+    // For Supabase storage URLs
+    if (url.includes('supabase.co/storage') && url.includes('/public/')) {
+      const transformParams = "w=400&h=300&resize=cover&q=85&f=auto";
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}transform=${transformParams}`;
+    }
+
+    return url;
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
     setIsLoading(false);
     setHasError(false);
-  };
+  }, []);
 
-  const handleImageError = () => {
+  const handleImageError = useCallback(() => {
     setIsLoading(false);
     setHasError(true);
-  };
+  }, []);
+
+  const optimizedUrl = getOptimizedUrl(imageUrl);
 
   return (
     <div 
@@ -49,7 +79,7 @@ export function OptimizedArtistImage({
 
       {/* Image */}
       <img
-        src={imageUrl || "/placeholder.svg"}
+        src={optimizedUrl}
         alt={artistName}
         className={`h-full w-full object-cover transition-all hover:scale-105 ${
           isLoading ? 'opacity-0' : 'opacity-100'
