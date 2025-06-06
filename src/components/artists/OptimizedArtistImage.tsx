@@ -19,7 +19,9 @@ export function OptimizedArtistImage({
   const [hasError, setHasError] = useState(false);
 
   const getOptimizedUrl = useCallback((url: string | null): string => {
-    if (!url) return "/placeholder.svg";
+    if (!url || url === 'null' || url === 'undefined') {
+      return "/placeholder.svg";
+    }
 
     // If already a Cloudinary URL, use it with artist-specific optimizations
     if (url.includes('res.cloudinary.com')) {
@@ -64,7 +66,7 @@ export function OptimizedArtistImage({
       onClick={onClick}
     >
       {/* Loading state */}
-      {isLoading && !hasError && (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -78,16 +80,18 @@ export function OptimizedArtistImage({
       )}
 
       {/* Image */}
-      <img
-        src={optimizedUrl}
-        alt={artistName}
-        className={`h-full w-full object-cover transition-all hover:scale-105 ${
-          isLoading ? 'opacity-0' : 'opacity-100'
-        }`}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-        loading="lazy"
-      />
+      {!hasError && (
+        <img
+          src={optimizedUrl}
+          alt={artistName}
+          className={`h-full w-full object-cover transition-all hover:scale-105 ${
+            isLoading ? 'opacity-0' : 'opacity-100'
+          }`}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          loading="lazy"
+        />
+      )}
     </div>
   );
 }
