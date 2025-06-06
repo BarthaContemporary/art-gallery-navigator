@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -116,6 +115,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                   <OptimizedArtworkImage
                     imageUrl={artwork.image_url || "/placeholder.svg"}
                     title={artwork.title || "Untitled"}
+                    onClick={() => handleArtworkClick(artwork)}
                     className="rounded-md aspect-[4/3] object-cover"
                     sizes={{
                       thumbnail: { width: 64, height: 48, quality: 70 },
@@ -154,6 +154,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                 <OptimizedArtworkImage
                   imageUrl={artwork.image_url || "/placeholder.svg"}
                   title={artwork.title || "Untitled"}
+                  onClick={() => handleArtworkClick(artwork)}
                   className="rounded-md aspect-[4/3] object-cover"
                   sizes={{
                     thumbnail: { width: 64, height: 48, quality: 70 },
