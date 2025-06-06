@@ -1,169 +1,171 @@
 
-import { useState, useRef, useEffect } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { useState, useEffect, useRef } from "react";
+import { useImageCache } from "@/hooks/use-image-cache";
+import { logger } from "@/lib/logger";
 import { Loader2 } from "lucide-react";
-import { useOptimizedImage } from "@/hooks/use-optimized-image";
-import { cn } from "@/lib/utils";
 
 interface OptimizedArtworkImageProps {
   imageUrl: string | null;
   title: string;
-  onClick?: () => void;
-  priority?: boolean;
-  className?: string;
-  sizes?: {
-    thumbnail: { width: number; height: number; quality: number };
-    medium: { width: number; height: number; quality: number };
-    full: { width: number; height: number; quality: number };
-  };
+  onClick: () => void;
 }
 
-const defaultSizes = {
-  thumbnail: { width: 400, height: 300, quality: 80 },
-  medium: { width: 1200, height: 1200, quality: 100 },
-  full: { width: 2400, height: 2400, quality: 100 }
-};
+export function OptimizedArtworkImage({ imageUrl, title, onClick }: OptimizedArtworkImageProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
+  const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
+  const { getCachedImage, setCachedImage } = useImageCache();
+  const imageLoadAttempted = useRef(false);
 
-export function OptimizedArtworkImage({ 
-  imageUrl, 
-  title, 
-  onClick, 
-  priority = false,
-  className,
-  sizes = defaultSizes
-}: OptimizedArtworkImageProps) {
-  const [isInView, setIsInView] = useState(priority);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const imageRef = useRef<HTMLDivElement>(null);
-
-  const {
-    currentImageUrl,
-    currentTier,
-    isLoading,
-    error,
-    blurDataUrl,
-    upgradeToTier,
-    canUpgrade
-  } = useOptimizedImage({
-    originalUrl: imageUrl || "/placeholder.svg",
-    alt: title,
-    sizes
-  });
-
-  // Intersection Observer for lazy loading and prefetching
   useEffect(() => {
-    if (priority) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsInView(true);
-            // Immediately start loading medium quality for better UX
-            if (canUpgrade.toMedium) {
-              setTimeout(() => upgradeToTier('medium'), 50);
-            }
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { rootMargin: '200px' } // Increased rootMargin for earlier prefetching
-    );
-
-    if (imageRef.current) {
-      observer.observe(imageRef.current);
+    setIsLoading(true);
+    setCachedImageUrl(null);
+    imageLoadAttempted.current = false;
+    
+    if (!imageUrl) {
+      logger.debug("OptimizedArtworkImage: No imageUrl provided, using default placeholder.");
+      setOptimizedUrl("/placeholder.svg");
+      setIsLoading(false);
+      return;
     }
 
-    return () => observer.disconnect();
-  }, [priority, canUpgrade.toMedium, upgradeToTier]);
-
-  const handleInteraction = () => {
-    setHasInteracted(true);
-    if (currentTier === 'thumbnail' && canUpgrade.toMedium) {
-      upgradeToTier('medium');
-    } else if (currentTier === 'medium' && canUpgrade.toFull) {
-      upgradeToTier('full');
+    // Check for cached medium quality image first (preferred)
+    const cachedMedium = getCachedImage(imageUrl, 'medium');
+    if (cachedMedium) {
+      logger.debug(`OptimizedArtworkImage: Found cached medium quality image for ${imageUrl}`);
+      setCachedImageUrl(cachedMedium.dataUrl);
+      setIsLoading(false);
+      setOptimizedUrl(cachedMedium.dataUrl);
+      return;
     }
-    onClick?.();
+
+    // Fallback to cached thumbnail
+    const cachedThumbnail = getCachedImage(imageUrl, 'thumbnail');
+    if (cachedThumbnail) {
+      logger.debug(`OptimizedArtworkImage: Found cached thumbnail for ${imageUrl}`);
+      setCachedImageUrl(cachedThumbnail.dataUrl);
+    }
+
+    // Check if this is already a Cloudinary URL (processed image)
+    let finalOptimizedUrl = imageUrl;
+    if (imageUrl.includes('res.cloudinary.com')) {
+      // Already a Cloudinary URL, use it directly
+      logger.debug(`OptimizedArtworkImage: Using Cloudinary URL directly: ${imageUrl}`);
+      finalOptimizedUrl = imageUrl;
+    } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+      // Supabase storage URL - apply transforms for backwards compatibility
+      const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
+      finalOptimizedUrl = imageUrl.includes('?') 
+        ? `${imageUrl}&transform=${transformParams}`
+        : `${imageUrl}?transform=${transformParams}`;
+      logger.debug(`OptimizedArtworkImage: Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
+    }
+    
+    setOptimizedUrl(finalOptimizedUrl);
+
+  }, [imageUrl, getCachedImage]);
+
+  const cacheImageIfNeeded = () => {
+    if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
+    
+    imageLoadAttempted.current = true;
+    
+    logger.debug(`OptimizedArtworkImage: Attempting to cache medium quality image. Original Key: ${imageUrl}, Source: ${optimizedUrl}`);
+
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; 
+      img.onload = () => {
+        logger.debug(`OptimizedArtworkImage: Image loaded for caching (source: ${optimizedUrl}), creating high-quality cache.`);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        // Use higher resolution for caching (1200x1200)
+        const maxDimension = 1200;
+        let scale = 1;
+        if (img.width > 0 && img.height > 0) {
+            scale = Math.min(maxDimension / Math.max(img.width, img.height), 1);
+            if (scale <= 0) scale = 1;
+        }
+        
+        if (img.width > 0 && img.height > 0) {
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
+        } else {
+            canvas.width = maxDimension;
+            canvas.height = maxDimension;
+        }
+
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Use high quality for medium tier caching
+          const highQualityDataUrl = canvas.toDataURL("image/webp", 0.98);
+          setCachedImage(imageUrl, highQualityDataUrl, 'medium');
+          logger.log(`OptimizedArtworkImage: Cached high-quality medium image for ${imageUrl}. Size: ${highQualityDataUrl.length}`);
+        }
+      };
+      img.onerror = () => {
+          logger.error(`OptimizedArtworkImage: Failed to load image for caching: ${optimizedUrl}`);
+      }
+      img.src = optimizedUrl;
+    } catch (error) {
+      logger.error("OptimizedArtworkImage: Failed to cache image:", error);
+    }
   };
-
-  const handleMouseEnter = () => {
-    if (!hasInteracted && currentTier === 'thumbnail' && canUpgrade.toMedium) {
-      upgradeToTier('medium');
-    }
-  };
-
-  if (!isInView && !priority) {
-    return (
-      <div 
-        ref={imageRef}
-        className={cn("aspect-[4/3] w-full bg-muted/30 flex items-center justify-center", className)}
-      >
-        <div className="text-muted-foreground text-sm">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div 
-      ref={imageRef}
-      className={cn(
-        "aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30",
-        className
-      )}
-      onClick={handleInteraction}
-      onMouseEnter={handleMouseEnter}
+      className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30"
+      onClick={onClick}
     >
       <AspectRatio ratio={4/3}>
-        {/* Blur placeholder */}
-        {blurDataUrl && isLoading && (
-          <img 
-            src={blurDataUrl}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover blur-sm scale-110 transition-opacity duration-300"
-            aria-hidden="true"
-            style={{ filter: 'blur(8px)' }}
-          />
-        )}
-
-        {/* Loading indicator */}
-        {isLoading && !blurDataUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        )}
-
-        {/* Main image */}
-        <img
-          src={currentImageUrl}
-          alt={title}
-          className={cn(
-            "absolute inset-0 h-full w-full object-cover transition-all duration-500",
-            isLoading ? 'opacity-0' : 'opacity-100',
-            currentTier === 'medium' && 'scale-[1.01]',
-            currentTier === 'full' && 'scale-[1.02]'
+        {/* Show cached image while main image loads */}
+        {isLoading && cachedImageUrl && (
+            <img 
+              src={cachedImageUrl}
+              alt={`Preview for ${title}`}
+              className="absolute inset-0 h-full w-full object-cover opacity-80"
+              aria-hidden="true"
+            />
           )}
-          loading={priority ? "eager" : "lazy"}
+        
+        {/* Loading indicator when no cached image available */}
+        {isLoading && !cachedImageUrl && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          )}
+        
+        {/* Main high-quality image */}
+        <img
+          src={optimizedUrl || "/placeholder.svg"}
+          alt={title}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            isLoading ? 'opacity-0' : 'opacity-100' 
+          }`}
+          onLoad={() => {
+            logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
+            setIsLoading(false);
+            if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
+              cacheImageIfNeeded();
+            }
+          }}
+          onError={() => {
+            logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
+            setOptimizedUrl("/placeholder.svg");
+            setIsLoading(false);
+          }}
+          loading="lazy"
           decoding="async"
         />
-
-        {/* Quality indicator - moved to bottom right */}
-        {currentTier !== 'thumbnail' && (
-          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
-              {currentTier === 'medium' ? 'HD' : currentTier === 'full' ? 'Ultra HD' : ''}
-            </div>
+        
+        {/* Quality indicator - show "CDN" for Cloudinary images */}
+        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
+            {optimizedUrl?.includes('res.cloudinary.com') ? 'CDN' : 'HD'}
           </div>
-        )}
-
-        {/* Error state */}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-            <div className="text-red-500 text-sm text-center">
-              Failed to load image
-            </div>
-          </div>
-        )}
+        </div>
       </AspectRatio>
     </div>
   );

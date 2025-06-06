@@ -47,15 +47,21 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
       setCachedImageUrl(cachedThumbnail.dataUrl);
     }
 
-    // Generate optimized URL for medium quality (1200x1200 at 100%)
+    // Check if this is already a Cloudinary URL (processed image)
     let finalOptimizedUrl = imageUrl;
-    if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+    if (imageUrl.includes('res.cloudinary.com')) {
+      // Already a Cloudinary URL, use it directly
+      logger.debug(`ArtworkCardImage: Using Cloudinary URL directly: ${imageUrl}`);
+      finalOptimizedUrl = imageUrl;
+    } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
+      // Supabase storage URL - apply transforms for backwards compatibility
       const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
       finalOptimizedUrl = imageUrl.includes('?') 
         ? `${imageUrl}&transform=${transformParams}`
         : `${imageUrl}?transform=${transformParams}`;
-      logger.debug(`ArtworkCardImage: Applying high-quality transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
+      logger.debug(`ArtworkCardImage: Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
     }
+    
     setOptimizedUrl(finalOptimizedUrl);
 
   }, [imageUrl, getCachedImage]);
@@ -154,10 +160,10 @@ export function ArtworkCardImage({ imageUrl, title, onClick }: ArtworkCardImageP
           decoding="async"
         />
         
-        {/* Quality indicator - moved to bottom right */}
+        {/* Quality indicator - show "CDN" for Cloudinary images */}
         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
-            HD
+            {optimizedUrl?.includes('res.cloudinary.com') ? 'CDN' : 'HD'}
           </div>
         </div>
       </AspectRatio>

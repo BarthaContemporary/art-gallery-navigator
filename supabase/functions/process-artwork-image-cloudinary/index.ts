@@ -66,66 +66,20 @@ serve(async (req) => {
     }
 
     // Process image with Cloudinary
-    const processedImages = await processImageWithCloudinary(
+    const processedUrls = await processImageWithCloudinary(
       image_url, 
       options, 
       { cloudName, apiKey, apiSecret }
     );
 
-    // Upload processed images back to Supabase Storage
-    const uploadPromises = Object.entries(processedImages).map(async ([size, imageData]) => {
-      const fileName = `processed_${artwork_image_id}_${size}.webp`;
-      
-      // Convert base64 or URL to blob for upload
-      let fileData: Uint8Array;
-      if (typeof imageData === 'string' && imageData.startsWith('data:')) {
-        // Base64 data URL
-        const base64Data = imageData.split(',')[1];
-        const binaryString = atob(base64Data);
-        fileData = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          fileData[i] = binaryString.charCodeAt(i);
-        }
-      } else if (typeof imageData === 'string') {
-        // URL - fetch the image
-        const response = await fetch(imageData);
-        const arrayBuffer = await response.arrayBuffer();
-        fileData = new Uint8Array(arrayBuffer);
-      } else {
-        // Already binary data
-        fileData = imageData as Uint8Array;
-      }
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('artwork-images')
-        .upload(fileName, fileData, {
-          contentType: 'image/webp',
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.error(`Upload error for ${size}:`, uploadError);
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('artwork-images')
-        .getPublicUrl(fileName);
-
-      return { size, url: publicUrl };
-    });
-
-    const uploadResults = await Promise.all(uploadPromises);
-    const urls = Object.fromEntries(uploadResults.map(r => [r.size, r.url]));
-
-    // Update the artwork_images record
+    // Update the artwork_images record with Cloudinary URLs
     const { error: updateError } = await supabase
       .from('artwork_images')
       .update({
         processed: true,
-        thumbnail_url: urls.thumbnail || image_url,
-        medium_url: urls.medium || image_url,
-        image_url: urls.processed || image_url
+        thumbnail_url: processedUrls.thumbnail,
+        medium_url: processedUrls.medium,
+        image_url: processedUrls.processed // Store the high-quality Cloudinary URL as the main image_url
       })
       .eq('id', artwork_image_id);
 
@@ -138,12 +92,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       message: 'Image processed successfully with Cloudinary',
-      thumbnail_url: urls.thumbnail || image_url,
-      medium_url: urls.medium || image_url,
-      processed_url: urls.processed || image_url,
+      thumbnail_url: processedUrls.thumbnail,
+      medium_url: processedUrls.medium,
+      processed_url: processedUrls.processed,
       processing_details: {
         original_size: 0, // Cloudinary doesn't provide this easily
-        formats_created: Object.keys(urls),
+        formats_created: Object.keys(processedUrls),
         options_applied: options
       }
     }), {
@@ -211,15 +165,7 @@ async function processImageWithCloudinary(
       ].join(',');
 
       // For external URLs, we need to use fetch mode
-      let cloudinaryUrl: string;
-      if (imageUrl.includes('supabase.co')) {
-        // For Supabase images, use fetch mode
-        cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(imageUrl)}`;
-      } else {
-        // For other URLs, also use fetch mode
-        cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(imageUrl)}`;
-      }
-
+      const cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(imageUrl)}`;
       processedUrls[sizeName] = cloudinaryUrl;
     }
 
