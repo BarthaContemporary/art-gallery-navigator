@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,15 +12,13 @@ interface ArtworkImage {
 }
 
 /**
- * Custom hook to manage the state and logic for an artwork image carousel.
+ * Simplified custom hook to manage the state and logic for an artwork image carousel.
  * Fetches artwork images from Supabase and integrates with Embla Carousel for navigation.
- * Preloads images when the carousel becomes active.
  *
  * @param artworkId The ID of the artwork for which to display images.
- * @param isDialogActive Boolean indicating if the parent dialog/context is active.
  * @returns An object containing carousel state, images, and control functions.
  */
-export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
+export function useArtworkCarousel(artworkId: string) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,6 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
     watchDrag: false, 
     skipSnaps: false 
   });
-  const preloadingInitiatedRef = useRef(false);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -63,7 +60,6 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
       try {
         setLoading(true);
         setError(null);
-        preloadingInitiatedRef.current = false;
         
         const { data, error: fetchError } = await supabase
           .from("artwork_images")
@@ -75,7 +71,6 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
         
         if (!controller.signal.aborted) {
           setImages(data as ArtworkImage[]);
-          // Always set loading to false after fetching, regardless of data
           setLoading(false);
         }
       } catch (err) {
@@ -93,29 +88,6 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
       controller.abort();
     };
   }, [artworkId]);
-  
-  useEffect(() => {
-    if (isDialogActive && images.length > 0 && !preloadingInitiatedRef.current) {
-      images.forEach((image) => {
-        const img = new Image();
-        img.src = image.image_url;
-      });
-      preloadingInitiatedRef.current = true;
-    }
-    if (!isDialogActive || images.length === 0) {
-      preloadingInitiatedRef.current = false;
-    }
-  }, [images, isDialogActive, artworkId]);
-  
-  useEffect(() => {
-    if (emblaApi && images.length > 0) {
-      const timer = setTimeout(() => {
-        emblaApi.reInit();
-      }, 50);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [images.length, emblaApi]);
   
   const handleDotClick = useCallback((index: number) => {
     if (emblaApi) {

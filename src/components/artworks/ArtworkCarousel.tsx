@@ -30,23 +30,23 @@ export function ArtworkCarousel({
     handleDotClick,
     scrollPrev,
     scrollNext,
-  } = useArtworkCarousel(artworkId, isDialogActive);
+  } = useArtworkCarousel(artworkId);
   
   const carouselWrapperRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const carouselHeightClass = isMobile ? "h-[350px]" : "h-[600px]";
 
-  // Re-initialize the carousel when images change
+  // Single carousel reinitialization when images are loaded
   useEffect(() => {
-    if (emblaApi && images.length > 0) {
+    if (emblaApi && images.length > 0 && !loading) {
       const timer = setTimeout(() => {
         emblaApi.reInit();
         emblaApi.scrollTo(0);
-      }, 100);
+      }, 50);
       
       return () => clearTimeout(timer);
     }
-  }, [images, emblaApi]);
+  }, [images.length, emblaApi, loading]);
 
   // Keyboard navigation handler
   useEffect(() => {

@@ -33,6 +33,7 @@ export const CarouselImage = memo(function CarouselImage({
   const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
   const mountedRef = useRef(true);
+  const imageProcessedRef = useRef(false);
   
   useEffect(() => {
     mountedRef.current = true;
@@ -68,9 +69,11 @@ export const CarouselImage = memo(function CarouselImage({
     return url;
   }, []);
   
+  // Initialize image processing only once
   useEffect(() => {
-    if (!mountedRef.current || !imageUrl) return;
+    if (!mountedRef.current || !imageUrl || imageProcessedRef.current) return;
 
+    imageProcessedRef.current = true;
     setIsLoading(true);
     setHasError(false);
     
@@ -93,7 +96,7 @@ export const CarouselImage = memo(function CarouselImage({
     setIsLoading(false);
     setHasError(false);
     
-    // Cache the image for future use
+    // Cache the image for future use (simplified)
     if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
       try {
         const img = new Image();
@@ -105,14 +108,14 @@ export const CarouselImage = memo(function CarouselImage({
           const ctx = canvas.getContext("2d");
           
           if (ctx && img.width > 0 && img.height > 0) {
-            const maxDimension = 400; // Smaller cache size
+            const maxDimension = 300;
             const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
             
             canvas.width = Math.floor(img.width * scale);
             canvas.height = Math.floor(img.height * scale);
             
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
             setCachedImage(imageUrl, dataUrl);
           }
         };
@@ -140,7 +143,7 @@ export const CarouselImage = memo(function CarouselImage({
       aria-roledescription={ariaRoledescription}
       aria-label={ariaLabel}
     >
-      {/* Loading state */}
+      {/* Loading state with optional placeholder */}
       {isLoading && (
         <div className={`absolute inset-0 flex items-center justify-center ${carouselHeightClass} bg-muted/20`}>
           {placeholderUrl ? (
