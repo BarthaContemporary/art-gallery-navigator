@@ -1,3 +1,4 @@
+
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
@@ -94,6 +95,7 @@ export function ArtworkCarousel({
     );
   }
   
+  // Show placeholder when no images are found
   const displayImages = images.length > 0 ? images : [{ 
     id: "placeholder", 
     artwork_id: artworkId, 

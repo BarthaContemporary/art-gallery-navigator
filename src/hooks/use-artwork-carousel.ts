@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +55,10 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
     const controller = new AbortController();
     
     async function fetchArtworkImages() {
-      if (!artworkId) return;
+      if (!artworkId) {
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
@@ -71,14 +75,13 @@ export function useArtworkCarousel(artworkId: string, isDialogActive: boolean) {
         
         if (!controller.signal.aborted) {
           setImages(data as ArtworkImage[]);
+          // Always set loading to false after fetching, regardless of data
+          setLoading(false);
         }
       } catch (err) {
         console.error("Error fetching artwork images:", err);
         if (!controller.signal.aborted) {
           setError("Failed to load images");
-        }
-      } finally {
-        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
