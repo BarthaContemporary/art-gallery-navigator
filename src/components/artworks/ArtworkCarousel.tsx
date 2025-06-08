@@ -1,3 +1,4 @@
+
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
@@ -35,12 +36,16 @@ export function ArtworkCarousel({
   const isMobile = useIsMobile();
   const carouselHeightClass = isMobile ? "h-[350px]" : "h-[600px]";
 
-  // Single carousel reinitialization when images are loaded
+  // Reinitialize carousel when images are loaded
   useEffect(() => {
     if (emblaApi && images.length > 0 && !loading) {
       const timer = setTimeout(() => {
-        emblaApi.reInit();
-        emblaApi.scrollTo(0);
+        try {
+          emblaApi.reInit();
+          emblaApi.scrollTo(0);
+        } catch (error) {
+          console.warn("Failed to reinitialize carousel:", error);
+        }
       }, 100);
       
       return () => clearTimeout(timer);
@@ -67,7 +72,6 @@ export function ArtworkCarousel({
         event.preventDefault(); 
         scrollNext();
       } else if (event.key === "Escape") {
-        // Allow escape to close zoom if implemented
         event.preventDefault();
       }
     };
@@ -80,7 +84,7 @@ export function ArtworkCarousel({
 
   if (loading) {
     return (
-      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-secondary/20`}>
+      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-muted/20`}>
         <div className="flex items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" />
           <p className="text-muted-foreground">Loading images...</p>
@@ -91,8 +95,8 @@ export function ArtworkCarousel({
   
   if (error) {
     return (
-      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-secondary/20`}>
-        <p className="text-red-500">{error}</p>
+      <div className={`w-full ${carouselHeightClass} flex items-center justify-center bg-muted/20`}>
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
@@ -117,7 +121,7 @@ export function ArtworkCarousel({
         {/* Embla viewport */}
         <div className={`overflow-hidden ${carouselHeightClass}`} ref={emblaRef}>
           {/* Embla container */}
-          <div className={`flex h-full`} aria-live="polite"> 
+          <div className="flex h-full" aria-live="polite"> 
             {displayImages.map((image, index) => (
               <CarouselImage
                 key={`${image.id}-${artworkId}-${index}`}
@@ -141,7 +145,7 @@ export function ArtworkCarousel({
             <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
               <button 
                 onClick={scrollPrev} 
-                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-gray-50"
+                className="h-8 w-8 rounded-full bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
                 aria-label="Previous image"
                 type="button"
               >
@@ -153,7 +157,7 @@ export function ArtworkCarousel({
             <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
               <button 
                 onClick={scrollNext} 
-                className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-gray-50"
+                className="h-8 w-8 rounded-full bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
                 aria-label="Next image"
                 type="button"
               >

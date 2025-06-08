@@ -65,11 +65,12 @@ export const CarouselImage = memo(function CarouselImage({
         onToggleZoom={toggleZoom}
       />
       
-      {/* Main image */}
+      {/* Main image container */}
       <div 
         className={`w-full ${carouselHeightClass} overflow-hidden cursor-pointer ${
           isZoomed ? 'overflow-auto' : ''
         }`}
+        onClick={handleImageClick}
       >
         <img
           ref={imageRef}
@@ -84,7 +85,6 @@ export const CarouselImage = memo(function CarouselImage({
           }`}
           onLoad={handleImageLoad}
           onError={handleImageError}
-          onClick={handleImageClick}
           loading="lazy"
           decoding="async"
         />
