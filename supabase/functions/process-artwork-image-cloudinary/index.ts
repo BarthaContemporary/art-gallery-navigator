@@ -37,14 +37,17 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Check if image already processed
+    // Check if image already processed and has proper Cloudinary URLs
     const { data: existingImage } = await supabase
       .from('artwork_images')
       .select('*')
       .eq('id', artwork_image_id)
       .single();
 
-    if (existingImage?.processed) {
+    if (existingImage?.processed && 
+        existingImage.image_url && 
+        existingImage.image_url.includes('res.cloudinary.com')) {
+      console.log(`Image already processed with Cloudinary URL: ${existingImage.image_url}`);
       return new Response(JSON.stringify({
         success: true,
         message: 'Image already processed',
@@ -87,7 +90,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`Successfully processed image ${artwork_image_id} with Cloudinary`);
+    console.log(`Successfully processed image ${artwork_image_id} with Cloudinary URLs:`, processedUrls);
 
     return new Response(JSON.stringify({
       success: true,
@@ -167,6 +170,7 @@ async function processImageWithCloudinary(
       // For external URLs, we need to use fetch mode
       const cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(imageUrl)}`;
       processedUrls[sizeName] = cloudinaryUrl;
+      console.log(`Created ${sizeName} Cloudinary URL: ${cloudinaryUrl}`);
     }
 
     return processedUrls;

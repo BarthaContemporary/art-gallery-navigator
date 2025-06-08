@@ -30,7 +30,7 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
       return "/placeholder.svg";
     }
 
-    // If already a Cloudinary URL, use it as-is or with minimal optimization
+    // If already a proper Cloudinary URL, use it as-is
     if (url.includes('res.cloudinary.com')) {
       return url;
     }
@@ -40,7 +40,9 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
       const cloudinaryBaseUrl = 'https://res.cloudinary.com/dpckgjtaj/image/fetch';
       const transformations = 'w_1200,h_1200,c_limit,q_85,f_auto';
       const encodedUrl = encodeURIComponent(url);
-      return `${cloudinaryBaseUrl}/${transformations}/${encodedUrl}`;
+      const cloudinaryUrl = `${cloudinaryBaseUrl}/${transformations}/${encodedUrl}`;
+      logger.log(`Created Cloudinary URL: ${cloudinaryUrl}`);
+      return cloudinaryUrl;
     }
 
     return url;
@@ -56,27 +58,38 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
       setHasError(false);
       
       try {
+        logger.log(`Processing image: ${imageUrl} with ID: ${imageId}`);
+        
         // Check cache first
         const cached = getCachedImage(imageUrl);
         if (cached && mountedRef.current) {
+          logger.log(`Found cached image for: ${imageUrl}`);
           setFinalImageUrl(cached.dataUrl);
           setIsLoading(false);
           setIsProcessing(false);
           return;
         }
 
-        // Get optimized URL
+        // Start with optimized URL
         let optimizedUrl = getOptimizedImageUrl(imageUrl);
         
-        // If we have an imageId and it's not a placeholder, try Cloudinary processing
-        if (imageId && imageId !== "placeholder" && !imageUrl.includes('res.cloudinary.com')) {
+        // Only try Cloudinary processing if we have a valid imageId and it's not already a Cloudinary URL
+        if (imageId && 
+            imageId !== "placeholder" && 
+            !imageUrl.includes('res.cloudinary.com') &&
+            imageUrl.includes('supabase.co/storage')) {
           try {
             logger.log(`Attempting Cloudinary processing for image: ${imageId}`);
             const result = await processForGallery(imageUrl, imageId);
             
             if (result.success && result.processed_url && mountedRef.current) {
-              optimizedUrl = result.processed_url;
-              logger.log(`Cloudinary processing successful: ${imageId}`);
+              // Only use the processed URL if it's actually different and a proper Cloudinary URL
+              if (result.processed_url !== imageUrl && result.processed_url.includes('res.cloudinary.com')) {
+                optimizedUrl = result.processed_url;
+                logger.log(`Cloudinary processing successful: ${imageId}, URL: ${optimizedUrl}`);
+              } else {
+                logger.warn(`Cloudinary returned original URL, using optimized URL instead`);
+              }
             }
           } catch (cloudinaryError) {
             logger.warn(`Cloudinary processing failed for ${imageId}, using optimized URL:`, cloudinaryError);
@@ -84,6 +97,7 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
         }
         
         if (mountedRef.current) {
+          logger.log(`Setting final image URL: ${optimizedUrl}`);
           setFinalImageUrl(optimizedUrl);
         }
       } catch (error) {
