@@ -42,7 +42,7 @@ export function ArtworkCarousel({
       const timer = setTimeout(() => {
         emblaApi.reInit();
         emblaApi.scrollTo(0);
-      }, 50);
+      }, 100);
       
       return () => clearTimeout(timer);
     }
@@ -67,6 +67,9 @@ export function ArtworkCarousel({
       } else if (event.key === "ArrowRight") {
         event.preventDefault(); 
         scrollNext();
+      } else if (event.key === "Escape") {
+        // Allow escape to close zoom if implemented
+        event.preventDefault();
       }
     };
 
@@ -120,6 +123,7 @@ export function ArtworkCarousel({
               <CarouselImage
                 key={`${image.id}-${artworkId}`}
                 imageUrl={image.image_url}
+                imageId={image.id !== "placeholder" ? image.id : undefined}
                 index={index}
                 totalImages={displayImages.length}
                 artistName={artistName}
@@ -176,6 +180,11 @@ export function ArtworkCarousel({
           totalImages={displayImages.length}
           onDotClick={handleDotClick}
         />
+        {displayImages.length > 0 && displayImages[0].id !== "placeholder" && (
+          <div className="text-xs text-muted-foreground">
+            Enhanced with Cloudinary • Click image to zoom
+          </div>
+        )}
       </div>
     </div>
   );
