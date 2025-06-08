@@ -46,46 +46,6 @@ export const CarouselImage = memo(function CarouselImage({
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
-  
-  // Process image through Cloudinary if we have an imageId
-  useEffect(() => {
-    if (!mountedRef.current || !imageUrl) return;
-
-    const processImage = async () => {
-      setIsProcessing(true);
-      setIsLoading(true);
-      setHasError(false);
-      
-      try {
-        // If we have an imageId, process through Cloudinary
-        if (imageId && imageId !== "placeholder") {
-          logger.log(`Processing image ${imageId} through Cloudinary`);
-          const result = await processForGallery(imageUrl, imageId);
-          
-          if (result.success && result.processed_url && mountedRef.current) {
-            setFinalImageUrl(result.processed_url);
-            logger.log(`Successfully processed image through Cloudinary: ${imageId}`);
-          } else {
-            // Fallback to optimized URL if Cloudinary fails
-            setFinalImageUrl(getOptimizedImageUrl(imageUrl));
-          }
-        } else {
-          // No imageId, just use optimized URL
-          setFinalImageUrl(getOptimizedImageUrl(imageUrl));
-        }
-      } catch (error) {
-        logger.error(`Failed to process image through Cloudinary: ${imageId}`, error);
-        setFinalImageUrl(getOptimizedImageUrl(imageUrl));
-      } finally {
-        if (mountedRef.current) {
-          setIsProcessing(false);
-        }
-      }
-    };
-
-    processImage();
-    
-  }, [imageUrl, imageId, processForGallery]);
 
   const getOptimizedImageUrl = useCallback((url: string): string => {
     if (!url || url === "/placeholder.svg") {
@@ -107,15 +67,68 @@ export const CarouselImage = memo(function CarouselImage({
       }
     }
 
-    // For Supabase storage URLs
+    // For Supabase storage URLs, create Cloudinary fetch URL
     if (url.includes('supabase.co/storage') && url.includes('/public/')) {
-      const transformParams = "w=2400&h=1800&resize=contain&q=95&f=auto";
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}transform=${transformParams}`;
+      const cloudinaryBaseUrl = 'https://res.cloudinary.com/dpckgjtaj/image/fetch';
+      const transformations = 'a_auto,e_sharpen,w_2400,h_2400,c_limit,q_90,f_webp';
+      const encodedUrl = encodeURIComponent(url);
+      return `${cloudinaryBaseUrl}/${transformations}/${encodedUrl}`;
     }
 
     return url;
   }, []);
+  
+  // Process image through Cloudinary if we have an imageId, otherwise use optimized URL
+  useEffect(() => {
+    if (!mountedRef.current || !imageUrl) return;
+
+    const processImage = async () => {
+      setIsProcessing(true);
+      setIsLoading(true);
+      setHasError(false);
+      
+      try {
+        // Always try to get an optimized URL first
+        const optimizedUrl = getOptimizedImageUrl(imageUrl);
+        
+        // If we have an imageId, try to process through Cloudinary for better quality
+        if (imageId && imageId !== "placeholder") {
+          logger.log(`Attempting to process image ${imageId} through Cloudinary`);
+          
+          try {
+            const result = await processForGallery(imageUrl, imageId);
+            
+            if (result.success && result.processed_url && mountedRef.current) {
+              setFinalImageUrl(result.processed_url);
+              logger.log(`Successfully processed image through Cloudinary: ${imageId}`);
+            } else {
+              // Fallback to optimized URL if Cloudinary processing fails
+              logger.log(`Cloudinary processing failed for ${imageId}, using optimized URL`);
+              setFinalImageUrl(optimizedUrl);
+            }
+          } catch (cloudinaryError) {
+            // If Cloudinary fails, use the optimized URL
+            logger.warn(`Cloudinary processing error for ${imageId}, falling back to optimized URL:`, cloudinaryError);
+            setFinalImageUrl(optimizedUrl);
+          }
+        } else {
+          // No imageId, use optimized URL directly
+          setFinalImageUrl(optimizedUrl);
+        }
+      } catch (error) {
+        logger.error(`Failed to process image: ${imageId || 'no-id'}`, error);
+        // Final fallback to original URL
+        setFinalImageUrl(imageUrl);
+      } finally {
+        if (mountedRef.current) {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    processImage();
+    
+  }, [imageUrl, imageId, processForGallery, getOptimizedImageUrl]);
   
   const handleImageLoad = useCallback(() => {
     if (!mountedRef.current) return;
@@ -187,7 +200,7 @@ export const CarouselImage = memo(function CarouselImage({
           <div className="flex flex-col items-center gap-2 bg-background/80 p-4 rounded-lg">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">
-              {isProcessing ? "Processing with Cloudinary..." : "Loading image..."}
+              {isProcessing ? "Optimizing image..." : "Loading image..."}
             </p>
           </div>
         </div>

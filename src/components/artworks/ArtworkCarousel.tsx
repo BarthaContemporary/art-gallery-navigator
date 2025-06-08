@@ -1,4 +1,3 @@
-
 import { CarouselNavigation } from "./carousel/CarouselNavigation";
 import { CarouselImage } from "./carousel/CarouselImage";
 import { CarouselDownloadMenu } from "./carousel/CarouselDownloadMenu";
@@ -121,7 +120,7 @@ export function ArtworkCarousel({
           <div className={`flex h-full`} aria-live="polite"> 
             {displayImages.map((image, index) => (
               <CarouselImage
-                key={`${image.id}-${artworkId}`}
+                key={`${image.id}-${artworkId}-${index}`}
                 imageUrl={image.image_url}
                 imageId={image.id !== "placeholder" ? image.id : undefined}
                 index={index}
@@ -182,7 +181,7 @@ export function ArtworkCarousel({
         />
         {displayImages.length > 0 && displayImages[0].id !== "placeholder" && (
           <div className="text-xs text-muted-foreground">
-            Enhanced with Cloudinary • Click image to zoom
+            Optimized with Cloudinary • Click image to zoom
           </div>
         )}
       </div>
