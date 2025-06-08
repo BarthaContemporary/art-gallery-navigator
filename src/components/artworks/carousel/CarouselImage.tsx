@@ -33,10 +33,9 @@ export const CarouselImage = memo(function CarouselImage({
 }: CarouselImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [processedUrl, setProcessedUrl] = useState<string>("");
+  const [finalImageUrl, setFinalImageUrl] = useState<string>("");
   const [isZoomed, setIsZoomed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [placeholderUrl, setPlaceholderUrl] = useState<string | null>(null);
   
   const { getCachedImage, setCachedImage } = useImageCache();
   const { processForGallery } = useEnhancedImageProcessing();
@@ -48,6 +47,46 @@ export const CarouselImage = memo(function CarouselImage({
     return () => { mountedRef.current = false; };
   }, []);
   
+  // Process image through Cloudinary if we have an imageId
+  useEffect(() => {
+    if (!mountedRef.current || !imageUrl) return;
+
+    const processImage = async () => {
+      setIsProcessing(true);
+      setIsLoading(true);
+      setHasError(false);
+      
+      try {
+        // If we have an imageId, process through Cloudinary
+        if (imageId && imageId !== "placeholder") {
+          logger.log(`Processing image ${imageId} through Cloudinary`);
+          const result = await processForGallery(imageUrl, imageId);
+          
+          if (result.success && result.processed_url && mountedRef.current) {
+            setFinalImageUrl(result.processed_url);
+            logger.log(`Successfully processed image through Cloudinary: ${imageId}`);
+          } else {
+            // Fallback to optimized URL if Cloudinary fails
+            setFinalImageUrl(getOptimizedImageUrl(imageUrl));
+          }
+        } else {
+          // No imageId, just use optimized URL
+          setFinalImageUrl(getOptimizedImageUrl(imageUrl));
+        }
+      } catch (error) {
+        logger.error(`Failed to process image through Cloudinary: ${imageId}`, error);
+        setFinalImageUrl(getOptimizedImageUrl(imageUrl));
+      } finally {
+        if (mountedRef.current) {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    processImage();
+    
+  }, [imageUrl, imageId, processForGallery]);
+
   const getOptimizedImageUrl = useCallback((url: string): string => {
     if (!url || url === "/placeholder.svg") {
       return "/placeholder.svg";
@@ -77,57 +116,16 @@ export const CarouselImage = memo(function CarouselImage({
 
     return url;
   }, []);
-
-  // Process image through Cloudinary if we have an imageId
-  useEffect(() => {
-    if (!mountedRef.current || !imageUrl || !imageId) return;
-
-    const processImage = async () => {
-      setIsProcessing(true);
-      
-      try {
-        const result = await processForGallery(imageUrl, imageId);
-        
-        if (result.success && result.processed_url && mountedRef.current) {
-          setProcessedUrl(result.processed_url);
-          logger.log(`Successfully processed image through Cloudinary: ${imageId}`);
-        } else {
-          setProcessedUrl(getOptimizedImageUrl(imageUrl));
-        }
-      } catch (error) {
-        logger.error(`Failed to process image through Cloudinary: ${imageId}`, error);
-        setProcessedUrl(getOptimizedImageUrl(imageUrl));
-      } finally {
-        if (mountedRef.current) {
-          setIsProcessing(false);
-        }
-      }
-    };
-
-    // Check cache first
-    const cachedData = getCachedImage(imageUrl);
-    if (cachedData) {
-      setPlaceholderUrl(cachedData.dataUrl);
-    }
-
-    // If no imageId, just use optimized URL
-    if (!imageId) {
-      setProcessedUrl(getOptimizedImageUrl(imageUrl));
-      setIsProcessing(false);
-    } else {
-      processImage();
-    }
-    
-  }, [imageUrl, imageId, getCachedImage, getOptimizedImageUrl, processForGallery]);
   
   const handleImageLoad = useCallback(() => {
     if (!mountedRef.current) return;
     
+    logger.log(`Image loaded successfully: ${finalImageUrl}`);
     setIsLoading(false);
     setHasError(false);
     
     // Cache the image for future use
-    if (processedUrl && processedUrl !== "/placeholder.svg") {
+    if (finalImageUrl && finalImageUrl !== "/placeholder.svg") {
       try {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -149,20 +147,20 @@ export const CarouselImage = memo(function CarouselImage({
             setCachedImage(imageUrl, dataUrl);
           }
         };
-        img.src = processedUrl;
+        img.src = finalImageUrl;
       } catch (error) {
         logger.warn("Failed to cache image:", error);
       }
     }
-  }, [processedUrl, setCachedImage, imageUrl]);
+  }, [finalImageUrl, setCachedImage, imageUrl]);
 
   const handleImageError = useCallback(() => {
     if (!mountedRef.current) return;
     
-    logger.warn(`Failed to load image: ${processedUrl}`);
+    logger.warn(`Failed to load image: ${finalImageUrl}`);
     setIsLoading(false);
     setHasError(true);
-  }, [processedUrl]);
+  }, [finalImageUrl]);
 
   const toggleZoom = useCallback(() => {
     setIsZoomed(!isZoomed);
@@ -173,7 +171,8 @@ export const CarouselImage = memo(function CarouselImage({
     toggleZoom();
   }, [toggleZoom]);
 
-  const displayUrl = hasError ? "/placeholder.svg" : (processedUrl || "/placeholder.svg");
+  // Show placeholder if error or no valid URL
+  const displayUrl = hasError || !finalImageUrl ? "/placeholder.svg" : finalImageUrl;
 
   return (
     <div 
@@ -182,30 +181,20 @@ export const CarouselImage = memo(function CarouselImage({
       aria-roledescription={ariaRoledescription}
       aria-label={ariaLabel}
     >
-      {/* Loading state with optional placeholder */}
+      {/* Loading state */}
       {(isLoading || isProcessing) && (
         <div className={`absolute inset-0 flex items-center justify-center ${carouselHeightClass} bg-muted/20 z-10`}>
-          {placeholderUrl ? (
-            <img 
-              src={placeholderUrl}
-              alt={`Loading preview for ${artworkTitle}`}
-              className={`absolute inset-0 w-full ${carouselHeightClass} object-contain opacity-50`}
-              aria-hidden="true"
-            />
-          ) : null}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2 bg-background/80 p-4 rounded-lg">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">
-                {isProcessing ? "Processing with Cloudinary..." : "Loading image..."}
-              </p>
-            </div>
+          <div className="flex flex-col items-center gap-2 bg-background/80 p-4 rounded-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
+              {isProcessing ? "Processing with Cloudinary..." : "Loading image..."}
+            </p>
           </div>
         </div>
       )}
       
       {/* Zoom controls */}
-      {!isLoading && !isProcessing && !hasError && (
+      {!isLoading && !isProcessing && !hasError && finalImageUrl && finalImageUrl !== "/placeholder.svg" && (
         <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="secondary"
