@@ -29,7 +29,8 @@ serve(async (req) => {
       throw new Error('Missing required fields: image_url and artwork_image_id');
     }
 
-    console.log(`Processing image ${artwork_image_id} with Cloudinary options:`, options);
+    console.log(`Processing image ${artwork_image_id} with original URL: ${image_url}`);
+    console.log('Processing options:', options);
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -37,27 +38,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Check if image already processed and has proper Cloudinary URLs
-    const { data: existingImage } = await supabase
-      .from('artwork_images')
-      .select('*')
-      .eq('id', artwork_image_id)
-      .single();
-
-    if (existingImage?.processed && 
-        existingImage.image_url && 
-        existingImage.image_url.includes('res.cloudinary.com')) {
-      console.log(`Image already processed with Cloudinary URL: ${existingImage.image_url}`);
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Image already processed',
-        thumbnail_url: existingImage.thumbnail_url,
-        medium_url: existingImage.medium_url,
-        processed_url: existingImage.image_url
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    // Always process images to ensure they have proper Cloudinary URLs
+    // Even if marked as processed, we may need to regenerate Cloudinary URLs
 
     // Get Cloudinary credentials
     const cloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
@@ -76,7 +58,7 @@ serve(async (req) => {
     );
 
     // Update the artwork_images record with Cloudinary URLs
-    const { error: updateError } = await supabase
+    const { data: updatedRecord, error: updateError } = await supabase
       .from('artwork_images')
       .update({
         processed: true,
@@ -84,13 +66,18 @@ serve(async (req) => {
         medium_url: processedUrls.medium,
         image_url: processedUrls.processed // Store the high-quality Cloudinary URL as the main image_url
       })
-      .eq('id', artwork_image_id);
+      .eq('id', artwork_image_id)
+      .select()
+      .single();
 
     if (updateError) {
+      console.error('Database update error:', updateError);
       throw updateError;
     }
 
-    console.log(`Successfully processed image ${artwork_image_id} with Cloudinary URLs:`, processedUrls);
+    console.log(`Successfully processed and updated image ${artwork_image_id}`);
+    console.log('Updated record:', updatedRecord);
+    console.log('Generated Cloudinary URLs:', processedUrls);
 
     return new Response(JSON.stringify({
       success: true,
@@ -99,9 +86,10 @@ serve(async (req) => {
       medium_url: processedUrls.medium,
       processed_url: processedUrls.processed,
       processing_details: {
-        original_size: 0, // Cloudinary doesn't provide this easily
+        original_url: image_url,
         formats_created: Object.keys(processedUrls),
-        options_applied: options
+        options_applied: options,
+        cloudinary_enabled: true
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -133,6 +121,8 @@ async function processImageWithCloudinary(
   } = options;
 
   try {
+    console.log(`Starting Cloudinary processing for URL: ${imageUrl}`);
+    
     // Build Cloudinary transformations
     const baseTransformations = [];
     
@@ -167,8 +157,24 @@ async function processImageWithCloudinary(
         `f_${format}`
       ].join(',');
 
-      // For external URLs, we need to use fetch mode
-      const cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(imageUrl)}`;
+      // For external URLs (including Supabase storage), we use fetch mode
+      let sourceUrl = imageUrl;
+      
+      // If it's already a Cloudinary URL, extract the original URL
+      if (imageUrl.includes('res.cloudinary.com/')) {
+        // Extract the original URL from the Cloudinary fetch URL
+        const urlParts = imageUrl.split('/');
+        const encodedOriginalUrl = urlParts[urlParts.length - 1];
+        try {
+          sourceUrl = decodeURIComponent(encodedOriginalUrl);
+          console.log(`Extracted original URL from Cloudinary URL: ${sourceUrl}`);
+        } catch (e) {
+          console.warn('Could not extract original URL, using Cloudinary URL as source');
+          sourceUrl = imageUrl;
+        }
+      }
+
+      const cloudinaryUrl = `https://res.cloudinary.com/${credentials.cloudName}/image/fetch/${transformations}/${encodeURIComponent(sourceUrl)}`;
       processedUrls[sizeName] = cloudinaryUrl;
       console.log(`Created ${sizeName} Cloudinary URL: ${cloudinaryUrl}`);
     }

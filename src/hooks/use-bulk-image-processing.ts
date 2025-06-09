@@ -27,39 +27,35 @@ export function useBulkImageProcessing() {
     try {
       setProgress(prev => ({ ...prev, isRunning: true }));
       
-      // Get all unprocessed artwork images
-      const { data: unprocessedImages, error: artworkError } = await supabase
+      // Get ALL artwork images, both processed and unprocessed
+      // We need to reprocess images that don't have proper Cloudinary URLs
+      const { data: allImages, error: artworkError } = await supabase
         .from('artwork_images')
-        .select('id, image_url')
-        .eq('processed', false);
+        .select('id, image_url, processed')
+        .or('processed.eq.false,not.image_url.like.%res.cloudinary.com%');
 
       if (artworkError) {
         throw artworkError;
       }
 
       // Get all artists with image_url that haven't been processed through Cloudinary
-      // Check if the image_url contains 'res.cloudinary.com' to determine if it's already processed
       const { data: artistsWithImages, error: artistError } = await supabase
         .from('artists')
         .select('id, image_url')
         .not('image_url', 'is', null)
-        .neq('image_url', '');
+        .neq('image_url', '')
+        .not('image_url', 'like', '%res.cloudinary.com%');
 
       if (artistError) {
         throw artistError;
       }
 
-      // Filter out artists whose images are already processed through Cloudinary
-      const unprocessedArtists = artistsWithImages?.filter(artist => 
-        artist.image_url && !artist.image_url.includes('res.cloudinary.com')
-      ) || [];
-
-      const artworkCount = unprocessedImages?.length || 0;
-      const artistCount = unprocessedArtists.length;
+      const artworkCount = allImages?.length || 0;
+      const artistCount = artistsWithImages?.length || 0;
       const totalImages = artworkCount + artistCount;
 
       if (totalImages === 0) {
-        toast.info("No unprocessed images found");
+        toast.info("All images are already processed through Cloudinary");
         setProgress(prev => ({ ...prev, isRunning: false }));
         return;
       }
@@ -83,10 +79,10 @@ export function useBulkImageProcessing() {
       let artistsFailed = 0;
 
       // Process artwork images first
-      if (unprocessedImages && unprocessedImages.length > 0) {
+      if (allImages && allImages.length > 0) {
         const batchSize = 3;
-        for (let i = 0; i < unprocessedImages.length; i += batchSize) {
-          const batch = unprocessedImages.slice(i, i + batchSize);
+        for (let i = 0; i < allImages.length; i += batchSize) {
+          const batch = allImages.slice(i, i + batchSize);
           
           const batchPromises = batch.map(async (image) => {
             try {
@@ -94,6 +90,8 @@ export function useBulkImageProcessing() {
                 ...prev, 
                 current: `Processing artwork image ${image.id}...` 
               }));
+
+              logger.log(`Processing image ${image.id} with URL: ${image.image_url}`);
 
               const { data, error } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
                 body: { 
@@ -113,7 +111,7 @@ export function useBulkImageProcessing() {
                 throw new Error(data?.error || 'Processing failed');
               }
 
-              logger.log(`Successfully processed artwork image ${image.id}`);
+              logger.log(`Successfully processed artwork image ${image.id}`, data);
               return { success: true, id: image.id };
             } catch (error) {
               logger.error(`Failed to process artwork image ${image.id}:`, error);
@@ -139,15 +137,15 @@ export function useBulkImageProcessing() {
           }));
 
           // Small delay between batches
-          if (i + batchSize < unprocessedImages.length) {
+          if (i + batchSize < allImages.length) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
 
-      // Process artist profile images (only unprocessed ones)
-      if (unprocessedArtists.length > 0) {
-        for (const artist of unprocessedArtists) {
+      // Process artist profile images
+      if (artistsWithImages && artistsWithImages.length > 0) {
+        for (const artist of artistsWithImages) {
           try {
             setProgress(prev => ({ 
               ...prev, 
@@ -237,9 +235,9 @@ export function useBulkImageProcessing() {
       const totalFailed = failed + artistsFailed;
 
       if (totalFailed === 0) {
-        toast.success(`Successfully optimized all ${totalProcessed} images through Cloudinary!`);
+        toast.success(`Successfully reconnected and optimized all ${totalProcessed} images through Cloudinary!`);
       } else {
-        toast.warning(`Optimized ${totalProcessed} images. ${totalFailed} images failed to process.`);
+        toast.warning(`Reconnected ${totalProcessed} images. ${totalFailed} images failed to process.`);
       }
 
       logger.log(`Bulk processing completed. Artworks - Processed: ${processed}, Failed: ${failed}. Artists - Processed: ${artistsProcessed}, Failed: ${artistsFailed}`);
@@ -253,10 +251,11 @@ export function useBulkImageProcessing() {
 
   const getUnprocessedCount = useCallback(async () => {
     try {
+      // Count artwork images that either aren't processed OR don't have Cloudinary URLs
       const { count: artworkCount, error: artworkError } = await supabase
         .from('artwork_images')
         .select('*', { count: 'exact', head: true })
-        .eq('processed', false);
+        .or('processed.eq.false,not.image_url.like.%res.cloudinary.com%');
 
       if (artworkError) {
         throw artworkError;
@@ -267,17 +266,16 @@ export function useBulkImageProcessing() {
         .from('artists')
         .select('image_url')
         .not('image_url', 'is', null)
-        .neq('image_url', '');
+        .neq('image_url', '')
+        .not('image_url', 'like', '%res.cloudinary.com%');
 
       if (artistError) {
         throw artistError;
       }
 
-      const unprocessedArtists = artistsWithImages?.filter(artist => 
-        artist.image_url && !artist.image_url.includes('res.cloudinary.com')
-      ) || [];
+      const unprocessedArtists = artistsWithImages?.length || 0;
 
-      return (artworkCount || 0) + unprocessedArtists.length;
+      return (artworkCount || 0) + unprocessedArtists;
     } catch (error) {
       logger.error('Failed to get unprocessed count:', error);
       return 0;
