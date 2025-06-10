@@ -18,13 +18,11 @@ export function RequireAuth({ children }: RequireAuthProps) {
       setIsNavigating(true);
       navigate("/auth", { state: { from: location }, replace: true });
     } else if (!isLoading && user) {
-      // Ensure isNavigating is false if user is authenticated and not loading
       setIsNavigating(false);
     }
   }, [user, isLoading, navigate, location]);
 
   if (isLoading || isNavigating) {
-    // Return null instead of the loader
     return null;
   }
 
