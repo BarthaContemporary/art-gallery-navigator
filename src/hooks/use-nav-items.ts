@@ -1,5 +1,5 @@
 
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Calendar,
   ClipboardList,
@@ -25,9 +25,7 @@ interface NavItem {
 
 export const useNavItems = () => {
   const { user } = useAuth();
-  const { data: userRoles } = useUserRoles(user?.id);
-
-  const isAdmin = userRoles?.some(role => role.role === 'gallery_admin');
+  const { isAdmin } = useUserRoles(user);
 
   return [
     {

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { Calendar, Clock, MapPin, User, Mail, Phone, MessageSquare } from "lucide-react";
@@ -10,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAppointmentTypes, useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
-import { useLocation } from "@/hooks/use-locations";
+import { useLocations } from "@/hooks/use-locations";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
@@ -24,7 +23,7 @@ export default function BookAppointment() {
   const [notes, setNotes] = useState("");
 
   const { data: appointmentTypes = [] } = useAppointmentTypes();
-  const { data: locations = [] } = useLocation();
+  const { data: locations = [] } = useLocations();
   const { data: slots = [] } = useAppointmentSlots(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
   const createAppointment = useCreateAppointment();
 
