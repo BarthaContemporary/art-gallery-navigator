@@ -64,7 +64,7 @@ export function MobileSidebar() {
                       }`}
                     >
                       <item.icon className="w-4 h-4 flex-shrink-0" />
-                      <span>{item.name}</span>
+                      <span>{item.title}</span>
                     </Link>
                   ))}
                 </div>

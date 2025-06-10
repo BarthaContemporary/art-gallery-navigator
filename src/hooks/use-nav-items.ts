@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/auth-context";
 import {
   Calendar,
@@ -17,7 +18,7 @@ import { useUserRoles } from "./use-user-roles";
 
 interface NavItem {
   title: string;
-  url: string;
+  href: string;
   icon: LucideIcon;
   adminOnly?: boolean;
 }
@@ -31,59 +32,42 @@ export const useNavItems = () => {
   return [
     {
       title: "Dashboard",
-      url: "/",
+      href: "/",
       icon: LayoutDashboard,
     },
     {
       title: "Artworks",
-      url: "/artworks",
+      href: "/artworks",
       icon: Image,
     },
     {
       title: "Artists",
-      url: "/artists",
+      href: "/artists",
       icon: Users,
     },
     {
-      title: "Exhibitions",
-      url: "/exhibitions",
-      icon: MapPin,
-    },
-    {
       title: "Collections",
-      url: "/collections",
+      href: "/collections",
       icon: ClipboardList,
     },
     {
-      title: "Sales",
-      url: "/sales",
-      icon: Tag,
-    },
-    {
-      title: "Projects",
-      url: "/projects",
-      icon: ListChecks,
-    },
-    {
       title: "Documents",
-      url: "/documents",
+      href: "/documents",
       icon: FileText,
     },
     {
-      title: "Reports",
-      url: "/reports",
-      icon: BarChart,
-      adminOnly: true,
+      title: "Projects",
+      href: "/projects",
+      icon: ListChecks,
     },
     {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-      adminOnly: true,
+      title: "Locations",
+      href: "/locations",
+      icon: MapPin,
     },
     {
       title: "Appointments",
-      url: "/appointments",
+      href: "/appointments",
       icon: Calendar,
       adminOnly: true,
     },

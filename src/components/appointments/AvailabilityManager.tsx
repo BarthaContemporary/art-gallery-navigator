@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useAppointmentTypes, useCreateAppointmentSlot } from "@/hooks/use-appointments";
-import { useLocation } from "@/hooks/use-locations";
+import { useLocations } from "@/hooks/use-locations";
 
 export function AvailabilityManager() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -22,7 +21,7 @@ export function AvailabilityManager() {
   const [selectedType, setSelectedType] = useState("");
 
   const { data: appointmentTypes = [] } = useAppointmentTypes();
-  const { data: locations = [] } = useLocation();
+  const { data: locations = [] } = useLocations();
   const createSlot = useCreateAppointmentSlot();
 
   const daysOfWeek = [
@@ -61,7 +60,7 @@ export function AvailabilityManager() {
         start_time: startTime,
         end_time: endTime,
         date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
-        recurrence_type,
+        recurrence_type: recurrenceType,
         location_id: selectedLocation || undefined,
         appointment_type_id: selectedType || undefined,
         is_available: true,
