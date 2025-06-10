@@ -1,113 +1,231 @@
-
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/providers/auth-provider";
-import { LoadingProvider } from "@/contexts/loading-context";
-import { useAuth } from "@/hooks/use-auth";
-import { useNotifications } from "@/hooks/use-notifications";
-import { useEffect } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
-import Dashboard from "@/pages/Dashboard";
+import { Toaster } from "sonner";
+
+import MainLayout from "@/layouts/MainLayout";
+import AuthLayout from "@/layouts/AuthLayout";
+import RequireAuth from "@/components/auth/RequireAuth";
+import GuestOnly from "@/components/auth/GuestOnly";
+import { AuthProvider } from "@/contexts/auth-context";
+import Home from "@/pages/Home";
 import Artists from "@/pages/Artists";
+import ArtistDetails from "@/pages/ArtistDetails";
 import Artworks from "@/pages/Artworks";
-import Collections from "@/pages/Collections";
-import Documents from "@/pages/Documents";
+import ArtworkDetails from "@/pages/ArtworkDetails";
 import Locations from "@/pages/Locations";
-import Projects from "@/pages/Projects";
-import ProjectDetail from "@/pages/ProjectDetail";
-import Chat from "@/pages/Chat";
-import Upload from "@/pages/Upload";
-import Auth from "@/pages/Auth";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
-import NotFound from "@/pages/NotFound";
-import PDFTemplates from "@/pages/PDFTemplates";
-import BackupExport from "@/pages/BackupExport";
-import EmailConfirmation from "@/pages/EmailConfirmation";
-import RequestPasswordReset from "@/pages/RequestPasswordReset";
-import UpdatePassword from "@/pages/UpdatePassword";
-import FileTransfer from "@/pages/FileTransfer";
-import UserSignup from "@/pages/UserSignup";
-import PublicCollectionView from "@/pages/PublicCollectionView";
-import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
-import ManageAllWebsites from "@/pages/ManageAllWebsites";
-import { RequireAuth } from "@/components/auth/RequireAuth";
+import EditProfile from "@/pages/EditProfile";
+import Users from "@/pages/Users";
+import Collections from "@/pages/Collections";
+import CollectionDetails from "@/pages/CollectionDetails";
+import Documents from "@/pages/Documents";
+import Projects from "@/pages/Projects";
+import ProjectDetails from "@/pages/ProjectDetails";
+import Sales from "@/pages/Sales";
+import Exhibitions from "@/pages/Exhibitions";
+import ExhibitionDetails from "@/pages/ExhibitionDetails";
+import Settings from "@/pages/Settings";
+import DeletionRequests from "@/pages/DeletionRequests";
+import Uploads from "@/pages/Uploads";
+import Chat from "@/pages/Chat";
+import PushNotifications from "@/pages/PushNotifications";
+import Appointments from "@/pages/Appointments";
+import BookAppointment from "@/pages/BookAppointment";
 
 const queryClient = new QueryClient();
-
-function AppContent() {
-  const { user } = useAuth();
-  const { requestPermission, isSupported } = useNotifications();
-
-  useEffect(() => {
-    // Request notification permission when user logs in
-    if (user && isSupported) {
-      // Only request if permission hasn't been granted or denied yet
-      if (Notification.permission === 'default') {
-        requestPermission();
-      }
-    }
-  }, [user, isSupported, requestPermission]);
-
-  // Set up environment variable
-  useEffect(() => {
-    // Ensure VITE_TURNSTILE_SITE_KEY is available
-    if (typeof window !== 'undefined') {
-      (window as any).VITE_TURNSTILE_SITE_KEY = '0x4AAAAAABVNY-RtAZWQwtdF';
-    }
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Routes>
-        {/* Public routes */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/email-confirmation" element={<EmailConfirmation />} />
-        <Route path="/request-password-reset" element={<RequestPasswordReset />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
-        <Route path="/signup" element={<UserSignup />} />
-        <Route path="/collection/:slug" element={<PublicCollectionView />} />
-        
-        {/* Protected routes */}
-        <Route path="/" element={<RequireAuth><MainLayout /></RequireAuth>}>
-          <Route index element={<Dashboard />} />
-          <Route path="artists" element={<Artists />} />
-          <Route path="artworks" element={<Artworks />} />
-          <Route path="collections" element={<Collections />} />
-          <Route path="documents" element={<Documents />} />
-          <Route path="locations" element={<Locations />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="upload" element={<Upload />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="pdf-templates" element={<PDFTemplates />} />
-          <Route path="backup-export" element={<BackupExport />} />
-          <Route path="file-transfer" element={<FileTransfer />} />
-          <Route path="edit-collection-website/:id" element={<EditCollectionWebsite />} />
-          <Route path="manage-all-websites" element={<ManageAllWebsites />} />
-        </Route>
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-      <Sonner />
-    </div>
-  );
-}
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <LoadingProvider>
-            <TooltipProvider>
-              <AppContent />
-            </TooltipProvider>
-          </LoadingProvider>
+          <Toaster />
+          <Routes>
+            <Route path="/" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Home />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/artists" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Artists />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/artists/:artistId" element={
+              <RequireAuth>
+                <MainLayout>
+                  <ArtistDetails />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/artworks" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Artworks />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/artworks/:artworkId" element={
+              <RequireAuth>
+                <MainLayout>
+                  <ArtworkDetails />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/locations" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Locations />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/login" element={
+              <GuestOnly>
+                <AuthLayout>
+                  <Login />
+                </AuthLayout>
+              </GuestOnly>
+            } />
+            <Route path="/register" element={
+              <GuestOnly>
+                <AuthLayout>
+                  <Register />
+                </AuthLayout>
+              </GuestOnly>
+            } />
+            <Route path="/profile" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Profile />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/profile/edit" element={
+              <RequireAuth>
+                <MainLayout>
+                  <EditProfile />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/users" element={
+              <RequireAuth roles={['gallery_admin']}>
+                <MainLayout>
+                  <Users />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/collections" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Collections />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/collections/:collectionId" element={
+              <RequireAuth>
+                <MainLayout>
+                  <CollectionDetails />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/documents" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Documents />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/projects" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Projects />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/projects/:projectId" element={
+              <RequireAuth>
+                <MainLayout>
+                  <ProjectDetails />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/sales" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Sales />
+                </MainLayout>
+              </RequireAuth>
+            } />
+             <Route path="/exhibitions" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Exhibitions />
+                </MainLayout>
+              </RequireAuth>
+            } />
+             <Route path="/exhibitions/:exhibitionId" element={
+              <RequireAuth>
+                <MainLayout>
+                  <ExhibitionDetails />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/settings" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Settings />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/deletion-requests" element={
+              <RequireAuth roles={['gallery_admin']}>
+                <MainLayout>
+                  <DeletionRequests />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/uploads" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Uploads />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/chat" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Chat />
+                </MainLayout>
+              </RequireAuth>
+            } />
+             <Route path="/push-notifications" element={
+              <RequireAuth>
+                <MainLayout>
+                  <PushNotifications />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/appointments" element={
+              <RequireAuth>
+                <MainLayout>
+                  <Appointments />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            <Route path="/book-appointment" element={<BookAppointment />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

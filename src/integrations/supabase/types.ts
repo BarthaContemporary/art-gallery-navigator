@@ -9,6 +9,194 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      appointment_slots: {
+        Row: {
+          appointment_type_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string | null
+          day_of_week: number | null
+          end_time: string
+          id: string
+          is_available: boolean | null
+          location_id: string | null
+          recurrence_end_date: string | null
+          recurrence_type:
+            | Database["public"]["Enums"]["appointment_recurrence"]
+            | null
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_type_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          day_of_week?: number | null
+          end_time: string
+          id?: string
+          is_available?: boolean | null
+          location_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?:
+            | Database["public"]["Enums"]["appointment_recurrence"]
+            | null
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_type_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          day_of_week?: number | null
+          end_time?: string
+          id?: string
+          is_available?: boolean | null
+          location_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?:
+            | Database["public"]["Enums"]["appointment_recurrence"]
+            | null
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_slots_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_slots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_types: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          admin_notes: string | null
+          appointment_slot_id: string | null
+          appointment_type_id: string | null
+          client_email: string
+          client_id: string | null
+          client_name: string
+          client_phone: string | null
+          confirmed_by: string | null
+          created_at: string | null
+          end_datetime: string
+          id: string
+          location_id: string | null
+          notes: string | null
+          start_datetime: string
+          status: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          appointment_slot_id?: string | null
+          appointment_type_id?: string | null
+          client_email: string
+          client_id?: string | null
+          client_name: string
+          client_phone?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          end_datetime: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          start_datetime: string
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          appointment_slot_id?: string | null
+          appointment_type_id?: string | null
+          client_email?: string
+          client_id?: string | null
+          client_name?: string
+          client_phone?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          end_datetime?: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          start_datetime?: string
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_appointment_slot_id_fkey"
+            columns: ["appointment_slot_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_appointment_type_id_fkey"
+            columns: ["appointment_type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artists: {
         Row: {
           biography: string | null
@@ -316,6 +504,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      booking_settings: {
+        Row: {
+          advance_booking_days: number | null
+          auto_confirm: boolean | null
+          booking_instructions: string | null
+          buffer_time_minutes: number | null
+          business_hours_end: string | null
+          business_hours_start: string | null
+          created_at: string | null
+          id: string
+          notification_email: string | null
+          updated_at: string | null
+          working_days: number[] | null
+        }
+        Insert: {
+          advance_booking_days?: number | null
+          auto_confirm?: boolean | null
+          booking_instructions?: string | null
+          buffer_time_minutes?: number | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          created_at?: string | null
+          id?: string
+          notification_email?: string | null
+          updated_at?: string | null
+          working_days?: number[] | null
+        }
+        Update: {
+          advance_booking_days?: number | null
+          auto_confirm?: boolean | null
+          booking_instructions?: string | null
+          buffer_time_minutes?: number | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          created_at?: string | null
+          id?: string
+          notification_email?: string | null
+          updated_at?: string | null
+          working_days?: number[] | null
+        }
+        Relationships: []
       }
       chat_messages: {
         Row: {
@@ -1116,6 +1346,8 @@ export type Database = {
       }
     }
     Enums: {
+      appointment_recurrence: "none" | "weekly" | "daily"
+      appointment_status: "pending" | "confirmed" | "cancelled" | "completed"
       deletion_request_status: "pending" | "approved" | "rejected"
       message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
@@ -1237,6 +1469,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      appointment_recurrence: ["none", "weekly", "daily"],
+      appointment_status: ["pending", "confirmed", "cancelled", "completed"],
       deletion_request_status: ["pending", "approved", "rejected"],
       message_type: ["text", "file", "image"],
       project_status: ["active", "scheduled", "completed", "abandoned"],
