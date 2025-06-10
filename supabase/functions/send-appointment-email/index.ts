@@ -32,8 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Handle test email
     if (emailType === 'test') {
       const emailResponse = await resend.emails.send({
-        from: "Gallery <bookings@gallery.com>",
-        to: [testEmail || 'admin@gallery.com'],
+        from: "Gallery Bookings <onboarding@resend.dev>",
+        to: [testEmail || 'admin@example.com'],
         subject: 'Test Email - Gallery Booking System',
         html: `
           <h1>Test Email</h1>
@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
           .limit(1)
           .single();
         
-        const adminEmail = settings?.notification_email || 'admin@gallery.com';
+        const adminEmail = settings?.notification_email || 'admin@example.com';
         subject = 'New Appointment Booking';
         recipients = [adminEmail];
         emailContent = `
@@ -192,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "Gallery <bookings@gallery.com>",
+      from: "Gallery Bookings <onboarding@resend.dev>",
       to: recipients,
       subject: subject,
       html: emailContent,
