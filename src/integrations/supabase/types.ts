@@ -507,41 +507,53 @@ export type Database = {
       }
       booking_settings: {
         Row: {
+          admin_notifications: boolean | null
           advance_booking_days: number | null
           auto_confirm: boolean | null
           booking_instructions: string | null
           buffer_time_minutes: number | null
           business_hours_end: string | null
           business_hours_start: string | null
+          confirmation_emails: boolean | null
           created_at: string | null
+          email_reminders: boolean | null
           id: string
           notification_email: string | null
+          reminder_hours: number | null
           updated_at: string | null
           working_days: number[] | null
         }
         Insert: {
+          admin_notifications?: boolean | null
           advance_booking_days?: number | null
           auto_confirm?: boolean | null
           booking_instructions?: string | null
           buffer_time_minutes?: number | null
           business_hours_end?: string | null
           business_hours_start?: string | null
+          confirmation_emails?: boolean | null
           created_at?: string | null
+          email_reminders?: boolean | null
           id?: string
           notification_email?: string | null
+          reminder_hours?: number | null
           updated_at?: string | null
           working_days?: number[] | null
         }
         Update: {
+          admin_notifications?: boolean | null
           advance_booking_days?: number | null
           auto_confirm?: boolean | null
           booking_instructions?: string | null
           buffer_time_minutes?: number | null
           business_hours_end?: string | null
           business_hours_start?: string | null
+          confirmation_emails?: boolean | null
           created_at?: string | null
+          email_reminders?: boolean | null
           id?: string
           notification_email?: string | null
+          reminder_hours?: number | null
           updated_at?: string | null
           working_days?: number[] | null
         }
