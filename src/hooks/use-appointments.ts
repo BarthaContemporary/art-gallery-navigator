@@ -130,6 +130,29 @@ export function useCreateAppointment() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Trigger email notifications
+      try {
+        // Send confirmation email to client
+        await supabase.functions.invoke('send-appointment-email', {
+          body: {
+            appointmentId: data.id,
+            emailType: 'confirmation'
+          }
+        });
+
+        // Send admin notification
+        await supabase.functions.invoke('send-appointment-email', {
+          body: {
+            appointmentId: data.id,
+            emailType: 'admin_notification'
+          }
+        });
+      } catch (emailError) {
+        console.error('Error sending appointment emails:', emailError);
+        // Don't fail the appointment creation if emails fail
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -154,6 +177,21 @@ export function useUpdateAppointment() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Send email notification if status changed to cancelled
+      if (updates.status === 'cancelled') {
+        try {
+          await supabase.functions.invoke('send-appointment-email', {
+            body: {
+              appointmentId: id,
+              emailType: 'cancellation'
+            }
+          });
+        } catch (emailError) {
+          console.error('Error sending cancellation email:', emailError);
+        }
+      }
+      
       return data;
     },
     onSuccess: () => {

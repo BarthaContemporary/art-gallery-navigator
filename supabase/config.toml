@@ -14,5 +14,10 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.admin-send-password-reset]
-verify_jwt = true # Ensure only authenticated users can call this
-# import_map = "./import_map.json" # Uncomment if you use an import map
+verify_jwt = true
+
+[functions.send-appointment-email]
+verify_jwt = false
+
+[functions.appointment-reminder-scheduler]
+verify_jwt = false
