@@ -23,7 +23,9 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }, [user, isLoading, navigate, location]);
 
   if (isLoading || isNavigating) {
-    return null;
+    return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+    </div>;
   }
 
   return user ? <>{children}</> : null;

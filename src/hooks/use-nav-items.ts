@@ -69,5 +69,11 @@ export const useNavItems = () => {
       icon: Calendar,
       adminOnly: true,
     },
+    {
+      title: "Settings",
+      href: "/settings",
+      icon: Settings,
+      adminOnly: true,
+    },
   ].filter(item => !item.adminOnly || isAdmin);
 };

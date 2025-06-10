@@ -22,6 +22,7 @@ import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
 import Appointments from "@/pages/Appointments";
 import BookAppointment from "@/pages/BookAppointment";
+import UserSignup from "@/pages/UserSignup";
 
 const queryClient = new QueryClient();
 
@@ -32,71 +33,24 @@ function App() {
         <AuthProvider>
           <Toaster />
           <Routes>
-            <Route path="/" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Dashboard />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/artists" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Artists />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/artworks" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Artworks />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/collections" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Collections />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/documents" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Documents />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/projects" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Projects />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/locations" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Locations />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/profile" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Profile />
-                </MainLayout>
-              </RequireAuth>
-            } />
-            <Route path="/appointments" element={
-              <RequireAuth>
-                <MainLayout>
-                  <Appointments />
-                </MainLayout>
-              </RequireAuth>
-            } />
             <Route path="/auth" element={<Auth />} />
             <Route path="/book-appointment" element={<BookAppointment />} />
+            <Route path="/" element={
+              <RequireAuth>
+                <MainLayout />
+              </RequireAuth>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="artists" element={<Artists />} />
+              <Route path="artworks" element={<Artworks />} />
+              <Route path="collections" element={<Collections />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="projects" element={<Projects />} />
+              <Route path="locations" element={<Locations />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="appointments" element={<Appointments />} />
+              <Route path="settings" element={<UserSignup />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
