@@ -32,7 +32,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Handle test email
     if (emailType === 'test') {
       const emailResponse = await resend.emails.send({
-        from: "Gallery Bookings <onboarding@resend.dev>",
+        from: "Gallery Bookings <bookings@bartha.app>",
         to: [testEmail || 'admin@example.com'],
         subject: 'Test Email - Gallery Booking System',
         html: `
@@ -192,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "Gallery Bookings <onboarding@resend.dev>",
+      from: "Gallery Bookings <bookings@bartha.app>",
       to: recipients,
       subject: subject,
       html: emailContent,
