@@ -14,7 +14,8 @@ const corsHeaders = {
 
 interface AppointmentEmailRequest {
   appointmentId: string;
-  emailType: 'confirmation' | 'cancellation' | 'reminder' | 'admin_notification';
+  emailType: 'confirmation' | 'cancellation' | 'reminder' | 'admin_notification' | 'test';
+  testEmail?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,9 +25,34 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { appointmentId, emailType }: AppointmentEmailRequest = await req.json();
+    const { appointmentId, emailType, testEmail }: AppointmentEmailRequest = await req.json();
 
     console.log(`Sending ${emailType} email for appointment ${appointmentId}`);
+
+    // Handle test email
+    if (emailType === 'test') {
+      const emailResponse = await resend.emails.send({
+        from: "Gallery <bookings@gallery.com>",
+        to: [testEmail || 'admin@gallery.com'],
+        subject: 'Test Email - Gallery Booking System',
+        html: `
+          <h1>Test Email</h1>
+          <p>This is a test email from your Gallery booking system.</p>
+          <p>If you received this email, your email configuration is working correctly!</p>
+          <p>Sent at: ${new Date().toISOString()}</p>
+        `,
+      });
+
+      console.log("Test email sent successfully:", emailResponse);
+
+      return new Response(
+        JSON.stringify({ success: true, emailResponse }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
     // Fetch appointment details with related data
     const { data: appointment, error } = await supabase

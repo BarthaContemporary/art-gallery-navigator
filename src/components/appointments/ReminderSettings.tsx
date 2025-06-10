@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,121 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Mail, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface BookingSettings {
+  id?: string;
+  email_reminders: boolean;
+  reminder_hours: number;
+  admin_notifications: boolean;
+  notification_email: string;
+  confirmation_emails: boolean;
+}
 
 export function ReminderSettings() {
-  const [settings, setSettings] = useState({
-    emailReminders: true,
-    reminderHours: 24,
-    adminNotifications: true,
-    notificationEmail: '',
-    confirmationEmails: true,
+  const [settings, setSettings] = useState<BookingSettings>({
+    email_reminders: true,
+    reminder_hours: 24,
+    admin_notifications: true,
+    notification_email: '',
+    confirmation_emails: true,
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    // Save settings to database
-    toast.success("Reminder settings saved successfully");
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('booking_settings')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error loading settings:', error);
+        return;
+      }
+
+      if (data) {
+        setSettings({
+          id: data.id,
+          email_reminders: data.email_reminders ?? true,
+          reminder_hours: data.reminder_hours ?? 24,
+          admin_notifications: data.admin_notifications ?? true,
+          notification_email: data.notification_email ?? '',
+          confirmation_emails: data.confirmation_emails ?? true,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const settingsData = {
+        email_reminders: settings.email_reminders,
+        reminder_hours: settings.reminder_hours,
+        admin_notifications: settings.admin_notifications,
+        notification_email: settings.notification_email,
+        confirmation_emails: settings.confirmation_emails,
+      };
+
+      if (settings.id) {
+        const { error } = await supabase
+          .from('booking_settings')
+          .update(settingsData)
+          .eq('id', settings.id);
+        
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('booking_settings')
+          .insert(settingsData)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setSettings(prev => ({ ...prev, id: data.id }));
+      }
+
+      toast.success("Reminder settings saved successfully");
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('send-appointment-email', {
+        body: {
+          appointmentId: 'test',
+          emailType: 'test',
+          testEmail: settings.notification_email || 'admin@gallery.com'
+        }
+      });
+
+      if (error) throw error;
+      toast.success("Test email sent successfully!");
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      toast.error("Failed to send test email. Please check your email configuration.");
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8">Loading settings...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -43,20 +144,20 @@ export function ReminderSettings() {
               </p>
             </div>
             <Switch
-              checked={settings.emailReminders}
+              checked={settings.email_reminders}
               onCheckedChange={(checked) =>
-                setSettings(prev => ({ ...prev, emailReminders: checked }))
+                setSettings(prev => ({ ...prev, email_reminders: checked }))
               }
             />
           </div>
 
-          {settings.emailReminders && (
+          {settings.email_reminders && (
             <div className="space-y-2">
               <Label htmlFor="reminder-hours">Reminder timing</Label>
               <Select
-                value={settings.reminderHours.toString()}
+                value={settings.reminder_hours.toString()}
                 onValueChange={(value) =>
-                  setSettings(prev => ({ ...prev, reminderHours: parseInt(value) }))
+                  setSettings(prev => ({ ...prev, reminder_hours: parseInt(value) }))
                 }
               >
                 <SelectTrigger>
@@ -82,9 +183,9 @@ export function ReminderSettings() {
               </p>
             </div>
             <Switch
-              checked={settings.confirmationEmails}
+              checked={settings.confirmation_emails}
               onCheckedChange={(checked) =>
-                setSettings(prev => ({ ...prev, confirmationEmails: checked }))
+                setSettings(prev => ({ ...prev, confirmation_emails: checked }))
               }
             />
           </div>
@@ -109,22 +210,22 @@ export function ReminderSettings() {
               </p>
             </div>
             <Switch
-              checked={settings.adminNotifications}
+              checked={settings.admin_notifications}
               onCheckedChange={(checked) =>
-                setSettings(prev => ({ ...prev, adminNotifications: checked }))
+                setSettings(prev => ({ ...prev, admin_notifications: checked }))
               }
             />
           </div>
 
-          {settings.adminNotifications && (
+          {settings.admin_notifications && (
             <div className="space-y-2">
               <Label htmlFor="notification-email">Notification email address</Label>
               <Input
                 id="notification-email"
                 type="email"
-                value={settings.notificationEmail}
+                value={settings.notification_email}
                 onChange={(e) =>
-                  setSettings(prev => ({ ...prev, notificationEmail: e.target.value }))
+                  setSettings(prev => ({ ...prev, notification_email: e.target.value }))
                 }
                 placeholder="admin@gallery.com"
               />
@@ -144,15 +245,15 @@ export function ReminderSettings() {
           <p className="text-sm text-muted-foreground mb-4">
             Send a test email to verify your email configuration is working correctly.
           </p>
-          <Button variant="outline" onClick={() => toast.info("Test email sent!")}>
+          <Button variant="outline" onClick={handleTestEmail}>
             Send Test Email
           </Button>
         </CardContent>
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          Save Settings
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Settings"}
         </Button>
       </div>
     </div>
