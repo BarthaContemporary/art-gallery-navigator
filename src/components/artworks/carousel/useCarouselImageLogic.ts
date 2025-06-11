@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
-import { useEnhancedImageProcessing } from "@/hooks/use-enhanced-image-processing";
 import { logger } from "@/lib/logger";
 
 interface UseCarouselImageLogicProps {
@@ -14,147 +13,108 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
   const [hasError, setHasError] = useState(false);
   const [finalImageUrl, setFinalImageUrl] = useState<string>("");
   const [isZoomed, setIsZoomed] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const { getCachedImage, setCachedImage } = useImageCache();
-  const { processForGallery } = useEnhancedImageProcessing();
   const mountedRef = useRef(true);
-  const processingTimeoutRef = useRef<NodeJS.Timeout>();
+  const imageLoadTimeoutRef = useRef<NodeJS.Timeout>();
   
   useEffect(() => {
     mountedRef.current = true;
     return () => { 
       mountedRef.current = false;
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current);
+      if (imageLoadTimeoutRef.current) {
+        clearTimeout(imageLoadTimeoutRef.current);
       }
     };
   }, []);
 
-  const getOptimizedImageUrl = useCallback((url: string): string => {
+  const createOptimizedUrl = useCallback((url: string): string => {
     if (!url || url === "/placeholder.svg") {
       return "/placeholder.svg";
     }
 
-    // If already a proper Cloudinary URL, use it as-is
+    // If it's already a Cloudinary URL, use it as-is
     if (url.includes('res.cloudinary.com')) {
-      logger.log(`Using existing Cloudinary URL: ${url}`);
       return url;
     }
 
-    // For any non-Cloudinary URLs (including Supabase storage), create Cloudinary fetch URL
+    // Create a simple Cloudinary transformation URL for better performance
     const cloudinaryBaseUrl = 'https://res.cloudinary.com/dpckgjtaj/image/fetch';
     const transformations = 'w_1200,h_1200,c_limit,q_85,f_auto';
     const encodedUrl = encodeURIComponent(url);
-    const cloudinaryUrl = `${cloudinaryBaseUrl}/${transformations}/${encodedUrl}`;
-    logger.log(`Created Cloudinary URL from ${url} -> ${cloudinaryUrl}`);
-    return cloudinaryUrl;
+    return `${cloudinaryBaseUrl}/${transformations}/${encodedUrl}`;
   }, []);
 
-  const clearProcessingTimeout = useCallback(() => {
-    if (processingTimeoutRef.current) {
-      clearTimeout(processingTimeoutRef.current);
-      processingTimeoutRef.current = undefined;
+  const clearImageTimeout = useCallback(() => {
+    if (imageLoadTimeoutRef.current) {
+      clearTimeout(imageLoadTimeoutRef.current);
+      imageLoadTimeoutRef.current = undefined;
     }
   }, []);
 
-  const setProcessingWithTimeout = useCallback((processing: boolean) => {
-    setIsProcessing(processing);
-    
-    if (processing) {
-      // Set a 10-second timeout for processing
-      processingTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          logger.warn(`Processing timeout for image: ${imageId || 'no-id'}`);
-          setIsProcessing(false);
-          // Fall back to optimized URL if processing times out
-          if (imageUrl) {
-            setFinalImageUrl(getOptimizedImageUrl(imageUrl));
-          }
-        }
-      }, 10000);
-    } else {
-      clearProcessingTimeout();
-    }
-  }, [imageId, imageUrl, getOptimizedImageUrl, clearProcessingTimeout]);
-  
-  // Process image when imageUrl or imageId changes
+  // Main image processing effect
   useEffect(() => {
-    if (!mountedRef.current || !imageUrl) return;
+    if (!mountedRef.current || !imageUrl) {
+      setFinalImageUrl("/placeholder.svg");
+      setIsLoading(false);
+      return;
+    }
 
     const processImage = async () => {
-      setProcessingWithTimeout(true);
+      logger.log(`Loading image: ${imageUrl} (ID: ${imageId || 'no-id'})`);
+      
       setIsLoading(true);
       setHasError(false);
+      clearImageTimeout();
       
       try {
-        logger.log(`Processing image: ${imageUrl} with ID: ${imageId}`);
-        
         // Check cache first
         const cached = getCachedImage(imageUrl);
         if (cached && mountedRef.current) {
-          logger.log(`Found cached image for: ${imageUrl}`);
+          logger.log(`Using cached image for: ${imageUrl}`);
           setFinalImageUrl(cached.dataUrl);
           setIsLoading(false);
-          setProcessingWithTimeout(false);
           return;
         }
 
-        // Start with optimized URL as fallback
-        let finalUrl = getOptimizedImageUrl(imageUrl);
-        
-        // Try Cloudinary processing if we have a valid imageId
-        if (imageId && imageId !== "placeholder") {
-          try {
-            logger.log(`Attempting Cloudinary processing for image: ${imageId}`);
-            const result = await processForGallery(imageUrl, imageId);
-            
-            if (result.success && result.processed_url && mountedRef.current) {
-              // Use the processed URL from Cloudinary
-              if (result.processed_url.includes('res.cloudinary.com')) {
-                finalUrl = result.processed_url;
-                logger.log(`Cloudinary processing successful: ${imageId}, URL: ${finalUrl}`);
-              } else {
-                logger.warn(`Cloudinary processing completed but URL not recognized as Cloudinary: ${result.processed_url}`);
-              }
-            } else {
-              logger.warn(`Cloudinary processing failed for ${imageId}, using optimized URL`);
-            }
-          } catch (cloudinaryError) {
-            logger.warn(`Cloudinary processing failed for ${imageId}, using optimized URL:`, cloudinaryError);
-            // Don't throw here, just use the fallback URL
+        // Set a 8-second timeout for image loading
+        imageLoadTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            logger.warn(`Image loading timeout for: ${imageId || 'no-id'}`);
+            setFinalImageUrl("/placeholder.svg");
+            setIsLoading(false);
+            setHasError(true);
           }
-        }
+        }, 8000);
+
+        // Try optimized URL first, then fallback to original
+        let urlToUse = createOptimizedUrl(imageUrl);
         
         if (mountedRef.current) {
-          logger.log(`Setting final image URL: ${finalUrl}`);
-          setFinalImageUrl(finalUrl);
+          logger.log(`Setting image URL to: ${urlToUse}`);
+          setFinalImageUrl(urlToUse);
         }
       } catch (error) {
         logger.error(`Failed to process image: ${imageId || 'no-id'}`, error);
         if (mountedRef.current) {
-          // Even on error, try to show the optimized URL
-          setFinalImageUrl(getOptimizedImageUrl(imageUrl));
-        }
-      } finally {
-        if (mountedRef.current) {
-          setProcessingWithTimeout(false);
+          // Fallback to original URL on any error
+          setFinalImageUrl(imageUrl);
         }
       }
     };
 
     processImage();
     
-    // Cleanup timeout on unmount or re-run
     return () => {
-      clearProcessingTimeout();
+      clearImageTimeout();
     };
-  }, [imageUrl, imageId, processForGallery, getOptimizedImageUrl, getCachedImage, setProcessingWithTimeout, clearProcessingTimeout]);
+  }, [imageUrl, imageId, getCachedImage, createOptimizedUrl, clearImageTimeout]);
   
   const handleImageLoad = useCallback(() => {
     if (!mountedRef.current) return;
     
     logger.log(`Image loaded successfully: ${finalImageUrl}`);
+    clearImageTimeout();
     setIsLoading(false);
     setHasError(false);
     
@@ -166,25 +126,28 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
         logger.warn("Failed to cache image:", error);
       }
     }
-  }, [finalImageUrl, setCachedImage, imageUrl]);
+  }, [finalImageUrl, setCachedImage, imageUrl, clearImageTimeout]);
 
   const handleImageError = useCallback(() => {
     if (!mountedRef.current) return;
     
     logger.warn(`Failed to load image: ${finalImageUrl}`);
-    setIsLoading(false);
-    setHasError(true);
+    clearImageTimeout();
     
-    // Try fallback to original URL if current URL failed
-    if (finalImageUrl !== imageUrl && imageUrl) {
+    // If the optimized URL failed, try the original URL
+    if (finalImageUrl !== imageUrl && imageUrl && !imageUrl.includes('placeholder')) {
       logger.log(`Trying fallback to original URL: ${imageUrl}`);
       setFinalImageUrl(imageUrl);
       setHasError(false);
+      // Don't set loading to false yet, let the fallback image load
     } else {
       // Final fallback to placeholder
+      logger.log(`Using placeholder image`);
       setFinalImageUrl("/placeholder.svg");
+      setIsLoading(false);
+      setHasError(true);
     }
-  }, [finalImageUrl, imageUrl]);
+  }, [finalImageUrl, imageUrl, clearImageTimeout]);
 
   const toggleZoom = useCallback(() => {
     setIsZoomed(!isZoomed);
@@ -196,15 +159,15 @@ export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLog
     toggleZoom();
   }, [toggleZoom]);
 
-  // Show placeholder if error or no valid URL
-  const displayUrl = hasError || !finalImageUrl ? "/placeholder.svg" : finalImageUrl;
+  // Use the final image URL or fallback to placeholder
+  const displayUrl = finalImageUrl || "/placeholder.svg";
 
   return {
     isLoading,
     hasError,
     finalImageUrl,
     isZoomed,
-    isProcessing,
+    isProcessing: false, // Simplified - no complex processing states
     displayUrl,
     handleImageLoad,
     handleImageError,
