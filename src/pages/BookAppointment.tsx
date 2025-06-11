@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { Calendar, Clock, MapPin, User, Mail, Phone, MessageSquare } from "lucide-react";
@@ -6,23 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { useAppointmentTypes, useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
+import { useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
 import { useLocations } from "@/hooks/use-locations";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedSlot, setSelectedSlot] = useState<string>("");
-  const [selectedType, setSelectedType] = useState<string>("");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [notes, setNotes] = useState("");
 
-  const { data: appointmentTypes = [] } = useAppointmentTypes();
   const { data: locations = [] } = useLocations();
   const { data: slots = [] } = useAppointmentSlots(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
   const createAppointment = useCreateAppointment();
@@ -52,14 +49,13 @@ export default function BookAppointment() {
     const [startHour, startMinute] = slot.start_time.split(':');
     startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
 
-    const endDateTime = new Date(selectedDate);
-    const [endHour, endMinute] = slot.end_time.split(':');
-    endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0, 0);
+    // Default 15-minute duration
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + 15);
 
     try {
       await createAppointment.mutateAsync({
         appointment_slot_id: slot.id,
-        appointment_type_id: selectedType || undefined,
         start_datetime: startDateTime.toISOString(),
         end_datetime: endDateTime.toISOString(),
         client_name: clientName,
@@ -73,7 +69,6 @@ export default function BookAppointment() {
       // Reset form
       setSelectedDate(undefined);
       setSelectedSlot("");
-      setSelectedType("");
       setClientName("");
       setClientEmail("");
       setClientPhone("");
@@ -93,7 +88,7 @@ export default function BookAppointment() {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Book an Appointment</h1>
-          <p className="text-gray-600">Schedule a consultation or viewing with our gallery</p>
+          <p className="text-gray-600">Schedule a 15-minute consultation or viewing with our gallery</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -119,7 +114,7 @@ export default function BookAppointment() {
 
               {selectedDate && availableSlots.length > 0 && (
                 <div>
-                  <Label>Available Times</Label>
+                  <Label>Available Times (15 minutes each)</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {availableSlots.map((slot) => (
                       <Button
@@ -129,7 +124,7 @@ export default function BookAppointment() {
                         className="justify-start"
                       >
                         <Clock className="h-4 w-4 mr-2" />
-                        {slot.start_time} - {slot.end_time}
+                        {slot.start_time}
                       </Button>
                     ))}
                   </div>
@@ -139,30 +134,6 @@ export default function BookAppointment() {
               {selectedDate && availableSlots.length === 0 && (
                 <div className="text-center py-4 text-muted-foreground">
                   No available slots for this date. Please select another date.
-                </div>
-              )}
-
-              {appointmentTypes.length > 0 && (
-                <div>
-                  <Label>Appointment Type (Optional)</Label>
-                  <Select value={selectedType} onValueChange={setSelectedType}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select appointment type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {appointmentTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="h-3 w-3 rounded"
-                              style={{ backgroundColor: type.color }}
-                            />
-                            {type.name} ({type.duration_minutes} min)
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               )}
             </CardContent>
@@ -235,18 +206,8 @@ export default function BookAppointment() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          {availableSlots.find(s => s.id === selectedSlot)?.start_time} - 
-                          {availableSlots.find(s => s.id === selectedSlot)?.end_time}
+                          {availableSlots.find(s => s.id === selectedSlot)?.start_time} (15 minutes)
                         </div>
-                        {selectedType && (
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="h-4 w-4 rounded"
-                              style={{ backgroundColor: appointmentTypes.find(t => t.id === selectedType)?.color }}
-                            />
-                            {appointmentTypes.find(t => t.id === selectedType)?.name}
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>

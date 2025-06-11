@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { useAppointmentTypes, useCreateAppointmentSlot } from "@/hooks/use-appointments";
+import { useCreateAppointmentSlot } from "@/hooks/use-appointments";
 import { useLocations } from "@/hooks/use-locations";
 
 export function AvailabilityManager() {
@@ -18,9 +19,7 @@ export function AvailabilityManager() {
   const [recurrenceType, setRecurrenceType] = useState<'none' | 'weekly' | 'daily'>('none');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [selectedLocation, setSelectedLocation] = useState("");
-  const [selectedType, setSelectedType] = useState("");
 
-  const { data: appointmentTypes = [] } = useAppointmentTypes();
   const { data: locations = [] } = useLocations();
   const createSlot = useCreateAppointmentSlot();
 
@@ -51,7 +50,6 @@ export function AvailabilityManager() {
           recurrence_type: 'weekly',
           day_of_week: dayOfWeek,
           location_id: selectedLocation || undefined,
-          appointment_type_id: selectedType || undefined,
           is_available: true,
         });
       });
@@ -62,7 +60,6 @@ export function AvailabilityManager() {
         date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
         recurrence_type: recurrenceType,
         location_id: selectedLocation || undefined,
-        appointment_type_id: selectedType || undefined,
         is_available: true,
       });
     }
@@ -74,7 +71,6 @@ export function AvailabilityManager() {
     setSelectedDays([]);
     setRecurrenceType('none');
     setSelectedLocation("");
-    setSelectedType("");
   };
 
   return (
@@ -179,22 +175,6 @@ export function AvailabilityManager() {
               </Select>
             </div>
 
-            <div>
-              <Label>Appointment Type (Optional)</Label>
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {appointmentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <Button type="submit" className="w-full" disabled={createSlot.isPending}>
               {createSlot.isPending ? 'Creating...' : 'Add Availability'}
             </Button>
@@ -211,7 +191,7 @@ export function AvailabilityManager() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Set up your regular weekly availability quickly. You can always modify individual slots later.
+            Set up your regular weekly availability quickly. Each appointment will be 15 minutes long.
           </p>
           <div className="space-y-4">
             <div className="p-4 border rounded-lg">
