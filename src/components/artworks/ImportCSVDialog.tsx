@@ -100,8 +100,8 @@ export function ImportCSVDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex gap-1 md:gap-2 text-xs md:text-sm">
-          <FileUp className="h-3 w-3 md:h-4 md:w-4" />
+        <Button variant="outline" size="sm">
+          <FileUp className="h-4 w-4 mr-2" />
           Import CSV
         </Button>
       </DialogTrigger>
