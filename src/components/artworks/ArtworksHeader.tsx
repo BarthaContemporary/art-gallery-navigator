@@ -39,13 +39,11 @@ export function ArtworksHeader({
 
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Artworks</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        {isAdmin && <CreateArtworkDialog />}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
-        
         {isAdmin && (
           <>
             <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
@@ -69,10 +67,10 @@ export function ArtworksHeader({
             </Button>
 
             <ImportCSVDialog />
-
-            <CreateArtworkDialog />
           </>
         )}
+        
+        <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
       </div>
     </div>
   );
