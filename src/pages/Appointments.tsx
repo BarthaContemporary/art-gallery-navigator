@@ -7,9 +7,37 @@ import { AppointmentCalendar } from "@/components/appointments/AppointmentCalend
 import { AvailabilityManager } from "@/components/appointments/AvailabilityManager";
 import { AppointmentsList } from "@/components/appointments/AppointmentsList";
 import { BookingSettings } from "@/components/appointments/BookingSettings";
+import { useAppointments, useUpdateAppointment, useDeleteAppointment } from "@/hooks/use-appointments";
+import { toast } from "sonner";
 
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  const { data: appointments = [], refetch } = useAppointments();
+  const updateAppointment = useUpdateAppointment();
+  const deleteAppointment = useDeleteAppointment();
+
+  const handleUpdateAppointment = async (appointment: any) => {
+    try {
+      await updateAppointment.mutateAsync(appointment);
+      refetch();
+      toast.success("Appointment updated successfully");
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      toast.error("Failed to update appointment");
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    try {
+      await deleteAppointment.mutateAsync(id);
+      refetch();
+      toast.success("Appointment deleted successfully");
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      toast.error("Failed to delete appointment");
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -68,14 +96,11 @@ export default function Appointments() {
         </TabsContent>
 
         <TabsContent value="appointments">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Appointments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AppointmentsList />
-            </CardContent>
-          </Card>
+          <AppointmentsList 
+            appointments={appointments}
+            onUpdate={handleUpdateAppointment}
+            onDelete={handleDeleteAppointment}
+          />
         </TabsContent>
 
         <TabsContent value="settings">
