@@ -29,7 +29,7 @@ export function UpdateAppointmentDialog({
   const [clientEmail, setClientEmail] = useState(appointment.client_email);
   const [clientPhone, setClientPhone] = useState(appointment.client_phone || "");
   const [notes, setNotes] = useState(appointment.notes || "");
-  const [status, setStatus] = useState(appointment.status);
+  const [status, setStatus] = useState<'pending' | 'confirmed' | 'cancelled' | 'completed'>(appointment.status);
 
   const { data: locations = [] } = useLocations();
   const updateAppointment = useUpdateAppointment();
@@ -44,7 +44,7 @@ export function UpdateAppointmentDialog({
         client_email: clientEmail,
         client_phone: clientPhone || null,
         notes: notes || null,
-        status: status as any,
+        status: status,
       };
 
       await updateAppointment.mutateAsync(updatedData);
@@ -54,6 +54,10 @@ export function UpdateAppointmentDialog({
       console.error("Error updating appointment:", error);
       toast.error("Failed to update appointment");
     }
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatus(value as 'pending' | 'confirmed' | 'cancelled' | 'completed');
   };
 
   return (
@@ -107,7 +111,7 @@ export function UpdateAppointmentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status} onValueChange={handleStatusChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

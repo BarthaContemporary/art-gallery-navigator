@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -200,6 +199,28 @@ export function useUpdateAppointment() {
     },
     onError: (error) => {
       toast.error('Failed to update appointment: ' + error.message);
+    },
+  });
+}
+
+export function useDeleteAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast.success('Appointment deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete appointment: ' + error.message);
     },
   });
 }
