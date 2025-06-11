@@ -1,6 +1,6 @@
 
 import { useArtists } from "@/hooks/useArtists";
-import { Filter } from "lucide-react";
+import { Filter, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -40,7 +40,10 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all" className="text-xs">
-          All Artists
+          <div className="flex items-center">
+            <Users className="mr-2 h-3 w-3" />
+            All Artists
+          </div>
         </SelectItem>
         {artists?.map((artist) => (
           <SelectItem key={artist.id} value={artist.id} className="text-xs">
