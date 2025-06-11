@@ -148,7 +148,7 @@ export default function ManageWebsites() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/collections/${website.collection_id}/websites/${website.id}/edit`)}
+                    onClick={() => navigate(`/manage-websites/${website.id}/edit`)}
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
