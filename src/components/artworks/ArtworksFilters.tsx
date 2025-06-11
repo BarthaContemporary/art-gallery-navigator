@@ -30,7 +30,7 @@ export function ArtworksFilters({
       <div className="w-full mb-3 md:mb-4">
         <SearchBar value={searchTerm} onChange={onSearchChange} />
       </div>
-      <div className="flex flex-row items-center gap-1 sm:gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-row items-center gap-0.5 sm:gap-1 overflow-x-auto pb-1">
         <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
           <StatusFilter value={statusFilter} onChange={onStatusFilterChange} />
         </div>
