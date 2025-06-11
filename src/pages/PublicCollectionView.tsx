@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, Info } from 'lucide-react';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
-import { ArtworkCard } from '@/components/artworks/ArtworkCard';
+import { OptimizedArtworkImage } from '@/components/artworks/OptimizedArtworkImage';
 
 const LOGO_SRC = "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
 
@@ -33,6 +33,18 @@ export default function PublicCollectionView() {
     }
     if (collectionId && !isArtworksLoading && artworks) {
       console.log("[PublicCollectionView] Artworks data from hook:", artworks);
+      // Log image URLs to verify Cloudinary usage
+      artworks.forEach(artwork => {
+        if (artwork.artwork_images && artwork.artwork_images.length > 0) {
+          console.log(`[PublicCollectionView] Artwork "${artwork.title}" images:`, 
+            artwork.artwork_images.map(img => ({
+              id: img.id,
+              url: img.image_url,
+              isCloudinary: img.image_url?.includes('res.cloudinary.com')
+            }))
+          );
+        }
+      });
     }
   }, [website, isWebsiteLoading, collection, isCollectionLoading, artworks, isArtworksLoading, collectionId]);
 
@@ -51,6 +63,11 @@ export default function PublicCollectionView() {
     if (slug) {
       sessionStorage.setItem(`pwd_verified_${slug}`, 'true');
     }
+  };
+
+  const handleArtworkClick = (artworkId: string) => {
+    // For public view, we can just log the click or implement a simple modal
+    console.log(`[PublicCollectionView] Artwork clicked: ${artworkId}`);
   };
 
   if (isWebsiteLoading || !sessionChecked) {
@@ -168,9 +185,53 @@ export default function PublicCollectionView() {
           )}
           {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
-              {artworks.map(artwork => (
-                <ArtworkCard key={artwork.id} artwork={artwork} />
-              ))}
+              {artworks.map(artwork => {
+                const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+                const imageUrl = primaryImage?.image_url || "/placeholder.svg";
+                
+                return (
+                  <div key={artwork.id} className="group cursor-pointer">
+                    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                      <OptimizedArtworkImage
+                        imageUrl={imageUrl}
+                        title={artwork.title || 'Untitled'}
+                        onClick={() => handleArtworkClick(artwork.id)}
+                      />
+                      <div className="p-4">
+                        <h3 className="font-medium text-lg mb-1 text-gray-900">
+                          {artwork.title || 'Untitled'}
+                        </h3>
+                        {artwork.artist && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            {artwork.artist.name}
+                          </p>
+                        )}
+                        {artwork.year_created && (
+                          <p className="text-sm text-gray-500">
+                            {artwork.year_created}
+                          </p>
+                        )}
+                        {artwork.medium && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {artwork.medium}
+                          </p>
+                        )}
+                        {website.show_prices && artwork.price && (
+                          <p className="text-sm font-medium text-gray-900 mt-2">
+                            ${artwork.price.toLocaleString()}
+                          </p>
+                        )}
+                        {/* Show Cloudinary indicator for transparency */}
+                        {imageUrl.includes('res.cloudinary.com') && (
+                          <div className="text-xs text-green-600 mt-1 opacity-70">
+                            ✓ Cloudinary Optimized
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           {!isArtworksLoading && !artworksError && (!artworks || artworks.length === 0) && (
@@ -192,4 +253,3 @@ export default function PublicCollectionView() {
     </div>
   );
 }
-
