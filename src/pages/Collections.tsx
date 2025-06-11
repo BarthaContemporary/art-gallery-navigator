@@ -4,9 +4,11 @@ import { CollectionDialog } from "@/components/collections/CollectionDialog";
 import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Collections() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   const handleManageAllWebsites = () => {
     navigate("/manage-websites");
@@ -17,15 +19,17 @@ export default function Collections() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
           <CollectionDialog />
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleManageAllWebsites}
-            className="flex gap-2"
-          >
-            <Globe className="h-4 w-4" />
-            Manage All Websites
-          </Button>
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleManageAllWebsites}
+              className="flex gap-2"
+            >
+              <Globe className="h-4 w-4" />
+              Manage All Websites
+            </Button>
+          )}
         </div>
       </div>
       <CollectionGrid />
