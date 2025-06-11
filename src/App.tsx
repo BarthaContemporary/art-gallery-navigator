@@ -23,6 +23,7 @@ import Auth from "@/pages/Auth";
 import Appointments from "@/pages/Appointments";
 import BookAppointment from "@/pages/BookAppointment";
 import UserSignup from "@/pages/UserSignup";
+import ManageWebsites from "@/pages/ManageWebsites";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="appointments" element={<Appointments />} />
               <Route path="settings" element={<UserSignup />} />
+              <Route path="manage-websites" element={<ManageWebsites />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
