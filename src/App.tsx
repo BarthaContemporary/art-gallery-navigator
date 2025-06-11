@@ -25,6 +25,7 @@ import BookAppointment from "@/pages/BookAppointment";
 import UserSignup from "@/pages/UserSignup";
 import ManageWebsites from "@/pages/ManageWebsites";
 import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
+import PublicCollectionView from "@/pages/PublicCollectionView";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/book-appointment" element={<BookAppointment />} />
+            <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
             <Route path="/" element={
               <RequireAuth>
                 <MainLayout />
