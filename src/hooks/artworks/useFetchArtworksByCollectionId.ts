@@ -13,6 +13,14 @@ export interface PublicArtwork {
   price: number | null;
   currency: string;
   status: string | null;
+  location_id: string | null;
+  height: number | null;
+  width: number | null;
+  depth: number | null;
+  is_framed: boolean | null;
+  frame_height: number | null;
+  frame_width: number | null;
+  frame_depth: number | null;
   created_at?: string | null;
   updated_at?: string | null;
   // Related data
@@ -74,6 +82,14 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
           price,
           currency,
           status,
+          location_id,
+          height,
+          width,
+          depth,
+          is_framed,
+          frame_height,
+          frame_width,
+          frame_depth,
           created_at,
           updated_at,
           artists!inner (

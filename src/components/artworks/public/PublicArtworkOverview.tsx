@@ -2,6 +2,7 @@
 import React from "react";
 import { ArtworkCarousel } from "../ArtworkCarousel";
 import type { PublicArtwork } from "@/hooks/artworks/useFetchArtworksByCollectionId";
+import { useLocation } from "@/hooks/use-location";
 
 interface PublicArtworkOverviewProps {
   artwork: PublicArtwork;
@@ -9,6 +10,30 @@ interface PublicArtworkOverviewProps {
 }
 
 export function PublicArtworkOverview({ artwork, showPrices = true }: PublicArtworkOverviewProps) {
+  const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
+
+  const formatDimensions = (artwork: PublicArtwork) => {
+    const parts = [];
+    if (artwork.height) parts.push(`H: ${artwork.height}`);
+    if (artwork.width) parts.push(`W: ${artwork.width}`);
+    if (artwork.depth) parts.push(`D: ${artwork.depth}`);
+    return parts.length > 0 ? parts.join(' × ') : null;
+  };
+
+  const formatFramingInfo = (artwork: PublicArtwork) => {
+    if (!artwork.is_framed) return null;
+    
+    const frameParts = [];
+    if (artwork.frame_height) frameParts.push(`H: ${artwork.frame_height}`);
+    if (artwork.frame_width) frameParts.push(`W: ${artwork.frame_width}`);
+    if (artwork.frame_depth) frameParts.push(`D: ${artwork.frame_depth}`);
+    
+    if (frameParts.length > 0) {
+      return `Framed (${frameParts.join(' × ')})`;
+    }
+    return "Framed";
+  };
+
   return (
     <div className="space-y-6">
       {/* Image Carousel */}
@@ -53,6 +78,29 @@ export function PublicArtworkOverview({ artwork, showPrices = true }: PublicArtw
             <div>
               <dt className="text-sm font-medium text-gray-500">Materials</dt>
               <dd className="text-sm text-gray-900">{artwork.materials}</dd>
+            </div>
+          )}
+
+          {formatDimensions(artwork) && (
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Dimensions</dt>
+              <dd className="text-sm text-gray-900">{formatDimensions(artwork)}</dd>
+            </div>
+          )}
+
+          {formatFramingInfo(artwork) && (
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Framing</dt>
+              <dd className="text-sm text-gray-900">{formatFramingInfo(artwork)}</dd>
+            </div>
+          )}
+
+          {artwork.location_id && (
+            <div>
+              <dt className="text-sm font-medium text-gray-500">Location</dt>
+              <dd className="text-sm text-gray-900">
+                {locationLoading ? "Loading..." : location?.name || "Unknown Location"}
+              </dd>
             </div>
           )}
           
