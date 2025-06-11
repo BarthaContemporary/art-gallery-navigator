@@ -1,3 +1,4 @@
+
 import { SearchBar } from "./SearchBar";
 import { StatusFilter } from "./StatusFilter";
 import { TypeFilter } from "./TypeFilter";
@@ -26,14 +27,14 @@ export function ArtworksFilters({
       <div className="w-full mb-3 md:mb-4">
         <SearchBar value={searchTerm} onChange={onSearchChange} />
       </div>
-      <div className="flex flex-row items-center gap-0 sm:gap-1 overflow-x-auto pb-1">
-        <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
+      <div className="flex flex-row items-center gap-2 sm:gap-3 overflow-x-auto pb-1">
+        <div className="flex-shrink-0 w-[85px] sm:w-[110px]">
           <StatusFilter value={statusFilter} onChange={onStatusFilterChange} />
         </div>
-        <div className="flex-shrink-0 w-[100px] sm:w-[140px]">
+        <div className="flex-shrink-0 w-[85px] sm:w-[110px]">
           <TypeFilter value={typeFilter} onChange={onTypeFilterChange} />
         </div>
-        <div className="flex-shrink-0 w-[100px] sm:w-[140px] md:w-[180px]">
+        <div className="flex-shrink-0 w-[85px] sm:w-[110px] md:w-[140px]">
           <ArtistFilter value={artistFilter} onChange={onArtistFilterChange} />
         </div>
       </div>
