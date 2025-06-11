@@ -1,180 +1,178 @@
-
 import React, { useState } from "react";
-import { format } from "date-fns";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { MoreVertical, Edit, Trash2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Clock, MapPin, User, Phone, Mail, MessageSquare, Check, X, Calendar } from "lucide-react";
-import { useAppointments, useUpdateAppointment } from "@/hooks/use-appointments";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { format } from "date-fns";
+import { Appointment } from "@/hooks/use-appointments";
+import { UpdateAppointmentDialog } from "./UpdateAppointmentDialog";
+import { AddToCalendarButton } from "./AddToCalendarButton";
 
-export function AppointmentsList() {
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  const { data: appointments = [], isLoading } = useAppointments();
-  const updateAppointment = useUpdateAppointment();
+interface AppointmentsListProps {
+  appointments: Appointment[];
+  onUpdate: (appointment: Appointment) => void;
+  onDelete: (id: string) => void;
+}
 
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
-    const matchesSearch = searchTerm === "" || 
-      appointment.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.client_email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+export const AppointmentsList: React.FC<AppointmentsListProps> = ({
+  appointments,
+  onUpdate,
+  onDelete,
+}) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Appointments</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {appointments.length === 0 ? (
+          <p>No appointments scheduled.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {appointments.map((appointment) => (
+                <TableRow key={appointment.id}>
+                  <AppointmentCard appointment={appointment} onUpdate={onUpdate} onDelete={onDelete} />
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-500';
-      case 'pending': return 'bg-yellow-500';
-      case 'cancelled': return 'bg-red-500';
-      case 'completed': return 'bg-blue-500';
-      default: return 'bg-gray-500';
-    }
+const AppointmentCard = ({ appointment, onUpdate, onDelete }: { appointment: Appointment; onUpdate: (appointment: Appointment) => void, onDelete: (id: string) => void }) => {
+  const [open, setOpen] = useState(false);
+
+  const handleUpdate = (updatedAppointment: Appointment) => {
+    onUpdate(updatedAppointment);
+    setOpen(false);
   };
-
-  const handleStatusChange = (appointmentId: string, newStatus: string) => {
-    updateAppointment.mutate({
-      id: appointmentId,
-      status: newStatus as any,
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
-        ))}
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Input
-          placeholder="Search by client name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    <Card className={`transition-all duration-200 ${appointment.status === 'cancelled' ? 'opacity-60' : ''}`}>
+      <CardContent className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="font-semibold">{appointment.client_name}</div>
+            <div className="text-sm text-muted-foreground">
+              {appointment.client_email}
+            </div>
+          </div>
 
-      {filteredAppointments.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center text-muted-foreground">
-            {searchTerm || statusFilter !== "all" 
-              ? "No appointments match your filters"
-              : "No appointments scheduled yet"
-            }
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredAppointments.map((appointment) => (
-            <Card key={appointment.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{appointment.client_name}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant="outline" 
-                      className={`${getStatusColor(appointment.status)} text-white border-0`}
-                    >
-                      {appointment.status}
-                    </Badge>
-                    {appointment.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusChange(appointment.id, 'confirmed')}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusChange(appointment.id, 'cancelled')}
-                          className="h-8 w-8 p-0"
-                        >
-                          <X className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {format(new Date(appointment.start_datetime), 'MMMM d, yyyy')}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      {format(new Date(appointment.start_datetime), 'h:mm a')} - 
-                      {format(new Date(appointment.end_datetime), 'h:mm a')}
-                    </div>
-                    {appointment.appointment_types && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <div 
-                          className="h-4 w-4 rounded"
-                          style={{ backgroundColor: appointment.appointment_types.color }}
-                        />
-                        {appointment.appointment_types.name}
-                      </div>
-                    )}
-                    {appointment.locations && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {appointment.locations.name}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      {appointment.client_email}
-                    </div>
-                    {appointment.client_phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        {appointment.client_phone}
-                      </div>
-                    )}
-                    {appointment.notes && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <p className="bg-muted p-2 rounded text-xs">
-                          {appointment.notes}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <div className="flex flex-col gap-1">
+            <div className="font-semibold">
+              {format(new Date(appointment.start_datetime), "MMM d, yyyy")}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {format(new Date(appointment.start_datetime), "h:mm a")}
+            </div>
+          </div>
+
+          <div>
+            {appointment.appointment_types ? (
+              <Badge
+                className="gap-1"
+                style={{ backgroundColor: appointment.appointment_types?.color }}
+              >
+                {appointment.appointment_types?.name}
+              </Badge>
+            ) : (
+              <Badge variant="outline">No Type</Badge>
+            )}
+          </div>
+
+          <div>
+            {appointment.locations ? (
+              <Badge variant="secondary">{appointment.locations?.name}</Badge>
+            ) : (
+              <Badge variant="outline">No Location</Badge>
+            )}
+          </div>
+
+          <div>
+            <Badge
+              variant="default"
+              className="capitalize"
+            >
+              {appointment.status}
+            </Badge>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <AddToCalendarButton 
+              appointment={appointment} 
+              variant="ghost" 
+              size="sm" 
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Update
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDelete(appointment.id)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      )}
-    </div>
+
+        {appointment.notes && (
+          <div className="mt-4 text-sm text-muted-foreground">
+            Notes: {appointment.notes}
+          </div>
+        )}
+      </CardContent>
+      <UpdateAppointmentDialog
+        open={open}
+        setOpen={setOpen}
+        appointment={appointment}
+        onUpdate={handleUpdate}
+      />
+    </Card>
   );
-}
+};

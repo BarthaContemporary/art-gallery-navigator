@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { Calendar, Clock, MapPin, User, Mail, Phone, MessageSquare } from "lucide-react";
@@ -11,6 +10,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
 import { useLocations } from "@/hooks/use-locations";
 import { toast } from "sonner";
+import { AddToCalendarButton } from "@/components/appointments/AddToCalendarButton";
 
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -19,6 +19,7 @@ export default function BookAppointment() {
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [bookedAppointment, setBookedAppointment] = useState<any>(null);
 
   const { data: locations = [] } = useLocations();
   const { data: slots = [] } = useAppointmentSlots(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
@@ -53,17 +54,25 @@ export default function BookAppointment() {
     const endDateTime = new Date(startDateTime);
     endDateTime.setMinutes(endDateTime.getMinutes() + 15);
 
+    const appointmentData = {
+      appointment_slot_id: slot.id,
+      start_datetime: startDateTime.toISOString(),
+      end_datetime: endDateTime.toISOString(),
+      client_name: clientName,
+      client_email: clientEmail,
+      client_phone: clientPhone || undefined,
+      notes: notes || undefined,
+      location_id: slot.location_id || undefined,
+      status: 'pending' as const,
+    };
+
     try {
-      await createAppointment.mutateAsync({
-        appointment_slot_id: slot.id,
-        start_datetime: startDateTime.toISOString(),
-        end_datetime: endDateTime.toISOString(),
-        client_name: clientName,
-        client_email: clientEmail,
-        client_phone: clientPhone || undefined,
-        notes: notes || undefined,
-        location_id: slot.location_id || undefined,
-        status: 'pending',
+      const result = await createAppointment.mutateAsync(appointmentData);
+      
+      // Store the booked appointment for displaying calendar options
+      setBookedAppointment({
+        ...result,
+        locations: locations.find(l => l.id === slot.location_id)
       });
 
       // Reset form
@@ -91,139 +100,176 @@ export default function BookAppointment() {
           <p className="text-gray-600">Schedule a 15-minute consultation or viewing with our gallery</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Date & Time Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Select Date & Time
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label>Select Date</Label>
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < minDate || date > maxDate}
-                  className="rounded-md border mt-2"
-                />
+        {bookedAppointment ? (
+          // Success state with calendar integration
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="pt-6 text-center space-y-6">
+              <div className="text-green-600">
+                <Calendar className="h-16 w-16 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Appointment Confirmed!</h2>
+                <p className="text-gray-600 mt-2">
+                  Your appointment has been successfully booked for {format(new Date(bookedAppointment.start_datetime), 'MMMM d, yyyy')} at {format(new Date(bookedAppointment.start_datetime), 'h:mm a')}.
+                </p>
               </div>
 
-              {selectedDate && availableSlots.length > 0 && (
-                <div>
-                  <Label>Available Times (15 minutes each)</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {availableSlots.map((slot) => (
-                      <Button
-                        key={slot.id}
-                        variant={selectedSlot === slot.id ? "default" : "outline"}
-                        onClick={() => setSelectedSlot(slot.id)}
-                        className="justify-start"
-                      >
-                        <Clock className="h-4 w-4 mr-2" />
-                        {slot.start_time}
-                      </Button>
-                    ))}
-                  </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">📅 Add to Your Calendar</h3>
+                <p className="text-blue-700 text-sm mb-4">
+                  Don't forget your appointment! Add it to your calendar now.
+                </p>
+                <div className="flex justify-center">
+                  <AddToCalendarButton appointment={bookedAppointment} />
                 </div>
-              )}
+              </div>
 
-              {selectedDate && availableSlots.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  No available slots for this date. Please select another date.
-                </div>
-              )}
+              <div className="text-sm text-gray-600">
+                <p>You will receive a confirmation email shortly with calendar file attached.</p>
+              </div>
+
+              <Button 
+                onClick={() => setBookedAppointment(null)}
+                variant="outline"
+              >
+                Book Another Appointment
+              </Button>
             </CardContent>
           </Card>
-
-          {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Your Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+        ) : (
+          // ... keep existing code (booking form)
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Date & Time Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Select Date & Time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    required
-                    className="mt-1"
+                  <Label>Select Date</Label>
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={(date) => date < minDate || date > maxDate}
+                    className="rounded-md border mt-2"
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="notes">Additional Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Any specific requirements or questions..."
-                    rows={3}
-                    className="mt-1"
-                  />
-                </div>
-
-                {selectedDate && selectedSlot && (
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="pt-4">
-                      <h4 className="font-medium mb-2">Appointment Summary</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {format(selectedDate, 'MMMM d, yyyy')}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          {availableSlots.find(s => s.id === selectedSlot)?.start_time} (15 minutes)
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                {selectedDate && availableSlots.length > 0 && (
+                  <div>
+                    <Label>Available Times (15 minutes each)</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {availableSlots.map((slot) => (
+                        <Button
+                          key={slot.id}
+                          variant={selectedSlot === slot.id ? "default" : "outline"}
+                          onClick={() => setSelectedSlot(slot.id)}
+                          className="justify-start"
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          {slot.start_time}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={!selectedDate || !selectedSlot || !clientName || !clientEmail || createAppointment.isPending}
-                >
-                  {createAppointment.isPending ? 'Booking...' : 'Book Appointment'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+                {selectedDate && availableSlots.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No available slots for this date. Please select another date.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Your Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Any specific requirements or questions..."
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {selectedDate && selectedSlot && (
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="pt-4">
+                        <h4 className="font-medium mb-2">Appointment Summary</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {format(selectedDate, 'MMMM d, yyyy')}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            {availableSlots.find(s => s.id === selectedSlot)?.start_time} (15 minutes)
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={!selectedDate || !selectedSlot || !clientName || !clientEmail || createAppointment.isPending}
+                  >
+                    {createAppointment.isPending ? 'Booking...' : 'Book Appointment'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

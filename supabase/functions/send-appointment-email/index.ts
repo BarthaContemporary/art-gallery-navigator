@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "npm:resend@2.0.0";
@@ -83,12 +82,68 @@ const handler = async (req: Request): Promise<Response> => {
       minute: '2-digit'
     });
 
-    let emailContent, subject, recipients;
+    // Generate ICS calendar file
+    const generateICS = (appointment: any) => {
+      const formatDate = (date: Date): string => {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      };
+
+      const escapeText = (text: string): string => {
+        return text
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n');
+      };
+
+      const startDate = new Date(appointment.start_datetime);
+      const endDate = new Date(appointment.end_datetime);
+      const location = appointment.locations?.name || 'Gallery';
+      const description = `Gallery appointment with ${appointment.client_name}${appointment.notes ? `\\n\\nNotes: ${appointment.notes}` : ''}`;
+
+      const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Gallery Booking System//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:REQUEST',
+        'BEGIN:VEVENT',
+        `UID:${appointment.id}@gallery-booking-system`,
+        `DTSTART:${formatDate(startDate)}`,
+        `DTEND:${formatDate(endDate)}`,
+        `DTSTAMP:${formatDate(new Date())}`,
+        `SUMMARY:${escapeText(`Gallery Appointment - ${appointment.client_name}`)}`,
+        `DESCRIPTION:${escapeText(description)}`,
+        `LOCATION:${escapeText(location)}`,
+        `ORGANIZER;CN=Gallery Team:mailto:bookings@bartha.app`,
+        `ATTENDEE;CN=${escapeText(appointment.client_name)};RSVP=TRUE:mailto:${appointment.client_email}`,
+        'STATUS:CONFIRMED',
+        'SEQUENCE:0',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ];
+
+      return lines.join('\r\n');
+    };
+
+    let emailContent, subject, recipients, attachments = undefined;
 
     switch (emailType) {
       case 'confirmation':
         subject = 'Appointment Booking Confirmation';
         recipients = [appointment.client_email];
+        
+        // Generate calendar file for confirmation emails
+        const icsContent = generateICS(appointment);
+        const icsFilename = `gallery-appointment-${appointment.client_name.replace(/\s+/g, '-').toLowerCase()}.ics`;
+        
+        attachments = [{
+          filename: icsFilename,
+          content: Buffer.from(icsContent).toString('base64'),
+          type: 'text/calendar',
+          disposition: 'attachment'
+        }];
+
         emailContent = `
           <h1>Appointment Confirmed!</h1>
           <p>Dear ${appointment.client_name},</p>
@@ -105,6 +160,11 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           ${appointment.notes ? `<p><strong>Notes:</strong> ${appointment.notes}</p>` : ''}
+          
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4>📅 Add to Your Calendar</h4>
+            <p>We've attached a calendar file (.ics) to this email. Simply click on the attachment to add this appointment to your Apple Calendar, Google Calendar, or any other calendar app.</p>
+          </div>
           
           <p>If you need to make any changes or have questions, please contact us.</p>
           <p>We look forward to seeing you!</p>
@@ -191,12 +251,19 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error('Invalid email type');
     }
 
-    const emailResponse = await resend.emails.send({
+    const emailOptions: any = {
       from: "Gallery Bookings <bookings@bartha.app>",
       to: recipients,
       subject: subject,
       html: emailContent,
-    });
+    };
+
+    // Add attachments if they exist
+    if (attachments) {
+      emailOptions.attachments = attachments;
+    }
+
+    const emailResponse = await resend.emails.send(emailOptions);
 
     console.log("Email sent successfully:", emailResponse);
 
