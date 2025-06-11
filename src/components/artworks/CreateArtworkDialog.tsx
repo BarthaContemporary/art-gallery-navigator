@@ -16,7 +16,7 @@ export function CreateArtworkDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm">
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Artwork
         </Button>
