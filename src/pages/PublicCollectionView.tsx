@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
 import { useFetchCollectionById } from '@/hooks/collections';
-import { useFetchArtworksByCollectionId } from '@/hooks/artworks';
+import { useFetchArtworksByCollectionId, type PublicArtwork } from '@/hooks/artworks/useFetchArtworksByCollectionId';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, Info } from 'lucide-react';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
 import { OptimizedArtworkImage } from '@/components/artworks/OptimizedArtworkImage';
+import { PublicArtworkDialog } from '@/components/artworks/public/PublicArtworkDialog';
 
 const LOGO_SRC = "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
 
@@ -18,6 +18,8 @@ export default function PublicCollectionView() {
   
   const [isPasswordVerified, setIsPasswordVerified] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [selectedArtwork, setSelectedArtwork] = useState<PublicArtwork | null>(null);
+  const [isArtworkDialogOpen, setIsArtworkDialogOpen] = useState(false);
 
   const collectionId = website?.collection_id;
   const { data: collection, isLoading: isCollectionLoading, error: collectionError } = useFetchCollectionById(collectionId);
@@ -65,9 +67,10 @@ export default function PublicCollectionView() {
     }
   };
 
-  const handleArtworkClick = (artworkId: string) => {
-    // For public view, we can just log the click or implement a simple modal
-    console.log(`[PublicCollectionView] Artwork clicked: ${artworkId}`);
+  const handleArtworkClick = (artwork: PublicArtwork) => {
+    console.log(`[PublicCollectionView] Artwork clicked: ${artwork.id}`);
+    setSelectedArtwork(artwork);
+    setIsArtworkDialogOpen(true);
   };
 
   if (isWebsiteLoading || !sessionChecked) {
@@ -136,120 +139,130 @@ export default function PublicCollectionView() {
   console.log('[PublicCollectionView Debug] Artworks Error:', artworksError);
 
   return (
-    <div className="container mx-auto p-4 sm:p-6">
-      <div className="flex justify-start mb-6 sm:mb-8">
-        <img 
-          src={LOGO_SRC} 
-          alt="Gallery Logo" 
-          className="h-auto"
-          style={{ maxWidth: '250px' }}
-        />
-      </div>
-
-      <PageHeader 
-        title={website.name || `Collection Website: ${website.slug}`} 
-        description={pageHeaderDescription}
-      />
-      
-      {website.collection_id && collection && !isCollectionLoading && !collectionError && (
-        <div className="my-6 text-left border-t pt-6">
-          {/* Content here is minimal as details are in PageHeader */}
+    <>
+      <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex justify-start mb-6 sm:mb-8">
+          <img 
+            src={LOGO_SRC} 
+            alt="Gallery Logo" 
+            className="h-auto"
+            style={{ maxWidth: '250px' }}
+          />
         </div>
-      )}
-      
-      {website.collection_id && !collection && !isCollectionLoading && !collectionError && (
-        <Alert variant="default" className="my-6">
-          <Info className="h-5 w-5" />
-          <ShadcnAlertTitle>Collection Information</ShadcnAlertTitle>
-          <AlertDescription>The associated collection details could not be loaded.</AlertDescription>
-        </Alert>
-      )}
-      
-      {website.collection_id ? (
-        <div className="mt-8">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Artworks</h2>
-          {isArtworksLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-              <p className="text-muted-foreground">Loading artworks...</p>
-            </div>
-          )}
-          {artworksError && (
-            <Alert variant="destructive" className="my-6">
-              <AlertTriangle className="h-5 w-5" />
-              <ShadcnAlertTitle>Error Loading Artworks</ShadcnAlertTitle>
-              <AlertDescription>
-                Failed to load artworks: {artworksError.message}
-              </AlertDescription>
-            </Alert>
-          )}
-          {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
-              {artworks.map(artwork => {
-                const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
-                const imageUrl = primaryImage?.image_url || "/placeholder.svg";
-                
-                return (
-                  <div key={artwork.id} className="group cursor-pointer">
-                    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
-                      <OptimizedArtworkImage
-                        imageUrl={imageUrl}
-                        title={artwork.title || 'Untitled'}
-                        onClick={() => handleArtworkClick(artwork.id)}
-                      />
-                      <div className="p-4">
-                        <h3 className="font-medium text-lg mb-1 text-gray-900">
-                          {artwork.title || 'Untitled'}
-                        </h3>
-                        {artwork.artist && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            {artwork.artist.name}
-                          </p>
-                        )}
-                        {artwork.year_created && (
-                          <p className="text-sm text-gray-500">
-                            {artwork.year_created}
-                          </p>
-                        )}
-                        {artwork.medium && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {artwork.medium}
-                          </p>
-                        )}
-                        {website.show_prices && artwork.price && (
-                          <p className="text-sm font-medium text-gray-900 mt-2">
-                            ${artwork.price.toLocaleString()}
-                          </p>
-                        )}
-                        {/* Show Cloudinary indicator for transparency */}
-                        {imageUrl.includes('res.cloudinary.com') && (
-                          <div className="text-xs text-green-600 mt-1 opacity-70">
-                            ✓ Cloudinary Optimized
-                          </div>
-                        )}
+
+        <PageHeader 
+          title={website.name || `Collection Website: ${website.slug}`} 
+          description={pageHeaderDescription}
+        />
+        
+        {website.collection_id && collection && !isCollectionLoading && !collectionError && (
+          <div className="my-6 text-left border-t pt-6">
+            {/* Content here is minimal as details are in PageHeader */}
+          </div>
+        )}
+        
+        {website.collection_id && !collection && !isCollectionLoading && !collectionError && (
+          <Alert variant="default" className="my-6">
+            <Info className="h-5 w-5" />
+            <ShadcnAlertTitle>Collection Information</ShadcnAlertTitle>
+            <AlertDescription>The associated collection details could not be loaded.</AlertDescription>
+          </Alert>
+        )}
+        
+        {website.collection_id ? (
+          <div className="mt-8">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Artworks</h2>
+            {isArtworksLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+                <p className="text-muted-foreground">Loading artworks...</p>
+              </div>
+            )}
+            {artworksError && (
+              <Alert variant="destructive" className="my-6">
+                <AlertTriangle className="h-5 w-5" />
+                <ShadcnAlertTitle>Error Loading Artworks</ShadcnAlertTitle>
+                <AlertDescription>
+                  Failed to load artworks: {artworksError.message}
+                </AlertDescription>
+              </Alert>
+            )}
+            {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
+                {artworks.map(artwork => {
+                  const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+                  const imageUrl = primaryImage?.image_url || "/placeholder.svg";
+                  
+                  return (
+                    <div key={artwork.id} className="group cursor-pointer">
+                      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                        <OptimizedArtworkImage
+                          imageUrl={imageUrl}
+                          title={artwork.title || 'Untitled'}
+                          onClick={() => handleArtworkClick(artwork)}
+                        />
+                        <div className="p-4">
+                          <h3 className="font-medium text-lg mb-1 text-gray-900">
+                            {artwork.title || 'Untitled'}
+                          </h3>
+                          {artwork.artist && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              {artwork.artist.full_name}
+                            </p>
+                          )}
+                          {artwork.year && (
+                            <p className="text-sm text-gray-500">
+                              {artwork.year}
+                            </p>
+                          )}
+                          {artwork.medium_type && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {artwork.medium_type}
+                            </p>
+                          )}
+                          {website.show_prices && artwork.price && (
+                            <p className="text-sm font-medium text-gray-900 mt-2">
+                              {artwork.currency} {artwork.price.toLocaleString()}
+                            </p>
+                          )}
+                          {/* Show Cloudinary indicator for transparency */}
+                          {imageUrl.includes('res.cloudinary.com') && (
+                            <div className="text-xs text-green-600 mt-1 opacity-70">
+                              ✓ Cloudinary Optimized
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {!isArtworksLoading && !artworksError && (!artworks || artworks.length === 0) && (
-             <div className="mt-6 p-6 border rounded-md bg-muted/50 text-muted-foreground flex flex-col items-center text-center">
-               <Info className="h-10 w-10 mb-3 text-primary" />
-               <p className="text-lg font-medium">No Artworks to Display</p>
-               <p className="text-sm">
-                 { collectionId ? "This collection currently has no artworks, or they could not be loaded." : "No collection is linked to this website, so no artworks can be displayed."}
-               </p>
-             </div>
-          )}
-        </div>
-      ) : (
-        <div className="mt-8 text-center text-muted-foreground">
-          <Info className="h-8 w-8 mx-auto mb-2 text-primary" />
-          <p>Artworks cannot be displayed as no collection is linked to this website.</p>
-        </div>
-      )}
-    </div>
+                  );
+                })}
+              </div>
+            )}
+            {!isArtworksLoading && !artworksError && (!artworks || artworks.length === 0) && (
+               <div className="mt-6 p-6 border rounded-md bg-muted/50 text-muted-foreground flex flex-col items-center text-center">
+                 <Info className="h-10 w-10 mb-3 text-primary" />
+                 <p className="text-lg font-medium">No Artworks to Display</p>
+                 <p className="text-sm">
+                   { collectionId ? "This collection currently has no artworks, or they could not be loaded." : "No collection is linked to this website, so no artworks can be displayed."}
+                 </p>
+               </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-8 text-center text-muted-foreground">
+            <Info className="h-8 w-8 mx-auto mb-2 text-primary" />
+            <p>Artworks cannot be displayed as no collection is linked to this website.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Public Artwork Dialog */}
+      <PublicArtworkDialog
+        artwork={selectedArtwork}
+        open={isArtworkDialogOpen}
+        onOpenChange={setIsArtworkDialogOpen}
+        showPrices={website.show_prices}
+      />
+    </>
   );
 }

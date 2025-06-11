@@ -1,10 +1,35 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Artwork } from "@/hooks/use-artworks"; // Assuming Artwork type is defined here
+
+// Extended Artwork type for public collection view
+export interface PublicArtwork {
+  id: string;
+  title: string;
+  artist_id: string | null;
+  year: number | null;
+  medium_type: string;
+  materials: string | null;
+  price: number | null;
+  currency: string;
+  status: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  // Related data
+  artist?: {
+    id: string;
+    full_name: string;
+  } | null;
+  artwork_images?: {
+    id: string;
+    image_url: string;
+    is_primary: boolean;
+    display_order: number;
+  }[];
+}
 
 export function useFetchArtworksByCollectionId(collectionId: string | undefined) {
-  return useQuery<Artwork[], Error>({
+  return useQuery<PublicArtwork[], Error>({
     queryKey: ["artworksByCollection", collectionId],
     queryFn: async () => {
       console.log(`[useFetchArtworksByCollectionId] Hook called. collectionId: ${collectionId}`);
@@ -35,12 +60,35 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
       const artworkIds = collectionArtworks.map(ca => ca.artwork_id);
       console.log(`[useFetchArtworksByCollectionId] Extracted artwork IDs: ${artworkIds.join(', ')}`);
 
-      // 2. Fetch artworks with these IDs
+      // 2. Fetch artworks with related data (artist and images)
       console.log(`[useFetchArtworksByCollectionId] Fetching artwork details for ${artworkIds.length} ID(s).`);
       const { data: artworksData, error: artworksDataError } = await supabase
         .from("artworks")
-        .select("*") // ArtworkCard handles fetching/displaying artist name via its own logic
-        .in("id", artworkIds);
+        .select(`
+          id,
+          title,
+          artist_id,
+          year,
+          medium_type,
+          materials,
+          price,
+          currency,
+          status,
+          created_at,
+          updated_at,
+          artists!inner (
+            id,
+            full_name
+          ),
+          artwork_images (
+            id,
+            image_url,
+            is_primary,
+            display_order
+          )
+        `)
+        .in("id", artworkIds)
+        .order("created_at", { ascending: false });
       
       if (artworksDataError) {
         console.error("[useFetchArtworksByCollectionId] Error fetching artworks:", artworksDataError);
@@ -49,7 +97,15 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
 
       console.log(`[useFetchArtworksByCollectionId] Fetched ${artworksData?.length || 0} artworks from 'artworks' table.`);
       
-      const result = (artworksData as Artwork[]) || [];
+      // Transform the data to match our PublicArtwork interface
+      const result: PublicArtwork[] = (artworksData || []).map(artwork => ({
+        ...artwork,
+        artist: artwork.artists ? {
+          id: artwork.artists.id,
+          full_name: artwork.artists.full_name
+        } : null
+      }));
+      
       console.log(`[useFetchArtworksByCollectionId] Returning ${result.length} artworks.`);
       return result;
     },
