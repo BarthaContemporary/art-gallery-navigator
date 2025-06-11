@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Globe, Eye, EyeOff, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Globe, Eye, EyeOff, Edit, Trash2, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useFetchAllCollectionWebsites } from "@/hooks/collection-websites";
 import { toast } from "sonner";
@@ -50,6 +49,11 @@ export default function ManageWebsites() {
       console.error('Error deleting website:', error);
       toast.error('Failed to delete website');
     }
+  };
+
+  const handleViewWebsite = (slug: string) => {
+    const websiteUrl = `${window.location.origin}/view-collection/${slug}`;
+    window.open(websiteUrl, '_blank');
   };
 
   if (isLoading) {
@@ -127,6 +131,15 @@ export default function ManageWebsites() {
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewWebsite(website.slug)}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Website
+                  </Button>
+                  
                   <Button
                     variant="outline"
                     size="sm"
