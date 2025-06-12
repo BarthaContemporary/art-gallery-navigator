@@ -20,7 +20,7 @@ export function CarouselNavigation({
         key={index}
         onClick={() => onDotClick(index)}
         aria-label={`Go to slide ${index + 1}`}
-        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+        className={`w-1 h-1 rounded-full transition-colors ${
           currentIndex === index ? "bg-primary" : "bg-gray-300"
         }`}
       />
