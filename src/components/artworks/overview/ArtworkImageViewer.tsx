@@ -1,105 +1,25 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { useArtworkImages } from "@/hooks/use-artwork-images";
 import { toast } from "sonner";
 
-interface ArtworkImage {
-  id: string;
-  artwork_id: string;
-  image_url: string;
-  is_primary: boolean;
-  display_order: number;
-}
-
-interface ArtworkImageCarouselProps {
+interface ArtworkImageViewerProps {
   artworkId: string;
   artistName?: string;
   artworkTitle?: string;
 }
 
-export function ArtworkImageCarousel({
+export function ArtworkImageViewer({
   artworkId,
   artistName = "Unknown_Artist",
   artworkTitle = "Untitled",
-}: ArtworkImageCarouselProps) {
-  const [images, setImages] = useState<ArtworkImage[]>([]);
+}: ArtworkImageViewerProps) {
+  const { images, loading, error } = useArtworkImages(artworkId);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
 
-  // Fetch images
-  useEffect(() => {
-    async function fetchImages() {
-      if (!artworkId) return;
-      
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("artwork_images")
-          .select("*")
-          .eq("artwork_id", artworkId)
-          .order("display_order", { ascending: true });
-          
-        if (error) throw error;
-        setImages(data || []);
-      } catch (err) {
-        console.error("Error fetching artwork images:", err);
-        toast.error("Failed to load images");
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchImages();
-  }, [artworkId]);
-
-  // Navigation
-  const goToPrevious = () => {
-    setCurrentIndex(prev => prev === 0 ? images.length - 1 : prev - 1);
-  };
-
-  const goToNext = () => {
-    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev + 1);
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index);
-  };
-
-  // Download
-  const handleDownload = () => {
-    if (images.length === 0) return;
-    
-    const currentImage = images[currentIndex];
-    const fileName = `${artistName}-${artworkTitle}_${currentIndex + 1}-${images.length}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-    
-    try {
-      const link = document.createElement("a");
-      link.href = currentImage.image_url;
-      link.download = `${fileName}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Failed to download image");
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="aspect-square bg-muted/20 rounded-lg flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading images...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Use placeholder if no images
   const displayImages = images.length > 0 ? images : [{
     id: "placeholder",
     artwork_id: artworkId,
@@ -110,10 +30,56 @@ export function ArtworkImageCarousel({
 
   const currentImage = displayImages[currentIndex];
 
+  const goToPrevious = () => {
+    setCurrentIndex(prev => prev === 0 ? displayImages.length - 1 : prev - 1);
+  };
+
+  const goToNext = () => {
+    setCurrentIndex(prev => prev === displayImages.length - 1 ? 0 : prev + 1);
+  };
+
+  const handleDownload = () => {
+    if (!currentImage || currentImage.image_url === "/placeholder.svg") return;
+    
+    const fileName = `${artistName}-${artworkTitle}_${currentIndex + 1}-${displayImages.length}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+    
+    try {
+      const link = document.createElement("a");
+      link.href = currentImage.image_url;
+      link.download = `${fileName}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Download started");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download image");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center bg-muted/20 rounded-lg">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading images...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center bg-muted/20 rounded-lg">
+        <p className="text-destructive">{error}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Main image container */}
-      <div className="relative aspect-square bg-muted/20 rounded-lg overflow-hidden group">
+      <div className="relative w-full h-[350px] md:h-[500px] bg-muted/20 rounded-lg overflow-hidden group">
         {/* Image */}
         <div 
           className={`w-full h-full cursor-pointer ${isZoomed ? 'overflow-auto' : 'overflow-hidden'}`}
@@ -122,7 +88,7 @@ export function ArtworkImageCarousel({
           <img
             src={currentImage.image_url}
             alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
-            className={`transition-all duration-300 object-contain w-full h-full ${
+            className={`w-full h-full object-contain transition-all duration-300 ${
               isZoomed 
                 ? 'scale-150 cursor-zoom-out' 
                 : 'hover:scale-105 cursor-zoom-in'
@@ -131,7 +97,7 @@ export function ArtworkImageCarousel({
           />
         </div>
 
-        {/* Navigation arrows - only show if multiple images */}
+        {/* Navigation arrows */}
         {displayImages.length > 1 && (
           <>
             <button
@@ -192,19 +158,19 @@ export function ArtworkImageCarousel({
         </div>
       </div>
 
-      {/* Navigation dots - properly sized */}
+      {/* Navigation dots */}
       {displayImages.length > 1 && (
         <div className="flex justify-center">
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             {displayImages.map((_, index) => (
               <button
                 key={index}
-                onClick={() => goToSlide(index)}
+                onClick={() => setCurrentIndex(index)}
                 aria-label={`Go to slide ${index + 1}`}
                 className={`rounded-full transition-all duration-200 hover:scale-125 ${
                   currentIndex === index 
-                    ? "bg-primary w-2 h-2" 
-                    : "bg-muted-foreground/30 hover:bg-muted-foreground/50 w-1.5 h-1.5"
+                    ? "bg-primary w-3 h-3" 
+                    : "bg-muted-foreground/30 hover:bg-muted-foreground/50 w-2 h-2"
                 }`}
               />
             ))}

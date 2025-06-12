@@ -9,21 +9,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArtworkImageCarousel } from "./carousel/ArtworkImageCarousel";
-import { ArtworkDetails } from "./details/ArtworkDetails";
-import { ArtworkActions } from "./actions/ArtworkActions";
+import { ArtworkImageViewer } from "./ArtworkImageViewer";
+import { ArtworkOverviewTabs } from "./ArtworkOverviewTabs";
+import { ArtworkActions } from "../actions/ArtworkActions";
 
-interface ArtworkDialogProps {
+interface ArtworkOverviewDialogProps {
   artwork: Artwork;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ArtworkDialog({
+export function ArtworkOverviewDialog({
   artwork,
   open,
   onOpenChange,
-}: ArtworkDialogProps) {
+}: ArtworkOverviewDialogProps) {
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
@@ -49,9 +49,9 @@ export function ArtworkDialog({
 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
-            {/* Image Carousel */}
+            {/* Image Viewer */}
             <div className="space-y-4">
-              <ArtworkImageCarousel 
+              <ArtworkImageViewer 
                 artworkId={artwork.id}
                 artistName={artist?.full_name || "Unknown_Artist"}
                 artworkTitle={artwork.title}
@@ -60,7 +60,7 @@ export function ArtworkDialog({
 
             {/* Artwork Details */}
             <div className="space-y-6">
-              <ArtworkDetails
+              <ArtworkOverviewTabs
                 artwork={artwork}
                 artist={artist}
                 artistLoading={artistLoading}
