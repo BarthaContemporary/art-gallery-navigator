@@ -1,6 +1,7 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { CreateArtworkForm } from "./CreateArtworkForm";
 import { Artwork } from "@/hooks/use-artworks";
 import { useCallback, useEffect, useState } from "react";
@@ -43,23 +44,45 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="max-w-2xl max-h-[90vh]"
+        className="max-w-2xl max-h-[90vh] flex flex-col"
         onClick={handleDialogInteraction}
         onPointerDownOutside={(e) => e.preventDefault()} // Prevent accidental outside clicks
       >
-        <DialogHeader className="pt-10">
+        <DialogHeader className="pt-10 flex-shrink-0">
           <DialogTitle>Edit Artwork</DialogTitle>
           <DialogDescription>
             Make changes to your artwork information below.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[calc(90vh-8rem)] pr-4">
-          <CreateArtworkForm 
-            setOpen={onOpenChange} 
-            initialData={artwork} 
-            preventFreeze={true}
-          />
-        </ScrollArea>
+        
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full pr-4">
+            <div className="pb-4">
+              <CreateArtworkForm 
+                setOpen={onOpenChange} 
+                initialData={artwork} 
+                preventFreeze={true}
+                hideSubmitButton={true}
+              />
+            </div>
+          </ScrollArea>
+        </div>
+        
+        <DialogFooter className="flex-shrink-0 pt-4 border-t">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            form="edit-artwork-form"
+          >
+            Update Artwork
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -2,7 +2,16 @@
 import { CreateArtworkFormView } from "./form/CreateArtworkFormView"; // Corrected import path
 import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
 
-export function CreateArtworkForm({ setOpen, initialData, preventFreeze }: UseCreateArtworkFormProps) {
+export interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
+  hideSubmitButton?: boolean;
+}
+
+export function CreateArtworkForm({ 
+  setOpen, 
+  initialData, 
+  preventFreeze,
+  hideSubmitButton = false 
+}: CreateArtworkFormProps) {
   const {
     form,
     classification,
@@ -10,7 +19,6 @@ export function CreateArtworkForm({ setOpen, initialData, preventFreeze }: UseCr
     locations,
     onSubmit,
     handleImagesUploaded,
-    // initialData: formInitialData, // already available via prop
     isSaving,
     isAdmin, // Get from the hook
     currentUserArtist // Get from the hook
@@ -27,6 +35,7 @@ export function CreateArtworkForm({ setOpen, initialData, preventFreeze }: UseCr
       onSubmit={onSubmit}
       isAdmin={isAdmin} // Pass down
       currentUserArtist={currentUserArtist} // Pass down
+      hideSubmitButton={hideSubmitButton}
     />
   );
 }

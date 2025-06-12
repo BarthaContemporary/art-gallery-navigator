@@ -1,3 +1,4 @@
+
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { MultipleImageUploader } from "../MultipleImageUploader";
@@ -25,6 +26,7 @@ interface CreateArtworkFormViewProps {
   onSubmit: (data: ArtworkFormData) => Promise<void>;
   isAdmin: boolean;
   currentUserArtist?: Artist | null;
+  hideSubmitButton?: boolean;
 }
 
 export function CreateArtworkFormView({
@@ -37,10 +39,15 @@ export function CreateArtworkFormView({
   onSubmit,
   isAdmin,
   currentUserArtist,
+  hideSubmitButton = false,
 }: CreateArtworkFormViewProps) {
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form 
+        id="edit-artwork-form"
+        onSubmit={form.handleSubmit(onSubmit)} 
+        className="space-y-6"
+      >
         <BasicInformationFields
           form={form}
           artists={artists}
@@ -65,8 +72,6 @@ export function CreateArtworkFormView({
               <FormControl>
                 <MultipleImageUploader 
                   onImagesUploaded={handleImagesUploaded}
-                  // Pass existing images if editing, this part needs more thought
-                  // initialImageUrls={initialData?.artwork_images?.map(img => img.image_url) || []}
                 />
               </FormControl>
               <FormMessage />
@@ -76,9 +81,11 @@ export function CreateArtworkFormView({
 
         <LocationStatusFields form={form} locations={locations} />
 
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {initialData ? "Update Artwork" : "Create Artwork"}
-        </Button>
+        {!hideSubmitButton && (
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            {initialData ? "Update Artwork" : "Create Artwork"}
+          </Button>
+        )}
       </form>
     </Form>
   );
