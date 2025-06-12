@@ -16,7 +16,7 @@ export function MobileSidebar() {
   return (
     <>
       {/* Fixed mobile header - optimized for iPhone screens */}
-      <div className="sm:hidden fixed top-0 left-0 right-0 h-12 bg-white border-b z-50 flex items-center justify-between px-4 safe-area-top">
+      <div className="sm:hidden fixed top-0 left-0 right-0 h-12 bg-white z-50 flex items-center justify-between px-4 safe-area-top"> {/* Updated: removed border-b */}
         <Link to="/" className="flex items-center">
           <img
             src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
@@ -35,7 +35,7 @@ export function MobileSidebar() {
           <DrawerContent className="h-[75vh] mt-12 bg-white safe-area-bottom">
             <div className="flex flex-col h-full bg-white">
               {/* Header with close button */}
-              <div className="flex items-center justify-between border-b px-4 py-3 bg-white">
+              <div className="flex items-center justify-between px-4 py-3 bg-white"> {/* Updated: removed border-b */}
                 <h2 className="text-base font-semibold">Menu</h2>
                 <Button
                   variant="ghost"
@@ -56,7 +56,7 @@ export function MobileSidebar() {
                       to={item.href}
                       key={item.href}
                       onClick={() => setOpen(false)}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
+                      className={`flex items-center gap-3 px-3 py-3 text-sm transition-colors ${ // Updated: removed rounded-lg
                         location.pathname === item.href || 
                         (item.href !== "/" && location.pathname.startsWith(item.href))
                           ? "bg-primary text-primary-foreground"
@@ -71,7 +71,7 @@ export function MobileSidebar() {
               </nav>
               
               {/* Logout button */}
-              <div className="border-t p-4 bg-white safe-area-bottom">
+              <div className="p-4 bg-white safe-area-bottom"> {/* Updated: removed border-t */}
                 <Button 
                   variant="ghost" 
                   size="sm"
