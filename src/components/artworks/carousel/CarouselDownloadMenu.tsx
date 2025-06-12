@@ -1,17 +1,11 @@
 
 import { Download } from "lucide-react";
-import { toast } from "sonner";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface CarouselDownloadMenuProps {
-  images: {
-    id: string;
-    artwork_id: string;
-    image_url: string;
-    is_primary: boolean;
-    display_order: number;
-  }[];
+  images: Array<{ id: string; image_url: string }>;
   artistName: string;
   artworkTitle: string;
 }
@@ -19,9 +13,9 @@ interface CarouselDownloadMenuProps {
 export function CarouselDownloadMenu({
   images,
   artistName,
-  artworkTitle
+  artworkTitle,
 }: CarouselDownloadMenuProps) {
-  const formatFileName = (artistName: string, artworkTitle: string, index: number, total: number) => {
+  const formatFileName = (index: number, total: number) => {
     return `B_c-${artistName}-${artworkTitle}_${index + 1}-${total}`.replace(/[^a-zA-Z0-9-_]/g, '_');
   };
 
@@ -29,7 +23,7 @@ export function CarouselDownloadMenu({
     try {
       const link = document.createElement("a");
       link.href = imageUrl;
-      link.download = `${formatFileName(artistName, artworkTitle, index, images.length)}.jpg`;
+      link.download = `${formatFileName(index, images.length)}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -42,14 +36,17 @@ export function CarouselDownloadMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-1">
-          <Download className="h-4 w-4" />
+        <Button variant="secondary" size="sm" className="bg-background/80 hover:bg-background/90">
+          <Download className="h-4 w-4 mr-1" />
           Download
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {images.map((image, index) => (
-          <DropdownMenuItem key={image.id} onClick={() => handleDownload(image.image_url, index)}>
+          <DropdownMenuItem 
+            key={image.id} 
+            onClick={() => handleDownload(image.image_url, index)}
+          >
             Image {index + 1} of {images.length}
           </DropdownMenuItem>
         ))}

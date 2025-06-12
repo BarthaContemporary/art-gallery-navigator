@@ -1,191 +1,129 @@
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useImageCache } from "@/hooks/use-image-cache";
-import { logger } from "@/lib/logger";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-interface UseCarouselImageLogicProps {
-  imageUrl: string;
-  imageId?: string;
+interface ArtworkImage {
+  id: string;
+  artwork_id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
 }
 
-export function useCarouselImageLogic({ imageUrl, imageId }: UseCarouselImageLogicProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [finalImageUrl, setFinalImageUrl] = useState<string>("");
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [currentAttempt, setCurrentAttempt] = useState(0);
-  
-  const { getCachedImage, setCachedImage } = useImageCache();
-  const mountedRef = useRef(true);
-  const imageLoadTimeoutRef = useRef<NodeJS.Timeout>();
-  
+export function useCarouselImageLogic(artworkId: string, isDialogActive: boolean = false) {
+  const [images, setImages] = useState<ArtworkImage[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
+
+  // Fetch images from Supabase
   useEffect(() => {
-    mountedRef.current = true;
-    return () => { 
-      mountedRef.current = false;
-      if (imageLoadTimeoutRef.current) {
-        clearTimeout(imageLoadTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Simple URL creation without complex processing
-  const getImageUrls = useCallback((url: string): string[] => {
-    if (!url || url === "/placeholder.svg") {
-      return ["/placeholder.svg"];
-    }
-
-    // If it's already a Cloudinary URL, use it as-is
-    if (url.includes('res.cloudinary.com')) {
-      return [url, "/placeholder.svg"];
-    }
-
-    // Try original URL first, then simple Cloudinary optimization, then placeholder
-    const cloudinaryUrl = `https://res.cloudinary.com/dpckgjtaj/image/fetch/w_1200,h_1200,c_limit,q_85,f_auto/${encodeURIComponent(url)}`;
-    
-    return [url, cloudinaryUrl, "/placeholder.svg"];
-  }, []);
-
-  const clearImageTimeout = useCallback(() => {
-    if (imageLoadTimeoutRef.current) {
-      clearTimeout(imageLoadTimeoutRef.current);
-      imageLoadTimeoutRef.current = undefined;
-    }
-  }, []);
-
-  // Main image processing effect
-  useEffect(() => {
-    if (!mountedRef.current || !imageUrl) {
-      setFinalImageUrl("/placeholder.svg");
-      setIsLoading(false);
-      return;
-    }
-
-    const processImage = async () => {
-      logger.log(`Starting image load for: ${imageUrl} (ID: ${imageId || 'no-id'})`);
+    async function fetchImages() {
+      if (!artworkId) return;
       
-      setIsLoading(true);
-      setHasError(false);
-      setCurrentAttempt(0);
-      clearImageTimeout();
+      setLoading(true);
+      setError(null);
       
       try {
-        // Check cache first
-        const cached = getCachedImage(imageUrl);
-        if (cached && mountedRef.current) {
-          logger.log(`Using cached image for: ${imageUrl}`);
-          setFinalImageUrl(cached.dataUrl);
-          setIsLoading(false);
-          return;
-        }
-
-        // Get all possible URLs to try
-        const urlsToTry = getImageUrls(imageUrl);
-        
-        // Start with the first URL
-        if (mountedRef.current && urlsToTry.length > 0) {
-          setFinalImageUrl(urlsToTry[0]);
-          setCurrentAttempt(0);
+        const { data, error: fetchError } = await supabase
+          .from("artwork_images")
+          .select("*")
+          .eq("artwork_id", artworkId)
+          .order("display_order", { ascending: true });
           
-          // Set a timeout to try the next URL if this one fails
-          imageLoadTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current && currentAttempt < urlsToTry.length - 1) {
-              logger.warn(`Image timeout, trying next URL for: ${imageId || 'no-id'}`);
-              setCurrentAttempt(prev => prev + 1);
-            }
-          }, 5000);
-        }
-      } catch (error) {
-        logger.error(`Failed to process image: ${imageId || 'no-id'}`, error);
-        if (mountedRef.current) {
-          setFinalImageUrl("/placeholder.svg");
-          setIsLoading(false);
-          setHasError(true);
-        }
+        if (fetchError) throw fetchError;
+        
+        setImages(data || []);
+      } catch (err) {
+        console.error("Error fetching artwork images:", err);
+        setError("Failed to load images");
+      } finally {
+        setLoading(false);
       }
-    };
-
-    processImage();
+    }
     
-    return () => {
-      clearImageTimeout();
-    };
-  }, [imageUrl, imageId, getCachedImage, getImageUrls, clearImageTimeout, currentAttempt]);
+    fetchImages();
+  }, [artworkId]);
 
-  // Handle URL changes based on attempt
+  // Navigation functions
+  const goToPrevious = useCallback(() => {
+    setCurrentIndex(prev => prev === 0 ? images.length - 1 : prev - 1);
+  }, [images.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev + 1);
+  }, [images.length]);
+
+  const goToSlide = useCallback((index: number) => {
+    setCurrentIndex(index);
+  }, []);
+
+  // Keyboard navigation
   useEffect(() => {
-    if (!imageUrl || !mountedRef.current) return;
+    if (!isDialogActive) return;
     
-    const urlsToTry = getImageUrls(imageUrl);
-    if (currentAttempt < urlsToTry.length) {
-      const urlToUse = urlsToTry[currentAttempt];
-      logger.log(`Attempt ${currentAttempt + 1}: Setting image URL to: ${urlToUse}`);
-      setFinalImageUrl(urlToUse);
-    }
-  }, [currentAttempt, imageUrl, getImageUrls]);
-  
-  const handleImageLoad = useCallback(() => {
-    if (!mountedRef.current) return;
-    
-    logger.log(`Image loaded successfully: ${finalImageUrl}`);
-    clearImageTimeout();
-    setIsLoading(false);
-    setHasError(false);
-    
-    // Cache the successfully loaded image if it's not a placeholder
-    if (finalImageUrl && finalImageUrl !== "/placeholder.svg" && imageUrl) {
-      try {
-        setCachedImage(imageUrl, finalImageUrl, 'medium');
-      } catch (error) {
-        logger.warn("Failed to cache image:", error);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      
+      switch (event.key) {
+        case "ArrowLeft":
+          event.preventDefault();
+          goToPrevious();
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          goToNext();
+          break;
+        case "Escape":
+          event.preventDefault();
+          setZoomedIndex(null);
+          break;
       }
-    }
-  }, [finalImageUrl, setCachedImage, imageUrl, clearImageTimeout]);
+    };
 
-  const handleImageError = useCallback(() => {
-    if (!mountedRef.current) return;
-    
-    logger.warn(`Failed to load image attempt ${currentAttempt + 1}: ${finalImageUrl}`);
-    clearImageTimeout();
-    
-    const urlsToTry = getImageUrls(imageUrl);
-    
-    // Try next URL if available
-    if (currentAttempt < urlsToTry.length - 1) {
-      logger.log(`Trying next URL for: ${imageId || 'no-id'}`);
-      setCurrentAttempt(prev => prev + 1);
-    } else {
-      // All URLs failed, use placeholder
-      logger.log(`All URLs failed, using placeholder for: ${imageId || 'no-id'}`);
-      setFinalImageUrl("/placeholder.svg");
-      setIsLoading(false);
-      setHasError(true);
-    }
-  }, [finalImageUrl, imageUrl, currentAttempt, imageId, clearImageTimeout, getImageUrls]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isDialogActive, goToPrevious, goToNext]);
 
-  const toggleZoom = useCallback(() => {
-    setIsZoomed(!isZoomed);
-  }, [isZoomed]);
+  // Image loading handlers
+  const handleImageLoad = (imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }));
+    setImageErrors(prev => ({ ...prev, [imageId]: false }));
+  };
 
-  const handleImageClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleZoom();
-  }, [toggleZoom]);
+  const handleImageError = (imageId: string) => {
+    console.error(`Failed to load image: ${imageId}`);
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }));
+    setImageErrors(prev => ({ ...prev, [imageId]: true }));
+  };
 
-  // Use the final image URL or fallback to placeholder
-  const displayUrl = finalImageUrl || "/placeholder.svg";
+  const handleImageLoadStart = (imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: true }));
+  };
+
+  // Toggle zoom
+  const toggleZoom = (index: number) => {
+    setZoomedIndex(zoomedIndex === index ? null : index);
+  };
 
   return {
-    isLoading,
-    hasError,
-    finalImageUrl,
-    isZoomed,
-    isProcessing: false,
-    displayUrl,
+    images,
+    currentIndex,
+    loading,
+    error,
+    imageLoadingStates,
+    imageErrors,
+    zoomedIndex,
+    goToPrevious,
+    goToNext,
+    goToSlide,
     handleImageLoad,
     handleImageError,
-    handleImageClick,
+    handleImageLoadStart,
     toggleZoom,
   };
 }

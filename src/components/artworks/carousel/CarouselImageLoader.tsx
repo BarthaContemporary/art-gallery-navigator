@@ -1,27 +1,62 @@
 
-import { Loader2 } from "lucide-react";
-
 interface CarouselImageLoaderProps {
+  imageId: string;
+  imageUrl: string;
+  altText: string;
+  isZoomed: boolean;
   isLoading: boolean;
-  isProcessing: boolean;
-  carouselHeightClass: string;
+  hasError: boolean;
+  onLoadStart: () => void;
+  onLoad: () => void;
+  onError: () => void;
+  onToggleZoom: () => void;
 }
 
 export function CarouselImageLoader({
+  imageId,
+  imageUrl,
+  altText,
+  isZoomed,
   isLoading,
-  isProcessing,
-  carouselHeightClass,
+  hasError,
+  onLoadStart,
+  onLoad,
+  onError,
+  onToggleZoom,
 }: CarouselImageLoaderProps) {
-  if (!isLoading && !isProcessing) return null;
+  if (isLoading) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-muted/20 z-10">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted/20">
+        <div className="text-center">
+          <p className="text-muted-foreground">Failed to load image</p>
+          <p className="text-xs text-muted-foreground mt-1">ID: {imageId}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`absolute inset-0 flex items-center justify-center ${carouselHeightClass} bg-muted/20 z-10`}>
-      <div className="flex flex-col items-center gap-2 bg-background/80 p-4 rounded-lg">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
-          {isProcessing ? "Optimizing image..." : "Loading image..."}
-        </p>
-      </div>
-    </div>
+    <img
+      src={imageUrl}
+      alt={altText}
+      className={`transition-all duration-300 ${
+        isZoomed 
+          ? 'w-auto h-auto min-w-full min-h-full object-contain cursor-zoom-out scale-150 origin-center' 
+          : 'w-full h-full object-contain cursor-zoom-in hover:scale-105'
+      }`}
+      onLoadStart={onLoadStart}
+      onLoad={onLoad}
+      onError={onError}
+      loading="lazy"
+      onClick={onToggleZoom}
+    />
   );
 }

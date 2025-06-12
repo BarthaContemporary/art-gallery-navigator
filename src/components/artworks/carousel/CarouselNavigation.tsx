@@ -1,37 +1,36 @@
 
-import React from 'react';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CarouselNavigationProps {
-  currentIndex: number;
-  totalImages: number;
-  onDotClick: (index: number) => void;
+  hasMultipleImages: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
 }
 
 export function CarouselNavigation({
-  currentIndex,
-  totalImages,
-  onDotClick
+  hasMultipleImages,
+  onPrevious,
+  onNext,
 }: CarouselNavigationProps) {
-  if (totalImages <= 1) return null;
-  
-  const renderDots = () => {
-    return Array.from({ length: totalImages }, (_, index) => (
-      <button
-        key={index}
-        onClick={() => onDotClick(index)}
-        aria-label={`Go to slide ${index + 1}`}
-        className={`w-1 h-1 rounded-full transition-colors ${
-          currentIndex === index ? "bg-primary" : "bg-gray-300"
-        }`}
-      />
-    ));
-  };
-  
+  if (!hasMultipleImages) return null;
+
   return (
-    <div className="flex justify-center items-center w-full">
-      <div className="flex gap-1.5">
-        {renderDots()}
-      </div>
-    </div>
+    <>
+      <button
+        onClick={onPrevious}
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
+        aria-label="Previous image"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      
+      <button
+        onClick={onNext}
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background shadow-md flex items-center justify-center hover:bg-accent transition-colors"
+        aria-label="Next image"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </>
   );
 }
