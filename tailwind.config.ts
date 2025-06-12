@@ -36,8 +36,8 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: 'hsl(var(--background))', // Updated to use HSL
-        foreground: 'hsl(var(--foreground))', // Updated to use HSL
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -66,13 +66,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Removed old direct color values like hover, link, marine
-        // These will be derived from primary, accent, etc. or defined as needed.
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)'
+        lg: '0px',
+        md: '0px',
+        sm: '0px'
       },
       keyframes: {
         'accordion-down': {
@@ -83,7 +81,6 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' }
         },
-        // Added new animations
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -104,7 +101,6 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        // Added new animation utilities
         'fade-in': 'fade-in 0.3s ease-out forwards',
         'fade-out': 'fade-out 0.3s ease-out forwards',
         'scale-in': 'scale-in 0.2s ease-out forwards',

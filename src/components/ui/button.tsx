@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-3.5 md:[&_svg]:size-4", // Updated: rounded-lg, base icon size
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-3.5 md:[&_svg]:size-4",
   {
     variants: {
       variant: {
@@ -14,17 +14,17 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         outline:
-          "bg-background hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black", // Removed: border border-input
+          "bg-background hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         ghost: "hover:bg-[#e8c858] hover:text-black active:bg-[#e8c858] active:text-black",
         link: "text-primary underline-offset-4 hover:underline hover:text-[#e8c858]",
       },
       size: {
-        default: "h-9 px-4 text-sm md:h-10 md:px-4 md:py-2", // Updated: height, padding, text size
-        sm: "h-8 rounded-md px-3 text-xs md:h-8 md:px-3", // Updated: height, padding, kept rounded-md for smaller feel
-        lg: "h-10 rounded-lg px-6 text-base md:h-12 md:px-8", // Updated: height, padding, text size
-        icon: "h-9 w-9 rounded-lg md:h-10 md:w-10", // Updated: height, width
+        default: "h-9 px-4 text-sm md:h-10 md:px-4 md:py-2",
+        sm: "h-8 px-3 text-xs md:h-8 md:px-3",
+        lg: "h-10 px-6 text-base md:h-12 md:px-8",
+        icon: "h-9 w-9 md:h-10 md:w-10",
       },
     },
     defaultVariants: {
