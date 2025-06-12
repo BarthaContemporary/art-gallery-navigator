@@ -87,7 +87,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
   return (
     <>
-      <Card className="group relative flex flex-col h-full">
+      <Card className="group relative flex flex-col h-full border-gray-200"> {/* Removed hover:shadow-md */}
         {isAdmin && (
           <ArtworkCardActions
             onEdit={handleEdit}

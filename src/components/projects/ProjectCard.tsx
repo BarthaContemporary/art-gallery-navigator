@@ -44,7 +44,7 @@ export function ProjectCard({ project, onEdit, onDelete, onCalendar, tasks }: Pr
   
   return (
     <Card 
-      className="group relative cursor-pointer transition-all hover:shadow-md pt-6"
+      className="group relative cursor-pointer transition-all border-gray-200 hover:border-gray-300 pt-6" // Removed hover:shadow-md
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >

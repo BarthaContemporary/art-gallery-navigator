@@ -195,7 +195,7 @@ export default function PublicCollectionView() {
                   
                   return (
                     <div key={artwork.id} className="group cursor-pointer">
-                      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+                      <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors duration-200 overflow-hidden">
                         <OptimizedArtworkImage
                           imageUrl={imageUrl}
                           title={artwork.title || 'Untitled'}

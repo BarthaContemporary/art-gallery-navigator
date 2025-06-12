@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Location } from "@/hooks/use-locations";
 import { getLocationIcon } from "./utils/location-icons";
@@ -22,7 +21,7 @@ export function LocationCard({ location, isAdmin, onDelete }: LocationCardProps)
 
   return (
     <>
-      <Card key={location.id} className="group relative">
+      <Card key={location.id} className="group relative border-gray-200">
         {isAdmin && (
           <LocationActions
             location={location}
