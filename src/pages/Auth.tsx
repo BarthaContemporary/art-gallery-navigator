@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -10,7 +11,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { DebugInfo } from "@/components/ui/debug-info";
 import { AuthStatusMonitor } from "@/components/auth/AuthStatusMonitor";
 import { logger } from "@/lib/logger";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Shield } from "lucide-react";
 
 type AuthTab = "login" | "otp";
 
@@ -147,12 +148,31 @@ function Auth() {
                 />
               </TabsContent>
 
-              <TabsList className="grid grid-cols-2 mt-6 h-9 sm:h-10 w-full">
-                <TabsTrigger value="login" className="text-xs sm:text-sm font-thin">Login</TabsTrigger>
-                <TabsTrigger value="otp" disabled={!email} className="text-xs sm:text-sm font-thin">
-                  Verification
-                </TabsTrigger>
-              </TabsList>
+              <div className="mt-8 space-y-4">
+                <TabsList className="grid grid-cols-2 w-full bg-gray-50 p-1 rounded-xl h-12">
+                  <TabsTrigger 
+                    value="login" 
+                    className="flex items-center gap-2 text-sm font-medium rounded-lg py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600 transition-all duration-200"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Sign In
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="otp" 
+                    disabled={!email} 
+                    className="flex items-center gap-2 text-sm font-medium rounded-lg py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Shield className="h-4 w-4" />
+                    Verify
+                  </TabsTrigger>
+                </TabsList>
+                
+                {!email && selectedTab === "login" && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Enter your email to enable verification step
+                  </p>
+                )}
+              </div>
             </Tabs>
           </Card>
           
