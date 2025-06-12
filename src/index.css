@@ -145,6 +145,11 @@
   * {
     box-shadow: none !important;
   }
+
+  /* Remove all borders globally */
+  * {
+    border: none !important;
+  }
 }
 
 /* Mobile-first responsive utilities */
@@ -212,5 +217,30 @@
   }
   .shadow-inner {
     box-shadow: none !important;
+  }
+
+  /* Override any border utilities */
+  .border {
+    border: none !important;
+  }
+  .border-t {
+    border-top: none !important;
+  }
+  .border-r {
+    border-right: none !important;
+  }
+  .border-b {
+    border-bottom: none !important;
+  }
+  .border-l {
+    border-left: none !important;
+  }
+  .border-x {
+    border-left: none !important;
+    border-right: none !important;
+  }
+  .border-y {
+    border-top: none !important;
+    border-bottom: none !important;
   }
 }
