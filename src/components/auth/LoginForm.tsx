@@ -3,7 +3,7 @@ import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -74,9 +74,6 @@ export function LoginForm({
   
   return (
     <Card className="w-full border-0 shadow-none">
-      <CardHeader className="px-0 pb-4">
-        <CardTitle className="text-lg sm:text-xl md:text-2xl text-center font-thin">Sign In</CardTitle>
-      </CardHeader>
       <CardContent className="px-0 space-y-4">
         {captchaError && (
           <Alert className="mb-4">
