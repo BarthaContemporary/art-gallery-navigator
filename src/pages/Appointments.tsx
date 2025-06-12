@@ -40,11 +40,6 @@ export default function Appointments() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-        </div>
-      </div>
-
       <Tabs defaultValue="calendar" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="calendar" className="flex items-center gap-2">
