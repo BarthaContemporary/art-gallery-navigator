@@ -1,0 +1,61 @@
+
+import React, { useState } from "react";
+import { Artwork } from "@/hooks/use-artworks";
+import { Artist } from "@/hooks/use-artist";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FileText, Download, MoreHorizontal } from "lucide-react";
+import { createArtworkPDF } from "@/lib/create-artwork-pdf";
+import { toast } from "sonner";
+
+interface ArtworkActionsProps {
+  artwork: Artwork;
+  artist: Artist | null | undefined;
+}
+
+export function ArtworkActions({ artwork, artist }: ArtworkActionsProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGeneratePDF = async () => {
+    if (isGenerating) return;
+    
+    setIsGenerating(true);
+    try {
+      await createArtworkPDF(artwork, true);
+      toast.success("PDF generated successfully");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleGeneratePDF}
+        disabled={isGenerating}
+      >
+        <FileText className="h-4 w-4 mr-2" />
+        {isGenerating ? "Generating..." : "Create PDF"}
+      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGenerating}>
+            <FileText className="h-4 w-4 mr-2" />
+            Generate PDF
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
