@@ -112,6 +112,7 @@ export function SimpleArtworkCarousel({
   };
 
   const handleImageError = (imageId: string) => {
+    console.error(`Failed to load image: ${imageId}`);
     setImageLoadingStates(prev => ({ ...prev, [imageId]: false }));
     setImageErrors(prev => ({ ...prev, [imageId]: true }));
   };
@@ -192,19 +193,28 @@ export function SimpleArtworkCarousel({
             </div>
           )}
           
-          <img
-            src={currentImage.image_url}
-            alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
-            className={`transition-all duration-300 ${
-              isZoomed 
-                ? 'w-auto h-auto min-w-full min-h-full object-contain cursor-zoom-out scale-150 origin-center' 
-                : 'w-full h-full object-contain cursor-zoom-in hover:scale-105'
-            }`}
-            onLoadStart={() => handleImageLoadStart(currentImage.id)}
-            onLoad={() => handleImageLoad(currentImage.id)}
-            onError={() => handleImageError(currentImage.id)}
-            loading="lazy"
-          />
+          {imageErrors[currentImage.id] ? (
+            <div className="w-full h-full flex items-center justify-center bg-muted/20">
+              <div className="text-center">
+                <p className="text-muted-foreground">Failed to load image</p>
+                <p className="text-xs text-muted-foreground mt-1">ID: {currentImage.id}</p>
+              </div>
+            </div>
+          ) : (
+            <img
+              src={currentImage.image_url}
+              alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
+              className={`transition-all duration-300 ${
+                isZoomed 
+                  ? 'w-auto h-auto min-w-full min-h-full object-contain cursor-zoom-out scale-150 origin-center' 
+                  : 'w-full h-full object-contain cursor-zoom-in hover:scale-105'
+              }`}
+              onLoadStart={() => handleImageLoadStart(currentImage.id)}
+              onLoad={() => handleImageLoad(currentImage.id)}
+              onError={() => handleImageError(currentImage.id)}
+              loading="lazy"
+            />
+          )}
         </div>
 
         {/* Navigation arrows - only show if multiple images */}
@@ -279,16 +289,16 @@ export function SimpleArtworkCarousel({
         </div>
       </div>
 
-      {/* Navigation dots */}
+      {/* Navigation dots - much smaller now */}
       {displayImages.length > 1 && (
         <div className="flex justify-center mt-4">
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             {displayImages.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
                 aria-label={`Go to slide ${index + 1}`}
-                className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                className={`w-1 h-1 rounded-full transition-colors duration-200 hover:scale-125 ${
                   currentIndex === index 
                     ? "bg-primary" 
                     : "bg-gray-300 hover:bg-gray-400"
