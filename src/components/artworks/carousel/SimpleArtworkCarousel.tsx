@@ -289,19 +289,19 @@ export function SimpleArtworkCarousel({
         </div>
       </div>
 
-      {/* Navigation dots - much smaller now */}
+      {/* Navigation dots - truly tiny dots */}
       {displayImages.length > 1 && (
-        <div className="flex justify-center mt-4">
-          <div className="flex gap-1">
+        <div className="flex justify-center mt-3">
+          <div className="flex gap-2">
             {displayImages.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
                 aria-label={`Go to slide ${index + 1}`}
-                className={`w-1 h-1 rounded-full transition-colors duration-200 hover:scale-125 ${
+                className={`transition-all duration-200 hover:scale-150 rounded-full ${
                   currentIndex === index 
-                    ? "bg-primary" 
-                    : "bg-gray-300 hover:bg-gray-400"
+                    ? "bg-primary w-3 h-3" 
+                    : "bg-gray-300 hover:bg-gray-400 w-2 h-2"
                 }`}
               />
             ))}
