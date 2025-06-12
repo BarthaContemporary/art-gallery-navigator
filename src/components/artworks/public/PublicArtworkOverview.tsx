@@ -1,4 +1,3 @@
-
 import React from "react";
 import { ArtworkImageViewer } from "../overview/ArtworkImageViewer";
 import type { PublicArtwork } from "@/hooks/artworks/useFetchArtworksByCollectionId";
@@ -36,14 +35,12 @@ export function PublicArtworkOverview({ artwork, showPrices = true }: PublicArtw
 
   return (
     <div className="space-y-6">
-      {/* Image Viewer */}
-      <div className="mb-6">
-        <ArtworkImageViewer 
-          artworkId={artwork.id} 
-          artistName={artwork.artist?.full_name || "Unknown Artist"} 
-          artworkTitle={artwork.title}
-        />
-      </div>
+      {/* Image Viewer - Full Width at Top */}
+      <ArtworkImageViewer 
+        artworkId={artwork.id} 
+        artistName={artwork.artist?.full_name || "Unknown Artist"} 
+        artworkTitle={artwork.title}
+      />
       
       {/* Primary Details */}
       <div className="space-y-4">
