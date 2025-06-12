@@ -107,7 +107,7 @@ function Auth() {
     <ErrorBoundary>
       <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 p-3 md:p-4">
         <div className="w-full max-w-md">
-          <Card className="p-3 md:p-6 border-0 rounded-none bg-card"> {/* Removed border and rounded corners */}
+          <Card className="p-3 md:p-6 border-0 rounded-none bg-card">
             {/* Logo Header */}
             <div className="mb-6 md:mb-8 text-center">
               <div className="flex justify-center mb-4">
@@ -129,13 +129,6 @@ function Auth() {
             )}
             
             <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as AuthTab)}>
-              <TabsList className="grid grid-cols-2 mb-3 md:mb-6 h-7 md:h-10">
-                <TabsTrigger value="login" className="text-xs md:text-sm">Login</TabsTrigger>
-                <TabsTrigger value="otp" disabled={!email} className="text-xs md:text-sm">
-                  Verification
-                </TabsTrigger>
-              </TabsList>
-              
               <TabsContent value="login">
                 <LoginForm 
                   onSubmit={handleLoginSubmit}
@@ -154,6 +147,13 @@ function Auth() {
                   onError={handleAuthError}
                 />
               </TabsContent>
+
+              <TabsList className="grid grid-cols-2 mt-6 h-7 md:h-10">
+                <TabsTrigger value="login" className="text-xs md:text-sm">Login</TabsTrigger>
+                <TabsTrigger value="otp" disabled={!email} className="text-xs md:text-sm">
+                  Verification
+                </TabsTrigger>
+              </TabsList>
             </Tabs>
           </Card>
           
