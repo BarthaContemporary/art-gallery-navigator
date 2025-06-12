@@ -1,6 +1,6 @@
 
 import React from "react";
-import { ArtworkCarousel } from "../ArtworkCarousel";
+import { ArtworkImageViewer } from "../overview/ArtworkImageViewer";
 import type { PublicArtwork } from "@/hooks/artworks/useFetchArtworksByCollectionId";
 import { useLocation } from "@/hooks/use-location";
 
@@ -36,13 +36,12 @@ export function PublicArtworkOverview({ artwork, showPrices = true }: PublicArtw
 
   return (
     <div className="space-y-6">
-      {/* Image Carousel */}
+      {/* Image Viewer */}
       <div className="mb-6">
-        <ArtworkCarousel 
+        <ArtworkImageViewer 
           artworkId={artwork.id} 
           artistName={artwork.artist?.full_name || "Unknown Artist"} 
           artworkTitle={artwork.title}
-          isDialogActive={true}
         />
       </div>
       
