@@ -140,6 +140,11 @@
     min-height: 44px; /* iOS recommended touch target */
     min-width: 44px;
   }
+
+  /* Remove all shadows globally */
+  * {
+    box-shadow: none !important;
+  }
 }
 
 /* Mobile-first responsive utilities */
@@ -181,5 +186,31 @@
     .content-width {
       @apply max-w-6xl;
     }
+  }
+
+  /* Override any shadow utilities */
+  .shadow-none {
+    box-shadow: none !important;
+  }
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+  .shadow {
+    box-shadow: none !important;
+  }
+  .shadow-md {
+    box-shadow: none !important;
+  }
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+  .shadow-inner {
+    box-shadow: none !important;
   }
 }

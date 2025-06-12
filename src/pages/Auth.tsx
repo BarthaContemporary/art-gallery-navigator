@@ -105,9 +105,9 @@ function Auth() {
   
   return (
     <ErrorBoundary>
-      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 px-4 py-6">
-        <div className="w-full max-w-sm mx-auto">
-          <Card className="p-4 sm:p-6 border-0 rounded-lg bg-card shadow-lg">
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 px-3 py-6">
+        <div className="w-full max-w-[320px] sm:max-w-sm mx-auto">
+          <Card className="p-4 sm:p-6 border rounded-lg bg-card">
             {/* Logo Header */}
             <div className="mb-6 text-center">
               <div className="flex justify-center mb-4">
