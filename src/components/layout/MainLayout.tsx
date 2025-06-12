@@ -31,8 +31,10 @@ export function MainLayout() {
         {isMobile && <MobileSidebar />}
         
         <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <main className={`flex-1 overflow-auto bg-white ${isMobile ? 'pt-12' : ''} touch-pan-y`}>
-            <Outlet />
+          <main className={`flex-1 overflow-auto bg-white ${isMobile ? 'pt-12 safe-area-top' : ''} touch-pan-y`}>
+            <div className="w-full max-w-full px-3 sm:px-4 md:px-6">
+              <Outlet />
+            </div>
           </main>
         </div>
 

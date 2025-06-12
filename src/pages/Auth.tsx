@@ -92,7 +92,7 @@ function Auth() {
   
   if (isLoading && !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen px-4">
         <Loader2 className="h-8 w-8 md:h-10 md:w-10 animate-spin text-primary" />
       </div>
     );
@@ -105,16 +105,16 @@ function Auth() {
   
   return (
     <ErrorBoundary>
-      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 p-3 md:p-4">
-        <div className="w-full max-w-md">
-          <Card className="p-3 md:p-6 border-0 rounded-none bg-card">
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 px-4 py-6">
+        <div className="w-full max-w-sm mx-auto">
+          <Card className="p-4 sm:p-6 border-0 rounded-lg bg-card shadow-lg">
             {/* Logo Header */}
-            <div className="mb-6 md:mb-8 text-center">
+            <div className="mb-6 text-center">
               <div className="flex justify-center mb-4">
                 <img
                   src="/lovable-uploads/71e438d3-4f7d-4489-9aae-752771abaf09.png"
                   alt="B_c Logo"
-                  className="h-12 md:h-16 w-auto object-contain"
+                  className="h-10 sm:h-12 md:h-16 w-auto object-contain"
                 />
               </div>
             </div>
@@ -129,7 +129,7 @@ function Auth() {
             )}
             
             <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as AuthTab)}>
-              <TabsContent value="login">
+              <TabsContent value="login" className="mt-0">
                 <LoginForm 
                   onSubmit={handleLoginSubmit}
                   isLoading={isLoading} 
@@ -138,7 +138,7 @@ function Auth() {
                 />
               </TabsContent>
               
-              <TabsContent value="otp">
+              <TabsContent value="otp" className="mt-0">
                 <OTPVerification 
                   onSubmit={handleOtpSubmit}
                   onBack={() => setSelectedTab("login")}
@@ -148,9 +148,9 @@ function Auth() {
                 />
               </TabsContent>
 
-              <TabsList className="grid grid-cols-2 mt-6 h-7 md:h-10">
-                <TabsTrigger value="login" className="text-xs md:text-sm">Login</TabsTrigger>
-                <TabsTrigger value="otp" disabled={!email} className="text-xs md:text-sm">
+              <TabsList className="grid grid-cols-2 mt-6 h-9 sm:h-10 w-full">
+                <TabsTrigger value="login" className="text-xs sm:text-sm font-thin">Login</TabsTrigger>
+                <TabsTrigger value="otp" disabled={!email} className="text-xs sm:text-sm font-thin">
                   Verification
                 </TabsTrigger>
               </TabsList>

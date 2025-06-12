@@ -67,34 +67,119 @@
 
     --radius: 0.5rem;
   }
+
+  /* iPhone-specific safe area support */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 @layer base {
   html {
     font-family: "Source Sans 3", system-ui, sans-serif;
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
   }
   
   body {
     @apply bg-white text-foreground; /* Force white background */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent horizontal scroll and optimize for mobile */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* Better touch interactions on iOS */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Optimize for iPhone viewport */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+    }
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-sans font-semibold text-foreground; /* Updated heading styles */
   }
-  h1 { @apply text-3xl md:text-4xl; }
-  h2 { @apply text-2xl md:text-3xl; }
-  h3 { @apply text-xl md:text-2xl; }
+  h1 { @apply text-2xl sm:text-3xl md:text-4xl; }
+  h2 { @apply text-xl sm:text-2xl md:text-3xl; }
+  h3 { @apply text-lg sm:text-xl md:text-2xl; }
 
   p {
-    @apply text-base leading-relaxed;
+    @apply text-sm sm:text-base leading-relaxed;
   }
 
   /* More specific styling for links if needed */
   a {
     @apply text-primary hover:text-primary/80 transition-colors;
   }
+
+  /* Improve form elements for mobile */
+  input, textarea, select, button {
+    @apply text-base; /* Prevent zoom on iOS */
+    -webkit-appearance: none;
+    border-radius: 0; /* Prevent iOS styling */
+  }
+
+  /* Better touch targets for mobile */
+  button, [role="button"], [type="button"] {
+    min-height: 44px; /* iOS recommended touch target */
+    min-width: 44px;
+  }
 }
 
-/* Ensure App.css #root styles don't interfere too much with body styles */
+/* Mobile-first responsive utilities */
+@layer utilities {
+  .container-mobile {
+    @apply px-4 mx-auto max-w-sm;
+  }
+  
+  @screen sm {
+    .container-mobile {
+      @apply max-w-md px-6;
+    }
+  }
+  
+  @screen md {
+    .container-mobile {
+      @apply max-w-lg px-8;
+    }
+  }
+  
+  /* Optimize content width for mobile */
+  .content-width {
+    @apply w-full max-w-full;
+  }
+  
+  @screen sm {
+    .content-width {
+      @apply max-w-2xl;
+    }
+  }
+  
+  @screen md {
+    .content-width {
+      @apply max-w-4xl;
+    }
+  }
+  
+  @screen lg {
+    .content-width {
+      @apply max-w-6xl;
+    }
+  }
+}
