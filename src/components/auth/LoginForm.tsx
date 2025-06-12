@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,12 +81,12 @@ export function LoginForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="font-thin">Email</Label>
             <Input id="email" type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required className="text-sm md:text-base" />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password (optional)</Label>
+            <Label htmlFor="password" className="font-thin">Password (optional)</Label>
             <div className="relative">
               <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password or leave blank for OTP" value={password} onChange={e => setPassword(e.target.value)} className="text-sm md:text-base pr-10" />
               <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}>
@@ -95,7 +96,7 @@ export function LoginForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Security Verification</Label>
+            <Label className="font-thin">Security Verification</Label>
             <TurnstileWidget siteKey={turnstileSiteKey} onVerify={handleCaptchaVerify} onError={handleCaptchaError} onExpire={handleCaptchaExpire} />
             {captchaToken && <p className="text-xs text-green-600">✓ Security verification completed</p>}
           </div>
