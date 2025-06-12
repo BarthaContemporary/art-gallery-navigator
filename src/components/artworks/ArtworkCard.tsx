@@ -1,4 +1,3 @@
-
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -69,10 +68,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
   const formatDimensions = (art: Artwork) => {
     const parts = [];
-    if (art.height) parts.push(`H ${art.height}`);
-    if (art.width) parts.push(`W ${art.width}`);
-    if (art.depth) parts.push(`D ${art.depth}`);
-    return parts.length > 0 ? parts.join(' ') : "N/A";
+    if (art.height) parts.push(art.height);
+    if (art.width) parts.push(art.width);
+    if (art.depth) parts.push(art.depth);
+    return parts.length > 0 ? parts.join(' x ') : "N/A";
   };
   
   const formatEditionInfo = (art: Artwork) => {
