@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { CreateArtworkForm } from "./CreateArtworkForm";
+import { ArtworkImageManager } from "./ArtworkImageManager";
 import { Artwork } from "@/hooks/use-artworks";
 import { useCallback, useEffect, useState } from "react";
 
@@ -48,25 +49,27 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         onClick={handleDialogInteraction}
         onPointerDownOutside={(e) => e.preventDefault()} // Prevent accidental outside clicks
       >
-        <DialogHeader className="pt-10 flex-shrink-0">
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle>Edit Artwork</DialogTitle>
           <DialogDescription>
             Make changes to your artwork information below.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full pr-4">
-            <div className="pb-4">
-              <CreateArtworkForm 
-                setOpen={onOpenChange} 
-                initialData={artwork} 
-                preventFreeze={true}
-                hideSubmitButton={true}
-              />
+        <ScrollArea className="flex-1 pr-4">
+          <div className="space-y-6">
+            <CreateArtworkForm 
+              setOpen={onOpenChange} 
+              initialData={artwork} 
+              preventFreeze={true}
+              hideSubmitButton={true}
+            />
+            
+            <div className="border-t pt-4">
+              <ArtworkImageManager artworkId={artwork.id} />
             </div>
-          </ScrollArea>
-        </div>
+          </div>
+        </ScrollArea>
         
         <DialogFooter className="flex-shrink-0 pt-4 border-t">
           <Button 
