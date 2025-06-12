@@ -107,7 +107,7 @@ function Auth() {
     <ErrorBoundary>
       <div className="flex items-center justify-center min-h-screen bg-background dark:bg-gray-900 p-3 md:p-4">
         <div className="w-full max-w-md">
-          <Card className="p-3 md:p-6 border-gray-200"> {/* Removed shadow-lg */}
+          <Card className="p-3 md:p-6 border-0 rounded-none bg-card"> {/* Removed border and rounded corners */}
             {/* Logo Header */}
             <div className="mb-6 md:mb-8 text-center">
               <div className="flex justify-center mb-4">
