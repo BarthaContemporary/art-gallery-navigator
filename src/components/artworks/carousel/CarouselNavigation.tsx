@@ -20,7 +20,7 @@ export function CarouselNavigation({
         key={index}
         onClick={() => onDotClick(index)}
         aria-label={`Go to slide ${index + 1}`}
-        className={`w-2 h-2 rounded-full transition-colors ${
+        className={`w-1 h-1 rounded-full transition-colors ${
           currentIndex === index ? "bg-primary" : "bg-gray-300"
         }`}
       />
@@ -29,7 +29,7 @@ export function CarouselNavigation({
   
   return (
     <div className="flex justify-center items-center w-full">
-      <div className="flex gap-2">
+      <div className="flex gap-1">
         {renderDots()}
       </div>
     </div>
