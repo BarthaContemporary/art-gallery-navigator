@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Calendar, Clock, Users, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +42,6 @@ export default function Appointments() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Appointment Management</h1>
           <p className="text-muted-foreground">
             Manage your availability and client appointments
           </p>
