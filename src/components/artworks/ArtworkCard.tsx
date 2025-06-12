@@ -71,7 +71,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     if (art.height) parts.push(art.height);
     if (art.width) parts.push(art.width);
     if (art.depth) parts.push(art.depth);
-    return parts.length > 0 ? parts.join(' x ') : "N/A";
+    return parts.length > 0 ? parts.join(' x ') + ' cm' : "N/A";
   };
   
   const formatEditionInfo = (art: Artwork) => {
