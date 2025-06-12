@@ -64,7 +64,9 @@ export function LoginForm({
 
   // Get the site key from the environment variable
   const turnstileSiteKey = "0x4AAAAAABVNY-RtAZWQwtdF";
-  return <Card className="w-full max-w-md mx-auto">
+  
+  return (
+    <Card className="w-full max-w-md mx-auto border-0">
       <CardHeader>
         <CardTitle className="text-xl md:text-2xl text-center font-thin">Sign In</CardTitle>
       </CardHeader>
@@ -112,5 +114,6 @@ export function LoginForm({
             </p>}
         </div>
       </CardContent>
-    </Card>;
+    </Card>
+  );
 }
