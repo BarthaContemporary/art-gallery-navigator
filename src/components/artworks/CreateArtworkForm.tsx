@@ -5,6 +5,7 @@ import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreat
 export interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
   hideSubmitButton?: boolean;
   formId?: string;
+  onSuccessCallback?: () => void;
 }
 
 export function CreateArtworkForm({ 
@@ -12,7 +13,8 @@ export function CreateArtworkForm({
   initialData, 
   preventFreeze,
   hideSubmitButton = false,
-  formId
+  formId,
+  onSuccessCallback
 }: CreateArtworkFormProps) {
   const {
     form,
@@ -24,7 +26,12 @@ export function CreateArtworkForm({
     isSaving,
     isAdmin,
     currentUserArtist
-  } = useCreateArtworkForm({ setOpen, initialData, preventFreeze });
+  } = useCreateArtworkForm({ 
+    setOpen, 
+    initialData, 
+    preventFreeze,
+    onSuccessCallback 
+  });
 
   return (
     <CreateArtworkFormView
@@ -39,6 +46,7 @@ export function CreateArtworkForm({
       currentUserArtist={currentUserArtist}
       hideSubmitButton={hideSubmitButton}
       formId={formId}
+      isSaving={isSaving}
     />
   );
 }

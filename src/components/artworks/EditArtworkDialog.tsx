@@ -23,6 +23,7 @@ interface EditArtworkDialogProps {
 
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
@@ -35,14 +36,11 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     return () => setIsMounted(false);
   }, []);
 
-  const handleDialogInteraction = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!isMounted) return;
     
     if (newOpen === false) {
+      setIsSubmitting(false);
       window.requestAnimationFrame(() => {
         onOpenChange(false);
       });
@@ -52,22 +50,39 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   }, [onOpenChange, isMounted]);
 
   const handleFormSubmit = useCallback(() => {
-    // Trigger form submission and scroll to first error if validation fails
-    const form = document.getElementById('edit-artwork-form') as HTMLFormElement;
-    if (form) {
-      form.requestSubmit();
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    // Find the form and trigger submission
+    const formElement = document.getElementById('edit-artwork-form') as HTMLFormElement;
+    if (formElement) {
+      // Create a submit event
+      const submitEvent = new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      // Dispatch the event to trigger form validation and submission
+      formElement.dispatchEvent(submitEvent);
+      
       // Small delay to allow validation to complete before scrolling
       setTimeout(() => {
-        scrollToFirstError();
+        const errorElement = formElement.querySelector('[aria-invalid="true"]');
+        if (errorElement) {
+          scrollToFirstError();
+        }
+        setIsSubmitting(false);
       }, 100);
+    } else {
+      setIsSubmitting(false);
     }
-  }, [scrollToFirstError]);
+  }, [scrollToFirstError, isSubmitting]);
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent 
         size="2xl"
-        onClick={handleDialogInteraction}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <ScrollableDialogHeader>
@@ -85,6 +100,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               preventFreeze={true}
               hideSubmitButton={true}
               formId="edit-artwork-form"
+              onSuccessCallback={() => {
+                setIsSubmitting(false);
+                handleOpenChange(false);
+              }}
             />
             
             <div className="border-t pt-6">
@@ -98,15 +117,17 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           <Button 
             type="button" 
             variant="outline" 
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button 
             type="button"
             onClick={handleFormSubmit}
+            disabled={isSubmitting}
           >
-            Update Artwork
+            {isSubmitting ? "Updating..." : "Update Artwork"}
           </Button>
         </ScrollableDialogFooter>
       </ScrollableDialogContent>

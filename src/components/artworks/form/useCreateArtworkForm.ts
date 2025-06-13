@@ -11,22 +11,28 @@ import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
 import { useSafeAsync } from "@/hooks/use-safe-async";
 import { useImageProcessing } from "@/hooks/use-image-processing";
-import { useAuth } from "@/hooks/use-auth"; // Import useAuth
-import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist"; // Import useCurrentUserArtist
+import { useAuth } from "@/hooks/use-auth";
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 
 export type UseCreateArtworkFormProps = {
   setOpen: (open: boolean) => void;
   initialData?: Artwork;
   preventFreeze?: boolean;
+  onSuccessCallback?: () => void;
 };
 
-export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = false }: UseCreateArtworkFormProps) {
+export function useCreateArtworkForm({ 
+  setOpen, 
+  initialData, 
+  preventFreeze = false,
+  onSuccessCallback 
+}: UseCreateArtworkFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { execute, isLoading: isSaving } = useSafeAsync();
   const { processImage } = useImageProcessing();
-  const { isAdmin } = useAuth(); // Get admin status
-  const currentUserArtist = useCurrentUserArtist(); // Get current artist info
+  const { isAdmin } = useAuth();
+  const currentUserArtist = useCurrentUserArtist();
 
   const form = useForm<ArtworkFormData>({
     defaultValues: getArtworkInitialValues(initialData, isAdmin, currentUserArtist),
@@ -34,7 +40,7 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
 
   const classification = form.watch('classification');
 
-  const { data: artists } = useArtists(); // Still needed for admin user or if artist list is shown for info
+  const { data: artists } = useArtists();
   const { data: locations } = useLocations();
 
   const {
@@ -46,10 +52,9 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   const onSubmit = async (data: ArtworkFormData) => {
     // Ensure artist_id is correctly set if current user is an artist and not admin
     let submissionData = { ...data };
-    if (!isAdmin && currentUserArtist && !initialData) { // For new artwork by non-admin artist
+    if (!isAdmin && currentUserArtist && !initialData) {
       submissionData.artist_id = currentUserArtist.id;
     } else if (!isAdmin && currentUserArtist && initialData && initialData.artist_id !== currentUserArtist.id) {
-        // This case should ideally be prevented by RLS, but as a safeguard:
         toast({
             title: "Permission Denied",
             description: "You can only edit your own artworks.",
@@ -57,7 +62,6 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
         });
         return;
     }
-
 
     execute(
       async () => {
@@ -92,7 +96,6 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
 
         let artworkId: string;
         if (initialData) {
-          // RLS policies on 'artworks' table will ensure an artist can only update their own.
           const { error } = await supabase
             .from('artworks')
             .update(formattedData as any)
@@ -102,7 +105,6 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           if (error) throw error;
           artworkId = initialData.id;
         } else {
-          // RLS policies on 'artworks' table will ensure an artist can only create for themselves.
           const { data: newArtwork, error } = await supabase
             .from('artworks')
             .insert([formattedData as any])
@@ -118,8 +120,8 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           const imagesToInsert = uploadedImageUrls.map((url, index) => ({
             artwork_id: artworkId,
             image_url: url,
-            is_primary: index === 0, // TODO: This logic needs to be smarter if editing and adding new images
-            display_order: index, // TODO: This needs to be smarter for existing images
+            is_primary: index === 0,
+            display_order: index,
             processed: false
           }));
 
@@ -143,16 +145,21 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
           : "Artwork has been created successfully",
         onSuccess: () => {
           resetUploaded();
-          // Reset form with potentially new defaults if user role changed or for next creation
           form.reset(getArtworkInitialValues(undefined, isAdmin, currentUserArtist)); 
           
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['artworks'] });
+            queryClient.invalidateQueries({ queryKey: ['artwork-images'] });
+            
             const safeTimeout = preventFreeze ? 500 : 250;
             setTimeout(() => {
-              requestAnimationFrame(() => {
-                setOpen(false);
-              });
+              if (onSuccessCallback) {
+                onSuccessCallback();
+              } else {
+                requestAnimationFrame(() => {
+                  setOpen(false);
+                });
+              }
             }, safeTimeout);
           }, 100);
         },
@@ -166,14 +173,14 @@ export function useCreateArtworkForm({ setOpen, initialData, preventFreeze = fal
   return {
     form,
     classification,
-    artists, // Full list of artists for admins or display purposes
+    artists,
     locations,
     onSubmit,
     handleImagesUploaded,
     uploadedImageUrls,
     initialData,
     isSaving,
-    isAdmin, // Pass admin status down
-    currentUserArtist // Pass current artist info down
+    isAdmin,
+    currentUserArtist
   };
 }

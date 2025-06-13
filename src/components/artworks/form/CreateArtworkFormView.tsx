@@ -30,6 +30,7 @@ interface CreateArtworkFormViewProps {
   currentUserArtist: any;
   hideSubmitButton?: boolean;
   formId?: string;
+  isSaving?: boolean;
 }
 
 export function CreateArtworkFormView({
@@ -43,9 +44,9 @@ export function CreateArtworkFormView({
   isAdmin,
   currentUserArtist,
   hideSubmitButton = false,
-  formId
+  formId,
+  isSaving = false
 }: CreateArtworkFormViewProps) {
-  const isSaving = form.formState.isSubmitting;
 
   return (
     <Form {...form}>
