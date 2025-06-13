@@ -4,14 +4,16 @@ import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
 import { useLocation } from "@/hooks/use-location";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { ArtworkImageViewer } from "./ArtworkImageViewer";
 import { ArtworkOverviewTabs } from "./ArtworkOverviewTabs";
 import { ArtworkActions } from "../actions/ArtworkActions";
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -27,15 +29,19 @@ export function ArtworkOverviewDialog({
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
 
+  const { scrollContainerRef } = useScrollableDialog(open, {
+    enableKeyboardNavigation: true
+  });
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 border-b">
+    <ScrollableDialog open={open} onOpenChange={onOpenChange}>
+      <ScrollableDialogContent size="4xl">
+        <ScrollableDialogHeader>
           <div className="flex justify-between items-start">
             <div>
-              <DialogTitle className="text-2xl font-semibold">
+              <ScrollableDialogTitle className="text-2xl font-semibold">
                 {artwork.title}
-              </DialogTitle>
+              </ScrollableDialogTitle>
               <p className="text-muted-foreground mt-1">
                 {artistLoading ? "Loading..." : artist?.full_name || "Unknown Artist"}
               </p>
@@ -45,10 +51,10 @@ export function ArtworkOverviewDialog({
               artist={artist}
             />
           </div>
-        </DialogHeader>
+        </ScrollableDialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+        <ScrollableDialogBody ref={scrollContainerRef}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Image Viewer */}
             <div className="space-y-4">
               <ArtworkImageViewer 
@@ -69,8 +75,8 @@ export function ArtworkOverviewDialog({
               />
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogBody>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }

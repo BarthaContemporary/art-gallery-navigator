@@ -17,14 +17,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
   const queryClient = useQueryClient();
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
 
-  useEffect(() => {
-    console.log("🖼️ ArtworkImageManager rendered for artwork:", artworkId);
-    console.log("🖼️ Images found:", images?.length || 0);
-    console.log("🖼️ Loading state:", loading);
-  }, [artworkId, images, loading]);
-
   const handleDeleteImage = async (imageId: string, imageUrl: string) => {
-    console.log("🗑️ Deleting image:", imageId);
     setDeletingImageId(imageId);
     
     try {
@@ -68,8 +61,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
 
   if (loading) {
     return (
-      <div className="space-y-2 bg-gray-100 p-4 border-2 border-gray-400">
-        <h4 className="text-sm font-medium">🔧 Attached Images (Loading...)</h4>
+      <div className="space-y-2">
         <div className="text-sm text-muted-foreground">Loading images...</div>
       </div>
     );
@@ -77,27 +69,22 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
 
   if (!images.length) {
     return (
-      <div className="space-y-2 bg-yellow-50 p-4 border-2 border-yellow-400">
-        <h4 className="text-sm font-medium">🔧 Attached Images (Empty State)</h4>
+      <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <ImageIcon className="h-4 w-4" />
-          No images attached - This should be visible in edit dialog
+          No images attached to this artwork
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 bg-green-50 p-4 border-2 border-green-400">
-      <h4 className="text-sm font-medium">🔧 Attached Images ({images.length}) - Debug Mode</h4>
-      <div className="text-xs text-gray-600 mb-2">
-        🔧 This section should be scrollable within the dialog
-      </div>
-      <div className="space-y-2 max-h-40 overflow-y-auto border border-green-600 p-2">
+    <div className="space-y-3">
+      <div className="space-y-2 max-h-60 overflow-y-auto">
         {images.map((image, index) => (
-          <div key={image.id} className="flex items-center justify-between p-2 border rounded-lg bg-white">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="relative w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 border-2 border-blue-300">
+          <div key={image.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="relative w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
                 <img 
                   src={image.image_url} 
                   alt="Artwork" 
@@ -107,18 +94,18 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
                   }}
                 />
-                <div className="hidden absolute inset-0 flex items-center justify-center bg-red-100">
-                  <ImageIcon className="h-6 w-6 text-gray-400" />
+                <div className="hidden absolute inset-0 flex items-center justify-center bg-muted">
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-sm text-muted-foreground">
                   {image.is_primary && (
-                    <span className="inline-block bg-primary/10 text-primary px-1 py-0.5 rounded text-xs mr-1">
+                    <span className="inline-block bg-primary/10 text-primary px-2 py-1 rounded text-xs mr-2">
                       Primary
                     </span>
                   )}
-                  Order: {image.display_order + 1} | Index: {index}
+                  Image {index + 1}
                 </div>
               </div>
             </div>
@@ -127,7 +114,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
               size="sm"
               onClick={() => handleDeleteImage(image.id, image.image_url)}
               disabled={deletingImageId === image.id}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 border border-red-300"
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-3 w-3" />
             </Button>

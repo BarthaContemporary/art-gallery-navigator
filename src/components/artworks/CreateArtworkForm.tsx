@@ -1,16 +1,18 @@
 
-import { CreateArtworkFormView } from "./form/CreateArtworkFormView"; // Corrected import path
+import { CreateArtworkFormView } from "./form/CreateArtworkFormView";
 import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
 
 export interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
   hideSubmitButton?: boolean;
+  formId?: string;
 }
 
 export function CreateArtworkForm({ 
   setOpen, 
   initialData, 
   preventFreeze,
-  hideSubmitButton = false 
+  hideSubmitButton = false,
+  formId
 }: CreateArtworkFormProps) {
   const {
     form,
@@ -20,8 +22,8 @@ export function CreateArtworkForm({
     onSubmit,
     handleImagesUploaded,
     isSaving,
-    isAdmin, // Get from the hook
-    currentUserArtist // Get from the hook
+    isAdmin,
+    currentUserArtist
   } = useCreateArtworkForm({ setOpen, initialData, preventFreeze });
 
   return (
@@ -33,9 +35,10 @@ export function CreateArtworkForm({
       handleImagesUploaded={handleImagesUploaded}
       initialData={initialData}
       onSubmit={onSubmit}
-      isAdmin={isAdmin} // Pass down
-      currentUserArtist={currentUserArtist} // Pass down
+      isAdmin={isAdmin}
+      currentUserArtist={currentUserArtist}
       hideSubmitButton={hideSubmitButton}
+      formId={formId}
     />
   );
 }

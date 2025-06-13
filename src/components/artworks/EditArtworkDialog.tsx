@@ -24,14 +24,13 @@ interface EditArtworkDialogProps {
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
   
-  const { scrollToFirstError } = useScrollableDialog(open, {
+  const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
     scrollToErrorOnValidation: true,
     enableKeyboardNavigation: true
   });
 
   useEffect(() => {
-    console.log("✅ EditArtworkDialog using new scrollable system");
     setIsMounted(true);
     return () => setIsMounted(false);
   }, []);
@@ -52,6 +51,18 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     }
   }, [onOpenChange, isMounted]);
 
+  const handleFormSubmit = useCallback(() => {
+    // Trigger form submission and scroll to first error if validation fails
+    const form = document.getElementById('edit-artwork-form') as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+      // Small delay to allow validation to complete before scrolling
+      setTimeout(() => {
+        scrollToFirstError();
+      }, 100);
+    }
+  }, [scrollToFirstError]);
+
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent 
@@ -66,13 +77,14 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
         
-        <ScrollableDialogBody>
+        <ScrollableDialogBody ref={scrollContainerRef}>
           <div className="space-y-6">
             <CreateArtworkForm 
               setOpen={onOpenChange} 
               initialData={artwork} 
               preventFreeze={true}
               hideSubmitButton={true}
+              formId="edit-artwork-form"
             />
             
             <div className="border-t pt-6">
@@ -91,9 +103,8 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Cancel
           </Button>
           <Button 
-            type="submit" 
-            form="edit-artwork-form"
-            onClick={scrollToFirstError}
+            type="button"
+            onClick={handleFormSubmit}
           >
             Update Artwork
           </Button>

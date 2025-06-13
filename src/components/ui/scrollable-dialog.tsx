@@ -93,10 +93,22 @@ const ScrollableDialogBody = React.forwardRef<
   const [isScrollable, setIsScrollable] = React.useState(false)
   const [isScrolledToTop, setIsScrolledToTop] = React.useState(true)
   const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(false)
-  const contentRef = React.useRef<HTMLDivElement>(null)
+  const internalRef = React.useRef<HTMLDivElement>(null)
+  
+  // Combine the forwarded ref with our internal ref
+  const combinedRef = React.useCallback((node: HTMLDivElement | null) => {
+    if (internalRef) {
+      internalRef.current = node;
+    }
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
 
   React.useEffect(() => {
-    const element = contentRef.current
+    const element = internalRef.current
     if (!element) return
 
     const checkScrollable = () => {
@@ -121,7 +133,6 @@ const ScrollableDialogBody = React.forwardRef<
     checkScrollable()
     element.addEventListener('scroll', handleScroll)
     
-    // Check on resize
     const resizeObserver = new ResizeObserver(checkScrollable)
     resizeObserver.observe(element)
 
@@ -133,13 +144,12 @@ const ScrollableDialogBody = React.forwardRef<
 
   return (
     <div className="relative flex-1 min-h-0">
-      {/* Top scroll indicator */}
       {showScrollIndicator && isScrollable && !isScrolledToTop && (
         <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
       )}
       
       <div
-        ref={contentRef}
+        ref={combinedRef}
         className={cn(
           "flex-1 overflow-y-auto px-6 py-4",
           "scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent",
@@ -150,7 +160,6 @@ const ScrollableDialogBody = React.forwardRef<
         {children}
       </div>
       
-      {/* Bottom scroll indicator */}
       {showScrollIndicator && isScrollable && !isScrolledToBottom && (
         <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
       )}
