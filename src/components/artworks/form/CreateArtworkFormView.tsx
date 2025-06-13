@@ -55,38 +55,37 @@ export function CreateArtworkFormView({
         className="space-y-6"
       >
         <BasicInformationFields 
-          control={form.control} 
+          form={form} 
           artists={artists}
           isAdmin={isAdmin}
-          currentUserArtist={currentUserArtist}
+          currentUserArtistId={currentUserArtist?.id}
         />
         
         <ClassificationFields 
-          control={form.control} 
-          classification={classification}
+          form={form} 
         />
         
-        <MaterialsFields control={form.control} />
+        <MaterialsFields form={form} />
         
-        <DimensionsFields control={form.control} />
+        <DimensionsFields form={form} />
         
         <LocationStatusFields 
-          control={form.control} 
+          form={form} 
           locations={locations}
         />
         
-        <PricingFields control={form.control} />
+        <PricingFields form={form} />
         
         <EditionFields 
-          control={form.control} 
-          classification={classification}
+          form={form} 
+          show={classification === 'Limited Edition' || classification === 'Open Edition'}
         />
         
-        <ConditionSignatureFields control={form.control} />
+        <ConditionSignatureFields form={form} />
         
-        <FramingCrateFields control={form.control} />
+        <FramingCrateFields form={form} />
         
-        <ProvenanceStoryFields control={form.control} />
+        <ProvenanceStoryFields form={form} />
         
         {!initialData && (
           <div className="space-y-2">
