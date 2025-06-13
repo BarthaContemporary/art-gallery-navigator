@@ -14,7 +14,6 @@ interface EditArtworkDialogProps {
 }
 
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
-  // Track mount state to prevent issues with animation frames
   const [isMounted, setIsMounted] = useState(false);
   
   useEffect(() => {
@@ -22,18 +21,14 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     return () => setIsMounted(false);
   }, []);
 
-  // Use a memoized handler to prevent re-renders
   const handleDialogInteraction = useCallback((e: React.MouseEvent) => {
-    // Prevent event from bubbling up to parent elements
     e.stopPropagation();
   }, []);
 
-  // Memoized handler for dialog close to prevent state issues
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!isMounted) return;
     
     if (newOpen === false) {
-      // Add a slight delay when closing to ensure state is properly handled
       window.requestAnimationFrame(() => {
         onOpenChange(false);
       });
@@ -47,7 +42,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <DialogContent 
         className="max-w-2xl max-h-[90vh] flex flex-col"
         onClick={handleDialogInteraction}
-        onPointerDownOutside={(e) => e.preventDefault()} // Prevent accidental outside clicks
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle>Edit Artwork</DialogTitle>

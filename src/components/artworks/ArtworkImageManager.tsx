@@ -21,7 +21,6 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
     setDeletingImageId(imageId);
     
     try {
-      // Delete from database
       const { error: dbError } = await supabase
         .from('artwork_images')
         .delete()
@@ -29,18 +28,15 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
 
       if (dbError) throw dbError;
 
-      // Extract file path from URL for storage deletion
       const urlParts = imageUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
       
-      // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('artwork-images')
         .remove([fileName]);
 
       if (storageError) {
         console.warn('Storage deletion failed:', storageError);
-        // Don't throw here as the database record is already deleted
       }
 
       toast({
@@ -48,7 +44,6 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
         description: "Image deleted successfully",
       });
 
-      // Invalidate queries to refresh the images list
       queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] });
       queryClient.invalidateQueries({ queryKey: ['artworks'] });
       
