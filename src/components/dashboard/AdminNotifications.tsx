@@ -17,7 +17,7 @@ export const AdminNotifications = ({
         <Link to="/documents" className="no-underline">
           <Card className={pendingDeletionsCount ? "border-amber-300 hover:border-amber-400 transition-colors" : ""}>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="font-normal text-lg">
+              <CardTitle className="font-normal text-base">
                 Pending Deletion Requests
               </CardTitle>
               <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
@@ -26,7 +26,7 @@ export const AdminNotifications = ({
             </CardHeader>
             <CardContent>
               {isLoading ? <Skeleton className="h-8 w-24" /> : <>
-                <div className="text-2xl font-bold">
+                <div className="text-xl font-bold">
                   {pendingDeletionsCount ?? 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -40,7 +40,7 @@ export const AdminNotifications = ({
         <Link to="/file-transfer" className="no-underline">
           <Card className={newUploadsCount ? "border-blue-300 hover:border-blue-400 transition-colors" : ""}>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-lg font-normal">
+              <CardTitle className="font-normal text-base">
                 Recent File Uploads
               </CardTitle>
               <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
@@ -49,7 +49,7 @@ export const AdminNotifications = ({
             </CardHeader>
             <CardContent>
               {isLoading ? <Skeleton className="h-8 w-24" /> : <>
-                <div className="text-2xl font-bold">
+                <div className="text-xl font-bold">
                   {newUploadsCount ?? 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">

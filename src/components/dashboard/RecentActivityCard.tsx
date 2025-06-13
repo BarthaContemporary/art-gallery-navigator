@@ -24,7 +24,7 @@ export const RecentActivityCard = ({
 }: RecentActivityCardProps) => {
   return <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-normal">Recent Activity</CardTitle>
+        <CardTitle className="font-normal text-base">Recent Activity</CardTitle>
         
       </CardHeader>
       <CardContent>

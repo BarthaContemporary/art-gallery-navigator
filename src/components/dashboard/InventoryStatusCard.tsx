@@ -23,7 +23,7 @@ export const InventoryStatusCard = ({
 }: InventoryStatusCardProps) => {
   return <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-normal">Inventory Status</CardTitle>
+        <CardTitle className="font-normal text-base">Inventory Status</CardTitle>
         
       </CardHeader>
       <CardContent>
