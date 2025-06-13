@@ -1,14 +1,15 @@
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogDescription,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { ProjectWithLocation } from "@/hooks/projects";
 import { ProjectForm } from "./ProjectForm";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 interface ProjectDialogProps {
   open: boolean;
@@ -21,27 +22,30 @@ export function ProjectDialog({
   onOpenChange, 
   project, 
 }: ProjectDialogProps) {
+  const { scrollToFirstError } = useScrollableDialog(open, {
+    enableKeyboardNavigation: true,
+    scrollToErrorOnValidation: true
+  });
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]"> {/* Added flex flex-col and max-h */}
-        <DialogHeader>
-          <DialogTitle>
+    <ScrollableDialog open={open} onOpenChange={onOpenChange}>
+      <ScrollableDialogContent size="xl">
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>
             {project ? "Edit Project" : "Create Project"}
-          </DialogTitle>
-          <DialogDescription>
+          </ScrollableDialogTitle>
+          <ScrollableDialogDescription>
             {project ? "Edit the details of this project." : "Create a new project by filling in the details below."}
-          </DialogDescription>
-        </DialogHeader>
+          </ScrollableDialogDescription>
+        </ScrollableDialogHeader>
         
-        <ScrollArea className="flex-grow"> {/* Added ScrollArea */}
-          {/* ProjectForm typically includes its own padding and DialogFooter */}
+        <ScrollableDialogBody>
           <ProjectForm 
             project={project} 
             onClose={() => onOpenChange(false)} 
           />
-        </ScrollArea>
-        {/* Note: ProjectForm includes DialogFooter, so it's not needed here directly */}
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogBody>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }

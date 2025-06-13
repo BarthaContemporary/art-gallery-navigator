@@ -3,22 +3,27 @@ import { useState } from "react";
 import { useArtworks } from "@/hooks/use-artworks";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogFooter,
+  ScrollableDialogTitle,
+  ScrollableDialogDescription,
+  ScrollableDialogTrigger,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { PlusCircle } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCreateCollectionForm } from "./hooks/useCreateCollectionForm";
 import { CreateCollectionFormView } from "./CreateCollectionFormView";
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) {
   const [open, setOpen] = useState(false);
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
+
+  const { scrollToFirstError } = useScrollableDialog(open, {
+    enableKeyboardNavigation: true
+  });
 
   const {
     name,
@@ -28,7 +33,6 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
     selectedArtworks,
     toggleArtwork,
     emails,
-    // setEmails is not directly used by view, but managed by hook
     currentEmail,
     setCurrentEmail,
     handleAddEmail,
@@ -49,21 +53,22 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
+      <ScrollableDialogTrigger asChild>
         <Button size="sm" className="flex gap-2">
           <PlusCircle className="h-4 w-4" />
           Add Collection
         </Button>
-      </DialogTrigger>
-      <DialogContent className="flex flex-col max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Create Collection</DialogTitle>
-          <DialogDescription>
+      </ScrollableDialogTrigger>
+      <ScrollableDialogContent size="xl">
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>Create Collection</ScrollableDialogTitle>
+          <ScrollableDialogDescription>
             Group artworks by concept, period, or exhibition.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="flex-grow p-1">
+          </ScrollableDialogDescription>
+        </ScrollableDialogHeader>
+        
+        <ScrollableDialogBody>
           <CreateCollectionFormView
             name={name}
             onNameChange={setName}
@@ -79,16 +84,17 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
             onAddEmail={handleAddEmail}
             onRemoveEmail={removeEmail}
           />
-        </ScrollArea>
-        <DialogFooter>
+        </ScrollableDialogBody>
+        
+        <ScrollableDialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={isCreating}>
+          <Button onClick={() => { handleCreate(); scrollToFirstError(); }} disabled={isCreating}>
             {isCreating ? "Creating..." : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogFooter>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }

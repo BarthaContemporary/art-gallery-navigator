@@ -1,37 +1,54 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import {
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogDescription,
+  ScrollableDialogBody,
+  ScrollableDialogTrigger,
+} from "@/components/ui/scrollable-dialog";
 import { PlusCircle } from "lucide-react";
 import { CreateArtworkForm } from "./CreateArtworkForm";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 export function CreateArtworkDialog() {
   const [open, setOpen] = useState(false);
+  
+  const { scrollToFirstError } = useScrollableDialog(open, {
+    scrollToErrorOnValidation: true,
+    enableKeyboardNavigation: true
+  });
   
   const handleOpenChange = useCallback((newOpen: boolean) => {
     setOpen(newOpen);
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
+      <ScrollableDialogTrigger asChild>
         <Button size="sm">
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Artwork
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>Add New Artwork</DialogTitle>
-          <DialogDescription>
+      </ScrollableDialogTrigger>
+      <ScrollableDialogContent 
+        size="2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>Add New Artwork</ScrollableDialogTitle>
+          <ScrollableDialogDescription>
             Enter artwork details below to add it to your inventory.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="h-[calc(90vh-8rem)] pr-4">
+          </ScrollableDialogDescription>
+        </ScrollableDialogHeader>
+        
+        <ScrollableDialogBody>
           <CreateArtworkForm setOpen={setOpen} />
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogBody>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }

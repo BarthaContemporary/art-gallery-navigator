@@ -1,8 +1,15 @@
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogDescription,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { TaskWithAssignee } from "@/hooks/projects";
 import { TaskForm } from "./task-dialog/TaskForm";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 interface ProjectTaskDialogProps {
   open: boolean;
@@ -12,28 +19,31 @@ interface ProjectTaskDialogProps {
 }
 
 export function ProjectTaskDialog({ open, onOpenChange, projectId, task }: ProjectTaskDialogProps) {
+  const { scrollToFirstError } = useScrollableDialog(open, {
+    enableKeyboardNavigation: true,
+    scrollToErrorOnValidation: true
+  });
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]"> {/* Added flex flex-col and max-h */}
-        <DialogHeader>
-          <DialogTitle>
+    <ScrollableDialog open={open} onOpenChange={onOpenChange}>
+      <ScrollableDialogContent size="xl">
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>
             {task ? "Edit Task" : "Create Task"}
-          </DialogTitle>
-          <DialogDescription>
+          </ScrollableDialogTitle>
+          <ScrollableDialogDescription>
             {task ? "Edit the details of this task." : "Create a new task for this project."}
-          </DialogDescription>
-        </DialogHeader>
+          </ScrollableDialogDescription>
+        </ScrollableDialogHeader>
         
-        <ScrollArea className="flex-grow"> {/* Added ScrollArea */}
-           {/* TaskForm typically includes its own padding and DialogFooter (via TaskFormActions) */}
+        <ScrollableDialogBody>
           <TaskForm 
             projectId={projectId} 
             task={task} 
             onClose={() => onOpenChange(false)} 
           />
-        </ScrollArea>
-        {/* Note: TaskForm includes TaskFormActions which renders buttons, akin to a DialogFooter */}
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogBody>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }

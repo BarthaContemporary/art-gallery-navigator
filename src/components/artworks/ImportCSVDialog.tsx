@@ -1,21 +1,23 @@
+
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogTrigger,
+  ScrollableDialogDescription,
+  ScrollableDialogFooter,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { FileUp } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { FieldMappingStep } from "./FieldMappingStep";
 import { useImportCSV } from "./hooks/useImportCSV";
 import { UploadStep } from "./import-steps/UploadStep";
 import { PreviewStep } from "./import-steps/PreviewStep";
 import { ImportingStep } from "./import-steps/ImportingStep";
 import { CompleteStep } from "./import-steps/CompleteStep";
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 
 export function ImportCSVDialog() {
   const {
@@ -37,6 +39,10 @@ export function ImportCSVDialog() {
     toggleArtworkSelection,
     toggleSelectAllArtworks,
   } = useImportCSV(false);
+
+  const { scrollToTop } = useScrollableDialog(open, {
+    enableKeyboardNavigation: true
+  });
   
   const renderStepContent = () => {
     switch (currentStep) {
@@ -55,16 +61,16 @@ export function ImportCSVDialog() {
             csvPreviewData={csvPreviewData}
             mappings={fieldMappings}
             onMappingsChange={handleMappingsChanged}
-            onNext={goToPreviewStep}
-            onBack={() => setCurrentStep("upload")}
+            onNext={() => { goToPreviewStep(); scrollToTop(); }}
+            onBack={() => { setCurrentStep("upload"); scrollToTop(); }}
           />
         );
       case "preview":
         return (
           <PreviewStep
             parsedArtworks={parsedArtworks}
-            onImport={handleImport}
-            onBack={() => setCurrentStep("mapFields")}
+            onImport={() => { handleImport(); scrollToTop(); }}
+            onBack={() => { setCurrentStep("mapFields"); scrollToTop(); }}
             toggleArtworkSelection={toggleArtworkSelection}
             toggleSelectAllArtworks={toggleSelectAllArtworks}
           />
@@ -98,37 +104,35 @@ export function ImportCSVDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <ScrollableDialog open={open} onOpenChange={setOpen}>
+      <ScrollableDialogTrigger asChild>
         <Button variant="outline" size="sm">
           <FileUp className="h-4 w-4 mr-2" />
           Import CSV
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{getDialogTitle()}</DialogTitle>
+      </ScrollableDialogTrigger>
+      <ScrollableDialogContent size="4xl">
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>{getDialogTitle()}</ScrollableDialogTitle>
           {currentStep === "upload" && (
-            <DialogDescription>
+            <ScrollableDialogDescription>
               Upload a CSV file to import multiple artworks. You'll be able to map columns in the next step.
-            </DialogDescription>
+            </ScrollableDialogDescription>
           )}
-        </DialogHeader>
+        </ScrollableDialogHeader>
 
-        <ScrollArea className="flex-grow p-1 pr-2 -mr-1">
-          <div className="py-4 px-1">
-            {renderStepContent()}
-          </div>
-        </ScrollArea>
+        <ScrollableDialogBody>
+          {renderStepContent()}
+        </ScrollableDialogBody>
 
         {currentStep === "upload" && !isProcessingFile && (
-          <DialogFooter>
+          <ScrollableDialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-          </DialogFooter>
+          </ScrollableDialogFooter>
         )}
-      </DialogContent>
-    </Dialog>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 }
