@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -166,12 +165,6 @@ function Auth() {
                     Verify
                   </TabsTrigger>
                 </TabsList>
-                
-                {!email && selectedTab === "login" && (
-                  <p className="text-xs text-gray-500 text-center">
-                    Enter your email to enable verification step
-                  </p>
-                )}
               </div>
             </Tabs>
           </Card>
