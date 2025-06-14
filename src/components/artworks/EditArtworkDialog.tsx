@@ -23,12 +23,11 @@ interface EditArtworkDialogProps {
 
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
-  // const [isSubmitting, setIsSubmitting] = useState(false); // Removed local submitting state
   const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
-    scrollToErrorOnValidation: true, // This option exists but we will ensure explicit call
+    scrollToErrorOnValidation: true,
     enableKeyboardNavigation: true,
   });
 
@@ -40,7 +39,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!isMounted) return;
     if (newOpen === false) {
-      setIsFormActuallySaving(false); // Reset saving state on close
+      setIsFormActuallySaving(false);
       window.requestAnimationFrame(() => {
         onOpenChange(false);
       });
@@ -49,14 +48,12 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     }
   }, [onOpenChange, isMounted]);
 
-  // Removed handleFormSubmit function
-
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="flex flex-col max-h-[95vh] min-h-0 h-full"
+        className="flex flex-col max-h-[95vh] h-[95vh] min-h-0"
       >
         <ScrollableDialogHeader className="p-6 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
@@ -64,50 +61,47 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollableDialogBody
-            ref={scrollContainerRef}
-            className="flex-1 min-h-0 overflow-auto px-4 md:px-8 py-6 bg-background space-y-8"
-          >
-            <div className="mx-auto w-full max-w-2xl space-y-8">
-              <div>
-                <CreateArtworkForm 
-                  setOpen={onOpenChange} 
-                  initialData={artwork} 
-                  preventFreeze={true}
-                  hideSubmitButton={true}
-                  formId="edit-artwork-form"
-                  onSuccessCallback={() => {
-                    setIsFormActuallySaving(false); // Reset on success
-                    handleOpenChange(false);
-                  }}
-                  onSavingChange={setIsFormActuallySaving} // Pass callback to update loading state
-                  scrollToFirstError={scrollToFirstError} // Pass scroll function
-                />
-              </div>
-              <div className="border-t pt-6">
-                <h4 className="text-sm font-medium mb-4">Attached Images</h4>
-                <div className="w-full">
-                  <ArtworkImageManager artworkId={artwork.id} />
-                </div>
+        <ScrollableDialogBody
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 bg-background"
+        >
+          <div className="mx-auto w-full max-w-2xl space-y-8">
+            <div>
+              <CreateArtworkForm 
+                setOpen={onOpenChange} 
+                initialData={artwork} 
+                preventFreeze={true}
+                hideSubmitButton={true}
+                formId="edit-artwork-form"
+                onSuccessCallback={() => {
+                  setIsFormActuallySaving(false);
+                  handleOpenChange(false);
+                }}
+                onSavingChange={setIsFormActuallySaving}
+                scrollToFirstError={scrollToFirstError}
+              />
+            </div>
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-medium mb-4">Attached Images</h4>
+              <div className="w-full">
+                <ArtworkImageManager artworkId={artwork.id} />
               </div>
             </div>
-          </ScrollableDialogBody>
-        </div>
+          </div>
+        </ScrollableDialogBody>
         <ScrollableDialogFooter className="px-6 py-4 border-t bg-background/95 backdrop-blur">
           <Button 
             type="button" 
             variant="outline" 
             onClick={() => handleOpenChange(false)}
-            disabled={isFormActuallySaving} // Use new loading state
+            disabled={isFormActuallySaving}
           >
             Cancel
           </Button>
           <Button 
-            type="submit" // Changed to submit
-            form="edit-artwork-form" // Associate with the form
-            // onClick removed
-            disabled={isFormActuallySaving} // Use new loading state
+            type="submit"
+            form="edit-artwork-form"
+            disabled={isFormActuallySaving}
           >
             {isFormActuallySaving ? "Updating..." : "Update Artwork"}
           </Button>

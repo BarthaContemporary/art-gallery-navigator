@@ -37,7 +37,7 @@ export function ArtworkOverviewDialog({
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
         size="4xl"
-        className="flex flex-col max-h-[95vh] min-h-0 h-full p-0"
+        className="flex flex-col max-h-[95vh] h-[95vh] min-h-0 p-0"
       >
         {/* Image Carousel at Top - Full Width */}
         <div className="relative w-full bg-black/95 flex-shrink-0">
@@ -49,32 +49,32 @@ export function ArtworkOverviewDialog({
         </div>
         {/* Header with Title and Actions */}
         <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0" />
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between px-6 py-4 border-b bg-background">
-            <div className="flex-1 min-w-0">
-              <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
-                {artwork.title}
-              </ScrollableDialogTitle>
-              <p className="text-muted-foreground mt-1 text-base">
-                {artistLoading ? (
-                  <Skeleton className="w-32 h-5 rounded" />
-                ) : artist?.full_name || "Unknown Artist"}
-              </p>
+        {/* Remove unnecessary nesting: Only a single flex-1 block for scroll */}
+        <ScrollableDialogBody
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
+          showScrollIndicator={true}
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between px-0 py-0 border-b-0 bg-transparent">
+              <div className="flex-1 min-w-0">
+                <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
+                  {artwork.title}
+                </ScrollableDialogTitle>
+                <p className="text-muted-foreground mt-1 text-base">
+                  {artistLoading ? (
+                    <Skeleton className="w-32 h-5 rounded" />
+                  ) : artist?.full_name || "Unknown Artist"}
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <ArtworkActions 
+                  artwork={artwork}
+                  artist={artist}
+                />
+              </div>
             </div>
-            <div className="flex-shrink-0">
-              <ArtworkActions 
-                artwork={artwork}
-                artist={artist}
-              />
-            </div>
-          </div>
-          {/* Scrollable Content Area */}
-          <ScrollableDialogBody
-            ref={scrollContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
-            showScrollIndicator={true}
-          >
-            <div className="max-w-4xl mx-auto">
+            <div className="mt-6">
               <ArtworkOverviewTabs
                 artwork={artwork}
                 artist={artist}
@@ -83,9 +83,10 @@ export function ArtworkOverviewDialog({
                 locationLoading={locationLoading}
               />
             </div>
-          </ScrollableDialogBody>
-        </div>
+          </div>
+        </ScrollableDialogBody>
       </ScrollableDialogContent>
     </ScrollableDialog>
   );
 }
+
