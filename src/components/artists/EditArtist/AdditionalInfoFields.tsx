@@ -1,46 +1,77 @@
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// import { Label } from "@/components/ui/label"; // Replaced by FormLabel
 import { Textarea } from "@/components/ui/textarea";
-import { UseFormRegister } from "react-hook-form";
-import { EditArtistForm } from "@/hooks/use-edit-artist-form";
+import { UseFormReturn } from "react-hook-form";
+import { EditArtistFormValues } from "@/schemas/artistSchema";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 interface AdditionalInfoFieldsProps {
-  register: UseFormRegister<EditArtistForm>;
+  form: UseFormReturn<EditArtistFormValues>;
   statusOptions: { label: string; value: string }[];
 }
 
-export function AdditionalInfoFields({ register, statusOptions }: AdditionalInfoFieldsProps) {
+export function AdditionalInfoFields({ form, statusOptions }: AdditionalInfoFieldsProps) {
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor="nationality">Nationality</Label>
-        <Input
-          id="nationality"
-          {...register("nationality")}
-        />
-      </div>
+      <FormField
+        control={form.control}
+        name="nationality"
+        render={({ field }) => (
+          <FormItem className="space-y-2">
+            <FormLabel>Nationality</FormLabel>
+            <FormControl>
+              <Input {...field} value={field.value || ''} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="biography">Biography</Label>
-        <Textarea
-          id="biography"
-          {...register("biography")}
-        />
-      </div>
+      <FormField
+        control={form.control}
+        name="biography"
+        render={({ field }) => (
+          <FormItem className="space-y-2">
+            <FormLabel>Biography</FormLabel>
+            <FormControl>
+              <Textarea {...field} value={field.value || ''} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="representation_status">Representation Status</Label>
-        <select
-          id="representation_status"
-          className="w-full border px-3 py-2 rounded text-gray-900"
-          {...register("representation_status")}
-        >
-          {statusOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
+      <FormField
+        control={form.control}
+        name="representation_status"
+        render={({ field }) => (
+          <FormItem className="space-y-2">
+            <FormLabel>Representation Status</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {statusOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   );
 }
