@@ -1,23 +1,160 @@
 
+# The Supabase project ID. This is fixed and should not be changed.
 project_id = "cvhdspyugfcvkrufqzrq"
 
-[functions.process-artwork-image]
-verify_jwt = false
+# Configuration for the Supabase CLI.
+[cli]
+# On first run, the CLI will follow this workflow to apply local objects to the
+# linked project. Can be "db", "all" or "nothing". If set to "nothing", you can
+# later run "supabase link" and "supabase db push" to link and push local objects.
+# link_project_first = "db"
 
-[functions.delete-user]
-verify_jwt = true
+# Controls whether the CLI should automatically reload when relevant files are
+# changed. Try disabling this if you are running into performance issues.
+auto_reload = true
 
-[functions.hash-collection-password]
-verify_jwt = true
+# Configuration for the database.
+[db]
+# The Major version of PostgreSQL to use.
+major_version = 15
 
-[functions.verify-turnstile]
-verify_jwt = false
+# Configuration for local database.
+[db.local]
+# Format used by pg_dump and pg_restore. Can be "p" (plain text) or "d" (directory).
+dump_format = "p"
 
-[functions.admin-send-password-reset]
-verify_jwt = true
+# Use a Docker container to run the local database.
+use_docker = true
 
-[functions.send-appointment-email]
-verify_jwt = false
+# Configuration for remote database.
+[db.remote]
+# Restore database by running this SQL script after "supabase db reset".
+# restore_script = " supabase/restore.sql"
 
-[functions.appointment-reminder-scheduler]
-verify_jwt = false
+# Enable schema diffs. Can be "local_changes_only" (default) or "all".
+schema_diff = "local_changes_only"
+
+# Configuration for Edge Functions.
+[functions]
+# Import map file for Deno. Required to deploy Edge Functions.
+# import_map = "supabase/functions/import_map.json"
+
+# JWT verification for Edge Functions. Can be true or false.
+# verify_jwt = true
+
+# Timeout for Edge Functions in seconds.
+# timeout_s = 5
+
+  [functions.delete-user]
+  verify_jwt = true
+  [functions.process-artwork-image]
+  verify_jwt = true
+  [functions."admin-send-password-reset"]
+  verify_jwt = true
+  [functions."hash-collection-password"]
+  verify_jwt = false
+  [functions."send-appointment-email"]
+  verify_jwt = false # Or true if you want to protect it
+  [functions."appointment-reminder-scheduler"]
+  verify_jwt = false # Typically false for cron-triggered functions
+  [functions."verify-turnstile"]
+  verify_jwt = false
+  [functions."process-artwork-image-enhanced"]
+  verify_jwt = true # Or false depending on usage
+  [functions."process-artwork-image-cloudinary"]
+  verify_jwt = true # Assuming this might be called from authenticated contexts, or set to false if public
+  [functions.batch-process-unprocessed-images] # New function added here
+  verify_jwt = true # Set to true; typically admin-triggered
+
+# Configuration for the local development environment.
+[local_development]
+# Hostname for the local Supabase services.
+hostname = "localhost"
+
+# Network ID for the local Supabase services.
+network_id = "supabase_network_cvhdspyugfcvkrufqzrq"
+
+# Configuration for API service.
+[local_development.api]
+# Port for the API service.
+port = 54321
+
+# Additional environment variables to pass to the API service.
+# env_vars = []
+
+# Configuration for database.
+[local_development.db]
+# Port for the database.
+port = 54322
+
+# Additional environment variables to pass to the database.
+# env_vars = []
+
+# Configuration for Studio.
+[local_development.studio]
+# Port for Studio.
+port = 54323
+
+# Additional environment variables to pass to Studio.
+# env_vars = []
+
+# Configuration for Inbucket.
+[local_development.inbucket]
+# Port for Inbucket.
+port = 54324
+
+# Enable Inbucket. Can be true or false.
+enabled = true
+
+# Additional environment variables to pass to Inbucket.
+# env_vars = []
+
+# Configuration for Auth service.
+[local_development.auth]
+# Enable Auth service. Can be true or false.
+enabled = true
+
+# Additional environment variables to pass to the Auth service.
+# env_vars = []
+
+# Configuration for Functions.
+[local_development.functions]
+# Enable Functions. Can be true or false.
+enabled = true
+
+# Additional environment variables to pass to the Functions.
+# env_vars = []
+
+# Configuration for Realtime service.
+[local_development.realtime]
+# Enable Realtime service. Can be true or false.
+enabled = true
+
+# Additional environment variables to pass to the Realtime service.
+# env_vars = []
+
+# Configuration for Storage service.
+[local_development.storage]
+# Enable Storage service. Can be true or false.
+enabled = true
+
+# Additional environment variables to pass to the Storage service.
+# env_vars = []
+
+# Configuration for secrets.
+[secrets]
+# Environment variables to pass to Edge Functions.
+# These are automatically sourced from the .env file.
+# Example: POSTGRES_PASSWORD = "your-super-secret-and-long-postgres-password"
+# Example: JWT_SECRET = "your-super-secret-and-long-jwt-secret"
+
+# Configuration for the dashboard.
+[dashboard]
+# Port for the dashboard.
+# port = 8000
+
+# Additional environment variables to pass to the dashboard.
+# env_vars = []
+
+# Paths to ignore when diffing.
+# ignore_paths = ["supabase/tests", "supabase/seed.sql"]

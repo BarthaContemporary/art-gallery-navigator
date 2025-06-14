@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
 import type { PublicArtwork } from '@/hooks/artworks/useFetchArtworksByCollectionId';
 import { ArtworkGridItemCard } from './ArtworkGridItemCard';
+import { Button } from '@/components/ui/button';
 
 interface ArtworksSectionProps {
   collectionId: string | undefined;
@@ -12,6 +12,8 @@ interface ArtworksSectionProps {
   artworksError: Error | null;
   showPrices: boolean | undefined;
   onArtworkClick: (artwork: PublicArtwork) => void;
+  onLoadMore: () => void;
+  hasMoreArtworks: boolean;
 }
 
 export function ArtworksSection({
@@ -21,6 +23,8 @@ export function ArtworksSection({
   artworksError,
   showPrices,
   onArtworkClick,
+  onLoadMore,
+  hasMoreArtworks,
 }: ArtworksSectionProps) {
   if (!collectionId) {
     return (
@@ -34,7 +38,7 @@ export function ArtworksSection({
   return (
     <div className="mt-8">
       <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Artworks</h2>
-      {isArtworksLoading && (
+      {isArtworksLoading && (!artworks || artworks.length === 0) && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
           <p className="text-muted-foreground">Loading artworks...</p>
@@ -69,6 +73,13 @@ export function ArtworksSection({
              This collection currently has no artworks, or they could not be loaded.
            </p>
          </div>
+      )}
+      {hasMoreArtworks && !isArtworksLoading && (
+        <div className="mt-8 text-center">
+          <Button onClick={onLoadMore} variant="outline" size="lg">
+            Load More Artworks
+          </Button>
+        </div>
       )}
     </div>
   );

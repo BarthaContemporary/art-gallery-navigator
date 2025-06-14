@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
 import { useFetchCollectionById } from '@/hooks/collections';
@@ -10,6 +10,8 @@ import { PublicCollectionHeaderDisplay } from '@/components/public-collection/Pu
 import { ArtworksSection } from '@/components/public-collection/ArtworksSection';
 
 const LOGO_SRC = "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
+const INITIAL_ARTWORKS_COUNT = 12;
+const ARTWORKS_INCREMENT = 12;
 
 export default function PublicCollectionView() {
   const { slug } = useParams<{ slug: string }>();
@@ -19,10 +21,11 @@ export default function PublicCollectionView() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [selectedArtwork, setSelectedArtwork] = useState<PublicArtwork | null>(null);
   const [isArtworkDialogOpen, setIsArtworkDialogOpen] = useState(false);
+  const [displayedArtworksCount, setDisplayedArtworksCount] = useState(INITIAL_ARTWORKS_COUNT);
 
   const collectionId = website?.collection_id;
   const { data: collection, isLoading: isCollectionLoading, error: collectionError } = useFetchCollectionById(collectionId);
-  const { data: artworks, isLoading: isArtworksLoading, error: artworksError } = useFetchArtworksByCollectionId(collectionId);
+  const { data: allArtworks, isLoading: isArtworksLoading, error: artworksError } = useFetchArtworksByCollectionId(collectionId);
 
   useEffect(() => {
     if (!isWebsiteLoading && website) {
@@ -32,23 +35,23 @@ export default function PublicCollectionView() {
     if (collectionId && !isCollectionLoading && collection) {
       console.log("[PublicCollectionView] Fetched collection data:", collection);
     }
-    if (collectionId && !isArtworksLoading && artworks) {
-      console.log("[PublicCollectionView] Artworks data from hook:", artworks);
-      artworks.forEach(artwork => {
+    if (collectionId && !isArtworksLoading && allArtworks) {
+      console.log("[PublicCollectionView] Artworks data from hook:", allArtworks);
+      allArtworks.forEach(artwork => {
         if (artwork.artwork_images && artwork.artwork_images.length > 0) {
           console.log(`[PublicCollectionView] Artwork "${artwork.title}" images:`, 
             artwork.artwork_images.map(img => ({
               id: img.id,
               url: img.image_url,
               isCloudinary: img.image_url?.includes('res.cloudinary.com'),
-              thumbnail_url: img.thumbnail_url, // Now correctly typed
-              medium_url: img.medium_url,       // Now correctly typed
+              thumbnail_url: img.thumbnail_url, 
+              medium_url: img.medium_url,       
             }))
           );
         }
       });
     }
-  }, [website, isWebsiteLoading, collection, isCollectionLoading, artworks, isArtworksLoading, collectionId]);
+  }, [website, isWebsiteLoading, collection, isCollectionLoading, allArtworks, isArtworksLoading, collectionId]);
 
   useEffect(() => {
     if (website && slug) {
@@ -72,6 +75,10 @@ export default function PublicCollectionView() {
     setSelectedArtwork(artwork);
     setIsArtworkDialogOpen(true);
   };
+
+  const handleLoadMoreArtworks = useCallback(() => {
+    setDisplayedArtworksCount(prevCount => prevCount + ARTWORKS_INCREMENT);
+  }, []);
 
   if (isWebsiteLoading || !sessionChecked) {
     return <PublicPageStatusDisplay logoSrc={LOGO_SRC} status="loading" />;
@@ -106,10 +113,9 @@ export default function PublicCollectionView() {
       pageHeaderDescription = "Attached collection details are currently unavailable.";
     }
   }
-
-  // Debug logs - keeping these as they were for now.
-  console.log('[PublicCollectionView Debug] State before rendering artworks section:');
-  // ... (rest of the debug logs can be kept if needed, or removed if refactoring makes them less relevant here)
+  
+  const visibleArtworks = allArtworks?.slice(0, displayedArtworksCount);
+  const hasMoreArtworks = !!allArtworks && displayedArtworksCount < allArtworks.length;
 
   return (
     <>
@@ -125,11 +131,13 @@ export default function PublicCollectionView() {
         
         <ArtworksSection
           collectionId={website.collection_id}
-          artworks={artworks}
+          artworks={visibleArtworks}
           isArtworksLoading={isArtworksLoading}
           artworksError={artworksError}
           showPrices={website.show_prices}
           onArtworkClick={handleArtworkClick}
+          onLoadMore={handleLoadMoreArtworks}
+          hasMoreArtworks={hasMoreArtworks}
         />
       </div>
 
