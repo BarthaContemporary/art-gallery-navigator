@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
@@ -27,8 +28,8 @@ export function OptimizedArtworkImage({
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  // Determine the URL to display and cache key
-  const displayImageUrl = imageRecord?.medium_url || imageRecord?.image_url || null;
+  // Display URL logic: prefer medium_url, fallback to image_url, fallback to placeholder
+  const displayImageUrl = imageRecord?.medium_url || imageRecord?.image_url || "/placeholder.svg";
   const cacheKey = imageRecord?.id || null;
 
   const { determinedOptimizedUrl, cacheLoadedImage } = useArtworkImageHandler({
@@ -39,25 +40,21 @@ export function OptimizedArtworkImage({
   });
 
   const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    const target = event.currentTarget;
     setImageLoaded(true);
     setImageError(false);
-    
-    // Cache the successfully loaded image
-    if (target.src && target.src !== "/placeholder.svg") {
-      cacheLoadedImage(target.src);
+
+    if (event.currentTarget.src && event.currentTarget.src !== "/placeholder.svg") {
+      cacheLoadedImage(event.currentTarget.src);
     }
   }, [cacheLoadedImage]);
 
   const handleImageError = useCallback(() => {
     setImageError(true);
-    setImageLoaded(true); // Consider error state as "loaded" to prevent layout shift
+    setImageLoaded(true);
   }, []);
 
   const handleClick = useCallback(() => {
-    if (onClick) {
-      onClick();
-    }
+    if (onClick) onClick();
   }, [onClick]);
 
   return (
@@ -68,35 +65,30 @@ export function OptimizedArtworkImage({
         className
       )}
       onClick={handleClick}
-      style={{ contain: 'layout size' }} // Prevent any layout shifts
+      style={{ contain: 'layout size' }}
     >
-      {/* Always render img element to maintain layout */}
       <img
-        src={determinedOptimizedUrl}
+        src={determinedOptimizedUrl || "/placeholder.svg"}
         alt={title}
         className={cn(
           "w-full h-full object-cover transition-opacity duration-300",
-          imageLoaded ? "opacity-100" : "opacity-0"
+          imageLoaded && !imageError ? "opacity-100" : "opacity-0"
         )}
         onLoad={handleImageLoad}
         onError={handleImageError}
         loading="lazy"
         decoding="async"
-        style={{ 
+        style={{
           objectFit: 'cover',
           width: '100%',
           height: '100%'
         }}
       />
-      
-      {/* Loading skeleton - only show while image is loading */}
       {!imageLoaded && (
         <div className="absolute inset-0 bg-muted/20 animate-pulse flex items-center justify-center">
           <div className="w-8 h-8 bg-muted/40 rounded"></div>
         </div>
       )}
-      
-      {/* Error state overlay */}
       {imageError && (
         <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
           <div className="text-center text-muted-foreground">

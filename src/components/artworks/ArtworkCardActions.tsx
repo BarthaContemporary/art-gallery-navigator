@@ -1,3 +1,4 @@
+
 import { Edit, Copy, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,23 +21,6 @@ export function ArtworkCardActions({
   onExport, 
   onDelete 
 }: ArtworkCardActionsProps) {
-  const handleTriggerClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleMenuItemClick = (callback: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    callback(e);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onDelete();
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -44,27 +28,29 @@ export function ArtworkCardActions({
           size="icon" 
           variant="ghost" 
           className="h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
-          onClick={handleTriggerClick}
+          tabIndex={0}
+          aria-label="Artwork actions"
+          onClick={e => e.stopPropagation()}
         >
           <Edit className="h-4 w-4" />
           <span className="sr-only">Artwork actions</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuItem onClick={handleMenuItemClick(onEdit)}>
+      <DropdownMenuContent align="end" className="bg-white z-[100]" onClick={e => e.stopPropagation()}>
+        <DropdownMenuItem onClick={onEdit}>
           <Edit className="h-4 w-4 mr-2" />
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleMenuItemClick(onDuplicate)}>
+        <DropdownMenuItem onClick={onDuplicate}>
           <Copy className="h-4 w-4 mr-2" />
           Duplicate
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleMenuItemClick(onExport)}>
+        <DropdownMenuItem onClick={onExport}>
           <Download className="h-4 w-4 mr-2" />
           Export as CSV
         </DropdownMenuItem>
         <DropdownMenuItem 
-          onClick={handleDeleteClick}
+          onClick={onDelete}
           className="text-red-600 focus:text-red-600 focus:bg-red-50"
         >
           <Trash2 className="h-4 w-4 mr-2" />
