@@ -1,3 +1,4 @@
+
 import React, { memo, useState, useCallback, Suspense, lazy } from "react";
 import { Check, Clock, DollarSign, Briefcase, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import {
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
+import { exportArtworksToCSV } from "@/lib/csv"; // Added this import
 
 const EditArtworkDialogLazy = lazy(() => import('./EditArtworkDialog').then(module => ({ default: module.EditArtworkDialog })));
 const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
@@ -225,3 +227,4 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
+
