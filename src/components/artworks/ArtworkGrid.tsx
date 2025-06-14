@@ -22,7 +22,8 @@ interface ArtworkGridProps {
 // Simple fallback component for an individual artwork card
 const ArtworkCardErrorFallback = ({ artworkId }: { artworkId: string }) => (
   <div 
-    className="group relative flex flex-col h-full border border-destructive bg-destructive/10 rounded-lg p-4 items-center justify-center text-center aspect-[4/3]"
+    className="group relative flex flex-col h-full border border-destructive bg-destructive/10 rounded-lg p-4 items-center justify-center text-center"
+    style={{ minHeight: '384px' }} // Match the height of normal cards
     role="alert"
     aria-live="polite"
   >
@@ -143,17 +144,30 @@ function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkG
               </TooltipProvider>
             )}
           </div>
+          
+          {/* Fixed grid with consistent sizing */}
           <div 
             className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            style={{ contain: 'layout' }}
+            style={{ 
+              contain: 'layout',
+              gridTemplateRows: 'masonry' // If supported, otherwise falls back to normal grid
+            }}
           >
             {artworksInGroup.map((artworkEntry) => ( 
-              <ErrorBoundary 
-                key={artworkEntry.id} 
-                fallback={<ArtworkCardErrorFallback artworkId={artworkEntry.id} />}
+              <div 
+                key={artworkEntry.id}
+                className="w-full"
+                style={{ 
+                  contain: 'layout size',
+                  minHeight: '384px' // Consistent minimum height for all cards
+                }}
               >
-                <ArtworkCard artwork={artworkEntry} />
-              </ErrorBoundary>
+                <ErrorBoundary 
+                  fallback={<ArtworkCardErrorFallback artworkId={artworkEntry.id} />}
+                >
+                  <ArtworkCard artwork={artworkEntry} />
+                </ErrorBoundary>
+              </div>
             ))}
           </div>
         </div>
