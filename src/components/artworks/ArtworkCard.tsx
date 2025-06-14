@@ -1,7 +1,7 @@
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
-import { ArtworkCardImage } from "./ArtworkCardImage";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { useArtworkImages } from "@/hooks/use-artwork-images";
@@ -19,6 +19,8 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
     handleView,
     handleEdit,
     handleDelete,
+    handleDuplicate,
+    handleExport,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
     isOverviewDialogOpen,
@@ -48,8 +50,9 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           isHovered ? 'opacity-100' : 'opacity-0'
         }`}>
           <ArtworkCardActions
-            onView={handleView}
             onEdit={handleEdit}
+            onDuplicate={handleDuplicate}
+            onExport={handleExport}
             onDelete={handleDelete}
           />
         </div>

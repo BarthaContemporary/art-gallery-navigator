@@ -7,7 +7,22 @@ import { Artwork } from "@/hooks/use-artworks";
 
 export function useArtworkActions(artwork: Artwork) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isOverviewDialogOpen, setIsOverviewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  const handleView = () => {
+    setIsOverviewDialogOpen(true);
+  };
+
+  const handleEdit = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setIsEditDialogOpen(true);
+  };
 
   const checkCollections = async (artworkId: string) => {
     const { data: collections } = await supabase
@@ -56,6 +71,7 @@ export function useArtworkActions(artwork: Artwork) {
       await queryClient.invalidateQueries({ queryKey: ['artworks'] });
       await queryClient.invalidateQueries({ queryKey: ['collections'] });
       toast.success("Artwork deleted successfully");
+      setIsDeleteDialogOpen(false);
       return true;
     } catch (error) {
       console.error('Error deleting artwork:', error);
@@ -66,7 +82,12 @@ export function useArtworkActions(artwork: Artwork) {
     }
   };
 
-  const handleDuplicate = async () => {
+  const handleDuplicate = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     try {
       const artworkCopy = {
         title: `${artwork.title} (Copy)`,
@@ -121,9 +142,53 @@ export function useArtworkActions(artwork: Artwork) {
     }
   };
 
+  const handleExport = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    try {
+      // Simple CSV export of single artwork
+      const csvContent = [
+        'Title,Artist,Year,Medium,Price,Status',
+        `"${artwork.title}","${artwork.artist_id || 'Unknown'}","${artwork.year || ''}","${artwork.medium_type}","${artwork.price || ''}","${artwork.status}"`
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${artwork.title.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Artwork exported successfully");
+    } catch (error) {
+      console.error('Error exporting artwork:', error);
+      toast.error("Failed to export artwork");
+    }
+  };
+
   return {
-    isDeleting,
+    // Action handlers
+    handleView,
+    handleEdit,
     handleDelete,
-    handleDuplicate
+    handleDuplicate,
+    handleExport,
+    
+    // State
+    isDeleting,
+    
+    // Dialog states
+    isDeleteDialogOpen,
+    setIsDeleteDialogOpen,
+    isOverviewDialogOpen,
+    setIsOverviewDialogOpen,
+    isEditDialogOpen,
+    setIsEditDialogOpen,
   };
 }
