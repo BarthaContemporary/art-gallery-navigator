@@ -22,6 +22,7 @@ interface ArtworkListViewProps {
   artworks: Artwork[];
 }
 
+// ... keep existing code (statusColors, listItemImageSizes definitions)
 const statusColors: Record<string, string> = {
   available: 'bg-green-100 text-green-800',
   'on hold': 'bg-amber-100 text-amber-800',
@@ -42,6 +43,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
   const { data: artists, isLoading: artistsLoading } = useArtists();
   const { isAdmin } = useAuth();
 
+  // ... keep existing code (getArtistName, formatDimensions, formatPrice, formatUpdatedDate, handleArtworkClick, handleCloseDialog, handleActionClick, createOptimizedImageClickHandler, memoizedArtworks check)
   const getArtistName = useCallback((artwork: Artwork): string => {
     if (!artwork.artist_id || !artists || artistsLoading) {
       return "Unknown Artist";
@@ -114,18 +116,20 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
 
         {memoizedArtworks.map((artwork) => {
           // Prepare imageRecord for OptimizedArtworkImage
-          const primaryImage = artwork.images?.find(img => img.is_primary) || artwork.images?.[0];
+          // Use artwork.artwork_images (fetched from Supabase)
+          const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
           const imageRecordToPass: ArtworkImage | undefined = primaryImage
             ? primaryImage
-            : (artwork.image_url
+            : (artwork.image_url // Fallback to main artwork.image_url
                 ? {
-                    id: artwork.id + '_list_primary', // Construct a stable ID
+                    id: artwork.id + '_list_primary_fallback', // Construct a stable ID
                     artwork_id: artwork.id,
                     image_url: artwork.image_url,
                     is_primary: true,
                     display_order: 0,
                     thumbnail_url: null, 
                     medium_url: null,
+                    processed: false,
                   }
                 : undefined);
 
@@ -144,10 +148,9 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                       title={artwork.title || "Untitled"}
                       onClick={createOptimizedImageClickHandler(artwork)}
                       className="rounded-md aspect-[4/3] object-cover"
-                      sizes={listItemImageSizes} // Kept for now, though URL choice is direct
+                      sizes={listItemImageSizes} 
                     />
                   </div>
-                  {/* ... keep existing code (mobile title, artist, materials) ... */}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
                     <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
@@ -156,7 +159,6 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                     )}
                   </div>
                 </div>
-                {/* ... keep existing code (mobile year, dims, status, price) ... */}
                 <div className="flex flex-wrap gap-2 text-xs">
                   {artwork.year && <span>Year: {artwork.year}</span>}
                   <span>Dims: {formatDimensions(artwork)}</span>
@@ -180,7 +182,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                     title={artwork.title || "Untitled"}
                     onClick={createOptimizedImageClickHandler(artwork)}
                     className="rounded-md aspect-[4/3] object-cover"
-                    sizes={listItemImageSizes} // Kept for now
+                    sizes={listItemImageSizes}
                   />
                 </div>
               </div>
@@ -250,6 +252,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
         })}
       </div>
 
+      {/* ... keep existing code (Suspense for ArtworkOverviewDialogLazy) ... */}
       {selectedArtwork && (
         <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
           <ArtworkOverviewDialogLazy
@@ -264,6 +267,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
 }
 
 export function ArtworkListView({ artworks }: ArtworkListViewProps) {
+  // ... keep existing code (ErrorBoundary wrapper)
   return (
     <ErrorBoundary
       fallback={

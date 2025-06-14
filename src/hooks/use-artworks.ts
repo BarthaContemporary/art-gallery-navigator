@@ -1,6 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { ArtworkImage } from "@/hooks/use-artwork-images"; // Import ArtworkImage
 
 export interface Artwork {
   id: string;
@@ -15,10 +16,10 @@ export interface Artwork {
   price: number | null;
   currency: "USD" | "GBP" | "EUR" | "CHF";
   status: string | null;
-  image_url: string | null;
+  image_url: string | null; // This is the main/fallback image_url
   location_id: string | null;
   inventory_quantity: number | null;
-  available_works: string | null; // Changed from number to string
+  available_works: string | null;
   artist_proofs: number | null;
   signature_type: "not signed" | "hand-signed by artist" | "signed on plate" | "stamped by artist's estate" | "sticker label" | "other" | null;
   condition: string | null;
@@ -29,7 +30,6 @@ export interface Artwork {
   height?: number | null;
   width?: number | null;
   depth?: number | null;
-  // New properties for framing, crate and weight
   is_framed?: boolean | null;
   frame_height?: number | null;
   frame_width?: number | null;
@@ -39,11 +39,10 @@ export interface Artwork {
   crate_height?: number | null;
   crate_width?: number | null;
   crate_depth?: number | null;
-  // Add the artist_name property for use in PDF generation and previews
   artist_name?: string;
-  // Add timestamp fields
   created_at?: string | null;
   updated_at?: string | null;
+  artwork_images?: ArtworkImage[]; // Add the artwork_images array
 }
 
 export function useArtworks() {
@@ -52,14 +51,15 @@ export function useArtworks() {
     queryFn: async (): Promise<Artwork[]> => {
       const { data, error } = await supabase
         .from("artworks")
-        .select("*")
+        .select("*, artwork_images(*)") // Fetch related artwork_images
         .order("created_at", { ascending: false });
 
       if (error) {
+        console.error("Error fetching artworks with images:", error);
         throw error;
       }
-
-      // Cast the data to Artwork[] to ensure TypeScript sees it as the correct type
+      
+      // console.log("Fetched artworks with images:", data);
       return data as unknown as Artwork[];
     },
   });

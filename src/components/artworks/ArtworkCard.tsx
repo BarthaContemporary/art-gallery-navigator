@@ -108,19 +108,20 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   };
 
   // Prepare imageRecord for OptimizedArtworkImage
-  // The Artwork type from use-artworks.ts (read-only) has `images?: ArtworkImage[];`
-  const primaryImage = artwork.images?.find(img => img.is_primary) || artwork.images?.[0];
+  // Use artwork.artwork_images (fetched from Supabase)
+  const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
   const imageRecordToPass: ArtworkImage | undefined = primaryImage 
     ? primaryImage 
     : (artwork.image_url // Fallback to main image_url if no processed images array
         ? {
-            id: artwork.id + '_primary', // Construct a stable ID for caching
+            id: artwork.id + '_primary_fallback', // Construct a stable ID for caching
             artwork_id: artwork.id,
             image_url: artwork.image_url, // Original Supabase URL
             is_primary: true,
             display_order: 0,
-            thumbnail_url: null, // No specific Cloudinary thumbnail known here
-            medium_url: null,    // No specific Cloudinary medium known here
+            thumbnail_url: null, 
+            medium_url: null,
+            processed: false, // Indicate it's a fallback, not fully processed record
           }
         : undefined);
 
@@ -145,7 +146,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         )}
         
         <OptimizedArtworkImage
-          imageRecord={imageRecordToPass} // Pass the prepared imageRecord
+          imageRecord={imageRecordToPass}
           title={artwork.title || "Untitled Artwork"}
           onClick={openOverviewDialog}
         />

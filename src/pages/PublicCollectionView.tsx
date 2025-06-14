@@ -9,6 +9,7 @@ import { AlertTriangle, Loader2, Info } from 'lucide-react';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
 import { OptimizedArtworkImage } from '@/components/artworks/OptimizedArtworkImage';
 import { PublicArtworkDialog } from '@/components/artworks/public/PublicArtworkDialog';
+import type { ArtworkImage } from "@/hooks/use-artwork-images"; // Import ArtworkImage
 
 const LOGO_SRC = "https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg";
 
@@ -35,14 +36,15 @@ export default function PublicCollectionView() {
     }
     if (collectionId && !isArtworksLoading && artworks) {
       console.log("[PublicCollectionView] Artworks data from hook:", artworks);
-      // Log image URLs to verify Cloudinary usage
       artworks.forEach(artwork => {
         if (artwork.artwork_images && artwork.artwork_images.length > 0) {
           console.log(`[PublicCollectionView] Artwork "${artwork.title}" images:`, 
             artwork.artwork_images.map(img => ({
               id: img.id,
               url: img.image_url,
-              isCloudinary: img.image_url?.includes('res.cloudinary.com')
+              isCloudinary: img.image_url?.includes('res.cloudinary.com'),
+              thumbnail_url: img.thumbnail_url,
+              medium_url: img.medium_url,
             }))
           );
         }
@@ -190,14 +192,26 @@ export default function PublicCollectionView() {
             {!isArtworksLoading && !artworksError && artworks && artworks.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
                 {artworks.map(artwork => {
-                  const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
-                  const imageUrl = primaryImage?.image_url || "/placeholder.svg";
+                  const primaryImageFetched = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
                   
+                  const imageRecordToPass: ArtworkImage | undefined = primaryImageFetched
+                    ? {
+                        id: primaryImageFetched.id,
+                        artwork_id: artwork.id, // artwork.id is from PublicArtwork type
+                        image_url: primaryImageFetched.image_url,
+                        is_primary: primaryImageFetched.is_primary,
+                        display_order: 0, // Defaulting as it's not in PublicArtwork's image type
+                        thumbnail_url: primaryImageFetched.thumbnail_url,
+                        medium_url: primaryImageFetched.medium_url,
+                        processed: !!(primaryImageFetched.thumbnail_url || primaryImageFetched.medium_url), // Heuristic for processed
+                      }
+                    : undefined; // If no image, pass undefined. OptimizedArtworkImage handles this.
+
                   return (
                     <div key={artwork.id} className="group cursor-pointer">
                       <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors duration-200 overflow-hidden">
                         <OptimizedArtworkImage
-                          imageUrl={imageUrl}
+                          imageRecord={imageRecordToPass}
                           title={artwork.title || 'Untitled'}
                           onClick={() => handleArtworkClick(artwork)}
                         />
@@ -225,8 +239,7 @@ export default function PublicCollectionView() {
                               {artwork.currency} {artwork.price.toLocaleString()}
                             </p>
                           )}
-                          {/* Show Cloudinary indicator for transparency */}
-                          {imageUrl.includes('res.cloudinary.com') && (
+                          {imageRecordToPass?.image_url?.includes('res.cloudinary.com') && (
                             <div className="text-xs text-green-600 mt-1 opacity-70">
                               ✓ Cloudinary Optimized
                             </div>
