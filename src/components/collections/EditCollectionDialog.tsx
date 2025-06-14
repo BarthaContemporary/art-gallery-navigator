@@ -20,7 +20,7 @@ interface EditCollectionDialogProps {
 }
 
 export function EditCollectionDialog({ collection, open, onOpenChange }: EditCollectionDialogProps) {
-  const { scrollToFirstError } = useScrollableDialog(open, {
+  const { scrollToFirstError, scrollContainerRef } = useScrollableDialog(open, {
     restoreScrollPosition: true,
     enableKeyboardNavigation: true
   });
@@ -58,7 +58,7 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
         className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0"
       >
         <ScrollableDialogHeader />
-        <ScrollableDialogBody className="flex-1 min-h-0">
+        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <EditCollectionFormView
             name={name}
             onNameChange={setName}

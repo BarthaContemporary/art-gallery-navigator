@@ -39,7 +39,7 @@ export function ImportCSVDialog() {
     toggleSelectAllArtworks,
   } = useImportCSV(false);
 
-  const { scrollToTop } = useScrollableDialog(open, {
+  const { scrollToTop, scrollContainerRef } = useScrollableDialog(open, {
     enableKeyboardNavigation: true
   });
   
@@ -119,7 +119,7 @@ export function ImportCSVDialog() {
             </ScrollableDialogDescription>
           )}
         </ScrollableDialogHeader>
-        <ScrollableDialogBody className="flex-1 min-h-0">
+        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           {renderStepContent()}
         </ScrollableDialogBody>
         {currentStep === "upload" && !isProcessingFile && (

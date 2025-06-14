@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
@@ -89,23 +88,14 @@ const ScrollableDialogBody = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement> & {
     showScrollIndicator?: boolean
   }
->(({ className, children, showScrollIndicator = true, ...props }, ref) => {
+>(({ className, children, showScrollIndicator = true, ...props }, forwardedRef) => {
   const [isScrollable, setIsScrollable] = React.useState(false)
   const [isScrolledToTop, setIsScrolledToTop] = React.useState(true)
   const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(false)
   const internalRef = React.useRef<HTMLDivElement>(null)
   
-  // Combine the forwarded ref with our internal ref
-  const combinedRef = React.useCallback((node: HTMLDivElement | null) => {
-    if (internalRef) {
-      internalRef.current = node;
-    }
-    if (typeof ref === 'function') {
-      ref(node);
-    } else if (ref) {
-      ref.current = node;
-    }
-  }, [ref]);
+  // Unified ref forwarding/combining for outside access + internal
+  React.useImperativeHandle(forwardedRef, () => internalRef.current as HTMLDivElement | null);
 
   React.useEffect(() => {
     const element = internalRef.current
@@ -147,9 +137,8 @@ const ScrollableDialogBody = React.forwardRef<
       {showScrollIndicator && isScrollable && !isScrolledToTop && (
         <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
       )}
-      
       <div
-        ref={combinedRef}
+        ref={internalRef}
         className={cn(
           "flex-1 overflow-y-auto px-6 py-4",
           "scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent",
@@ -159,7 +148,6 @@ const ScrollableDialogBody = React.forwardRef<
       >
         {children}
       </div>
-      
       {showScrollIndicator && isScrollable && !isScrolledToBottom && (
         <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
       )}

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -66,9 +65,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   }, [open, artist, form.reset]);
 
   useEffect(() => {
-    // Scroll to first error on submission attempt if form is invalid
     if (form.formState.submitCount > 0 && !form.formState.isValid && Object.keys(form.formState.errors).length > 0) {
-      // Timeout to allow DOM to update with error messages before scrolling
       setTimeout(() => {
         scrollToFirstError();
       }, 100);

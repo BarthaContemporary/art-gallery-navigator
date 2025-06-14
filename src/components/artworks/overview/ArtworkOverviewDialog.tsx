@@ -29,18 +29,14 @@ export function ArtworkOverviewDialog({
 }: ArtworkOverviewDialogProps) {
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
-  const { scrollContainerRef } = useScrollableDialog(open, {
-    enableKeyboardNavigation: true
-  });
+  const { scrollContainerRef } = useScrollableDialog(open, { enableKeyboardNavigation: true });
 
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
         size="4xl"
-        // Enforce main flex column with strict height constraint and NO extra padding.
         className="flex flex-col h-[95vh] max-h-[95vh] min-h-0 p-0"
       >
-        {/* Artwork image at the top */}
         <div className="relative w-full bg-black/95 flex-shrink-0">
           <ArtworkImageViewer 
             artworkId={artwork.id}
@@ -48,9 +44,7 @@ export function ArtworkOverviewDialog({
             artworkTitle={artwork.title}
           />
         </div>
-        {/* Header - NOT flex-1 */}
         <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0" />
-        {/* Only ONE flex-1: the scrollable body */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
           className="flex-1 min-h-0 bg-background"
@@ -90,4 +84,3 @@ export function ArtworkOverviewDialog({
     </ScrollableDialog>
   );
 }
-

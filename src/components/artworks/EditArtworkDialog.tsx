@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -61,7 +60,6 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        {/* This is the ONLY section that flexes and scrolls */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
           className="flex-1 min-h-0 bg-background"
@@ -111,4 +109,3 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
-

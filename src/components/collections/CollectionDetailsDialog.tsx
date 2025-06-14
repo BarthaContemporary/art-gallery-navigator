@@ -31,7 +31,7 @@ export function CollectionDetailsDialog({
   const { data: artists } = useArtists();
   const createCollectionWebsiteMutation = useCreateCollectionWebsite();
 
-  const { scrollToTop } = useScrollableDialog(open, {
+  const { scrollToTop, scrollContainerRef } = useScrollableDialog(open, {
     enableKeyboardNavigation: true
   });
 
@@ -54,7 +54,7 @@ export function CollectionDetailsDialog({
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent size="4xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
         <ScrollableDialogHeader />
-        <ScrollableDialogBody className="flex-1 min-h-0">
+        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <div className="space-y-6">
             {/* Top buttons */}
             <CollectionDialogActions

@@ -21,7 +21,7 @@ export function ProjectDialog({
   onOpenChange, 
   project, 
 }: ProjectDialogProps) {
-  const { scrollToFirstError } = useScrollableDialog(open, {
+  const { scrollToFirstError, scrollContainerRef } = useScrollableDialog(open, {
     enableKeyboardNavigation: true,
     scrollToErrorOnValidation: true
   });
@@ -37,7 +37,7 @@ export function ProjectDialog({
             {project ? "Edit the details of this project." : "Create a new project by filling in the details below."}
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        <ScrollableDialogBody className="flex-1 min-h-0">
+        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <ProjectForm 
             project={project} 
             onClose={() => onOpenChange(false)} 

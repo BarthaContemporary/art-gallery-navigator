@@ -20,7 +20,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
   const [open, setOpen] = useState(false);
   const { data: artworks, isLoading: artworksLoading } = useArtworks();
 
-  const { scrollToFirstError } = useScrollableDialog(open, {
+  const { scrollToFirstError, scrollContainerRef } = useScrollableDialog(open, {
     enableKeyboardNavigation: true
   });
 
@@ -61,7 +61,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
       </ScrollableDialogTrigger>
       <ScrollableDialogContent size="xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
         <ScrollableDialogHeader />
-        <ScrollableDialogBody className="flex-1 min-h-0">
+        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <CreateCollectionFormView
             name={name}
             onNameChange={setName}
