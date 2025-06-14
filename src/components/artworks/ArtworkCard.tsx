@@ -1,4 +1,3 @@
-
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
@@ -93,13 +92,14 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
               </p>
             )}
           </div>
-          <div className="mt-2 pt-2 border-t border-border/50">
+          {/* Reworked flex layout for price & status */}
+          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between items-center gap-2">
             {artwork.price && (
               <p className="text-sm font-medium">
                 {artwork.currency} {artwork.price.toLocaleString()}
               </p>
             )}
-            <p className="text-xs text-muted-foreground capitalize">
+            <p className="text-xs text-muted-foreground capitalize ml-auto text-right">
               {artwork.status}
             </p>
           </div>
