@@ -1,4 +1,5 @@
 
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
@@ -17,6 +18,17 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const images = artwork.artwork_images || [];
   const primaryImage = images.find(img => img.is_primary) || images[0];
+  
+  // Fallback to main image_url if no artwork_images are available
+  const imageToDisplay = primaryImage || (artwork.image_url ? {
+    id: `fallback-${artwork.id}`,
+    artwork_id: artwork.id,
+    image_url: artwork.image_url,
+    is_primary: true,
+    display_order: 0,
+    medium_url: artwork.image_url,
+    thumbnail_url: artwork.image_url
+  } : null);
 
   const {
     handleView,
@@ -58,12 +70,24 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
       >
         {/* Fixed height image container */}
         <div className="relative w-full h-64 bg-muted/20 overflow-hidden flex-shrink-0">
-          <OptimizedArtworkImage
-            imageRecord={primaryImage}
-            title={artwork.title}
-            onClick={handleView}
-            className="w-full h-full object-cover"
-          />
+          {imageToDisplay ? (
+            <OptimizedArtworkImage
+              imageRecord={imageToDisplay}
+              title={artwork.title}
+              onClick={handleView}
+              className="w-full h-full object-cover cursor-pointer"
+            />
+          ) : (
+            <div 
+              className="w-full h-full bg-muted/30 flex items-center justify-center cursor-pointer"
+              onClick={handleView}
+            >
+              <div className="text-center text-muted-foreground">
+                <div className="w-12 h-12 bg-muted/60 rounded mx-auto mb-2"></div>
+                <p className="text-sm">No Image</p>
+              </div>
+            </div>
+          )}
           {/* Overlay Actions */}
           <div className={`absolute top-2 right-2 transition-opacity duration-200 ${
             isHovered ? 'opacity-100' : 'opacity-0'
@@ -93,16 +117,24 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
               </p>
             )}
           </div>
-          {/* Reworked flex layout for price & status */}
+          {/* Price & Status section - always visible */}
           <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center gap-2">
-            {artwork.price && (
-              <p className="text-sm font-medium">
-                {artwork.currency} {artwork.price.toLocaleString()}
+            <div className="flex-1">
+              {artwork.price ? (
+                <p className="text-sm font-medium">
+                  {artwork.currency} {artwork.price.toLocaleString()}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Price on request
+                </p>
+              )}
+            </div>
+            <div className="flex-shrink-0">
+              <p className="text-xs text-muted-foreground capitalize text-right">
+                {artwork.status || 'Available'}
               </p>
-            )}
-            <p className="text-xs text-muted-foreground capitalize ml-auto text-right">
-              {artwork.status}
-            </p>
+            </div>
           </div>
         </div>
       </div>
@@ -129,3 +161,4 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
+
