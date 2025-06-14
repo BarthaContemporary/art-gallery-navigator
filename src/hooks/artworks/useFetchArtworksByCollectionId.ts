@@ -33,6 +33,8 @@ export interface PublicArtwork {
     image_url: string;
     is_primary: boolean;
     display_order: number;
+    thumbnail_url?: string | null; // Added
+    medium_url?: string | null;    // Added
   }[];
 }
 
@@ -100,7 +102,9 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
             id,
             image_url,
             is_primary,
-            display_order
+            display_order,
+            thumbnail_url, 
+            medium_url    
           )
         `)
         .in("id", artworkIds)
@@ -128,3 +132,4 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
     enabled: !!collectionId,
   });
 }
+

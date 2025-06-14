@@ -2,7 +2,7 @@
 import React from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import type { CollectionWebsite } from '@/types/collection-website';
-import type { Collection } from '@/hooks/collections';
+import type { Collection } from '@/types/collection'; // Corrected import path
 import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
@@ -56,3 +56,4 @@ export function PublicCollectionHeaderDisplay({
     </>
   );
 }
+

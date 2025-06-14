@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFetchPublicCollectionWebsite } from '@/hooks/collection-websites';
 import { useFetchCollectionById } from '@/hooks/collections';
-import { useFetchArtworksByCollectionId, type PublicArtwork, type PublicArtworkImage } from '@/hooks/artworks/useFetchArtworksByCollectionId';
+import { useFetchArtworksByCollectionId, type PublicArtwork } from '@/hooks/artworks/useFetchArtworksByCollectionId';
 import { PasswordProtectView } from '@/components/public-collection/PasswordProtectView';
 import { PublicArtworkDialog } from '@/components/artworks/public/PublicArtworkDialog';
 import { PublicPageStatusDisplay } from '@/components/public-collection/PublicPageStatusDisplay';
@@ -41,10 +41,8 @@ export default function PublicCollectionView() {
               id: img.id,
               url: img.image_url,
               isCloudinary: img.image_url?.includes('res.cloudinary.com'),
-              // Use 'as any' for logging to bypass TS error if PublicArtworkImage type from hook is problematic
-              // This assumes the properties might exist on the object despite type hints.
-              thumbnail_url: (img as any).thumbnail_url,
-              medium_url: (img as any).medium_url,
+              thumbnail_url: img.thumbnail_url, // Now correctly typed
+              medium_url: img.medium_url,       // Now correctly typed
             }))
           );
         }
