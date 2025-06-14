@@ -123,9 +123,6 @@ export default function PublicCollectionView() {
         <PublicCollectionHeaderDisplay
           logoSrc={LOGO_SRC}
           website={website}
-          collection={collection}
-          isCollectionLoading={isCollectionLoading}
-          collectionError={collectionError}
           pageHeaderDescription={pageHeaderDescription}
         />
         

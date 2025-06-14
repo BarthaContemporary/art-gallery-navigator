@@ -13,8 +13,10 @@ interface PublicCollectionHeaderDisplayProps {
   website: CollectionWebsite;
   // collection prop is not needed here as pageHeaderDescription handles all cases
   // collection: Collection | null | undefined; 
-  isCollectionLoading: boolean; // This prop might also be removable if pageHeaderDescription covers all its states
-  collectionError: Error | null; // This prop might also be removable
+  // isCollectionLoading prop is not needed here as pageHeaderDescription handles all cases
+  // isCollectionLoading: boolean; 
+  // collectionError prop is not needed here as pageHeaderDescription handles all cases
+  // collectionError: Error | null; 
   pageHeaderDescription: string;
 }
 
@@ -25,11 +27,8 @@ export function PublicCollectionHeaderDisplay({
   // collectionError, // No longer directly used for conditional rendering here
   pageHeaderDescription,
 }: PublicCollectionHeaderDisplayProps) {
-  // Props isCollectionLoading and collectionError are passed but not directly used in this component's render logic anymore.
+  // Props isCollectionLoading and collectionError are no longer passed to this component.
   // Their states are incorporated into `pageHeaderDescription` by the parent component `PublicCollectionView`.
-  // If they are not used by any other logic that might be added to this component later,
-  // they could potentially be removed from PublicCollectionHeaderDisplayProps for simplification.
-  // For now, I'm leaving their definitions in props as they were passed.
   return (
     <>
       <div className="flex justify-start mb-6 sm:mb-8">
