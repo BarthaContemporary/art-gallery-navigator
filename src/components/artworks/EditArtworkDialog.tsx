@@ -1,3 +1,4 @@
+
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -22,11 +23,12 @@ interface EditArtworkDialogProps {
 
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  // const [isSubmitting, setIsSubmitting] = useState(false); // Removed local submitting state
+  const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
+
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
-    scrollToErrorOnValidation: true,
+    scrollToErrorOnValidation: true, // This option exists but we will ensure explicit call
     enableKeyboardNavigation: true,
   });
 
@@ -38,7 +40,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!isMounted) return;
     if (newOpen === false) {
-      setIsSubmitting(false);
+      setIsFormActuallySaving(false); // Reset saving state on close
       window.requestAnimationFrame(() => {
         onOpenChange(false);
       });
@@ -47,27 +49,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     }
   }, [onOpenChange, isMounted]);
 
-  const handleFormSubmit = useCallback(() => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    const formElement = document.getElementById('edit-artwork-form') as HTMLFormElement;
-    if (formElement) {
-      const submitEvent = new Event('submit', {
-        bubbles: true,
-        cancelable: true,
-      });
-      formElement.dispatchEvent(submitEvent);
-      setTimeout(() => {
-        const errorElement = formElement.querySelector('[aria-invalid="true"]');
-        if (errorElement) {
-          scrollToFirstError();
-        }
-        setIsSubmitting(false);
-      }, 100);
-    } else {
-      setIsSubmitting(false);
-    }
-  }, [scrollToFirstError, isSubmitting]);
+  // Removed handleFormSubmit function
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
@@ -95,9 +77,11 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                 hideSubmitButton={true}
                 formId="edit-artwork-form"
                 onSuccessCallback={() => {
-                  setIsSubmitting(false);
+                  setIsFormActuallySaving(false); // Reset on success
                   handleOpenChange(false);
                 }}
+                onSavingChange={setIsFormActuallySaving} // Pass callback to update loading state
+                scrollToFirstError={scrollToFirstError} // Pass scroll function
               />
             </div>
             <div className="border-t pt-6">
@@ -113,16 +97,17 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             type="button" 
             variant="outline" 
             onClick={() => handleOpenChange(false)}
-            disabled={isSubmitting}
+            disabled={isFormActuallySaving} // Use new loading state
           >
             Cancel
           </Button>
           <Button 
-            type="button"
-            onClick={handleFormSubmit}
-            disabled={isSubmitting}
+            type="submit" // Changed to submit
+            form="edit-artwork-form" // Associate with the form
+            // onClick removed
+            disabled={isFormActuallySaving} // Use new loading state
           >
-            {isSubmitting ? "Updating..." : "Update Artwork"}
+            {isFormActuallySaving ? "Updating..." : "Update Artwork"}
           </Button>
         </ScrollableDialogFooter>
       </ScrollableDialogContent>

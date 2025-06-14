@@ -22,9 +22,9 @@ export function ProjectDialog({
   onOpenChange, 
   project, 
 }: ProjectDialogProps) {
-  const { scrollToFirstError } = useScrollableDialog(open, {
+  const { scrollToFirstError } = useScrollableDialog(open, { // scrollContainerRef also available if needed directly
     enableKeyboardNavigation: true,
-    scrollToErrorOnValidation: true
+    scrollToErrorOnValidation: true // This hook option exists, but we ensure explicit call
   });
 
   return (
@@ -43,6 +43,7 @@ export function ProjectDialog({
           <ProjectForm 
             project={project} 
             onClose={() => onOpenChange(false)} 
+            scrollToFirstError={scrollToFirstError} // Pass scrollToFirstError
           />
         </ScrollableDialogBody>
       </ScrollableDialogContent>

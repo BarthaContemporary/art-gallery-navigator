@@ -1,5 +1,4 @@
-
-import { useState, useCallback } from "react"; // Keep useState if used for other things, useCallback might not be needed if onUserEmailsChange is gone
+import { useState, useCallback } from "react"; 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -22,9 +21,10 @@ type FormValues = z.infer<typeof ProjectFormSchema>;
 interface ProjectFormProps {
   project?: ProjectWithLocation;
   onClose: () => void;
+  scrollToFirstError?: () => void; // New prop
 }
 
-export function ProjectForm({ project, onClose }: ProjectFormProps) {
+export function ProjectForm({ project, onClose, scrollToFirstError }: ProjectFormProps) {
   // userEmails state and handler removed
   // const [userEmails, setUserEmails] = useState<string[]>([]);
   const { onSubmit, isSubmitting, formError } = useProjectFormSubmit(project, onClose);
@@ -47,11 +47,19 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
   //   setUserEmails(emails);
   // }, []);
   
-  const handleFormSubmit = form.handleSubmit((values) => {
-    // Pass empty array or undefined for userEmails if the hook still expects it,
-    // but ideally the hook is also changed.
-    onSubmit(values); // Removed userEmails from here
-  });
+  const handleFormSubmit = form.handleSubmit(
+    (values) => { // onValid
+      onSubmit(values); 
+    },
+    (errors) => { // onInvalid
+      if (scrollToFirstError) {
+        // Timeout to allow DOM to update with error messages before scrolling
+        setTimeout(() => {
+          scrollToFirstError();
+        }, 100);
+      }
+    }
+  );
   
   return (
     <Form {...form}>
@@ -99,4 +107,3 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     </Form>
   );
 }
-

@@ -31,6 +31,7 @@ interface CreateArtworkFormViewProps {
   hideSubmitButton?: boolean;
   formId?: string;
   isSaving?: boolean;
+  scrollToFirstError?: () => void; // New prop
 }
 
 export function CreateArtworkFormView({
@@ -45,14 +46,24 @@ export function CreateArtworkFormView({
   currentUserArtist,
   hideSubmitButton = false,
   formId,
-  isSaving = false
+  isSaving = false,
+  scrollToFirstError, // Destructure new prop
 }: CreateArtworkFormViewProps) {
+
+  const handleInvalidSubmit = () => {
+    if (scrollToFirstError) {
+      // Timeout to allow DOM to update with error messages before scrolling
+      setTimeout(() => {
+        scrollToFirstError();
+      }, 100);
+    }
+  };
 
   return (
     <Form {...form}>
       <form 
         id={formId}
-        onSubmit={form.handleSubmit(onSubmit)} 
+        onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} // Pass onInvalid handler
         className="space-y-6"
       >
         <BasicInformationFields 
