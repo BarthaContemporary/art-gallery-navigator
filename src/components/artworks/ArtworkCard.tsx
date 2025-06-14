@@ -1,28 +1,16 @@
-
-import React, { memo, useState, useCallback, Suspense, lazy } from "react";
-import { Check, Clock, DollarSign, Briefcase, Loader2 } from "lucide-react";
+import React, { memo, useState, useCallback } from "react";
+import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
 import { useArtists } from "@/hooks/useArtists";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
-import { exportArtworksToCSV } from "@/lib/csv"; // Added this import
-
-const EditArtworkDialogLazy = lazy(() => import('./EditArtworkDialog').then(module => ({ default: module.EditArtworkDialog })));
-const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
-
+import { exportArtworksToCSV } from "@/lib/csv";
+import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
+import { ArtworkOverviewDialogHandler } from "./dialogs/ArtworkOverviewDialogHandler";
+import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -141,7 +129,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         <OptimizedArtworkImage
           imageUrl={artwork.image_url}
           title={artwork.title}
-          onClick={openOverviewDialog} // Use memoized handler
+          onClick={openOverviewDialog}
         />
         
         <CardContent 
@@ -180,51 +168,28 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           </div>
         </CardContent>
         
-        {editDialogOpen && (
-          <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
-            <EditArtworkDialogLazy
-              artwork={artwork}
-              open={editDialogOpen}
-              onOpenChange={setEditDialogOpen}
-            />
-          </Suspense>
-        )}
+        <ArtworkEditDialogHandler
+          artwork={artwork}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+        />
         
-        {overviewDialogOpen && (
-          <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
-            <ArtworkOverviewDialogLazy
-              artwork={artwork}
-              open={overviewDialogOpen}
-              onOpenChange={setOverviewDialogOpen}
-            />
-          </Suspense>
-        )}
+        <ArtworkOverviewDialogHandler
+          artwork={artwork}
+          open={overviewDialogOpen}
+          onOpenChange={setOverviewDialogOpen}
+        />
       </Card>
       
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the artwork
-              "{artwork.title}" and all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArtworkDeleteDialogHandler
+        artwork={artwork}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        isDeleting={isDeleting}
+        confirmDelete={confirmDelete}
+      />
     </>
   );
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
-
