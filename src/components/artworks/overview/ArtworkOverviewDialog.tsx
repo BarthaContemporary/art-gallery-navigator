@@ -36,11 +36,11 @@ export function ArtworkOverviewDialog({
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
-        size="5xl"
+        size="4xl"
         className="flex flex-col max-h-[95vh] min-h-0 h-full p-0"
       >
         {/* Image Carousel at Top - Full Width */}
-        <div className="relative w-full bg-black/95">
+        <div className="relative w-full bg-black/95 flex-shrink-0">
           <ArtworkImageViewer 
             artworkId={artwork.id}
             artistName={artist?.full_name || "Unknown_Artist"}
@@ -49,7 +49,7 @@ export function ArtworkOverviewDialog({
         </div>
 
         {/* Header with Title and Actions */}
-        <ScrollableDialogHeader className="px-6 py-4 border-b bg-background">
+        <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1 min-w-0">
               <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
@@ -70,10 +70,11 @@ export function ArtworkOverviewDialog({
           </div>
         </ScrollableDialogHeader>
 
-        {/* Content Area */}
+        {/* Scrollable Content Area */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-auto px-6 py-6 bg-background"
+          className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
+          showScrollIndicator={true}
         >
           <div className="max-w-4xl mx-auto">
             <ArtworkOverviewTabs
