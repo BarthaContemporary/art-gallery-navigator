@@ -3,10 +3,10 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { logger } from "@/lib/logger";
 import { Loader2 } from "lucide-react";
 import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
-import type { ArtworkImage } from "@/hooks/use-artwork-images"; // Changed import
+import type { ArtworkImage } from "@/hooks/use-artwork-images";
 
 interface OptimizedArtworkImageProps {
-  imageRecord: ArtworkImage | null | undefined; // Changed type to ArtworkImage
+  imageRecord: ArtworkImage | null | undefined;
   title: string;
   onClick: () => void;
   className?: string;
@@ -22,28 +22,33 @@ function OptimizedArtworkImageComponent({
   title, 
   onClick, 
   className = "",
-  // sizes // sizes is not directly used for URL construction anymore with Cloudinary fields
 }: OptimizedArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const isListView = !!className;
 
-  // Determine which Cloudinary URL to use based on context (list vs. card/detail)
-  // and the type of image for caching.
-  // imageRecord now contains specific thumbnail_url and medium_url from Cloudinary
+  // Determine which Cloudinary URL to use
   const displayUrl = isListView 
-    ? imageRecord?.thumbnail_url || imageRecord?.medium_url || imageRecord?.image_url // Prefer Cloudinary thumbnail for list view, then medium, then original
-    : imageRecord?.medium_url || imageRecord?.image_url;   // Prefer Cloudinary medium for card/detail view, then original
+    ? imageRecord?.thumbnail_url || imageRecord?.medium_url || imageRecord?.image_url
+    : imageRecord?.medium_url || imageRecord?.image_url;
   
   const imageTypeForCacheLogic = (): 'thumbnail' | 'medium' | 'full' => {
     if (isListView) {
       if (imageRecord?.thumbnail_url) return 'thumbnail';
     }
     if (imageRecord?.medium_url) return 'medium';
-    // If only image_url (original) is available, it's considered 'full' for caching purposes
-    // if it's the one being displayed.
     return 'full'; 
   };
   const imageTypeForCache = imageTypeForCacheLogic();
+
+  logger.debug(`[OptimizedArtworkImage: ${title}] Initial props:`, { 
+    imageRecordId: imageRecord?.id, 
+    originalImageUrl: imageRecord?.image_url,
+    thumbnailUrl: imageRecord?.thumbnail_url,
+    mediumUrl: imageRecord?.medium_url,
+    isListView, 
+    derivedDisplayUrl: displayUrl,
+    imageTypeForCache
+  });
 
   const {
     determinedOptimizedUrl,
@@ -51,8 +56,6 @@ function OptimizedArtworkImageComponent({
     cacheLoadedImage,
   } = useArtworkImageHandler({ 
     displayImageUrl: displayUrl || null, 
-    // Use artwork_images.id as a stable cache key.
-    // If imageRecord is a fallback, its ID might be constructed.
     cacheKey: imageRecord?.id || null, 
     imageTypeForCache: imageTypeForCache,
     title,
@@ -60,35 +63,44 @@ function OptimizedArtworkImageComponent({
 
   const currentDisplayUrl = determinedOptimizedUrl;
 
+  logger.debug(`[OptimizedArtworkImage: ${title}] From useArtworkImageHandler:`, { 
+    determinedOptimizedUrl, 
+    initialCachedPreviewUrl,
+    currentDisplayUrlToRender: currentDisplayUrl
+  });
+
   useEffect(() => {
     if (currentDisplayUrl && !currentDisplayUrl.startsWith("data:") && currentDisplayUrl !== "/placeholder.svg") {
+      logger.debug(`[OptimizedArtworkImage: ${title}] Setting isLoading=true for URL: ${currentDisplayUrl}`);
       setIsLoading(true);
     } else {
+      logger.debug(`[OptimizedArtworkImage: ${title}] Setting isLoading=false for URL: ${currentDisplayUrl} (placeholder or data URI)`);
       setIsLoading(false); 
     }
-  }, [currentDisplayUrl]);
-
+  }, [currentDisplayUrl, title]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    logger.debug(`[OptimizedArtworkImage: ${title}] Clicked.`);
     onClick();
-  }, [onClick]);
+  }, [onClick, title]);
 
   const handleImageLoad = useCallback(() => {
-    logger.debug(`OptimizedArtworkImage: Image loaded: ${currentDisplayUrl}`);
+    logger.debug(`[OptimizedArtworkImage: ${title}] Image loaded successfully: ${currentDisplayUrl}`);
     setIsLoading(false);
     if (currentDisplayUrl && currentDisplayUrl !== "/placeholder.svg" && !currentDisplayUrl.startsWith("data:")) {
       cacheLoadedImage(currentDisplayUrl);
     }
-  }, [currentDisplayUrl, cacheLoadedImage]);
+  }, [currentDisplayUrl, cacheLoadedImage, title]);
 
   const handleImageError = useCallback(() => {
-    logger.warn(`OptimizedArtworkImage: Error loading image: ${currentDisplayUrl}.`);
+    logger.warn(`[OptimizedArtworkImage: ${title}] Error loading image: ${currentDisplayUrl}.`);
     setIsLoading(false);
-  }, [currentDisplayUrl]);
+  }, [currentDisplayUrl, title]);
   
   if (!imageRecord || (currentDisplayUrl === "/placeholder.svg" && !initialCachedPreviewUrl)) {
+    logger.debug(`[OptimizedArtworkImage: ${title}] Rendering placeholder. ImageRecord: ${!!imageRecord}, currentDisplayUrl: ${currentDisplayUrl}, initialCachedPreviewUrl: ${!!initialCachedPreviewUrl}`);
     const placeholderContent = (
       <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />

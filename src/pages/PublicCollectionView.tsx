@@ -36,18 +36,22 @@ export default function PublicCollectionView() {
       console.log("[PublicCollectionView] Fetched collection data:", collection);
     }
     if (collectionId && !isArtworksLoading && allArtworks) {
-      console.log("[PublicCollectionView] Artworks data from hook:", allArtworks);
-      allArtworks.forEach(artwork => {
+      console.log(`[PublicCollectionView] Fetched ${allArtworks.length} artworks for collection ${collectionId}.`);
+      allArtworks.slice(0, 5).forEach(artwork => { // Log details for the first 5 artworks for brevity
         if (artwork.artwork_images && artwork.artwork_images.length > 0) {
-          console.log(`[PublicCollectionView] Artwork "${artwork.title}" images:`, 
-            artwork.artwork_images.map(img => ({
-              id: img.id,
-              url: img.image_url,
-              isCloudinary: img.image_url?.includes('res.cloudinary.com'),
-              thumbnail_url: img.thumbnail_url, 
-              medium_url: img.medium_url,       
-            }))
+          console.log(`[PublicCollectionView] Artwork "${artwork.title}" (ID: ${artwork.id}) first image details:`, 
+            {
+              id: artwork.artwork_images[0].id,
+              image_url: artwork.artwork_images[0].image_url,
+              isOriginalCloudinary: artwork.artwork_images[0].image_url?.includes('res.cloudinary.com'),
+              thumbnail_url: artwork.artwork_images[0].thumbnail_url,
+              isThumbnailCloudinary: artwork.artwork_images[0].thumbnail_url?.includes('res.cloudinary.com'),
+              medium_url: artwork.artwork_images[0].medium_url,
+              isMediumCloudinary: artwork.artwork_images[0].medium_url?.includes('res.cloudinary.com'),       
+            }
           );
+        } else {
+          console.log(`[PublicCollectionView] Artwork "${artwork.title}" (ID: ${artwork.id}) has no images or artwork_images array is empty.`);
         }
       });
     }
@@ -71,13 +75,18 @@ export default function PublicCollectionView() {
   };
 
   const handleArtworkClick = (artwork: PublicArtwork) => {
-    console.log(`[PublicCollectionView] Artwork clicked: ${artwork.id}`);
+    console.log(`[PublicCollectionView] Artwork clicked: ${artwork.title} (ID: ${artwork.id})`);
     setSelectedArtwork(artwork);
     setIsArtworkDialogOpen(true);
   };
 
   const handleLoadMoreArtworks = useCallback(() => {
-    setDisplayedArtworksCount(prevCount => prevCount + ARTWORKS_INCREMENT);
+    console.log('[PublicCollectionView] handleLoadMoreArtworks called.');
+    setDisplayedArtworksCount(prevCount => {
+      const newCount = prevCount + ARTWORKS_INCREMENT;
+      console.log(`[PublicCollectionView] Updating displayed artworks from ${prevCount} to ${newCount}`);
+      return newCount;
+    });
   }, []);
 
   if (isWebsiteLoading || !sessionChecked) {
@@ -116,6 +125,10 @@ export default function PublicCollectionView() {
   
   const visibleArtworks = allArtworks?.slice(0, displayedArtworksCount);
   const hasMoreArtworks = !!allArtworks && displayedArtworksCount < allArtworks.length;
+
+  if (website && slug && sessionChecked && (!website.password_hash || isPasswordVerified)) {
+     console.log(`[PublicCollectionView] Rendering main content. Visible: ${visibleArtworks?.length}, Total: ${allArtworks?.length}, HasMore: ${hasMoreArtworks}, LoadingArtworks: ${isArtworksLoading}`);
+  }
 
   return (
     <>

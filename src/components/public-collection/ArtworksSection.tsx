@@ -1,10 +1,8 @@
-
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle as ShadcnAlertTitle } from '@/components/ui/alert';
 import type { PublicArtwork } from '@/hooks/artworks/useFetchArtworksByCollectionId';
 import { ArtworkGridItemCard } from './ArtworkGridItemCard';
-// Removed Button import as it's no longer used for "Load More"
 
 interface ArtworksSectionProps {
   collectionId: string | undefined;
@@ -32,40 +30,68 @@ export function ArtworksSection({
 
   const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
     const target = entries[0];
-    if (target.isIntersecting && hasMoreArtworks && !isArtworksLoading) {
-      console.log('[ArtworksSection] Load more triggered by intersection observer');
-      onLoadMore();
+    if (target.isIntersecting) {
+      console.log('[ArtworksSection] Sentinel element IS intersecting.');
+      if (hasMoreArtworks && !isArtworksLoading) {
+        console.log('[ArtworksSection] Conditions met: hasMoreArtworks=true, isArtworksLoading=false. Calling onLoadMore.');
+        onLoadMore();
+      } else {
+        console.log(`[ArtworksSection] Conditions NOT met for onLoadMore: hasMoreArtworks=${hasMoreArtworks}, isArtworksLoading=${isArtworksLoading}.`);
+      }
+    } else {
+      // console.log('[ArtworksSection] Sentinel element is NOT intersecting.'); // This can be noisy
     }
   }, [onLoadMore, hasMoreArtworks, isArtworksLoading]);
 
   useEffect(() => {
-    observerRef.current = new IntersectionObserver(handleObserver, {
-      root: null, // viewport
-      rootMargin: '0px',
-      threshold: 0.1, // Trigger when 10% of the element is visible
-    });
+    console.log('[ArtworksSection] Initializing IntersectionObserver effect.');
+    if (observerRef.current) {
+        console.log('[ArtworksSection] Disconnecting previous observer.');
+        observerRef.current.disconnect();
+    }
 
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
+    observerRef.current = new IntersectionObserver(handleObserver, {
+      root: null, 
+      rootMargin: '0px 0px 200px 0px', // Start loading when 200px from bottom of viewport
+      threshold: 0.01, // Trigger when even a small part is visible
+    });
+    console.log('[ArtworksSection] IntersectionObserver created.');
+
+    const currentLoadMoreRef = loadMoreRef.current;
+    if (currentLoadMoreRef) {
+      console.log('[ArtworksSection] Attaching observer to loadMoreRef.');
+      observerRef.current.observe(currentLoadMoreRef);
+    } else {
+      console.log('[ArtworksSection] loadMoreRef is null, cannot attach observer yet.');
     }
 
     return () => {
-      if (observerRef.current && loadMoreRef.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        observerRef.current.unobserve(loadMoreRef.current);
+      console.log('[ArtworksSection] Cleanup: Disconnecting IntersectionObserver.');
+      if (observerRef.current && currentLoadMoreRef) {
+        observerRef.current.unobserve(currentLoadMoreRef);
+      }
+       if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
-  }, [handleObserver]);
+  }, [handleObserver]); // handleObserver dependency is correct
   
-  // Re-observe if loadMoreRef or hasMoreArtworks changes and observer is set
   useEffect(() => {
-    if (loadMoreRef.current && observerRef.current && hasMoreArtworks) {
-      observerRef.current.observe(loadMoreRef.current);
-    } else if (loadMoreRef.current && observerRef.current && !hasMoreArtworks) {
-      observerRef.current.unobserve(loadMoreRef.current);
-    }
-  }, [hasMoreArtworks, artworks]); // also re-observe if artworks list changes, ensuring ref is attached if needed
+    const currentObserver = observerRef.current;
+    const currentLoadMoreRef = loadMoreRef.current;
 
+    if (currentObserver && currentLoadMoreRef) {
+      currentObserver.unobserve(currentLoadMoreRef); // Always unobserve first
+      if (hasMoreArtworks) {
+        console.log('[ArtworksSection] Re-observing loadMoreRef because hasMoreArtworks is true.');
+        currentObserver.observe(currentLoadMoreRef);
+      } else {
+        console.log('[ArtworksSection] Not re-observing loadMoreRef because hasMoreArtworks is false.');
+      }
+    } else {
+        console.log(`[ArtworksSection] Cannot re-observe: currentObserver=${!!currentObserver}, currentLoadMoreRef=${!!currentLoadMoreRef}, hasMoreArtworks=${hasMoreArtworks}`);
+    }
+  }, [hasMoreArtworks, artworks]); // Re-evaluate when hasMoreArtworks or artworks list changes
 
   if (!collectionId) {
     return (
@@ -116,20 +142,20 @@ export function ArtworksSection({
          </div>
       )}
       
-      {/* Sentinel element for IntersectionObserver and loading indicator */}
-      <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
-        {hasMoreArtworks && isArtworksLoading && (
+      <div ref={loadMoreRef} className="h-20 flex items-center justify-center" data-testid="load-more-sentinel">
+        {hasMoreArtworks && isArtworksLoading && ( // This is when loading the *next* batch
           <div className="flex items-center text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
             <span>Loading more artworks...</span>
           </div>
         )}
-        {/* Optionally, show a message when no more artworks and not loading initial set */}
         {!hasMoreArtworks && artworks && artworks.length > 0 && !isArtworksLoading && (
           <p className="text-sm text-muted-foreground">All artworks loaded.</p>
+        )}
+         {hasMoreArtworks && !isArtworksLoading && ( // Visible when there's more to load but not currently loading
+          <p className="text-sm text-muted-foreground">Scroll down to load more.</p>
         )}
       </div>
     </div>
   );
 }
-
