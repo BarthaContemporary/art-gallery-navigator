@@ -1,3 +1,3 @@
 
-// Split file! This module now simply re-exports components from ./scrollable-dialog
-export * from "./ui/scrollable-dialog"
+// Re-export all components from the subfolder's index file
+export * from "./scrollable-dialog/index";
