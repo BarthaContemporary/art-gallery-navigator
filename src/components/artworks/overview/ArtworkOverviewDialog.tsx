@@ -47,10 +47,10 @@ export function ArtworkOverviewDialog({
             artworkTitle={artwork.title}
           />
         </div>
-
         {/* Header with Title and Actions */}
-        <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0" />
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between px-6 py-4 border-b bg-background">
             <div className="flex-1 min-w-0">
               <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
                 {artwork.title}
@@ -68,24 +68,23 @@ export function ArtworkOverviewDialog({
               />
             </div>
           </div>
-        </ScrollableDialogHeader>
-
-        {/* Scrollable Content Area */}
-        <ScrollableDialogBody
-          ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
-          showScrollIndicator={true}
-        >
-          <div className="max-w-4xl mx-auto">
-            <ArtworkOverviewTabs
-              artwork={artwork}
-              artist={artist}
-              artistLoading={artistLoading}
-              location={location}
-              locationLoading={locationLoading}
-            />
-          </div>
-        </ScrollableDialogBody>
+          {/* Scrollable Content Area */}
+          <ScrollableDialogBody
+            ref={scrollContainerRef}
+            className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
+            showScrollIndicator={true}
+          >
+            <div className="max-w-4xl mx-auto">
+              <ArtworkOverviewTabs
+                artwork={artwork}
+                artist={artist}
+                artistLoading={artistLoading}
+                location={location}
+                locationLoading={locationLoading}
+              />
+            </div>
+          </ScrollableDialogBody>
+        </div>
       </ScrollableDialogContent>
     </ScrollableDialog>
   );
