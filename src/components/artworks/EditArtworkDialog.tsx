@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -75,7 +74,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="max-h-[95vh] flex flex-col"
+        className="flex flex-col max-h-[95vh] min-h-0 h-full"
       >
         <ScrollableDialogHeader className="p-6 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
@@ -83,11 +82,9 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        
-        {/* Always force the dialog body as a scrollable flex column */}
-        <ScrollableDialogBody 
+        <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 px-4 md:px-8 py-6 bg-background space-y-8 overflow-auto"
+          className="flex-1 min-h-0 overflow-auto px-4 md:px-8 py-6 bg-background space-y-8"
         >
           <div className="mx-auto w-full max-w-2xl space-y-8">
             <div>
@@ -111,8 +108,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             </div>
           </div>
         </ScrollableDialogBody>
-        
-        <ScrollableDialogFooter className="bg-background/95 backdrop-blur px-6 py-4 border-t">
+        <ScrollableDialogFooter className="px-6 py-4 border-t bg-background/95 backdrop-blur">
           <Button 
             type="button" 
             variant="outline" 
@@ -133,4 +129,3 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
-

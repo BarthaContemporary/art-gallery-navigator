@@ -28,7 +28,6 @@ export function ArtworkOverviewDialog({
 }: ArtworkOverviewDialogProps) {
   const { data: artist, isLoading: artistLoading } = useArtist(artwork.artist_id);
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
-
   const { scrollContainerRef } = useScrollableDialog(open, {
     enableKeyboardNavigation: true
   });
@@ -37,7 +36,7 @@ export function ArtworkOverviewDialog({
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
         size="4xl"
-        className="max-h-[97vh] flex flex-col"
+        className="flex flex-col max-h-[95vh] min-h-0 h-full"
       >
         <ScrollableDialogHeader className="p-6 border-b pb-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
@@ -59,16 +58,9 @@ export function ArtworkOverviewDialog({
             </div>
           </div>
         </ScrollableDialogHeader>
-
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="
-            flex-1 min-h-0 px-4 md:px-10 py-6 
-            bg-background
-            space-y-8
-            overflow-auto
-            overscroll-y-contain
-          "
+          className="flex-1 min-h-0 overflow-auto px-4 md:px-10 py-6 bg-background space-y-8"
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Image Viewer */}
