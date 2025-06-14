@@ -1,10 +1,16 @@
 
+import React, { Suspense, lazy } from "react"; // Added React, Suspense, lazy
 import { Artwork } from "@/hooks/use-artworks";
 import { ViewMode } from "./ArtworkViewToggle";
-import { ArtworkGrid } from "./ArtworkGrid";
-import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid";
-import { ArtworkListView } from "./ArtworkListView";
+// import { ArtworkGrid } from "./ArtworkGrid"; // To be lazy loaded
+// import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid"; // To be lazy loaded
+// import { ArtworkListView } from "./ArtworkListView"; // To be lazy loaded
 import { AlphabeticalIndex } from "./AlphabeticalIndex";
+import { Loader2 } from "lucide-react"; // Added Loader2
+
+const ArtworkGridLazy = lazy(() => import('./ArtworkGrid').then(module => ({ default: module.ArtworkGrid })));
+const VirtualizedArtworkGridLazy = lazy(() => import('./VirtualizedArtworkGrid').then(module => ({ default: module.VirtualizedArtworkGrid })));
+const ArtworkListViewLazy = lazy(() => import('./ArtworkListView').then(module => ({ default: module.ArtworkListView })));
 
 interface ArtworksContentProps {
   artworks: Artwork[];
@@ -16,6 +22,12 @@ interface ArtworksContentProps {
   onActiveIndexChange: (index: string) => void;
   onScrollToTop: () => void;
 }
+
+const ContentLoadingFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+  </div>
+);
 
 export function ArtworksContent({
   artworks,
@@ -29,13 +41,13 @@ export function ArtworksContent({
 }: ArtworksContentProps) {
   const renderContent = () => {
     if (viewMode === 'list') {
-      return <ArtworkListView artworks={artworks} />;
+      return <ArtworkListViewLazy artworks={artworks} />;
     }
 
     if (viewMode === 'grid') {
       if (useVirtualization && artworks.length > 50) {
         return (
-          <VirtualizedArtworkGrid 
+          <VirtualizedArtworkGridLazy 
             artworks={artworks} 
             containerHeight={containerHeight}
             onScrollToTop={onScrollToTop}
@@ -43,15 +55,15 @@ export function ArtworksContent({
         );
       }
       return (
-        <ArtworkGrid 
+        <ArtworkGridLazy 
           artworks={artworks} 
           activeIndex={activeIndex} 
           onScrollToTop={onScrollToTop} 
         />
       );
     }
-
-    return <ArtworkListView artworks={artworks} />;
+    // Default to list view if viewMode is somehow unrecognized
+    return <ArtworkListViewLazy artworks={artworks} />;
   };
 
   return (
@@ -63,7 +75,9 @@ export function ArtworksContent({
           activeLetter={activeIndex}
         />
       )}
-      {renderContent()}
+      <Suspense fallback={<ContentLoadingFallback />}>
+        {renderContent()}
+      </Suspense>
     </>
   );
 }

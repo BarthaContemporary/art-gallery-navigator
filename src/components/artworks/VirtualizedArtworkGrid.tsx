@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef, memo } from "react";
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -10,7 +10,7 @@ interface VirtualizedArtworkGridProps {
   onScrollToTop?: () => void;
 }
 
-export function VirtualizedArtworkGrid({ 
+function VirtualizedArtworkGridComponent({ 
   artworks, 
   containerHeight,
   onScrollToTop 
@@ -60,7 +60,7 @@ export function VirtualizedArtworkGrid({
     const minItemWidth = isMobile ? 280 : 320;
     const cols = Math.max(1, Math.floor(containerWidth / minItemWidth));
     const width = Math.floor(containerWidth / cols);
-    const height = Math.floor(width * 1.4);
+    const height = Math.floor(width * 1.4); // Assuming aspect ratio for card height
     const rows = Math.ceil(validArtworks.length / cols);
     
     return {
@@ -229,7 +229,7 @@ export function VirtualizedArtworkGrid({
                   height: itemHeight,
                 }}
               >
-                <div style={{ width: itemWidth - 24, height: itemHeight - 24 }}>
+                <div style={{ width: itemWidth - 24, height: itemHeight - 24 }}> {/* Adjust for padding */}
                   <ArtworkCard artwork={artwork} />
                 </div>
               </div>
@@ -240,3 +240,5 @@ export function VirtualizedArtworkGrid({
     </div>
   );
 }
+
+export const VirtualizedArtworkGrid = memo(VirtualizedArtworkGridComponent);

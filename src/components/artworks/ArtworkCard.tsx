@@ -1,13 +1,8 @@
-
-import React, { memo } from "react";
-import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
+import React, { memo, useState, useCallback, Suspense, lazy } from "react";
+import { Check, Clock, DollarSign, Briefcase, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
 import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
-import { EditArtworkDialog } from "./EditArtworkDialog";
-import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
-import { exportArtworksToCSV } from "@/lib/csv";
 import { useArtists } from "@/hooks/useArtists";
 import {
   AlertDialog,
@@ -22,6 +17,10 @@ import {
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
+
+const EditArtworkDialogLazy = lazy(() => import('./EditArtworkDialog').then(module => ({ default: module.EditArtworkDialog })));
+const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
+
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -43,44 +42,47 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const { data: artists } = useArtists();
   const { isDeleting, handleDelete, handleDuplicate } = useArtworkActions(artwork);
 
-  const handleEdit = (e?: React.MouseEvent) => {
+  const handleEdit = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     setEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleExport = (e: React.MouseEvent) => {
+  const handleExport = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     exportArtworksToCSV([artwork], `artwork_${artwork.id}.csv`);
-  };
+  }, [artwork]);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent if clicking on actions or other interactive elements
+  const openOverviewDialog = useCallback(() => {
+    setOverviewDialogOpen(true);
+  }, []);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-artwork-action]')) {
       return;
     }
     e.preventDefault();
     e.stopPropagation();
-    setOverviewDialogOpen(true);
-  };
+    openOverviewDialog();
+  }, [openOverviewDialog]);
 
-  const handleDeleteClick = (e?: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleDuplicateClick = (e: React.MouseEvent) => {
+  const handleDuplicateClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     handleDuplicate();
-  };
-
+  }, [handleDuplicate]);
+  
   const getArtistName = () => {
     if (artwork.artist_id && artists) {
       const artist = artists.find(a => a.id === artwork.artist_id);
@@ -137,7 +139,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         <OptimizedArtworkImage
           imageUrl={artwork.image_url}
           title={artwork.title}
-          onClick={() => setOverviewDialogOpen(true)}
+          onClick={openOverviewDialog} // Use memoized handler
         />
         
         <CardContent 
@@ -176,17 +178,25 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           </div>
         </CardContent>
         
-        <EditArtworkDialog
-          artwork={artwork}
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-        />
+        {editDialogOpen && (
+          <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
+            <EditArtworkDialogLazy
+              artwork={artwork}
+              open={editDialogOpen}
+              onOpenChange={setEditDialogOpen}
+            />
+          </Suspense>
+        )}
         
-        <ArtworkOverviewDialog
-          artwork={artwork}
-          open={overviewDialogOpen}
-          onOpenChange={setOverviewDialogOpen}
-        />
+        {overviewDialogOpen && (
+          <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
+            <ArtworkOverviewDialogLazy
+              artwork={artwork}
+              open={overviewDialogOpen}
+              onOpenChange={setOverviewDialogOpen}
+            />
+          </Suspense>
+        )}
       </Card>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -1,6 +1,5 @@
-
+import React, { memo, useState, useEffect, useRef, useCallback } from "react"; // Added memo, useCallback
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
 import { Loader2 } from "lucide-react";
@@ -17,7 +16,7 @@ interface OptimizedArtworkImageProps {
   };
 }
 
-export function OptimizedArtworkImage({ 
+function OptimizedArtworkImageComponent({ 
   imageUrl, 
   title, 
   onClick, 
@@ -81,10 +80,9 @@ export function OptimizedArtworkImage({
     }
     
     setOptimizedUrl(finalOptimizedUrl);
-
   }, [imageUrl, getCachedImage, className]);
 
-  const cacheImageIfNeeded = () => {
+  const cacheImageIfNeeded = useCallback(() => {
     if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
     
     imageLoadAttempted.current = true;
@@ -99,7 +97,6 @@ export function OptimizedArtworkImage({
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         
-        // Use higher resolution for caching (1200x1200)
         const maxDimension = 1200;
         let scale = 1;
         if (img.width > 0 && img.height > 0) {
@@ -117,7 +114,6 @@ export function OptimizedArtworkImage({
 
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Use high quality for medium tier caching
           const highQualityDataUrl = canvas.toDataURL("image/webp", 0.98);
           setCachedImage(imageUrl, highQualityDataUrl, 'medium');
           logger.log(`OptimizedArtworkImage: Cached high-quality medium image for ${imageUrl}. Size: ${highQualityDataUrl.length}`);
@@ -130,13 +126,27 @@ export function OptimizedArtworkImage({
     } catch (error) {
       logger.error("OptimizedArtworkImage: Failed to cache image:", error);
     }
-  };
+  }, [imageUrl, optimizedUrl, getCachedImage, setCachedImage]); // Added dependencies
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onClick();
-  };
+  }, [onClick]); // Added onClick dependency
+
+  const handleImageLoad = useCallback(() => {
+    logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
+    setIsLoading(false);
+    if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
+      cacheImageIfNeeded();
+    }
+  }, [optimizedUrl, cacheImageIfNeeded]); // Added dependencies
+
+  const handleImageError = useCallback(() => {
+    logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
+    setOptimizedUrl("/placeholder.svg");
+    setIsLoading(false);
+  }, [optimizedUrl]); // Added optimizedUrl dependency
 
   // If className is provided, render as a simple img tag for list view
   if (className) {
@@ -146,18 +156,8 @@ export function OptimizedArtworkImage({
         alt={title}
         className={className}
         onClick={handleClick}
-        onLoad={() => {
-          logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
-          setIsLoading(false);
-          if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
-            cacheImageIfNeeded();
-          }
-        }}
-        onError={() => {
-          logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
-          setOptimizedUrl("/placeholder.svg");
-          setIsLoading(false);
-        }}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
         loading="lazy"
         decoding="async"
         style={{ contain: 'layout' }}
@@ -176,7 +176,6 @@ export function OptimizedArtworkImage({
       }}
     >
       <AspectRatio ratio={4/3}>
-        {/* Show cached image while main image loads */}
         {isLoading && cachedImageUrl && (
             <img 
               src={cachedImageUrl}
@@ -187,38 +186,25 @@ export function OptimizedArtworkImage({
             />
           )}
         
-        {/* Loading indicator when no cached image available */}
         {isLoading && !cachedImageUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
           )}
         
-        {/* Main high-quality image */}
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
           className={`absolute inset-0 h-full w-full object-cover transition-transform duration-300 ${
             isLoading ? 'scale-105 opacity-0' : 'scale-100 opacity-100' 
           }`}
-          onLoad={() => {
-            logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
-            setIsLoading(false);
-            if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
-              cacheImageIfNeeded();
-            }
-          }}
-          onError={() => {
-            logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
-            setOptimizedUrl("/placeholder.svg");
-            setIsLoading(false);
-          }}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
           loading="lazy"
           decoding="async"
           style={{ contain: 'layout' }}
         />
         
-        {/* Quality indicator - show "CDN" for Cloudinary images */}
         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
             {optimizedUrl?.includes('res.cloudinary.com') ? 'CDN' : 'HD'}
@@ -228,3 +214,5 @@ export function OptimizedArtworkImage({
     </div>
   );
 }
+
+export const OptimizedArtworkImage = memo(OptimizedArtworkImageComponent);

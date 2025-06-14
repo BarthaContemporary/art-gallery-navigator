@@ -1,12 +1,11 @@
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
-import { ArtworkOverviewDialog } from "./ArtworkOverviewDialog";
 import { formatDistanceToNow } from "date-fns";
-import { Edit, MoreHorizontal, DollarSign } from "lucide-react";
+import { Edit, MoreHorizontal, DollarSign, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+
+const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
 
 interface ArtworkListViewProps {
   artworks: Artwork[];
@@ -27,6 +28,12 @@ const statusColors: Record<string, string> = {
   consigned: 'bg-purple-100 text-purple-800',
   'not for sale': 'bg-gray-100 text-gray-800',
   returned: 'bg-orange-100 text-orange-800',
+};
+
+const listItemImageSizes = {
+  thumbnail: { width: 64, height: 48, quality: 70 },
+  medium: { width: 128, height: 96, quality: 80 },
+  full: { width: 256, height: 192, quality: 90 }
 };
 
 function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
@@ -76,6 +83,10 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
     e.stopPropagation();
   }, []);
 
+  const createOptimizedImageClickHandler = useCallback((artwork: Artwork) => () => {
+    handleArtworkClick(artwork);
+  }, [handleArtworkClick]);
+
   const memoizedArtworks = useMemo(() => artworks, [artworks]);
 
   if (!memoizedArtworks || memoizedArtworks.length === 0) {
@@ -89,7 +100,6 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
   return (
     <>
       <div className="space-y-1 overflow-x-auto">
-        {/* Header - Hidden on mobile, visible on larger screens */}
         <div className="hidden lg:grid lg:grid-cols-12 gap-4 px-4 py-3 bg-muted/30 rounded-lg text-sm font-medium text-muted-foreground">
           <div className="col-span-1">Image</div>
           <div className="col-span-3">Title & Artist</div>
@@ -101,27 +111,21 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
           {isAdmin && <div className="col-span-1">Actions</div>}
         </div>
 
-        {/* Rows */}
         {memoizedArtworks.map((artwork) => (
           <div
             key={artwork.id}
             className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-2 md:gap-4 px-4 py-3 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
             onClick={() => handleArtworkClick(artwork)}
           >
-            {/* Mobile Layout */}
             <div className="md:hidden col-span-1 space-y-2">
               <div className="flex gap-3">
                 <div className="w-16 h-12 flex-shrink-0">
                   <OptimizedArtworkImage
                     imageUrl={artwork.image_url || "/placeholder.svg"}
                     title={artwork.title || "Untitled"}
-                    onClick={() => handleArtworkClick(artwork)}
+                    onClick={createOptimizedImageClickHandler(artwork)}
                     className="rounded-md aspect-[4/3] object-cover"
-                    sizes={{
-                      thumbnail: { width: 64, height: 48, quality: 70 },
-                      medium: { width: 128, height: 96, quality: 80 },
-                      full: { width: 256, height: 192, quality: 90 }
-                    }}
+                    sizes={listItemImageSizes}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -147,25 +151,18 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
               </div>
             </div>
 
-            {/* Desktop Layout */}
-            {/* Image */}
             <div className="hidden lg:block lg:col-span-1">
               <div className="w-16 h-12">
                 <OptimizedArtworkImage
                   imageUrl={artwork.image_url || "/placeholder.svg"}
                   title={artwork.title || "Untitled"}
-                  onClick={() => handleArtworkClick(artwork)}
+                  onClick={createOptimizedImageClickHandler(artwork)}
                   className="rounded-md aspect-[4/3] object-cover"
-                  sizes={{
-                    thumbnail: { width: 64, height: 48, quality: 70 },
-                    medium: { width: 128, height: 96, quality: 80 },
-                    full: { width: 256, height: 192, quality: 90 }
-                  }}
+                  sizes={listItemImageSizes}
                 />
               </div>
             </div>
 
-            {/* Title & Artist */}
             <div className="hidden md:block md:col-span-2 lg:col-span-3">
               <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
               <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
@@ -174,17 +171,14 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
               )}
             </div>
 
-            {/* Year */}
             <div className="hidden lg:block lg:col-span-1 text-sm">
               {artwork.year || "—"}
             </div>
 
-            {/* Dimensions */}
             <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
               {formatDimensions(artwork)}
             </div>
 
-            {/* Status */}
             <div className="hidden md:block md:col-span-1 lg:col-span-1">
               {artwork.status && (
                 <Badge 
@@ -196,7 +190,6 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
               )}
             </div>
 
-            {/* Price */}
             <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
               {artwork.price ? (
                 <div className="flex items-center gap-1">
@@ -208,12 +201,10 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
               )}
             </div>
 
-            {/* Updated */}
             <div className="hidden lg:block lg:col-span-1 text-xs text-muted-foreground">
               {formatUpdatedDate(artwork)}
             </div>
 
-            {/* Actions */}
             {isAdmin && (
               <div className="hidden md:block md:col-span-1 lg:col-span-1">
                 <DropdownMenu>
@@ -236,11 +227,13 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
       </div>
 
       {selectedArtwork && (
-        <ArtworkOverviewDialog
-          artwork={selectedArtwork}
-          open={!!selectedArtwork}
-          onOpenChange={(open) => !open && handleCloseDialog()}
-        />
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
+          <ArtworkOverviewDialogLazy
+            artwork={selectedArtwork}
+            open={!!selectedArtwork}
+            onOpenChange={(open) => !open && handleCloseDialog()}
+          />
+        </Suspense>
       )}
     </>
   );
