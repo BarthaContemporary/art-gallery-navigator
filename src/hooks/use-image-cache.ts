@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v2.0"; // Updated version for enhanced caching
+const CACHE_VERSION = "v2.1"; // Updated version for better cache management
 const CACHE_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days in milliseconds
-const MAX_CACHE_ITEM_SIZE_MB = 25; // Increased for higher quality images
+const MAX_CACHE_ITEM_SIZE_MB = 5; // Reduced from 25MB to 5MB per item
 const MAX_CACHE_ITEM_SIZE = MAX_CACHE_ITEM_SIZE_MB * 1024 * 1024;
-const MAX_TOTAL_CACHE_SIZE_MB = 200; // Total cache limit
+const MAX_TOTAL_CACHE_SIZE_MB = 50; // Reduced from 200MB to 50MB total
 const MAX_TOTAL_CACHE_SIZE = MAX_TOTAL_CACHE_SIZE_MB * 1024 * 1024;
 
 export type CachedImage = {
@@ -44,12 +44,12 @@ export function useImageCache() {
     return { totalSize, itemCount };
   };
 
-  // LRU cache eviction
-  const evictOldestItems = (requiredSpace: number) => {
+  // Aggressive cache cleanup to prevent quota issues
+  const performCacheCleanup = () => {
     if (!isLocalStorageAvailable) return;
     
     try {
-      const cacheItems: Array<{ key: string; timestamp: number; size: number }> = [];
+      const cacheItems: Array<{ key: string; timestamp: number; size: number; tier: string }> = [];
       
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith(CACHE_PREFIX)) {
@@ -57,10 +57,16 @@ export function useImageCache() {
           if (item) {
             try {
               const cachedImage = JSON.parse(item) as CachedImage;
+              // Remove old version items immediately
+              if (cachedImage.version !== CACHE_VERSION) {
+                localStorage.removeItem(key);
+                return;
+              }
               cacheItems.push({
                 key,
                 timestamp: cachedImage.timestamp,
-                size: item.length
+                size: item.length,
+                tier: cachedImage.tier
               });
             } catch (e) {
               // Remove corrupted items
@@ -70,19 +76,36 @@ export function useImageCache() {
         }
       });
       
-      // Sort by timestamp (oldest first)
-      cacheItems.sort((a, b) => a.timestamp - b.timestamp);
+      // Sort by timestamp (oldest first) and tier priority (full images first to remove)
+      cacheItems.sort((a, b) => {
+        if (a.tier === 'full' && b.tier !== 'full') return -1;
+        if (b.tier === 'full' && a.tier !== 'full') return 1;
+        return a.timestamp - b.timestamp;
+      });
       
-      let freedSpace = 0;
+      // Remove items until we're under 60% of the total cache limit
+      const targetSize = MAX_TOTAL_CACHE_SIZE * 0.6;
+      let currentSize = cacheItems.reduce((sum, item) => sum + item.size, 0);
+      
       for (const item of cacheItems) {
-        if (freedSpace >= requiredSpace) break;
+        if (currentSize <= targetSize) break;
         localStorage.removeItem(item.key);
-        freedSpace += item.size;
+        currentSize -= item.size;
       }
       
-      console.log(`Evicted ${freedSpace} bytes from image cache`);
+      console.log(`Cache cleanup completed. Removed ${cacheItems.length - Math.floor(currentSize / 1000)} items`);
     } catch (error) {
-      console.error("Error during cache eviction:", error);
+      console.error("Error during cache cleanup:", error);
+      // If cleanup fails, clear all cache to prevent further issues
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith(CACHE_PREFIX)) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (clearError) {
+        console.error("Failed to clear cache:", clearError);
+      }
     }
   };
 
@@ -108,9 +131,8 @@ export function useImageCache() {
         return null;
       }
 
-      // Update timestamp for LRU
+      // Update timestamp for LRU (but don't save to avoid quota issues)
       cachedImage.timestamp = Date.now();
-      localStorage.setItem(cacheKey, JSON.stringify(cachedImage));
 
       return cachedImage;
     } catch (error) {
@@ -125,14 +147,29 @@ export function useImageCache() {
     }
   };
 
-  // Set a cached image with enhanced storage
+  // Set a cached image with better size management
   const setCachedImage = (imageUrl: string, dataUrl: string, tier: 'thumbnail' | 'medium' | 'full' = 'thumbnail') => {
     if (!isLocalStorageAvailable) return;
 
     try {
+      // Skip caching very large images
       if (dataUrl.length > MAX_CACHE_ITEM_SIZE) {
-        console.warn(`Image data URL too large to cache (${Math.round(dataUrl.length / 1024 / 1024)}MB > ${MAX_CACHE_ITEM_SIZE_MB}MB): ${imageUrl}`);
+        console.warn(`Image too large to cache (${Math.round(dataUrl.length / 1024 / 1024)}MB > ${MAX_CACHE_ITEM_SIZE_MB}MB): ${imageUrl}`);
         return;
+      }
+
+      // Check if we need to do cleanup before adding
+      const { totalSize } = getCacheStats();
+      const newItemSize = JSON.stringify({
+        dataUrl,
+        timestamp: Date.now(),
+        version: CACHE_VERSION,
+        tier,
+        size: dataUrl.length
+      }).length;
+      
+      if (totalSize + newItemSize > MAX_TOTAL_CACHE_SIZE * 0.8) {
+        performCacheCleanup();
       }
 
       const cacheKey = `${CACHE_PREFIX}${btoa(imageUrl)}_${tier}`;
@@ -144,29 +181,14 @@ export function useImageCache() {
         size: dataUrl.length
       };
 
-      // Check total cache size and evict if necessary
-      const { totalSize } = getCacheStats();
-      const newItemSize = JSON.stringify(cachedImage).length;
-      
-      if (totalSize + newItemSize > MAX_TOTAL_CACHE_SIZE) {
-        evictOldestItems(newItemSize + (MAX_TOTAL_CACHE_SIZE * 0.1)); // Free 10% extra space
-      }
-
       localStorage.setItem(cacheKey, JSON.stringify(cachedImage));
       console.log(`Cached ${tier} image: ${imageUrl} (${Math.round(newItemSize / 1024)}KB)`);
     } catch (error) {
       console.error("Error caching image:", error);
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        console.warn("LocalStorage quota exceeded. Attempting cache cleanup...");
-        evictOldestItems(JSON.stringify({ dataUrl, timestamp: Date.now(), version: CACHE_VERSION, tier, size: dataUrl.length }).length);
-        // Retry once after cleanup
-        try {
-          const cacheKey = `${CACHE_PREFIX}${btoa(imageUrl)}_${tier}`;
-          const cachedImage: CachedImage = { dataUrl, timestamp: Date.now(), version: CACHE_VERSION, tier, size: dataUrl.length };
-          localStorage.setItem(cacheKey, JSON.stringify(cachedImage));
-        } catch (retryError) {
-          console.error("Failed to cache image even after cleanup:", retryError);
-        }
+        console.warn("LocalStorage quota exceeded. Performing aggressive cleanup...");
+        performCacheCleanup();
+        // Don't retry - just skip caching this image
       }
     }
   };
@@ -193,6 +215,7 @@ export function useImageCache() {
     getCachedImage, 
     setCachedImage, 
     clearImageCache, 
-    getCacheStats 
+    getCacheStats,
+    performCacheCleanup
   };
 }

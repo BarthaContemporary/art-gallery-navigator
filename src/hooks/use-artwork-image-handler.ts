@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useImageCache } from '@/hooks/use-image-cache';
 import { logger } from '@/lib/logger';
@@ -34,6 +35,13 @@ export function useArtworkImageHandler({
       return;
     }
 
+    // Skip caching for placeholder images
+    if (displayImageUrl === "/placeholder.svg") {
+      setDeterminedOptimizedUrl("/placeholder.svg");
+      setInitialCachedPreviewUrl(null);
+      return;
+    }
+
     // Try to get from cache first
     const cachedImage = getCachedImage(cacheKey, imageTypeForCache);
     if (cachedImage) {
@@ -62,25 +70,39 @@ export function useArtworkImageHandler({
       const img = new Image();
       img.crossOrigin = "anonymous"; // Important for Cloudinary images if drawing to canvas
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          logger.error(`useArtworkImageHandler (${title}): Failed to get canvas context for caching.`);
-          return;
-        }
+        try {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            logger.error(`useArtworkImageHandler (${title}): Failed to get canvas context for caching.`);
+            return;
+          }
 
-        // Keep original dimensions for caching, Cloudinary already optimized it.
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // Determine quality based on type for consistency if needed, though Cloudinary already handles it.
-        const quality = imageTypeForCache === 'thumbnail' ? 0.85 : 0.92;
-        const dataUrl = canvas.toDataURL("image/webp", quality);
-        
-        setCachedImage(cacheKey, dataUrl, imageTypeForCache);
-        logger.log(`useArtworkImageHandler (${title}): Cached ${imageTypeForCache} image for key ${cacheKey}. DataURL size: ${dataUrl.length}`);
+          // Optimize canvas size based on tier to reduce memory usage
+          let maxDimension = 800; // Default for thumbnail
+          if (imageTypeForCache === 'medium') maxDimension = 1200;
+          if (imageTypeForCache === 'full') maxDimension = 1600; // Reduced from original size
+          
+          const scale = Math.min(maxDimension / Math.max(img.naturalWidth, img.naturalHeight), 1);
+          canvas.width = Math.floor(img.naturalWidth * scale);
+          canvas.height = Math.floor(img.naturalHeight * scale);
+          
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          // Use lower quality for better compression
+          const quality = imageTypeForCache === 'thumbnail' ? 0.7 : 0.8;
+          const dataUrl = canvas.toDataURL("image/webp", quality);
+          
+          // Only cache if the result is reasonable size
+          if (dataUrl.length < 5 * 1024 * 1024) { // 5MB limit
+            setCachedImage(cacheKey, dataUrl, imageTypeForCache);
+            logger.log(`useArtworkImageHandler (${title}): Cached ${imageTypeForCache} image for key ${cacheKey}. DataURL size: ${dataUrl.length}`);
+          } else {
+            logger.warn(`useArtworkImageHandler (${title}): Skipped caching - result too large: ${dataUrl.length} bytes`);
+          }
+        } catch (canvasError) {
+          logger.error(`useArtworkImageHandler (${title}): Canvas processing failed:`, canvasError);
+        }
       };
       img.onerror = () => {
         logger.error(`useArtworkImageHandler (${title}): Failed to load image for caching: ${loadedSrc}`);

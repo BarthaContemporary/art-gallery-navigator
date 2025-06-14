@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,7 +20,11 @@ export function useArtworkImages(artworkId: string) {
 
   useEffect(() => {
     async function fetchImages() {
-      if (!artworkId) return;
+      if (!artworkId) {
+        setImages([]);
+        setLoading(false);
+        return;
+      }
       
       console.log("🔄 Fetching images for artwork:", artworkId);
       setLoading(true);
@@ -32,13 +37,27 @@ export function useArtworkImages(artworkId: string) {
           .eq("artwork_id", artworkId)
           .order("display_order", { ascending: true });
           
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.error("❌ Error fetching artwork images:", fetchError);
+          throw fetchError;
+        }
         
-        console.log("🖼️ Fetched images:", data?.length || 0);
-        setImages(data || []);
+        console.log("🖼️ Fetched images:", data?.length || 0, "for artwork:", artworkId);
+        
+        // Handle empty results gracefully
+        if (!data || data.length === 0) {
+          console.log("📷 No images found for artwork:", artworkId);
+          setImages([]);
+        } else {
+          // Filter out any invalid images
+          const validImages = data.filter(img => img.image_url && img.image_url !== 'null');
+          console.log("✅ Valid images after filtering:", validImages.length);
+          setImages(validImages);
+        }
       } catch (err) {
         console.error("❌ Error fetching artwork images:", err);
         setError("Failed to load images");
+        setImages([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
