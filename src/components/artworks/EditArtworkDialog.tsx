@@ -53,7 +53,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="flex flex-col max-h-[95vh] h-[95vh] min-h-0"
+        className="flex flex-col h-[95vh] max-h-[95vh] min-h-0 p-0"
       >
         <ScrollableDialogHeader className="p-6 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
@@ -61,11 +61,12 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
+        {/* This is the ONLY section that flexes and scrolls */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 bg-background"
+          className="flex-1 min-h-0 bg-background"
         >
-          <div className="mx-auto w-full max-w-2xl space-y-8">
+          <div className="mx-auto w-full max-w-2xl space-y-8 px-4 md:px-8 py-6">
             <div>
               <CreateArtworkForm 
                 setOpen={onOpenChange} 
@@ -110,3 +111,4 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
+

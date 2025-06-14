@@ -37,9 +37,10 @@ export function ArtworkOverviewDialog({
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
         size="4xl"
-        className="flex flex-col max-h-[95vh] h-[95vh] min-h-0 p-0"
+        // Enforce main flex column with strict height constraint and NO extra padding.
+        className="flex flex-col h-[95vh] max-h-[95vh] min-h-0 p-0"
       >
-        {/* Image Carousel at Top - Full Width */}
+        {/* Artwork image at the top */}
         <div className="relative w-full bg-black/95 flex-shrink-0">
           <ArtworkImageViewer 
             artworkId={artwork.id}
@@ -47,16 +48,16 @@ export function ArtworkOverviewDialog({
             artworkTitle={artwork.title}
           />
         </div>
-        {/* Header with Title and Actions */}
+        {/* Header - NOT flex-1 */}
         <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0" />
-        {/* Remove unnecessary nesting: Only a single flex-1 block for scroll */}
+        {/* Only ONE flex-1: the scrollable body */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-6 py-6 bg-background"
+          className="flex-1 min-h-0 bg-background"
           showScrollIndicator={true}
         >
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between px-0 py-0 border-b-0 bg-transparent">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1 min-w-0">
                 <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
                   {artwork.title}
