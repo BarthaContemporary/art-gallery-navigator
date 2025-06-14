@@ -28,7 +28,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
     scrollToErrorOnValidation: true,
-    enableKeyboardNavigation: true
+    enableKeyboardNavigation: true,
   });
 
   useEffect(() => {
@@ -38,7 +38,6 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!isMounted) return;
-    
     if (newOpen === false) {
       setIsSubmitting(false);
       window.requestAnimationFrame(() => {
@@ -51,22 +50,14 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   const handleFormSubmit = useCallback(() => {
     if (isSubmitting) return;
-    
     setIsSubmitting(true);
-    
-    // Find the form and trigger submission
     const formElement = document.getElementById('edit-artwork-form') as HTMLFormElement;
     if (formElement) {
-      // Create a submit event
       const submitEvent = new Event('submit', {
         bubbles: true,
         cancelable: true,
       });
-      
-      // Dispatch the event to trigger form validation and submission
       formElement.dispatchEvent(submitEvent);
-      
-      // Small delay to allow validation to complete before scrolling
       setTimeout(() => {
         const errorElement = formElement.querySelector('[aria-invalid="true"]');
         if (errorElement) {
@@ -84,36 +75,44 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
+        className="max-h-[95vh] flex flex-col"
       >
-        <ScrollableDialogHeader>
+        <ScrollableDialogHeader className="p-6 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
           <ScrollableDialogDescription>
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
         
-        <ScrollableDialogBody ref={scrollContainerRef}>
-          <div className="space-y-6">
-            <CreateArtworkForm 
-              setOpen={onOpenChange} 
-              initialData={artwork} 
-              preventFreeze={true}
-              hideSubmitButton={true}
-              formId="edit-artwork-form"
-              onSuccessCallback={() => {
-                setIsSubmitting(false);
-                handleOpenChange(false);
-              }}
-            />
-            
+        {/* Always force the dialog body as a scrollable flex column */}
+        <ScrollableDialogBody 
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 px-4 md:px-8 py-6 bg-background space-y-8 overflow-auto"
+        >
+          <div className="mx-auto w-full max-w-2xl space-y-8">
+            <div>
+              <CreateArtworkForm 
+                setOpen={onOpenChange} 
+                initialData={artwork} 
+                preventFreeze={true}
+                hideSubmitButton={true}
+                formId="edit-artwork-form"
+                onSuccessCallback={() => {
+                  setIsSubmitting(false);
+                  handleOpenChange(false);
+                }}
+              />
+            </div>
             <div className="border-t pt-6">
               <h4 className="text-sm font-medium mb-4">Attached Images</h4>
-              <ArtworkImageManager artworkId={artwork.id} />
+              <div className="w-full">
+                <ArtworkImageManager artworkId={artwork.id} />
+              </div>
             </div>
           </div>
         </ScrollableDialogBody>
         
-        <ScrollableDialogFooter>
+        <ScrollableDialogFooter className="bg-background/95 backdrop-blur px-6 py-4 border-t">
           <Button 
             type="button" 
             variant="outline" 
@@ -134,3 +133,4 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
+
