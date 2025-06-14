@@ -121,7 +121,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         isDeleting={isDeleting}
-        confirmDelete={handleDelete}
+        confirmDelete={async () => { await handleDelete(); }}
       />
     </>
   );
