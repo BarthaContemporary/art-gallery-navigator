@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import type { ArtworkImage } from "@/hooks/use-artwork-images";
 
 const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
 
@@ -111,34 +112,97 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
           {isAdmin && <div className="col-span-1">Actions</div>}
         </div>
 
-        {memoizedArtworks.map((artwork) => (
-          <div
-            key={artwork.id}
-            className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-2 md:gap-4 px-4 py-3 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-            onClick={() => handleArtworkClick(artwork)}
-          >
-            <div className="md:hidden col-span-1 space-y-2">
-              <div className="flex gap-3">
-                <div className="w-16 h-12 flex-shrink-0">
+        {memoizedArtworks.map((artwork) => {
+          // Prepare imageRecord for OptimizedArtworkImage
+          const primaryImage = artwork.images?.find(img => img.is_primary) || artwork.images?.[0];
+          const imageRecordToPass: ArtworkImage | undefined = primaryImage
+            ? primaryImage
+            : (artwork.image_url
+                ? {
+                    id: artwork.id + '_list_primary', // Construct a stable ID
+                    artwork_id: artwork.id,
+                    image_url: artwork.image_url,
+                    is_primary: true,
+                    display_order: 0,
+                    thumbnail_url: null, 
+                    medium_url: null,
+                  }
+                : undefined);
+
+          return (
+            <div
+              key={artwork.id}
+              className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-2 md:gap-4 px-4 py-3 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => handleArtworkClick(artwork)}
+            >
+              {/* Mobile view */}
+              <div className="md:hidden col-span-1 space-y-2">
+                <div className="flex gap-3">
+                  <div className="w-16 h-12 flex-shrink-0">
+                    <OptimizedArtworkImage
+                      imageRecord={imageRecordToPass}
+                      title={artwork.title || "Untitled"}
+                      onClick={createOptimizedImageClickHandler(artwork)}
+                      className="rounded-md aspect-[4/3] object-cover"
+                      sizes={listItemImageSizes} // Kept for now, though URL choice is direct
+                    />
+                  </div>
+                  {/* ... keep existing code (mobile title, artist, materials) ... */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
+                    <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
+                    {artwork.materials && (
+                      <div className="text-xs text-muted-foreground line-clamp-1">{artwork.materials}</div>
+                    )}
+                  </div>
+                </div>
+                {/* ... keep existing code (mobile year, dims, status, price) ... */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {artwork.year && <span>Year: {artwork.year}</span>}
+                  <span>Dims: {formatDimensions(artwork)}</span>
+                  {artwork.status && (
+                    <Badge 
+                      variant="outline"
+                      className={`text-xs ${statusColors[artwork.status] || 'bg-gray-100 text-gray-800'}`}
+                    >
+                      {artwork.status}
+                    </Badge>
+                  )}
+                  <span>Price: {formatPrice(artwork)}</span>
+                </div>
+              </div>
+
+              {/* Desktop/Tablet view Image */}
+              <div className="hidden lg:block lg:col-span-1">
+                <div className="w-16 h-12">
                   <OptimizedArtworkImage
-                    imageUrl={artwork.image_url || "/placeholder.svg"}
+                    imageRecord={imageRecordToPass}
                     title={artwork.title || "Untitled"}
                     onClick={createOptimizedImageClickHandler(artwork)}
                     className="rounded-md aspect-[4/3] object-cover"
-                    sizes={listItemImageSizes}
+                    sizes={listItemImageSizes} // Kept for now
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
-                  <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
-                  {artwork.materials && (
-                    <div className="text-xs text-muted-foreground line-clamp-1">{artwork.materials}</div>
-                  )}
-                </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {artwork.year && <span>Year: {artwork.year}</span>}
-                <span>Dims: {formatDimensions(artwork)}</span>
+
+              {/* ... keep existing code (desktop/tablet title, artist, materials, year, dimensions, status, price, updated, actions) ... */}
+              <div className="hidden md:block md:col-span-2 lg:col-span-3">
+                <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
+                <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
+                {artwork.materials && (
+                  <div className="text-xs text-muted-foreground line-clamp-1">{artwork.materials}</div>
+                )}
+              </div>
+
+              <div className="hidden lg:block lg:col-span-1 text-sm">
+                {artwork.year || "—"}
+              </div>
+
+              <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
+                {formatDimensions(artwork)}
+              </div>
+
+              <div className="hidden md:block md:col-span-1 lg:col-span-1">
                 {artwork.status && (
                   <Badge 
                     variant="outline"
@@ -147,83 +211,43 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                     {artwork.status}
                   </Badge>
                 )}
-                <span>Price: {formatPrice(artwork)}</span>
               </div>
-            </div>
 
-            <div className="hidden lg:block lg:col-span-1">
-              <div className="w-16 h-12">
-                <OptimizedArtworkImage
-                  imageUrl={artwork.image_url || "/placeholder.svg"}
-                  title={artwork.title || "Untitled"}
-                  onClick={createOptimizedImageClickHandler(artwork)}
-                  className="rounded-md aspect-[4/3] object-cover"
-                  sizes={listItemImageSizes}
-                />
+              <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
+                {artwork.price ? (
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    <span>{formatPrice(artwork)}</span>
+                  </div>
+                ) : (
+                  "—"
+                )}
               </div>
-            </div>
 
-            <div className="hidden md:block md:col-span-2 lg:col-span-3">
-              <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
-              <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
-              {artwork.materials && (
-                <div className="text-xs text-muted-foreground line-clamp-1">{artwork.materials}</div>
-              )}
-            </div>
+              <div className="hidden lg:block lg:col-span-1 text-xs text-muted-foreground">
+                {formatUpdatedDate(artwork)}
+              </div>
 
-            <div className="hidden lg:block lg:col-span-1 text-sm">
-              {artwork.year || "—"}
-            </div>
-
-            <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
-              {formatDimensions(artwork)}
-            </div>
-
-            <div className="hidden md:block md:col-span-1 lg:col-span-1">
-              {artwork.status && (
-                <Badge 
-                  variant="outline"
-                  className={`text-xs ${statusColors[artwork.status] || 'bg-gray-100 text-gray-800'}`}
-                >
-                  {artwork.status}
-                </Badge>
-              )}
-            </div>
-
-            <div className="hidden md:block md:col-span-1 lg:col-span-2 text-sm">
-              {artwork.price ? (
-                <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" />
-                  <span>{formatPrice(artwork)}</span>
+              {isAdmin && (
+                <div className="hidden md:block md:col-span-1 lg:col-span-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={handleActionClick}>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleActionClick}> {/* TODO: Link this to actual edit action */}
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              ) : (
-                "—"
               )}
             </div>
-
-            <div className="hidden lg:block lg:col-span-1 text-xs text-muted-foreground">
-              {formatUpdatedDate(artwork)}
-            </div>
-
-            {isAdmin && (
-              <div className="hidden md:block md:col-span-1 lg:col-span-1">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={handleActionClick}>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleActionClick}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {selectedArtwork && (

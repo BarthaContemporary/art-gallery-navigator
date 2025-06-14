@@ -1,26 +1,27 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface ArtworkImage {
+export interface ArtworkImage {
   id: string;
   artwork_id: string;
   image_url: string;
   is_primary: boolean;
   display_order: number;
+  processed?: boolean;
+  thumbnail_url?: string | null;
+  medium_url?: string | null;
 }
 
 export function useArtworkImages(artworkId: string) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Removed cacheKey state
 
   useEffect(() => {
     async function fetchImages() {
       if (!artworkId) return;
       
-      console.log("🔄 Fetching images for artwork:", artworkId); // Removed cache key from log
+      console.log("🔄 Fetching images for artwork:", artworkId);
       setLoading(true);
       setError(null);
       
@@ -45,9 +46,7 @@ export function useArtworkImages(artworkId: string) {
     
     fetchImages();
     
-    // Removed debug interval and clearInterval
-  }, [artworkId]); // Removed cacheKey from dependencies
+  }, [artworkId]);
 
   return { images, loading, error };
 }
-

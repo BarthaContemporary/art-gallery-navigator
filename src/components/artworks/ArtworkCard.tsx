@@ -11,6 +11,7 @@ import { exportArtworksToCSV } from "@/lib/csv";
 import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
 import { ArtworkOverviewDialogHandler } from "./dialogs/ArtworkOverviewDialogHandler";
 import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
+import type { ArtworkImage } from "@/hooks/use-artwork-images";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -106,6 +107,23 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
     return parts.join(' / ');
   };
 
+  // Prepare imageRecord for OptimizedArtworkImage
+  // The Artwork type from use-artworks.ts (read-only) has `images?: ArtworkImage[];`
+  const primaryImage = artwork.images?.find(img => img.is_primary) || artwork.images?.[0];
+  const imageRecordToPass: ArtworkImage | undefined = primaryImage 
+    ? primaryImage 
+    : (artwork.image_url // Fallback to main image_url if no processed images array
+        ? {
+            id: artwork.id + '_primary', // Construct a stable ID for caching
+            artwork_id: artwork.id,
+            image_url: artwork.image_url, // Original Supabase URL
+            is_primary: true,
+            display_order: 0,
+            thumbnail_url: null, // No specific Cloudinary thumbnail known here
+            medium_url: null,    // No specific Cloudinary medium known here
+          }
+        : undefined);
+
   return (
     <>
       <Card 
@@ -127,8 +145,8 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         )}
         
         <OptimizedArtworkImage
-          imageUrl={artwork.image_url}
-          title={artwork.title}
+          imageRecord={imageRecordToPass} // Pass the prepared imageRecord
+          title={artwork.title || "Untitled Artwork"}
           onClick={openOverviewDialog}
         />
         
