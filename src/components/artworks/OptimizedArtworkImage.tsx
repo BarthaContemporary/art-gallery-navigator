@@ -1,15 +1,16 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from "react"; // Added memo, useCallback
+
+import React, { memo, useState, useEffect, useCallback } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useImageCache } from "@/hooks/use-image-cache";
 import { logger } from "@/lib/logger";
 import { Loader2 } from "lucide-react";
+import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
 
 interface OptimizedArtworkImageProps {
   imageUrl: string | null;
   title: string;
   onClick: () => void;
   className?: string;
-  sizes?: {
+  sizes?: { // Kept for API compatibility, though not directly used by the hook in this version
     thumbnail: { width: number; height: number; quality: number };
     medium: { width: number; height: number; quality: number };
     full: { width: number; height: number; quality: number };
@@ -21,138 +22,51 @@ function OptimizedArtworkImageComponent({
   title, 
   onClick, 
   className = "",
-  sizes 
+  // sizes // Prop available if needed in future hook enhancements
 }: OptimizedArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [optimizedUrl, setOptimizedUrl] = useState<string | null>(null);
-  const [cachedImageUrl, setCachedImageUrl] = useState<string | null>(null);
-  const { getCachedImage, setCachedImage } = useImageCache();
-  const imageLoadAttempted = useRef(false);
+  // currentDisplayUrl is the URL that will be passed to the <img> src attribute.
+  const [currentDisplayUrl, setCurrentDisplayUrl] = useState<string>("/placeholder.svg");
+
+  const isListView = !!className;
+
+  const {
+    determinedOptimizedUrl,
+    initialCachedPreviewUrl,
+    cacheLoadedImage,
+  } = useArtworkImageHandler({ imageUrl, title, isListView });
 
   useEffect(() => {
-    setIsLoading(true);
-    setCachedImageUrl(null);
-    imageLoadAttempted.current = false;
-    
-    if (!imageUrl) {
-      logger.debug("OptimizedArtworkImage: No imageUrl provided, using default placeholder.");
-      setOptimizedUrl("/placeholder.svg");
-      setIsLoading(false);
-      return;
-    }
-
-    // Check for cached medium quality image first (preferred)
-    const cachedMedium = getCachedImage(imageUrl, 'medium');
-    if (cachedMedium) {
-      logger.debug(`OptimizedArtworkImage: Found cached medium quality image for ${imageUrl}`);
-      setCachedImageUrl(cachedMedium.dataUrl);
-      setIsLoading(false);
-      setOptimizedUrl(cachedMedium.dataUrl);
-      return;
-    }
-
-    // Fallback to cached thumbnail
-    const cachedThumbnail = getCachedImage(imageUrl, 'thumbnail');
-    if (cachedThumbnail) {
-      logger.debug(`OptimizedArtworkImage: Found cached thumbnail for ${imageUrl}`);
-      setCachedImageUrl(cachedThumbnail.dataUrl);
-    }
-
-    // Check if this is already a Cloudinary URL (processed image)
-    let finalOptimizedUrl = imageUrl;
-    if (imageUrl.includes('res.cloudinary.com')) {
-      // Already a Cloudinary URL, optimize for component size
-      const baseUrl = imageUrl.split('/upload/')[0];
-      const imagePath = imageUrl.split('/upload/')[1];
-      // Use appropriate size based on className presence (list view vs card view)
-      const transform = className 
-        ? 'w_256,h_192,c_limit,q_85,f_webp' // List view - smaller
-        : 'w_600,h_450,c_limit,q_90,f_webp'; // Card view - larger
-      finalOptimizedUrl = `${baseUrl}/upload/${transform}/${imagePath}`;
-      logger.debug(`OptimizedArtworkImage: Using optimized Cloudinary URL: ${finalOptimizedUrl}`);
-    } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
-      // Supabase storage URL - apply transforms for backwards compatibility
-      const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
-      finalOptimizedUrl = imageUrl.includes('?') 
-        ? `${imageUrl}&transform=${transformParams}`
-        : `${imageUrl}?transform=${transformParams}`;
-      logger.debug(`OptimizedArtworkImage: Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalOptimizedUrl}`);
-    }
-    
-    setOptimizedUrl(finalOptimizedUrl);
-  }, [imageUrl, getCachedImage, className]);
-
-  const cacheImageIfNeeded = useCallback(() => {
-    if (!imageUrl || !optimizedUrl || optimizedUrl === "/placeholder.svg" || imageLoadAttempted.current) return;
-    
-    imageLoadAttempted.current = true;
-    
-    logger.debug(`OptimizedArtworkImage: Attempting to cache medium quality image. Original Key: ${imageUrl}, Source: ${optimizedUrl}`);
-
-    try {
-      const img = new Image();
-      img.crossOrigin = "anonymous"; 
-      img.onload = () => {
-        logger.debug(`OptimizedArtworkImage: Image loaded for caching (source: ${optimizedUrl}), creating high-quality cache.`);
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        
-        const maxDimension = 1200;
-        let scale = 1;
-        if (img.width > 0 && img.height > 0) {
-            scale = Math.min(maxDimension / Math.max(img.width, img.height), 1);
-            if (scale <= 0) scale = 1;
-        }
-        
-        if (img.width > 0 && img.height > 0) {
-            canvas.width = Math.floor(img.width * scale);
-            canvas.height = Math.floor(img.height * scale);
-        } else {
-            canvas.width = maxDimension;
-            canvas.height = maxDimension;
-        }
-
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const highQualityDataUrl = canvas.toDataURL("image/webp", 0.98);
-          setCachedImage(imageUrl, highQualityDataUrl, 'medium');
-          logger.log(`OptimizedArtworkImage: Cached high-quality medium image for ${imageUrl}. Size: ${highQualityDataUrl.length}`);
-        }
-      };
-      img.onerror = () => {
-          logger.error(`OptimizedArtworkImage: Failed to load image for caching: ${optimizedUrl}`);
-      }
-      img.src = optimizedUrl;
-    } catch (error) {
-      logger.error("OptimizedArtworkImage: Failed to cache image:", error);
-    }
-  }, [imageUrl, optimizedUrl, getCachedImage, setCachedImage]); // Added dependencies
+    setIsLoading(true); // Reset loading state when the source URL might change
+    setCurrentDisplayUrl(determinedOptimizedUrl); // Update the display URL based on hook's determination
+  }, [imageUrl, determinedOptimizedUrl]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onClick();
-  }, [onClick]); // Added onClick dependency
+  }, [onClick]);
 
   const handleImageLoad = useCallback(() => {
-    logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
+    logger.debug(`OptimizedArtworkImage: Image loaded: ${currentDisplayUrl}`);
     setIsLoading(false);
-    if (optimizedUrl && optimizedUrl !== "/placeholder.svg") {
-      cacheImageIfNeeded();
+    if (currentDisplayUrl && currentDisplayUrl !== "/placeholder.svg") {
+      cacheLoadedImage(currentDisplayUrl);
     }
-  }, [optimizedUrl, cacheImageIfNeeded]); // Added dependencies
+  }, [currentDisplayUrl, cacheLoadedImage]);
 
   const handleImageError = useCallback(() => {
-    logger.warn(`OptimizedArtworkImage: Error loading image: ${optimizedUrl}. Falling back to placeholder.`);
-    setOptimizedUrl("/placeholder.svg");
+    logger.warn(`OptimizedArtworkImage: Error loading image: ${currentDisplayUrl}. Falling back to placeholder.`);
+    if (currentDisplayUrl !== "/placeholder.svg") {
+      setCurrentDisplayUrl("/placeholder.svg");
+    }
     setIsLoading(false);
-  }, [optimizedUrl]); // Added optimizedUrl dependency
+  }, [currentDisplayUrl]);
 
-  // If className is provided, render as a simple img tag for list view
-  if (className) {
+  if (className) { // List view (simple img tag)
     return (
       <img
-        src={optimizedUrl || "/placeholder.svg"}
+        src={currentDisplayUrl}
         alt={title}
         className={className}
         onClick={handleClick}
@@ -165,6 +79,7 @@ function OptimizedArtworkImageComponent({
     );
   }
 
+  // Card view
   return (
     <div 
       className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30"
@@ -176,9 +91,9 @@ function OptimizedArtworkImageComponent({
       }}
     >
       <AspectRatio ratio={4/3}>
-        {isLoading && cachedImageUrl && (
+        {isLoading && initialCachedPreviewUrl && (
             <img 
-              src={cachedImageUrl}
+              src={initialCachedPreviewUrl}
               alt={`Preview for ${title}`}
               className="absolute inset-0 h-full w-full object-cover opacity-80"
               aria-hidden="true"
@@ -186,14 +101,14 @@ function OptimizedArtworkImageComponent({
             />
           )}
         
-        {isLoading && !cachedImageUrl && (
+        {isLoading && !initialCachedPreviewUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
           )}
         
         <img
-          src={optimizedUrl || "/placeholder.svg"}
+          src={currentDisplayUrl}
           alt={title}
           className={`absolute inset-0 h-full w-full object-cover transition-transform duration-300 ${
             isLoading ? 'scale-105 opacity-0' : 'scale-100 opacity-100' 
@@ -207,7 +122,8 @@ function OptimizedArtworkImageComponent({
         
         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
-            {optimizedUrl?.includes('res.cloudinary.com') ? 'CDN' : 'HD'}
+            {currentDisplayUrl?.includes('res.cloudinary.com') ? 'CDN' : 
+             (currentDisplayUrl !== "/placeholder.svg" ? 'HD' : '')}
           </div>
         </div>
       </AspectRatio>
@@ -216,3 +132,4 @@ function OptimizedArtworkImageComponent({
 }
 
 export const OptimizedArtworkImage = memo(OptimizedArtworkImageComponent);
+
