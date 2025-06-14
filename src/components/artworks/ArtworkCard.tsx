@@ -1,5 +1,3 @@
-
-
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
@@ -28,7 +26,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
     display_order: 0,
     medium_url: artwork.image_url,
     thumbnail_url: artwork.image_url
-  } : null);
+  } : undefined);
 
   const {
     handleView,
@@ -161,4 +159,3 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
-
