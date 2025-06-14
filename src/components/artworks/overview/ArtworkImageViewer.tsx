@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArtworkImages } from "@/hooks/use-artwork-images";
 import { toast } from "sonner";
@@ -59,10 +59,10 @@ export function ArtworkImageViewer({
 
   if (loading) {
     return (
-      <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center bg-muted/20 rounded-lg">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading images...</p>
+      <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
+        <div className="flex items-center gap-2 text-white">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <p className="text-white/80">Loading images...</p>
         </div>
       </div>
     );
@@ -70,98 +70,108 @@ export function ArtworkImageViewer({
 
   if (error) {
     return (
-      <div className="w-full h-[350px] md:h-[500px] flex items-center justify-center bg-muted/20 rounded-lg">
-        <p className="text-destructive">{error}</p>
+      <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
+        <p className="text-red-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="relative w-full h-[60vh] bg-black/95 group">
       {/* Main image container */}
-      <div className="relative w-full h-[350px] md:h-[500px] bg-muted/20 rounded-lg overflow-hidden group">
-        {/* Image */}
-        <div 
-          className={`w-full h-full cursor-pointer ${isZoomed ? 'overflow-auto' : 'overflow-hidden'}`}
-          onClick={() => setIsZoomed(!isZoomed)}
-        >
-          <img
-            src={currentImage.image_url}
-            alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
-            className={`w-full h-full object-contain transition-all duration-300 ${
-              isZoomed 
-                ? 'scale-150 cursor-zoom-out' 
-                : 'hover:scale-105 cursor-zoom-in'
-            }`}
-            loading="lazy"
-          />
-        </div>
-
-        {/* Navigation arrows */}
-        {displayImages.length > 1 && (
-          <>
-            <button
-              onClick={goToPrevious}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
-              aria-label="Previous image"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            
-            <button
-              onClick={goToNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md flex items-center justify-center hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
-              aria-label="Next image"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
-
-        {/* Controls */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex gap-2">
-          {/* Zoom control */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsZoomed(!isZoomed);
-            }}
-            className="bg-background/80 backdrop-blur-sm hover:bg-background/90"
-          >
-            {isZoomed ? (
-              <>
-                <ZoomOut className="h-4 w-4 mr-1" />
-                Zoom Out
-              </>
-            ) : (
-              <>
-                <ZoomIn className="h-4 w-4 mr-1" />
-                Zoom In
-              </>
-            )}
-          </Button>
-
-          {/* Download */}
-          {currentImage.image_url !== "/placeholder.svg" && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleDownload}
-              className="bg-background/80 backdrop-blur-sm hover:bg-background/90"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Download
-            </Button>
-          )}
-        </div>
+      <div 
+        className={`w-full h-full cursor-pointer ${isZoomed ? 'overflow-auto' : 'overflow-hidden'} flex items-center justify-center`}
+        onClick={() => setIsZoomed(!isZoomed)}
+      >
+        <img
+          src={currentImage.image_url}
+          alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
+          className={`max-w-full max-h-full object-contain transition-all duration-300 ${
+            isZoomed 
+              ? 'scale-150 cursor-zoom-out' 
+              : 'hover:scale-105 cursor-zoom-in'
+          }`}
+          loading="lazy"
+        />
       </div>
 
-      {/* Navigation dots */}
+      {/* Navigation arrows */}
       {displayImages.length > 1 && (
-        <div className="flex justify-center">
-          <div className="flex gap-2">
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToPrevious}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Previous image"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Next image"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
+        </>
+      )}
+
+      {/* Controls */}
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex gap-2">
+        {/* Zoom control */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsZoomed(!isZoomed);
+          }}
+          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
+        >
+          {isZoomed ? (
+            <>
+              <ZoomOut className="h-4 w-4 mr-1" />
+              Zoom Out
+            </>
+          ) : (
+            <>
+              <ZoomIn className="h-4 w-4 mr-1" />
+              Zoom In
+            </>
+          )}
+        </Button>
+
+        {/* Download */}
+        {currentImage.image_url !== "/placeholder.svg" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownload}
+            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Download
+          </Button>
+        )}
+      </div>
+
+      {/* Image counter */}
+      {displayImages.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded-full text-sm">
+            {currentIndex + 1} of {displayImages.length}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation dots */}
+      {displayImages.length > 1 && displayImages.length <= 10 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <div className="flex gap-2 bg-black/20 backdrop-blur-sm border border-white/20 rounded-full px-3 py-2">
             {displayImages.map((_, index) => (
               <button
                 key={index}
@@ -169,8 +179,8 @@ export function ArtworkImageViewer({
                 aria-label={`Go to slide ${index + 1}`}
                 className={`rounded-full transition-all duration-200 hover:scale-125 ${
                   currentIndex === index 
-                    ? "bg-primary w-3 h-3" 
-                    : "bg-muted-foreground/30 hover:bg-muted-foreground/50 w-2 h-2"
+                    ? "bg-white w-3 h-3" 
+                    : "bg-white/40 hover:bg-white/60 w-2 h-2"
                 }`}
               />
             ))}
