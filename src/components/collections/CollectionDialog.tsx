@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useArtworks } from "@/hooks/use-artworks";
 import { Button } from "@/components/ui/button";
@@ -60,15 +59,9 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           Add Collection
         </Button>
       </ScrollableDialogTrigger>
-      <ScrollableDialogContent size="xl">
-        <ScrollableDialogHeader>
-          <ScrollableDialogTitle>Create Collection</ScrollableDialogTitle>
-          <ScrollableDialogDescription>
-            Group artworks by concept, period, or exhibition.
-          </ScrollableDialogDescription>
-        </ScrollableDialogHeader>
-        
-        <ScrollableDialogBody>
+      <ScrollableDialogContent size="xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
+        <ScrollableDialogHeader />
+        <ScrollableDialogBody className="flex-1 min-h-0">
           <CreateCollectionFormView
             name={name}
             onNameChange={setName}
@@ -85,7 +78,6 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
             onRemoveEmail={removeEmail}
           />
         </ScrollableDialogBody>
-        
         <ScrollableDialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel

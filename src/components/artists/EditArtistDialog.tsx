@@ -79,7 +79,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh]" 
+        className="sm:max-w-[425px] flex flex-col max-h-[90vh] h-[90vh] min-h-0"
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>
@@ -88,7 +88,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
             Make changes to artist details. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea ref={scrollContainerRef} className="flex-grow p-1 pr-3"> {/* Added pr-3 for scrollbar visibility */}
+        <ScrollArea ref={scrollContainerRef} className="flex-1 min-h-0 p-1 pr-3">
           <Form {...form}>
             <form 
               className="space-y-4" 

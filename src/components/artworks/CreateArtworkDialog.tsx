@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,15 +36,10 @@ export function CreateArtworkDialog() {
       <ScrollableDialogContent 
         size="2xl"
         onClick={(e) => e.stopPropagation()}
+        className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0"
       >
-        <ScrollableDialogHeader>
-          <ScrollableDialogTitle>Add New Artwork</ScrollableDialogTitle>
-          <ScrollableDialogDescription>
-            Enter artwork details below to add it to your inventory.
-          </ScrollableDialogDescription>
-        </ScrollableDialogHeader>
-        
-        <ScrollableDialogBody>
+        <ScrollableDialogHeader />
+        <ScrollableDialogBody className="flex-1 min-h-0">
           <CreateArtworkForm setOpen={setOpen} />
         </ScrollableDialogBody>
       </ScrollableDialogContent>

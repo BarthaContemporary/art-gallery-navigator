@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -53,17 +52,9 @@ export function CollectionDetailsDialog({
 
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
-      <ScrollableDialogContent size="4xl">
-        <ScrollableDialogHeader>
-          <ScrollableDialogTitle className="text-2xl font-semibold">
-            {collection.name}
-          </ScrollableDialogTitle>
-          <ScrollableDialogDescription className="text-sm text-muted-foreground">
-            {collection.description}
-          </ScrollableDialogDescription>
-        </ScrollableDialogHeader>
-
-        <ScrollableDialogBody>
+      <ScrollableDialogContent size="4xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
+        <ScrollableDialogHeader />
+        <ScrollableDialogBody className="flex-1 min-h-0">
           <div className="space-y-6">
             {/* Top buttons */}
             <CollectionDialogActions

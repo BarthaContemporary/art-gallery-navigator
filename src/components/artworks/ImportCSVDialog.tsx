@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   ScrollableDialog,
@@ -111,7 +110,7 @@ export function ImportCSVDialog() {
           Import CSV
         </Button>
       </ScrollableDialogTrigger>
-      <ScrollableDialogContent size="4xl">
+      <ScrollableDialogContent size="4xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
         <ScrollableDialogHeader>
           <ScrollableDialogTitle>{getDialogTitle()}</ScrollableDialogTitle>
           {currentStep === "upload" && (
@@ -120,11 +119,9 @@ export function ImportCSVDialog() {
             </ScrollableDialogDescription>
           )}
         </ScrollableDialogHeader>
-
-        <ScrollableDialogBody>
+        <ScrollableDialogBody className="flex-1 min-h-0">
           {renderStepContent()}
         </ScrollableDialogBody>
-
         {currentStep === "upload" && !isProcessingFile && (
           <ScrollableDialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>

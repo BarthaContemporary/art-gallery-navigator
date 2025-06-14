@@ -1,4 +1,3 @@
-
 import React, { useCallback } from "react";
 import { Collection } from "@/hooks/use-collections";
 import {
@@ -53,15 +52,13 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
 
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
-      <ScrollableDialogContent 
+      <ScrollableDialogContent
         size="xl"
         onClick={handleDialogClick}
+        className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0"
       >
-        <ScrollableDialogHeader>
-          <ScrollableDialogTitle>Edit Collection</ScrollableDialogTitle>
-        </ScrollableDialogHeader>
-        
-        <ScrollableDialogBody>
+        <ScrollableDialogHeader />
+        <ScrollableDialogBody className="flex-1 min-h-0">
           <EditCollectionFormView
             name={name}
             onNameChange={setName}
@@ -79,7 +76,6 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
             onSubmit={handleSubmit}
           />
         </ScrollableDialogBody>
-        
         <ScrollableDialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,12 +69,12 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh] h-[80vh] min-h-0 flex flex-col">
         <DialogHeader>
           <DialogTitle>Attach Documents</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 min-h-0 space-y-4 flex flex-col">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -86,7 +85,7 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
             />
           </div>
 
-          <ScrollArea className="h-[400px] border rounded-md p-4">
+          <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
             {isLoading ? (
               <div className="text-center py-8 text-gray-500">
                 Loading documents...

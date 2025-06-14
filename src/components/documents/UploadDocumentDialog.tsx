@@ -46,7 +46,7 @@ export function UploadDocumentDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
+        className="sm:max-w-[425px] flex flex-col max-h-[90vh] h-[90vh] min-h-0"
         onClick={(e) => e.stopPropagation()}
         onPointerDownOutside={e => {
           if (isUploading) {
@@ -60,7 +60,7 @@ export function UploadDocumentDialog() {
             Attach a document to an artwork, collection, or artist. Please select exactly one.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow p-1">
+        <ScrollArea className="flex-1 min-h-0 p-1">
           <div className="py-4">
             <UploadDocumentForm form={form} onSubmit={handleUpload} isUploading={isUploading} />
           </div>
