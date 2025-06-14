@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +9,7 @@ import { useLocations } from "./useLocations";
 import { useImageUpload } from "./useImageUpload";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
 import { useSafeAsync } from "@/hooks/use-safe-async";
-import { useImageProcessing } from "@/hooks/use-image-processing";
+import { useEnhancedImageProcessing } from "@/hooks/use-enhanced-image-processing";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 
@@ -30,7 +29,7 @@ export function useCreateArtworkForm({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { execute, isLoading: isSaving } = useSafeAsync();
-  const { processImage } = useImageProcessing();
+  const { processImageWithCloudinary } = useEnhancedImageProcessing();
   const { isAdmin } = useAuth();
   const currentUserArtist = useCurrentUserArtist();
 
@@ -119,10 +118,13 @@ export function useCreateArtworkForm({
         if (uploadedImageUrls.length > 0) {
           const imagesToInsert = uploadedImageUrls.map((url, index) => ({
             artwork_id: artworkId,
-            image_url: url,
+            image_url: url, // This is the original Supabase URL
             is_primary: index === 0,
             display_order: index,
-            processed: false
+            processed: false, // Will be set to true by Cloudinary function
+            // Ensure thumbnail_url and medium_url are nullable or handle their initial state
+            thumbnail_url: null,
+            medium_url: null,
           }));
 
           const { data: insertedImages, error: imageError } = await supabase
@@ -132,9 +134,13 @@ export function useCreateArtworkForm({
 
           if (imageError) throw imageError;
 
-          insertedImages?.forEach(image => {
-            processImage(image.image_url, image.id);
-          });
+          // Process images with Cloudinary
+          if (insertedImages) {
+            for (const image of insertedImages) {
+              // image.image_url here is the original Supabase URL
+              await processImageWithCloudinary(image.image_url, image.id);
+            }
+          }
         }
 
         return { success: true };
@@ -149,7 +155,8 @@ export function useCreateArtworkForm({
           
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['artworks'] });
-            queryClient.invalidateQueries({ queryKey: ['artwork-images'] });
+            queryClient.invalidateQueries({ queryKey: ['artwork-images'] }); // Ensure this matches actual query key if different
+            queryClient.invalidateQueries({ queryKey: ['artwork', initialData?.id] }); // For specific artwork
             
             const safeTimeout = preventFreeze ? 500 : 250;
             setTimeout(() => {
@@ -178,7 +185,6 @@ export function useCreateArtworkForm({
     onSubmit,
     handleImagesUploaded,
     uploadedImageUrls,
-    initialData,
     isSaving,
     isAdmin,
     currentUserArtist

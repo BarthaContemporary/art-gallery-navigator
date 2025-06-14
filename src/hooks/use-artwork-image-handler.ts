@@ -1,118 +1,99 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useImageCache } from '@/hooks/use-image-cache';
 import { logger } from '@/lib/logger';
 
 interface UseArtworkImageHandlerProps {
-  imageUrl: string | null;
+  // This will be the primary Cloudinary URL to display (e.g., medium_url or thumbnail_url)
+  displayImageUrl: string | null; 
+  // A stable identifier for the image, e.g., artwork_images.id or the original Supabase URL.
+  // This is used as the primary key for caching, as displayImageUrl (Cloudinary URL) might change if reprocessed.
+  cacheKey: string | null; 
+  // Indicates the type/size category of displayImageUrl for appropriate caching.
+  imageTypeForCache: 'thumbnail' | 'medium' | 'full'; 
   title: string;
-  isListView: boolean; // True if it's for a list view (smaller image)
 }
 
-export function useArtworkImageHandler({ imageUrl, title, isListView }: UseArtworkImageHandlerProps) {
+export function useArtworkImageHandler({ 
+  displayImageUrl, 
+  cacheKey,
+  imageTypeForCache,
+  title 
+}: UseArtworkImageHandlerProps) {
   const [determinedOptimizedUrl, setDeterminedOptimizedUrl] = useState<string>("/placeholder.svg");
   const [initialCachedPreviewUrl, setInitialCachedPreviewUrl] = useState<string | null>(null);
   const { getCachedImage, setCachedImage } = useImageCache();
-  const imageLoadAttemptedRef = useRef(false);
+  const imageLoadAttemptedRef = useRef(false); // To prevent multiple cache attempts for the same load
 
   useEffect(() => {
-    setDeterminedOptimizedUrl("/placeholder.svg");
-    setInitialCachedPreviewUrl(null);
-    imageLoadAttemptedRef.current = false;
+    imageLoadAttemptedRef.current = false; // Reset on prop change
 
-    if (!imageUrl) {
-      logger.debug(`useArtworkImageHandler (${title}): No imageUrl, using placeholder.`);
+    if (!displayImageUrl || !cacheKey) {
+      logger.debug(`useArtworkImageHandler (${title}): No displayImageUrl or cacheKey, using placeholder.`);
       setDeterminedOptimizedUrl("/placeholder.svg");
+      setInitialCachedPreviewUrl(null);
       return;
     }
 
-    const cachedMedium = getCachedImage(imageUrl, 'medium');
-    if (cachedMedium) {
-      logger.debug(`useArtworkImageHandler (${title}): Found cached medium for ${imageUrl}`);
-      setInitialCachedPreviewUrl(cachedMedium.dataUrl);
-      // If medium cache exists, we will use it as the primary URL to load
-      setDeterminedOptimizedUrl(cachedMedium.dataUrl);
-      // If we use cachedMedium as determinedOptimizedUrl, subsequent network fetch for the *same* URL might be redundant
-      // However, this matches original behavior where optimizedUrl could be a cached data URL.
+    // Try to get from cache first
+    const cachedImage = getCachedImage(cacheKey, imageTypeForCache);
+    if (cachedImage) {
+      logger.debug(`useArtworkImageHandler (${title}): Found cached ${imageTypeForCache} for key ${cacheKey}. Displaying cached.`);
+      setInitialCachedPreviewUrl(cachedImage.dataUrl); // Show cached version immediately
+      setDeterminedOptimizedUrl(cachedImage.dataUrl); // Use cached version as the one to display
     } else {
-      // Only check for thumbnail if medium wasn't found for preview
-      const cachedThumbnail = getCachedImage(imageUrl, 'thumbnail');
-      if (cachedThumbnail) {
-        logger.debug(`useArtworkImageHandler (${title}): Found cached thumbnail for ${imageUrl}`);
-        setInitialCachedPreviewUrl(cachedThumbnail.dataUrl);
-      }
+      logger.debug(`useArtworkImageHandler (${title}): No cached ${imageTypeForCache} for key ${cacheKey}. Will load: ${displayImageUrl}`);
+      setInitialCachedPreviewUrl(null); // No preview available initially
+      setDeterminedOptimizedUrl(displayImageUrl); // Set to the actual Cloudinary URL to load
     }
 
-    let finalUrlToAttempt = imageUrl;
-    if (imageUrl.includes('res.cloudinary.com')) {
-      const baseUrl = imageUrl.split('/upload/')[0];
-      const imagePath = imageUrl.split('/upload/')[1];
-      const transform = isListView
-        ? 'w_256,h_192,c_limit,q_85,f_webp' // List view
-        : 'w_600,h_450,c_limit,q_90,f_webp'; // Card view
-      finalUrlToAttempt = `${baseUrl}/upload/${transform}/${imagePath}`;
-      logger.debug(`useArtworkImageHandler (${title}): Using optimized Cloudinary URL: ${finalUrlToAttempt}`);
-    } else if (imageUrl.includes('supabase.co/storage') && imageUrl.includes('/public/')) {
-      const transformParams = "w=1200&h=1200&resize=contain&q=100&f=webp";
-      finalUrlToAttempt = imageUrl.includes('?')
-        ? `${imageUrl}&transform=${transformParams}`
-        : `${imageUrl}?transform=${transformParams}`;
-      logger.debug(`useArtworkImageHandler (${title}): Applying Supabase transform. Original: ${imageUrl}, Optimized: ${finalUrlToAttempt}`);
-    }
-    
-    // If medium cache was not found and used above, set determinedOptimizedUrl to the network URL.
-    if (!cachedMedium) {
-        setDeterminedOptimizedUrl(finalUrlToAttempt);
-    }
-
-  }, [imageUrl, title, isListView, getCachedImage]);
+  }, [displayImageUrl, cacheKey, imageTypeForCache, title, getCachedImage]);
 
   const cacheLoadedImage = useCallback((loadedSrc: string) => {
-    if (!imageUrl || loadedSrc === "/placeholder.svg" || imageLoadAttemptedRef.current) {
+    // Only cache if the loaded source is not the placeholder and we have a valid cacheKey,
+    // and it's the actual network URL (not a data: URL from cache itself), and not yet attempted.
+    if (!cacheKey || loadedSrc === "/placeholder.svg" || loadedSrc.startsWith("data:") || imageLoadAttemptedRef.current) {
       return;
     }
-    
     imageLoadAttemptedRef.current = true;
-    logger.debug(`useArtworkImageHandler (${title}): Attempting to cache medium quality from loaded source. Original Key: ${imageUrl}, Source: ${loadedSrc}`);
+    
+    logger.debug(`useArtworkImageHandler (${title}): Attempting to cache ${imageTypeForCache} from loaded source. Key: ${cacheKey}, Source: ${loadedSrc}`);
 
     try {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      img.crossOrigin = "anonymous"; // Important for Cloudinary images if drawing to canvas
       img.onload = () => {
-        logger.debug(`useArtworkImageHandler (${title}): Image loaded for caching (source: ${loadedSrc}), creating high-quality cache.`);
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-
-        const maxDimension = 1200;
-        let scale = 1;
-        if (img.width > 0 && img.height > 0) {
-          scale = Math.min(maxDimension / Math.max(img.width, img.height), 1);
-          if (scale <= 0) scale = 1;
+        if (!ctx) {
+          logger.error(`useArtworkImageHandler (${title}): Failed to get canvas context for caching.`);
+          return;
         }
 
-        canvas.width = Math.floor(img.width * scale);
-        canvas.height = Math.floor(img.height * scale);
+        // Keep original dimensions for caching, Cloudinary already optimized it.
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
         
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const highQualityDataUrl = canvas.toDataURL("image/webp", 0.98);
-          setCachedImage(imageUrl, highQualityDataUrl, 'medium');
-          logger.log(`useArtworkImageHandler (${title}): Cached high-quality medium image for ${imageUrl}. Size: ${highQualityDataUrl.length}`);
-        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Determine quality based on type for consistency if needed, though Cloudinary already handles it.
+        const quality = imageTypeForCache === 'thumbnail' ? 0.85 : 0.92;
+        const dataUrl = canvas.toDataURL("image/webp", quality);
+        
+        setCachedImage(cacheKey, dataUrl, imageTypeForCache);
+        logger.log(`useArtworkImageHandler (${title}): Cached ${imageTypeForCache} image for key ${cacheKey}. DataURL size: ${dataUrl.length}`);
       };
       img.onerror = () => {
         logger.error(`useArtworkImageHandler (${title}): Failed to load image for caching: ${loadedSrc}`);
       };
-      img.src = loadedSrc;
+      img.src = loadedSrc; // Start loading the image to draw on canvas
     } catch (error) {
-      logger.error(`useArtworkImageHandler (${title}): Failed to cache image:`, error);
+      logger.error(`useArtworkImageHandler (${title}): Failed to cache image for key ${cacheKey}:`, error);
     }
-  }, [imageUrl, title, setCachedImage]);
+  }, [cacheKey, imageTypeForCache, title, setCachedImage]);
 
   return {
-    determinedOptimizedUrl,
-    initialCachedPreviewUrl,
-    cacheLoadedImage,
+    determinedOptimizedUrl, // This is the URL (cached or network) the <img> should use
+    initialCachedPreviewUrl,  // This is a dataURL if a cached version was found for immediate paint
+    cacheLoadedImage,       // Call this in onLoad of the <img> tag
   };
 }
-
