@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback } from "react";
-import type { ArtworkImage } from "@/hooks/use-artwork-images";
+import type { ArtworkImage } from "@/hooks/use-artworks";
 import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
 import { cn } from "@/lib/utils";
 

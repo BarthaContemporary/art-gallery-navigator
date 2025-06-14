@@ -1,7 +1,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { ArtworkImage } from "@/hooks/use-artwork-images"; // Import ArtworkImage
+
+// Moved from use-artwork-images.ts to consolidate types
+export interface ArtworkImage {
+  id: string;
+  artwork_id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+  processed?: boolean;
+  thumbnail_url?: string | null;
+  medium_url?: string | null;
+}
 
 export interface Artwork {
   id: string;
@@ -12,7 +23,7 @@ export interface Artwork {
   materials: string | null;
   classification: string;
   edition_size: number | null;
-  dimensions: string | null;
+  dimensions: string |null;
   price: number | null;
   currency: "USD" | "GBP" | "EUR" | "CHF";
   status: string | null;

@@ -4,7 +4,6 @@ import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
-import { useArtworkImages } from "@/hooks/use-artwork-images";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -12,7 +11,8 @@ interface ArtworkCardProps {
 
 function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { images } = useArtworkImages(artwork.id);
+  // Use images from the artwork object, which is pre-fetched by useArtworks.
+  const images = artwork.artwork_images || [];
   const primaryImage = images.find(img => img.is_primary) || images[0];
   
   const {
