@@ -1,3 +1,4 @@
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
@@ -75,9 +76,9 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
             />
           </div>
         </div>
-        {/* Content */}
-        <div className="flex flex-col justify-between p-4 flex-1 min-h-[120px]">
-          <div className="space-y-1">
+        {/* Content - Increased minimum height for better information display */}
+        <div className="flex flex-col justify-between p-4 flex-1 min-h-[160px]">
+          <div className="space-y-2">
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
               {artwork.title}
             </h3>
@@ -87,13 +88,13 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
               </p>
             )}
             {artwork.medium_type && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground line-clamp-2">
                 {artwork.medium_type}
               </p>
             )}
           </div>
           {/* Reworked flex layout for price & status */}
-          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between items-center gap-2">
+          <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center gap-2">
             {artwork.price && (
               <p className="text-sm font-medium">
                 {artwork.currency} {artwork.price.toLocaleString()}
