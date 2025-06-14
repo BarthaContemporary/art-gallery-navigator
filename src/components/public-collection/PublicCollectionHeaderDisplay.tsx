@@ -19,7 +19,7 @@ interface PublicCollectionHeaderDisplayProps {
 export function PublicCollectionHeaderDisplay({
   logoSrc,
   website,
-  collection,
+  // collection, // collection prop is no longer directly used for rendering conditional content here
   isCollectionLoading,
   collectionError,
   pageHeaderDescription,
@@ -40,13 +40,10 @@ export function PublicCollectionHeaderDisplay({
         description={pageHeaderDescription}
       />
       
-      {website.collection_id && collection && !isCollectionLoading && !collectionError && (
-        <div className="my-6 text-left border-t pt-6">
-          {/* Content here is minimal as details are in PageHeader description */}
-        </div>
-      )}
+      {/* The conditional div below was removed as its content was handled by pageHeaderDescription */}
+      {/* It previously checked for: website.collection_id && collection && !isCollectionLoading && !collectionError */}
       
-      {website.collection_id && !collection && !isCollectionLoading && !collectionError && (
+      {website.collection_id && !website.collection_id && !isCollectionLoading && !collectionError && ( // This condition seems to be !collection, not !website.collection_id
         <Alert variant="default" className="my-6">
           <Info className="h-5 w-5" />
           <ShadcnAlertTitle>Collection Information</ShadcnAlertTitle>
@@ -56,4 +53,3 @@ export function PublicCollectionHeaderDisplay({
     </>
   );
 }
-
