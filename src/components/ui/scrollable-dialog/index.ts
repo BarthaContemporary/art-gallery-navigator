@@ -1,4 +1,6 @@
 
+export * from "./ScrollableDialogRoot"
+export * from "./ScrollableDialogTrigger"
 export * from "./ScrollableDialogOverlay"
 export * from "./ScrollableDialogPortal"
 export * from "./ScrollableDialogContent"
