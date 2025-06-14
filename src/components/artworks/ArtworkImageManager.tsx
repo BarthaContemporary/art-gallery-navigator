@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Image as ImageIcon } from "lucide-react";
-import { useArtworkImages } from "@/hooks/use-artwork-images";
+import { useArtwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,8 @@ interface ArtworkImageManagerProps {
 }
 
 export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
-  const { images, loading } = useArtworkImages(artworkId);
+  const { data: artwork, isLoading: loading } = useArtwork(artworkId);
+  const images = artwork?.artwork_images || [];
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
@@ -44,7 +45,8 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
         description: "Image deleted successfully",
       });
 
-      queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] });
+      queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] }); // This key might be obsolete, but harmless
+      queryClient.invalidateQueries({ queryKey: ['artworks', artworkId] });
       queryClient.invalidateQueries({ queryKey: ['artworks'] });
       
     } catch (error) {
@@ -59,7 +61,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
     }
   };
 
-  if (loading) {
+  if (loading && !artwork) {
     return (
       <div className="space-y-2">
         <div className="text-sm text-muted-foreground">Loading images...</div>

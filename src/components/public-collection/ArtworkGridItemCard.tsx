@@ -1,7 +1,7 @@
 
 import React from 'react';
 import type { PublicArtwork } from '@/hooks/artworks/useFetchArtworksByCollectionId';
-import type { ArtworkImage } from "@/hooks/use-artwork-images";
+import type { ArtworkImage } from "@/hooks/use-artworks";
 import { OptimizedArtworkImage } from '@/components/artworks/OptimizedArtworkImage';
 
 interface ArtworkGridItemCardProps {

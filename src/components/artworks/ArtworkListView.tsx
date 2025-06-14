@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import type { ArtworkImage } from "@/hooks/use-artwork-images";
+import type { ArtworkImage } from "@/hooks/use-artworks";
 
 const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
 

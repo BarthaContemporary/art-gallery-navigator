@@ -1,5 +1,4 @@
-
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 // Moved from use-artwork-images.ts to consolidate types
@@ -73,5 +72,33 @@ export function useArtworks() {
       // console.log("Fetched artworks with images:", data);
       return data as unknown as Artwork[];
     },
+  });
+}
+
+export function useArtwork(id: string) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['artworks', id],
+    queryFn: async (): Promise<Artwork> => {
+      const { data, error } = await supabase
+        .from("artworks")
+        .select("*, artwork_images(*)")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error(`Error fetching artwork ${id}:`, error);
+        throw error;
+      }
+      
+      return data as unknown as Artwork;
+    },
+    enabled: !!id,
+    initialData: () => {
+      const artworks = queryClient.getQueryData<Artwork[]>(['artworks']);
+      return artworks?.find(d => d.id === id);
+    },
+    initialDataUpdatedAt: () => 
+      queryClient.getQueryState(['artworks'])?.dataUpdatedAt,
   });
 }

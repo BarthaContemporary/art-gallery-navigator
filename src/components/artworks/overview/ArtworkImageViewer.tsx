@@ -1,9 +1,10 @@
 
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useArtworkImages } from "@/hooks/use-artwork-images";
+import { useArtwork } from "@/hooks/use-artworks";
 import { toast } from "sonner";
+import type { ArtworkImage } from "@/hooks/use-artworks";
 
 interface ArtworkImageViewerProps {
   artworkId: string;
@@ -13,14 +14,16 @@ interface ArtworkImageViewerProps {
 
 export function ArtworkImageViewer({
   artworkId,
-  artistName = "Unknown_Artist",
-  artworkTitle = "Untitled",
+  artistName: initialArtistName = "Unknown_Artist",
+  artworkTitle: initialArtworkTitle = "Untitled",
 }: ArtworkImageViewerProps) {
-  const { images, loading, error } = useArtworkImages(artworkId);
+  const { data: artwork, isLoading: loading, error: queryError } = useArtwork(artworkId);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
 
-  const displayImages = images.length > 0 ? images : [{
+  const images = artwork?.artwork_images || [];
+
+  const displayImages: (ArtworkImage | { id: string, artwork_id: string, image_url: string, is_primary: boolean, display_order: number })[] = images.length > 0 ? images : [{
     id: "placeholder",
     artwork_id: artworkId,
     image_url: "/placeholder.svg",
@@ -29,6 +32,10 @@ export function ArtworkImageViewer({
   }];
 
   const currentImage = displayImages[currentIndex];
+
+  const artistName = artwork?.artist_name || initialArtistName;
+  const artworkTitle = artwork?.title || initialArtworkTitle;
+
 
   const goToPrevious = () => {
     setCurrentIndex(prev => prev === 0 ? displayImages.length - 1 : prev - 1);
@@ -57,7 +64,7 @@ export function ArtworkImageViewer({
     }
   };
 
-  if (loading) {
+  if (loading && !artwork) {
     return (
       <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
         <div className="flex items-center gap-2 text-white">
@@ -68,10 +75,10 @@ export function ArtworkImageViewer({
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">Error loading image details.</p>
       </div>
     );
   }
