@@ -11,6 +11,7 @@ import { useImagePrefetch } from "@/hooks/use-image-prefetch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { toast } from "sonner";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const Artworks = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -222,13 +223,15 @@ const Artworks = () => {
   // Wrap with PullToRefresh only on mobile
   if (isMobile) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} enabled={!artworksLoading && !artistsLoading}>
-        {content}
-      </PullToRefresh>
+      <ErrorBoundary>
+        <PullToRefresh onRefresh={handleRefresh} enabled={!artworksLoading && !artistsLoading}>
+          {content}
+        </PullToRefresh>
+      </ErrorBoundary>
     );
   }
 
-  return content;
+  return <ErrorBoundary>{content}</ErrorBoundary>;
 };
 
 export default Artworks;

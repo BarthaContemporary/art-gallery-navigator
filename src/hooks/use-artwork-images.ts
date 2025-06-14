@@ -14,13 +14,13 @@ export function useArtworkImages(artworkId: string) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cacheKey, setCacheKey] = useState(0);
+  // Removed cacheKey state
 
   useEffect(() => {
     async function fetchImages() {
       if (!artworkId) return;
       
-      console.log("🔄 Fetching images for artwork:", artworkId, "cache key:", cacheKey);
+      console.log("🔄 Fetching images for artwork:", artworkId); // Removed cache key from log
       setLoading(true);
       setError(null);
       
@@ -45,13 +45,9 @@ export function useArtworkImages(artworkId: string) {
     
     fetchImages();
     
-    // Force cache refresh every 5 seconds for debugging
-    const interval = setInterval(() => {
-      setCacheKey(prev => prev + 1);
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [artworkId, cacheKey]);
+    // Removed debug interval and clearInterval
+  }, [artworkId]); // Removed cacheKey from dependencies
 
   return { images, loading, error };
 }
+

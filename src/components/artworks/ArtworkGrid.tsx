@@ -1,4 +1,3 @@
-
 import React, { memo, useMemo } from "react";
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
@@ -7,6 +6,8 @@ import { useArtists } from "@/hooks/useArtists";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ArrowUp } from "lucide-react";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { AlertTriangle } from "lucide-react";
 
 interface ArtworksByArtist {
   [key: string]: Artwork[];
@@ -17,6 +18,19 @@ interface ArtworkGridProps {
   activeIndex?: string;
   onScrollToTop?: () => void;
 }
+
+// Simple fallback component for an individual artwork card
+const ArtworkCardErrorFallback = ({ artworkId }: { artworkId: string }) => (
+  <div 
+    className="group relative flex flex-col h-full border border-destructive bg-destructive/10 rounded-lg p-4 items-center justify-center text-center aspect-[4/3]"
+    role="alert"
+    aria-live="polite"
+  >
+    <AlertTriangle className="h-8 w-8 text-destructive mb-2" />
+    <p className="text-sm font-semibold text-destructive-foreground">Artwork Error</p>
+    <p className="text-xs text-destructive-foreground/80">Could not load this artwork (ID: {artworkId ? artworkId.substring(0,8) : 'N/A'}).</p>
+  </div>
+);
 
 function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkGridProps) {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -134,7 +148,12 @@ function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkG
             style={{ contain: 'layout' }}
           >
             {artworksInGroup.map((artworkEntry) => ( 
-              <ArtworkCard key={artworkEntry.id} artwork={artworkEntry} />
+              <ErrorBoundary 
+                key={artworkEntry.id} 
+                fallback={<ArtworkCardErrorFallback artworkId={artworkEntry.id} />}
+              >
+                <ArtworkCard artwork={artworkEntry} />
+              </ErrorBoundary>
             ))}
           </div>
         </div>
