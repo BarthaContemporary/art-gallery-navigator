@@ -75,6 +75,12 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
     setDeleteDialogOpen(true);
   };
 
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleDuplicate();
+  };
+
   const getArtistName = () => {
     if (artwork.artist_id && artists) {
       const artist = artists.find(a => a.id === artwork.artist_id);
@@ -111,7 +117,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   return (
     <>
       <Card 
-        className="group relative flex flex-col h-full border-gray-200 transition-transform duration-200 hover:scale-[1.02]"
+        className="group relative flex flex-col h-full border-gray-200 transition-transform duration-200 hover:scale-[1.02] will-change-transform"
         style={{ 
           contain: 'layout style',
           willChange: 'transform'
@@ -121,11 +127,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           <div data-artwork-action="true">
             <ArtworkCardActions
               onEdit={handleEdit}
-              onDuplicate={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDuplicate(e);
-              }}
+              onDuplicate={handleDuplicateClick}
               onExport={handleExport}
               onDelete={handleDeleteClick}
             />
