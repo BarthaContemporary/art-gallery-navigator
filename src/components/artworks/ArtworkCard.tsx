@@ -1,3 +1,5 @@
+
+import React, { memo } from "react";
 import { Check, Clock, DollarSign, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Artwork } from "@/hooks/use-artworks";
@@ -33,7 +35,7 @@ const statusIcons = {
   "not for sale": <Check className="h-4 w-4 text-gray-500" />,
 };
 
-export function ArtworkCard({ artwork }: ArtworkCardProps) {
+function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const { isAdmin } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [overviewDialogOpen, setOverviewDialogOpen] = useState(false);
@@ -42,13 +44,35 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
   const { isDeleting, handleDelete, handleDuplicate } = useArtworkActions(artwork);
 
   const handleEdit = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setEditDialogOpen(true);
   };
 
   const handleExport = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     exportArtworksToCSV([artwork], `artwork_${artwork.id}.csv`);
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent if clicking on actions or other interactive elements
+    if ((e.target as HTMLElement).closest('[data-artwork-action]')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    setOverviewDialogOpen(true);
+  };
+
+  const handleDeleteClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setDeleteDialogOpen(true);
   };
 
   const getArtistName = () => {
@@ -86,14 +110,26 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
   return (
     <>
-      <Card className="group relative flex flex-col h-full border-gray-200"> {/* Removed hover:shadow-md */}
+      <Card 
+        className="group relative flex flex-col h-full border-gray-200 transition-transform duration-200 hover:scale-[1.02]"
+        style={{ 
+          contain: 'layout style',
+          willChange: 'transform'
+        }}
+      >
         {isAdmin && (
-          <ArtworkCardActions
-            onEdit={handleEdit}
-            onDuplicate={handleDuplicate}
-            onExport={handleExport}
-            onDelete={() => setDeleteDialogOpen(true)}
-          />
+          <div data-artwork-action="true">
+            <ArtworkCardActions
+              onEdit={handleEdit}
+              onDuplicate={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDuplicate(e);
+              }}
+              onExport={handleExport}
+              onDelete={handleDeleteClick}
+            />
+          </div>
         )}
         
         <OptimizedArtworkImage
@@ -104,7 +140,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         
         <CardContent 
           className="p-4 cursor-pointer space-y-1 flex-grow"
-          onClick={() => setOverviewDialogOpen(true)}
+          onClick={handleCardClick}
         >
           <p className="text-muted-foreground text-sm">{getArtistName()}</p>
           <h3 className="font-semibold text-base leading-tight min-h-[2.5rem]">{artwork.title}{artwork.year ? `, ${artwork.year}` : ''}</h3>
@@ -175,3 +211,5 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     </>
   );
 }
+
+export const ArtworkCard = memo(ArtworkCardComponent);

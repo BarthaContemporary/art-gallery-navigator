@@ -1,3 +1,4 @@
+
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useState, useEffect, useRef } from "react";
 import { useImageCache } from "@/hooks/use-image-cache";
@@ -131,6 +132,12 @@ export function OptimizedArtworkImage({
     }
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick();
+  };
+
   // If className is provided, render as a simple img tag for list view
   if (className) {
     return (
@@ -138,7 +145,7 @@ export function OptimizedArtworkImage({
         src={optimizedUrl || "/placeholder.svg"}
         alt={title}
         className={className}
-        onClick={onClick}
+        onClick={handleClick}
         onLoad={() => {
           logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
           setIsLoading(false);
@@ -153,6 +160,7 @@ export function OptimizedArtworkImage({
         }}
         loading="lazy"
         decoding="async"
+        style={{ contain: 'layout' }}
       />
     );
   }
@@ -160,7 +168,12 @@ export function OptimizedArtworkImage({
   return (
     <div 
       className="aspect-[4/3] w-full overflow-hidden cursor-pointer relative group bg-muted/30"
-      onClick={onClick}
+      onClick={handleClick}
+      style={{ 
+        contain: 'layout style',
+        minHeight: '200px',
+        willChange: 'transform'
+      }}
     >
       <AspectRatio ratio={4/3}>
         {/* Show cached image while main image loads */}
@@ -170,6 +183,7 @@ export function OptimizedArtworkImage({
               alt={`Preview for ${title}`}
               className="absolute inset-0 h-full w-full object-cover opacity-80"
               aria-hidden="true"
+              style={{ contain: 'layout' }}
             />
           )}
         
@@ -184,8 +198,8 @@ export function OptimizedArtworkImage({
         <img
           src={optimizedUrl || "/placeholder.svg"}
           alt={title}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-            isLoading ? 'opacity-0' : 'opacity-100' 
+          className={`absolute inset-0 h-full w-full object-cover transition-transform duration-300 ${
+            isLoading ? 'scale-105 opacity-0' : 'scale-100 opacity-100' 
           }`}
           onLoad={() => {
             logger.debug(`OptimizedArtworkImage: High-quality image loaded: ${optimizedUrl}`);
@@ -201,6 +215,7 @@ export function OptimizedArtworkImage({
           }}
           loading="lazy"
           decoding="async"
+          style={{ contain: 'layout' }}
         />
         
         {/* Quality indicator - show "CDN" for Cloudinary images */}
