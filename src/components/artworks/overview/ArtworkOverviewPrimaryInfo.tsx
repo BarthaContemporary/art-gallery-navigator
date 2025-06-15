@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Artwork } from '@/hooks/use-artworks';
 import { Artist } from '@/hooks/use-artist'; // Assuming this is the correct type path
@@ -28,9 +29,6 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
     if (art.height) parts.push(`Height: ${art.height}`);
     if (art.width) parts.push(`Width: ${art.width}`);
     if (art.depth) parts.push(`Depth: ${art.depth}`);
-    // If a unit (e.g., "cm") is available, add it here. art.dimensions_unit
-    // const unit = art.dimensions_unit || "cm"; // Assuming cm if not specified
-    // return parts.length > 0 ? parts.map(p => p + ` ${unit}`).join(', ') : 'N/A';
     return parts.join(' / ') || "N/A";
   };
 
@@ -54,6 +52,10 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
     44 // You can tweak this for best fit in dialog
   );
 
+  // Only display price if status is "available"
+  const isAvailable = (artwork.status ?? "available").toLowerCase() === "available";
+  const shouldShowPrice = isAvailable && artwork.price;
+
   return (
     <div className="space-y-3">
       <ArtworkField label="Artist" value={artistLoading ? "Loading..." : artist?.full_name || "Unknown Artist"} />
@@ -69,7 +71,7 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
       <ArtworkField label="Edition Information" value={formatEditionInfoDisplay(artwork)} multiline />
       <ArtworkField label="Dimensions" value={formatDimensionsDisplay(artwork)} />
       <ArtworkField label="Medium Type" value={artwork.medium_type} />
-      {artwork.price && (
+      {shouldShowPrice && (
         <ArtworkField label="Price" value={`${artwork.currency} ${artwork.price.toLocaleString()}`} />
       )}
     </div>
