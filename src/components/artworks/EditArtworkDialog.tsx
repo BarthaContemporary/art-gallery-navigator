@@ -1,3 +1,4 @@
+
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -51,13 +52,18 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent
         size="2xl"
-        className="p-0 flex flex-col max-h-[90vh] bg-background" // ensure solid background
+        className="p-0 flex flex-col max-h-[90vh] bg-background"
         onPointerDownOutside={e => e.preventDefault()}
       >
-        <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b" />
+        <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b bg-background flex-shrink-0">
+          <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
+          <ScrollableDialogDescription>
+            Update artwork details and manage attached images
+          </ScrollableDialogDescription>
+        </ScrollableDialogHeader>
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 px-6 py-6 bg-background" // force white background on the main area
+          className="flex-1 min-h-0 py-6" // vertical-only padding, no px-6
         >
           <CreateArtworkForm
             setOpen={onOpenChange}
@@ -77,7 +83,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             <ArtworkImageManager artworkId={artwork.id} />
           </div>
         </ScrollableDialogBody>
-        <ScrollableDialogFooter className="bg-background"> 
+        <ScrollableDialogFooter className="bg-background flex-shrink-0"> 
           <Button
             type="button"
             variant="outline"
