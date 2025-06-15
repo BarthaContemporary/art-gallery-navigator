@@ -1,12 +1,12 @@
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { useArtworkActions } from "@/hooks/use-artwork-actions";
-import { ArtworkCardActions } from "./ArtworkCardActions";
+import { useArtists } from "@/hooks/useArtists";
 import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
-
 import { ArtworkOverviewDialogHandler } from "./dialogs/ArtworkOverviewDialogHandler";
 import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
 import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
+import { check, x } from "lucide-react";
+import { useArtworkActions } from "@/hooks/use-artwork-actions";
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -14,10 +14,9 @@ interface ArtworkCardProps {
 
 function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+
   const images = artwork.artwork_images || [];
   const primaryImage = images.find(img => img.is_primary) || images[0];
-  
-  // Fallback to main image_url if no artwork_images are available
   const imageToDisplay = primaryImage || (artwork.image_url ? {
     id: `fallback-${artwork.id}`,
     artwork_id: artwork.id,
@@ -27,6 +26,34 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
     medium_url: artwork.image_url,
     thumbnail_url: artwork.image_url
   } : undefined);
+
+  // Fetch artists map for fast lookup
+  const { data: artists } = useArtists();
+  let artistName = "Unknown Artist";
+  if (artwork.artist_id && artists) {
+    const artist = artists.find(a => a.id === artwork.artist_id);
+    if (artist) artistName = artist.full_name;
+  }
+
+  // Year, Dimensions
+  let year = artwork.year ? artwork.year : "";
+  let dimensions = "";
+  if (
+    artwork.height != null ||
+    artwork.width != null ||
+    artwork.depth != null
+  ) {
+    const dList = [];
+    if (artwork.height != null) dList.push(Number(artwork.height).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+    if (artwork.width != null) dList.push(Number(artwork.width).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+    if (artwork.depth != null) dList.push(Number(artwork.depth).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+    dimensions = dList.length > 0 ? `${dList.join(" x ")} cm` : "";
+  } else if (artwork.dimensions) {
+    dimensions = artwork.dimensions;
+  }
+
+  // Status: Available if "available" (case-insensitive), else not. Use icon.
+  const available = (artwork.status || "available").toLowerCase() === "available";
 
   const {
     handleView,
@@ -58,6 +85,9 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   };
   const onDelete = () => setIsDeleteDialogOpen(true);
 
+  // Responsively sized info section (fixed minHeight for info block)
+  const infoBlockMinHeight = "min-h-[120px]"; // adjust as desired for uniformity
+
   return (
     <>
       <div 
@@ -66,7 +96,6 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         onMouseLeave={() => setIsHovered(false)}
         style={{ contain: 'layout' }}
       >
-        {/* Fixed height image container */}
         <div className="relative w-full h-64 bg-muted/20 overflow-hidden flex-shrink-0">
           {imageToDisplay ? (
             <OptimizedArtworkImage
@@ -86,52 +115,36 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
               </div>
             </div>
           )}
-          {/* Overlay Actions */}
-          <div className={`absolute top-2 right-2 transition-opacity duration-200 ${
-            isHovered ? 'opacity-100' : 'opacity-0'
-          }`}>
-            <ArtworkCardActions
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              onExport={onExport}
-              onDelete={onDelete}
-            />
-          </div>
         </div>
-        {/* Content - Increased minimum height for better information display */}
-        <div className="flex flex-col justify-between p-4 flex-1 min-h-[160px]">
+        <div className={`flex flex-col justify-between px-4 py-4 flex-1 ${infoBlockMinHeight}`}>
           <div className="space-y-2">
+            <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
               {artwork.title}
+              {year && <span className="text-muted-foreground font-normal">, {year}</span>}
             </h3>
-            {artwork.year && (
-              <p className="text-sm text-muted-foreground">
-                {artwork.year}
-              </p>
+            {dimensions && (
+              <p className="text-sm text-muted-foreground">{dimensions}</p>
             )}
-            {artwork.medium_type && (
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {artwork.medium_type}
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">{artwork.medium_type}</p>
           </div>
-          {/* Price & Status section - always visible */}
-          <div className="mt-3 pt-3 border-t border-border/50 flex justify-between items-center gap-2">
-            <div className="flex-1">
+          {/* Bottom row: left price (if available), right: status icon */}
+          <div className="flex items-center mt-2">
+            <div className="flex-1 min-w-0">
               {artwork.price ? (
-                <p className="text-sm font-medium">
-                  {artwork.currency} {artwork.price.toLocaleString()}
-                </p>
+                <span className="text-sm font-medium block truncate">
+                  {artwork.currency} {Number(artwork.price).toLocaleString()}
+                </span>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Price on request
-                </p>
+                <span className="text-sm text-muted-foreground block">Price on request</span>
               )}
             </div>
-            <div className="flex-shrink-0">
-              <p className="text-xs text-muted-foreground capitalize text-right">
-                {artwork.status || 'Available'}
-              </p>
+            <div className="flex-shrink-0 pl-2">
+              {available ? (
+                <check className="h-5 w-5 text-green-600" aria-label="Available" />
+              ) : (
+                <x className="h-5 w-5 text-destructive" aria-label="Unavailable" />
+              )}
             </div>
           </div>
         </div>
