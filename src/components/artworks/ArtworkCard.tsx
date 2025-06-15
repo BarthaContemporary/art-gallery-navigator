@@ -1,3 +1,4 @@
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -5,7 +6,7 @@ import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 import { ArtworkOverviewDialogHandler } from "./dialogs/ArtworkOverviewDialogHandler";
 import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
 import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
-import { check, x } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 
 interface ArtworkCardProps {
@@ -141,9 +142,9 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
             </div>
             <div className="flex-shrink-0 pl-2">
               {available ? (
-                <check className="h-5 w-5 text-green-600" aria-label="Available" />
+                <Check className="h-5 w-5 text-green-600" aria-label="Available" />
               ) : (
-                <x className="h-5 w-5 text-destructive" aria-label="Unavailable" />
+                <X className="h-5 w-5 text-destructive" aria-label="Unavailable" />
               )}
             </div>
           </div>
