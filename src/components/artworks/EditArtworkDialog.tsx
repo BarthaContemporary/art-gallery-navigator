@@ -63,9 +63,8 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogHeader>
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto bg-background px-6 py-6"
         >
-          <div className="space-y-8">
+          <div className="space-y-8 pt-6 pb-6">
             <CreateArtworkForm
               setOpen={onOpenChange}
               initialData={artwork}
@@ -107,3 +106,4 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
+
