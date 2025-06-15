@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -182,10 +181,14 @@ export function ArtworkImageViewer({
           draggable={false}
         />
         {imageLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
-            {/* Sleek Shimmer Loader */}
-            <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-muted/20 to-muted/50 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent animate-[shine_0.9s_linear_infinite]" style={{background: 'linear-gradient(90deg,transparent 0%,#fff6 60%,transparent 100%)'}} />
+          <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+            {/* Improved Shimmer Loader */}
+            <div className="w-20 h-20 rounded-xl bg-black/30 relative overflow-hidden flex items-center justify-center border border-white/30">
+              <div className="absolute inset-0 animate-[shine_1.1s_linear_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-70" />
+              <svg className="w-7 h-7 text-white/80 z-10 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" strokeWidth="2" className="opacity-40" />
+                <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-80" />
+              </svg>
             </div>
           </div>
         )}
@@ -215,38 +218,36 @@ export function ArtworkImageViewer({
         </>
       )}
 
-      {/* Image counter */}
-      {displayImages.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-          <div className="bg-black/20 border border-white/20 text-white px-2.5 py-0.5 rounded-full text-xs">{currentIndex + 1} of {displayImages.length}</div>
-        </div>
-      )}
-
-      {/* Navigation dots smaller and spaced tighter */}
+      {/* Bottom section: counter and dots on one row, no overlap */}
       {displayImages.length > 1 && displayImages.length <= 10 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-          <div className="flex gap-1 bg-black/15 border border-white/10 px-3 py-1 rounded-full">
-            {displayImages.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setCurrentIndex(index);
-                  setImageOffset({ x: 0, y: 0 });
-                  setImageLoading(true);
-                }}
-                aria-label={`Go to slide ${index + 1}`}
-                className={`
-                  transition-all duration-150 
-                  rounded-full
-                  ${currentIndex === index 
-                    ? "bg-white w-2.5 h-2.5"  // 10px active dot
-                    : "bg-white/40 hover:bg-white/60 w-1.5 h-1.5"  // 6px inactive dot
-                  }
-                  border-none p-0
-                `}
-                style={{outline: "none", minWidth: 0, minHeight: 0}}
-              />
-            ))}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20 w-fit">
+          <div className="flex items-center gap-4 bg-black/20 border border-white/15 px-4 py-1.5 md:py-1 rounded-full shadow-sm justify-center">
+            {/* Image Counter */}
+            <span className="text-xs text-white px-1 py-0 font-medium rounded bg-black/30">{currentIndex + 1} of {displayImages.length}</span>
+            {/* Navigation dots - now smaller */}
+            <div className="flex gap-1.5">
+              {displayImages.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setCurrentIndex(index);
+                    setImageOffset({ x: 0, y: 0 });
+                    setImageLoading(true);
+                  }}
+                  aria-label={`Go to slide ${index + 1}`}
+                  className={`
+                    transition-all duration-150 
+                    rounded-full
+                    border-none p-0
+                    ${currentIndex === index 
+                      ? "bg-white w-2 h-2"    // 8px active dot
+                      : "bg-white/40 hover:bg-white/70 w-1.5 h-1.5" // 6px inactive dot
+                    }
+                  `}
+                  style={{outline: "none", minWidth: 0, minHeight: 0}}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -261,4 +262,3 @@ export function ArtworkImageViewer({
     </div>
   );
 }
-
