@@ -1,4 +1,3 @@
-
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -87,7 +86,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const onDelete = () => setIsDeleteDialogOpen(true);
 
   // Responsively sized info section (fixed minHeight for info block)
-  const infoBlockMinHeight = "min-h-[120px]"; // adjust as desired for uniformity
+  const infoBlockMinHeight = "min-h-[150px]"; // adjusted for better content fit
 
   return (
     <>
