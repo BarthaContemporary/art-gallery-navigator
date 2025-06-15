@@ -1,4 +1,3 @@
-
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -173,12 +172,12 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           {/* Bottom row: left price (if available), right: status icon */}
           <div className="flex items-center mt-2">
             <div className="flex-1 min-w-0">
-              {artwork.price ? (
+              {available && artwork.price ? (
                 <span className="text-sm font-medium block truncate">
                   {artwork.currency} {Number(artwork.price).toLocaleString()}
                 </span>
               ) : (
-                <span className="text-sm text-muted-foreground block">Price on request</span>
+                <span className="text-sm text-muted-foreground block">&nbsp;</span>
               )}
             </div>
             <div className="flex-shrink-0 pl-2">
