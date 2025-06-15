@@ -57,7 +57,7 @@ export function EnhancedUploadDocumentDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh] h-[90vh] min-h-0"
+        className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
         onPointerDownOutside={e => {
           if (uploadStatus === 'uploading') {
             e.preventDefault();

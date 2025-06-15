@@ -59,7 +59,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
           Add Collection
         </Button>
       </ScrollableDialogTrigger>
-      <ScrollableDialogContent size="xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
+      <ScrollableDialogContent size="xl" className="p-0">
         <ScrollableDialogHeader />
         <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <CreateCollectionFormView

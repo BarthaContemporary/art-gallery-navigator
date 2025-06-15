@@ -36,7 +36,7 @@ export function CreateArtworkDialog() {
       <ScrollableDialogContent 
         size="2xl"
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0"
+        className="p-0"
       >
         <ScrollableDialogHeader />
         <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>

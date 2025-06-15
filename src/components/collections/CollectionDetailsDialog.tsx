@@ -52,7 +52,7 @@ export function CollectionDetailsDialog({
 
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
-      <ScrollableDialogContent size="4xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
+      <ScrollableDialogContent size="4xl" className="p-0">
         <ScrollableDialogHeader />
         <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
           <div className="space-y-6">

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -35,7 +34,7 @@ export function ArtworkOverviewDialog({
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
         size="4xl"
-        className="flex flex-col h-[95vh] max-h-[95vh] min-h-0 p-0"
+        className="p-0"
       >
         <div className="relative w-full bg-black/95 flex-shrink-0">
           <ArtworkImageViewer 

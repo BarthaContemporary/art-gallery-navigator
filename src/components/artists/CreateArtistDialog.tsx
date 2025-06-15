@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -37,7 +36,7 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleDialogClose}>
-      <ScrollableDialogContent size="md" className="flex flex-col h-[90vh] max-h-[90vh]">
+      <ScrollableDialogContent size="md">
         <ScrollableDialogHeader>
           <ScrollableDialogTitle>Add New Artist</ScrollableDialogTitle>
         </ScrollableDialogHeader>

@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   ScrollableDialog,
@@ -47,7 +46,6 @@ export function UploadDocumentDialog() {
       </ScrollableDialogTrigger>
       <ScrollableDialogContent 
         size="md"
-        className="flex flex-col max-h-[90vh] h-[90vh] min-h-0"
         onClick={(e) => e.stopPropagation()}
         onPointerDownOutside={e => {
           if (isUploading) {

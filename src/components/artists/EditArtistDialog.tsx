@@ -76,7 +76,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh] h-[90vh] min-h-0"
+        className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>

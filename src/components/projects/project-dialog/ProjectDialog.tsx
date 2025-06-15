@@ -28,7 +28,7 @@ export function ProjectDialog({
 
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
-      <ScrollableDialogContent size="xl" className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0">
+      <ScrollableDialogContent size="xl" className="p-0">
         <ScrollableDialogHeader>
           <ScrollableDialogTitle>
             {project ? "Edit Project" : "Create Project"}

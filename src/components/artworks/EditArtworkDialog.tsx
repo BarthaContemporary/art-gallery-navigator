@@ -52,7 +52,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="flex flex-col h-[95vh] max-h-[95vh] min-h-0 p-0"
+        className="p-0"
       >
         <ScrollableDialogHeader className="p-6 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>

@@ -55,7 +55,7 @@ export function EditCollectionDialog({ collection, open, onOpenChange }: EditCol
       <ScrollableDialogContent
         size="xl"
         onClick={handleDialogClick}
-        className="flex flex-col h-[90vh] max-h-[90vh] min-h-0 p-0"
+        className="p-0"
       >
         <ScrollableDialogHeader />
         <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
