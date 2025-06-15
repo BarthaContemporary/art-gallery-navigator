@@ -52,7 +52,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent
         size="2xl"
-        className="p-0 flex flex-col max-h-[90vh] bg-background"
+        className="flex flex-col max-h-[90vh] bg-background"
         onPointerDownOutside={e => e.preventDefault()}
       >
         <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b bg-background flex-shrink-0">
@@ -63,27 +63,29 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogHeader>
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 py-6" // vertical-only padding, no px-6
+          className="flex-1 min-h-0 overflow-y-auto bg-background px-6 py-6"
         >
-          <CreateArtworkForm
-            setOpen={onOpenChange}
-            initialData={artwork}
-            preventFreeze={true}
-            hideSubmitButton={true}
-            formId="edit-artwork-form"
-            onSuccessCallback={() => {
-              setIsFormActuallySaving(false);
-              handleOpenChange(false);
-            }}
-            onSavingChange={setIsFormActuallySaving}
-            scrollToFirstError={scrollToFirstError}
-          />
-          <div className="border-t pt-6 mt-6">
-            <h4 className="text-sm font-medium mb-4">Attached Images</h4>
-            <ArtworkImageManager artworkId={artwork.id} />
+          <div className="space-y-8">
+            <CreateArtworkForm
+              setOpen={onOpenChange}
+              initialData={artwork}
+              preventFreeze={true}
+              hideSubmitButton={true}
+              formId="edit-artwork-form"
+              onSuccessCallback={() => {
+                setIsFormActuallySaving(false);
+                handleOpenChange(false);
+              }}
+              onSavingChange={setIsFormActuallySaving}
+              scrollToFirstError={scrollToFirstError}
+            />
+            <div className="border-t pt-6 mt-6">
+              <h4 className="text-sm font-medium mb-4">Attached Images</h4>
+              <ArtworkImageManager artworkId={artwork.id} />
+            </div>
           </div>
         </ScrollableDialogBody>
-        <ScrollableDialogFooter className="bg-background flex-shrink-0"> 
+        <ScrollableDialogFooter className="bg-background flex-shrink-0 z-10">
           <Button
             type="button"
             variant="outline"
