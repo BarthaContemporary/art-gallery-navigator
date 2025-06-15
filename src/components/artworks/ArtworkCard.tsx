@@ -1,4 +1,3 @@
-
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -8,15 +7,6 @@ import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 import { ArtworkCardImage } from "./ArtworkCardImage";
 import { ArtworkCardInfo } from "./ArtworkCardInfo";
-
-// Helper to truncate title and ensure one-line "title, year"
-function getTruncatedTitleWithYear(title: string, year: string | number | null, maxLength = 26) {
-  if (!title) return year ? `Untitled, ${year}` : "Untitled";
-  const yearStr = year ? `, ${year}` : "";
-  const remaining = maxLength - yearStr.length;
-  let displayTitle = title.length > remaining ? title.slice(0, Math.max(0, remaining - 3)) + "..." : title;
-  return `${displayTitle}${yearStr}`;
-}
 
 interface ArtworkCardProps {
   artwork: Artwork;

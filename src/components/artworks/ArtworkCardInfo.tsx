@@ -1,15 +1,7 @@
-
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { Check, X } from "lucide-react";
-
-function getTruncatedTitleWithYear(title: string, year: string | number | null, maxLength = 26) {
-  if (!title) return year ? `Untitled, ${year}` : "Untitled";
-  const yearStr = year ? `, ${year}` : "";
-  const remaining = maxLength - yearStr.length;
-  let displayTitle = title.length > remaining ? title.slice(0, Math.max(0, remaining - 3)) + "..." : title;
-  return `${displayTitle}${yearStr}`;
-}
+import { getTruncatedTitleWithYear } from "@/lib/utils";
 
 interface ArtworkCardInfoProps {
   artwork: Artwork;
