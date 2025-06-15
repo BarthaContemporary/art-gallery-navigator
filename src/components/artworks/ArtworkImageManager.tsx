@@ -82,7 +82,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="space-y-2 max-h-60 overflow-y-auto">
+      <div className="space-y-2">
         {images.map((image, index) => (
           <div key={image.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
             <div className="flex items-center gap-3 flex-1 min-w-0">
