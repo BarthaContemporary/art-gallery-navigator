@@ -89,12 +89,14 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogBody>
         
         {/* Footer as a direct sibling of body, always flex-shrink-0 */}
-        <ScrollableDialogFooter>
+        <ScrollableDialogFooter className="border-2 border-red-500 bg-yellow-100 flex-shrink-0 z-10">
+          <div className="font-bold text-red-700 mr-4">DEBUG: FOOTER</div>
           <Button 
             type="button" 
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isFormActuallySaving}
+            className="mr-2"
           >
             Cancel
           </Button>
@@ -110,3 +112,4 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
+
