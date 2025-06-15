@@ -1,3 +1,4 @@
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -85,8 +86,8 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   };
   const onDelete = () => setIsDeleteDialogOpen(true);
 
-  // Responsively sized info section (fixed minHeight for info block)
-  const infoBlockMinHeight = "min-h-64"; // matches image field height (16rem/256px)
+  // Set information block to exactly match image field height (h-64)
+  const infoBlockHeight = "h-64";
 
   return (
     <>
@@ -116,7 +117,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
             </div>
           )}
         </div>
-        <div className={`flex flex-col justify-between px-4 py-4 flex-1 ${infoBlockMinHeight}`}>
+        <div className={`flex flex-col justify-between px-4 py-4 ${infoBlockHeight}`}>
           <div className="space-y-2">
             <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
@@ -172,3 +173,4 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
+
