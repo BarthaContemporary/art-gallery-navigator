@@ -8,6 +8,8 @@ import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
 import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
 import { Check, X } from "lucide-react";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
+import { ArtworkCardActions } from "./ArtworkCardActions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Helper to truncate title and ensure one-line "title, year"
 function getTruncatedTitleWithYear(title: string, year: string | number | null, maxLength = 26) {
@@ -24,6 +26,7 @@ interface ArtworkCardProps {
 
 function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const isMobile = useIsMobile();
 
   const images = artwork.artwork_images || [];
   const primaryImage = images.find(img => img.is_primary) || images[0];
@@ -118,6 +121,22 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
           className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
           style={{ height: `${IMAGE_HEIGHT_PX}px` }}
         >
+          {/* ACTION BUTTONS (absolute top right, shown on hover desktop or always mobile) */}
+          <div
+            className={`
+              absolute top-2 right-2 z-20 
+              transition-opacity duration-200
+              ${isMobile ? "opacity-100" : (isHovered ? "opacity-100" : "opacity-0 group-hover:opacity-100")}
+            `}
+            onClick={e => e.stopPropagation()}
+          >
+            <ArtworkCardActions
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onExport={onExport}
+              onDelete={onDelete}
+            />
+          </div>
           {imageToDisplay ? (
             <OptimizedArtworkImage
               imageRecord={imageToDisplay}
