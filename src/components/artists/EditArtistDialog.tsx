@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
+        className="sm:max-w-[425px] flex flex-col max-h-[calc(100dvh-5rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>

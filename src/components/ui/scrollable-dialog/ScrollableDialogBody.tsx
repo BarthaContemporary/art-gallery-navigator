@@ -12,6 +12,8 @@ const ScrollableDialogBody = React.forwardRef<
   const [isScrolledToTop, setIsScrolledToTop] = React.useState(true)
   const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(false)
   const internalRef = React.useRef<HTMLDivElement>(null)
+  const topSentinelRef = React.useRef<HTMLDivElement>(null)
+  const bottomSentinelRef = React.useRef<HTMLDivElement>(null)
 
   // Unified ref forwarding/combining for outside access + internal
   React.useImperativeHandle(forwardedRef, () => internalRef.current as HTMLDivElement | null);
@@ -23,31 +25,34 @@ const ScrollableDialogBody = React.forwardRef<
     const checkScrollable = () => {
       const scrollable = element.scrollHeight > element.clientHeight
       setIsScrollable(scrollable)
-
-      if (scrollable) {
-        const isAtTop = element.scrollTop === 0
-        const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
-        setIsScrolledToTop(isAtTop)
-        setIsScrolledToBottom(isAtBottom)
-      } else {
-        setIsScrolledToTop(true)
-        setIsScrolledToBottom(true)
-      }
     }
-
-    const handleScroll = () => {
-      checkScrollable()
-    }
-
-    checkScrollable()
-    element.addEventListener('scroll', handleScroll)
 
     const resizeObserver = new ResizeObserver(checkScrollable)
     resizeObserver.observe(element)
 
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.target === topSentinelRef.current) {
+            setIsScrolledToTop(entry.isIntersecting)
+          }
+          if (entry.target === bottomSentinelRef.current) {
+            setIsScrolledToBottom(entry.isIntersecting)
+          }
+        })
+      },
+      { root: element, threshold: 0.9 }
+    )
+
+    if (topSentinelRef.current) intersectionObserver.observe(topSentinelRef.current)
+    if (bottomSentinelRef.current) intersectionObserver.observe(bottomSentinelRef.current)
+
+    // Initial check
+    checkScrollable()
+
     return () => {
-      element.removeEventListener('scroll', handleScroll)
       resizeObserver.disconnect()
+      intersectionObserver.disconnect()
     }
   }, [children])
 
@@ -60,12 +65,13 @@ const ScrollableDialogBody = React.forwardRef<
         ref={internalRef}
         className={cn(
           "flex-1 overflow-y-auto px-6 py-4",
-          "scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent",
           className
         )}
         {...props}
       >
+        <div ref={topSentinelRef} style={{ height: "1px" }} />
         {children}
+        <div ref={bottomSentinelRef} style={{ height: "1px" }} />
       </div>
       {showScrollIndicator && isScrollable && !isScrolledToBottom && (
         <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />

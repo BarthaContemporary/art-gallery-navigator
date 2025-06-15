@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,7 +58,7 @@ export function EnhancedUploadDocumentDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[90vh]"
+        className="sm:max-w-[425px] flex flex-col max-h-[calc(100dvh-5rem)]"
         onPointerDownOutside={e => {
           if (uploadStatus === 'uploading') {
             e.preventDefault();
