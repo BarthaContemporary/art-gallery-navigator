@@ -1,5 +1,4 @@
-
-import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
@@ -16,7 +15,7 @@ export function FramingCrateFields({ form }: FramingCrateFieldsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Work Framed toggle */}
+      {/* Work Framed toggle with toggle buttons */}
       <FormField
         control={form.control}
         name="is_framed"
@@ -27,10 +26,26 @@ export function FramingCrateFields({ form }: FramingCrateFieldsProps) {
               Is the Work Framed?
             </FormLabel>
             <FormControl>
-              <Switch
-                checked={!!field.value}
-                onCheckedChange={checked => field.onChange(checked)}
-              />
+              <div className="flex items-center gap-2">
+                <Toggle
+                  pressed={!!field.value}
+                  onPressedChange={(pressed) => field.onChange(pressed)}
+                  variant={field.value ? "default" : "outline"}
+                  aria-label="Framed"
+                  className={field.value ? "bg-primary text-white" : ""}
+                >
+                  Yes
+                </Toggle>
+                <Toggle
+                  pressed={!field.value}
+                  onPressedChange={(pressed) => field.onChange(!pressed)}
+                  variant={!field.value ? "default" : "outline"}
+                  aria-label="Not Framed"
+                  className={!field.value ? "bg-destructive/20" : ""}
+                >
+                  No
+                </Toggle>
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -97,7 +112,7 @@ export function FramingCrateFields({ form }: FramingCrateFieldsProps) {
           </FormItem>
         )}
       />
-      {/* Has Crate toggle */}
+      {/* Has Crate toggle with toggle buttons */}
       <FormField
         control={form.control}
         name="has_crate"
@@ -108,10 +123,26 @@ export function FramingCrateFields({ form }: FramingCrateFieldsProps) {
               Is there a Crate?
             </FormLabel>
             <FormControl>
-              <Switch
-                checked={!!field.value}
-                onCheckedChange={checked => field.onChange(checked)}
-              />
+              <div className="flex items-center gap-2">
+                <Toggle
+                  pressed={!!field.value}
+                  onPressedChange={(pressed) => field.onChange(pressed)}
+                  variant={field.value ? "default" : "outline"}
+                  aria-label="Has Crate"
+                  className={field.value ? "bg-primary text-white" : ""}
+                >
+                  Yes
+                </Toggle>
+                <Toggle
+                  pressed={!field.value}
+                  onPressedChange={(pressed) => field.onChange(!pressed)}
+                  variant={!field.value ? "default" : "outline"}
+                  aria-label="No Crate"
+                  className={!field.value ? "bg-destructive/20" : ""}
+                >
+                  No
+                </Toggle>
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>

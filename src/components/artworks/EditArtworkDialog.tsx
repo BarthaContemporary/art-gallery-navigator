@@ -71,7 +71,6 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
         <ScrollableDialogBody ref={scrollContainerRef}>
-          {/* Vertical and horizontal spacing go here, not on the scroll container */}
           <div className="space-y-8 px-6 pt-6 pb-6">
             <CreateArtworkForm
               setOpen={onOpenChange}
@@ -86,7 +85,12 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               onSavingChange={setIsFormActuallySaving}
               scrollToFirstError={scrollToFirstError}
             />
+            {/* -- New: Upload Additional Images (above attached images) -- */}
             <div className="border-t pt-6 mt-6">
+              <h4 className="text-sm font-medium mb-4">Upload Additional Images</h4>
+              <div className="mb-6">
+                <ArtworkAdditionalImageUploader artworkId={artwork.id} />
+              </div>
               <h4 className="text-sm font-medium mb-4">Attached Images</h4>
               <ArtworkImageManager artworkId={artwork.id} />
             </div>
@@ -112,5 +116,42 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogFooter>
       </ScrollableDialogContent>
     </ScrollableDialog>
+  );
+}
+
+// New component: ArtworkAdditionalImageUploader
+import { MultipleImageUploader } from "./MultipleImageUploader";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+
+function ArtworkAdditionalImageUploader({ artworkId }: { artworkId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const handleAdditionalImagesUploaded = async (urls: string[]) => {
+    // Use Supabase to insert new artwork_images for each url
+    // This is simplified and assumes a Supabase client called `supabase` exists
+    for (const url of urls) {
+      const { error } = await supabase
+        .from('artwork_images')
+        .insert({ artwork_id: artworkId, image_url: url, is_primary: false });
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save uploaded image.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    toast({
+      title: "Success",
+      description: `${urls.length} image(s) added!`,
+    });
+    // Invalidate queries to refresh the image manager list
+    queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] });
+    queryClient.invalidateQueries({ queryKey: ['artworks', artworkId] });
+  };
+  return (
+    <MultipleImageUploader onImagesUploaded={handleAdditionalImagesUploaded} />
   );
 }
