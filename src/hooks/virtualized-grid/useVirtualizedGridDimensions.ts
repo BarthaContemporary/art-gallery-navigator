@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 
 interface UseVirtualizedGridDimensionsProps {
@@ -15,24 +16,28 @@ interface VirtualizedGridDimensions {
   rowCount: number;
 }
 
+// Fixed card height: Image 256px + Info 170px + vertical padding 32px = 458px
+const FIXED_CARD_HEIGHT = 458;
+
 export function useVirtualizedGridDimensions({
   containerWidth,
   itemCount,
   isMobile,
-  minItemWidthMobile = 280, // Default from original component
-  minItemWidthDesktop = 320, // Default from original component
+  minItemWidthMobile = 280,
+  minItemWidthDesktop = 320,
 }: UseVirtualizedGridDimensionsProps): VirtualizedGridDimensions {
   return useMemo(() => {
     if (containerWidth === 0) {
       // Fallback dimensions if container width isn't measured yet
-      return { columnCount: 1, itemWidth: 300, itemHeight: 420, rowCount: 0 }; // 300 * 1.4 = 420
+      return { columnCount: 1, itemWidth: 300, itemHeight: FIXED_CARD_HEIGHT, rowCount: 0 };
     }
 
     const minItemWidth = isMobile ? minItemWidthMobile : minItemWidthDesktop;
     const cols = Math.max(1, Math.floor(containerWidth / minItemWidth));
     const width = Math.floor(containerWidth / cols);
-    // Keep original aspect ratio calculation: height is 1.4 times width
-    const height = Math.floor(width * 1.4); 
+
+    // Use FIXED_CARD_HEIGHT for all cards for consistency
+    const height = FIXED_CARD_HEIGHT;
     const rows = Math.ceil(itemCount / cols);
 
     return {
