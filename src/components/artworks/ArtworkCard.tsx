@@ -86,7 +86,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const onDelete = () => setIsDeleteDialogOpen(true);
 
   // Responsively sized info section (fixed minHeight for info block)
-  const infoBlockMinHeight = "min-h-[300px]"; // increased for more content space
+  const infoBlockMinHeight = "min-h-64"; // matches image field height (16rem/256px)
 
   return (
     <>
