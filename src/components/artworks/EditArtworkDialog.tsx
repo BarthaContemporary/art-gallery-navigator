@@ -21,6 +21,15 @@ interface EditArtworkDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * Major rewrite: strict header/body/footer layout with stable scroll, responsive for mobile/desktop.
+ * Layout: 
+ * - DialogContent: flex-col, max-h-[90vh]
+ *   - Header (fixed)
+ *   - Body (scrolls)
+ *   - Footer (fixed)
+ * Body content gets all vertical padding via content wrapper.
+ */
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
@@ -61,10 +70,9 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        <ScrollableDialogBody
-          ref={scrollContainerRef}
-        >
-          <div className="space-y-8 pt-6 pb-6">
+        <ScrollableDialogBody ref={scrollContainerRef}>
+          {/* Vertical and horizontal spacing go here, not on the scroll container */}
+          <div className="space-y-8 px-6 pt-6 pb-6">
             <CreateArtworkForm
               setOpen={onOpenChange}
               initialData={artwork}
@@ -84,7 +92,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             </div>
           </div>
         </ScrollableDialogBody>
-        <ScrollableDialogFooter className="bg-background flex-shrink-0 z-10">
+        <ScrollableDialogFooter className="bg-background flex-shrink-0 z-10 border-t">
           <Button
             type="button"
             variant="outline"
@@ -106,4 +114,3 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
-
