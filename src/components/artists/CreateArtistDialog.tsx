@@ -1,6 +1,11 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ScrollableDialog,
+  ScrollableDialogContent,
+  ScrollableDialogHeader,
+  ScrollableDialogTitle,
+  ScrollableDialogBody,
+} from "@/components/ui/scrollable-dialog";
 import { useCreateArtistForm } from "./hooks/useCreateArtistForm";
 import { CreateArtistFormView } from "./CreateArtistFormView";
 
@@ -31,12 +36,12 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Add New Artist</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="flex-grow p-1">
+    <ScrollableDialog open={open} onOpenChange={handleDialogClose}>
+      <ScrollableDialogContent size="md" className="flex flex-col h-[90vh] max-h-[90vh]">
+        <ScrollableDialogHeader>
+          <ScrollableDialogTitle>Add New Artist</ScrollableDialogTitle>
+        </ScrollableDialogHeader>
+        <ScrollableDialogBody>
           <CreateArtistFormView
             form={form}
             onSubmit={handleSubmit}
@@ -44,9 +49,8 @@ export const CreateArtistDialog = ({ open, onOpenChange }: CreateArtistDialogPro
             errors={errors}
             onCancel={handleCancel}
           />
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+        </ScrollableDialogBody>
+      </ScrollableDialogContent>
+    </ScrollableDialog>
   );
 };
-

@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -115,9 +114,6 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-sans font-semibold text-foreground; /* Updated heading styles */
   }
-  h1 { @apply text-2xl sm:text-3xl md:text-4xl; }
-  h2 { @apply text-xl sm:text-2xl md:text-3xl; }
-  h3 { @apply text-lg sm:text-xl md:text-2xl; }
 
   p {
     @apply text-sm sm:text-base leading-relaxed;
@@ -131,24 +127,12 @@
   /* Improve form elements for mobile */
   input, textarea, select, button {
     @apply text-base; /* Prevent zoom on iOS */
-    -webkit-appearance: none;
-    border-radius: 0; /* Prevent iOS styling */
   }
 
   /* Better touch targets for mobile */
   button, [role="button"], [type="button"] {
     min-height: 44px; /* iOS recommended touch target */
     min-width: 44px;
-  }
-
-  /* Remove all shadows globally */
-  * {
-    box-shadow: none !important;
-  }
-
-  /* Remove all borders globally */
-  * {
-    border: none !important;
   }
 }
 
@@ -168,79 +152,5 @@
     .container-mobile {
       @apply max-w-lg px-8;
     }
-  }
-  
-  /* Optimize content width for mobile */
-  .content-width {
-    @apply w-full max-w-full;
-  }
-  
-  @screen sm {
-    .content-width {
-      @apply max-w-2xl;
-    }
-  }
-  
-  @screen md {
-    .content-width {
-      @apply max-w-4xl;
-    }
-  }
-  
-  @screen lg {
-    .content-width {
-      @apply max-w-6xl;
-    }
-  }
-
-  /* Override any shadow utilities */
-  .shadow-none {
-    box-shadow: none !important;
-  }
-  .shadow-sm {
-    box-shadow: none !important;
-  }
-  .shadow {
-    box-shadow: none !important;
-  }
-  .shadow-md {
-    box-shadow: none !important;
-  }
-  .shadow-lg {
-    box-shadow: none !important;
-  }
-  .shadow-xl {
-    box-shadow: none !important;
-  }
-  .shadow-2xl {
-    box-shadow: none !important;
-  }
-  .shadow-inner {
-    box-shadow: none !important;
-  }
-
-  /* Override any border utilities */
-  .border {
-    border: none !important;
-  }
-  .border-t {
-    border-top: none !important;
-  }
-  .border-r {
-    border-right: none !important;
-  }
-  .border-b {
-    border-bottom: none !important;
-  }
-  .border-l {
-    border-left: none !important;
-  }
-  .border-x {
-    border-left: none !important;
-    border-right: none !important;
-  }
-  .border-y {
-    border-top: none !important;
-    border-bottom: none !important;
   }
 }
