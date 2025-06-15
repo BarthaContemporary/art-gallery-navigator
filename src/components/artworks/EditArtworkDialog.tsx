@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -14,6 +13,7 @@ import { ArtworkImageManager } from "./ArtworkImageManager";
 import { Artwork } from "@/hooks/use-artworks";
 import { useCallback, useEffect, useState } from "react";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
