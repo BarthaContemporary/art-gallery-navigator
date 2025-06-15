@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   ScrollableDialog,
@@ -7,6 +8,7 @@ import {
   ScrollableDialogTitle,
   ScrollableDialogTrigger,
   ScrollableDialogBody,
+  ScrollableDialogFooter,
 } from "@/components/ui/scrollable-dialog";
 import { PlusCircle } from "lucide-react";
 import { UploadDocumentForm } from "./UploadDocumentForm";
@@ -52,18 +54,18 @@ export function UploadDocumentDialog() {
             e.preventDefault();
           }
         }}
+        className="p-0 flex flex-col max-h-[90vh]"
       >
-        <ScrollableDialogHeader>
+        <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b">
           <ScrollableDialogTitle>Upload Document</ScrollableDialogTitle>
           <ScrollableDialogDescription>
             Attach a document to an artwork, collection, or artist. Please select exactly one.
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        <ScrollableDialogBody>
-          <div className="py-4">
-            <UploadDocumentForm form={form} onSubmit={handleUpload} isUploading={isUploading} />
-          </div>
+        <ScrollableDialogBody className="flex-1 min-h-0 px-6 py-6">
+          <UploadDocumentForm form={form} onSubmit={handleUpload} isUploading={isUploading} />
         </ScrollableDialogBody>
+        <ScrollableDialogFooter />
       </ScrollableDialogContent>
     </ScrollableDialog>
   );

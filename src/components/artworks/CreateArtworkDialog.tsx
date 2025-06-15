@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,7 @@ import {
   ScrollableDialogDescription,
   ScrollableDialogBody,
   ScrollableDialogTrigger,
+  ScrollableDialogFooter,
 } from "@/components/ui/scrollable-dialog";
 import { PlusCircle } from "lucide-react";
 import { CreateArtworkForm } from "./CreateArtworkForm";
@@ -36,12 +38,15 @@ export function CreateArtworkDialog() {
       <ScrollableDialogContent 
         size="2xl"
         onClick={(e) => e.stopPropagation()}
-        className="p-0"
+        className="p-0 flex flex-col max-h-[90vh]"
       >
-        <ScrollableDialogHeader />
-        <ScrollableDialogBody className="flex-1 min-h-0" ref={scrollContainerRef}>
+        <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b" />
+        <ScrollableDialogBody className="flex-1 min-h-0 px-6 py-6" ref={scrollContainerRef}>
           <CreateArtworkForm setOpen={setOpen} />
         </ScrollableDialogBody>
+        <ScrollableDialogFooter>
+          {/* Form will render its own submit button as needed */}
+        </ScrollableDialogFooter>
       </ScrollableDialogContent>
     </ScrollableDialog>
   );

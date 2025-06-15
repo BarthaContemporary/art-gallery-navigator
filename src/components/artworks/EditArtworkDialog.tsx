@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -53,7 +52,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="p-0"
+        className="p-0 flex flex-col max-h-[90vh]" // ensure proper flex and max height
       >
         <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>

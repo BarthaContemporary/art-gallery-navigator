@@ -9,7 +9,7 @@ const ScrollableDialogFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      // Layout: always at the bottom, never floating separately
+      // Always stays at the bottom (sibling of main body), no blur, just padding.
       "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 flex-shrink-0 px-6 py-4 border-t bg-background",
       className
     )}
