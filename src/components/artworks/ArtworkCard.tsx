@@ -9,6 +9,15 @@ import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler
 import { Check, X } from "lucide-react";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 
+// Helper to truncate title and ensure one-line "title, year"
+function getTruncatedTitleWithYear(title: string, year: string | number | null, maxLength = 26) {
+  if (!title) return year ? `Untitled, ${year}` : "Untitled";
+  const yearStr = year ? `, ${year}` : "";
+  const remaining = maxLength - yearStr.length;
+  let displayTitle = title.length > remaining ? title.slice(0, Math.max(0, remaining - 3)) + "..." : title;
+  return `${displayTitle}${yearStr}`;
+}
+
 interface ArtworkCardProps {
   artwork: Artwork;
 }
@@ -90,6 +99,13 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const IMAGE_HEIGHT_PX = 256;
   const INFO_HEIGHT_PX = Math.round((2 / 3) * IMAGE_HEIGHT_PX); // ≈170
 
+  // Truncated title + year for card bar
+  const truncatedTitleWithYear = getTruncatedTitleWithYear(
+    artwork.title,
+    artwork.year,
+    26 // Tweak as needed for card width
+  );
+
   return (
     <>
       <div 
@@ -127,9 +143,8 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         >
           <div className="space-y-2">
             <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
-            <h3 className="font-semibold text-lg leading-tight line-clamp-2">
-              {artwork.title}
-              {year && <span className="text-muted-foreground font-normal">, {year}</span>}
+            <h3 className="font-semibold text-lg leading-tight truncate" title={artwork.title + (year ? `, ${year}` : "")}>
+              {truncatedTitleWithYear}
             </h3>
             {dimensions && (
               <p className="text-sm text-muted-foreground">{dimensions}</p>
@@ -180,4 +195,3 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
 }
 
 export const ArtworkCard = memo(ArtworkCardComponent);
-
