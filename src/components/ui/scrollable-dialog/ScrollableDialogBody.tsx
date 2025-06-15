@@ -84,7 +84,7 @@ const ScrollableDialogBody = React.forwardRef<
     };
   }, [fallbackOnScroll]);
 
-  // Use a static class for height/overflow; dialog parent handles available height.
+  // Remove all vertical padding here! Only horizontal.
   return (
     <div className="relative flex-1 min-h-0">
       {showScrollIndicator && isScrollable && !isScrolledToTop && (
@@ -93,7 +93,7 @@ const ScrollableDialogBody = React.forwardRef<
       <div
         ref={internalRef}
         className={cn(
-          "overflow-y-auto px-6 py-4 flex-1 min-h-0", // flex-1 ensures it expands properly
+          "overflow-y-auto px-6 flex-1 min-h-0", // px-6, NO py-*, no vertical margin
           className
         )}
         tabIndex={0}
@@ -112,4 +112,3 @@ const ScrollableDialogBody = React.forwardRef<
 ScrollableDialogBody.displayName = "ScrollableDialogBody";
 
 export { ScrollableDialogBody };
-

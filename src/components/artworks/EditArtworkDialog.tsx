@@ -52,7 +52,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       <ScrollableDialogContent 
         size="2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="p-0 flex flex-col max-h-[90vh]" // ensure proper flex and max height
+        className="p-0 flex flex-col max-h-[90vh]"
       >
         <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
@@ -62,9 +62,9 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogHeader>
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 bg-background px-6 space-y-8"
+          className="flex-1 min-h-0 bg-background"
         >
-          <div>
+          <div className="space-y-6">
             <CreateArtworkForm 
               setOpen={onOpenChange} 
               initialData={artwork} 
@@ -78,10 +78,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               onSavingChange={setIsFormActuallySaving}
               scrollToFirstError={scrollToFirstError}
             />
-          </div>
-          <div className="border-t pt-6">
-            <h4 className="text-sm font-medium mb-4">Attached Images</h4>
-            <ArtworkImageManager artworkId={artwork.id} />
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-medium mb-4">Attached Images</h4>
+              <ArtworkImageManager artworkId={artwork.id} />
+            </div>
           </div>
         </ScrollableDialogBody>
         <ScrollableDialogFooter>
