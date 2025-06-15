@@ -50,10 +50,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
-      <ScrollableDialogContent 
+      <ScrollableDialogContent
         size="2xl"
         className="p-0 flex flex-col max-h-[90vh]"
-        onPointerDownOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={e => e.preventDefault()}
       >
         <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b">
           <ScrollableDialogTitle>Edit Artwork</ScrollableDialogTitle>
@@ -61,46 +61,41 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage attached images
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-
-        {/* The scrollable body, no intermediate wrappers with vertical padding */}
+        {/* Scrollable body gets all vertical space above the footer and provides all the padding */}
         <ScrollableDialogBody
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 bg-background"
+          className="flex-1 min-h-0 px-6 py-6"
         >
-          <div className="space-y-6">
-            <CreateArtworkForm 
-              setOpen={onOpenChange} 
-              initialData={artwork} 
-              preventFreeze={true}
-              hideSubmitButton={true}
-              formId="edit-artwork-form"
-              onSuccessCallback={() => {
-                setIsFormActuallySaving(false);
-                handleOpenChange(false);
-              }}
-              onSavingChange={setIsFormActuallySaving}
-              scrollToFirstError={scrollToFirstError}
-            />
-            <div className="border-t pt-6">
-              <h4 className="text-sm font-medium mb-4">Attached Images</h4>
-              <ArtworkImageManager artworkId={artwork.id} />
-            </div>
+          {/* REMOVE .space-y-6 and just add some margin for image section only */}
+          <CreateArtworkForm
+            setOpen={onOpenChange}
+            initialData={artwork}
+            preventFreeze={true}
+            hideSubmitButton={true}
+            formId="edit-artwork-form"
+            onSuccessCallback={() => {
+              setIsFormActuallySaving(false);
+              handleOpenChange(false);
+            }}
+            onSavingChange={setIsFormActuallySaving}
+            scrollToFirstError={scrollToFirstError}
+          />
+          <div className="border-t pt-6 mt-6">
+            <h4 className="text-sm font-medium mb-4">Attached Images</h4>
+            <ArtworkImageManager artworkId={artwork.id} />
           </div>
         </ScrollableDialogBody>
-        
-        {/* Footer as a direct sibling of body, always flex-shrink-0 */}
-        <ScrollableDialogFooter className="border-2 border-red-500 bg-yellow-100 flex-shrink-0 z-10">
-          <div className="font-bold text-red-700 mr-4">DEBUG: FOOTER</div>
-          <Button 
-            type="button" 
-            variant="outline" 
+        <ScrollableDialogFooter>
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => handleOpenChange(false)}
             disabled={isFormActuallySaving}
             className="mr-2"
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             type="submit"
             form="edit-artwork-form"
             disabled={isFormActuallySaving}
@@ -112,4 +107,3 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     </ScrollableDialog>
   );
 }
-
