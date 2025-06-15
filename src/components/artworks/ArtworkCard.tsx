@@ -86,18 +86,22 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   };
   const onDelete = () => setIsDeleteDialogOpen(true);
 
-  // Set information block to exactly match image field height (h-64)
-  const infoBlockHeight = "h-64";
+  // 2/3 height logic
+  const IMAGE_HEIGHT_PX = 256;
+  const INFO_HEIGHT_PX = Math.round((2 / 3) * IMAGE_HEIGHT_PX); // ≈170
 
   return (
     <>
       <div 
-        className="group relative flex flex-col h-full border rounded-lg bg-card hover:shadow-md transition-all duration-200 overflow-hidden"
+        className="group relative flex flex-col border rounded-lg bg-card hover:shadow-md transition-all duration-200 overflow-hidden"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{ contain: 'layout' }}
+        style={{ contain: 'layout', width: "100%" }}
       >
-        <div className="relative w-full h-64 bg-muted/20 overflow-hidden flex-shrink-0">
+        <div
+          className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
+          style={{ height: `${IMAGE_HEIGHT_PX}px` }}
+        >
           {imageToDisplay ? (
             <OptimizedArtworkImage
               imageRecord={imageToDisplay}
@@ -117,7 +121,10 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
             </div>
           )}
         </div>
-        <div className={`flex flex-col justify-between px-4 py-4 ${infoBlockHeight}`}>
+        <div
+          className="flex flex-col justify-between px-4 py-4 flex-shrink-0"
+          style={{ height: `${INFO_HEIGHT_PX}px` }}
+        >
           <div className="space-y-2">
             <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
