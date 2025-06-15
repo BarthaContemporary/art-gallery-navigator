@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtist } from "@/hooks/use-artist";
@@ -47,7 +48,6 @@ export function ArtworkOverviewDialog({
         <ScrollableDialogBody
           ref={scrollContainerRef}
           className="flex-1 min-h-0 bg-background"
-          showScrollIndicator={true}
         >
           <div className="max-w-4xl mx-auto px-6 py-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -83,3 +83,4 @@ export function ArtworkOverviewDialog({
     </ScrollableDialog>
   );
 }
+
