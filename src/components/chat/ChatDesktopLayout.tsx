@@ -6,6 +6,7 @@ import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
+import { useChat } from '@/hooks/chat/use-chat';
 
 type ViewType = 'rooms' | 'online';
 
@@ -32,6 +33,8 @@ export function ChatDesktopLayout({
   onStartChat,
   onSelectRoom
 }: ChatDesktopLayoutProps) {
+  const { chatRooms, onlineUsers } = useChat();
+
   return (
     <div className="flex h-full">
       {/* Left sidebar - 1/3 width */}
@@ -39,7 +42,9 @@ export function ChatDesktopLayout({
         <div className="border-r">
           <ChatTabNavigation 
             currentView={currentView} 
-            onViewChange={onViewChange} 
+            onViewChange={onViewChange}
+            roomsCount={chatRooms.length}
+            onlineCount={onlineUsers.length}
           />
         </div>
 

@@ -5,6 +5,7 @@ import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
 import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
+import { useChat } from '@/hooks/chat/use-chat';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 
@@ -33,6 +34,8 @@ export function ChatMobileLayout({
   onSelectRoom,
   onBackToList
 }: ChatMobileLayoutProps) {
+  const { chatRooms, onlineUsers } = useChat();
+
   if (currentView === 'chat' && activeRoom) {
     return (
       <ChatInterface 
@@ -50,7 +53,9 @@ export function ChatMobileLayout({
     <div className="flex flex-col h-full">
       <ChatTabNavigation 
         currentView={currentView as 'rooms' | 'online'} 
-        onViewChange={onViewChange} 
+        onViewChange={onViewChange}
+        roomsCount={chatRooms.length}
+        onlineCount={onlineUsers.length}
       />
       
       <div className="flex-1">
