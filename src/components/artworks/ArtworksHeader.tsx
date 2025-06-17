@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileDown, Settings, Image } from "lucide-react";
+import { Plus, Upload, ArrowUp, Settings, Image } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
 import { exportArtworksToCSV } from "@/lib/csv";
@@ -61,7 +61,7 @@ export function ArtworksHeader({
             </Dialog>
 
             <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex">
-              <FileDown className="h-4 w-4" />
+              <ArrowUp className="h-4 w-4" />
             </Button>
 
             <div className="hidden sm:block">
