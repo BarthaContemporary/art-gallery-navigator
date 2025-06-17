@@ -73,7 +73,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0" align="start">
+        <PopoverContent className="w-[500px] p-0" align="start">
           <Command>
             <CommandInput placeholder="Search artists..." />
             <div className="p-2 border-b">
@@ -117,11 +117,11 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
           {getSelectedArtistNames().map((name, index) => {
             const artistId = selectedArtists[index];
             return (
-              <Badge key={artistId} variant="secondary" className="text-[10px] px-1.5 py-0.5">
+              <Badge key={artistId} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex items-center">
                 {name}
                 <button
                   onClick={() => handleRemoveArtist(artistId)}
-                  className="ml-1 hover:text-destructive"
+                  className="ml-1 hover:text-destructive flex items-center justify-center"
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
