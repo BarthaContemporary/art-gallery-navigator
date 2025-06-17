@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Image as ImageIcon, Star } from "lucide-react";
@@ -5,6 +6,7 @@ import { useArtwork } from "@/hooks/use-artworks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
 
 interface ArtworkImageManagerProps {
   artworkId: string;
@@ -45,7 +47,7 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
         description: "Image deleted successfully",
       });
 
-      queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] }); // This key might be obsolete, but harmless
+      queryClient.invalidateQueries({ queryKey: ['artwork-images', artworkId] });
       queryClient.invalidateQueries({ queryKey: ['artworks', artworkId] });
       queryClient.invalidateQueries({ queryKey: ['artworks'] });
       
@@ -61,7 +63,6 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
     }
   };
 
-  // Set as primary image
   const handleSetPrimaryImage = async (imageId: string) => {
     setSettingPrimary(imageId);
     try {
@@ -123,18 +124,12 @@ export function ArtworkImageManager({ artworkId }: ArtworkImageManagerProps) {
           <div key={image.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="relative w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
-                <img 
-                  src={image.image_url} 
-                  alt="Artwork" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  }}
+                <OptimizedArtworkImage
+                  imageRecord={image}
+                  title={`Image ${index + 1}`}
+                  tier="thumbnail"
+                  className="w-full h-full"
                 />
-                <div className="hidden absolute inset-0 flex items-center justify-center bg-muted">
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm text-muted-foreground flex items-center gap-1">
