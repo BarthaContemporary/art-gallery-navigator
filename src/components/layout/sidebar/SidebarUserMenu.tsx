@@ -15,7 +15,7 @@ export function SidebarUserMenu() {
   const { user, signOut } = useAuth();
 
   return (
-    <div className="border-t px-4 py-4 mt-auto bg-white">
+    <div className="px-4 py-4 mt-auto bg-white">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
