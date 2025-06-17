@@ -3,8 +3,7 @@ import React, { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { Artist } from "@/hooks/use-artist";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Download, MoreHorizontal } from "lucide-react";
+import { FileText } from "lucide-react";
 import { createArtworkPDF } from "@/lib/create-artwork-pdf";
 import { toast } from "sonner";
 
@@ -42,20 +41,6 @@ export function ArtworkActions({ artwork, artist }: ArtworkActionsProps) {
         <FileText className="h-4 w-4 mr-2" />
         {isGenerating ? "Generating..." : "Create PDF"}
       </Button>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGenerating}>
-            <FileText className="h-4 w-4 mr-2" />
-            Generate PDF
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
