@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Circle } from 'lucide-react';
 import { ChatRoom } from '@/hooks/chat/types';
 import { useAuth } from '@/hooks/use-auth';
+import { useChatPresence } from '@/hooks/chat/use-chat-presence';
+import { format } from 'date-fns';
 
 interface ChatHeaderProps {
   room: ChatRoom;
@@ -13,14 +15,47 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
+  const { onlineUsers } = useChatPresence(user?.id);
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
     ? room.participant_2_profile 
     : room.participant_1_profile;
 
+  const otherParticipantId = room.participant_1_id === user?.id 
+    ? room.participant_2_id 
+    : room.participant_1_id;
+
   const participantName = otherParticipant?.display_name || 'Unknown User';
   const participantInitials = participantName.split(' ').map(n => n[0]).join('').toUpperCase();
+
+  // Find the presence status of the other participant
+  const presenceStatus = onlineUsers.find(u => u.user_id === otherParticipantId);
+  const isOnline = presenceStatus?.is_online || false;
+  const lastSeen = presenceStatus?.last_seen;
+
+  const getStatusText = () => {
+    if (isOnline) {
+      return 'Online';
+    } else if (lastSeen) {
+      const lastSeenDate = new Date(lastSeen);
+      const now = new Date();
+      const diffInMinutes = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60));
+      
+      if (diffInMinutes < 1) {
+        return 'Just now';
+      } else if (diffInMinutes < 60) {
+        return `${diffInMinutes}m ago`;
+      } else if (diffInMinutes < 1440) {
+        const hours = Math.floor(diffInMinutes / 60);
+        return `${hours}h ago`;
+      } else {
+        return `Last seen ${format(lastSeenDate, 'MMM d')}`;
+      }
+    } else {
+      return 'Offline';
+    }
+  };
 
   return (
     <div className="flex items-center gap-3 p-4 border-b bg-white">
@@ -43,8 +78,14 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
       <div className="flex-1">
         <h3 className="font-semibold text-sm">{participantName}</h3>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Circle className="h-2 w-2 fill-green-500 text-green-500" />
-          <span>Online</span>
+          <Circle 
+            className={`h-2 w-2 ${
+              isOnline 
+                ? 'fill-green-500 text-green-500' 
+                : 'fill-gray-400 text-gray-400'
+            }`} 
+          />
+          <span>{getStatusText()}</span>
         </div>
       </div>
     </div>
