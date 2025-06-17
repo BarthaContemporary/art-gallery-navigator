@@ -618,6 +618,33 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_monitor_config: {
+        Row: {
+          api_key_encrypted: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       campaign_monitor_lists: {
         Row: {
           created_at: string | null
@@ -820,6 +847,9 @@ export type Database = {
           birthday: string | null
           campaign_monitor_id: string | null
           client_type: string
+          cm_last_sync_at: string | null
+          cm_sync_error: string | null
+          cm_sync_status: string | null
           company: string | null
           created_at: string | null
           email: string | null
@@ -839,6 +869,9 @@ export type Database = {
           birthday?: string | null
           campaign_monitor_id?: string | null
           client_type?: string
+          cm_last_sync_at?: string | null
+          cm_sync_error?: string | null
+          cm_sync_status?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null
@@ -858,6 +891,9 @@ export type Database = {
           birthday?: string | null
           campaign_monitor_id?: string | null
           client_type?: string
+          cm_last_sync_at?: string | null
+          cm_sync_error?: string | null
+          cm_sync_status?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null

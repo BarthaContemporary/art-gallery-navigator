@@ -10,6 +10,7 @@ import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CRMStats } from "@/components/crm/CRMStats";
+import { CampaignMonitorIntegration } from "@/components/crm/CampaignMonitorIntegration";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
@@ -34,6 +35,10 @@ export default function CRM() {
       </div>
 
       <CRMStats />
+
+      <div className="mb-6">
+        <CampaignMonitorIntegration />
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
