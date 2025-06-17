@@ -10,7 +10,7 @@ import { performArtworkImport } from './artworkImporter';
 
 export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () => void): UseImportCSVReturn {
   const [open, setOpen] = useState(initialOpen);
-  const [currentStep, setCurrentStep] = useState<ImportStep>("upload");
+  const [currentStep, setCurrentStep] = useState<ImportStep>(ImportStep.UPLOAD);
   const [file, setFile] = useState<File | null>(null);
   
   const [csvPreviewData, setCsvPreviewData] = useState<CSVPreviewData | null>(null);
@@ -29,7 +29,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     setCsvPreviewData(null);
     setFieldMappings({});
     setParsedArtworks([]);
-    setCurrentStep("upload");
+    setCurrentStep(ImportStep.UPLOAD);
     setIsProcessingFile(false);
     setImportingProgress(0);
     setImportStats({ successful: 0, failed: 0, skipped: 0, total: 0 });
@@ -72,7 +72,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       });
       setFieldMappings(initialMappings);
       
-      setCurrentStep("mapFields");
+      setCurrentStep(ImportStep.FIELD_MAPPING);
       toast.success(`CSV file parsed successfully! Found ${previewData.headers.length} columns and ${previewData.rows.length} rows.`);
     } catch (error: any) {
       console.error("Error parsing CSV for preview:", error);
@@ -117,7 +117,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
           toast.success(`${validToImportCount} artworks ready for import!`);
       }
       
-      setCurrentStep("preview");
+      setCurrentStep(ImportStep.PREVIEW);
     } catch (error: any) {
       console.error("Error during preview step:", error);
       toast.error(`Error processing CSV data: ${error.message || "Unknown error"}`);
@@ -157,7 +157,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     }
 
     console.log("Importing", artworksToAttemptImport.length, "artworks");
-    setCurrentStep("importing");
+    setCurrentStep(ImportStep.IMPORTING);
     setImportingProgress(0);
     const totalToImport = artworksToAttemptImport.length;
     setImportStats({ successful: 0, failed: 0, skipped: 0, total: totalToImport });
@@ -183,7 +183,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       console.log("Import completed with final stats:", { successful, failed, skipped, total: totalToImport });
       setImportStats({ successful, failed, skipped, total: totalToImport });
       queryClient.invalidateQueries({ queryKey: ["artworks"] });
-      setCurrentStep("complete");
+      setCurrentStep(ImportStep.COMPLETE);
       
       if (successful > 0) {
         toast.success(`Successfully imported ${successful} artwork${successful === 1 ? '' : 's'}!`);
@@ -197,7 +197,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     } catch (error: any) {
       console.error("Error during import:", error);
       toast.error(`Import failed: ${error.message || "Unknown error"}`);
-      setCurrentStep("preview"); // Return to preview on error
+      setCurrentStep(ImportStep.PREVIEW); // Return to preview on error
     }
   };
 

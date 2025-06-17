@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Upload, FileDown, Settings, Wand2 } from "lucide-react";
@@ -62,8 +61,7 @@ export function ArtworksHeader({
             </Dialog>
 
             <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex">
-              <FileDown className="h-4 w-4 mr-2" />
-              Export CSV
+              <FileDown className="h-4 w-4" />
             </Button>
 
             <div className="hidden sm:block">
