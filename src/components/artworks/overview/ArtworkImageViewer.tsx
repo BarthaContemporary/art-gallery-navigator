@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -142,46 +141,50 @@ export function ArtworkImageViewer({
   return (
     <div className="relative w-full h-[60vh] bg-black/95 group">
       {/* Controls: Zoom and Download buttons */}
-      <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={e => {
-            e.stopPropagation();
-            handleZoomOut();
-          }}
-          disabled={zoomLevelIndex === 0}
-          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
-          title="Zoom Out"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm flex items-center justify-center">
-          {Math.round(currentZoomLevel * 100)}%
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={e => {
-            e.stopPropagation();
-            handleZoomIn();
-          }}
-          disabled={zoomLevelIndex === ZOOM_LEVELS.length - 1}
-          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
-          title="Zoom In"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        {currentImage.image_url !== "/placeholder.svg" && (
+      <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center">
+        <div className="flex gap-1 items-center">
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleDownload}
-            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
-            title="Download"
+            onClick={e => {
+              e.stopPropagation();
+              handleZoomOut();
+            }}
+            disabled={zoomLevelIndex === 0}
+            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
+            title="Zoom Out"
           >
-            <Download className="h-4 w-4" />
+            <ZoomOut className="h-4 w-4" />
           </Button>
+          <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm flex items-center justify-center">
+            {Math.round(currentZoomLevel * 100)}%
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={e => {
+              e.stopPropagation();
+              handleZoomIn();
+            }}
+            disabled={zoomLevelIndex === ZOOM_LEVELS.length - 1}
+            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
+            title="Zoom In"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+        {currentImage.image_url !== "/placeholder.svg" && (
+          <div className="ml-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDownload}
+              className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
 
