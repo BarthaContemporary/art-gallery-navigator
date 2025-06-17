@@ -172,7 +172,9 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
                   <SelectItem value="collector">Collector</SelectItem>
                   <SelectItem value="dealer">Dealer</SelectItem>
                   <SelectItem value="museum">Museum</SelectItem>
-                  <SelectItem value="institution">Institution</SelectItem>
+                  <SelectItem value="interior_designer">Interior Designer</SelectItem>
+                  <SelectItem value="architect">Architect</SelectItem>
+                  <SelectItem value="art_advisor">Art Advisor</SelectItem>
                   <SelectItem value="press">Press</SelectItem>
                 </SelectContent>
               </Select>
