@@ -56,7 +56,7 @@ export function ArtworkOverviewDialog({
               artworkTitle={artwork.title}
             />
           </div>
-          <ScrollableDialogHeader className="px-6 py-4 border-b bg-background flex-shrink-0" />
+          <ScrollableDialogHeader className="px-6 py-2 bg-background flex-shrink-0" />
           <ScrollableDialogBody
             ref={scrollContainerRef}
             className="flex-1 min-h-0 bg-background"
