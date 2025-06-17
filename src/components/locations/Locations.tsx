@@ -68,7 +68,7 @@ const Locations = () => {
       ) : isError ? (
         <div className="text-center text-red-500 py-20">Failed to load locations. Please try again.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredLocations.length === 0 ? (
             <div className="col-span-full text-center text-muted-foreground">No locations found.</div>
           ) : (
@@ -87,20 +87,24 @@ const Locations = () => {
                     }}
                   />
                 )}
-                <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                  {getLocationIcon(location.type)}
-                  <div>
-                    <h3 className="font-semibold text-lg">{location.name}</h3>
-                    <p className="text-sm text-muted-foreground capitalize">{location.type}</p>
+                <CardHeader className="flex flex-row items-center gap-3 pb-1">
+                  <div className="flex-shrink-0">
+                    {getLocationIcon(location.type, "h-4 w-4")}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm truncate">{location.name}</h3>
+                    <p className="text-xs text-muted-foreground capitalize">{location.type}</p>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
                     <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <span className="text-sm">{location.address || "No address"}</span>
+                      <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground line-clamp-2">{location.address || "No address"}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">{location.notes || ""}</p>
+                    {location.notes && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{location.notes}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

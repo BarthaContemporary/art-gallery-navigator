@@ -1,20 +1,23 @@
 
-import { Building, Warehouse, Briefcase, ExternalLink, MapPin, Palette } from "lucide-react";
+import { Building2, Home, Warehouse, MapPin, Archive, Truck } from "lucide-react";
 
-export const getLocationIcon = (type: string) => {
-  switch (type) {
-    case "exhibition":
-      return <Building className="h-10 w-10" style={{ color: '#18465a' }} />;
-    case "storage":
-      return <Warehouse className="h-10 w-10" style={{ color: '#18465a' }} />;
-    case "consignment":
-      return <Briefcase className="h-10 w-10" style={{ color: '#18465a' }} />;
-    case "external":
-      return <ExternalLink className="h-10 w-10" style={{ color: '#18465a' }} />;
-    case "artist studio":
-    case "Artist Studio":
-      return <Palette className="h-10 w-10" style={{ color: '#18465a' }} />;
+export function getLocationIcon(type: string, className: string = "h-5 w-5") {
+  const iconProps = {
+    className: `${className} text-muted-foreground`,
+  };
+
+  switch (type.toLowerCase()) {
+    case 'gallery':
+      return <Building2 {...iconProps} />;
+    case 'studio':
+      return <Home {...iconProps} />;
+    case 'warehouse':
+      return <Warehouse {...iconProps} />;
+    case 'storage':
+      return <Archive {...iconProps} />;
+    case 'transit':
+      return <Truck {...iconProps} />;
     default:
-      return <MapPin className="h-10 w-10" style={{ color: '#18465a' }} />;
+      return <MapPin {...iconProps} />;
   }
-};
+}
