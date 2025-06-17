@@ -29,7 +29,14 @@ export function SidebarNavItem({
         className="no-underline hover:no-underline active:no-underline focus:no-underline"
       >
         <Icon className="w-5 h-5 shrink-0" />
-        <span>{name}</span>
+        <span className="flex items-center gap-2">
+          {name}
+          {name === "Appointments" && (
+            <span className="text-xs bg-yellow-500 text-yellow-900 px-1.5 py-0.5 rounded font-medium">
+              WIP
+            </span>
+          )}
+        </span>
       </Link>
     </SidebarMenuButton>
   );
