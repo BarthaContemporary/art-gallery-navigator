@@ -19,6 +19,8 @@ export default function Collections() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
           <CollectionDialog />
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           {isAdmin && (
             <Button 
               variant="outline" 
