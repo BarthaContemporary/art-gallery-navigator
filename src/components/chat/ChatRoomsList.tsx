@@ -55,10 +55,6 @@ export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-1">
-        <h3 className="font-medium text-sm text-muted-foreground mb-3">
-          Recent Conversations
-        </h3>
-        
         {chatRooms.map((room) => {
           const otherParticipant = room.participant_1_id === user?.id 
             ? room.participant_2_profile 
