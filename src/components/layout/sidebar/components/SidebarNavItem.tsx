@@ -31,7 +31,7 @@ export function SidebarNavItem({
         <Icon className="w-5 h-5 shrink-0" />
         <span className="flex items-center gap-2">
           {name}
-          {name === "Appointments" && (
+          {(name === "Appointments" || name === "CRM") && (
             <span className="text-xs bg-yellow-500 text-yellow-900 px-1.5 py-0.5 rounded font-medium">
               WIP
             </span>
