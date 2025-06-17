@@ -25,7 +25,6 @@ export function ViewToggle({
         className="h-7 px-2 text-xs flex items-center justify-center"
       >
         <Grid3X3 className="h-3 w-3" />
-        <span className="hidden sm:inline ml-1">Grid</span>
       </Button>
       
       <Button
@@ -35,7 +34,6 @@ export function ViewToggle({
         className="h-7 px-2 text-xs flex items-center justify-center"
       >
         <List className="h-3 w-3" />
-        <span className="hidden sm:inline ml-1">List</span>
       </Button>
     </div>
   );
