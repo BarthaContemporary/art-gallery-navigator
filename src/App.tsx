@@ -27,6 +27,7 @@ import UserSignup from "@/pages/UserSignup";
 import ManageWebsites from "@/pages/ManageWebsites";
 import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
 import PublicCollectionView from "@/pages/PublicCollectionView";
+import CRM from "@/pages/CRM";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function App() {
                 <Route path="locations" element={<Locations />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="appointments" element={<Appointments />} />
+                <Route path="crm" element={<CRM />} />
                 <Route path="settings" element={<UserSignup />} />
                 <Route path="manage-websites" element={<ManageWebsites />} />
                 <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
