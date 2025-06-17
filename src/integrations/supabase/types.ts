@@ -618,6 +618,39 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_monitor_lists: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          list_id: string
+          name: string
+          subscriber_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          list_id: string
+          name: string
+          subscriber_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          list_id?: string
+          name?: string
+          subscriber_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string
@@ -689,39 +722,155 @@ export type Database = {
         }
         Relationships: []
       }
+      client_communications: {
+        Row: {
+          campaign_monitor_campaign_id: string | null
+          client_id: string
+          completed_date: string | null
+          content: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          scheduled_date: string | null
+          subject: string | null
+          type: Database["public"]["Enums"]["communication_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_monitor_campaign_id?: string | null
+          client_id: string
+          completed_date?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          scheduled_date?: string | null
+          subject?: string | null
+          type: Database["public"]["Enums"]["communication_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_monitor_campaign_id?: string | null
+          client_id?: string
+          completed_date?: string | null
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          scheduled_date?: string | null
+          subject?: string | null
+          type?: Database["public"]["Enums"]["communication_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_communications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_list_subscriptions: {
+        Row: {
+          client_id: string
+          id: string
+          is_active: boolean | null
+          list_id: string
+          subscribed_at: string | null
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          client_id: string
+          id?: string
+          is_active?: boolean | null
+          list_id: string
+          subscribed_at?: string | null
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          id?: string
+          is_active?: boolean | null
+          list_id?: string
+          subscribed_at?: string | null
+          unsubscribed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_list_subscriptions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_list_subscriptions_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_monitor_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
+          birthday: string | null
+          campaign_monitor_id: string | null
           client_type: string
+          company: string | null
           created_at: string | null
           email: string | null
           full_name: string
           id: string
+          last_activity_date: string | null
           notes: string | null
           phone: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["client_status"] | null
+          tags: string[] | null
           updated_at: string | null
+          website: string | null
         }
         Insert: {
           address?: string | null
+          birthday?: string | null
+          campaign_monitor_id?: string | null
           client_type?: string
+          company?: string | null
           created_at?: string | null
           email?: string | null
           full_name: string
           id?: string
+          last_activity_date?: string | null
           notes?: string | null
           phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["client_status"] | null
+          tags?: string[] | null
           updated_at?: string | null
+          website?: string | null
         }
         Update: {
           address?: string | null
+          birthday?: string | null
+          campaign_monitor_id?: string | null
           client_type?: string
+          company?: string | null
           created_at?: string | null
           email?: string | null
           full_name?: string
           id?: string
+          last_activity_date?: string | null
           notes?: string | null
           phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["client_status"] | null
+          tags?: string[] | null
           updated_at?: string | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -1419,6 +1568,8 @@ export type Database = {
     Enums: {
       appointment_recurrence: "none" | "weekly" | "daily"
       appointment_status: "pending" | "confirmed" | "cancelled" | "completed"
+      client_status: "active" | "inactive" | "prospect" | "lead" | "customer"
+      communication_type: "email" | "phone" | "meeting" | "note" | "campaign"
       deletion_request_status: "pending" | "approved" | "rejected"
       message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
@@ -1542,6 +1693,8 @@ export const Constants = {
     Enums: {
       appointment_recurrence: ["none", "weekly", "daily"],
       appointment_status: ["pending", "confirmed", "cancelled", "completed"],
+      client_status: ["active", "inactive", "prospect", "lead", "customer"],
+      communication_type: ["email", "phone", "meeting", "note", "campaign"],
       deletion_request_status: ["pending", "approved", "rejected"],
       message_type: ["text", "file", "image"],
       project_status: ["active", "scheduled", "completed", "abandoned"],
