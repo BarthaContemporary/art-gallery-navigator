@@ -14,7 +14,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const senderInitials = senderName.split(' ').map(n => n[0]).join('').toUpperCase();
 
   const isImage = message.message_type === 'image';
-  const content = message.decrypted_content || message.content || message.encrypted_content;
+  const content = message.encrypted_content;
 
   return (
     <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>

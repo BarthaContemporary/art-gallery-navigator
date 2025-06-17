@@ -1557,6 +1557,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_old_chat_messages_weekly: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       find_or_create_chat_room: {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string

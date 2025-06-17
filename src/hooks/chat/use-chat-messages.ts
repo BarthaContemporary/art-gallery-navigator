@@ -16,7 +16,7 @@ export function useChatMessages(userId?: string) {
 
     try {
       // First, cleanup old messages (older than 1 week)
-      await supabase.rpc('cleanup_old_chat_messages_weekly');
+      await supabase.rpc('cleanup_old_chat_messages');
 
       const { data, error } = await supabase
         .from('chat_messages')
@@ -61,8 +61,6 @@ export function useChatMessages(userId?: string) {
         
         return {
           ...message,
-          decrypted_content: message.encrypted_content,
-          content: message.encrypted_content,
           sender_profile: senderProfile ? {
             display_name: senderProfile.display_name || 'Unknown User',
             avatar_url: senderProfile.avatar_url
@@ -178,8 +176,6 @@ export function useChatMessages(userId?: string) {
           // Transform message with profile data
           const transformedMessage = {
             ...newMessage,
-            decrypted_content: newMessage.encrypted_content,
-            content: newMessage.encrypted_content,
             sender_profile: senderProfile ? {
               display_name: senderProfile.display_name || 'Unknown User',
               avatar_url: senderProfile.avatar_url
@@ -215,8 +211,6 @@ export function useChatMessages(userId?: string) {
           // Add message without full processing as fallback
           setMessages(prev => [...prev, {
             ...newMessage,
-            decrypted_content: newMessage.encrypted_content || '[Message could not be processed]',
-            content: newMessage.encrypted_content || '[Message could not be processed]',
             sender_profile: { display_name: 'Unknown User' }
           }]);
         }
