@@ -1,5 +1,3 @@
-
-
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -46,7 +44,7 @@ const ScrollableDialogContent = React.forwardRef<
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-[60] rounded-sm bg-yellow-400 text-black p-1 transition-all hover:bg-yellow-500 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-4 top-4 z-[60] rounded-sm bg-yellow-400 text-black p-1 transition-all hover:bg-yellow-500 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:pointer-events-none flex items-center justify-center">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -57,4 +55,3 @@ const ScrollableDialogContent = React.forwardRef<
 ScrollableDialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export { ScrollableDialogContent };
-
