@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateArtworkForm } from "./CreateArtworkForm";
 import { ArtworkImageManager } from "./ArtworkImageManager";
 import { VideoUploadFields } from "./form/VideoUploadFields";
+import { ArtworkDocuments } from "./documents/ArtworkDocuments";
 import { Artwork } from "@/hooks/use-artworks";
 import { useCallback, useEffect, useState } from "react";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
@@ -67,10 +68,11 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         <ScrollableDialogBody ref={scrollContainerRef}>
           <div className="px-6 pt-6 pb-6">
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="images">Images</TabsTrigger>
                 <TabsTrigger value="videos">Videos</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
               
               <TabsContent value="details" className="mt-6">
@@ -104,6 +106,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               
               <TabsContent value="videos" className="mt-6">
                 <VideoUploadFields artworkId={artwork.id} />
+              </TabsContent>
+
+              <TabsContent value="documents" className="mt-6">
+                <ArtworkDocuments artworkId={artwork.id} />
               </TabsContent>
             </Tabs>
           </div>

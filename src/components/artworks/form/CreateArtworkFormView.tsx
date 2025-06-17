@@ -16,6 +16,7 @@ import { FramingCrateFields } from "./FramingCrateFields";
 import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { VideoUploadFields } from "./VideoUploadFields";
 import { MultipleImageUploader } from "../MultipleImageUploader";
+import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
 
@@ -107,6 +108,14 @@ export function CreateArtworkFormView({
             </div>
             
             <VideoUploadFields />
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Upload Documents</label>
+              <p className="text-xs text-muted-foreground mb-4">
+                Upload documents related to this artwork (certificates, invoices, etc.)
+              </p>
+              <UploadDocumentDialog />
+            </div>
           </div>
         )}
         
