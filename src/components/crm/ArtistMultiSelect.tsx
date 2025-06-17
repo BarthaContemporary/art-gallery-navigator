@@ -113,17 +113,17 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
       </Popover>
       
       {selectedArtists.length > 0 && (
-        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 border rounded-md bg-muted/30">
+        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-2 border rounded-md bg-muted/30">
           {getSelectedArtistNames().map((name, index) => {
             const artistId = selectedArtists[index];
             return (
-              <Badge key={artistId} variant="secondary" className="text-xs">
+              <Badge key={artistId} variant="secondary" className="text-[10px] px-1.5 py-0.5">
                 {name}
                 <button
                   onClick={() => handleRemoveArtist(artistId)}
                   className="ml-1 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2.5 w-2.5" />
                 </button>
               </Badge>
             );
