@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -156,7 +155,7 @@ export function ArtworkImageViewer({
           <ZoomOut className="h-4 w-4 mr-1" />
           Zoom Out
         </Button>
-        <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm">
+        <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm flex items-center justify-center">
           {Math.round(currentZoomLevel * 100)}%
         </div>
         <Button
