@@ -10,7 +10,7 @@ import { ChatTabNavigation } from './ChatTabNavigation';
 type ViewType = 'rooms' | 'online' | 'chat';
 
 export function ChatPopupLayout() {
-  const { messages, sending, startChatWithUser, setActiveRoomAndFetchMessages, sendMessage, activeRoom } = useChat();
+  const { messages, sending, loading, startChatWithUser, setActiveRoomAndFetchMessages, sendMessage, activeRoom } = useChat();
   const [currentView, setCurrentView] = useState<ViewType>('rooms');
   const isMobile = useIsMobile();
 
@@ -40,6 +40,7 @@ export function ChatPopupLayout() {
       <ChatInterface 
         room={activeRoom} 
         messages={messages}
+        loading={loading}
         onSendMessage={sendMessage}
         sending={sending}
         onBack={handleBackToList} 

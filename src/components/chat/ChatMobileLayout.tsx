@@ -14,6 +14,7 @@ interface ChatMobileLayoutProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
   sending: boolean;
+  loading: boolean;
   onViewChange: (view: ViewType) => void;
   onStartChat: (userId: string) => Promise<void>;
   onSelectRoom: (room: ChatRoom) => Promise<void>;
@@ -26,6 +27,7 @@ export function ChatMobileLayout({
   messages,
   onSendMessage,
   sending,
+  loading,
   onViewChange,
   onStartChat,
   onSelectRoom,
@@ -36,6 +38,7 @@ export function ChatMobileLayout({
       <ChatInterface 
         room={activeRoom} 
         messages={messages}
+        loading={loading}
         onSendMessage={onSendMessage}
         sending={sending}
         onBack={onBackToList} 

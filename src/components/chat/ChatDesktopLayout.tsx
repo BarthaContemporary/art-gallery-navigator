@@ -15,6 +15,7 @@ interface ChatDesktopLayoutProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
   sending: boolean;
+  loading: boolean;
   onViewChange: (view: ViewType) => void;
   onStartChat: (userId: string) => Promise<void>;
   onSelectRoom: (room: ChatRoom) => Promise<void>;
@@ -26,6 +27,7 @@ export function ChatDesktopLayout({
   messages,
   onSendMessage,
   sending,
+  loading,
   onViewChange,
   onStartChat,
   onSelectRoom
@@ -59,6 +61,7 @@ export function ChatDesktopLayout({
           <ChatInterface 
             room={activeRoom} 
             messages={messages}
+            loading={loading}
             onSendMessage={onSendMessage}
             sending={sending}
           />

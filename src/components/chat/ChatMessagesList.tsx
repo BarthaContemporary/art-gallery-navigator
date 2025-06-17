@@ -7,9 +7,10 @@ import { useAuth } from '@/hooks/use-auth';
 
 interface ChatMessagesListProps {
   messages: ChatMessage[];
+  loading?: boolean;
 }
 
-export function ChatMessagesList({ messages }: ChatMessagesListProps) {
+export function ChatMessagesList({ messages, loading }: ChatMessagesListProps) {
   const { user } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +23,16 @@ export function ChatMessagesList({ messages }: ChatMessagesListProps) {
       }
     }
   }, [messages]);
+
+  if (loading) {
+    return (
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-sm">Loading messages...</p>
+        </div>
+      </ScrollArea>
+    );
+  }
 
   return (
     <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
