@@ -7,6 +7,7 @@ import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { InventoryStatusCard } from "@/components/dashboard/InventoryStatusCard";
 import { AdminNotifications } from "@/components/dashboard/AdminNotifications";
 import { StatsSummaryCards } from "@/components/dashboard/StatsSummaryCards";
+import { CRMStatsCards } from "@/components/dashboard/CRMStatsCards";
 
 const Dashboard = () => {
   const {
@@ -61,6 +62,18 @@ const Dashboard = () => {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="DASHBOARD" />
+
+      {/* CRM Stats - Only visible to admin users */}
+      {isAdmin && (
+        <CRMStatsCards
+          isLoading={isLoading}
+          totalClients={stats?.total_clients_count ?? 0}
+          activeClients={stats?.active_clients_count ?? 0}
+          prospects={stats?.prospects_count ?? 0}
+          customers={stats?.customers_count ?? 0}
+          leads={stats?.leads_count ?? 0}
+        />
+      )}
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mt-0 mb-8">
         <RecentActivityCard isLoading={isLoading} activities={stats?.recent_activities} />
