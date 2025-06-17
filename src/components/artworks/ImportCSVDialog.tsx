@@ -1,7 +1,8 @@
 
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowUp } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useImportCSV } from "./hooks/useImportCSV";
 import { UploadStep } from "./import-steps/UploadStep";
@@ -109,7 +110,7 @@ export function ImportCSVDialog() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <ArrowUp className="h-4 w-4" />
+          <Upload className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -121,3 +122,4 @@ export function ImportCSVDialog() {
     </Dialog>
   );
 }
+
