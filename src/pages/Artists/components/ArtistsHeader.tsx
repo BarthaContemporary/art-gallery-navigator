@@ -32,17 +32,15 @@ export const ArtistsHeader = ({
   onCreateArtist,
 }: ArtistsHeaderProps) => {
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
-      <div className="flex flex-wrap gap-2">
-        <Button 
-          size="sm" 
-          className="flex gap-2" 
-          onClick={onCreateArtist}
-        >
-          <PlusCircle className="h-4 w-4" />
-          Add Artist
-        </Button>
-      </div>
+    <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+      <Button 
+        size="sm" 
+        className="flex gap-2" 
+        onClick={onCreateArtist}
+      >
+        <PlusCircle className="h-4 w-4" />
+        Add Artist
+      </Button>
       
       <ViewToggle 
         viewMode={viewMode}
