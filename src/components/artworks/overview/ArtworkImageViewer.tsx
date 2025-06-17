@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -156,7 +157,7 @@ export function ArtworkImageViewer({
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm flex items-center justify-center">
+          <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 rounded text-sm flex items-center justify-center h-9 w-9 md:h-10 md:w-10">
             {Math.round(currentZoomLevel * 100)}%
           </div>
           <Button
@@ -174,7 +175,7 @@ export function ArtworkImageViewer({
           </Button>
         </div>
         {currentImage.image_url !== "/placeholder.svg" && (
-          <div className="ml-2">
+          <div className="ml-4">
             <Button
               variant="ghost"
               size="icon"
