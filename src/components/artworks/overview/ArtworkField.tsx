@@ -26,4 +26,3 @@ export const ArtworkField: React.FC<ArtworkFieldProps> = ({ label, value, classN
     </div>
   );
 };
-

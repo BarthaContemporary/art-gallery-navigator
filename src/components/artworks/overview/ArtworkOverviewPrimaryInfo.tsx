@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Artwork } from '@/hooks/use-artworks';
-import { Artist } from '@/hooks/use-artist'; // Assuming this is the correct type path
-import { ArtworkField } from './ArtworkField'; // Using the new helper
+import { Artist } from '@/hooks/use-artist';
+import { ArtworkField } from './ArtworkField';
 
 interface ArtworkOverviewPrimaryInfoProps {
   artwork: Artwork;
@@ -10,13 +10,10 @@ interface ArtworkOverviewPrimaryInfoProps {
   artistLoading: boolean;
 }
 
-// Helper to truncate title and ensure one-line "title, year"
 function getTruncatedTitleWithYear(title: string, year: string | number | null, maxLength = 44) {
   if (!title) return year ? `Untitled, ${year}` : "Untitled";
   let fullTitle = title;
-  // Reserve chars for ", YYYY" if year exists
   const yearStr = year ? `, ${year}` : "";
-  // Truncate title if needed
   const remaining = maxLength - yearStr.length;
   let displayTitle = title.length > remaining ? title.slice(0, Math.max(0, remaining - 3)) + "..." : title;
   return `${displayTitle}${yearStr}`;
@@ -26,10 +23,10 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
   
   const formatDimensionsDisplay = (art: Artwork) => {
     const parts = [];
-    if (art.height) parts.push(`Height: ${art.height}`);
-    if (art.width) parts.push(`Width: ${art.width}`);
-    if (art.depth) parts.push(`Depth: ${art.depth}`);
-    return parts.join(' / ') || "N/A";
+    if (art.height) parts.push(Number(art.height).toString());
+    if (art.width) parts.push(Number(art.width).toString());
+    if (art.depth) parts.push(Number(art.depth).toString());
+    return parts.length > 0 ? `${parts.join(' x ')} cm` : "N/A";
   };
 
   const formatEditionInfoDisplay = (art: Artwork) => {
@@ -45,14 +42,12 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
     return info.join('\n');
   };
 
-  // Truncate and keep title/year together on one line
   const truncatedTitleWithYear = getTruncatedTitleWithYear(
     artwork.title,
     artwork.year,
-    44 // You can tweak this for best fit in dialog
+    44
   );
 
-  // Only display price if status is "available"
   const isAvailable = (artwork.status ?? "available").toLowerCase() === "available";
   const shouldShowPrice = isAvailable && artwork.price;
 
