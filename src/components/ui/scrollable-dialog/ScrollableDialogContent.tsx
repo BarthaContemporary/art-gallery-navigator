@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -37,14 +38,14 @@ const ScrollableDialogContent = React.forwardRef<
           "fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] border bg-background shadow-lg duration-200",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
           // Layout
-          "flex flex-col max-h-[90vh] sm:rounded-lg", // Use 90vh for better cross-browser support; parent handles flex
+          "flex flex-col max-h-[90vh] sm:rounded-lg group", // Use 90vh for better cross-browser support; parent handles flex
           sizeClasses[size],
           className
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-[60] rounded-sm bg-yellow-400 text-black p-1 transition-all hover:bg-yellow-500 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:pointer-events-none flex items-center justify-center">
+        <DialogPrimitive.Close className="absolute right-4 top-4 z-[60] opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-sm bg-yellow-400/90 hover:bg-yellow-400 text-black p-2 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:pointer-events-none flex items-center justify-center">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
