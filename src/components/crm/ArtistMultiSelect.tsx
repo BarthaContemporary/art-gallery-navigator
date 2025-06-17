@@ -117,7 +117,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
           {getSelectedArtistNames().map((name, index) => {
             const artistId = selectedArtists[index];
             return (
-              <Badge key={artistId} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex items-center">
+              <Badge key={artistId} variant="secondary" className="text-[10px] px-1 py-0.5 flex items-center">
                 {name}
                 <button
                   onClick={() => handleRemoveArtist(artistId)}
