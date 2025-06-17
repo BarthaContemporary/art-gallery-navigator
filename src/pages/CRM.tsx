@@ -23,14 +23,7 @@ export default function CRM() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            CRM System
-          </h1>
-          <p className="text-muted-foreground">Manage client relationships and Campaign Monitor integration</p>
-        </div>
+      <div className="mb-4 md:mb-6">
         <CreateClientDialog />
       </div>
 
