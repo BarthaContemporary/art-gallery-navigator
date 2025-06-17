@@ -1,4 +1,3 @@
-
 import React, { memo, useMemo } from "react";
 import { ArtworkCard } from "./ArtworkCard";
 import { Artwork } from "@/hooks/use-artworks";
@@ -149,9 +148,9 @@ function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkG
             )}
           </div>
           
-          {/* Reduced grid gaps for tighter spacing with less bottom padding */}
+          {/* Reduced grid gaps for tighter spacing with minimal vertical space */}
           <div 
-            className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3"
+            className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1"
             style={{ 
               contain: 'layout',
               gridTemplateRows: 'masonry' // If supported, otherwise falls back to normal grid
