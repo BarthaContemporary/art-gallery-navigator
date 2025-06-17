@@ -88,7 +88,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
                 Add All Represented ({representedArtistsCount})
               </Button>
             </div>
-            <CommandList className="max-h-[200px] overflow-y-auto">
+            <CommandList className="max-h-[300px] overflow-y-auto">
               <CommandEmpty>No artists found.</CommandEmpty>
               <CommandGroup>
                 {artists?.map((artist) => (
@@ -103,17 +103,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
                         selectedArtists.includes(artist.id) ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    <div className="flex-1">
-                      <span>{artist.full_name}</span>
-                      {artist.representation_status && (
-                        <Badge 
-                          variant="outline" 
-                          className="ml-2 text-xs"
-                        >
-                          {artist.representation_status}
-                        </Badge>
-                      )}
-                    </div>
+                    <span>{artist.full_name}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
