@@ -38,8 +38,8 @@ export function ArtworksHeader({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-      <div className="flex items-center gap-2 w-full sm:w-auto">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3 sm:gap-4">
+      <div className="flex flex-wrap gap-2">
         {isAdmin && <CreateArtworkDialog />}
       </div>
 
