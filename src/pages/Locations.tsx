@@ -2,10 +2,8 @@
 import { useState } from "react";
 import { LocationSearch } from "@/components/locations/LocationSearch";
 import { LocationGrid } from "@/components/locations/LocationGrid";
-import { LocationListView } from "@/components/locations/LocationListView";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CreateLocationDialog } from "@/components/locations/CreateLocationDialog";
-import { ViewToggle, ViewMode } from "@/components/ui/view-toggle";
 import { useLocations } from "@/hooks/use-locations";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,9 +12,6 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const Locations = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    return (localStorage.getItem('locations-view-mode') as ViewMode) || 'grid';
-  });
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { data: locations, isLoading, isError, refetch } = useLocations();
@@ -26,12 +21,6 @@ const Locations = () => {
     location.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (location.address || "").toLowerCase().includes(searchTerm.toLowerCase())
   ) ?? [];
-
-  // Persist view mode preference
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    localStorage.setItem('locations-view-mode', mode);
-  };
 
   const handleRefresh = async () => {
     try {
@@ -53,20 +42,6 @@ const Locations = () => {
             <PageHeader title="LOCATIONS" />
             <CreateLocationDialog />
           </div>
-          <div className="hidden md:block">
-            <ViewToggle 
-              viewMode={viewMode}
-              onViewModeChange={handleViewModeChange}
-            />
-          </div>
-        </div>
-        
-        {/* Mobile view toggle - show below header on mobile */}
-        <div className="md:hidden flex justify-end">
-          <ViewToggle 
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-          />
         </div>
       </div>
       
@@ -78,8 +53,6 @@ const Locations = () => {
         <div className="text-center text-red-500 py-20">Failed to load locations. Please try again.</div>
       ) : filteredLocations.length === 0 ? (
         <div className="text-center text-muted-foreground py-20">No locations found.</div>
-      ) : viewMode === 'list' ? (
-        <LocationListView locations={filteredLocations} />
       ) : (
         <LocationGrid searchTerm={searchTerm} />
       )}
