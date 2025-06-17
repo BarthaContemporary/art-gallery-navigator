@@ -17,12 +17,12 @@ export function ViewToggle({
   className 
 }: ViewToggleProps) {
   return (
-    <div className={cn("flex items-center border rounded-md p-0.5", className)}>
+    <div className={cn("flex items-center border rounded-md p-0.5 bg-muted", className)}>
       <Button
         variant={viewMode === 'grid' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewModeChange('grid')}
-        className="h-7 px-2 text-xs"
+        className="h-7 px-2 text-xs flex items-center justify-center"
       >
         <Grid3X3 className="h-3 w-3" />
         <span className="hidden sm:inline ml-1">Grid</span>
@@ -32,7 +32,7 @@ export function ViewToggle({
         variant={viewMode === 'list' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewModeChange('list')}
-        className="h-7 px-2 text-xs"
+        className="h-7 px-2 text-xs flex items-center justify-center"
       >
         <List className="h-3 w-3" />
         <span className="hidden sm:inline ml-1">List</span>
