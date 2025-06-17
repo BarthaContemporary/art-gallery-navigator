@@ -374,6 +374,65 @@ export type Database = {
           },
         ]
       }
+      artwork_videos: {
+        Row: {
+          artwork_id: string
+          created_at: string | null
+          display_order: number | null
+          duration_seconds: number | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          is_primary: boolean | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          upload_status: string | null
+          vimeo_url: string | null
+          vimeo_video_id: string | null
+        }
+        Insert: {
+          artwork_id: string
+          created_at?: string | null
+          display_order?: number | null
+          duration_seconds?: number | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          is_primary?: boolean | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          upload_status?: string | null
+          vimeo_url?: string | null
+          vimeo_video_id?: string | null
+        }
+        Update: {
+          artwork_id?: string
+          created_at?: string | null
+          display_order?: number | null
+          duration_seconds?: number | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          is_primary?: boolean | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          upload_status?: string | null
+          vimeo_url?: string | null
+          vimeo_video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artwork_videos_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artworks: {
         Row: {
           artist_id: string | null
