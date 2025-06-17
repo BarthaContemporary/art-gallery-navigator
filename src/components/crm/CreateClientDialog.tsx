@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ArtistMultiSelect } from "./ArtistMultiSelect";
 
 export function CreateClientDialog() {
   const [open, setOpen] = useState(false);
@@ -23,7 +24,8 @@ export function CreateClientDialog() {
     client_type: 'collector',
     address: '',
     notes: '',
-    source: ''
+    source: '',
+    interested_artists: [] as string[]
   });
 
   const queryClient = useQueryClient();
@@ -48,7 +50,8 @@ export function CreateClientDialog() {
         client_type: 'collector',
         address: '',
         notes: '',
-        source: ''
+        source: '',
+        interested_artists: []
       });
     },
     onError: (error) => {
@@ -172,6 +175,14 @@ export function CreateClientDialog() {
               </Select>
             </div>
           </div>
+
+          <div>
+            <Label htmlFor="interested_artists">Interested Artists</Label>
+            <ArtistMultiSelect
+              selectedArtists={formData.interested_artists}
+              onArtistsChange={(artists) => setFormData({ ...formData, interested_artists: artists })}
+            />
+          </div>
           
           <div>
             <Label htmlFor="address">Address</Label>
@@ -190,6 +201,7 @@ export function CreateClientDialog() {
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
+              placeholder="Add any relevant notes about this client..."
             />
           </div>
           

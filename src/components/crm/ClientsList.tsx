@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +38,8 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
       let query = supabase.from('clients').select('*');
 
       if (searchTerm) {
-        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%`);
+        // Enhanced search to include notes field
+        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
       }
 
       if (statusFilter !== 'all') {
@@ -181,6 +183,12 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
                       </div>
                     )}
                   </div>
+
+                  {client.notes && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      <span className="font-medium">Notes:</span> {client.notes.length > 100 ? `${client.notes.substring(0, 100)}...` : client.notes}
+                    </div>
+                  )}
 
                   {client.cm_sync_error && (
                     <div className="mt-2 text-xs text-red-600">

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ArtistMultiSelect } from "./ArtistMultiSelect";
 
 interface EditClientDialogProps {
   client: any;
@@ -27,7 +28,8 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     client_type: 'collector',
     address: '',
     notes: '',
-    source: ''
+    source: '',
+    interested_artists: [] as string[]
   });
 
   const queryClient = useQueryClient();
@@ -44,7 +46,8 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
         client_type: client.client_type || 'collector',
         address: client.address || '',
         notes: client.notes || '',
-        source: client.source || ''
+        source: client.source || '',
+        interested_artists: client.interested_artists || []
       });
     }
   }, [client]);
@@ -180,6 +183,14 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               </Select>
             </div>
           </div>
+
+          <div>
+            <Label htmlFor="interested_artists">Interested Artists</Label>
+            <ArtistMultiSelect
+              selectedArtists={formData.interested_artists}
+              onArtistsChange={(artists) => setFormData({ ...formData, interested_artists: artists })}
+            />
+          </div>
           
           <div>
             <Label htmlFor="address">Address</Label>
@@ -198,6 +209,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
+              placeholder="Add any relevant notes about this client..."
             />
           </div>
           
