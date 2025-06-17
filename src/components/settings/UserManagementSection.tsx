@@ -116,83 +116,89 @@ export function UserManagementSection() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-6">
-        <form onSubmit={handleSignup} className="flex flex-wrap gap-2 max-w-3xl">
-          <Input 
-            type="email" 
-            placeholder="Email" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
-            required 
-            className="flex-1 min-w-[200px]" 
-            inputMode="email" 
-            autoComplete="email" 
-          />
-          
-          <Input 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            required 
-            className="flex-1 min-w-[200px]" 
-            autoComplete="new-password" 
-          />
-          
-          <select 
-            value={role} 
-            onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
-            className="h-10 px-3 rounded-md border border-input bg-background text-base sm:text-sm min-w-[120px]"
-          >
-            <option value="artist">Artist</option>
-            <option value="gallery_admin">Admin</option>
-            <option value="external">External</option>
-          </select>
-          
-          <Button 
-            type="submit" 
-            className="whitespace-nowrap" 
-            disabled={isLoading || !captchaToken}
-          >
-            {isLoading ? "Creating..." : "Add User"}
-          </Button>
-        </form>
-
-        <div className="mt-4 flex justify-center">
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            onVerify={handleCaptchaVerify}
-            onError={handleCaptchaError}
-            onExpire={handleCaptchaExpire}
-            theme="light"
-          />
-        </div>
-
-        {captchaError && (
-          <Alert variant="destructive" className="mt-2 max-w-3xl">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{captchaError}</AlertDescription>
-          </Alert>
-        )}
-        
-        {signupError && (
-          <Alert variant="destructive" className="mt-2 max-w-3xl">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{signupError}</AlertDescription>
-          </Alert>
-        )}
-      </div>
-
       <div className="-mx-4 sm:mx-0">
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="onboard">Onboard</TabsTrigger>
             <TabsTrigger value="deletion-requests">Deletion</TabsTrigger>
             <TabsTrigger value="uploads">Uploads</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="border rounded-md overflow-x-auto">
             <UsersList />
+          </TabsContent>
+
+          <TabsContent value="onboard" className="border rounded-md p-6">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Create New User</h3>
+                <form onSubmit={handleSignup} className="flex flex-wrap gap-2 max-w-3xl">
+                  <Input 
+                    type="email" 
+                    placeholder="Email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    required 
+                    className="flex-1 min-w-[200px]" 
+                    inputMode="email" 
+                    autoComplete="email" 
+                  />
+                  
+                  <Input 
+                    type="password" 
+                    placeholder="Password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    required 
+                    className="flex-1 min-w-[200px]" 
+                    autoComplete="new-password" 
+                  />
+                  
+                  <select 
+                    value={role} 
+                    onChange={e => setRole(e.target.value as "gallery_admin" | "artist" | "external")}
+                    className="h-10 px-3 rounded-md border border-input bg-background text-base sm:text-sm min-w-[120px]"
+                  >
+                    <option value="artist">Artist</option>
+                    <option value="gallery_admin">Admin</option>
+                    <option value="external">External</option>
+                  </select>
+                  
+                  <Button 
+                    type="submit" 
+                    className="whitespace-nowrap" 
+                    disabled={isLoading || !captchaToken}
+                  >
+                    {isLoading ? "Creating..." : "Add User"}
+                  </Button>
+                </form>
+
+                <div className="mt-4 flex justify-center">
+                  <TurnstileWidget
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onVerify={handleCaptchaVerify}
+                    onError={handleCaptchaError}
+                    onExpire={handleCaptchaExpire}
+                    theme="light"
+                  />
+                </div>
+
+                {captchaError && (
+                  <Alert variant="destructive" className="mt-2 max-w-3xl">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{captchaError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                {signupError && (
+                  <Alert variant="destructive" className="mt-2 max-w-3xl">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{signupError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
           </TabsContent>
           
           <TabsContent value="deletion-requests" className="border rounded-md overflow-x-auto">
