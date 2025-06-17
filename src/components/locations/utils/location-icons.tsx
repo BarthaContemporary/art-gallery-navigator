@@ -11,6 +11,10 @@ export function getLocationIcon(type: string, className: string = "h-5 w-5") {
       return <Building2 {...iconProps} />;
     case 'studio':
       return <Home {...iconProps} />;
+    case 'clients home':
+    case 'client home':
+    case 'home':
+      return <Home {...iconProps} />;
     case 'warehouse':
       return <Warehouse {...iconProps} />;
     case 'storage':
