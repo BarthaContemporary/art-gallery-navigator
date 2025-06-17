@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileDown, Settings, Wand2 } from "lucide-react";
+import { Plus, Upload, FileDown, Settings, Image } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
 import { exportArtworksToCSV } from "@/lib/csv";
@@ -48,8 +49,7 @@ export function ArtworksHeader({
             <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="hidden sm:flex">
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Optimize Images
+                  <Image className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">

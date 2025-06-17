@@ -160,7 +160,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     setCurrentStep(ImportStep.IMPORTING);
     setImportingProgress(0);
     const totalToImport = artworksToAttemptImport.length;
-    setImportStats({ successful: 0, failed: 0, skipped: 0, total: totalToImport });
+    setImportStats({ successful: 0, failed: 0, skipped: 0, total: 0 });
 
     try {
       const { successful, failed, skipped } = await performArtworkImport(
