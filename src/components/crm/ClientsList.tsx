@@ -1,10 +1,9 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, Edit, MoreHorizontal, Sync, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Mail, Phone, Edit, MoreHorizontal, RotateCw, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { useState } from "react";
 import { ClientDetailsDialog } from "./ClientDetailsDialog";
 import { EditClientDialog } from "./EditClientDialog";
@@ -211,7 +210,7 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
                           onClick={() => syncClientMutation.mutate(client.id)}
                           disabled={syncClientMutation.isPending}
                         >
-                          <Sync className="h-4 w-4 mr-2" />
+                          <RotateCw className="h-4 w-4 mr-2" />
                           Sync to Campaign Monitor
                         </DropdownMenuItem>
                       )}

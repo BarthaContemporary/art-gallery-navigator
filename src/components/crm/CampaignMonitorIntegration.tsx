@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, Sync, Users, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Mail, RotateCw, Users, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function CampaignMonitorIntegration() {
@@ -171,7 +170,7 @@ export function CampaignMonitorIntegration() {
             disabled={isSyncing || bulkSyncMutation.isPending}
             className="flex-1"
           >
-            <Sync className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RotateCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Syncing All Clients...' : 'Sync All Clients'}
           </Button>
         </div>
