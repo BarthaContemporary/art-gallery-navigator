@@ -40,12 +40,14 @@ export function ArtworksHeader({
   return (
     <div className="space-y-4 mb-4 md:mb-6">
       {/* Top row with Add Artwork button and View Toggle */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex flex-wrap gap-2">
           {isAdmin && <CreateArtworkDialog />}
         </div>
         
-        <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        <div className="ml-auto">
+          <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        </div>
       </div>
 
       {/* Admin tools row */}
