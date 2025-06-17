@@ -1,10 +1,11 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
 import { cn } from "@/lib/utils";
 import { Loader2, RefreshCw, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getImageFallbackChain } from "@/hooks/use-optimized-image/url-generator";
 
 interface OptimizedArtworkImageProps {
   imageRecord?: ArtworkImage;
@@ -31,28 +32,36 @@ export function OptimizedArtworkImage({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+  const fallbackChainRef = useRef<string[]>([]);
 
-  // Display URL logic: prefer medium_url, fallback to image_url, fallback to placeholder
-  const displayImageUrl = imageRecord?.medium_url || imageRecord?.image_url || "/placeholder.svg";
+  // Create fallback chain: optimized URL -> medium -> original -> placeholder
+  const primaryUrl = tier === 'thumbnail' ? imageRecord?.thumbnail_url : imageRecord?.medium_url;
+  const fallbackUrl = imageRecord?.image_url;
+  
+  if (fallbackChainRef.current.length === 0) {
+    fallbackChainRef.current = getImageFallbackChain(primaryUrl, fallbackUrl);
+  }
+
+  const currentImageUrl = fallbackChainRef.current[currentUrlIndex] || "/placeholder.svg";
   const cacheKey = imageRecord?.id || null;
 
   const { determinedOptimizedUrl, cacheLoadedImage } = useArtworkImageHandler({
-    displayImageUrl,
+    displayImageUrl: currentImageUrl,
     cacheKey,
     imageTypeForCache: tier,
     title,
   });
 
-  // Add debug logging for fallback URLs
   const isPlaceholder = determinedOptimizedUrl === "/placeholder.svg" || 
-    (determinedOptimizedUrl && determinedOptimizedUrl.includes('fallback-'));
+    currentUrlIndex >= fallbackChainRef.current.length - 1;
   
-  if (isPlaceholder) {
-    console.log(`OptimizedArtworkImage: Using placeholder/fallback for ${title}:`, {
+  if (isPlaceholder && imageRecord) {
+    console.log(`OptimizedArtworkImage: Using fallback for ${title}:`, {
+      currentUrlIndex,
+      fallbackChain: fallbackChainRef.current,
       imageRecord,
-      displayImageUrl,
-      determinedOptimizedUrl,
-      cacheKey
+      determinedOptimizedUrl
     });
   }
 
@@ -69,26 +78,33 @@ export function OptimizedArtworkImage({
 
   const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     console.error(`Image failed to load: ${title}`, event.currentTarget.src);
+    
+    // Try next URL in fallback chain
+    if (currentUrlIndex < fallbackChainRef.current.length - 1) {
+      console.log(`Trying fallback URL for ${title}`, fallbackChainRef.current[currentUrlIndex + 1]);
+      setCurrentUrlIndex(prev => prev + 1);
+      setImageLoaded(false);
+      setImageError(false);
+      return;
+    }
+    
+    // All URLs failed
     setImageError(true);
     setImageLoaded(true);
     setIsRetrying(false);
-  }, [title]);
+  }, [title, currentUrlIndex]);
 
   const handleRetry = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log(`Retrying image load for: ${title}`, determinedOptimizedUrl);
+    console.log(`Retrying image load for: ${title}`);
+    
+    // Reset to first URL in chain
+    setCurrentUrlIndex(0);
     setImageError(false);
     setImageLoaded(false);
     setIsRetrying(true);
     setRetryCount(prev => prev + 1);
-    
-    // Force reload by adding a cache-busting parameter
-    const img = document.querySelector(`img[alt="${title}"]`) as HTMLImageElement;
-    if (img && determinedOptimizedUrl) {
-      const separator = determinedOptimizedUrl.includes('?') ? '&' : '?';
-      img.src = `${determinedOptimizedUrl}${separator}retry=${retryCount + 1}`;
-    }
-  }, [determinedOptimizedUrl, title, retryCount]);
+  }, [title]);
 
   const handleClick = useCallback(() => {
     if (onClick) onClick();
@@ -122,7 +138,7 @@ export function OptimizedArtworkImage({
         }}
       />
       
-      {/* Enhanced Loading State */}
+      {/* Loading State */}
       {!imageLoaded && !imageError && (
         <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
@@ -130,11 +146,14 @@ export function OptimizedArtworkImage({
             {isRetrying && (
               <span className="text-xs text-muted-foreground">Retrying...</span>
             )}
+            {currentUrlIndex > 0 && (
+              <span className="text-xs text-muted-foreground">Using fallback...</span>
+            )}
           </div>
         </div>
       )}
       
-      {/* Enhanced Error State with Retry */}
+      {/* Error State with Retry */}
       {imageError && (
         <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
           <div className="text-center text-muted-foreground p-4">
@@ -157,6 +176,13 @@ export function OptimizedArtworkImage({
               </p>
             )}
           </div>
+        </div>
+      )}
+      
+      {/* Debug indicator for Cloudinary */}
+      {!isPlaceholder && determinedOptimizedUrl?.includes('res.cloudinary.com') && (
+        <div className="absolute top-1 right-1 bg-green-500/80 text-white text-xs px-1 rounded opacity-70">
+          CDN
         </div>
       )}
     </div>

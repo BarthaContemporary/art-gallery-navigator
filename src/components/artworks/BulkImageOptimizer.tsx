@@ -1,162 +1,178 @@
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Image, CheckCircle, AlertCircle, Loader2, Users } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useBulkImageProcessing } from "@/hooks/use-bulk-image-processing";
-import { useAuth } from "@/hooks/use-auth";
+import { useImageDiagnostics } from "@/hooks/use-image-diagnostics";
+import { Wand2, Search, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 
 export function BulkImageOptimizer() {
-  const { isAdmin } = useAuth();
-  const { progress, processAllImages, getUnprocessedCount } = useBulkImageProcessing();
-  const [unprocessedCount, setUnprocessedCount] = useState<number>(0);
+  const [diagnosticsResult, setDiagnosticsResult] = useState<any>(null);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  
+  const {
+    isProcessing,
+    progress,
+    processAllImages,
+    currentOperation,
+    results
+  } = useBulkImageProcessing();
 
-  useEffect(() => {
-    const loadUnprocessedCount = async () => {
-      const count = await getUnprocessedCount();
-      setUnprocessedCount(count);
-    };
-    
-    loadUnprocessedCount();
-  }, [getUnprocessedCount, progress.isRunning]);
+  const { diagnoseImageUrls, triggerBatchProcessing } = useImageDiagnostics();
 
-  if (!isAdmin) {
-    return null;
-  }
+  const handleDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    const result = await diagnoseImageUrls();
+    setDiagnosticsResult(result);
+    setIsRunningDiagnostics(false);
+  };
 
-  const artworkProgressPercentage = progress.total > 0 ? 
-    Math.round(((progress.processed + progress.failed) / progress.total) * 100) : 0;
-
-  const artistProgressPercentage = (progress.artistsTotal || 0) > 0 ? 
-    Math.round((((progress.artistsProcessed || 0) + (progress.artistsFailed || 0)) / (progress.artistsTotal || 0)) * 100) : 0;
-
-  const totalImages = progress.total + (progress.artistsTotal || 0);
-  const totalProcessed = progress.processed + (progress.artistsProcessed || 0);
-  const totalFailed = progress.failed + (progress.artistsFailed || 0);
-  const overallProgressPercentage = totalImages > 0 ? 
-    Math.round(((totalProcessed + totalFailed) / totalImages) * 100) : 0;
+  const handleBatchFix = async () => {
+    if (diagnosticsResult?.issues) {
+      const totalIssues = diagnosticsResult.issues.missingCloudinary + diagnosticsResult.issues.unprocessed;
+      await triggerBatchProcessing(Math.min(totalIssues, 20)); // Limit to 20 at once
+    }
+  };
 
   return (
-    <Card className="w-full max-w-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Wand2 className="h-5 w-5" />
-          Bulk Image Optimization
-        </CardTitle>
-        <CardDescription>
-          Optimize existing artwork images and artist profile photos through Cloudinary for better performance and quality
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image className="h-4 w-4" />
-            <span className="text-sm font-medium">Unprocessed Images:</span>
-          </div>
-          <Badge variant={unprocessedCount > 0 ? "destructive" : "secondary"}>
-            {unprocessedCount}
-          </Badge>
-        </div>
+    <div className="space-y-6">
+      {/* Diagnostics Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Image Diagnostics
+          </CardTitle>
+          <CardDescription>
+            Check for image loading issues and broken Cloudinary URLs
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button 
+            onClick={handleDiagnostics}
+            disabled={isRunningDiagnostics}
+            variant="outline"
+            className="w-full"
+          >
+            {isRunningDiagnostics ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Running Diagnostics...
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4 mr-2" />
+                Run Image Diagnostics
+              </>
+            )}
+          </Button>
 
-        {progress.isRunning && (
-          <div className="space-y-4">
-            {/* Overall Progress */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Overall Progress</span>
-                <span>{overallProgressPercentage}%</span>
+          {diagnosticsResult && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 bg-muted/50 rounded">
+                  <div className="text-2xl font-bold">{diagnosticsResult.totalChecked}</div>
+                  <div className="text-sm text-muted-foreground">Images Checked</div>
+                </div>
+                <div className="text-center p-3 bg-muted/50 rounded">
+                  <div className="text-2xl font-bold text-red-600">
+                    {diagnosticsResult.issues.missingCloudinary + diagnosticsResult.issues.malformed}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Issues Found</div>
+                </div>
               </div>
-              <Progress value={overallProgressPercentage} className="w-full" />
-            </div>
 
-            {/* Artwork Images Progress */}
-            {progress.total > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1">
-                    <Image className="h-3 w-3" />
-                    Artwork Images
-                  </span>
-                  <span>{artworkProgressPercentage}%</span>
-                </div>
-                <Progress value={artworkProgressPercentage} className="w-full h-2" />
+                {diagnosticsResult.issues.missingCloudinary > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Missing Cloudinary URLs</span>
+                    <Badge variant="destructive">{diagnosticsResult.issues.missingCloudinary}</Badge>
+                  </div>
+                )}
+                {diagnosticsResult.issues.unprocessed > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Unprocessed Images</span>
+                    <Badge variant="secondary">{diagnosticsResult.issues.unprocessed}</Badge>
+                  </div>
+                )}
+                {diagnosticsResult.issues.malformed > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Malformed URLs</span>
+                    <Badge variant="destructive">{diagnosticsResult.issues.malformed}</Badge>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* Artist Profile Images Progress */}
-            {(progress.artistsTotal || 0) > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    Artist Profiles
-                  </span>
-                  <span>{artistProgressPercentage}%</span>
-                </div>
-                <Progress value={artistProgressPercentage} className="w-full h-2" />
-              </div>
-            )}
-            
-            {progress.current && (
-              <p className="text-xs text-muted-foreground">{progress.current}</p>
-            )}
-            
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-green-500" />
-                  <span className="text-xs text-muted-foreground">Processed</span>
-                </div>
-                <div className="text-sm font-medium">
-                  {totalProcessed}
-                  {progress.isRunning && totalImages > 0 && (
-                    <span className="text-xs text-muted-foreground">/{totalImages}</span>
-                  )}
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-1">
-                  <AlertCircle className="h-3 w-3 text-red-500" />
-                  <span className="text-xs text-muted-foreground">Failed</span>
-                </div>
-                <div className="text-sm font-medium">{totalFailed}</div>
-              </div>
+              {(diagnosticsResult.issues.missingCloudinary > 0 || diagnosticsResult.issues.unprocessed > 0) && (
+                <Button 
+                  onClick={handleBatchFix}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Fix Issues Automatically
+                </Button>
+              )}
             </div>
-          </div>
-        )}
-
-        <Button
-          onClick={processAllImages}
-          disabled={progress.isRunning || unprocessedCount === 0}
-          className="w-full"
-          size="lg"
-        >
-          {progress.isRunning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Optimizing Images...
-            </>
-          ) : (
-            <>
-              <Wand2 className="mr-2 h-4 w-4" />
-              {unprocessedCount > 0 
-                ? `Optimize ${unprocessedCount} Images` 
-                : 'All Images Optimized'
-              }
-            </>
           )}
-        </Button>
+        </CardContent>
+      </Card>
 
-        {unprocessedCount === 0 && !progress.isRunning && (
-          <div className="text-center text-sm text-green-600 flex items-center justify-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            All artwork and artist profile images have been optimized through Cloudinary
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <Separator />
+
+      {/* Existing Bulk Processing Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wand2 className="h-5 w-5" />
+            Bulk Image Optimization
+          </CardTitle>
+          <CardDescription>
+            Process and optimize all artwork images with Cloudinary
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button 
+            onClick={processAllImages}
+            disabled={isProcessing}
+            className="w-full"
+          >
+            {isProcessing ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Processing Images...
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4 mr-2" />
+                Start Bulk Optimization
+              </>
+            )}
+          </Button>
+
+          {isProcessing && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span>{currentOperation}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} className="w-full" />
+            </div>
+          )}
+
+          {results && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                Processing complete: {results.successful} successful, {results.failed} failed
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
