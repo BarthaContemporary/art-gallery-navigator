@@ -1,11 +1,14 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
+import { MessageCircle } from 'lucide-react';
+import { useChat } from '@/hooks/chat/use-chat';
+import { useChatMessages } from '@/hooks/chat/use-chat-messages';
 import { useAuth } from '@/hooks/use-auth';
-import { formatDistanceToNow } from 'date-fns';
+import { ChatRoom } from '@/hooks/chat/types';
+import { format } from 'date-fns';
 
 interface ChatRoomsListProps {
   onSelectRoom: (room: ChatRoom) => Promise<void>;
@@ -13,100 +16,100 @@ interface ChatRoomsListProps {
 }
 
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
+  const { chatRooms } = useChat();
   const { user } = useAuth();
-  const { chatRooms, fetchChatRooms } = useChat();
+  const { getUnreadCount } = useChatMessages(user?.id);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (user) {
-      fetchChatRooms();
-    }
-  }, [user, fetchChatRooms]);
+    const updateUnreadCounts = async () => {
+      const counts: Record<string, number> = {};
+      
+      for (const room of chatRooms) {
+        const count = await getUnreadCount(room.id);
+        counts[room.id] = count;
+      }
+      
+      setUnreadCounts(counts);
+    };
 
-  const getOtherParticipant = (room: ChatRoom) => {
-    if (room.participant_1_id === user?.id) {
-      return room.participant_2_profile;
+    if (chatRooms.length > 0) {
+      updateUnreadCounts();
     }
-    return room.participant_1_profile;
-  };
-
-  const formatLastMessageTime = (timestamp: string) => {
-    try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch (error) {
-      return '';
-    }
-  };
+  }, [chatRooms, getUnreadCount]);
 
   if (chatRooms.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full p-8">
-        <div className="text-center">
-          <p className="text-gray-500 text-sm">No conversations yet</p>
-          <p className="text-gray-400 text-xs mt-1">Start chatting with someone online!</p>
+      <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+          <MessageCircle className="h-6 w-6 text-muted-foreground" />
         </div>
+        <h3 className="font-medium mb-2">No conversations yet</h3>
+        <p className="text-sm text-muted-foreground">
+          Start a conversation with someone from the online users list
+        </p>
       </div>
     );
   }
 
   return (
     <ScrollArea className="flex-1">
-      <div className="p-2">
+      <div className="p-4 space-y-1">
+        <h3 className="font-medium text-sm text-muted-foreground mb-3">
+          Recent Conversations
+        </h3>
+        
         {chatRooms.map((room) => {
-          const otherParticipant = getOtherParticipant(room);
+          const otherParticipant = room.participant_1_id === user?.id 
+            ? room.participant_2_profile 
+            : room.participant_1_profile;
+          
+          const participantName = otherParticipant?.display_name || 'Unknown User';
+          const participantInitials = participantName.split(' ').map(n => n[0]).join('').toUpperCase();
+          const unreadCount = unreadCounts[room.id] || 0;
+          
+          const lastMessage = room.last_message;
+          const lastMessagePreview = lastMessage?.message_type === 'image' 
+            ? '📷 Image' 
+            : lastMessage?.encrypted_content || 'No messages yet';
+          
           const isSelected = selectedRoomId === room.id;
-          const hasUnread = (room.unread_count || 0) > 0;
-
+          
           return (
             <div
               key={room.id}
               onClick={() => onSelectRoom(room)}
-              className={`
-                p-3 rounded-lg cursor-pointer transition-colors mb-2
-                ${isSelected 
-                  ? 'bg-blue-100 border border-blue-200' 
-                  : 'hover:bg-gray-50 border border-transparent'
-                }
-              `}
+              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                isSelected 
+                  ? 'bg-primary/10 border border-primary/20' 
+                  : 'hover:bg-muted/50'
+              }`}
             >
-              <div className="flex items-start gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={otherParticipant?.avatar_url} />
-                  <AvatarFallback>
-                    {otherParticipant?.display_name?.charAt(0)?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <h3 className={`font-medium text-sm truncate ${hasUnread ? 'font-semibold' : ''}`}>
-                        {otherParticipant?.display_name || 'Unknown User'}
-                      </h3>
-                      {room.last_message_at && (
-                        <span className="text-xs text-gray-500 mt-0.5">
-                          {formatLastMessageTime(room.last_message_at)}
-                        </span>
-                      )}
-                    </div>
-                    {hasUnread && (
-                      <Badge variant="default" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs ml-2">
-                        {room.unread_count}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="mt-1">
-                    {room.last_message ? (
-                      <p className={`text-sm text-gray-600 truncate ${hasUnread ? 'font-medium' : ''}`}>
-                        {room.last_message.message_type === 'text' 
-                          ? (room.last_message.encrypted_content ? 'New message' : 'Message')
-                          : `${room.last_message.message_type} message`
-                        }
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-400 italic">Start the conversation...</p>
-                    )}
-                  </div>
+              <Avatar className="h-12 w-12 flex-shrink-0">
+                <AvatarImage src={otherParticipant?.avatar_url} />
+                <AvatarFallback>{participantInitials}</AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-medium text-sm truncate">{participantName}</p>
+                  {room.last_message_at && (
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {format(new Date(room.last_message_at), 'MMM d')}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground truncate">
+                    {lastMessagePreview}
+                  </p>
+                  
+                  {unreadCount > 0 && (
+                    <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>

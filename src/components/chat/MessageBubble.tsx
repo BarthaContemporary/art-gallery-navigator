@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { format } from 'date-fns';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatMessage } from '@/hooks/chat/types';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { format } from 'date-fns';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -10,30 +10,52 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
-  const isMobile = useIsMobile();
-  
-  // Use content if available, otherwise fallback to encrypted_content (which now contains plain text)
-  const messageContent = message.content || message.encrypted_content || '[No content]';
-  
+  const senderName = message.sender_profile?.display_name || 'Unknown User';
+  const senderInitials = senderName.split(' ').map(n => n[0]).join('').toUpperCase();
+
+  const isImage = message.message_type === 'image';
+  const content = message.decrypted_content || message.content || message.encrypted_content;
+
   return (
-    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] ${isMobile ? 'max-w-[85%]' : ''}`}>
-        <div
-          className={`rounded-lg px-3 py-2 ${
-            isOwn
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-gray-100 text-gray-900'
-          }`}
-        >
-          <p className="text-sm whitespace-pre-wrap break-words">
-            {messageContent}
-          </p>
-        </div>
-        <div className={`mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
-          <span className="text-xs text-gray-500">
-            {format(new Date(message.created_at), 'HH:mm')}
+    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+      {!isOwn && (
+        <Avatar className="h-8 w-8 flex-shrink-0">
+          <AvatarImage src={message.sender_profile?.avatar_url} />
+          <AvatarFallback className="text-xs">{senderInitials}</AvatarFallback>
+        </Avatar>
+      )}
+      
+      <div className={`flex flex-col max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
+        {!isOwn && (
+          <span className="text-xs text-muted-foreground mb-1">
+            {senderName}
           </span>
+        )}
+        
+        <div className={`rounded-lg px-3 py-2 ${
+          isOwn 
+            ? 'bg-primary text-primary-foreground' 
+            : 'bg-muted'
+        }`}>
+          {isImage ? (
+            <div className="space-y-2">
+              <img 
+                src={content} 
+                alt="Shared image" 
+                className="rounded-md max-w-full h-auto max-h-64 object-contain cursor-pointer"
+                onClick={() => window.open(content, '_blank')}
+              />
+            </div>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap break-words">
+              {content}
+            </p>
+          )}
         </div>
+        
+        <span className="text-xs text-muted-foreground mt-1">
+          {format(new Date(message.created_at), 'HH:mm')}
+        </span>
       </div>
     </div>
   );

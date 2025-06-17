@@ -15,10 +15,14 @@ export function useChatMessages(userId?: string) {
     if (!userId) return;
 
     try {
+      // First, cleanup old messages (older than 1 week)
+      await supabase.rpc('cleanup_old_chat_messages_weekly');
+
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('room_id', roomId)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Only messages from last week
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -51,14 +55,14 @@ export function useChatMessages(userId?: string) {
         profilesMap.set(profile.id, profile);
       });
 
-      // Transform messages with profile data (encrypted_content field now contains plain text)
+      // Transform messages with profile data
       const transformedMessages = data.map(message => {
         const senderProfile = profilesMap.get(message.sender_id);
         
         return {
           ...message,
-          decrypted_content: message.encrypted_content, // encrypted_content now contains plain text
-          content: message.encrypted_content, // Also set content for compatibility
+          decrypted_content: message.encrypted_content,
+          content: message.encrypted_content,
           sender_profile: senderProfile ? {
             display_name: senderProfile.display_name || 'Unknown User',
             avatar_url: senderProfile.avatar_url
@@ -73,7 +77,7 @@ export function useChatMessages(userId?: string) {
     }
   };
 
-  // Send message (plain text - no encryption)
+  // Send message (support text and image types)
   const sendMessage = async (content: string, roomId: string, type: 'text' | 'file' | 'image' = 'text') => {
     if (!userId || !content.trim()) {
       console.error('Missing userId or empty content');
@@ -83,15 +87,14 @@ export function useChatMessages(userId?: string) {
     setSending(true);
     
     try {
-      console.log('Sending message:', { content: content.substring(0, 50), roomId, userId });
+      console.log('Sending message:', { content: content.substring(0, 50), roomId, userId, type });
       
-      // Store plain text directly in encrypted_content field (field name kept for database compatibility)
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           sender_id: userId,
-          encrypted_content: content, // Now storing plain text
+          encrypted_content: content,
           message_type: type,
         })
         .select()
@@ -123,7 +126,31 @@ export function useChatMessages(userId?: string) {
     }
   };
 
-  // Set up real-time subscription for messages (plain text - no decryption needed)
+  // Mark messages as read and update counters
+  const markMessagesAsRead = async (roomId: string) => {
+    if (!userId) return;
+
+    try {
+      const { data: unreadMessages, error } = await supabase
+        .from('chat_messages')
+        .select('id')
+        .eq('room_id', roomId)
+        .not('read_by', 'cs', `{${userId}}`);
+
+      if (error) throw error;
+
+      for (const message of unreadMessages || []) {
+        await supabase.rpc('mark_message_as_read', {
+          message_id: message.id,
+          reader_id: userId
+        });
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
+  // Set up real-time subscription for messages
   const subscribeToMessages = async (roomId: string) => {
     // Clean up existing subscription
     if (messagesChannel.current) {
@@ -148,11 +175,11 @@ export function useChatMessages(userId?: string) {
             .eq('id', newMessage.sender_id)
             .single();
 
-          // Transform message with profile data (encrypted_content field now contains plain text)
+          // Transform message with profile data
           const transformedMessage = {
             ...newMessage,
-            decrypted_content: newMessage.encrypted_content, // encrypted_content now contains plain text
-            content: newMessage.encrypted_content, // Also set content for compatibility
+            decrypted_content: newMessage.encrypted_content,
+            content: newMessage.encrypted_content,
             sender_profile: senderProfile ? {
               display_name: senderProfile.display_name || 'Unknown User',
               avatar_url: senderProfile.avatar_url
@@ -197,6 +224,43 @@ export function useChatMessages(userId?: string) {
       .subscribe();
   };
 
+  // Get unread count for a specific room
+  const getUnreadCount = async (roomId: string): Promise<number> => {
+    if (!userId) return 0;
+
+    try {
+      const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', roomId)
+        .neq('sender_id', userId)
+        .not('read_by', 'cs', `{${userId}}`);
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      return 0;
+    }
+  };
+
+  // Get total unread count across all rooms
+  const getTotalUnreadCount = async (): Promise<number> => {
+    if (!userId) return 0;
+
+    try {
+      const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .neq('sender_id', userId)
+        .not('read_by', 'cs', `{${userId}}`);
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting total unread count:', error);
+      return 0;
+    }
+  };
+
   // Cleanup function
   const cleanup = () => {
     if (messagesChannel.current) {
@@ -221,6 +285,9 @@ export function useChatMessages(userId?: string) {
     fetchMessages,
     sendMessage,
     subscribeToMessages,
+    markMessagesAsRead,
+    getUnreadCount,
+    getTotalUnreadCount,
     cleanup,
     clearCache,
   };

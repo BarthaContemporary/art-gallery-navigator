@@ -2,10 +2,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft } from 'lucide-react';
-import { ChatRoom } from '@/hooks/chat/use-chat';
+import { ArrowLeft, Circle } from 'lucide-react';
+import { ChatRoom } from '@/hooks/chat/types';
 import { useAuth } from '@/hooks/use-auth';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ChatHeaderProps {
   room: ChatRoom;
@@ -14,20 +13,23 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const isMobile = useIsMobile();
-
+  
+  // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
     ? room.participant_2_profile 
     : room.participant_1_profile;
 
+  const participantName = otherParticipant?.display_name || 'Unknown User';
+  const participantInitials = participantName.split(' ').map(n => n[0]).join('').toUpperCase();
+
   return (
-    <div className="p-4 border-b bg-white flex items-center space-x-3">
-      {isMobile && onBack && (
+    <div className="flex items-center gap-3 p-4 border-b bg-white">
+      {onBack && (
         <Button
           variant="ghost"
           size="icon"
           onClick={onBack}
-          className="shrink-0"
+          className="h-8 w-8"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -35,16 +37,15 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
       
       <Avatar className="h-8 w-8">
         <AvatarImage src={otherParticipant?.avatar_url} />
-        <AvatarFallback>
-          {otherParticipant?.display_name?.slice(0, 2).toUpperCase() || 'U'}
-        </AvatarFallback>
+        <AvatarFallback className="text-xs">{participantInitials}</AvatarFallback>
       </Avatar>
       
       <div className="flex-1">
-        <h3 className="font-semibold text-sm">
-          {otherParticipant?.display_name || 'Unknown User'}
-        </h3>
-        <p className="text-xs text-gray-500">Online</p>
+        <h3 className="font-semibold text-sm">{participantName}</h3>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Circle className="h-2 w-2 fill-green-500 text-green-500" />
+          <span>Online</span>
+        </div>
       </div>
     </div>
   );

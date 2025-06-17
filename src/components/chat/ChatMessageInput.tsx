@@ -1,63 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
+import { ChatImageUpload } from './ChatImageUpload';
 
 interface ChatMessageInputProps {
-  onSendMessage: (message: string) => Promise<void>;
+  onSendMessage: (message: string, type?: 'text' | 'image') => Promise<void>;
   sending: boolean;
 }
 
 export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputProps) {
-  const [newMessage, setNewMessage] = useState('');
+  const [message, setMessage] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
-
-    const messageToSend = newMessage.trim();
-    setNewMessage('');
+  const handleSend = async () => {
+    if (!message.trim() || sending) return;
+    
+    const messageToSend = message.trim();
+    setMessage('');
     
     try {
-      await onSendMessage(messageToSend);
+      await onSendMessage(messageToSend, 'text');
     } catch (error) {
-      // If sending fails, restore the message
-      setNewMessage(messageToSend);
-      console.error('Failed to send message:', error);
+      console.error('Error sending message:', error);
+      setMessage(messageToSend); // Restore message on error
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleImageSend = async (imageUrl: string) => {
+    try {
+      await onSendMessage(imageUrl, 'image');
+    } catch (error) {
+      console.error('Error sending image:', error);
+    }
+  };
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage(e);
+      handleSend();
     }
   };
 
   return (
-    <div className="p-4 border-t bg-white">
-      <form onSubmit={handleSendMessage} className="flex space-x-2">
-        <Input
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type a message..."
-          disabled={sending}
-          className="flex-1"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!newMessage.trim() || sending}
-        >
-          {sending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </Button>
-      </form>
+    <div className="border-t p-4 bg-white">
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type a message..."
+            className="min-h-[40px] max-h-32 resize-none"
+            disabled={sending}
+          />
+        </div>
+        
+        <div className="flex gap-1">
+          <ChatImageUpload 
+            onImageSelect={handleImageSend}
+            disabled={sending}
+          />
+          
+          <Button
+            onClick={handleSend}
+            disabled={!message.trim() || sending}
+            size="icon"
+            className="h-10 w-10"
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

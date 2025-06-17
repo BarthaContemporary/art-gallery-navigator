@@ -1,16 +1,37 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle } from 'lucide-react';
+import { useChatMessages } from '@/hooks/chat/use-chat-messages';
+import { useAuth } from '@/hooks/use-auth';
 
 interface ChatPopupButtonProps {
   onClick: () => void;
-  unreadCount?: number;
   isOpen: boolean;
 }
 
-export function ChatPopupButton({ onClick, unreadCount = 0, isOpen }: ChatPopupButtonProps) {
+export function ChatPopupButton({ onClick, isOpen }: ChatPopupButtonProps) {
+  const { user } = useAuth();
+  const { getTotalUnreadCount } = useChatMessages(user?.id);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const updateUnreadCount = async () => {
+      if (user?.id) {
+        const count = await getTotalUnreadCount();
+        setUnreadCount(count);
+      }
+    };
+
+    updateUnreadCount();
+    
+    // Update unread count every 30 seconds
+    const interval = setInterval(updateUnreadCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, [user?.id, getTotalUnreadCount]);
+
   return (
     <Button
       onClick={onClick}

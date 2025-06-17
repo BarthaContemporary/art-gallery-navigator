@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../use-auth';
 import { useChatPresence } from './use-chat-presence';
@@ -14,7 +15,7 @@ export function useChat() {
 
   const { onlineUsers, fetchOnlineUsers } = useChatPresence(user?.id);
   const { chatRooms, fetchChatRooms, startChatWithUser } = useChatRooms(user?.id);
-  const { messages, sending, fetchMessages, sendMessage, subscribeToMessages, cleanup } = useChatMessages(user?.id);
+  const { messages, sending, fetchMessages, sendMessage, subscribeToMessages, cleanup, markMessagesAsRead } = useChatMessages(user?.id);
 
   // Set active room and fetch messages
   const setActiveRoomAndFetchMessages = async (room: ChatRoom) => {
@@ -22,6 +23,8 @@ export function useChat() {
     setLoading(true);
     await fetchMessages(room.id);
     await subscribeToMessages(room.id);
+    // Mark messages as read when entering the room
+    await markMessagesAsRead(room.id);
     setLoading(false);
   };
 
@@ -73,6 +76,6 @@ export function useChat() {
     sendMessage: sendMessageToActiveRoom,
     fetchChatRooms,
     fetchOnlineUsers,
-    clearAllChatCache, // Add the comprehensive cache clearing function
+    clearAllChatCache,
   };
 }
