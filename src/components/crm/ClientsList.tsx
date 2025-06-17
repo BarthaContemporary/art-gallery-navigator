@@ -20,6 +20,8 @@ interface ClientsListProps {
   statusFilter: string;
 }
 
+type ClientStatus = 'active' | 'inactive' | 'prospect' | 'lead' | 'customer';
+
 export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [editingClient, setEditingClient] = useState<any>(null);
@@ -34,7 +36,7 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
       }
 
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as ClientStatus);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });

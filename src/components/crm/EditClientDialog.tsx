@@ -1,18 +1,22 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export function CreateClientDialog() {
-  const [open, setOpen] = useState(false);
+interface EditClientDialogProps {
+  client: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function EditClientDialog({ client, open, onOpenChange }: EditClientDialogProps) {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -28,32 +32,40 @@ export function CreateClientDialog() {
 
   const queryClient = useQueryClient();
 
-  const createClientMutation = useMutation({
+  useEffect(() => {
+    if (client) {
+      setFormData({
+        full_name: client.full_name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        company: client.company || '',
+        website: client.website || '',
+        status: client.status || 'prospect',
+        client_type: client.client_type || 'collector',
+        address: client.address || '',
+        notes: client.notes || '',
+        source: client.source || ''
+      });
+    }
+  }, [client]);
+
+  const updateClientMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from('clients').insert(data);
+      const { error } = await supabase
+        .from('clients')
+        .update(data)
+        .eq('id', client.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Client created successfully');
+      toast.success('Client updated successfully');
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['crm-stats'] });
-      setOpen(false);
-      setFormData({
-        full_name: '',
-        email: '',
-        phone: '',
-        company: '',
-        website: '',
-        status: 'prospect',
-        client_type: 'collector',
-        address: '',
-        notes: '',
-        source: ''
-      });
+      onOpenChange(false);
     },
     onError: (error) => {
-      toast.error('Failed to create client');
-      console.error('Error creating client:', error);
+      toast.error('Failed to update client');
+      console.error('Error updating client:', error);
     }
   });
 
@@ -63,20 +75,16 @@ export function CreateClientDialog() {
       toast.error('Full name is required');
       return;
     }
-    createClientMutation.mutate(formData);
+    updateClientMutation.mutate(formData);
   };
 
+  if (!client) return null;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Client
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Client</DialogTitle>
+          <DialogTitle>Edit Client</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -192,11 +200,11 @@ export function CreateClientDialog() {
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createClientMutation.isPending}>
-              {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
+            <Button type="submit" disabled={updateClientMutation.isPending}>
+              {updateClientMutation.isPending ? 'Updating...' : 'Update Client'}
             </Button>
           </div>
         </form>
