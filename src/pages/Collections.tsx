@@ -24,10 +24,8 @@ export default function Collections() {
               variant="outline" 
               size="sm" 
               onClick={handleManageAllWebsites}
-              className="flex gap-2"
             >
               <Globe className="h-4 w-4" />
-              Manage All Websites
             </Button>
           )}
         </div>
