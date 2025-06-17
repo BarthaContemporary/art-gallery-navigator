@@ -11,7 +11,7 @@ export interface Artist {
   image_url: string | null;
   representation_status: string;
   surname_first_letter: string | null;
-  user_id?: string; // Added user_id
+  user_id?: string;
 }
 
 export function useArtists() {
@@ -20,7 +20,7 @@ export function useArtists() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('artists')
-        .select('id, full_name, surname_first_letter, user_id') // Added user_id to select
+        .select('id, full_name, surname_first_letter, user_id, representation_status')
         .order('surname_first_letter', { ascending: true })
         .order('full_name', { ascending: true });
       if (error) throw error;

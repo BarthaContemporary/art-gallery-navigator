@@ -73,7 +73,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
+        <PopoverContent className="w-[400px] p-0" align="start">
           <Command>
             <CommandInput placeholder="Search artists..." />
             <div className="p-2 border-b">
@@ -123,7 +123,7 @@ export function ArtistMultiSelect({ selectedArtists, onArtistsChange }: ArtistMu
       </Popover>
       
       {selectedArtists.length > 0 && (
-        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 border rounded-md bg-muted/30">
           {getSelectedArtistNames().map((name, index) => {
             const artistId = selectedArtists[index];
             return (
