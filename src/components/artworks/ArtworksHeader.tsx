@@ -38,12 +38,12 @@ export function ArtworksHeader({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         {isAdmin && <CreateArtworkDialog />}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
         {isAdmin && (
           <>
             <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
