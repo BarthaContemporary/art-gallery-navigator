@@ -28,6 +28,9 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
   const [editingClient, setEditingClient] = useState<any>(null);
   const queryClient = useQueryClient();
 
+  // Campaign Monitor Client ID
+  const CAMPAIGN_MONITOR_CLIENT_ID = "129353";
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients', searchTerm, statusFilter],
     queryFn: async () => {
@@ -62,6 +65,7 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
         body: JSON.stringify({
           action: 'sync_client',
           clientId,
+          campaignMonitorClientId: CAMPAIGN_MONITOR_CLIENT_ID,
           listId: 'main-list'
         }),
       });

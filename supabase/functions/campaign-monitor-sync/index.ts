@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -47,7 +46,7 @@ serve(async (req) => {
       return new Response('Forbidden', { status: 403 })
     }
 
-    const { action, clientId, listId } = await req.json()
+    const { action, clientId, listId, campaignMonitorClientId } = await req.json()
 
     // Get Campaign Monitor API key
     const campaignMonitorApiKey = Deno.env.get('CAMPAIGN_MONITOR_API_KEY')
@@ -57,11 +56,11 @@ serve(async (req) => {
 
     switch (action) {
       case 'sync_client':
-        return await syncClientToCampaignMonitor(supabaseClient, campaignMonitorApiKey, clientId, listId)
+        return await syncClientToCampaignMonitor(supabaseClient, campaignMonitorApiKey, clientId, listId, campaignMonitorClientId)
       case 'get_lists':
-        return await getCampaignMonitorLists(campaignMonitorApiKey)
+        return await getCampaignMonitorLists(campaignMonitorApiKey, campaignMonitorClientId)
       case 'sync_all_clients':
-        return await syncAllClients(supabaseClient, campaignMonitorApiKey, listId)
+        return await syncAllClients(supabaseClient, campaignMonitorApiKey, listId, campaignMonitorClientId)
       default:
         return new Response('Invalid action', { status: 400 })
     }
@@ -72,7 +71,7 @@ serve(async (req) => {
   }
 })
 
-async function syncClientToCampaignMonitor(supabaseClient: any, apiKey: string, clientId: string, listId: string) {
+async function syncClientToCampaignMonitor(supabaseClient: any, apiKey: string, clientId: string, listId: string, campaignMonitorClientId: string) {
   try {
     // Get client data
     const { data: client, error: clientError } = await supabaseClient
@@ -98,12 +97,13 @@ async function syncClientToCampaignMonitor(supabaseClient: any, apiKey: string, 
       ]
     }
 
-    // Add subscriber to Campaign Monitor list
+    // Add subscriber to Campaign Monitor list using the client ID
     const response = await fetch(`https://api.createsend.com/api/v3.3/subscribers/${listId}.json`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${btoa(apiKey + ':x')}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Client-Id': campaignMonitorClientId
       },
       body: JSON.stringify(subscriberData)
     })
@@ -145,24 +145,30 @@ async function syncClientToCampaignMonitor(supabaseClient: any, apiKey: string, 
   }
 }
 
-async function getCampaignMonitorLists(apiKey: string) {
+async function getCampaignMonitorLists(apiKey: string, campaignMonitorClientId: string) {
   try {
-    // This would need the client ID from Campaign Monitor
-    // For now, return a placeholder response
-    const lists = [
-      { ListID: 'sample-list-id', Name: 'Main Newsletter' }
-    ]
-
-    return new Response(JSON.stringify(lists), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    const response = await fetch(`https://api.createsend.com/api/v3.3/clients/${campaignMonitorClientId}/lists.json`, {
+      headers: {
+        'Authorization': `Basic ${btoa(apiKey + ':x')}`,
+        'Content-Type': 'application/json'
+      }
     })
+
+    if (response.ok) {
+      const lists = await response.json()
+      return new Response(JSON.stringify(lists), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    } else {
+      return new Response('Failed to fetch lists', { status: 500 })
+    }
   } catch (error) {
     console.error('Get lists error:', error)
     return new Response('Failed to fetch lists', { status: 500 })
   }
 }
 
-async function syncAllClients(supabaseClient: any, apiKey: string, listId: string) {
+async function syncAllClients(supabaseClient: any, apiKey: string, listId: string, campaignMonitorClientId: string) {
   try {
     const { data: clients, error } = await supabaseClient
       .from('clients')
@@ -194,7 +200,8 @@ async function syncAllClients(supabaseClient: any, apiKey: string, listId: strin
           method: 'POST',
           headers: {
             'Authorization': `Basic ${btoa(apiKey + ':x')}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Client-Id': campaignMonitorClientId
           },
           body: JSON.stringify(subscriberData)
         })

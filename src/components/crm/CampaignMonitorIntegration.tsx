@@ -12,6 +12,9 @@ export function CampaignMonitorIntegration() {
   const [isSyncing, setIsSyncing] = useState(false);
   const queryClient = useQueryClient();
 
+  // Campaign Monitor Client ID
+  const CAMPAIGN_MONITOR_CLIENT_ID = "129353";
+
   // Get sync status for all clients
   const { data: syncStats, isLoading } = useQuery({
     queryKey: ['campaign-monitor-sync-stats'],
@@ -49,6 +52,7 @@ export function CampaignMonitorIntegration() {
         body: JSON.stringify({
           action: 'sync_client',
           clientId,
+          campaignMonitorClientId: CAMPAIGN_MONITOR_CLIENT_ID,
           listId: 'main-list' // This should be configurable
         }),
       });
@@ -84,6 +88,7 @@ export function CampaignMonitorIntegration() {
         },
         body: JSON.stringify({
           action: 'sync_all_clients',
+          campaignMonitorClientId: CAMPAIGN_MONITOR_CLIENT_ID,
           listId: 'main-list' // This should be configurable
         }),
       });
@@ -143,6 +148,13 @@ export function CampaignMonitorIntegration() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Configuration Info */}
+        <div className="bg-blue-50 p-3 rounded-lg">
+          <div className="text-sm">
+            <strong>Client ID:</strong> {CAMPAIGN_MONITOR_CLIENT_ID}
+          </div>
+        </div>
+
         {/* Sync Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
@@ -179,7 +191,7 @@ export function CampaignMonitorIntegration() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Campaign Monitor integration syncs client data to your email lists. 
+            Campaign Monitor integration syncs client data to your email lists using Client ID {CAMPAIGN_MONITOR_CLIENT_ID}. 
             Make sure to configure your Campaign Monitor API key in the Supabase secrets.
           </AlertDescription>
         </Alert>
