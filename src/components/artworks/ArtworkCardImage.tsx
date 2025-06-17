@@ -30,7 +30,7 @@ export function ArtworkCardImage({
   return (
     <div
       className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
-      style={{ height: "256px" }}
+      style={{ height: "192px" }} // Reduced from 256px
     >
       <div
         className={`

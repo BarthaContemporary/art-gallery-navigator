@@ -23,7 +23,7 @@ interface ArtworkGridProps {
 const ArtworkCardErrorFallback = ({ artworkId }: { artworkId: string }) => (
   <div 
     className="group relative flex flex-col h-full border border-destructive bg-destructive/10 rounded-lg p-4 items-center justify-center text-center"
-    style={{ minHeight: '384px' }} // Match the height of normal cards
+    style={{ minHeight: '320px' }} // Reduced from 384px
     role="alert"
     aria-live="polite"
   >
@@ -33,8 +33,8 @@ const ArtworkCardErrorFallback = ({ artworkId }: { artworkId: string }) => (
   </div>
 );
 
-// Fixed card height: image 256px + info 170px + padding 32px
-const FIXED_CARD_HEIGHT = 458;
+// Reduced card height: image 192px (reduced from 256px) + info 170px + padding 32px
+const FIXED_CARD_HEIGHT = 394;
 
 function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkGridProps) {
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -148,9 +148,9 @@ function ArtworkGridComponent({ artworks, activeIndex, onScrollToTop }: ArtworkG
             )}
           </div>
           
-          {/* Fixed grid with consistent sizing */}
+          {/* Reduced grid gaps for tighter spacing */}
           <div 
-            className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10"
+            className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6"
             style={{ 
               contain: 'layout',
               gridTemplateRows: 'masonry' // If supported, otherwise falls back to normal grid
