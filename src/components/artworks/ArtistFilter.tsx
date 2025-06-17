@@ -24,7 +24,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
   if (isLoading) {
     return (
       <Select disabled>
-        <SelectTrigger className="w-full h-6 text-xs px-1.5 gap-1">
+        <SelectTrigger className="w-full h-5 text-xs px-1.5 gap-1">
           <Filter className="h-3 w-3 text-muted-foreground flex-shrink-0" />
           <SelectValue placeholder="Loading..." />
         </SelectTrigger>
@@ -34,7 +34,7 @@ export function ArtistFilter({ value, onChange }: ArtistFilterProps) {
 
   return (
     <Select value={value || "all"} onValueChange={handleValueChange}>
-      <SelectTrigger className="w-full h-6 text-xs px-1.5 gap-1">
+      <SelectTrigger className="w-full h-5 text-xs px-1.5 gap-1">
         <Filter className="h-3 w-3 text-muted-foreground flex-shrink-0" />
         <SelectValue placeholder="All Artists" />
       </SelectTrigger>
