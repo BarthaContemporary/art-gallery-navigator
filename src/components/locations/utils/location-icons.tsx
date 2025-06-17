@@ -17,6 +17,11 @@ export function getLocationIcon(type: string, className: string = "h-5 w-5") {
     case 'galleries':
       console.log('Using Building icon for gallery');
       return <Building {...iconProps} />;
+    case 'exhibition':
+    case 'exhibitions':
+    case 'exhibition space':
+      console.log('Using Building icon for exhibition');
+      return <Building {...iconProps} />;
     case 'studio':
     case 'studios':
     case 'art studio':
@@ -41,6 +46,10 @@ export function getLocationIcon(type: string, className: string = "h-5 w-5") {
     case 'transportation':
       console.log('Using Home icon for transit');
       return <Home {...iconProps} />;
+    case 'external':
+    case 'external location':
+      console.log('Using ExternalLink icon for external');
+      return <ExternalLink {...iconProps} />;
     default:
       console.log('Using default MapPin icon for type:', type);
       return <MapPin {...iconProps} />;
