@@ -19,7 +19,7 @@ interface DashboardStats {
   leads_count?: number;
   recent_client_activities?: Array<{
     type: 'client';
-    name: string;
+    title: string;
     status: string;
     timestamp: string;
     color: 'blue' | 'green' | 'yellow' | 'purple';
@@ -58,7 +58,7 @@ export function useDashboardStats() {
       let leadsCount = 0;
       let recentClientActivities: Array<{
         type: 'client';
-        name: string;
+        title: string;
         status: string;
         timestamp: string;
         color: 'blue' | 'green' | 'yellow' | 'purple';
@@ -93,10 +93,10 @@ export function useDashboardStats() {
         customersCount = clients.filter(c => c.status === 'customer').length;
         leadsCount = clients.filter(c => c.status === 'lead').length;
 
-        // Format recent client activities
+        // Format recent client activities with title instead of name
         recentClientActivities = (recentClientsResult.data || []).map(client => ({
           type: 'client' as const,
-          name: client.full_name,
+          title: client.full_name,
           status: client.status,
           timestamp: new Date(client.created_at).toISOString(),
           color: getStatusColor(client.status),
@@ -133,8 +133,15 @@ export function useDashboardStats() {
         color: 'blue' as const,
       }));
 
+      const clientActivitiesForFeed = recentClientActivities.map(activity => ({
+        type: activity.type,
+        title: activity.title,
+        timestamp: activity.timestamp,
+        color: activity.color,
+      }));
+
       const recent_activities = isAdmin 
-        ? [...artworkActivities, ...recentClientActivities].sort((a, b) => 
+        ? [...artworkActivities, ...clientActivitiesForFeed].sort((a, b) => 
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           ).slice(0, 5)
         : artworkActivities;
