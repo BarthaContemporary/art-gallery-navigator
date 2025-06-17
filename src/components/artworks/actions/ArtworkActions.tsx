@@ -34,12 +34,12 @@ export function ArtworkActions({ artwork, artist }: ArtworkActionsProps) {
     <div className="flex items-center gap-2">
       <Button
         variant="outline"
-        size="sm"
+        size="icon"
         onClick={handleGeneratePDF}
         disabled={isGenerating}
+        title={isGenerating ? "Generating PDF..." : "Create PDF"}
       >
-        <FileText className="h-4 w-4 mr-2" />
-        {isGenerating ? "Generating..." : "Create PDF"}
+        <FileText className="h-4 w-4" />
       </Button>
     </div>
   );

@@ -76,11 +76,11 @@ export function ArtworkOverviewDialog({
                 <div className="flex-shrink-0 flex items-center gap-2">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="icon"
                     onClick={handleEditClick}
+                    title="Edit Artwork"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
+                    <Edit className="h-4 w-4" />
                   </Button>
                   <ArtworkActions 
                     artwork={artwork}
