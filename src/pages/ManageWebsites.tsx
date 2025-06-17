@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,14 +76,16 @@ export default function ManageWebsites() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate("/collections")}
-          className="mb-4 flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Collections
-        </Button>
+        <div className="flex justify-end mb-4">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate("/collections")}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </div>
         
         <div className="flex items-center gap-2 mb-2">
           <Globe className="h-6 w-6" />
