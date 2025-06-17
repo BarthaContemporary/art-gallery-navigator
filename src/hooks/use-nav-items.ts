@@ -1,5 +1,5 @@
 
-import { Calendar, Users, Home, PaintBucket, FileText, MapPin, FolderOpen, MessageSquare, Building2, UserCheck } from "lucide-react";
+import { Calendar, Users, Home, PaintBucket, FileText, MapPin, FolderOpen, Building2, UserCheck, Settings } from "lucide-react";
 import { useAuth } from "./use-auth";
 
 export const useNavItems = () => {
@@ -7,6 +7,7 @@ export const useNavItems = () => {
 
   const baseItems = [
     { title: "Dashboard", href: "/", icon: Home },
+    ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
     { title: "Artists", href: "/artists", icon: Users },
     { title: "Collections", href: "/collections", icon: FolderOpen },
@@ -14,12 +15,8 @@ export const useNavItems = () => {
     { title: "Locations", href: "/locations", icon: MapPin },
     { title: "Projects", href: "/projects", icon: Building2 },
     { title: "Appointments", href: "/appointments", icon: Calendar },
-    { title: "Chat", href: "/chat", icon: MessageSquare }
+    ...(isAdmin ? [{ title: "Settings", href: "/profile", icon: Settings }] : [])
   ];
 
-  const adminItems = [
-    { title: "CRM", href: "/crm", icon: UserCheck }
-  ];
-
-  return isAdmin ? [...baseItems, ...adminItems] : baseItems;
+  return baseItems;
 };
