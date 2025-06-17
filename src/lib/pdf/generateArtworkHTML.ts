@@ -3,15 +3,16 @@ import { Artwork } from "@/hooks/use-artworks";
 import { baseStyles } from "./base-styles";
 import { getStationeryStyle, getStationeryBackgroundHTML } from "./stationery-utils";
 import { escapeHtml, preloadImage } from "./utils";
-import { artworkPdfStyles } from "./artwork-pdf-styles"; // New import
-import { generateArtworkDetails } from "./artwork-pdf-utils"; // New import
+import { artworkPdfStyles } from "./artwork-pdf-styles";
+import { generateArtworkDetails } from "./artwork-pdf-utils";
 
 /**
  * Generates complete HTML for artwork PDF
  */
 export async function generateArtworkHTML(
   artwork: Artwork,
-  useStationery: boolean = true 
+  useStationery: boolean = true,
+  artistName?: string // Add artistName parameter
 ): Promise<string> {
   console.log(`Generating HTML for artwork: ${artwork.title}, stationery: ${useStationery}`);
   
@@ -26,8 +27,6 @@ export async function generateArtworkHTML(
   
   // Preload stationery background if used
   if (useStationery) {
-    // Assuming the stationery image path is fixed or fetched from a config
-    // For consistency with collection PDF, let's use the explicit path
     try {
       await preloadImage("/lovable-uploads/4750cafe-beee-4766-b1f6-7d1a41bc1ac0.png");
       console.log("Stationery image preloaded for artwork PDF");
@@ -36,7 +35,8 @@ export async function generateArtworkHTML(
     }
   }
   
-  const artistName = escapeHtml(artwork.artist_name || 'Artist Name'); 
+  // Use the provided artistName, fallback to artwork.artist_name, then to 'Unknown Artist'
+  const resolvedArtistName = escapeHtml(artistName || artwork.artist_name || 'Unknown Artist'); 
     
   const stationerySpecificStyles = getStationeryStyle(useStationery); 
   const stationeryBackground = useStationery ? getStationeryBackgroundHTML() : ''; 
@@ -52,12 +52,9 @@ export async function generateArtworkHTML(
        </div>`
     : '<div class="artwork-image-container" style="height: 400px; display: flex; align-items: center; justify-content: flex-start; border: 1px dashed #ccc; margin-bottom: 1cm;"><p style="padding-left: 1cm;">No image available</p></div>'; 
   
-  const detailsHtml = generateArtworkDetails(artwork, artistName);
+  const detailsHtml = generateArtworkDetails(artwork, resolvedArtistName);
   
-  // Define content wrapper padding. This was part of the inline styles.
-  // If stationery is used, specific padding from stationeryStyles might apply,
-  // or a default can be set here. The original had 7cm top padding for content-wrapper.
-  const contentWrapperPadding = useStationery ? "padding: 7cm 2cm 2cm 2cm;" : "padding: 2cm;"; // Example default if no stationery
+  const contentWrapperPadding = useStationery ? "padding: 7cm 2cm 2cm 2cm;" : "padding: 2cm;";
 
   const html = `
     <!DOCTYPE html>
@@ -87,7 +84,7 @@ export async function generateArtworkHTML(
       ${stationeryBackground}
       
       <div class="content-wrapper">
-        <div class="artist-name-header">${artistName}</div>
+        <div class="artist-name-header">${resolvedArtistName}</div>
         
         ${artworkImageHtml}
         
@@ -102,5 +99,3 @@ export async function generateArtworkHTML(
   console.log("Artwork HTML generation complete");
   return html;
 }
-
-// The generateArtworkDetails function has been moved to ./artwork-pdf-utils.ts

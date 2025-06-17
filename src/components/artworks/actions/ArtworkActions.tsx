@@ -20,7 +20,10 @@ export function ArtworkActions({ artwork, artist }: ArtworkActionsProps) {
     
     setIsGenerating(true);
     try {
-      await createArtworkPDF(artwork, true);
+      // Pass the actual artist data to ensure proper name resolution
+      await createArtworkPDF(artwork, true, {
+        artistName: artist?.full_name // Pass the actual artist name
+      });
       toast.success("PDF generated successfully");
     } catch (error) {
       console.error("Error generating PDF:", error);
