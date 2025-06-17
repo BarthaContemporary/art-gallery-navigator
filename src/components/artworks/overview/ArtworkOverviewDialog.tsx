@@ -31,6 +31,8 @@ export function ArtworkOverviewDialog({
   const { data: location, isLoading: locationLoading } = useLocation(artwork.location_id);
   const { scrollContainerRef } = useScrollableDialog(open, { enableKeyboardNavigation: true });
 
+  const titleWithYear = artwork.year ? `${artwork.title}, ${artwork.year}` : artwork.title;
+
   return (
     <ScrollableDialog open={open} onOpenChange={onOpenChange}>
       <ScrollableDialogContent
@@ -53,7 +55,7 @@ export function ArtworkOverviewDialog({
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1 min-w-0">
                 <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
-                  {artwork.title}
+                  {titleWithYear}
                 </ScrollableDialogTitle>
                 <p className="text-muted-foreground mt-1 text-base">
                   {artistLoading ? (
@@ -83,4 +85,3 @@ export function ArtworkOverviewDialog({
     </ScrollableDialog>
   );
 }
-
