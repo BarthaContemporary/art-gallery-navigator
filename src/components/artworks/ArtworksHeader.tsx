@@ -43,12 +43,12 @@ export function ArtworksHeader({
         {isAdmin && <CreateArtworkDialog />}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 ml-auto">
         {isAdmin && (
           <>
             <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
                   <Wand2 className="h-4 w-4 mr-2" />
                   Optimize Images
                 </Button>
@@ -61,12 +61,14 @@ export function ArtworksHeader({
               </DialogContent>
             </Dialog>
 
-            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex">
               <FileDown className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
 
-            <ImportCSVDialog />
+            <div className="hidden sm:block">
+              <ImportCSVDialog />
+            </div>
           </>
         )}
         
