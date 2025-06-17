@@ -148,13 +148,6 @@ export function CampaignMonitorIntegration() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Configuration Info */}
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <div className="text-sm">
-            <strong>Client ID:</strong> {CAMPAIGN_MONITOR_CLIENT_ID}
-          </div>
-        </div>
-
         {/* Sync Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
