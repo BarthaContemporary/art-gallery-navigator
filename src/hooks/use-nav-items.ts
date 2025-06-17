@@ -15,7 +15,7 @@ export const useNavItems = () => {
     { title: "Locations", href: "/locations", icon: MapPin },
     { title: "Projects", href: "/projects", icon: Building2 },
     { title: "Appointments", href: "/appointments", icon: Calendar },
-    ...(isAdmin ? [{ title: "Settings", href: "/profile", icon: Settings }] : [])
+    ...(isAdmin ? [{ title: "Settings", href: "/settings", icon: Settings }] : [])
   ];
 
   return baseItems;
