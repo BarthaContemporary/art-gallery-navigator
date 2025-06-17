@@ -1,5 +1,5 @@
 
-import { Building2, Home, Warehouse, MapPin, Archive, Truck } from "lucide-react";
+import { Building, Home, Warehouse, MapPin, Palette, ExternalLink } from "lucide-react";
 
 export function getLocationIcon(type: string, className: string = "h-5 w-5") {
   const iconProps = {
@@ -8,19 +8,18 @@ export function getLocationIcon(type: string, className: string = "h-5 w-5") {
 
   switch (type.toLowerCase()) {
     case 'gallery':
-      return <Building2 {...iconProps} />;
+      return <Building {...iconProps} />;
     case 'studio':
-      return <Home {...iconProps} />;
+      return <Palette {...iconProps} />;
     case 'clients home':
     case 'client home':
     case 'home':
-      return <Home {...iconProps} />;
+      return <ExternalLink {...iconProps} />;
     case 'warehouse':
-      return <Warehouse {...iconProps} />;
     case 'storage':
-      return <Archive {...iconProps} />;
+      return <Warehouse {...iconProps} />;
     case 'transit':
-      return <Truck {...iconProps} />;
+      return <Home {...iconProps} />;
     default:
       return <MapPin {...iconProps} />;
   }
