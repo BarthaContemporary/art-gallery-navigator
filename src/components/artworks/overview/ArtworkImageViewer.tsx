@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ interface ArtworkImageViewerProps {
   artworkTitle?: string;
 }
 
+const ZOOM_LEVELS = [1, 1.5, 2, 3]; // 100%, 150%, 200%, 300%
+
 export function ArtworkImageViewer({
   artworkId,
   artistName: initialArtistName = "Unknown_Artist",
@@ -18,7 +21,7 @@ export function ArtworkImageViewer({
 }: ArtworkImageViewerProps) {
   const { data: artwork, isLoading: loading, error: queryError } = useArtwork(artworkId);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomLevelIndex, setZoomLevelIndex] = useState(0); // Index into ZOOM_LEVELS array
   const [imageLoading, setImageLoading] = useState(true);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState<{ x: number, y: number } | null>(null);
@@ -39,8 +42,8 @@ export function ArtworkImageViewer({
   const artistName = artwork?.artist_name || initialArtistName;
   const artworkTitle = artwork?.title || initialArtworkTitle;
 
-  // Increase zoom scale
-  const zoomScale = isZoomed ? 2.2 : 1; // 220%
+  const currentZoomLevel = ZOOM_LEVELS[zoomLevelIndex];
+  const isZoomed = currentZoomLevel > 1;
   const panEnabled = isZoomed && currentImage.image_url !== "/placeholder.svg";
 
   // Drag/pan handlers for zoomed image
@@ -74,6 +77,30 @@ export function ArtworkImageViewer({
   const goToNext = () => {
     setCurrentIndex(prev => prev === displayImages.length - 1 ? 0 : prev + 1);
     setImageOffset({ x: 0, y: 0 }); // reset pan
+  };
+
+  const handleZoomIn = () => {
+    if (zoomLevelIndex < ZOOM_LEVELS.length - 1) {
+      setZoomLevelIndex(prev => prev + 1);
+      setImageOffset({ x: 0, y: 0 }); // Reset offset when changing zoom
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (zoomLevelIndex > 0) {
+      setZoomLevelIndex(prev => prev - 1);
+      setImageOffset({ x: 0, y: 0 }); // Reset offset when changing zoom
+    }
+  };
+
+  const handleImageClick = () => {
+    // Cycle through zoom levels on click
+    if (zoomLevelIndex === ZOOM_LEVELS.length - 1) {
+      setZoomLevelIndex(0); // Reset to 100%
+    } else {
+      setZoomLevelIndex(prev => prev + 1);
+    }
+    setImageOffset({ x: 0, y: 0 });
   };
 
   const handleDownload = () => {
@@ -114,19 +141,36 @@ export function ArtworkImageViewer({
 
   return (
     <div className="relative w-full h-[60vh] bg-black/95 group">
-      {/* Controls: Move to Top-Left */}
+      {/* Controls: Zoom and Download buttons */}
       <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={e => {
             e.stopPropagation();
-            setIsZoomed(!isZoomed);
-            setImageOffset({ x: 0, y: 0 }); // Reset offset on toggle
+            handleZoomOut();
           }}
-          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
+          disabled={zoomLevelIndex === 0}
+          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
         >
-          {isZoomed ? (<><ZoomOut className="h-4 w-4 mr-1" />Zoom Out</>) : (<><ZoomIn className="h-4 w-4 mr-1" />Zoom In</>)}
+          <ZoomOut className="h-4 w-4 mr-1" />
+          Zoom Out
+        </Button>
+        <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 py-1 rounded text-sm">
+          {Math.round(currentZoomLevel * 100)}%
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={e => {
+            e.stopPropagation();
+            handleZoomIn();
+          }}
+          disabled={zoomLevelIndex === ZOOM_LEVELS.length - 1}
+          className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
+        >
+          <ZoomIn className="h-4 w-4 mr-1" />
+          Zoom In
         </Button>
         {currentImage.image_url !== "/placeholder.svg" && (
           <Button
@@ -145,7 +189,7 @@ export function ArtworkImageViewer({
       <div
         ref={imageContainerRef}
         className={`w-full h-full flex items-center justify-center ${isZoomed ? 'overflow-auto bg-black' : 'overflow-hidden'}`}
-        onClick={() => setIsZoomed(!isZoomed)}
+        onClick={handleImageClick}
         style={{
           cursor: isZoomed ? "grab" : "zoom-in",
           touchAction: panEnabled ? "none" : undefined
@@ -169,7 +213,7 @@ export function ArtworkImageViewer({
           style={
             isZoomed
               ? {
-                  transform: `scale(${zoomScale}) translate(${imageOffset.x / zoomScale}px, ${imageOffset.y / zoomScale}px)`,
+                  transform: `scale(${currentZoomLevel}) translate(${imageOffset.x / currentZoomLevel}px, ${imageOffset.y / currentZoomLevel}px)`,
                   transition: dragStart ? "none" : "transform 0.23s cubic-bezier(.4,2,.6,1)", // smooth out when not dragging
                   cursor: dragStart ? "grabbing" : "grab"
                 }
