@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,11 +15,9 @@ export function BulkImageOptimizer() {
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   
   const {
-    isProcessing,
     progress,
     processAllImages,
-    currentOperation,
-    results
+    getUnprocessedCount
   } = useBulkImageProcessing();
 
   const { diagnoseImageUrls, triggerBatchProcessing } = useImageDiagnostics();
@@ -36,6 +35,11 @@ export function BulkImageOptimizer() {
       await triggerBatchProcessing(Math.min(totalIssues, 20)); // Limit to 20 at once
     }
   };
+
+  // Calculate progress percentage from the progress object
+  const progressPercentage = progress.total > 0 ? ((progress.processed + progress.failed) / progress.total) * 100 : 0;
+  const artistProgressPercentage = (progress.artistsTotal || 0) > 0 ? 
+    ((progress.artistsProcessed || 0) + (progress.artistsFailed || 0)) / (progress.artistsTotal || 1) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -123,7 +127,7 @@ export function BulkImageOptimizer() {
 
       <Separator />
 
-      {/* Existing Bulk Processing Section */}
+      {/* Bulk Processing Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -137,10 +141,10 @@ export function BulkImageOptimizer() {
         <CardContent className="space-y-4">
           <Button 
             onClick={processAllImages}
-            disabled={isProcessing}
+            disabled={progress.isRunning}
             className="w-full"
           >
-            {isProcessing ? (
+            {progress.isRunning ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Processing Images...
@@ -153,21 +157,42 @@ export function BulkImageOptimizer() {
             )}
           </Button>
 
-          {isProcessing && (
+          {progress.isRunning && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span>{currentOperation}</span>
-                <span>{Math.round(progress)}%</span>
+              {/* Artwork Images Progress */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Artwork Images: {progress.processed + progress.failed} / {progress.total}</span>
+                  <span>{Math.round(progressPercentage)}%</span>
+                </div>
+                <Progress value={progressPercentage} className="w-full" />
               </div>
-              <Progress value={progress} className="w-full" />
+
+              {/* Artist Images Progress */}
+              {(progress.artistsTotal || 0) > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Artist Images: {(progress.artistsProcessed || 0) + (progress.artistsFailed || 0)} / {progress.artistsTotal}</span>
+                    <span>{Math.round(artistProgressPercentage)}%</span>
+                  </div>
+                  <Progress value={artistProgressPercentage} className="w-full" />
+                </div>
+              )}
+
+              {/* Current Operation */}
+              {progress.current && (
+                <div className="text-sm text-muted-foreground">
+                  {progress.current}
+                </div>
+              )}
             </div>
           )}
 
-          {results && (
+          {!progress.isRunning && (progress.processed > 0 || progress.failed > 0) && (
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                Processing complete: {results.successful} successful, {results.failed} failed
+                Processing complete: {progress.processed + (progress.artistsProcessed || 0)} successful, {progress.failed + (progress.artistsFailed || 0)} failed
               </AlertDescription>
             </Alert>
           )}
