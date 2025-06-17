@@ -1,3 +1,4 @@
+
 import React from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Form } from "@/components/ui/form";
@@ -13,6 +14,7 @@ import { EditionFields } from "./EditionFields";
 import { ConditionSignatureFields } from "./ConditionSignatureFields";
 import { FramingCrateFields } from "./FramingCrateFields";
 import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
+import { VideoUploadFields } from "./VideoUploadFields";
 import { MultipleImageUploader } from "../MultipleImageUploader";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
@@ -30,7 +32,7 @@ interface CreateArtworkFormViewProps {
   hideSubmitButton?: boolean;
   formId?: string;
   isSaving?: boolean;
-  scrollToFirstError?: () => void; // New prop
+  scrollToFirstError?: () => void;
 }
 
 export function CreateArtworkFormView({
@@ -46,12 +48,11 @@ export function CreateArtworkFormView({
   hideSubmitButton = false,
   formId,
   isSaving = false,
-  scrollToFirstError, // Destructure new prop
+  scrollToFirstError,
 }: CreateArtworkFormViewProps) {
 
   const handleInvalidSubmit = () => {
     if (scrollToFirstError) {
-      // Timeout to allow DOM to update with error messages before scrolling
       setTimeout(() => {
         scrollToFirstError();
       }, 100);
@@ -62,7 +63,7 @@ export function CreateArtworkFormView({
     <Form {...form}>
       <form 
         id={formId}
-        onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} // Pass onInvalid handler
+        onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
         className="space-y-6"
       >
         <BasicInformationFields 
@@ -99,9 +100,13 @@ export function CreateArtworkFormView({
         <ProvenanceStoryFields form={form} />
         
         {!initialData && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Upload Images</label>
-            <MultipleImageUploader onImagesUploaded={handleImagesUploaded} />
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Upload Images</label>
+              <MultipleImageUploader onImagesUploaded={handleImagesUploaded} />
+            </div>
+            
+            <VideoUploadFields />
           </div>
         )}
         
