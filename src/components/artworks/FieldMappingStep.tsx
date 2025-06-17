@@ -5,29 +5,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface FieldMappingStepProps {
-  csvPreviewData: CSVPreviewData;
-  mappings: FieldMappings;
-  onMappingsChange: (newMappings: FieldMappings) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
+import { FieldMappingStepProps } from './import-steps/types';
 
 export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
-  csvPreviewData,
-  mappings,
-  onMappingsChange,
+  csvData,
+  fieldMapping,
+  onFieldMappingChange,
   onNext,
   onBack,
 }) => {
-  const { headers, sampleData } = csvPreviewData;
+  const { headers, sampleData } = csvData;
 
   const handleMappingChange = (csvHeader: string, artworkField: string) => {
     // Convert "do_not_import" back to null for the mappings
     const fieldValue = artworkField === "do_not_import" ? null : (artworkField as ArtworkKeys | null);
-    onMappingsChange({
-      ...mappings,
+    onFieldMappingChange({
+      ...fieldMapping,
       [csvHeader]: fieldValue,
     });
   };
@@ -43,18 +36,18 @@ export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
         const labelLower = artworkField.label.toLowerCase().replace(/[\s_]+/g, '');
         return fieldLower === headerLower || labelLower === headerLower;
       });
-      if (autoMatch && !mappings[header]) {
+      if (autoMatch && !fieldMapping[header]) {
         initialMappings[header] = autoMatch.value;
         changed = true;
       } else {
-        initialMappings[header] = mappings[header] || null;
+        initialMappings[header] = fieldMapping[header] || null;
       }
     });
     if (changed) {
-      onMappingsChange(initialMappings);
+      onFieldMappingChange(initialMappings);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headers]); // Run only when headers change, not onMappingsChange to avoid loop
+  }, [headers]); // Run only when headers change, not onFieldMappingChange to avoid loop
 
   return (
     <div className="space-y-6">
@@ -83,7 +76,7 @@ export const FieldMappingStep: React.FC<FieldMappingStepProps> = ({
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={mappings[header] || 'do_not_import'}
+                    value={fieldMapping[header] || 'do_not_import'}
                     onValueChange={(value) => handleMappingChange(header, value)}
                   >
                     <SelectTrigger>

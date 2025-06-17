@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileDown, Settings } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useImportCSV } from "./hooks/useImportCSV";
 import { UploadStep } from "./import-steps/UploadStep";
@@ -16,23 +16,26 @@ export function ImportCSVDialog() {
   const {
     currentStep,
     setCurrentStep,
-    csvData,
-    setCsvData,
-    fieldMapping,
-    setFieldMapping,
-    previewData,
-    setPreviewData,
-    importResults,
-    setImportResults,
-    isImporting,
-    setIsImporting,
-    resetImport,
+    file,
+    csvPreviewData,
+    fieldMappings,
+    parsedArtworks,
+    isProcessingFile,
+    importingProgress,
+    importStats,
+    handleFileChange,
+    handleMappingsChanged,
+    goToPreviewStep,
+    handleImport,
+    resetState,
+    toggleArtworkSelection,
+    toggleSelectAllArtworks,
   } = useImportCSV();
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
-      resetImport();
+      resetState();
     }
   };
 
@@ -41,52 +44,43 @@ export function ImportCSVDialog() {
       case ImportStep.UPLOAD:
         return (
           <UploadStep
-            onFileProcessed={(data) => {
-              setCsvData(data);
-              setCurrentStep(ImportStep.FIELD_MAPPING);
-            }}
+            onFileChange={handleFileChange}
+            file={file}
+            isProcessingFile={isProcessingFile}
           />
         );
       case ImportStep.FIELD_MAPPING:
         return (
           <FieldMappingStep
-            csvData={csvData}
-            fieldMapping={fieldMapping}
-            onFieldMappingChange={setFieldMapping}
-            onNext={(previewData) => {
-              setPreviewData(previewData);
-              setCurrentStep(ImportStep.PREVIEW);
-            }}
+            csvData={csvPreviewData!}
+            fieldMapping={fieldMappings}
+            onFieldMappingChange={handleMappingsChanged}
+            onNext={goToPreviewStep}
             onBack={() => setCurrentStep(ImportStep.UPLOAD)}
           />
         );
       case ImportStep.PREVIEW:
         return (
           <PreviewStep
-            previewData={previewData}
+            parsedArtworks={parsedArtworks}
             onBack={() => setCurrentStep(ImportStep.FIELD_MAPPING)}
-            onConfirm={() => setCurrentStep(ImportStep.IMPORTING)}
+            onImport={handleImport}
+            toggleArtworkSelection={toggleArtworkSelection}
+            toggleSelectAllArtworks={toggleSelectAllArtworks}
           />
         );
       case ImportStep.IMPORTING:
         return (
           <ImportingStep
-            previewData={previewData}
-            onComplete={(results) => {
-              setImportResults(results);
-              setCurrentStep(ImportStep.COMPLETE);
-            }}
+            importingProgress={importingProgress}
+            importStats={importStats}
           />
         );
       case ImportStep.COMPLETE:
         return (
           <CompleteStep
-            results={importResults}
+            importStats={importStats}
             onClose={() => handleOpenChange(false)}
-            onImportMore={() => {
-              resetImport();
-              setCurrentStep(ImportStep.UPLOAD);
-            }}
           />
         );
       default:

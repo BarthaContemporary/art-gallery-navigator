@@ -1,7 +1,14 @@
+
 import { CSVPreviewData, FieldMappings, ProcessedArtworkForImport, ValidatedProcessedArtwork } from "@/components/artworks/ArtworkFieldMapping.types"; // Added ValidatedProcessedArtwork
 import { ReactNode } from "react";
 
-export type ImportStep = "upload" | "mapFields" | "preview" | "importing" | "complete";
+export enum ImportStep {
+  UPLOAD = "upload",
+  FIELD_MAPPING = "mapFields", 
+  PREVIEW = "preview",
+  IMPORTING = "importing",
+  COMPLETE = "complete"
+}
 
 export interface ImportStats {
   successful: number;
@@ -40,6 +47,14 @@ export interface UploadStepProps {
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   file: File | null;
   isProcessingFile: boolean;
+}
+
+export interface FieldMappingStepProps {
+  csvData: CSVPreviewData;
+  fieldMapping: FieldMappings;
+  onFieldMappingChange: (mappings: FieldMappings) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
 export interface PreviewStepProps {
