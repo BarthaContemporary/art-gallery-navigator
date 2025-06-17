@@ -42,6 +42,15 @@ export function useArtworkImageHandler({
       return;
     }
 
+    // Enhanced logging for debugging fallback issues
+    if (displayImageUrl.includes('fallback-') || !displayImageUrl.includes('http')) {
+      logger.warn(`useArtworkImageHandler (${title}): Potentially problematic URL detected:`, {
+        displayImageUrl,
+        cacheKey,
+        imageTypeForCache
+      });
+    }
+
     // Try to get from cache first
     const cachedImage = getCachedImage(cacheKey, imageTypeForCache);
     if (cachedImage) {
@@ -96,9 +105,9 @@ export function useArtworkImageHandler({
           // Only cache if the result is reasonable size
           if (dataUrl.length < 5 * 1024 * 1024) { // 5MB limit
             setCachedImage(cacheKey, dataUrl, imageTypeForCache);
-            logger.log(`useArtworkImageHandler (${title}): Cached ${imageTypeForCache} image for key ${cacheKey}. DataURL size: ${dataUrl.length}`);
+            logger.log(`useArtworkImageHandler (${title}): Cached ${imageTypeForCache} image for key ${cacheKey}. DataURL size: ${Math.round(dataUrl.length / 1024)}KB`);
           } else {
-            logger.warn(`useArtworkImageHandler (${title}): Skipped caching - result too large: ${dataUrl.length} bytes`);
+            logger.warn(`useArtworkImageHandler (${title}): Skipped caching - result too large: ${Math.round(dataUrl.length / 1024 / 1024)}MB`);
           }
         } catch (canvasError) {
           logger.error(`useArtworkImageHandler (${title}): Canvas processing failed:`, canvasError);

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 
 const CACHE_PREFIX = "art_img_cache_";
-const CACHE_VERSION = "v2.1"; // Updated version for better cache management
+const CACHE_VERSION = "v2.2"; // Updated version for better cache management
 const CACHE_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days in milliseconds
 const MAX_CACHE_ITEM_SIZE_MB = 5; // Reduced from 25MB to 5MB per item
 const MAX_CACHE_ITEM_SIZE = MAX_CACHE_ITEM_SIZE_MB * 1024 * 1024;
@@ -44,12 +44,13 @@ export function useImageCache() {
     return { totalSize, itemCount };
   };
 
-  // Aggressive cache cleanup to prevent quota issues
+  // Enhanced cache cleanup with better logging
   const performCacheCleanup = () => {
     if (!isLocalStorageAvailable) return;
     
     try {
       const cacheItems: Array<{ key: string; timestamp: number; size: number; tier: string }> = [];
+      let removedOldVersions = 0;
       
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith(CACHE_PREFIX)) {
@@ -60,6 +61,7 @@ export function useImageCache() {
               // Remove old version items immediately
               if (cachedImage.version !== CACHE_VERSION) {
                 localStorage.removeItem(key);
+                removedOldVersions++;
                 return;
               }
               cacheItems.push({
@@ -76,6 +78,8 @@ export function useImageCache() {
         }
       });
       
+      console.log(`Cache cleanup: Removed ${removedOldVersions} old version items`);
+      
       // Sort by timestamp (oldest first) and tier priority (full images first to remove)
       cacheItems.sort((a, b) => {
         if (a.tier === 'full' && b.tier !== 'full') return -1;
@@ -86,14 +90,16 @@ export function useImageCache() {
       // Remove items until we're under 60% of the total cache limit
       const targetSize = MAX_TOTAL_CACHE_SIZE * 0.6;
       let currentSize = cacheItems.reduce((sum, item) => sum + item.size, 0);
+      let removedItems = 0;
       
       for (const item of cacheItems) {
         if (currentSize <= targetSize) break;
         localStorage.removeItem(item.key);
         currentSize -= item.size;
+        removedItems++;
       }
       
-      console.log(`Cache cleanup completed. Removed ${cacheItems.length - Math.floor(currentSize / 1000)} items`);
+      console.log(`Cache cleanup completed. Removed ${removedItems} cache items. Total size: ${Math.round(currentSize / 1024 / 1024)}MB`);
     } catch (error) {
       console.error("Error during cache cleanup:", error);
       // If cleanup fails, clear all cache to prevent further issues
@@ -103,13 +109,14 @@ export function useImageCache() {
             localStorage.removeItem(key);
           }
         });
+        console.log("Emergency cache clear completed");
       } catch (clearError) {
         console.error("Failed to clear cache:", clearError);
       }
     }
   };
 
-  // Get a cached image
+  // Get a cached image with enhanced error handling
   const getCachedImage = (imageUrl: string, tier?: 'thumbnail' | 'medium' | 'full'): CachedImage | null => {
     if (!isLocalStorageAvailable) return null;
 
@@ -124,10 +131,12 @@ export function useImageCache() {
       // Validate cache version and age
       if (cachedImage.version !== CACHE_VERSION) {
         localStorage.removeItem(cacheKey);
+        console.log(`Removed outdated cache item: ${cacheKey}`);
         return null;
       }
       if (Date.now() - cachedImage.timestamp > CACHE_MAX_AGE) {
         localStorage.removeItem(cacheKey);
+        console.log(`Removed expired cache item: ${cacheKey}`);
         return null;
       }
 
@@ -147,7 +156,7 @@ export function useImageCache() {
     }
   };
 
-  // Set a cached image with better size management
+  // Set a cached image with enhanced size management and logging
   const setCachedImage = (imageUrl: string, dataUrl: string, tier: 'thumbnail' | 'medium' | 'full' = 'thumbnail') => {
     if (!isLocalStorageAvailable) return;
 
@@ -169,6 +178,7 @@ export function useImageCache() {
       }).length;
       
       if (totalSize + newItemSize > MAX_TOTAL_CACHE_SIZE * 0.8) {
+        console.log("Cache approaching limit, performing cleanup...");
         performCacheCleanup();
       }
 
@@ -182,7 +192,7 @@ export function useImageCache() {
       };
 
       localStorage.setItem(cacheKey, JSON.stringify(cachedImage));
-      console.log(`Cached ${tier} image: ${imageUrl} (${Math.round(newItemSize / 1024)}KB)`);
+      console.log(`Cached ${tier} image: ${imageUrl.substring(0, 50)}... (${Math.round(newItemSize / 1024)}KB)`);
     } catch (error) {
       console.error("Error caching image:", error);
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
