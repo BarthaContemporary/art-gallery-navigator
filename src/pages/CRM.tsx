@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ export default function CRM() {
                 placeholder="Search clients..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full text-sm"
+                className="pl-3 pr-3 h-8 md:h-10 text-xs md:text-sm py-1 md:py-2"
               />
             </div>
             <div className="flex gap-2 items-center">
