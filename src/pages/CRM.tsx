@@ -9,7 +9,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
-import { CRMStats } from "@/components/crm/CRMStats";
 import { ClientListsSection } from "@/components/crm/ClientListsSection";
 
 export default function CRM() {
@@ -27,8 +26,6 @@ export default function CRM() {
       <div className="mb-4 md:mb-6">
         <CreateClientDialog />
       </div>
-
-      <CRMStats />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="lg:col-span-1">
