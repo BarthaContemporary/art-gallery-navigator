@@ -39,12 +39,14 @@ export function ArtworksHeader({
 
   return (
     <div className="space-y-4 mb-4 md:mb-6">
-      {/* Single row with Add Artwork, Admin tools, and View Toggle */}
+      {/* Single row with Add Artwork on left, Admin tools and View Toggle on right */}
       <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-2">
           {isAdmin && <CreateArtworkDialog />}
-          
-          {/* Admin tools moved here */}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Admin tools */}
           {isAdmin && (
             <>
               <Dialog open={optimizerDialogOpen} onOpenChange={setOptimizerDialogOpen}>
@@ -70,9 +72,7 @@ export function ArtworksHeader({
               </div>
             </>
           )}
-        </div>
-        
-        <div className="ml-auto">
+          
           <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
         </div>
       </div>
