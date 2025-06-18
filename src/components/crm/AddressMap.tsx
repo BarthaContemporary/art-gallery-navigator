@@ -13,12 +13,12 @@ interface AddressMapProps {
 export function AddressMap({ address, clientName }: AddressMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const initializeMap = async (googleApiKey: string) => {
+  const GOOGLE_MAPS_API_KEY = "AIzaSyB08-mQ7664oLlgrfPBgQQBK0Bw752Xyk4";
+
+  const initializeMap = async () => {
     if (!mapRef.current || !address) return;
 
     setIsLoading(true);
@@ -26,7 +26,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
     try {
       const loader = new Loader({
-        apiKey: googleApiKey,
+        apiKey: GOOGLE_MAPS_API_KEY,
         version: "weekly",
         libraries: ["places", "geometry"]
       });
@@ -91,22 +91,8 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     }
   };
 
-  const handleApiKeySubmit = () => {
-    if (apiKey.trim()) {
-      localStorage.setItem('googleMapsApiKey', apiKey);
-      initializeMap(apiKey);
-      setShowApiKeyInput(false);
-    }
-  };
-
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('googleMapsApiKey');
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-      initializeMap(savedApiKey);
-    } else {
-      setShowApiKeyInput(true);
-    }
+    initializeMap();
   }, [address]);
 
   const handleMapClick = () => {
@@ -116,44 +102,6 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
       window.open(mapUrl, '_blank');
     }
   };
-
-  if (showApiKeyInput) {
-    return (
-      <div className="relative w-full h-64 bg-gray-50 rounded border p-4 flex flex-col justify-center">
-        <div className="text-center space-y-3">
-          <MapPin className="h-8 w-8 mx-auto text-gray-400" />
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Enter Google Maps API Key
-            </p>
-            <p className="text-xs text-gray-500 mb-3">
-              Get your API key from{" "}
-              <a 
-                href="https://console.cloud.google.com/google/maps-apis" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                Google Cloud Console
-              </a>
-            </p>
-            <div className="flex gap-2 max-w-sm mx-auto">
-              <Input
-                type="password"
-                placeholder="API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="text-xs"
-              />
-              <Button size="sm" onClick={handleApiKeySubmit}>
-                Load Map
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -172,19 +120,10 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
         <div className="text-center space-y-2">
           <MapPin className="h-6 w-6 mx-auto text-red-400" />
           <p className="text-xs text-red-600">{error}</p>
-          <div className="flex justify-center gap-2">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => setShowApiKeyInput(true)}
-            >
-              Change API Key
-            </Button>
-            <Button size="sm" onClick={handleMapClick}>
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Open in Google Maps
-            </Button>
-          </div>
+          <Button size="sm" onClick={handleMapClick}>
+            <ExternalLink className="h-3 w-3 mr-1" />
+            Open in Google Maps
+          </Button>
         </div>
       </div>
     );
