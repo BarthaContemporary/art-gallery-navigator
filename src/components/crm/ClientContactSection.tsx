@@ -87,7 +87,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       )}
 
       {(client.website || client.instagram_handle || client.linkedin_handle || client.phone || client.email) && (
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-2 pt-2">
           {client.phone && (
             <>
               <Button
