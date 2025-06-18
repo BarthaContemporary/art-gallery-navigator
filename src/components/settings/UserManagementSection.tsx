@@ -176,11 +176,7 @@ export function UserManagementSection() {
 
                 <div className="mt-4 flex justify-center">
                   <TurnstileWidget
-                    siteKey={TURNSTILE_SITE_KEY}
                     onVerify={handleCaptchaVerify}
-                    onError={handleCaptchaError}
-                    onExpire={handleCaptchaExpire}
-                    theme="light"
                   />
                 </div>
 
