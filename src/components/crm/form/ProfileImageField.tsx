@@ -21,13 +21,15 @@ export function ProfileImageField({ formData, onFormDataChange }: ProfileImageFi
           fullName={formData.full_name || "New Client"}
           email={formData.email}
           profileImageUrl={formData.profile_image_url}
+          linkedinHandle={formData.linkedin_handle}
+          instagramHandle={formData.instagram_handle}
           size="lg"
           editable={true}
           onImageUpdate={handleImageUpdate}
         />
         <div className="text-sm text-muted-foreground">
-          <p>Upload a profile image or one will be generated automatically.</p>
-          <p>If an email is provided, we'll check for a Gravatar image.</p>
+          <p>Upload a profile image or one will be fetched automatically.</p>
+          <p>We'll check: Manual upload → Gravatar → LinkedIn → Instagram → Generated</p>
         </div>
       </div>
     </div>

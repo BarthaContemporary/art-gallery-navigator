@@ -25,6 +25,8 @@ export function ClientDetailsHeader({ client }: ClientDetailsHeaderProps) {
         fullName={client.full_name}
         email={client.email}
         profileImageUrl={client.profile_image_url}
+        linkedinHandle={client.linkedin_handle}
+        instagramHandle={client.instagram_handle}
         size="lg"
       />
       <div className="flex-1">
