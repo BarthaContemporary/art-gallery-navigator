@@ -50,7 +50,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
           mapInstance.setCenter(location);
           
           // Add marker
-          new google.maps.Marker({
+          const marker = new google.maps.Marker({
             position: location,
             map: mapInstance,
             title: clientName,
@@ -72,12 +72,6 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
                 <p style="margin: 0; font-size: 12px; color: #666;">${address}</p>
               </div>
             `,
-          });
-
-          const marker = new google.maps.Marker({
-            position: location,
-            map: mapInstance,
-            title: clientName,
           });
 
           marker.addListener("click", () => {
@@ -125,7 +119,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
   if (showApiKeyInput) {
     return (
-      <div className="relative w-full h-48 bg-gray-50 rounded border p-4 flex flex-col justify-center">
+      <div className="relative w-full h-64 bg-gray-50 rounded border p-4 flex flex-col justify-center">
         <div className="text-center space-y-3">
           <MapPin className="h-8 w-8 mx-auto text-gray-400" />
           <div>
@@ -163,7 +157,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
   if (isLoading) {
     return (
-      <div className="relative w-full h-48 bg-gray-50 rounded border flex items-center justify-center">
+      <div className="relative w-full h-64 bg-gray-50 rounded border flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-xs text-gray-600">Loading map...</p>
@@ -174,7 +168,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
   if (error) {
     return (
-      <div className="relative w-full h-48 bg-gray-50 rounded border p-4 flex flex-col justify-center">
+      <div className="relative w-full h-64 bg-gray-50 rounded border p-4 flex flex-col justify-center">
         <div className="text-center space-y-2">
           <MapPin className="h-6 w-6 mx-auto text-red-400" />
           <p className="text-xs text-red-600">{error}</p>
@@ -197,7 +191,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   }
 
   return (
-    <div className="relative w-full h-48 rounded border overflow-hidden group">
+    <div className="relative w-full h-64 rounded border overflow-hidden group">
       <div ref={mapRef} className="absolute inset-0" />
       <div className="absolute bottom-2 right-2">
         <Button
