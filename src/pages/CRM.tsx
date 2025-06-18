@@ -37,7 +37,7 @@ export default function CRM() {
                 placeholder="Search clients..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
+                className="w-full text-sm"
               />
             </div>
             <div className="flex gap-2 items-center">
