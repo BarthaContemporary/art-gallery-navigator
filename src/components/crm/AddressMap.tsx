@@ -1,13 +1,15 @@
 
 import { AddressMapProps } from "./address-map/types";
-import { useAddressMap } from "./address-map/useAddressMap";
+import { useMapManager } from "./address-map/useMapManager";
 import { formatAddressForGeocoding, openGoogleMaps } from "./address-map/utils";
 import { MapLoadingDisplay } from "./address-map/MapLoadingDisplay";
 import { MapErrorDisplay } from "./address-map/MapErrorDisplay";
-import { MapDisplay } from "./address-map/MapDisplay";
+import { MapContainer } from "./address-map/MapContainer";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 
 export function AddressMap({ address, clientName }: AddressMapProps) {
-  const { mapRef, isLoading, error, retryCount, handleRetry } = useAddressMap(address, clientName);
+  const { containerRef, isLoading, error, retryCount, handleRetry } = useMapManager(address, clientName);
 
   const handleOpenGoogleMaps = () => openGoogleMaps(address);
 
@@ -34,9 +36,18 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   }
 
   return (
-    <MapDisplay 
-      mapRef={mapRef} 
-      onOpenGoogleMaps={handleOpenGoogleMaps} 
-    />
+    <MapContainer containerRef={containerRef}>
+      <div className="absolute bottom-2 right-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-white/90 hover:bg-white shadow-sm"
+          onClick={handleOpenGoogleMaps}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          Open in Google Maps
+        </Button>
+      </div>
+    </MapContainer>
   );
 }
