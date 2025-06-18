@@ -56,7 +56,7 @@ export function CreateClientListDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex gap-2">
+        <Button size="sm" className="flex gap-2">
           <CirclePlus className="h-4 w-4" />
           New List
         </Button>
