@@ -77,8 +77,8 @@ export default function CRM() {
         </div>
       </div>
 
-      {/* Anchored ClientListsSection at the bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-10">
+      {/* Anchored ClientListsSection at the bottom within content area */}
+      <div className="fixed bottom-0 left-3 right-3 sm:left-4 sm:right-4 md:left-6 md:right-6 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10">
         <div className="max-w-7xl mx-auto">
           <ClientListsSection 
             selectedListId={selectedListId}

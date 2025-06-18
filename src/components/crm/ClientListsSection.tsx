@@ -27,7 +27,7 @@ function ListMemberCount({ listId }: { listId: string }) {
   if (count === 0) return null;
   
   return (
-    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5 h-4">
+    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5 h-4 bg-secondary/70">
       {count}
     </Badge>
   );
@@ -53,11 +53,11 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
 
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-none">
-        <CardHeader className="p-3 pb-0">
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="p-2 pb-0">
         </CardHeader>
-        <CardContent className="p-3 pt-0">
-          <div className="text-xs text-muted-foreground">Loading lists...</div>
+        <CardContent className="p-2 pt-0">
+          <div className="text-xs text-muted-foreground/70">Loading lists...</div>
         </CardContent>
       </Card>
     );
@@ -65,16 +65,16 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
 
   return (
     <>
-      <Card className="border-0 shadow-none">
-        <CardHeader className="p-3 pb-0">
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="p-2 pb-0">
         </CardHeader>
-        <CardContent className="p-3 pt-0">
+        <CardContent className="p-2 pt-0">
           <div className="space-y-1">
             <Button
               variant={!selectedListId ? "default" : "ghost"}
               size="sm"
               onClick={() => onListSelect(undefined)}
-              className="w-full justify-start h-7 text-xs px-2"
+              className="w-full justify-start h-6 text-xs px-2 bg-background/70 hover:bg-background/80"
             >
               All Clients
             </Button>
@@ -85,7 +85,7 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
                   variant={selectedListId === list.id ? "default" : "ghost"}
                   size="sm"
                   onClick={() => onListSelect(list.id)}
-                  className="flex-1 justify-start h-7 text-xs px-2"
+                  className="flex-1 justify-start h-6 text-xs px-2 bg-background/70 hover:bg-background/80"
                 >
                   <span className="flex items-center flex-1 text-left">
                     <span className="truncate">{list.name}</span>
@@ -95,21 +95,21 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0 bg-background/70 hover:bg-background/80">
                       <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuContent align="end" className="w-40 bg-background/90 backdrop-blur-sm">
                     <DropdownMenuItem
                       onClick={() => handleEditList(list)}
-                      className="text-xs"
+                      className="text-xs hover:bg-muted/70"
                     >
                       <Edit className="h-3 w-3 mr-2" />
                       Edit List
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleDeleteList(list.id)}
-                      className="text-red-600 text-xs"
+                      className="text-red-600 text-xs hover:bg-muted/70"
                     >
                       <Trash2 className="h-3 w-3 mr-2" />
                       Delete List
@@ -120,7 +120,7 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
             ))}
             
             {(!lists || lists.length === 0) && (
-              <div className="text-center py-2 text-xs text-muted-foreground">
+              <div className="text-center py-2 text-xs text-muted-foreground/70">
                 No lists created yet. Create your first list to organize clients.
               </div>
             )}
