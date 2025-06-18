@@ -9,9 +9,18 @@ export const useAddressMap = (address: string, clientName: string) => {
   const [retryCount, setRetryCount] = useState(0);
   const initializationRef = useRef<boolean>(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
+  const geocodedLocationRef = useRef<any>(null);
   
   const { geocodeAddress } = useGeocoding();
-  const { mapRef, isMounted, cleanupMap, loadGoogleMapsScript, createMap } = useGoogleMaps();
+  const { 
+    mapRef, 
+    isMounted, 
+    cleanupMap, 
+    loadGoogleMapsScript, 
+    createMap,
+    isMapContainerReady,
+    isScriptLoaded 
+  } = useGoogleMaps();
 
   const initializeMap = async () => {
     // Prevent multiple concurrent initializations
@@ -24,9 +33,13 @@ export const useAddressMap = (address: string, clientName: string) => {
     console.log('mapRef.current:', !!mapRef.current);
     console.log('isMounted:', isMounted);
     console.log('address:', address?.trim());
+    console.log('isMapContainerReady:', isMapContainerReady());
     
-    if (!mapRef.current || !isMounted || !address?.trim()) {
+    if (!mapRef.current || !isMounted || !address?.trim() || !isMapContainerReady()) {
       console.log('Conditions not met for map initialization');
+      if (!isMapContainerReady()) {
+        setError("Map container not ready. Please try again.");
+      }
       return;
     }
     
@@ -44,19 +57,25 @@ export const useAddressMap = (address: string, clientName: string) => {
       await new Promise(resolve => setTimeout(resolve, 200));
       
       // Verify container is still available after cleanup
-      if (!mapRef.current || !isMounted) {
+      if (!mapRef.current || !isMounted || !isMapContainerReady()) {
         throw new Error('Map container not available after cleanup');
       }
 
-      // Geocode the address
-      const location = await geocodeAddress(address.trim());
+      // Geocode the address if not already geocoded
+      let location = geocodedLocationRef.current;
+      if (!location) {
+        location = await geocodeAddress(address.trim());
+        geocodedLocationRef.current = location; // Store for retries
+      }
       console.log('Geocoding successful, location:', location);
       
-      // Load Google Maps script
-      await loadGoogleMapsScript();
+      // Load Google Maps script if not already loaded
+      if (!isScriptLoaded()) {
+        await loadGoogleMapsScript();
+      }
 
       // Final check before map creation
-      if (!mapRef.current || !isMounted) {
+      if (!mapRef.current || !isMounted || !isMapContainerReady()) {
         console.error('Map ref or component became unavailable after script loading');
         throw new Error('Map container not available for map creation');
       }
@@ -77,7 +96,7 @@ export const useAddressMap = (address: string, clientName: string) => {
       } else if (errorMessage.includes("service") || errorMessage.includes("unavailable")) {
         setError("Map service temporarily unavailable. Please try again.");
       } else if (errorMessage.includes("container") || errorMessage.includes("not available")) {
-        setError("Map display error - container issue detected. Please refresh the page.");
+        setError("Map display error - container issue detected. Please try again.");
       } else if (errorMessage.includes("API")) {
         setError("Map service configuration error. Please contact administrator.");
       } else {
@@ -97,11 +116,16 @@ export const useAddressMap = (address: string, clientName: string) => {
       
       // Reset initialization flag and wait before retrying
       initializationRef.current = false;
+      // Clear any cached location for a fresh retry
+      if (retryCount >= 1) {
+        geocodedLocationRef.current = null;
+      }
+      
       setTimeout(() => {
         initializeMap();
       }, 1000);
     } else {
-      setError("Maximum retry attempts reached. Please refresh the page.");
+      setError("Maximum retry attempts reached. Please try again later.");
     }
   };
 
@@ -115,8 +139,22 @@ export const useAddressMap = (address: string, clientName: string) => {
     initializationRef.current = false;
     
     if (isMounted && address && address.trim()) {
+      // Give the DOM time to render before initializing
       timeoutRef.current = setTimeout(() => {
-        initializeMap();
+        // Only initialize if container is ready
+        if (isMapContainerReady()) {
+          initializeMap();
+        } else {
+          console.log('Container not ready yet, delaying initialization');
+          // Try again after a short delay
+          timeoutRef.current = setTimeout(() => {
+            if (isMapContainerReady()) {
+              initializeMap();
+            } else {
+              setError("Map container issue. Please try again.");
+            }
+          }, 500);
+        }
       }, 300);
     }
 
