@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { CirclePlus } from "lucide-react";
 import { useCreateClientForm } from "./hooks/useCreateClientForm";
 import { ClientFormFields } from "./ClientFormFields";
 
@@ -26,7 +26,7 @@ export function CreateClientDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="flex gap-2">
-          <Plus className="h-4 w-4" />
+          <CirclePlus className="h-4 w-4" />
           Add Client
         </Button>
       </DialogTrigger>
