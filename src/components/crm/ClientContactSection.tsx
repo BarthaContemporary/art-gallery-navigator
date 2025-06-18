@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Globe, Instagram, Linkedin, Copy, ExternalLink, MapPin, Mail, Phone } from "lucide-react";
+import { Globe, Instagram, Linkedin, Copy, ExternalLink, MapPin } from "lucide-react";
 import { ContactActions } from "./ContactActions";
 import { toast } from "sonner";
 
@@ -21,15 +21,35 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       </h3>
       
       {client.email && (
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <div className="flex items-center justify-between group">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-sm truncate">{client.email}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyToClipboard(client.email, 'Email')}
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
           <ContactActions email={client.email} />
         </div>
       )}
       
       {client.phone && (
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <div className="flex items-center justify-between group">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-sm truncate">{client.phone}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyToClipboard(client.phone, 'Phone')}
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
           <ContactActions phone={client.phone} />
         </div>
       )}
@@ -37,6 +57,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       {client.address && (
         <div className="flex items-start gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-gray-700 leading-relaxed">{client.address}</span>
         </div>
       )}
 
@@ -47,8 +68,9 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
             href={client.website} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+            className="text-sm text-blue-600 hover:underline flex items-center gap-1 truncate"
           >
+            <span className="truncate">{client.website}</span>
             <ExternalLink className="h-3 w-3 flex-shrink-0" />
           </a>
         </div>
@@ -65,6 +87,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline flex items-center gap-1"
               >
+                {client.instagram_handle}
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -78,6 +101,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline flex items-center gap-1"
               >
+                LinkedIn
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
