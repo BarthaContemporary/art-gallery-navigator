@@ -40,7 +40,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b pb-1">
         Contact Information
       </h3>
@@ -54,7 +54,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               variant="ghost"
               size="sm"
               onClick={() => copyToClipboard(client.email, 'Email')}
-              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Copy className="h-3 w-3" />
             </Button>
@@ -71,7 +71,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               variant="ghost"
               size="sm"
               onClick={() => copyToClipboard(client.phone, 'Phone')}
-              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Copy className="h-3 w-3" />
             </Button>
@@ -87,7 +87,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       )}
 
       {(client.website || client.instagram_handle || client.linkedin_handle || client.phone || client.email) && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-1">
           {client.phone && (
             <>
               <Button
