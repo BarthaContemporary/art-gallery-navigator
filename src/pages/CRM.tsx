@@ -10,7 +10,7 @@ import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog";
-import { ClientListsSection } from "@/components/crm/ClientListsSection";
+import { ClientListsFilter } from "@/components/crm/ClientListsFilter";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
@@ -64,6 +64,13 @@ export default function CRM() {
               </Button>
             </div>
           </div>
+
+          <div className="mb-4 p-3 border rounded-lg bg-muted/30">
+            <ClientListsFilter 
+              selectedListId={selectedListId}
+              onListSelect={setSelectedListId}
+            />
+          </div>
           
           <ClientsList 
             searchTerm={searchTerm} 
@@ -71,11 +78,6 @@ export default function CRM() {
             selectedListId={selectedListId}
           />
         </div>
-
-        <ClientListsSection 
-          selectedListId={selectedListId}
-          onListSelect={setSelectedListId}
-        />
       </div>
     </div>
   );
