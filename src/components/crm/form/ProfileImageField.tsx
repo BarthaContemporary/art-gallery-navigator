@@ -28,7 +28,6 @@ export function ProfileImageField({ formData, onFormDataChange }: ProfileImageFi
           onImageUpdate={handleImageUpdate}
         />
         <div className="text-sm text-muted-foreground">
-          <p>Upload a profile image or one will be fetched automatically.</p>
           <p>We'll check: Manual upload → Gravatar → LinkedIn → Instagram → Generated</p>
         </div>
       </div>
