@@ -29,15 +29,6 @@ export default function CRM() {
         </div>
         
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Client Management
-              {selectedListId && (
-                <Badge variant="secondary">Filtered by list</Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="flex-1">
