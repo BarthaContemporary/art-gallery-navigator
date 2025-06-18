@@ -37,25 +37,21 @@ export function LoginForm({
     setCaptchaError(false);
   }, []);
 
-  const handleCaptchaError = useCallback(() => {
-    console.error("CAPTCHA verification failed");
-    setCaptchaError(true);
-    setCaptchaToken("");
-    toast.error("Security verification failed. Please try again.");
-  }, []);
-
-  const handleCaptchaExpire = useCallback(() => {
-    console.warn("CAPTCHA token expired");
-    setCaptchaToken("");
-    toast.warning("Security verification expired. Please complete it again.");
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log("Login form submission:", {
+      email,
+      hasPassword: !!password,
+      captchaToken: captchaToken ? "present" : "missing"
+    });
+    
     if (!captchaToken) {
       toast.error("Please complete the security verification first.");
+      setCaptchaError(true);
       return;
     }
+    
     try {
       await onSubmit({
         email,
@@ -76,7 +72,7 @@ export function LoginForm({
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              Security verification failed. Please try again.
+              Please complete the security verification to continue.
             </AlertDescription>
           </Alert>
         )}
@@ -124,6 +120,7 @@ export function LoginForm({
             <div className="w-full overflow-hidden">
               <TurnstileWidget 
                 onVerify={handleCaptchaVerify}
+                className="max-w-full"
               />
             </div>
             {captchaToken && (

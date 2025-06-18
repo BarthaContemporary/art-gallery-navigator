@@ -7,6 +7,9 @@ interface TurnstileWidgetProps {
   refreshExpired?: boolean;
 }
 
+// Use the fallback site key from custom instructions
+const FALLBACK_TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+
 export function TurnstileWidget({ 
   onVerify, 
   className = '', 
@@ -18,16 +21,19 @@ export function TurnstileWidget({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get the Turnstile site key from environment variable
-    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    // Get the Turnstile site key from environment variable or use fallback
+    const envSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    const turnstileSiteKey = envSiteKey || FALLBACK_TURNSTILE_SITE_KEY;
     
     console.log('Turnstile configuration check:', {
-      siteKeyPresent: !!turnstileSiteKey,
-      siteKeyValue: turnstileSiteKey ? `${turnstileSiteKey.substring(0, 8)}...` : 'undefined'
+      envVarPresent: !!envSiteKey,
+      envVarValue: envSiteKey ? `${envSiteKey.substring(0, 8)}...` : 'undefined',
+      usingFallback: !envSiteKey,
+      finalSiteKey: turnstileSiteKey ? `${turnstileSiteKey.substring(0, 8)}...` : 'undefined'
     });
     
     if (!turnstileSiteKey) {
-      console.error('VITE_TURNSTILE_SITE_KEY environment variable is not set');
+      console.error('No Turnstile site key available (neither env var nor fallback)');
       setError('Security verification is not configured. Please contact support.');
       setIsLoading(false);
       return;
