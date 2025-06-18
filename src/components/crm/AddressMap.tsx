@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { MapPin, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,9 +25,21 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
+  const formatAddressForGeocoding = (rawAddress: string) => {
+    // Replace all types of line breaks with commas and spaces
+    return rawAddress
+      .replace(/\r\n/g, ', ')  // Windows line breaks
+      .replace(/\n/g, ', ')    // Unix line breaks
+      .replace(/\r/g, ', ')    // Mac line breaks
+      .replace(/,\s*,/g, ',')  // Remove duplicate commas
+      .replace(/,\s*$/, '')    // Remove trailing comma
+      .trim();
+  };
+
   const openGoogleMaps = () => {
     if (address) {
-      const encodedAddress = encodeURIComponent(address);
+      const formattedAddress = formatAddressForGeocoding(address);
+      const encodedAddress = encodeURIComponent(formattedAddress);
       const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
       window.open(googleMapsUrl, '_blank');
     }
@@ -46,7 +57,12 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   };
 
   const geocodeAddress = async (addressToGeocode: string) => {
-    const encodedAddress = encodeURIComponent(addressToGeocode);
+    const formattedAddress = formatAddressForGeocoding(addressToGeocode);
+    const encodedAddress = encodeURIComponent(formattedAddress);
+    
+    console.log('Original address:', addressToGeocode);
+    console.log('Formatted address for geocoding:', formattedAddress);
+    
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
       {
@@ -176,7 +192,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
           <p className="text-sm text-gray-600 mb-1">Loading map...</p>
-          <p className="text-xs text-gray-500">{address}</p>
+          <p className="text-xs text-gray-500">{formatAddressForGeocoding(address)}</p>
         </div>
       </div>
     );
@@ -189,7 +205,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
           <MapPin className="h-8 w-8 mx-auto text-red-400" />
           <div>
             <p className="text-sm text-red-600 mb-1">{error}</p>
-            <p className="text-xs text-gray-500">{address}</p>
+            <p className="text-xs text-gray-500">{formatAddressForGeocoding(address)}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             {retryCount < 3 && (
