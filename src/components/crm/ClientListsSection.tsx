@@ -1,6 +1,5 @@
-
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Users, Trash2 } from "lucide-react";
 import {
@@ -34,9 +33,6 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">Loading lists...</div>
@@ -48,9 +44,6 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
