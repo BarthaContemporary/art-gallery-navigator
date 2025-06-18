@@ -88,7 +88,13 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
               </div>
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent 
+            position="popper"
+            side="bottom"
+            align="start"
+            className="z-50 min-w-[200px] max-h-[300px] overflow-hidden"
+            sideOffset={4}
+          >
             <SelectItem value="all" className="text-xs">All Lists</SelectItem>
             {lists?.map((list) => (
               <SelectItem key={list.id} value={list.id} className="text-xs">
@@ -113,7 +119,12 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent 
+              align="end" 
+              className="w-40 z-50"
+              side="bottom"
+              sideOffset={4}
+            >
               <DropdownMenuItem
                 onClick={() => handleEditList(selectedList)}
                 className="text-xs"
