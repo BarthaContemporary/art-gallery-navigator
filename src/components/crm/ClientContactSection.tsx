@@ -33,7 +33,64 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               <Copy className="h-3 w-3" />
             </Button>
           </div>
-          <ContactActions email={client.email} />
+          <div className="flex items-center gap-2">
+            <ContactActions email={client.email} phone={client.phone} />
+            {(client.website || client.instagram_handle || client.linkedin_handle) && (
+              <>
+                {client.website && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-600"
+                  >
+                    <a 
+                      href={client.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      title={client.website}
+                    >
+                      <Globe className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+                {client.instagram_handle && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-pink-600"
+                  >
+                    <a 
+                      href={`https://instagram.com/${client.instagram_handle.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={client.instagram_handle}
+                    >
+                      <Instagram className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+                {client.linkedin_handle && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-700"
+                  >
+                    <a 
+                      href={client.linkedin_handle.startsWith('http') ? client.linkedin_handle : `https://${client.linkedin_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="LinkedIn Profile"
+                    >
+                      <Linkedin className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
       
@@ -50,7 +107,64 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               <Copy className="h-3 w-3" />
             </Button>
           </div>
-          <ContactActions phone={client.phone} />
+          <div className="flex items-center gap-2">
+            <ContactActions email={client.email} phone={client.phone} />
+            {(client.website || client.instagram_handle || client.linkedin_handle) && (
+              <>
+                {client.website && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-600"
+                  >
+                    <a 
+                      href={client.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      title={client.website}
+                    >
+                      <Globe className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+                {client.instagram_handle && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-pink-600"
+                  >
+                    <a 
+                      href={`https://instagram.com/${client.instagram_handle.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={client.instagram_handle}
+                    >
+                      <Instagram className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+                {client.linkedin_handle && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-700"
+                  >
+                    <a 
+                      href={client.linkedin_handle.startsWith('http') ? client.linkedin_handle : `https://${client.linkedin_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="LinkedIn Profile"
+                    >
+                      <Linkedin className="h-3 w-3" />
+                    </a>
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -58,62 +172,6 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
         <div className="flex items-start gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           <span className="text-sm text-gray-700 leading-relaxed">{client.address}</span>
-        </div>
-      )}
-
-      {(client.website || client.instagram_handle || client.linkedin_handle) && (
-        <div className="flex items-center gap-2">
-          {client.website && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600"
-            >
-              <a 
-                href={client.website} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                title={client.website}
-              >
-                <Globe className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-          {client.instagram_handle && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-pink-600"
-            >
-              <a 
-                href={`https://instagram.com/${client.instagram_handle.replace('@', '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={client.instagram_handle}
-              >
-                <Instagram className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-          {client.linkedin_handle && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-700"
-            >
-              <a 
-                href={client.linkedin_handle.startsWith('http') ? client.linkedin_handle : `https://${client.linkedin_handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="LinkedIn Profile"
-              >
-                <Linkedin className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
         </div>
       )}
     </div>
