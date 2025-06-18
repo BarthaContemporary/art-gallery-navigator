@@ -68,9 +68,6 @@ export function LoginForm({
       }
     }
   };
-
-  // Get the site key from the environment variable
-  const turnstileSiteKey = "0x4AAAAAABVNY-RtAZWQwtdF";
   
   return (
     <Card className="w-full border-0 shadow-none">
@@ -126,10 +123,7 @@ export function LoginForm({
             <Label className="font-thin text-sm">Security Verification</Label>
             <div className="w-full overflow-hidden">
               <TurnstileWidget 
-                siteKey={turnstileSiteKey} 
-                onVerify={handleCaptchaVerify} 
-                onError={handleCaptchaError} 
-                onExpire={handleCaptchaExpire} 
+                onVerify={handleCaptchaVerify}
               />
             </div>
             {captchaToken && (

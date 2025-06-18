@@ -207,12 +207,7 @@ export function SecurityEnhancedLoginForm({ onNeedsOTP }: SecurityEnhancedLoginF
             <div className="space-y-2">
               <Label>Security Verification</Label>
               <TurnstileWidget
-                siteKey="0x4AAAAAABVNY-RtAZWQwtdF"
                 onVerify={setCaptchaToken}
-                onError={() => {
-                  toast.error('Security verification failed');
-                  setCaptchaToken(null);
-                }}
               />
             </div>
           )}

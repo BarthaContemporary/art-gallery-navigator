@@ -97,11 +97,7 @@ export function PasswordResetForm({ onSubmit, isLoading, formError }: PasswordRe
           {TURNSTILE_SITE_KEY && (
             <div className="flex justify-center">
               <TurnstileWidget
-                siteKey={TURNSTILE_SITE_KEY}
                 onVerify={handleCaptchaVerify}
-                onError={handleCaptchaError}
-                onExpire={handleCaptchaExpire}
-                theme="light"
               />
             </div>
           )}
