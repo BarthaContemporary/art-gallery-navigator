@@ -32,34 +32,46 @@ export function ClientProfileImage({
     lg: "h-16 w-16"
   };
 
+  // Simple MD5 hash implementation for Gravatar
+  const md5 = (str: string): string => {
+    // Simple hash function for email - not cryptographically secure but works for Gravatar
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
+  };
+
   useEffect(() => {
     const determineImageUrl = () => {
+      console.log('Determining image URL:', { profileImageUrl, email, fullName });
+      
       // Priority 1: Manual upload (profile image URL)
       if (profileImageUrl) {
+        console.log('Using profile image URL:', profileImageUrl);
         setImageUrl(profileImageUrl);
         return;
       }
 
       // Priority 2: Gravatar if email exists
       if (email) {
-        const gravatarUrl = getGravatarUrl(email);
+        const emailHash = md5(email.toLowerCase().trim());
+        const gravatarUrl = `https://www.gravatar.com/avatar/${emailHash}?d=404&s=128`;
+        console.log('Using Gravatar URL:', gravatarUrl);
         setImageUrl(gravatarUrl);
         return;
       }
 
       // Priority 3: Generated avatar with UI Avatars
       const generatedUrl = getGeneratedAvatarUrl(fullName);
+      console.log('Using generated URL:', generatedUrl);
       setImageUrl(generatedUrl);
     };
 
     determineImageUrl();
   }, [profileImageUrl, email, fullName]);
-
-  const getGravatarUrl = (email: string): string => {
-    // Create MD5 hash of email for Gravatar
-    const emailHash = btoa(email.toLowerCase().trim()).replace(/[^a-zA-Z0-9]/g, '');
-    return `https://www.gravatar.com/avatar/${emailHash}?d=404&s=128`;
-  };
 
   const getGeneratedAvatarUrl = (name: string): string => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
@@ -92,9 +104,11 @@ export function ClientProfileImage({
   };
 
   const handleImageError = () => {
+    console.log('Image failed to load, using fallback for:', imageUrl);
     // If Gravatar fails, fallback to generated avatar
     if (imageUrl?.includes('gravatar.com')) {
       const fallbackUrl = getGeneratedAvatarUrl(fullName);
+      console.log('Falling back to generated avatar:', fallbackUrl);
       setImageUrl(fallbackUrl);
     }
   };
