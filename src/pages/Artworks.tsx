@@ -5,7 +5,7 @@ import { ArtworksStats } from "@/components/artworks/ArtworksStats";
 import { ArtworksContent } from "@/components/artworks/ArtworksContent";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic"; // New hook
+import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
 
 const Artworks = () => {
   const {
@@ -29,6 +29,13 @@ const Artworks = () => {
     handleScrollToTop,
     handleRefresh,
   } = useArtworksPageLogic();
+
+  const handleShowAll = () => {
+    setSearchTerm("");
+    setStatusFilter(null);
+    setTypeFilter(null);
+    setArtistFilter(null);
+  };
 
   if (artworksLoading || artistsLoading) {
     return (
@@ -68,17 +75,13 @@ const Artworks = () => {
         onTypeFilterChange={setTypeFilter}
         artistFilter={artistFilter}
         onArtistFilterChange={setArtistFilter}
+        onShowAll={handleShowAll}
       />
 
       <ArtworksStats
         filteredCount={filteredArtworks.length}
         totalCount={artworks.length}
         useVirtualization={useVirtualization}
-        // Removed onToggleVirtualization as setUseVirtualization is now available
-        // If ArtworksStats needs to toggle, it should receive setUseVirtualization
-        // Or, if it's just displaying, no toggle needed from it.
-        // Assuming it was for display, if it needs to toggle:
-        // onToggleVirtualization={() => setUseVirtualization(!useVirtualization)}
       />
 
       <ArtworksContent
@@ -108,4 +111,3 @@ const Artworks = () => {
 };
 
 export default Artworks;
-
