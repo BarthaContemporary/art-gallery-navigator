@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Users } from "lucide-react";
+import { CirclePlus, Users } from "lucide-react";
 import { ClientMultiSelect } from "./ClientMultiSelect";
 import { useCreateClientListWithMembers } from "@/hooks/use-client-lists-bulk";
 
@@ -57,7 +57,7 @@ export function CreateClientListDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="flex gap-2">
-          <Plus className="h-4 w-4" />
+          <CirclePlus className="h-4 w-4" />
           New List
         </Button>
       </DialogTrigger>
