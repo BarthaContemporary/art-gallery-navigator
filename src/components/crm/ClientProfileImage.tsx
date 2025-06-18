@@ -33,43 +33,64 @@ export function ClientProfileImage({
       try {
         let profileImageUrl = null;
 
-        // Try Instagram first if handle is provided
+        // Try using Instagram's direct image API approach (more reliable)
         if (instagramHandle) {
           const cleanHandle = instagramHandle.replace(/^@/, '');
-          // Use Instagram's public profile image endpoint
-          profileImageUrl = `https://www.instagram.com/${cleanHandle}/`;
           
-          // Try to get the profile image through a proxy service or meta tags
+          // Try Instagram's profile picture endpoint (sometimes works)
           try {
-            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.instagram.com/${cleanHandle}/`)}`);
-            const html = await response.text();
+            const instagramUrl = `https://www.instagram.com/${cleanHandle}/`;
+            // Use a CORS proxy service that might work better
+            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(instagramUrl)}`;
             
-            // Extract profile image from meta tags
-            const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-            if (metaImageMatch && metaImageMatch[1]) {
-              profileImageUrl = metaImageMatch[1];
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+              const html = await response.text();
+              
+              // Look for profile image in various meta tags and JSON-LD
+              const metaImageMatch = html.match(/"profile_pic_url_hd":"([^"]+)"/);
+              const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+              
+              if (metaImageMatch && metaImageMatch[1]) {
+                profileImageUrl = metaImageMatch[1].replace(/\\u0026/g, '&');
+              } else if (ogImageMatch && ogImageMatch[1]) {
+                profileImageUrl = ogImageMatch[1];
+              }
             }
           } catch (error) {
-            console.log('Instagram image fetch failed, trying alternative method:', error);
-            // Fallback to a different approach if needed
+            console.log('Instagram direct fetch failed:', error);
           }
         }
         
-        // Try LinkedIn if Instagram failed and LinkedIn handle is provided
+        // Try LinkedIn approach if Instagram failed
         if (!profileImageUrl && linkedinHandle) {
           const cleanHandle = linkedinHandle.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '');
+          
           try {
-            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.linkedin.com/in/${cleanHandle}/`)}`);
-            const html = await response.text();
+            // LinkedIn's profile images are harder to get due to authentication requirements
+            // This is a basic attempt that may not work consistently
+            const linkedinUrl = `https://www.linkedin.com/in/${cleanHandle}/`;
+            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(linkedinUrl)}`;
             
-            // Extract profile image from LinkedIn meta tags
-            const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-            if (metaImageMatch && metaImageMatch[1]) {
-              profileImageUrl = metaImageMatch[1];
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+              const html = await response.text();
+              const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+              
+              if (metaImageMatch && metaImageMatch[1]) {
+                profileImageUrl = metaImageMatch[1];
+              }
             }
           } catch (error) {
-            console.log('LinkedIn image fetch failed:', error);
+            console.log('LinkedIn fetch failed:', error);
           }
+        }
+
+        // Fallback to avatar generation service if social media fetch fails
+        if (!profileImageUrl) {
+          // Use a reliable avatar generation service as fallback
+          const initials = getInitials(fullName);
+          profileImageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
         }
 
         if (profileImageUrl) {
@@ -77,13 +98,16 @@ export function ClientProfileImage({
         }
       } catch (error) {
         console.error('Failed to fetch profile image:', error);
+        // Use avatar generation service as final fallback
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
+        setImageUrl(fallbackUrl);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProfileImage();
-  }, [instagramHandle, linkedinHandle]);
+  }, [instagramHandle, linkedinHandle, fullName]);
 
   const getInitials = (name: string) => {
     return name
@@ -100,7 +124,11 @@ export function ClientProfileImage({
           src={imageUrl} 
           alt={`${fullName} profile`}
           className="object-cover"
-          onError={() => setImageUrl(null)}
+          onError={() => {
+            // If the fetched image fails to load, try the avatar service fallback
+            const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
+            setImageUrl(fallbackUrl);
+          }}
         />
       )}
       <AvatarFallback className="bg-primary/10 text-primary font-medium">
