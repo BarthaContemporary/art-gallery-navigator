@@ -27,9 +27,6 @@ export function ProfileImageField({ formData, onFormDataChange }: ProfileImageFi
           editable={true}
           onImageUpdate={handleImageUpdate}
         />
-        <div className="text-sm text-muted-foreground">
-          <p>We'll check: Manual upload → Gravatar → LinkedIn → Instagram → Generated</p>
-        </div>
       </div>
     </div>
   );
