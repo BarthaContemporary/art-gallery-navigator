@@ -1,5 +1,4 @@
 
-import { ClientProfileImage } from "../ClientProfileImage";
 import { ClientFormData } from "../hooks/useCreateClientForm";
 
 interface ProfileImageFieldProps {
@@ -15,16 +14,6 @@ export function ProfileImageField({ formData, onFormDataChange }: ProfileImageFi
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-4">
-        <ClientProfileImage
-          fullName={formData.full_name || "New Client"}
-          email={formData.email}
-          profileImageUrl={formData.profile_image_url}
-          linkedinHandle={formData.linkedin_handle}
-          instagramHandle={formData.instagram_handle}
-          size="lg"
-          editable={true}
-          onImageUpdate={handleImageUpdate}
-        />
       </div>
     </div>
   );
