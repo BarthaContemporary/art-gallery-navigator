@@ -30,8 +30,8 @@ export function CreateArtworkDialog() {
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogTrigger asChild>
-        <Button size="sm">
-          <PlusCircle className="h-4 w-4 mr-2" />
+        <Button size="sm" className="flex gap-2">
+          <PlusCircle className="h-4 w-4" />
           Add Artwork
         </Button>
       </ScrollableDialogTrigger>
