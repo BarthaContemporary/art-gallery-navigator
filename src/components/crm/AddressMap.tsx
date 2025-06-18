@@ -26,7 +26,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const MAX_RETRIES = 2;
+  const MAX_RETRIES = 3;
 
   const cleanupMap = useCallback(() => {
     if (markerRef.current) {
@@ -42,7 +42,12 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   const geocodeAddress = useCallback(async (address: string) => {
     const encodedAddress = encodeURIComponent(address);
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'AddressMap/1.0'
+        }
+      }
     );
     
     if (!response.ok) {
@@ -61,23 +66,9 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     };
   }, []);
 
-  const initializeMap = useCallback(async (attempt = 0) => {
+  const initializeMap = useCallback(async () => {
     if (!address || !address.trim()) {
       setError("No address provided");
-      return;
-    }
-
-    // Wait for DOM to be ready
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (!mapRef.current) {
-      if (attempt < MAX_RETRIES) {
-        console.log(`Map container not ready, retrying... (${attempt + 1}/${MAX_RETRIES})`);
-        setTimeout(() => initializeMap(attempt + 1), 200);
-        return;
-      }
-      setError("Map container failed to initialize");
-      setIsLoading(false);
       return;
     }
 
@@ -85,17 +76,34 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     setError(null);
 
     try {
+      // Wait for DOM to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (!mapRef.current) {
+        throw new Error("Map container not ready");
+      }
+
       console.log('Initializing OpenStreetMap for address:', address);
       
       // Clean up existing map
       cleanupMap();
       
       // Initialize map with default center
-      const mapInstance = L.map(mapRef.current).setView([40.7128, -74.0060], 13);
+      const mapInstance = L.map(mapRef.current, {
+        zoomControl: true,
+        attributionControl: true,
+        dragging: true,
+        touchZoom: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: true,
+        boxZoom: true,
+        keyboard: true,
+      }).setView([40.7128, -74.0060], 13);
       
       // Add OpenStreetMap tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
       }).addTo(mapInstance);
 
       mapInstanceRef.current = mapInstance;
@@ -173,8 +181,8 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   const handleMapClick = () => {
     if (address) {
       const encodedAddress = encodeURIComponent(address);
-      const mapUrl = `https://www.openstreetmap.org/search?query=${encodedAddress}`;
-      window.open(mapUrl, '_blank');
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      window.open(googleMapsUrl, '_blank');
     }
   };
 
@@ -208,7 +216,7 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
             )}
             <Button size="sm" onClick={handleMapClick}>
               <ExternalLink className="h-3 w-3 mr-1" />
-              Open in OpenStreetMap
+              Open in Google Maps
             </Button>
           </div>
         </div>
@@ -217,22 +225,18 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   }
 
   return (
-    <div className="relative w-full h-64 rounded border overflow-hidden group">
+    <div className="relative w-full h-64 rounded border overflow-hidden">
       <div ref={mapRef} className="absolute inset-0" />
       <div className="absolute bottom-2 right-2">
         <Button
           size="sm"
           variant="secondary"
-          className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white shadow-sm"
+          className="bg-white/90 hover:bg-white shadow-sm"
           onClick={handleMapClick}
         >
           <ExternalLink className="h-3 w-3 mr-1" />
-          Open
+          Open in Google Maps
         </Button>
-      </div>
-      {/* Address overlay for accessibility */}
-      <div className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded text-xs text-gray-700 max-w-[200px] truncate opacity-0 group-hover:opacity-100 transition-opacity">
-        {address}
       </div>
     </div>
   );
