@@ -15,7 +15,9 @@ const requestPasswordResetSchema = z.object({
 
 type RequestPasswordResetFormValues = z.infer<typeof requestPasswordResetSchema>;
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
+// Fallback site key as specified in custom instructions
+const FALLBACK_TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || FALLBACK_TURNSTILE_SITE_KEY;
 
 interface PasswordResetFormProps {
   onSubmit: (values: RequestPasswordResetFormValues, captchaToken: string | null) => Promise<void>;
@@ -35,21 +37,18 @@ export function PasswordResetForm({ onSubmit, isLoading, formError }: PasswordRe
   });
 
   const handleCaptchaVerify = (token: string) => {
+    console.log('Password reset form - CAPTCHA verified:', token ? 'success' : 'failed');
     setCaptchaToken(token);
     setCaptchaError(null);
   };
 
-  const handleCaptchaError = () => {
-    setCaptchaError("CAPTCHA challenge failed. Please try again.");
-    setCaptchaToken(null);
-  };
-
-  const handleCaptchaExpire = () => {
-    setCaptchaError("CAPTCHA challenge expired. Please complete it again.");
-    setCaptchaToken(null);
-  };
-
   const handleSubmit = async (values: RequestPasswordResetFormValues) => {
+    console.log('Password reset form - Submit attempt:', {
+      email: values.email,
+      captchaToken: captchaToken ? 'present' : 'missing',
+      siteKey: TURNSTILE_SITE_KEY ? 'configured' : 'missing'
+    });
+    
     if (!TURNSTILE_SITE_KEY) {
       setCaptchaError("CAPTCHA configuration error. Please contact support.");
       return;
@@ -85,7 +84,7 @@ export function PasswordResetForm({ onSubmit, isLoading, formError }: PasswordRe
                     placeholder="Enter your email"
                     autoFocus
                     className="text-base sm:text-sm py-3"
-                    disabled={isLoading || !TURNSTILE_SITE_KEY}
+                    disabled={isLoading}
                     autoComplete="email"
                   />
                 </FormControl>
@@ -94,13 +93,11 @@ export function PasswordResetForm({ onSubmit, isLoading, formError }: PasswordRe
             )}
           />
 
-          {TURNSTILE_SITE_KEY && (
-            <div className="flex justify-center">
-              <TurnstileWidget
-                onVerify={handleCaptchaVerify}
-              />
-            </div>
-          )}
+          <div className="flex justify-center">
+            <TurnstileWidget
+              onVerify={handleCaptchaVerify}
+            />
+          </div>
           
           {captchaError && (
             <div className="flex items-center text-sm text-red-600 dark:text-red-400 p-2 bg-red-50 dark:bg-red-900/30 rounded-md">
@@ -112,7 +109,7 @@ export function PasswordResetForm({ onSubmit, isLoading, formError }: PasswordRe
           <Button 
             type="submit" 
             className="w-full h-12 sm:h-10 text-lg sm:text-base" 
-            disabled={isLoading || !captchaToken || !TURNSTILE_SITE_KEY || !form.formState.isValid}
+            disabled={isLoading || !captchaToken || !form.formState.isValid}
           >
             {isLoading ? (
               <>

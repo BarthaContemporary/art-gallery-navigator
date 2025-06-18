@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { toast } from "@/components/ui/use-toast";
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAABVNY-RtAZWQwtdF";
+// Fallback site key as specified in custom instructions
+const FALLBACK_TURNSTILE_SITE_KEY = "0x4AAAAAABVNY-RtAZWQwtdF";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || FALLBACK_TURNSTILE_SITE_KEY;
 
 interface RequestPasswordResetFormValues {
   email: string;
@@ -19,8 +21,14 @@ export function usePasswordReset() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Password reset hook - Turnstile configuration:', {
+      envVarPresent: !!import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      usingFallback: !import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      siteKey: TURNSTILE_SITE_KEY ? `${TURNSTILE_SITE_KEY.substring(0, 8)}...` : 'undefined'
+    });
+    
     if (!TURNSTILE_SITE_KEY) {
-      logger.error("Critical: Turnstile Site Key is missing for password reset. CAPTCHA will not function.");
+      logger.error("Critical: No Turnstile Site Key available for password reset. CAPTCHA will not function.");
     }
   }, []);
 
@@ -30,6 +38,7 @@ export function usePasswordReset() {
       return;
     }
     if (!captchaToken) {
+      setFormError("Please complete the security verification.");
       return;
     }
 
