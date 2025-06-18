@@ -27,7 +27,7 @@ function ListMemberCount({ listId }: { listId: string }) {
   if (count === 0) return null;
   
   return (
-    <Badge variant="secondary" className="ml-2 text-xs">
+    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5 h-4">
       {count}
     </Badge>
   );
@@ -53,11 +53,11 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="p-3 pb-0">
         </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">Loading lists...</div>
+        <CardContent className="p-3 pt-0">
+          <div className="text-xs text-muted-foreground">Loading lists...</div>
         </CardContent>
       </Card>
     );
@@ -65,52 +65,53 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="p-3 pb-0">
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="p-3 pt-0">
+          <div className="space-y-1">
             <Button
               variant={!selectedListId ? "default" : "ghost"}
               size="sm"
               onClick={() => onListSelect(undefined)}
-              className="w-full justify-start"
+              className="w-full justify-start h-7 text-xs px-2"
             >
               All Clients
             </Button>
             
             {lists?.map((list) => (
-              <div key={list.id} className="flex items-center gap-2">
+              <div key={list.id} className="flex items-center gap-1">
                 <Button
                   variant={selectedListId === list.id ? "default" : "ghost"}
                   size="sm"
                   onClick={() => onListSelect(list.id)}
-                  className="flex-1 justify-start"
+                  className="flex-1 justify-start h-7 text-xs px-2"
                 >
-                  <span className="flex items-center flex-1">
-                    {list.name}
+                  <span className="flex items-center flex-1 text-left">
+                    <span className="truncate">{list.name}</span>
                     <ListMemberCount listId={list.id} />
                   </span>
                 </Button>
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem
                       onClick={() => handleEditList(list)}
+                      className="text-xs"
                     >
-                      <Edit className="h-4 w-4 mr-2" />
+                      <Edit className="h-3 w-3 mr-2" />
                       Edit List
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleDeleteList(list.id)}
-                      className="text-red-600"
+                      className="text-red-600 text-xs"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
+                      <Trash2 className="h-3 w-3 mr-2" />
                       Delete List
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -119,7 +120,7 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
             ))}
             
             {(!lists || lists.length === 0) && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
+              <div className="text-center py-2 text-xs text-muted-foreground">
                 No lists created yet. Create your first list to organize clients.
               </div>
             )}
