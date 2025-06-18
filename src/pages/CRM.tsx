@@ -30,49 +30,47 @@ export default function CRM() {
           <CreateClientListDialog />
         </div>
         
-        <Card>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search clients..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                >
-                  All
-                </Button>
-                <Button
-                  variant={statusFilter === "prospect" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("prospect")}
-                >
-                  Prospects
-                </Button>
-                <Button
-                  variant={statusFilter === "customer" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("customer")}
-                >
-                  Customers
-                </Button>
-              </div>
+        <div>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search clients..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
             </div>
-            
-            <ClientsList 
-              searchTerm={searchTerm} 
-              statusFilter={statusFilter}
-              selectedListId={selectedListId}
-            />
-          </CardContent>
-        </Card>
+            <div className="flex gap-2">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={statusFilter === "prospect" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("prospect")}
+              >
+                Prospects
+              </Button>
+              <Button
+                variant={statusFilter === "customer" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("customer")}
+              >
+                Customers
+              </Button>
+            </div>
+          </div>
+          
+          <ClientsList 
+            searchTerm={searchTerm} 
+            statusFilter={statusFilter}
+            selectedListId={selectedListId}
+          />
+        </div>
 
         <ClientListsSection 
           selectedListId={selectedListId}
