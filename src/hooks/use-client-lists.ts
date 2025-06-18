@@ -83,6 +83,35 @@ export function useCreateClientList() {
   });
 }
 
+export function useUpdateClientList() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data: { id: string; name: string; description?: string }) => {
+      const { data: result, error } = await supabase
+        .from('client_lists')
+        .update({ 
+          name: data.name, 
+          description: data.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', data.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-lists'] });
+      toast.success('Client list updated successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update list: ${error.message}`);
+    }
+  });
+}
+
 export function useDeleteClientList() {
   const queryClient = useQueryClient();
   
