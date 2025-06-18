@@ -13,7 +13,7 @@ export interface ClientFormData {
   website: string;
   linkedin_handle: string;
   instagram_handle: string;
-  status: string;
+  status: 'active' | 'inactive' | 'prospect' | 'lead' | 'customer';
   client_type: string;
   source: string;
   birthday: string;
@@ -50,7 +50,7 @@ export function useCreateClientForm() {
     mutationFn: async (data: ClientFormData) => {
       const { error } = await supabase
         .from('clients')
-        .insert([{
+        .insert({
           full_name: data.full_name,
           email: data.email || null,
           phone: data.phone || null,
@@ -67,7 +67,7 @@ export function useCreateClientForm() {
           tags: data.tags.length > 0 ? data.tags : null,
           interested_artists: data.interested_artists.length > 0 ? data.interested_artists : null,
           profile_image_url: data.profile_image_url || null,
-        }]);
+        });
 
       if (error) throw error;
     },
