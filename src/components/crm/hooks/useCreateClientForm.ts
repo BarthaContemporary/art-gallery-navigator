@@ -1,25 +1,26 @@
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-
-type ClientStatus = 'active' | 'inactive' | 'prospect' | 'lead' | 'customer';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface ClientFormData {
   full_name: string;
   email: string;
   phone: string;
   company: string;
-  website: string;
-  status: ClientStatus;
-  client_type: string;
   address: string;
-  notes: string;
-  source: string;
-  interested_artists: string[];
-  instagram_handle: string;
+  website: string;
   linkedin_handle: string;
+  instagram_handle: string;
+  status: string;
+  client_type: string;
+  source: string;
+  birthday: string;
+  notes: string;
+  tags: string[];
+  interested_artists: string[];
+  profile_image_url: string;
 }
 
 const initialFormData: ClientFormData = {
@@ -27,15 +28,18 @@ const initialFormData: ClientFormData = {
   email: '',
   phone: '',
   company: '',
+  address: '',
   website: '',
+  linkedin_handle: '',
+  instagram_handle: '',
   status: 'prospect',
   client_type: 'collector',
-  address: '',
-  notes: '',
   source: '',
+  birthday: '',
+  notes: '',
+  tags: [],
   interested_artists: [],
-  instagram_handle: '',
-  linkedin_handle: ''
+  profile_image_url: '',
 };
 
 export function useCreateClientForm() {
@@ -44,20 +48,47 @@ export function useCreateClientForm() {
 
   const createClientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      const { error } = await supabase.from('clients').insert(data);
+      const { error } = await supabase
+        .from('clients')
+        .insert([{
+          full_name: data.full_name,
+          email: data.email || null,
+          phone: data.phone || null,
+          company: data.company || null,
+          address: data.address || null,
+          website: data.website || null,
+          linkedin_handle: data.linkedin_handle || null,
+          instagram_handle: data.instagram_handle || null,
+          status: data.status,
+          client_type: data.client_type,
+          source: data.source || null,
+          birthday: data.birthday || null,
+          notes: data.notes || null,
+          tags: data.tags.length > 0 ? data.tags : null,
+          interested_artists: data.interested_artists.length > 0 ? data.interested_artists : null,
+          profile_image_url: data.profile_image_url || null,
+        }]);
+
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Client created successfully');
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['crm-stats'] });
-      setFormData(initialFormData);
+      resetForm();
     },
     onError: (error) => {
-      toast.error('Failed to create client');
       console.error('Error creating client:', error);
+      toast.error('Failed to create client');
     }
   });
+
+  const updateFormData = (updates: Partial<ClientFormData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  const resetForm = () => {
+    setFormData(initialFormData);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,14 +97,6 @@ export function useCreateClientForm() {
       return;
     }
     createClientMutation.mutate(formData);
-  };
-
-  const updateFormData = (updates: Partial<ClientFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-  };
-
-  const resetForm = () => {
-    setFormData(initialFormData);
   };
 
   return {

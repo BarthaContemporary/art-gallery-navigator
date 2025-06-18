@@ -1,22 +1,30 @@
 
 import { useState, useEffect } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Upload, User } from "lucide-react";
+import { useProfileAvatarUpload } from "@/hooks/useProfileAvatarUpload";
 
 interface ClientProfileImageProps {
   fullName: string;
-  instagramHandle?: string;
-  linkedinHandle?: string;
+  email?: string;
+  profileImageUrl?: string;
   size?: "sm" | "md" | "lg";
+  editable?: boolean;
+  onImageUpdate?: (imageUrl: string) => void;
 }
 
 export function ClientProfileImage({ 
   fullName, 
-  instagramHandle, 
-  linkedinHandle,
-  size = "md" 
+  email,
+  profileImageUrl,
+  size = "md",
+  editable = false,
+  onImageUpdate
 }: ClientProfileImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { uploadAvatar, isUploading } = useProfileAvatarUpload();
 
   const sizeClasses = {
     sm: "h-8 w-8",
@@ -25,89 +33,37 @@ export function ClientProfileImage({
   };
 
   useEffect(() => {
-    const fetchProfileImage = async () => {
-      if (!instagramHandle && !linkedinHandle) return;
-      
-      setIsLoading(true);
-      
-      try {
-        let profileImageUrl = null;
-
-        // Try using Instagram's direct image API approach (more reliable)
-        if (instagramHandle) {
-          const cleanHandle = instagramHandle.replace(/^@/, '');
-          
-          // Try Instagram's profile picture endpoint (sometimes works)
-          try {
-            const instagramUrl = `https://www.instagram.com/${cleanHandle}/`;
-            // Use a CORS proxy service that might work better
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(instagramUrl)}`;
-            
-            const response = await fetch(proxyUrl);
-            if (response.ok) {
-              const html = await response.text();
-              
-              // Look for profile image in various meta tags and JSON-LD
-              const metaImageMatch = html.match(/"profile_pic_url_hd":"([^"]+)"/);
-              const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-              
-              if (metaImageMatch && metaImageMatch[1]) {
-                profileImageUrl = metaImageMatch[1].replace(/\\u0026/g, '&');
-              } else if (ogImageMatch && ogImageMatch[1]) {
-                profileImageUrl = ogImageMatch[1];
-              }
-            }
-          } catch (error) {
-            console.log('Instagram direct fetch failed:', error);
-          }
-        }
-        
-        // Try LinkedIn approach if Instagram failed
-        if (!profileImageUrl && linkedinHandle) {
-          const cleanHandle = linkedinHandle.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '');
-          
-          try {
-            // LinkedIn's profile images are harder to get due to authentication requirements
-            // This is a basic attempt that may not work consistently
-            const linkedinUrl = `https://www.linkedin.com/in/${cleanHandle}/`;
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(linkedinUrl)}`;
-            
-            const response = await fetch(proxyUrl);
-            if (response.ok) {
-              const html = await response.text();
-              const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-              
-              if (metaImageMatch && metaImageMatch[1]) {
-                profileImageUrl = metaImageMatch[1];
-              }
-            }
-          } catch (error) {
-            console.log('LinkedIn fetch failed:', error);
-          }
-        }
-
-        // Fallback to avatar generation service if social media fetch fails
-        if (!profileImageUrl) {
-          // Use a reliable avatar generation service as fallback
-          const initials = getInitials(fullName);
-          profileImageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
-        }
-
-        if (profileImageUrl) {
-          setImageUrl(profileImageUrl);
-        }
-      } catch (error) {
-        console.error('Failed to fetch profile image:', error);
-        // Use avatar generation service as final fallback
-        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
-        setImageUrl(fallbackUrl);
-      } finally {
-        setIsLoading(false);
+    const determineImageUrl = () => {
+      // Priority 1: Manual upload (profile image URL)
+      if (profileImageUrl) {
+        setImageUrl(profileImageUrl);
+        return;
       }
+
+      // Priority 2: Gravatar if email exists
+      if (email) {
+        const gravatarUrl = getGravatarUrl(email);
+        setImageUrl(gravatarUrl);
+        return;
+      }
+
+      // Priority 3: Generated avatar with UI Avatars
+      const generatedUrl = getGeneratedAvatarUrl(fullName);
+      setImageUrl(generatedUrl);
     };
 
-    fetchProfileImage();
-  }, [instagramHandle, linkedinHandle, fullName]);
+    determineImageUrl();
+  }, [profileImageUrl, email, fullName]);
+
+  const getGravatarUrl = (email: string): string => {
+    // Create MD5 hash of email for Gravatar
+    const emailHash = btoa(email.toLowerCase().trim()).replace(/[^a-zA-Z0-9]/g, '');
+    return `https://www.gravatar.com/avatar/${emailHash}?d=404&s=128`;
+  };
+
+  const getGeneratedAvatarUrl = (name: string): string => {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
+  };
 
   const getInitials = (name: string) => {
     return name
@@ -117,23 +73,75 @@ export function ClientProfileImage({
       .join('');
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const uploadedUrl = await uploadAvatar(file);
+      if (uploadedUrl) {
+        setImageUrl(uploadedUrl);
+        onImageUpdate?.(uploadedUrl);
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageError = () => {
+    // If Gravatar fails, fallback to generated avatar
+    if (imageUrl?.includes('gravatar.com')) {
+      const fallbackUrl = getGeneratedAvatarUrl(fullName);
+      setImageUrl(fallbackUrl);
+    }
+  };
+
   return (
-    <Avatar className={sizeClasses[size]}>
-      {imageUrl && (
-        <AvatarImage 
-          src={imageUrl} 
-          alt={`${fullName} profile`}
-          className="object-cover"
-          onError={() => {
-            // If the fetched image fails to load, try the avatar service fallback
-            const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&size=128&background=3B82F6&color=FFFFFF&bold=true`;
-            setImageUrl(fallbackUrl);
-          }}
-        />
+    <div className="relative inline-block">
+      <Avatar className={sizeClasses[size]}>
+        {imageUrl && (
+          <AvatarImage 
+            src={imageUrl} 
+            alt={`${fullName} profile`}
+            className="object-cover"
+            onError={handleImageError}
+          />
+        )}
+        <AvatarFallback className="bg-primary/10 text-primary font-medium">
+          {isLoading || isUploading ? "..." : getInitials(fullName)}
+        </AvatarFallback>
+      </Avatar>
+      
+      {editable && (
+        <div className="absolute -bottom-1 -right-1">
+          <input
+            type="file"
+            id="profile-image-upload"
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileUpload}
+            disabled={isLoading || isUploading}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 w-6 rounded-full p-0"
+            asChild
+            disabled={isLoading || isUploading}
+          >
+            <label htmlFor="profile-image-upload" className="cursor-pointer">
+              {isLoading || isUploading ? (
+                <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-900" />
+              ) : (
+                <Upload className="h-3 w-3" />
+              )}
+            </label>
+          </Button>
+        </div>
       )}
-      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-        {isLoading ? "..." : getInitials(fullName)}
-      </AvatarFallback>
-    </Avatar>
+    </div>
   );
 }

@@ -23,8 +23,8 @@ export function ClientDetailsHeader({ client }: ClientDetailsHeaderProps) {
     <div className="flex items-center gap-3">
       <ClientProfileImage
         fullName={client.full_name}
-        instagramHandle={client.instagram_handle}
-        linkedinHandle={client.linkedin_handle}
+        email={client.email}
+        profileImageUrl={client.profile_image_url}
         size="lg"
       />
       <div className="flex-1">
