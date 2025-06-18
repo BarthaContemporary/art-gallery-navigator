@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
+import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog";
 import { ClientListsSection } from "@/components/crm/ClientListsSection";
 
 export default function CRM() {
@@ -24,8 +25,9 @@ export default function CRM() {
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       <div className="space-y-6">
-        <div className="mb-4 md:mb-6">
+        <div className="mb-4 md:mb-6 flex gap-2">
           <CreateClientDialog />
+          <CreateClientListDialog />
         </div>
         
         <Card>
