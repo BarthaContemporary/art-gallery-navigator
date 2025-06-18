@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, ChevronDown } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Filter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,17 +60,21 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
 
   if (isLoading) {
     return (
-      <div className="text-xs text-muted-foreground">Loading lists...</div>
+      <Select disabled>
+        <SelectTrigger className="w-[85px] sm:w-[100px] h-5 text-xs px-1.5 gap-1">
+          <Filter className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <SelectValue placeholder="Loading..." />
+        </SelectTrigger>
+      </Select>
     );
   }
 
   return (
     <>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-muted-foreground">Filter by list:</span>
-        
         <Select value={selectedListId || "all"} onValueChange={(value) => onListSelect(value === "all" ? undefined : value)}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[85px] sm:w-[100px] h-5 text-xs px-1.5 gap-1">
+            <Filter className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <SelectValue>
               <div className="flex items-center">
                 {selectedList ? (
@@ -79,15 +83,15 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
                     <ListMemberCount listId={selectedList.id} />
                   </>
                 ) : (
-                  "All Clients"
+                  "All Lists"
                 )}
               </div>
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
+            <SelectItem value="all" className="text-xs">All Lists</SelectItem>
             {lists?.map((list) => (
-              <SelectItem key={list.id} value={list.id}>
+              <SelectItem key={list.id} value={list.id} className="text-xs">
                 <div className="flex items-center justify-between w-full">
                   <span>{list.name}</span>
                   <ListMemberCount listId={list.id} />
@@ -95,7 +99,7 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
               </SelectItem>
             ))}
             {(!lists || lists.length === 0) && (
-              <SelectItem value="empty" disabled>
+              <SelectItem value="empty" disabled className="text-xs">
                 No lists created yet
               </SelectItem>
             )}
