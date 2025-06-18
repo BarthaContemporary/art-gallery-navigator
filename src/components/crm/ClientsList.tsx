@@ -1,13 +1,11 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ClientCard } from "./ClientCard";
 import { EditClientDialog } from "./EditClientDialog";
 import { ClientDetailsDialog } from "./ClientDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit, Trash2, Eye } from "lucide-react";
 
 interface ClientsListProps {
   searchTerm: string;
@@ -118,6 +116,19 @@ export function ClientsList({ searchTerm, statusFilter, selectedListId }: Client
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'customer':
+        return 'text-green-600 bg-green-50';
+      case 'prospect':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'inactive':
+        return 'text-gray-600 bg-gray-50';
+      default:
+        return 'text-blue-600 bg-blue-50';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -159,16 +170,44 @@ export function ClientsList({ searchTerm, statusFilter, selectedListId }: Client
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="space-y-2">
         {clients.map((client: any) => (
-          <ClientCard
+          <div 
             key={client.id}
-            client={client}
-            onEdit={setEditingClient}
-            onDelete={handleDelete}
-            onViewDetails={setDetailsClient}
-            clientListIds={clientListMemberships?.[client.id] || []}
-          />
+            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-4 flex-1">
+              <div className="font-medium">{client.full_name}</div>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
+                {client.status}
+              </span>
+              <div className="text-sm text-muted-foreground">{client.client_type}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDetailsClient(client)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingClient(client)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(client.id)}
+                className="text-red-500 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
 
