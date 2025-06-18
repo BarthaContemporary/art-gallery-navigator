@@ -23,19 +23,46 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Profile URL is required");
     }
 
-    // Extract LinkedIn username from various URL formats
-    const linkedinUsername = extractLinkedInUsername(profileUrl);
-    if (!linkedinUsername) {
-      throw new Error("Invalid LinkedIn profile URL");
+    console.log("Fetching LinkedIn profile image for:", profileUrl);
+
+    // Try to scrape the profile page for Open Graph image
+    const response = await fetch(profileUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Profile not found or inaccessible");
     }
 
-    // Use LinkedIn's public profile image endpoint (limited but doesn't require API key)
-    const imageUrl = `https://media.licdn.com/dms/image/v2/profileImage/${linkedinUsername}/profileImage/displayImage/`;
+    const html = await response.text();
     
-    // Verify the image exists by making a HEAD request
-    const imageResponse = await fetch(imageUrl, { method: 'HEAD' });
+    // Look for Open Graph image meta tag
+    const ogImageMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]*)"[^>]*>/i);
+    let imageUrl = ogImageMatch ? ogImageMatch[1] : null;
+
+    // Also try to find profile image in the page content
+    if (!imageUrl) {
+      const profileImageMatch = html.match(/profile-photo-[^"]*"[^>]*src="([^"]*)"[^>]*/i);
+      imageUrl = profileImageMatch ? profileImageMatch[1] : null;
+    }
+
+    // Try another pattern for LinkedIn profile images
+    if (!imageUrl) {
+      const linkedinImageMatch = html.match(/https:\/\/media\.licdn\.com\/dms\/image\/[^"\\s]+/g);
+      if (linkedinImageMatch && linkedinImageMatch.length > 0) {
+        imageUrl = linkedinImageMatch[0];
+      }
+    }
     
-    if (imageResponse.ok) {
+    if (imageUrl) {
+      console.log("Found LinkedIn image:", imageUrl);
       return new Response(JSON.stringify({ imageUrl }), {
         status: 200,
         headers: {
@@ -57,21 +84,5 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-function extractLinkedInUsername(url: string): string | null {
-  const patterns = [
-    /linkedin\.com\/in\/([^\/\?]+)/,
-    /linkedin\.com\/pub\/([^\/\?]+)/,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  
-  return null;
-}
 
 serve(handler);
