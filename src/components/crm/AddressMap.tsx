@@ -1,16 +1,8 @@
+
 import { useEffect, useRef, useState } from "react";
 import { MapPin, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix for default markers in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+import { Loader } from "@googlemaps/js-api-loader";
 
 interface AddressMapProps {
   address: string;
@@ -19,8 +11,8 @@ interface AddressMapProps {
 
 export function AddressMap({ address, clientName }: AddressMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markerRef = useRef<google.maps.Marker | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -47,44 +39,46 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
   const cleanupMap = () => {
     if (markerRef.current) {
-      markerRef.current.remove();
+      markerRef.current.setMap(null);
       markerRef.current = null;
     }
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
+    // Google Maps instance cleanup is handled automatically
+    mapInstanceRef.current = null;
   };
 
-  const geocodeAddress = async (addressToGeocode: string) => {
+  const geocodeAddress = async (addressToGeocode: string): Promise<{ lat: number; lng: number; formatted_address: string }> => {
     const formattedAddress = formatAddressForGeocoding(addressToGeocode);
-    const encodedAddress = encodeURIComponent(formattedAddress);
     
     console.log('Original address:', addressToGeocode);
     console.log('Formatted address for geocoding:', formattedAddress);
     
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'AddressMap/1.0'
-        }
-      }
-    );
+    const response = await fetch('https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/geocode', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y`,
+      },
+      body: JSON.stringify({ address: formattedAddress }),
+    });
     
     if (!response.ok) {
       throw new Error('Geocoding service unavailable');
     }
     
     const data = await response.json();
-    if (data.length === 0) {
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    if (!data.results || data.results.length === 0) {
       throw new Error('Address not found');
     }
     
+    const result = data.results[0];
     return {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon),
-      display_name: data[0].display_name
+      lat: result.geometry.location.lat,
+      lng: result.geometry.location.lng,
+      formatted_address: result.formatted_address
     };
   };
 
@@ -95,61 +89,67 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     setError(null);
 
     try {
-      console.log('Initializing map for address:', address);
+      console.log('Initializing Google Maps for address:', address);
       
       // Clean up existing map
       cleanupMap();
       
+      // Geocode the address first
+      const location = await geocodeAddress(address.trim());
+      
+      // Load Google Maps - we'll use a dummy key for the loader since we're using edge functions for geocoding
+      const loader = new Loader({
+        apiKey: "dummy-key-for-maps-only",
+        version: "weekly",
+        libraries: ["places"]
+      });
+
+      const google = await loader.load();
+      
       // Wait for DOM to be ready
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Initialize map with default center
-      const mapInstance = L.map(mapRef.current, {
-        zoomControl: true,
-        attributionControl: true,
-        dragging: true,
-        touchZoom: true,
-        doubleClickZoom: true,
-        scrollWheelZoom: true,
-        boxZoom: true,
-        keyboard: true,
-      }).setView([40.7128, -74.0060], 13);
-      
-      // Add OpenStreetMap tiles
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(mapInstance);
+      // Initialize map centered on the location
+      const mapInstance = new google.maps.Map(mapRef.current, {
+        center: { lat: location.lat, lng: location.lng },
+        zoom: 16,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+      });
 
       mapInstanceRef.current = mapInstance;
 
-      // Geocode the address
-      const location = await geocodeAddress(address.trim());
-      
-      // Center map on the location
-      mapInstance.setView([location.lat, location.lng], 16);
-      
       // Add marker
-      const marker = L.marker([location.lat, location.lng]).addTo(mapInstance);
-      
-      // Create popup content
-      const popupContent = `
-        <div style="padding: 8px; font-family: system-ui, sans-serif;">
-          <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>
-          <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">${location.display_name}</p>
-        </div>
-      `;
-      
-      marker.bindPopup(popupContent);
+      const marker = new google.maps.Marker({
+        position: { lat: location.lat, lng: location.lng },
+        map: mapInstance,
+        title: clientName,
+      });
+
+      // Create info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px; font-family: system-ui, sans-serif;">
+            <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>
+            <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">${location.formatted_address}</p>
+          </div>
+        `,
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.open(mapInstance, marker);
+      });
+
       markerRef.current = marker;
 
-      // Auto-open popup briefly
+      // Auto-open info window briefly
       setTimeout(() => {
-        marker.openPopup();
-        setTimeout(() => marker.closePopup(), 3000);
+        infoWindow.open(mapInstance, marker);
+        setTimeout(() => infoWindow.close(), 3000);
       }, 500);
 
-      console.log('Map initialized successfully');
+      console.log('Google Maps initialized successfully');
       setRetryCount(0);
     } catch (err) {
       console.error("Map initialization error:", err);
