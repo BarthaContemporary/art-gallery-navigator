@@ -53,7 +53,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               variant="ghost"
               size="sm"
               onClick={() => copyToClipboard(client.email, 'Email')}
-              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Copy className="h-3 w-3" />
             </Button>
@@ -69,7 +69,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               variant="ghost"
               size="sm"
               onClick={() => copyToClipboard(client.phone, 'Phone')}
-              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Copy className="h-3 w-3" />
             </Button>
