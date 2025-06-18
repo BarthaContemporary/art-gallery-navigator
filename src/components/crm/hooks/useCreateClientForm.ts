@@ -18,6 +18,8 @@ export interface ClientFormData {
   notes: string;
   source: string;
   interested_artists: string[];
+  instagram_handle: string;
+  linkedin_handle: string;
 }
 
 const initialFormData: ClientFormData = {
@@ -31,7 +33,9 @@ const initialFormData: ClientFormData = {
   address: '',
   notes: '',
   source: '',
-  interested_artists: []
+  interested_artists: [],
+  instagram_handle: '',
+  linkedin_handle: ''
 };
 
 export function useCreateClientForm() {

@@ -855,8 +855,10 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          instagram_handle: string | null
           interested_artists: string[] | null
           last_activity_date: string | null
+          linkedin_handle: string | null
           notes: string | null
           phone: string | null
           source: string | null
@@ -878,8 +880,10 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          instagram_handle?: string | null
           interested_artists?: string[] | null
           last_activity_date?: string | null
+          linkedin_handle?: string | null
           notes?: string | null
           phone?: string | null
           source?: string | null
@@ -901,8 +905,10 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          instagram_handle?: string | null
           interested_artists?: string[] | null
           last_activity_date?: string | null
+          linkedin_handle?: string | null
           notes?: string | null
           phone?: string | null
           source?: string | null

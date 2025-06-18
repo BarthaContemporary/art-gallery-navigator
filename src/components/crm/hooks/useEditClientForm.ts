@@ -22,7 +22,9 @@ export function useEditClientForm({ client, onSuccess }: UseEditClientFormProps)
     address: '',
     notes: '',
     source: '',
-    interested_artists: []
+    interested_artists: [],
+    instagram_handle: '',
+    linkedin_handle: ''
   });
 
   const queryClient = useQueryClient();
@@ -40,7 +42,9 @@ export function useEditClientForm({ client, onSuccess }: UseEditClientFormProps)
         address: client.address || '',
         notes: client.notes || '',
         source: client.source || '',
-        interested_artists: client.interested_artists || []
+        interested_artists: client.interested_artists || [],
+        instagram_handle: client.instagram_handle || '',
+        linkedin_handle: client.linkedin_handle || ''
       });
     }
   }, [client]);

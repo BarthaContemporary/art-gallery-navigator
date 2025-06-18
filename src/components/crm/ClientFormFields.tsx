@@ -74,6 +74,26 @@ export function ClientFormFields({
             placeholder="e.g., Website, Referral, Event" 
           />
         </div>
+
+        <div>
+          <Label htmlFor="instagram_handle">Instagram Handle</Label>
+          <Input 
+            id="instagram_handle" 
+            value={formData.instagram_handle} 
+            onChange={e => onFormDataChange({ instagram_handle: e.target.value })} 
+            placeholder="@username" 
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="linkedin_handle">LinkedIn Handle</Label>
+          <Input 
+            id="linkedin_handle" 
+            value={formData.linkedin_handle} 
+            onChange={e => onFormDataChange({ linkedin_handle: e.target.value })} 
+            placeholder="linkedin.com/in/username" 
+          />
+        </div>
         
         <div>
           <Label htmlFor="status">Status</Label>
