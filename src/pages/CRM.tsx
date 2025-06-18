@@ -41,10 +41,6 @@ export default function CRM() {
               />
             </div>
             <div className="flex gap-2 items-center">
-              <ClientListsFilter 
-                selectedListId={selectedListId}
-                onListSelect={setSelectedListId}
-              />
               <Button
                 variant={statusFilter === "all" ? "default" : "outline"}
                 size="sm"
@@ -66,6 +62,10 @@ export default function CRM() {
               >
                 Customers
               </Button>
+              <ClientListsFilter 
+                selectedListId={selectedListId}
+                onListSelect={setSelectedListId}
+              />
             </div>
           </div>
           
