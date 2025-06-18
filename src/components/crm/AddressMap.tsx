@@ -16,15 +16,21 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Track when component is mounted
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   const formatAddressForGeocoding = (rawAddress: string) => {
-    // Replace all types of line breaks with commas and spaces
     return rawAddress
-      .replace(/\r\n/g, ', ')  // Windows line breaks
-      .replace(/\n/g, ', ')    // Unix line breaks
-      .replace(/\r/g, ', ')    // Mac line breaks
-      .replace(/,\s*,/g, ',')  // Remove duplicate commas
-      .replace(/,\s*$/, '')    // Remove trailing comma
+      .replace(/\r\n/g, ', ')
+      .replace(/\n/g, ', ')
+      .replace(/\r/g, ', ')
+      .replace(/,\s*,/g, ',')
+      .replace(/,\s*$/, '')
       .trim();
   };
 
@@ -42,7 +48,6 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
       markerRef.current.setMap(null);
       markerRef.current = null;
     }
-    // Google Maps instance cleanup is handled automatically
     mapInstanceRef.current = null;
   };
 
@@ -83,22 +88,31 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
   };
 
   const initializeMap = async () => {
-    if (!mapRef.current || !address?.trim()) return;
+    console.log('initializeMap called, checking conditions...');
+    console.log('mapRef.current:', mapRef.current);
+    console.log('isMounted:', isMounted);
+    console.log('address:', address?.trim());
+    
+    if (!mapRef.current || !isMounted || !address?.trim()) {
+      console.log('Conditions not met for map initialization');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log('Initializing Google Maps for address:', address);
+      console.log('Starting map initialization for address:', address);
       
-      // Clean up existing map
       cleanupMap();
       
-      // Geocode the address first using our edge function
+      // Geocode the address first
       const location = await geocodeAddress(address.trim());
+      console.log('Geocoding successful, location:', location);
       
-      // Load Google Maps script dynamically
+      // Load Google Maps script if not already loaded
       if (!window.google) {
+        console.log('Loading Google Maps script...');
         const script = document.createElement('script');
         script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dw901SwHHqfeWM&libraries=places`;
         script.async = true;
@@ -109,12 +123,25 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
           script.onerror = reject;
           document.head.appendChild(script);
         });
+        console.log('Google Maps script loaded');
       }
 
-      // Wait for DOM to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Additional safety check and wait
+      if (!mapRef.current) {
+        console.error('Map ref became null after geocoding');
+        throw new Error('Map container not available');
+      }
+
+      // Wait a bit more to ensure DOM is stable
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Initialize map centered on the location
+      // Final check before creating map
+      if (!mapRef.current || !isMounted) {
+        console.error('Map ref or component not ready for map creation');
+        throw new Error('Map container not ready');
+      }
+      
+      console.log('Creating Google Maps instance...');
       const mapInstance = new google.maps.Map(mapRef.current, {
         center: { lat: location.lat, lng: location.lng },
         zoom: 16,
@@ -126,8 +153,8 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
       });
 
       mapInstanceRef.current = mapInstance;
+      console.log('Google Maps instance created successfully');
 
-      // Add marker
       const marker = new google.maps.Marker({
         position: { lat: location.lat, lng: location.lng },
         map: mapInstance,
@@ -135,7 +162,6 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
         animation: google.maps.Animation.DROP
       });
 
-      // Create info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; font-family: system-ui, sans-serif; max-width: 250px;">
@@ -151,13 +177,16 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
 
       markerRef.current = marker;
 
-      // Auto-open info window briefly
       setTimeout(() => {
-        infoWindow.open(mapInstance, marker);
-        setTimeout(() => infoWindow.close(), 3000);
+        if (isMounted) {
+          infoWindow.open(mapInstance, marker);
+          setTimeout(() => {
+            if (isMounted) infoWindow.close();
+          }, 3000);
+        }
       }, 500);
 
-      console.log('Google Maps initialized successfully');
+      console.log('Map initialization completed successfully');
       setRetryCount(0);
     } catch (err) {
       console.error("Map initialization error:", err);
@@ -165,8 +194,10 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
       
       if (errorMessage.includes("not found")) {
         setError("Address not found. Please check the address format.");
-      } else if (errorMessage.includes("service")) {
+      } else if (errorMessage.includes("service") || errorMessage.includes("unavailable")) {
         setError("Map service temporarily unavailable");
+      } else if (errorMessage.includes("container")) {
+        setError("Map display error - please retry");
       } else {
         setError("Failed to load map");
       }
@@ -179,20 +210,27 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     if (retryCount < 3) {
       setRetryCount(prev => prev + 1);
       cleanupMap();
-      initializeMap();
+      // Add a small delay before retrying
+      setTimeout(() => {
+        initializeMap();
+      }, 100);
     }
   };
 
   useEffect(() => {
-    if (address && address.trim()) {
-      initializeMap();
+    if (isMounted && address && address.trim()) {
+      // Add a delay to ensure DOM is ready
+      const timeoutId = setTimeout(() => {
+        initializeMap();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
 
-    // Cleanup on unmount or address change
     return () => {
       cleanupMap();
     };
-  }, [address, clientName]);
+  }, [address, clientName, isMounted]);
 
   if (isLoading) {
     return (
