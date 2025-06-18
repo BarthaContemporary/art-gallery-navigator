@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ClientDetailsHeader } from "./ClientDetailsHeader";
 import { ClientContactSection } from "./ClientContactSection";
 import { ClientProfessionalSection } from "./ClientProfessionalSection";
-import { ClientLocationSection } from "./ClientLocationSection";
 import { ClientTagsSection } from "./ClientTagsSection";
 import { ClientNotesSection } from "./ClientNotesSection";
 
@@ -26,10 +25,9 @@ export function ClientDetailsDialog({ client, open, onOpenChange }: ClientDetail
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ClientContactSection client={client} />
           <ClientProfessionalSection client={client} />
-          <ClientLocationSection client={client} />
         </div>
 
         <div className="space-y-3">

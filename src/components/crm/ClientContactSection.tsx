@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Globe, Instagram, Linkedin, Copy, ExternalLink } from "lucide-react";
+import { Globe, Instagram, Linkedin, Copy, ExternalLink, MapPin } from "lucide-react";
 import { ContactActions } from "./ContactActions";
 import { toast } from "sonner";
 
@@ -51,6 +51,13 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
             </Button>
           </div>
           <ContactActions phone={client.phone} />
+        </div>
+      )}
+
+      {client.address && (
+        <div className="flex items-start gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-gray-700 leading-relaxed">{client.address}</span>
         </div>
       )}
 
