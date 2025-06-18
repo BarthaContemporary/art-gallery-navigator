@@ -24,29 +24,32 @@ export function ClientsList({ searchTerm, statusFilter, selectedListId }: Client
   const { data: clients, isLoading, error } = useQuery({
     queryKey: ['clients', searchTerm, statusFilter, selectedListId],
     queryFn: async () => {
-      let query = supabase
-        .from('clients')
-        .select('*');
+      let clientsData: any[] = [];
 
-      // If a list is selected, filter by list membership
       if (selectedListId) {
-        query = supabase
+        // Query for clients in a specific list
+        const { data, error } = await supabase
           .from('client_list_members')
           .select(`
             client_id,
             clients:client_id (*)
           `)
           .eq('list_id', selectedListId);
+        
+        if (error) throw error;
+
+        // Extract clients from the nested structure
+        clientsData = data?.map((item: any) => item.clients).filter(Boolean) || [];
+      } else {
+        // Query for all clients
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .order('full_name');
+        
+        if (error) throw error;
+        clientsData = data || [];
       }
-
-      const { data, error } = await query.order('full_name');
-      
-      if (error) throw error;
-
-      // Extract clients from the data structure if filtering by list
-      let clientsData = selectedListId 
-        ? data?.map((item: any) => item.clients).filter(Boolean) || []
-        : data || [];
 
       // Apply search filter
       if (searchTerm) {
