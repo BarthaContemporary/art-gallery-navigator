@@ -24,18 +24,20 @@ export function ArtworksFilters({
   onArtistFilterChange
 }: ArtworksFiltersProps) {
   return <div className="mb-4 md:mb-8">
-      <div className="w-full mb-3 md:mb-4">
-        <SearchBar value={searchTerm} onChange={onSearchChange} />
-      </div>
-      <div className="flex flex-row items-center gap-3 sm:gap-4 overflow-x-auto pb-1">
-        <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
-          <StatusFilter value={statusFilter} onChange={onStatusFilterChange} />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        <div className="w-full sm:max-w-sm">
+          <SearchBar value={searchTerm} onChange={onSearchChange} />
         </div>
-        <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
-          <TypeFilter value={typeFilter} onChange={onTypeFilterChange} />
-        </div>
-        <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
-          <ArtistFilter value={artistFilter} onChange={onArtistFilterChange} />
+        <div className="flex flex-row items-center gap-3 sm:gap-4 overflow-x-auto pb-1 sm:ml-auto">
+          <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
+            <StatusFilter value={statusFilter} onChange={onStatusFilterChange} />
+          </div>
+          <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
+            <TypeFilter value={typeFilter} onChange={onTypeFilterChange} />
+          </div>
+          <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
+            <ArtistFilter value={artistFilter} onChange={onArtistFilterChange} />
+          </div>
         </div>
       </div>
     </div>;
