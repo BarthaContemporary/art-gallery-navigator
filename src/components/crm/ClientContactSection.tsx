@@ -40,7 +40,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b pb-1">
         Contact Information
       </h3>
@@ -48,6 +48,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       {client.email && (
         <div className="flex items-center justify-between group">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm truncate">{client.email}</span>
             <Button
               variant="ghost"
@@ -64,6 +65,7 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
       {client.phone && (
         <div className="flex items-center justify-between group">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm truncate">{client.phone}</span>
             <Button
               variant="ghost"
