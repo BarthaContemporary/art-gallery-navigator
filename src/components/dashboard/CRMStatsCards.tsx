@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, UserPlus, TrendingUp, UserCheck } from "lucide-react";
@@ -48,7 +49,7 @@ export const CRMStatsCards = ({
             </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{stat.value}</div>}
+            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-xl font-bold">{stat.value}</div>}
           </CardContent>
         </Card>)}
     </div>;
