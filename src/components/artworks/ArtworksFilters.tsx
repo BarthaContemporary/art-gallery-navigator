@@ -3,6 +3,7 @@ import { SearchBar } from "./SearchBar";
 import { StatusFilter } from "./StatusFilter";
 import { TypeFilter } from "./TypeFilter";
 import { ArtistFilter } from "./ArtistFilter";
+
 interface ArtworksFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -13,6 +14,7 @@ interface ArtworksFiltersProps {
   artistFilter: string | null;
   onArtistFilterChange: (value: string | null) => void;
 }
+
 export function ArtworksFilters({
   searchTerm,
   onSearchChange,
@@ -23,7 +25,8 @@ export function ArtworksFilters({
   artistFilter,
   onArtistFilterChange
 }: ArtworksFiltersProps) {
-  return <div className="mb-4 md:mb-8">
+  return (
+    <div className="mb-2 md:mb-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         <div className="w-full sm:max-w-sm">
           <SearchBar value={searchTerm} onChange={onSearchChange} />
@@ -40,5 +43,6 @@ export function ArtworksFilters({
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 }
