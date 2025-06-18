@@ -24,11 +24,6 @@ export default function CRM() {
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       <div className="space-y-6">
-        <ClientListsSection 
-          selectedListId={selectedListId}
-          onListSelect={setSelectedListId}
-        />
-
         <div className="mb-4 md:mb-6">
           <CreateClientDialog />
         </div>
@@ -85,6 +80,11 @@ export default function CRM() {
             />
           </CardContent>
         </Card>
+
+        <ClientListsSection 
+          selectedListId={selectedListId}
+          onListSelect={setSelectedListId}
+        />
       </div>
     </div>
   );
