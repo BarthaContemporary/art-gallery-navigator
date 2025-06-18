@@ -2,13 +2,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EditClientListDialog } from "./EditClientListDialog";
 import { useClientLists, useDeleteClientList, useClientListMembers } from "@/hooks/use-client-lists";
 import { ClientList } from "@/hooks/use-client-lists";
@@ -49,6 +56,8 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
     setEditingList(list);
   };
 
+  const selectedList = lists?.find(list => list.id === selectedListId);
+
   if (isLoading) {
     return (
       <div className="text-xs text-muted-foreground">Loading lists...</div>
@@ -57,62 +66,66 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
 
   return (
     <>
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Filter by list:</span>
         
-        <Button
-          variant={!selectedListId ? "default" : "outline"}
-          size="sm"
-          onClick={() => onListSelect(undefined)}
-          className="h-8 text-xs px-3"
-        >
-          All Clients
-        </Button>
-        
-        {lists?.map((list) => (
-          <div key={list.id} className="flex items-center gap-1">
-            <Button
-              variant={selectedListId === list.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => onListSelect(list.id)}
-              className="h-8 text-xs px-3"
-            >
-              <span className="flex items-center gap-1">
-                {list.name}
-                <ListMemberCount listId={list.id} />
-              </span>
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem
-                  onClick={() => handleEditList(list)}
-                  className="text-xs"
-                >
-                  <Edit className="h-3 w-3 mr-2" />
-                  Edit List
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleDeleteList(list.id)}
-                  className="text-red-600 text-xs"
-                >
-                  <Trash2 className="h-3 w-3 mr-2" />
-                  Delete List
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-        
-        {(!lists || lists.length === 0) && (
-          <span className="text-xs text-muted-foreground">
-            No lists created yet
-          </span>
+        <Select value={selectedListId || "all"} onValueChange={(value) => onListSelect(value === "all" ? undefined : value)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue>
+              <div className="flex items-center">
+                {selectedList ? (
+                  <>
+                    {selectedList.name}
+                    <ListMemberCount listId={selectedList.id} />
+                  </>
+                ) : (
+                  "All Clients"
+                )}
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Clients</SelectItem>
+            {lists?.map((list) => (
+              <SelectItem key={list.id} value={list.id}>
+                <div className="flex items-center justify-between w-full">
+                  <span>{list.name}</span>
+                  <ListMemberCount listId={list.id} />
+                </div>
+              </SelectItem>
+            ))}
+            {(!lists || lists.length === 0) && (
+              <SelectItem value="empty" disabled>
+                No lists created yet
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
+
+        {selectedList && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={() => handleEditList(selectedList)}
+                className="text-xs"
+              >
+                <Edit className="h-3 w-3 mr-2" />
+                Edit List
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDeleteList(selectedList.id)}
+                className="text-red-600 text-xs"
+              >
+                <Trash2 className="h-3 w-3 mr-2" />
+                Delete List
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
