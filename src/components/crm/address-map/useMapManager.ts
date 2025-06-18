@@ -1,6 +1,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { MapManager, MapManagerState } from "./MapManager";
+import { MapManager } from "./MapManager";
+import { MapManagerState } from "./mapState";
 
 export const useMapManager = (address: string, clientName: string) => {
   const containerRef = useRef<HTMLDivElement>(null);
