@@ -8,12 +8,12 @@ export const useNavItems = () => {
   const baseItems = [
     // Dashboard - only for admin users
     ...(isAdmin ? [{ title: "Dashboard", href: "/", icon: Home }] : []),
-    // CRM - only for admin users
-    ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
     // Artists - only for admin users
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    // CRM - only for admin users
+    ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),
     { title: "Documents", href: "/documents", icon: FileText },
     { title: "Locations", href: "/locations", icon: MapPin },
     // Projects - only for admin users
