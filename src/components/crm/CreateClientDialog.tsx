@@ -25,8 +25,8 @@ export function CreateClientDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button className="flex gap-2">
+          <Plus className="h-4 w-4" />
           Add Client
         </Button>
       </DialogTrigger>
