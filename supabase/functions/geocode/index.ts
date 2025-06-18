@@ -12,6 +12,7 @@ serve(async (req) => {
 
   try {
     if (!GOOGLE_MAPS_API_KEY) {
+      console.error('Google Maps API key not configured')
       throw new Error('Google Maps API key not configured')
     }
 
@@ -25,11 +26,21 @@ serve(async (req) => {
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}`
     
     console.log('Geocoding address:', address)
+    console.log('Geocoding URL (without key):', `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=***`)
     
     const response = await fetch(geocodeUrl)
+    
+    if (!response.ok) {
+      console.error('Geocoding API response not ok:', response.status, response.statusText)
+      throw new Error(`Geocoding API error: ${response.statusText}`)
+    }
+    
     const data = await response.json()
     
+    console.log('Geocoding API response status:', data.status)
+    
     if (data.status === 'ZERO_RESULTS') {
+      console.log('No results found for address:', address)
       return new Response(
         JSON.stringify({ error: 'Address not found', results: [] }),
         { 
@@ -39,8 +50,29 @@ serve(async (req) => {
       )
     }
     
+    if (data.status === 'REQUEST_DENIED') {
+      console.error('Geocoding request denied:', data.error_message)
+      throw new Error(`Geocoding request denied: ${data.error_message}`)
+    }
+    
+    if (data.status === 'INVALID_REQUEST') {
+      console.error('Invalid geocoding request:', data.error_message)
+      throw new Error(`Invalid request: ${data.error_message}`)
+    }
+    
+    if (data.status === 'OVER_QUERY_LIMIT') {
+      console.error('Geocoding query limit exceeded')
+      throw new Error('Geocoding service temporarily unavailable')
+    }
+    
     if (data.status !== 'OK') {
+      console.error('Geocoding failed with status:', data.status, data.error_message)
       throw new Error(`Geocoding failed: ${data.status}`)
+    }
+    
+    if (!data.results || data.results.length === 0) {
+      console.log('No results in response despite OK status')
+      throw new Error('No results found')
     }
     
     console.log('Geocoding successful:', data.results[0]?.formatted_address)

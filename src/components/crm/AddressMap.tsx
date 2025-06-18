@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@googlemaps/js-api-loader";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddressMapProps {
   address: string;
@@ -52,34 +52,34 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
     console.log('Original address:', addressToGeocode);
     console.log('Formatted address for geocoding:', formattedAddress);
     
-    const response = await fetch('https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/geocode', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y`,
-      },
-      body: JSON.stringify({ address: formattedAddress }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Geocoding service unavailable');
+    try {
+      const { data, error } = await supabase.functions.invoke('geocode', {
+        body: { address: formattedAddress }
+      });
+      
+      if (error) {
+        console.error('Geocoding error:', error);
+        throw new Error('Geocoding service unavailable');
+      }
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data.results || data.results.length === 0) {
+        throw new Error('Address not found');
+      }
+      
+      const result = data.results[0];
+      return {
+        lat: result.geometry.location.lat,
+        lng: result.geometry.location.lng,
+        formatted_address: result.formatted_address
+      };
+    } catch (err) {
+      console.error('Geocoding failed:', err);
+      throw err;
     }
-    
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    
-    if (!data.results || data.results.length === 0) {
-      throw new Error('Address not found');
-    }
-    
-    const result = data.results[0];
-    return {
-      lat: result.geometry.location.lat,
-      lng: result.geometry.location.lng,
-      formatted_address: result.formatted_address
-    };
   };
 
   const initializeMap = async () => {
@@ -94,18 +94,23 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
       // Clean up existing map
       cleanupMap();
       
-      // Geocode the address first
+      // Geocode the address first using our edge function
       const location = await geocodeAddress(address.trim());
       
-      // Load Google Maps - we'll use a dummy key for the loader since we're using edge functions for geocoding
-      const loader = new Loader({
-        apiKey: "dummy-key-for-maps-only",
-        version: "weekly",
-        libraries: ["places"]
-      });
+      // Load Google Maps script dynamically
+      if (!window.google) {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dw901SwHHqfeWM&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
 
-      const google = await loader.load();
-      
       // Wait for DOM to be ready
       await new Promise(resolve => setTimeout(resolve, 100));
       
@@ -116,6 +121,8 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
+        zoomControl: true,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
       });
 
       mapInstanceRef.current = mapInstance;
@@ -125,12 +132,13 @@ export function AddressMap({ address, clientName }: AddressMapProps) {
         position: { lat: location.lat, lng: location.lng },
         map: mapInstance,
         title: clientName,
+        animation: google.maps.Animation.DROP
       });
 
       // Create info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
-          <div style="padding: 8px; font-family: system-ui, sans-serif;">
+          <div style="padding: 8px; font-family: system-ui, sans-serif; max-width: 250px;">
             <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>
             <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">${location.formatted_address}</p>
           </div>
