@@ -8,6 +8,7 @@ export const useAddressMap = (address: string, clientName: string) => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const initializationRef = useRef<boolean>(false);
+  const timeoutRef = useRef<NodeJS.Timeout>();
   
   const { geocodeAddress } = useGeocoding();
   const { mapRef, isMounted, cleanupMap, loadGoogleMapsScript, createMap } = useGoogleMaps();
@@ -20,7 +21,7 @@ export const useAddressMap = (address: string, clientName: string) => {
     }
 
     console.log('initializeMap called, checking conditions...');
-    console.log('mapRef.current:', mapRef.current);
+    console.log('mapRef.current:', !!mapRef.current);
     console.log('isMounted:', isMounted);
     console.log('address:', address?.trim());
     
@@ -39,25 +40,28 @@ export const useAddressMap = (address: string, clientName: string) => {
       // Clean up any existing map first
       cleanupMap();
       
-      // Wait a bit after cleanup
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Verify container is still available after cleanup
       if (!mapRef.current || !isMounted) {
         throw new Error('Map container not available after cleanup');
       }
 
+      // Geocode the address
       const location = await geocodeAddress(address.trim());
       console.log('Geocoding successful, location:', location);
       
+      // Load Google Maps script
       await loadGoogleMapsScript();
 
       // Final check before map creation
       if (!mapRef.current || !isMounted) {
-        console.error('Map ref or component became unavailable after geocoding');
+        console.error('Map ref or component became unavailable after script loading');
         throw new Error('Map container not available for map creation');
       }
 
+      // Create the map
       await createMap(location, clientName);
 
       console.log('Map initialization completed successfully');
@@ -68,14 +72,16 @@ export const useAddressMap = (address: string, clientName: string) => {
       
       if (errorMessage.includes("not found")) {
         setError("Address not found. Please check the address format.");
+      } else if (errorMessage.includes("API key")) {
+        setError("Google Maps API key not configured. Please contact administrator.");
       } else if (errorMessage.includes("service") || errorMessage.includes("unavailable")) {
-        setError("Map service temporarily unavailable");
+        setError("Map service temporarily unavailable. Please try again.");
       } else if (errorMessage.includes("container") || errorMessage.includes("not available")) {
-        setError("Map display error - container issue detected");
+        setError("Map display error - container issue detected. Please refresh the page.");
       } else if (errorMessage.includes("API")) {
-        setError("Map service configuration error");
+        setError("Map service configuration error. Please contact administrator.");
       } else {
-        setError("Failed to load map");
+        setError("Failed to load map. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -89,30 +95,35 @@ export const useAddressMap = (address: string, clientName: string) => {
       setRetryCount(prev => prev + 1);
       cleanupMap();
       
-      // Reset initialization flag and wait a bit before retrying
+      // Reset initialization flag and wait before retrying
       initializationRef.current = false;
       setTimeout(() => {
         initializeMap();
-      }, 500);
+      }, 1000);
+    } else {
+      setError("Maximum retry attempts reached. Please refresh the page.");
     }
   };
 
   useEffect(() => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
     // Reset initialization flag when dependencies change
     initializationRef.current = false;
     
     if (isMounted && address && address.trim()) {
-      const timeoutId = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         initializeMap();
-      }, 200);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        initializationRef.current = false;
-      };
+      }, 300);
     }
 
     return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
       cleanupMap();
       initializationRef.current = false;
     };

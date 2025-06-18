@@ -23,33 +23,42 @@ export const useGoogleMaps = () => {
       markerRef.current.setMap(null);
       markerRef.current = null;
     }
-    mapInstanceRef.current = null;
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current = null;
+    }
     setIsInitializing(false);
   };
 
   const loadGoogleMapsScript = async () => {
-    if (!window.google) {
-      console.log('Loading Google Maps script...');
-      const script = document.createElement('script');
-      
-      // Use environment variable instead of hardcoded API key
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBFw0Qbyq9zTFTd-tUY6dw901SwHHqfeWM';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      
-      await new Promise((resolve, reject) => {
-        script.onload = () => {
-          console.log('Google Maps script loaded successfully');
-          resolve(true);
-        };
-        script.onerror = (error) => {
-          console.error('Failed to load Google Maps script:', error);
-          reject(new Error('Failed to load Google Maps API'));
-        };
-        document.head.appendChild(script);
-      });
+    if (window.google?.maps) {
+      console.log('Google Maps already loaded');
+      return;
     }
+
+    console.log('Loading Google Maps script...');
+    const script = document.createElement('script');
+    
+    // Use environment variable for API key
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      throw new Error('Google Maps API key not configured');
+    }
+    
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    
+    await new Promise((resolve, reject) => {
+      script.onload = () => {
+        console.log('Google Maps script loaded successfully');
+        resolve(true);
+      };
+      script.onerror = (error) => {
+        console.error('Failed to load Google Maps script:', error);
+        reject(new Error('Failed to load Google Maps API'));
+      };
+      document.head.appendChild(script);
+    });
   };
 
   const createMap = async (location: LocationData, clientName: string) => {
@@ -62,9 +71,8 @@ export const useGoogleMaps = () => {
     
     try {
       console.log('Starting map creation process...');
-      console.log('mapRef.current:', mapRef.current);
-      console.log('isMounted:', isMounted);
       
+      // Ensure we have a valid container
       if (!mapRef.current) {
         throw new Error('Map container element not found');
       }
@@ -73,10 +81,15 @@ export const useGoogleMaps = () => {
         throw new Error('Component not mounted');
       }
 
-      // Wait a bit to ensure DOM is stable
+      // Verify Google Maps is loaded
+      if (!window.google?.maps) {
+        throw new Error('Google Maps API not loaded');
+      }
+
+      // Wait for DOM to be stable
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Double-check the container is still available
+      // Final safety check
       if (!mapRef.current || !isMounted) {
         throw new Error('Map container became unavailable during initialization');
       }
@@ -120,7 +133,7 @@ export const useGoogleMaps = () => {
 
       markerRef.current = marker;
 
-      // Show info window briefly if component is still mounted
+      // Show info window briefly
       setTimeout(() => {
         if (isMounted && mapInstanceRef.current) {
           infoWindow.open(mapInstance, marker);
