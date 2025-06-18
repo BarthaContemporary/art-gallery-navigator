@@ -25,22 +25,55 @@ export function ClientProfileImage({
   };
 
   useEffect(() => {
-    // For now, we'll use a placeholder implementation
-    // In a real app, you'd integrate with Instagram/LinkedIn APIs
     const fetchProfileImage = async () => {
       if (!instagramHandle && !linkedinHandle) return;
       
       setIsLoading(true);
       
       try {
-        // Placeholder logic - in reality you'd call your backend
-        // that safely fetches profile images from social media APIs
+        let profileImageUrl = null;
+
+        // Try Instagram first if handle is provided
         if (instagramHandle) {
-          // Instagram profile image logic would go here
-          console.log('Would fetch Instagram profile for:', instagramHandle);
-        } else if (linkedinHandle) {
-          // LinkedIn profile image logic would go here  
-          console.log('Would fetch LinkedIn profile for:', linkedinHandle);
+          const cleanHandle = instagramHandle.replace(/^@/, '');
+          // Use Instagram's public profile image endpoint
+          profileImageUrl = `https://www.instagram.com/${cleanHandle}/`;
+          
+          // Try to get the profile image through a proxy service or meta tags
+          try {
+            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.instagram.com/${cleanHandle}/`)}`);
+            const html = await response.text();
+            
+            // Extract profile image from meta tags
+            const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+            if (metaImageMatch && metaImageMatch[1]) {
+              profileImageUrl = metaImageMatch[1];
+            }
+          } catch (error) {
+            console.log('Instagram image fetch failed, trying alternative method:', error);
+            // Fallback to a different approach if needed
+          }
+        }
+        
+        // Try LinkedIn if Instagram failed and LinkedIn handle is provided
+        if (!profileImageUrl && linkedinHandle) {
+          const cleanHandle = linkedinHandle.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '');
+          try {
+            const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.linkedin.com/in/${cleanHandle}/`)}`);
+            const html = await response.text();
+            
+            // Extract profile image from LinkedIn meta tags
+            const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+            if (metaImageMatch && metaImageMatch[1]) {
+              profileImageUrl = metaImageMatch[1];
+            }
+          } catch (error) {
+            console.log('LinkedIn image fetch failed:', error);
+          }
+        }
+
+        if (profileImageUrl) {
+          setImageUrl(profileImageUrl);
         }
       } catch (error) {
         console.error('Failed to fetch profile image:', error);
@@ -67,10 +100,11 @@ export function ClientProfileImage({
           src={imageUrl} 
           alt={`${fullName} profile`}
           className="object-cover"
+          onError={() => setImageUrl(null)}
         />
       )}
       <AvatarFallback className="bg-primary/10 text-primary font-medium">
-        {getInitials(fullName)}
+        {isLoading ? "..." : getInitials(fullName)}
       </AvatarFallback>
     </Avatar>
   );
