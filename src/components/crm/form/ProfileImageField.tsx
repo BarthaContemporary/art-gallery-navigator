@@ -1,5 +1,4 @@
 
-import { Label } from "@/components/ui/label";
 import { ClientProfileImage } from "../ClientProfileImage";
 import { ClientFormData } from "../hooks/useCreateClientForm";
 
@@ -15,7 +14,6 @@ export function ProfileImageField({ formData, onFormDataChange }: ProfileImageFi
 
   return (
     <div className="space-y-2">
-      <Label>Profile Image</Label>
       <div className="flex items-center gap-4">
         <ClientProfileImage
           fullName={formData.full_name || "New Client"}
