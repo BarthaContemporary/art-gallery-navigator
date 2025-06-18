@@ -10,11 +10,13 @@ import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CRMStats } from "@/components/crm/CRMStats";
+import { ClientListsSection } from "@/components/crm/ClientListsSection";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedListId, setSelectedListId] = useState<string | undefined>();
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -28,51 +30,69 @@ export default function CRM() {
 
       <CRMStats />
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Client Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search clients..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        <div className="lg:col-span-1">
+          <ClientListsSection 
+            selectedListId={selectedListId}
+            onListSelect={setSelectedListId}
+          />
+        </div>
+        
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Client Management
+                {selectedListId && (
+                  <Badge variant="secondary">Filtered by list</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search clients..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={statusFilter === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("all")}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={statusFilter === "prospect" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("prospect")}
+                  >
+                    Prospects
+                  </Button>
+                  <Button
+                    variant={statusFilter === "customer" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter("customer")}
+                  >
+                    Customers
+                  </Button>
+                </div>
+              </div>
+              
+              <ClientsList 
+                searchTerm={searchTerm} 
+                statusFilter={statusFilter}
+                selectedListId={selectedListId}
               />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={statusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("all")}
-              >
-                All
-              </Button>
-              <Button
-                variant={statusFilter === "prospect" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("prospect")}
-              >
-                Prospects
-              </Button>
-              <Button
-                variant={statusFilter === "customer" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("customer")}
-              >
-                Customers
-              </Button>
-            </div>
-          </div>
-          
-          <ClientsList searchTerm={searchTerm} statusFilter={statusFilter} />
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

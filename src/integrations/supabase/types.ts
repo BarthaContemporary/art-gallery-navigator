@@ -799,6 +799,42 @@ export type Database = {
           },
         ]
       }
+      client_list_members: {
+        Row: {
+          added_at: string | null
+          client_id: string
+          id: string
+          list_id: string
+        }
+        Insert: {
+          added_at?: string | null
+          client_id: string
+          id?: string
+          list_id: string
+        }
+        Update: {
+          added_at?: string | null
+          client_id?: string
+          id?: string
+          list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_list_members_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_list_members_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "client_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_list_subscriptions: {
         Row: {
           client_id: string
@@ -840,6 +876,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_lists: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       clients: {
         Row: {
