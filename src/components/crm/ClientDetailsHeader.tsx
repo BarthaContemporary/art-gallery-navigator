@@ -31,7 +31,6 @@ export function ClientDetailsHeader({ client }: ClientDetailsHeaderProps) {
       />
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-1">
-          <span className="text-xl font-semibold">{client.full_name}</span>
           <Badge className={getStatusColor(client.status)}>
             {client.status}
           </Badge>
