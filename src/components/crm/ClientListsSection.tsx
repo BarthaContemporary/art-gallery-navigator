@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,52 +47,50 @@ export function ClientListsSection({ selectedListId, onListSelect }: ClientLists
       <CardHeader>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
-          <Button
-            variant={!selectedListId ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onListSelect(undefined)}
-            className="w-full justify-start"
-          >
-            All Clients
-          </Button>
-          
-          {lists?.map((list) => (
-            <div key={list.id} className="flex items-center gap-2">
-              <Button
-                variant={selectedListId === list.id ? "default" : "ghost"}
-                size="sm"
-                onClick={() => onListSelect(list.id)}
-                className="flex-1 justify-start"
-              >
-                {list.name}
-              </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => handleDeleteList(list.id)}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete List
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
-          
-          {(!lists || lists.length === 0) && (
-            <div className="text-center py-4 text-sm text-muted-foreground">
-              No lists created yet. Create your first list to organize clients.
-            </div>
-          )}
-        </div>
+        <Button
+          variant={!selectedListId ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onListSelect(undefined)}
+          className="w-full justify-start"
+        >
+          All Clients
+        </Button>
+        
+        {lists?.map((list) => (
+          <div key={list.id} className="flex items-center gap-2">
+            <Button
+              variant={selectedListId === list.id ? "default" : "ghost"}
+              size="sm"
+              onClick={() => onListSelect(list.id)}
+              className="flex-1 justify-start"
+            >
+              {list.name}
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handleDeleteList(list.id)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete List
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ))}
+        
+        {(!lists || lists.length === 0) && (
+          <div className="text-center py-4 text-sm text-muted-foreground">
+            No lists created yet. Create your first list to organize clients.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
