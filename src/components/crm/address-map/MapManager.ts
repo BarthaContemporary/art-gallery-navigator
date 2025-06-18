@@ -92,8 +92,7 @@ export class MapManager {
 
     try {
       const { data, error } = await supabase.functions.invoke('geocode', {
-        body: { address: formattedAddress },
-        signal: this.abortController?.signal
+        body: { address: formattedAddress }
       });
 
       if (error) {
