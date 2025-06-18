@@ -12,15 +12,17 @@ import { useClientOperations } from "./hooks/useClientOperations";
 interface ClientsListProps {
   searchTerm: string;
   statusFilter: string;
+  selectedListId?: string;
 }
 
-export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
+export function ClientsList({ searchTerm, statusFilter, selectedListId }: ClientsListProps) {
   const [editingClient, setEditingClient] = useState<any>(null);
   const [detailsClient, setDetailsClient] = useState<any>(null);
   
   const { clients, isLoading, error } = useClientsData({ 
     searchTerm, 
-    statusFilter 
+    statusFilter, 
+    selectedListId 
   });
   
   const { handleDelete, getStatusColor } = useClientOperations();
@@ -47,6 +49,7 @@ export function ClientsList({ searchTerm, statusFilter }: ClientsListProps) {
   if (!clients || clients.length === 0) {
     return (
       <ClientsEmptyState 
+        selectedListId={selectedListId}
         searchTerm={searchTerm}
         statusFilter={statusFilter}
       />

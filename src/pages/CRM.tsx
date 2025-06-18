@@ -10,11 +10,13 @@ import { Navigate } from "react-router-dom";
 import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog";
+import { ClientListsSection } from "@/components/crm/ClientListsSection";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedListId, setSelectedListId] = useState<string | undefined>();
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -67,9 +69,15 @@ export default function CRM() {
             <ClientsList 
               searchTerm={searchTerm} 
               statusFilter={statusFilter}
+              selectedListId={selectedListId}
             />
           </CardContent>
         </Card>
+
+        <ClientListsSection 
+          selectedListId={selectedListId}
+          onListSelect={setSelectedListId}
+        />
       </div>
     </div>
   );

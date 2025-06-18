@@ -5,21 +5,40 @@ import { supabase } from "@/integrations/supabase/client";
 interface UseClientsDataProps {
   searchTerm: string;
   statusFilter: string;
+  selectedListId?: string;
 }
 
-export function useClientsData({ searchTerm, statusFilter }: UseClientsDataProps) {
-  // Fetch all clients
+export function useClientsData({ searchTerm, statusFilter, selectedListId }: UseClientsDataProps) {
+  // Fetch clients with optional list filtering
   const clientsQuery = useQuery({
-    queryKey: ['clients', searchTerm, statusFilter],
+    queryKey: ['clients', searchTerm, statusFilter, selectedListId],
     queryFn: async () => {
-      // Query for all clients
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('full_name');
-      
-      if (error) throw error;
-      let clientsData = data || [];
+      let clientsData: any[] = [];
+
+      if (selectedListId) {
+        // Query for clients in a specific list
+        const { data, error } = await supabase
+          .from('client_list_members')
+          .select(`
+            client_id,
+            clients:client_id (*)
+          `)
+          .eq('list_id', selectedListId);
+        
+        if (error) throw error;
+
+        // Extract clients from the nested structure
+        clientsData = data?.map((item: any) => item.clients).filter(Boolean) || [];
+      } else {
+        // Query for all clients
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .order('full_name');
+        
+        if (error) throw error;
+        clientsData = data || [];
+      }
 
       // Apply search filter
       if (searchTerm) {
