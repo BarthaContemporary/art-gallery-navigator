@@ -51,7 +51,7 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
       case "email-csv":
         return "Export client names and email addresses as a CSV file";
       case "mailing-labels":
-        return "Download Avery L7165 mailing labels as a formatted text file (A4, 8 labels per sheet)";
+        return "Create Avery L7165 mailing labels (A4, 8 labels per sheet) in Google Docs";
       case "fact-sheets":
         return "Generate detailed client information in Google Sheets";
       default:
@@ -88,7 +88,7 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
               <RadioGroupItem value="mailing-labels" id="mailing-labels" />
               <Label htmlFor="mailing-labels" className="flex items-center gap-2 cursor-pointer">
                 <FileText className="h-4 w-4" />
-                Mailing Labels (Text File)
+                Mailing Labels (Google Docs)
               </Label>
             </div>
             <div className="flex items-center space-x-2">
