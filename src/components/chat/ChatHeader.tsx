@@ -15,7 +15,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const { onlineUsers } = useChatPresence(user?.id);
+  const { onlineUsers, fetchOnlineUsers } = useChatPresence(user?.id);
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
@@ -33,6 +33,15 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const presenceStatus = onlineUsers.find(u => u.user_id === otherParticipantId);
   const isOnline = presenceStatus?.is_online || false;
   const lastSeen = presenceStatus?.last_seen;
+
+  // Refresh presence data periodically
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOnlineUsers();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchOnlineUsers]);
 
   const getStatusText = () => {
     if (isOnline) {
@@ -58,7 +67,7 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-4 border-b bg-white">
+    <div className="flex items-center gap-3 p-3 border-b bg-white">
       {onBack && (
         <Button
           variant="ghost"
