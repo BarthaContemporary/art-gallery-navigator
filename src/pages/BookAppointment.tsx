@@ -95,10 +95,6 @@ export default function BookAppointment() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="text-center mb-8">
-          <p className="text-gray-600">Schedule a 15-minute consultation or viewing with our gallery</p>
-        </div>
-
         {bookedAppointment ? (
           // Success state with calendar integration
           <Card className="max-w-2xl mx-auto">
@@ -134,7 +130,6 @@ export default function BookAppointment() {
             </CardContent>
           </Card>
         ) : (
-          // ... keep existing code (booking form)
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Date & Time Selection */}
             <Card>
