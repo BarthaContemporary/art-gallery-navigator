@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -36,19 +35,34 @@ const handler = async (req: Request): Promise<Response> => {
     // Get Google API credentials from environment
     const googleCredentials = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!googleCredentials) {
+      console.error("Google API credentials not found in environment");
       return new Response(
-        JSON.stringify({ error: "Google API credentials not configured" }),
+        JSON.stringify({ error: "Google API credentials not configured. Please add GOOGLE_SERVICE_ACCOUNT_KEY to your Supabase secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const credentials = JSON.parse(googleCredentials);
+    let credentials;
+    try {
+      credentials = JSON.parse(googleCredentials);
+      console.log("Google credentials parsed successfully");
+      console.log("Service account email:", credentials.client_email);
+    } catch (error) {
+      console.error("Failed to parse Google credentials:", error);
+      return new Response(
+        JSON.stringify({ error: "Invalid Google API credentials format" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
     
     // Get access token
+    console.log("Attempting to get Google access token...");
     const accessToken = await getGoogleAccessToken(credentials);
+    console.log("Access token obtained successfully");
     
     // Create a new Google Doc
     const docTitle = `Mailing Labels - ${listId ? `List ${listId}` : 'All Clients'} - ${new Date().toLocaleDateString()}`;
+    console.log("Creating Google Doc with title:", docTitle);
     
     const createDocResponse = await fetch(GOOGLE_API_URL, {
       method: "POST",
@@ -61,17 +75,33 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    console.log("Create document response status:", createDocResponse.status);
+    
     if (!createDocResponse.ok) {
-      throw new Error(`Failed to create document: ${createDocResponse.statusText}`);
+      const errorText = await createDocResponse.text();
+      console.error("Failed to create document:", createDocResponse.status, errorText);
+      
+      if (createDocResponse.status === 403) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Google API access forbidden. Please ensure the Google Docs API is enabled in your Google Cloud Console and the service account has the necessary permissions." 
+          }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      throw new Error(`Failed to create document: ${createDocResponse.status} - ${errorText}`);
     }
 
     const docData = await createDocResponse.json();
     const documentId = docData.documentId;
+    console.log("Document created with ID:", documentId);
 
     // Generate label content for Avery L7165 (A4, 8 labels: 2 columns × 4 rows)
     const labelContent = generateAveryL7165Content(clients);
 
     // Insert content into the document
+    console.log("Inserting content into document...");
     const batchUpdateResponse = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
       method: "POST",
       headers: {
@@ -91,11 +121,16 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!batchUpdateResponse.ok) {
-      throw new Error(`Failed to update document: ${batchUpdateResponse.statusText}`);
+      const errorText = await batchUpdateResponse.text();
+      console.error("Failed to update document:", batchUpdateResponse.status, errorText);
+      throw new Error(`Failed to update document: ${batchUpdateResponse.status} - ${errorText}`);
     }
 
+    console.log("Document content updated successfully");
+
     // Make the document publicly viewable
-    await fetch(`${GOOGLE_DRIVE_API_URL}/${documentId}/permissions`, {
+    console.log("Making document publicly viewable...");
+    const permissionResponse = await fetch(`${GOOGLE_DRIVE_API_URL}/${documentId}/permissions`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -107,7 +142,15 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    if (!permissionResponse.ok) {
+      const errorText = await permissionResponse.text();
+      console.warn("Failed to make document public (proceeding anyway):", permissionResponse.status, errorText);
+    } else {
+      console.log("Document made publicly viewable");
+    }
+
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
+    console.log("Document URL:", documentUrl);
 
     return new Response(
       JSON.stringify({ 
@@ -125,7 +168,10 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error creating mailing labels:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: "Check the function logs for more information"
+      }),
       { 
         status: 500, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
@@ -156,6 +202,10 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
   
   // Prepare private key
   let privateKey = credentials.private_key;
+  
+  if (!privateKey) {
+    throw new Error('No private key found in service account credentials');
+  }
   
   // Clean up the private key format
   privateKey = privateKey.replace(/\\n/g, '\n');
@@ -230,6 +280,7 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
 
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text();
+    console.error("Token exchange failed:", tokenResponse.status, errorText);
     throw new Error(`Failed to get access token: ${tokenResponse.statusText} - ${errorText}`);
   }
 
