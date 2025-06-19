@@ -139,9 +139,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     const allData = [headers, ...rows];
 
-    // Update the sheet with data - FIXED URL FORMAT
+    // Update the sheet with data - CORRECTED URL
     console.log("Inserting data into spreadsheet...");
-    const updateResponse = await fetch(`${GOOGLE_SHEETS_API_URL}/${spreadsheetId}/values/A1?valueInputOption=RAW`, {
+    const updateUrl = `${GOOGLE_SHEETS_API_URL}/${spreadsheetId}/values/A1:${String.fromCharCode(64 + headers.length)}${allData.length}?valueInputOption=RAW`;
+    console.log("Update URL:", updateUrl);
+    
+    const updateResponse = await fetch(updateUrl, {
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
