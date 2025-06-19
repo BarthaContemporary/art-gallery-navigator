@@ -48,88 +48,98 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     error: null,
   });
 
-  const updateState = useCallback((updates: Partial<ChatState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  }, []);
-
   const refreshRooms = useCallback(async () => {
     if (!user?.id) return;
     
-    updateState({ loading: { ...state.loading, rooms: true }, error: null });
+    setState(prev => ({ 
+      ...prev, 
+      loading: { ...prev.loading, rooms: true }, 
+      error: null 
+    }));
     
     try {
       const rooms = await chatService.getRooms();
-      updateState({ 
+      setState(prev => ({ 
+        ...prev,
         rooms, 
-        loading: { ...state.loading, rooms: false }, 
+        loading: { ...prev.loading, rooms: false }, 
         connected: true 
-      });
+      }));
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
-      updateState({ 
-        loading: { ...state.loading, rooms: false },
+      setState(prev => ({ 
+        ...prev,
+        loading: { ...prev.loading, rooms: false },
         error: 'Failed to load conversations',
         connected: false
-      });
+      }));
     }
-  }, [user?.id, chatService, state.loading, updateState]);
+  }, [user?.id, chatService]);
 
   const refreshOnlineUsers = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       const users = await chatService.getOnlineUsers();
-      updateState({ onlineUsers: users });
+      setState(prev => ({ ...prev, onlineUsers: users }));
     } catch (error) {
       console.error('Failed to refresh online users:', error);
     }
-  }, [user?.id, chatService, updateState]);
+  }, [user?.id, chatService]);
 
   const setActiveRoom = useCallback(async (roomId: string) => {
     if (!user?.id) return;
     
-    updateState({ 
+    setState(prev => ({ 
+      ...prev,
       activeRoomId: roomId, 
       messages: [],
-      loading: { ...state.loading, messages: true }
-    });
+      loading: { ...prev.loading, messages: true }
+    }));
     
     try {
       const messages = await chatService.getMessages(roomId);
-      updateState({ 
+      setState(prev => ({ 
+        ...prev,
         messages, 
-        loading: { ...state.loading, messages: false } 
-      });
+        loading: { ...prev.loading, messages: false } 
+      }));
     } catch (error) {
       console.error('Failed to load messages:', error);
-      updateState({ 
-        loading: { ...state.loading, messages: false },
+      setState(prev => ({ 
+        ...prev,
+        loading: { ...prev.loading, messages: false },
         error: 'Failed to load messages'
-      });
+      }));
     }
-  }, [user?.id, chatService, state.loading, updateState]);
+  }, [user?.id, chatService]);
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' | 'file' = 'text') => {
     if (!user?.id || !state.activeRoomId) return;
     
-    updateState({ loading: { ...state.loading, sending: true } });
+    setState(prev => ({ 
+      ...prev, 
+      loading: { ...prev.loading, sending: true } 
+    }));
     
     try {
       const message = await chatService.sendMessage(content, state.activeRoomId, type);
       if (message) {
-        updateState({ 
-          messages: [...state.messages, message],
-          loading: { ...state.loading, sending: false }
-        });
+        setState(prev => ({ 
+          ...prev,
+          messages: [...prev.messages, message],
+          loading: { ...prev.loading, sending: false }
+        }));
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      updateState({ 
-        loading: { ...state.loading, sending: false },
+      setState(prev => ({ 
+        ...prev,
+        loading: { ...prev.loading, sending: false },
         error: 'Failed to send message'
-      });
+      }));
     }
-  }, [user?.id, state.activeRoomId, state.messages, state.loading, chatService, updateState]);
+  }, [user?.id, state.activeRoomId, chatService]);
 
   const startChatWithUser = useCallback(async (userId: string): Promise<ChatRoom | null> => {
     if (!user?.id) return null;
@@ -137,48 +147,56 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     try {
       const room = await chatService.createOrGetRoom(user.id, userId);
       if (room) {
-        updateState({ 
-          rooms: [...state.rooms.filter(r => r.id !== room.id), room]
-        });
+        setState(prev => ({ 
+          ...prev,
+          rooms: [...prev.rooms.filter(r => r.id !== room.id), room]
+        }));
         return room;
       }
       return null;
     } catch (error) {
       console.error('Failed to start chat:', error);
-      updateState({ error: 'Failed to start chat' });
+      setState(prev => ({ ...prev, error: 'Failed to start chat' }));
       return null;
     }
-  }, [user?.id, chatService, state.rooms, updateState]);
+  }, [user?.id, chatService]);
 
   const clearError = useCallback(() => {
-    updateState({ error: null });
-  }, [updateState]);
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
 
-  // Initialize chat when user is available
+  // Initialize chat when user is available - simplified to prevent infinite loops
   useEffect(() => {
     if (!user?.id) return;
 
+    let isSubscribed = true;
+
     const initialize = async () => {
-      await refreshRooms();
-      await refreshOnlineUsers();
-      await chatService.updatePresence(true);
+      if (isSubscribed) {
+        await refreshRooms();
+        await refreshOnlineUsers();
+        await chatService.updatePresence(true);
+      }
     };
 
     initialize();
 
     // Update presence every 30 seconds
     const presenceInterval = setInterval(() => {
-      chatService.updatePresence(true);
+      if (isSubscribed) {
+        chatService.updatePresence(true);
+      }
     }, 30000);
 
     // Cleanup on unmount
     return () => {
+      isSubscribed = false;
       clearInterval(presenceInterval);
       chatService.updatePresence(false);
     };
-  }, [user?.id, refreshRooms, refreshOnlineUsers, chatService]);
+  }, [user?.id]); // Only depend on user?.id to prevent infinite loops
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions - simplified
   useEffect(() => {
     if (!user?.id) return;
 
@@ -221,7 +239,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
     };
-  }, [user?.id, state.activeRoomId, refreshRooms, refreshOnlineUsers]);
+  }, [user?.id, state.activeRoomId]); // Simplified dependencies
 
   const contextValue: ChatContextType = {
     state,
