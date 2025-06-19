@@ -1,5 +1,5 @@
 
-import React, { useMemo } from "react"; // Added useMemo
+import React, { useMemo } from "react";
 import { AuthContext } from "@/contexts/auth-context";
 import { useAuthCoreState } from "@/hooks/use-auth-core-state";
 import { useUserRoles } from "@/hooks/use-user-roles";
@@ -8,13 +8,13 @@ import { AuthContextType } from "@/types/auth";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { session, user, isLoading: isCoreLoading } = useAuthCoreState();
-  const { isAdmin, isArtist, isExternal, isLoadingRoles, rolesError } = useUserRoles(user); // Destructure new states
+  const { isAdmin, isArtist, isExternal, isLoadingRoles, rolesError } = useUserRoles(user);
   const authActions = useAuthActions();
 
   // isLoading is primarily determined by the core authentication state.
   const isLoading = isCoreLoading;
 
-  const value: AuthContextType = useMemo(() => ({ // Memoize the context value
+  const value: AuthContextType = useMemo(() => ({
     session,
     user,
     ...authActions,
@@ -22,8 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     isArtist,
     isExternal,
-    isLoadingRoles, // Pass isLoadingRoles
-    rolesError,     // Pass rolesError
+    isLoadingRoles,
+    rolesError,
   }), [session, user, authActions, isLoading, isAdmin, isArtist, isExternal, isLoadingRoles, rolesError]);
 
   return (
