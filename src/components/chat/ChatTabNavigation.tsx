@@ -46,9 +46,6 @@ export function ChatTabNavigation({
         >
           <Users className="h-4 w-4 mr-2" />
           Online
-          {onlineCount !== undefined && onlineCount > 0 && (
-            <span className="ml-1 text-xs">({onlineCount})</span>
-          )}
         </Button>
       </div>
     </div>
