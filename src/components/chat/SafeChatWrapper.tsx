@@ -10,7 +10,7 @@ interface SafeChatWrapperProps {
 export function SafeChatWrapper({ children }: SafeChatWrapperProps) {
   return (
     <ChatErrorBoundary fallback={
-      <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+      <div className="flex items-center justify-center p-4 text-sm text-muted-foreground h-full">
         Chat temporarily unavailable
       </div>
     }>

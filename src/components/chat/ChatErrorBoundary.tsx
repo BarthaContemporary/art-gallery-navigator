@@ -38,7 +38,7 @@ export class ChatErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex flex-col items-center justify-center p-8 text-center">
+        <div className="flex flex-col items-center justify-center p-8 text-center h-full">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="h-8 w-8 text-red-500" />
           </div>
@@ -50,10 +50,10 @@ export class ChatErrorBoundary extends Component<Props, State> {
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-          {this.state.error && (
+          {this.state.error && process.env.NODE_ENV === 'development' && (
             <details className="mt-4 text-xs text-muted-foreground">
               <summary className="cursor-pointer">Error details</summary>
-              <pre className="mt-2 p-2 bg-muted rounded text-left">
+              <pre className="mt-2 p-2 bg-muted rounded text-left max-w-sm overflow-auto">
                 {this.state.error.message}
               </pre>
             </details>

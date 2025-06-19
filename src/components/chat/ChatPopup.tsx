@@ -1,29 +1,39 @@
 
 import React, { useState } from 'react';
-import { OptimizedChatPopupButton } from './OptimizedChatPopupButton';
-import { ChatLayout } from './ChatLayout';
-import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, X } from 'lucide-react';
+import { SafeChatWrapper } from './SafeChatWrapper';
+import { ChatPopupLayout } from './ChatPopupLayout';
 
-export const ChatPopup = React.memo(function ChatPopup() {
+export function ChatPopup() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
 
-  if (!user) return null;
+  if (!isOpen) {
+    return (
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg z-50"
+        size="icon"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+    );
+  }
 
   return (
-    <>
-      <OptimizedChatPopupButton 
-        onClick={() => setIsOpen(!isOpen)} 
-        isOpen={isOpen}
-      />
+    <div className="fixed bottom-4 right-4 w-80 h-96 bg-white border rounded-lg shadow-xl z-50 flex flex-col">
+      <div className="flex items-center justify-between p-3 border-b">
+        <h3 className="font-semibold">Chat</h3>
+        <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
       
-      {isOpen && (
-        <div className="fixed inset-0 z-50 md:inset-auto md:bottom-20 md:right-6 md:w-96 md:h-[600px]">
-          <div className="w-full h-full bg-white border border-gray-200 rounded-none md:rounded-lg shadow-xl">
-            <ChatLayout onClose={() => setIsOpen(false)} />
-          </div>
-        </div>
-      )}
-    </>
+      <div className="flex-1 min-h-0">
+        <SafeChatWrapper>
+          <ChatPopupLayout />
+        </SafeChatWrapper>
+      </div>
+    </div>
   );
-});
+}

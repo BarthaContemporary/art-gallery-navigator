@@ -48,7 +48,16 @@ const SimpleChatContext = createContext<SimpleChatContextType | null>(null);
 
 export function SimpleChatProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const api = useChatAPI(user?.id);
+  
+  // Initialize API safely
+  const api = useMemo(() => {
+    try {
+      return useChatAPI(user?.id);
+    } catch (error) {
+      console.error('Failed to initialize chat API:', error);
+      return null;
+    }
+  }, [user?.id]);
   
   const [state, setState] = useState<SimpleChatState>({
     rooms: [],
@@ -65,7 +74,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     error: null,
   });
 
-  // Computed values
+  // Computed values with safe fallbacks
   const activeRoom = useMemo(() => 
     state.rooms.find(room => room.id === state.activeRoomId) || null,
     [state.rooms, state.activeRoomId]
@@ -81,7 +90,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     [state.rooms]
   );
 
-  // Safe state updater to prevent crashes
+  // Safe state updater
   const safeSetState = useCallback((updater: (prev: SimpleChatState) => SimpleChatState) => {
     setState(prev => {
       try {
@@ -93,9 +102,9 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
-  // Core actions with error handling
+  // Core actions with safe error handling
   const fetchRooms = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || !api) return;
     
     safeSetState(prev => ({ ...prev, loading: { ...prev.loading, rooms: true }, error: null }));
     
@@ -119,7 +128,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
   }, [user?.id, api, safeSetState]);
 
   const fetchMessages = useCallback(async (roomId: string) => {
-    if (!user?.id) return;
+    if (!user?.id || !api) return;
     
     safeSetState(prev => ({ ...prev, loading: { ...prev.loading, messages: true }, error: null }));
     
@@ -142,7 +151,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
   }, [user?.id, api, safeSetState]);
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' = 'text') => {
-    if (!user?.id || !state.activeRoomId) return;
+    if (!user?.id || !state.activeRoomId || !api) return;
     
     safeSetState(prev => ({ ...prev, loading: { ...prev.loading, sending: true }, error: null }));
     
@@ -171,7 +180,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
   }, [fetchMessages, safeSetState]);
 
   const startChatWithUser = useCallback(async (userId: string): Promise<ChatRoom | null> => {
-    if (!user?.id) return null;
+    if (!user?.id || !api) return null;
     
     try {
       const room = await api.createOrGetRoom(user.id, userId);
@@ -204,17 +213,17 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
 
   const retryConnection = useCallback(() => {
     safeSetState(prev => ({ ...prev, error: null }));
-    if (user?.id) {
+    if (user?.id && api) {
       fetchRooms();
     }
-  }, [user?.id, fetchRooms, safeSetState]);
+  }, [user?.id, api, fetchRooms, safeSetState]);
 
-  // Initialize
+  // Initialize safely
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && api) {
       fetchRooms();
       
-      // Fetch online users
+      // Fetch online users safely
       const fetchOnlineUsers = async () => {
         try {
           const users = await api.fetchOnlineUsers();
@@ -229,7 +238,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       
       return () => clearInterval(interval);
     }
-  }, [user?.id, fetchRooms, api, safeSetState]);
+  }, [user?.id, api, fetchRooms, safeSetState]);
 
   const contextValue: SimpleChatContextType = useMemo(() => ({
     state,
@@ -271,7 +280,32 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
 export function useSimpleChat() {
   const context = useContext(SimpleChatContext);
   if (!context) {
-    throw new Error('useSimpleChat must be used within a SimpleChatProvider');
+    // Return a safe fallback instead of throwing
+    console.warn('useSimpleChat used outside of SimpleChatProvider');
+    return {
+      state: {
+        rooms: [],
+        messages: [],
+        onlineUsers: [],
+        activeRoomId: null,
+        currentView: 'rooms' as const,
+        loading: { rooms: false, messages: false, sending: false },
+        connected: false,
+        error: 'Chat not initialized'
+      },
+      fetchRooms: async () => {},
+      fetchMessages: async () => {},
+      sendMessage: async () => {},
+      setActiveRoom: async () => {},
+      startChatWithUser: async () => null,
+      setCurrentView: () => {},
+      clearCache: () => {},
+      retryConnection: () => {},
+      activeRoom: null,
+      roomMessages: [],
+      onlineUsersList: [],
+      roomsList: [],
+    } as SimpleChatContextType;
   }
   return context;
 }
