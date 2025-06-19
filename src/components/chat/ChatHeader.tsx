@@ -2,10 +2,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Circle } from 'lucide-react';
+import { ArrowLeft, Circle, Wifi, WifiOff } from 'lucide-react';
 import { ChatRoom } from '@/hooks/chat/types';
 import { useAuth } from '@/hooks/use-auth';
-import { useChatPresence } from '@/hooks/chat/use-chat-presence';
+import { useEnhancedPresence } from '@/hooks/chat/use-enhanced-presence';
 import { format } from 'date-fns';
 
 interface ChatHeaderProps {
@@ -15,7 +15,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const { onlineUsers, fetchOnlineUsers } = useChatPresence();
+  const { onlineUsers, isConnected, error } = useEnhancedPresence(user?.id);
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
@@ -34,19 +34,11 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const isOnline = presenceStatus?.is_online || false;
   const lastSeen = presenceStatus?.last_seen;
 
-  // Refresh presence data periodically
-  React.useEffect(() => {
-    // Fetch immediately when component mounts
-    fetchOnlineUsers();
-    
-    const interval = setInterval(() => {
-      fetchOnlineUsers();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [fetchOnlineUsers, otherParticipantId]);
-
   const getStatusText = () => {
+    if (error) {
+      return 'Status unknown';
+    }
+    
     if (isOnline) {
       return 'Online';
     } else if (lastSeen) {
@@ -74,6 +66,16 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
     }
   };
 
+  const getStatusColor = () => {
+    if (error) return 'text-orange-500';
+    return isOnline ? 'text-green-500' : 'text-gray-400';
+  };
+
+  const getCircleColor = () => {
+    if (error) return 'fill-orange-500 text-orange-500';
+    return isOnline ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400';
+  };
+
   return (
     <div className="flex items-center gap-3 p-3 border-b bg-white">
       {onBack && (
@@ -94,16 +96,19 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
       
       <div className="flex-1">
         <h3 className="font-semibold text-sm">{participantName}</h3>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Circle 
-            className={`h-2 w-2 ${
-              isOnline 
-                ? 'fill-green-500 text-green-500' 
-                : 'fill-gray-400 text-gray-400'
-            }`} 
-          />
-          <span>{getStatusText()}</span>
+        <div className="flex items-center gap-1 text-xs">
+          <Circle className={`h-2 w-2 ${getCircleColor()}`} />
+          <span className={getStatusColor()}>{getStatusText()}</span>
         </div>
+      </div>
+
+      {/* Connection status indicator */}
+      <div className="flex items-center gap-1">
+        {isConnected ? (
+          <Wifi className="h-3 w-3 text-green-500" title="Connected to real-time updates" />
+        ) : (
+          <WifiOff className="h-3 w-3 text-orange-500" title="Reconnecting..." />
+        )}
       </div>
     </div>
   );
