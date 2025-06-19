@@ -11,6 +11,20 @@ import { ArrowLeft, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 
+interface ChatRoomsListPropsUpdated {
+  onSelectRoom: (room: any) => Promise<void>;
+  selectedRoomId?: string;
+}
+
+interface OnlineUsersListPropsUpdated {
+  onStartChat: (targetUser: any) => Promise<void>;
+}
+
+interface ChatEmptyStatePropsUpdated {
+  onlineUsers: any[];
+  onStartChat: (targetUser: any) => Promise<void>;
+}
+
 export function SimpleChatLayout() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('conversations');
@@ -128,18 +142,14 @@ export function SimpleChatLayout() {
             
             <TabsContent value="conversations" className="flex-1 mt-0">
               <ChatRoomsList
-                rooms={chatRooms}
-                activeRoom={activeRoom}
-                onRoomSelect={handleRoomSelect}
-                loading={loading}
+                onSelectRoom={handleRoomSelect}
+                selectedRoomId={activeRoom?.id}
               />
             </TabsContent>
             
             <TabsContent value="online" className="flex-1 mt-0">
               <OnlineUsersList
-                users={onlineUsers}
                 onStartChat={handleStartChat}
-                connected={connected}
               />
             </TabsContent>
           </Tabs>
@@ -203,18 +213,14 @@ export function SimpleChatLayout() {
               
               <TabsContent value="conversations" className="flex-1 mt-0">
                 <ChatRoomsList
-                  rooms={chatRooms}
-                  activeRoom={activeRoom}
-                  onRoomSelect={handleRoomSelect}
-                  loading={loading}
+                  onSelectRoom={handleRoomSelect}
+                  selectedRoomId={activeRoom?.id}
                 />
               </TabsContent>
               
               <TabsContent value="online" className="flex-1 mt-0">
                 <OnlineUsersList
-                  users={onlineUsers}
                   onStartChat={handleStartChat}
-                  connected={connected}
                 />
               </TabsContent>
             </Tabs>

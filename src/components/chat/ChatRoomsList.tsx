@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle } from 'lucide-react';
 import { useChat } from '@/hooks/chat/use-chat';
-import { useChatMessages } from '@/hooks/chat/use-chat-messages';
+import { useMessages } from '@/hooks/chat/messages/use-messages';
 import { useAuth } from '@/hooks/use-auth';
 import { ChatRoom } from '@/hooks/chat/types';
 import { format } from 'date-fns';
@@ -18,7 +18,7 @@ interface ChatRoomsListProps {
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
   const { chatRooms } = useChat();
   const { user } = useAuth();
-  const { getUnreadCount } = useChatMessages(user?.id);
+  const { getUnreadCount } = useMessages(user?.id);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {

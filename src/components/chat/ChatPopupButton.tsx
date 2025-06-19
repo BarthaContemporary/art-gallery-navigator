@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, WifiOff, AlertTriangle } from 'lucide-react';
-import { useChatMessages } from '@/hooks/chat/use-chat-messages';
+import { useMessages } from '@/hooks/chat/messages/use-messages';
 import { useEnhancedPresence } from '@/hooks/chat/use-enhanced-presence';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -14,7 +14,7 @@ interface ChatPopupButtonProps {
 
 export function ChatPopupButton({ onClick, isOpen }: ChatPopupButtonProps) {
   const { user } = useAuth();
-  const { getTotalUnreadCount } = useChatMessages(user?.id);
+  const { getTotalUnreadCount } = useMessages(user?.id);
   const { isConnected, error, retryCount } = useEnhancedPresence(user?.id);
   const [unreadCount, setUnreadCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);

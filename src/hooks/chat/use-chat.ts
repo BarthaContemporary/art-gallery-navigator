@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../use-auth';
 import { useChatPresence } from './use-chat-presence';
 import { useChatRooms } from './use-chat-rooms';
-import { useChatMessages } from './use-chat-messages';
+import { useMessages } from './messages/use-messages';
 import { ChatRoom } from './types';
 
 export type { ChatRoom, ChatMessage, UserPresence } from './types';
@@ -15,7 +15,7 @@ export function useChat() {
 
   const { onlineUsers, fetchOnlineUsers } = useChatPresence(user?.id);
   const { chatRooms, fetchChatRooms, startChatWithUser } = useChatRooms(user?.id);
-  const { messages, sending, fetchMessages, sendMessage, subscribeToMessages, cleanup, markMessagesAsRead } = useChatMessages(user?.id);
+  const { messages, sending, fetchMessages, sendMessage, subscribeToMessages, cleanup, markMessagesAsRead } = useMessages(user?.id);
 
   // Set active room and fetch messages
   const setActiveRoomAndFetchMessages = async (room: ChatRoom) => {

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, WifiOff, AlertTriangle } from 'lucide-react';
-import { useChatMessages } from '@/hooks/chat/use-chat-messages';
+import { useMessages } from '@/hooks/chat/messages/use-messages';
 import { useOptimizedPresence } from '@/hooks/chat/use-optimized-presence';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -17,7 +17,7 @@ export const OptimizedChatPopupButton = React.memo(function OptimizedChatPopupBu
   isOpen 
 }: OptimizedChatPopupButtonProps) {
   const { user } = useAuth();
-  const { getTotalUnreadCount } = useChatMessages(user?.id);
+  const { getTotalUnreadCount } = useMessages(user?.id);
   const { isConnected, error, retryCount } = useOptimizedPresence(user?.id);
   
   const [unreadCount, setUnreadCount] = useState(0);
