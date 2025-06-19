@@ -69,25 +69,75 @@ export function useExportClientList() {
   const exportMailingLabels = async (clients: any[], listId?: string) => {
     setIsExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('export-mailing-labels', {
-        body: {
-          clients: clients.filter(client => client.address), // Only clients with addresses
-          listId,
-          labelFormat: 'L7165' // A4, 8 labels (2x4)
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.documentUrl) {
-        window.open(data.documentUrl, '_blank');
-        toast.success("Mailing labels created in Google Docs");
-      } else {
-        throw new Error("No document URL returned");
+      const clientsWithAddress = clients.filter(client => client.address);
+      
+      if (clientsWithAddress.length === 0) {
+        toast.error("No clients with addresses found to export");
+        return;
       }
+
+      // Generate Avery L7165 formatted content
+      let labelContent = "MAILING LABELS - AVERY L7165 FORMAT\n";
+      labelContent += "===================================\n\n";
+      labelContent += "Instructions: Print on Avery L7165 label sheets (A4, 8 labels per sheet)\n";
+      labelContent += "Each row below represents one label\n\n";
+
+      // Process clients in groups of 8 (one sheet)
+      for (let sheet = 0; sheet < Math.ceil(clientsWithAddress.length / 8); sheet++) {
+        const sheetClients = clientsWithAddress.slice(sheet * 8, (sheet + 1) * 8);
+        
+        labelContent += `--- SHEET ${sheet + 1} ---\n\n`;
+        
+        // Process labels in pairs (left column, right column)
+        for (let row = 0; row < 4; row++) {
+          const leftIndex = row * 2;
+          const rightIndex = row * 2 + 1;
+          
+          const leftClient = sheetClients[leftIndex];
+          const rightClient = sheetClients[rightIndex];
+          
+          let rowContent = "";
+          
+          // Left column label
+          if (leftClient) {
+            rowContent += formatClientAddress(leftClient);
+          }
+          
+          // Add spacing between columns
+          rowContent += "\t\t\t|\t\t\t";
+          
+          // Right column label
+          if (rightClient) {
+            rowContent += formatClientAddress(rightClient);
+          }
+          
+          labelContent += rowContent + "\n";
+          labelContent += "---".repeat(20) + "\n";
+        }
+        
+        labelContent += "\n\n";
+      }
+
+      // Create filename
+      const date = new Date().toISOString().split('T')[0];
+      const listName = await getListName(listId);
+      const filename = `Mailing_Labels_${listName}_${date}.txt`;
+
+      // Create and download file
+      const blob = new Blob([labelContent], { type: "text/plain;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Exported ${clientsWithAddress.length} mailing labels`);
     } catch (error) {
       console.error("Mailing labels export failed:", error);
-      toast.error("Failed to create mailing labels. Please check your Google API configuration.");
+      toast.error("Failed to create mailing labels");
     } finally {
       setIsExporting(false);
     }
@@ -125,4 +175,14 @@ export function useExportClientList() {
     exportFactSheets,
     isExporting
   };
+}
+
+function formatClientAddress(client: any): string {
+  let address = client.full_name;
+  if (client.address) {
+    // Split address by commas and add each part on a new line
+    const addressParts = client.address.split(',').map((part: string) => part.trim());
+    address += "\n" + addressParts.join("\n");
+  }
+  return address;
 }
