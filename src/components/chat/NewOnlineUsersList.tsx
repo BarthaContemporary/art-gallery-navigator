@@ -3,7 +3,6 @@ import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Users, MessageCircle } from 'lucide-react';
 import { useChat } from '@/contexts/chat/ChatContext';
 import { useAuth } from '@/hooks/use-auth';
@@ -54,9 +53,6 @@ export function NewOnlineUsersList({ onStartChat }: NewOnlineUsersListProps) {
                 <span className="font-medium text-sm">
                   {presence.profile?.display_name || 'Unknown User'}
                 </span>
-                <Badge variant="secondary" className="text-xs">
-                  Online
-                </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
                 Active {format(new Date(presence.last_seen), 'MMM d, HH:mm')}
