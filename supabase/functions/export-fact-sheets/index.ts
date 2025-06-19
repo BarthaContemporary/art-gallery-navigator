@@ -47,19 +47,34 @@ const handler = async (req: Request): Promise<Response> => {
     // Get Google API credentials from environment
     const googleCredentials = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!googleCredentials) {
+      console.error("Google API credentials not found in environment");
       return new Response(
-        JSON.stringify({ error: "Google API credentials not configured" }),
+        JSON.stringify({ error: "Google API credentials not configured. Please add GOOGLE_SERVICE_ACCOUNT_KEY to your Supabase secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const credentials = JSON.parse(googleCredentials);
+    let credentials;
+    try {
+      credentials = JSON.parse(googleCredentials);
+      console.log("Google credentials parsed successfully");
+      console.log("Service account email:", credentials.client_email);
+    } catch (error) {
+      console.error("Failed to parse Google credentials:", error);
+      return new Response(
+        JSON.stringify({ error: "Invalid Google API credentials format" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
     
     // Get access token
+    console.log("Attempting to get Google access token...");
     const accessToken = await getGoogleAccessToken(credentials);
+    console.log("Access token obtained successfully");
     
     // Create a new Google Sheet
     const sheetTitle = `Client Fact Sheets - ${listId ? `List ${listId}` : 'All Clients'} - ${new Date().toLocaleDateString()}`;
+    console.log("Creating Google Sheet with title:", sheetTitle);
     
     const createSheetResponse = await fetch(GOOGLE_SHEETS_API_URL, {
       method: "POST",
@@ -74,12 +89,27 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    console.log("Create spreadsheet response status:", createSheetResponse.status);
+
     if (!createSheetResponse.ok) {
-      throw new Error(`Failed to create spreadsheet: ${createSheetResponse.statusText}`);
+      const errorText = await createSheetResponse.text();
+      console.error("Failed to create spreadsheet:", createSheetResponse.status, errorText);
+      
+      if (createSheetResponse.status === 403) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Google API access forbidden. Please ensure the Google Sheets API is enabled in your Google Cloud Console and the service account has the necessary permissions." 
+          }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      throw new Error(`Failed to create spreadsheet: ${createSheetResponse.status} - ${errorText}`);
     }
 
     const sheetData = await createSheetResponse.json();
     const spreadsheetId = sheetData.spreadsheetId;
+    console.log("Spreadsheet created with ID:", spreadsheetId);
 
     // Prepare data for the sheet
     const headers = [
@@ -110,6 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
     const allData = [headers, ...rows];
 
     // Update the sheet with data
+    console.log("Inserting data into spreadsheet...");
     const updateResponse = await fetch(`${GOOGLE_SHEETS_API_URL}/${spreadsheetId}/values/A1:update?valueInputOption=RAW`, {
       method: "PUT",
       headers: {
@@ -122,10 +153,15 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!updateResponse.ok) {
-      throw new Error(`Failed to update spreadsheet: ${updateResponse.statusText}`);
+      const errorText = await updateResponse.text();
+      console.error("Failed to update spreadsheet:", updateResponse.status, errorText);
+      throw new Error(`Failed to update spreadsheet: ${updateResponse.status} - ${errorText}`);
     }
 
+    console.log("Spreadsheet data updated successfully");
+
     // Format the header row
+    console.log("Formatting spreadsheet...");
     await fetch(`${GOOGLE_SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
       method: "POST",
       headers: {
@@ -167,7 +203,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Make the spreadsheet publicly viewable
-    await fetch(`${GOOGLE_DRIVE_API_URL}/${spreadsheetId}/permissions`, {
+    console.log("Making spreadsheet publicly viewable...");
+    const permissionResponse = await fetch(`${GOOGLE_DRIVE_API_URL}/${spreadsheetId}/permissions`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -179,7 +216,15 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    if (!permissionResponse.ok) {
+      const errorText = await permissionResponse.text();
+      console.warn("Failed to make spreadsheet public (proceeding anyway):", permissionResponse.status, errorText);
+    } else {
+      console.log("Spreadsheet made publicly viewable");
+    }
+
     const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    console.log("Spreadsheet URL:", spreadsheetUrl);
 
     return new Response(
       JSON.stringify({ 
@@ -197,7 +242,10 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error creating fact sheets:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: "Check the function logs for more information"
+      }),
       { 
         status: 500, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
@@ -207,13 +255,14 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function getGoogleAccessToken(credentials: any): Promise<string> {
-  const jwtHeader = {
+  // Create JWT header
+  const header = {
     alg: "RS256",
     typ: "JWT"
   };
 
   const now = Math.floor(Date.now() / 1000);
-  const jwtPayload = {
+  const payload = {
     iss: credentials.client_email,
     scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive",
     aud: "https://oauth2.googleapis.com/token",
@@ -221,12 +270,96 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
     iat: now
   };
 
-  // Import the key for signing (simplified version for demo)
-  // In a real implementation, you'd need proper JWT signing
-  const keyData = credentials.private_key.replace(/\\n/g, '\n');
+  // Encode header and payload
+  const encodedHeader = btoa(JSON.stringify(header)).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
+  const encodedPayload = btoa(JSON.stringify(payload)).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
   
-  // For now, we'll throw an error to indicate this needs proper implementation
-  throw new Error("JWT signing not implemented. Please configure Google service account properly.");
+  // Prepare private key
+  let privateKey = credentials.private_key;
+  
+  if (!privateKey) {
+    throw new Error('No private key found in service account credentials');
+  }
+  
+  // Clean up the private key format
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  
+  // Remove any extra whitespace or formatting issues
+  privateKey = privateKey.trim();
+  
+  // Ensure proper PEM format
+  if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing BEGIN header');
+  }
+  
+  if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing END footer');
+  }
+
+  // Extract the base64 content between the headers
+  const keyContent = privateKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s+/g, '');
+
+  let keyBytes;
+  try {
+    keyBytes = Uint8Array.from(atob(keyContent), c => c.charCodeAt(0));
+  } catch (error) {
+    throw new Error(`Failed to decode private key: ${error.message}`);
+  }
+
+  // Import the private key
+  let cryptoKey;
+  try {
+    cryptoKey = await crypto.subtle.importKey(
+      "pkcs8",
+      keyBytes,
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256",
+      },
+      false,
+      ["sign"]
+    );
+  } catch (error) {
+    throw new Error(`Failed to import private key: ${error.message}`);
+  }
+
+  // Sign the JWT
+  const dataToSign = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+  
+  let signature;
+  try {
+    signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, dataToSign);
+  } catch (error) {
+    throw new Error(`Failed to sign JWT: ${error.message}`);
+  }
+  
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
+  
+  const jwt = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    console.error("Token exchange failed:", tokenResponse.status, errorText);
+    throw new Error(`Failed to get access token: ${tokenResponse.statusText} - ${errorText}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  return tokenData.access_token;
 }
 
 serve(handler);
