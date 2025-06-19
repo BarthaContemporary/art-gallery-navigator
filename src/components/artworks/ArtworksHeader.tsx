@@ -63,6 +63,10 @@ export function ArtworksHeader({
                 </DialogContent>
               </Dialog>
 
+              <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex">
+                <ArrowUp className="h-4 w-4 rotate-180" />
+              </Button>
+
               <div className="hidden sm:block">
                 <ImportCSVDialog />
               </div>
