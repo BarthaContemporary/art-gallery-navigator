@@ -3,10 +3,8 @@ import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
 import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
 import { ArtworksStats } from "@/components/artworks/ArtworksStats";
 import { ArtworksContent } from "@/components/artworks/ArtworksContent";
-import { ImageHealthDashboard } from "@/components/artworks/ImageHealthDashboard";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
 
 const Artworks = () => {
@@ -61,54 +59,41 @@ const Artworks = () => {
 
   const content = (
     <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
-      <Tabs defaultValue="artworks" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="artworks">Artworks</TabsTrigger>
-          <TabsTrigger value="images">Image Health</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="artworks" className="space-y-6">
-          <ArtworksHeader
-            artworks={artworks}
-            filteredArtworks={filteredArtworks}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+      <ArtworksHeader
+        artworks={artworks}
+        filteredArtworks={filteredArtworks}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
 
-          <ArtworksFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            typeFilter={typeFilter}
-            onTypeFilterChange={setTypeFilter}
-            artistFilter={artistFilter}
-            onArtistFilterChange={setArtistFilter}
-            onShowAll={handleShowAll}
-          />
+      <ArtworksFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        artistFilter={artistFilter}
+        onArtistFilterChange={setArtistFilter}
+        onShowAll={handleShowAll}
+      />
 
-          <ArtworksStats
-            filteredCount={filteredArtworks.length}
-            totalCount={artworks.length}
-            useVirtualization={useVirtualization}
-          />
+      <ArtworksStats
+        filteredCount={filteredArtworks.length}
+        totalCount={artworks.length}
+        useVirtualization={useVirtualization}
+      />
 
-          <ArtworksContent
-            artworks={filteredArtworks}
-            viewMode={viewMode}
-            useVirtualization={useVirtualization}
-            containerHeight={containerHeight}
-            letters={letters}
-            activeIndex={activeIndex}
-            onActiveIndexChange={setActiveIndex}
-            onScrollToTop={handleScrollToTop}
-          />
-        </TabsContent>
-        
-        <TabsContent value="images">
-          <ImageHealthDashboard />
-        </TabsContent>
-      </Tabs>
+      <ArtworksContent
+        artworks={filteredArtworks}
+        viewMode={viewMode}
+        useVirtualization={useVirtualization}
+        containerHeight={containerHeight}
+        letters={letters}
+        activeIndex={activeIndex}
+        onActiveIndexChange={setActiveIndex}
+        onScrollToTop={handleScrollToTop}
+      />
     </div>
   );
 
