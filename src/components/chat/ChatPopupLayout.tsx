@@ -1,29 +1,39 @@
 
 import React, { useState } from 'react';
-import { ChatRoom, useChat } from '@/hooks/chat/use-chat';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ChatInterface } from './ChatInterface';
 import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
+import { ChatRoom } from '@/hooks/chat/chat-context/types';
 
 type ViewType = 'rooms' | 'online' | 'chat';
 
 export function ChatPopupLayout() {
-  const { messages, sending, loading, startChatWithUser, setActiveRoomAndFetchMessages, sendMessage, activeRoom } = useChat();
+  const { 
+    roomMessages, 
+    state, 
+    startChatWithUser, 
+    setActiveRoom, 
+    sendMessage,
+    activeRoom,
+    roomsList,
+    onlineUsersList
+  } = useSimpleChat();
   const [currentView, setCurrentView] = useState<ViewType>('rooms');
   const isMobile = useIsMobile();
 
   const handleStartChat = async (userId: string) => {
     const room = await startChatWithUser(userId);
     if (room) {
-      await setActiveRoomAndFetchMessages(room);
+      await setActiveRoom(room.id);
       setCurrentView('chat');
     }
   };
 
   const handleSelectRoom = async (room: ChatRoom) => {
-    await setActiveRoomAndFetchMessages(room);
+    await setActiveRoom(room.id);
     setCurrentView('chat');
   };
 
@@ -31,7 +41,7 @@ export function ChatPopupLayout() {
     setCurrentView('rooms');
   };
 
-  const handleViewChange = (view: ViewType) => {
+  const handleViewChange = (view: 'rooms' | 'online') => {
     setCurrentView(view);
   };
 
@@ -39,10 +49,10 @@ export function ChatPopupLayout() {
     return (
       <ChatInterface 
         room={activeRoom} 
-        messages={messages}
-        loading={loading}
+        messages={roomMessages}
+        loading={state.loading.messages}
         onSendMessage={sendMessage}
-        sending={sending}
+        sending={state.loading.sending}
         onBack={handleBackToList} 
       />
     );
@@ -52,7 +62,9 @@ export function ChatPopupLayout() {
     <div className="flex flex-col h-full">
       <ChatTabNavigation 
         currentView={currentView as 'rooms' | 'online'} 
-        onViewChange={handleViewChange} 
+        onViewChange={handleViewChange}
+        roomsCount={roomsList.length}
+        onlineCount={onlineUsersList.length}
       />
       
       <div className="flex-1 min-h-0">

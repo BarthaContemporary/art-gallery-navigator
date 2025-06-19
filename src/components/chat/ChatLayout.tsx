@@ -4,8 +4,8 @@ import { ChatTabNavigation } from './ChatTabNavigation';
 import { ChatRoomsList } from './ChatRoomsList';
 import { OnlineUsersList } from './OnlineUsersList';
 import { ChatInterface } from './ChatInterface';
-import { useChat } from '@/hooks/chat/use-chat';
-import { ChatRoom } from '@/hooks/chat/types';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
+import { ChatRoom } from '@/hooks/chat/chat-context/types';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
@@ -14,33 +14,32 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ onClose }: ChatLayoutProps) {
-  const [activeTab, setActiveTab] = useState<'rooms' | 'online'>('rooms');
+  const [currentView, setCurrentView] = useState<'rooms' | 'online'>('rooms');
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   
   const { 
-    chatRooms, 
+    roomsList,
+    onlineUsersList,
     activeRoom, 
-    messages, 
-    onlineUsers, 
-    loading, 
-    sending,
+    roomMessages, 
+    state,
     startChatWithUser,
-    setActiveRoomAndFetchMessages,
+    setActiveRoom,
     sendMessage: sendChatMessage,
-    fetchChatRooms
-  } = useChat();
+    fetchRooms
+  } = useSimpleChat();
 
   const handleSelectRoom = async (room: ChatRoom) => {
     setSelectedRoom(room);
-    await setActiveRoomAndFetchMessages(room);
+    await setActiveRoom(room.id);
   };
 
   const handleStartChat = async (userId: string) => {
     const room = await startChatWithUser(userId);
     if (room) {
       setSelectedRoom(room);
-      await setActiveRoomAndFetchMessages(room);
-      await fetchChatRooms();
+      await setActiveRoom(room.id);
+      await fetchRooms();
     }
   };
 
@@ -63,9 +62,9 @@ export function ChatLayout({ onClose }: ChatLayoutProps) {
         
         <ChatInterface
           room={activeRoom}
-          messages={messages}
-          loading={loading}
-          sending={sending}
+          messages={roomMessages}
+          loading={state.loading.messages}
+          sending={state.loading.sending}
           onSendMessage={sendChatMessage}
           onBack={handleBackToList}
         />
@@ -86,14 +85,14 @@ export function ChatLayout({ onClose }: ChatLayoutProps) {
       </div>
       
       <ChatTabNavigation 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
-        roomsCount={chatRooms.length}
-        onlineCount={onlineUsers.length}
+        currentView={currentView} 
+        onViewChange={setCurrentView}
+        roomsCount={roomsList.length}
+        onlineCount={onlineUsersList.length}
       />
       
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'rooms' ? (
+        {currentView === 'rooms' ? (
           <ChatRoomsList
             onSelectRoom={handleSelectRoom}
             selectedRoomId={selectedRoom?.id}

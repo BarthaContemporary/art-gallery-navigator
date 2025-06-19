@@ -5,8 +5,8 @@ import { OnlineUsersList } from './OnlineUsersList';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatTabNavigation } from './ChatTabNavigation';
 import { ChatEmptyState } from './ChatEmptyState';
-import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
-import { useChat } from '@/hooks/chat/use-chat';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/chat-context/types';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
 
 type ViewType = 'rooms' | 'online';
 
@@ -33,7 +33,7 @@ export function ChatDesktopLayout({
   onStartChat,
   onSelectRoom
 }: ChatDesktopLayoutProps) {
-  const { chatRooms, onlineUsers } = useChat();
+  const { roomsList, onlineUsersList } = useSimpleChat();
 
   return (
     <div className="flex h-full">
@@ -43,8 +43,8 @@ export function ChatDesktopLayout({
           <ChatTabNavigation 
             currentView={currentView} 
             onViewChange={onViewChange}
-            roomsCount={chatRooms.length}
-            onlineCount={onlineUsers.length}
+            roomsCount={roomsList.length}
+            onlineCount={onlineUsersList.length}
           />
         </div>
 
@@ -71,7 +71,10 @@ export function ChatDesktopLayout({
             sending={sending}
           />
         ) : (
-          <ChatEmptyState />
+          <ChatEmptyState 
+            onlineUsers={onlineUsersList}
+            onStartChat={onStartChat}
+          />
         )}
       </div>
     </div>
