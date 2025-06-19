@@ -88,16 +88,20 @@ export function useMessageOperations(user: any, setState: any) {
     }
   }, [user]);
 
-  // Clean up old messages
-  const cleanupOldMessages = useCallback(async (activeRoom: any, fetchMessages: (roomId: string) => Promise<void>) => {
+  // Clean up old messages with configurable retention period
+  const cleanupOldMessages = useCallback(async (daysToKeep: number = 30) => {
     try {
-      await supabase.rpc('cleanup_old_chat_messages');
-      toast.success('Old messages cleaned up');
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
       
-      // Refresh current room messages if active
-      if (activeRoom) {
-        await fetchMessages(activeRoom.id);
-      }
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .lt('created_at', cutoffDate.toISOString());
+
+      if (error) throw error;
+      
+      toast.success(`Messages older than ${daysToKeep} days have been cleaned up`);
     } catch (error) {
       console.error('Error cleaning up old messages:', error);
       toast.error('Failed to cleanup old messages');

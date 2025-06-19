@@ -15,12 +15,28 @@ export function useSimpleChat() {
   const dataOps = useChatData(user, setState);
   const realtimeOps = useChatRealtime(user, setState);
 
-  // Set active room and fetch messages
+  // Set active room and fetch messages with pagination
   const setActiveRoomAndFetchMessages = useCallback(async (room: any) => {
-    setState(prev => ({ ...prev, activeRoom: room }));
-    await dataOps.fetchMessages(room.id, messageOps.markMessagesAsRead);
+    setState(prev => ({ 
+      ...prev, 
+      activeRoom: room,
+      hasMore: true, // Reset pagination state
+      loadingMore: false
+    }));
+    
+    // Fetch initial messages (most recent 50)
+    await dataOps.fetchMessages(room.id, 50, 0, false);
+    await messageOps.markMessagesAsRead(room.id);
     realtimeOps.subscribeToMessages(room.id);
   }, [dataOps.fetchMessages, messageOps.markMessagesAsRead, realtimeOps.subscribeToMessages, setState]);
+
+  // Load more older messages
+  const loadMoreMessages = useCallback(async () => {
+    if (!state.activeRoom || !state.hasMore || state.loadingMore) return;
+    
+    const currentOffset = state.messages.length;
+    await dataOps.fetchMessages(state.activeRoom.id, 50, currentOffset, true);
+  }, [state.activeRoom, state.hasMore, state.loadingMore, state.messages.length, dataOps.fetchMessages]);
 
   // Clear cache
   const clearAllChatCache = useCallback(() => {
@@ -35,14 +51,21 @@ export function useSimpleChat() {
       sending: false,
       connected: false,
       error: null,
+      loadingMore: false,
+      hasMore: true,
     });
 
     toast.success('Chat cache cleared');
   }, [realtimeOps, setState]);
 
   // Wrapper for cleanup with current state
-  const cleanupOldMessages = useCallback(async () => {
-    await messageOps.cleanupOldMessages(state.activeRoom, dataOps.fetchMessages);
+  const cleanupOldMessages = useCallback(async (daysToKeep: number = 30) => {
+    await messageOps.cleanupOldMessages(daysToKeep);
+    
+    // Refresh current room messages if active
+    if (state.activeRoom) {
+      await dataOps.fetchMessages(state.activeRoom.id, 50, 0, false);
+    }
   }, [messageOps, state.activeRoom, dataOps.fetchMessages]);
 
   // Initialize chat when user is available
@@ -65,6 +88,7 @@ export function useSimpleChat() {
     fetchChatRooms: dataOps.fetchChatRooms,
     startChatWithUser: dataOps.startChatWithUser,
     setActiveRoomAndFetchMessages,
+    loadMoreMessages,
     sendMessage: messageOps.sendMessage,
     fetchOnlineUsers: dataOps.fetchOnlineUsers,
     clearAllChatCache,

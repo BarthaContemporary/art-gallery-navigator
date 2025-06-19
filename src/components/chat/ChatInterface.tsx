@@ -10,7 +10,10 @@ interface ChatInterfaceProps {
   messages: ChatMessage[];
   loading: boolean;
   sending: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   onSendMessage: (message: string, type?: 'text' | 'image') => Promise<void>;
+  onLoadMore?: () => void;
   onBack?: () => void;
 }
 
@@ -18,8 +21,11 @@ export function ChatInterface({
   room, 
   messages, 
   loading, 
-  sending, 
+  sending,
+  loadingMore = false,
+  hasMore = false,
   onSendMessage,
+  onLoadMore,
   onBack 
 }: ChatInterfaceProps) {
   return (
@@ -27,7 +33,13 @@ export function ChatInterface({
       <ChatHeader room={room} onBack={onBack} />
       
       <div className="flex-1 overflow-hidden">
-        <ChatMessagesList messages={messages} loading={loading} />
+        <ChatMessagesList 
+          messages={messages} 
+          loading={loading}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          onLoadMore={onLoadMore}
+        />
       </div>
       
       <ChatMessageInput

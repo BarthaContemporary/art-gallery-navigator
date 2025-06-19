@@ -9,6 +9,8 @@ interface ChatState {
   onlineUsers: UserPresence[];
   loading: boolean;
   sending: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
   connected: boolean;
   error: string | null;
 }
@@ -21,6 +23,8 @@ export function useChatState() {
     onlineUsers: [],
     loading: false,
     sending: false,
+    loadingMore: false,
+    hasMore: true,
     connected: false,
     error: null,
   });

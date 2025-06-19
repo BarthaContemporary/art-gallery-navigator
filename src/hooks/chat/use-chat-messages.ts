@@ -8,22 +8,37 @@ import { NotificationService } from '@/services/notification-service';
 export function useChatMessages(userId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const messagesChannel = useRef<any>(null);
+  const messagesCache = useRef<Map<string, ChatMessage[]>>(new Map());
 
-  // Fetch messages for a room (plain text - no decryption needed)
-  const fetchMessages = async (roomId: string) => {
+  // Fetch messages for a room with pagination
+  const fetchMessages = async (roomId: string, limit: number = 50, offset: number = 0, loadMore: boolean = false) => {
     if (!userId) return;
 
     try {
-      // First, cleanup old messages (older than 1 week)
-      await supabase.rpc('cleanup_old_chat_messages');
+      if (!loadMore) {
+        setLoadingMore(false);
+      } else {
+        setLoadingMore(true);
+      }
+
+      // Check cache first for initial load
+      const cacheKey = `${roomId}-${offset}-${limit}`;
+      if (!loadMore && offset === 0 && messagesCache.current.has(cacheKey)) {
+        const cachedMessages = messagesCache.current.get(cacheKey) || [];
+        setMessages(cachedMessages);
+        setLoadingMore(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('room_id', roomId)
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Only messages from last week
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false }) // Most recent first
+        .range(offset, offset + limit - 1);
 
       if (error) {
         console.error('Error fetching messages:', error);
@@ -32,8 +47,17 @@ export function useChatMessages(userId?: string) {
       }
 
       if (!data || data.length === 0) {
-        setMessages([]);
+        if (!loadMore) {
+          setMessages([]);
+        }
+        setHasMore(false);
+        setLoadingMore(false);
         return;
+      }
+
+      // Check if we have fewer messages than requested (reached the end)
+      if (data.length < limit) {
+        setHasMore(false);
       }
 
       // Fetch profile data for all senders
@@ -68,11 +92,33 @@ export function useChatMessages(userId?: string) {
         };
       });
 
-      setMessages(transformedMessages);
+      // Reverse to show oldest first in UI
+      const orderedMessages = transformedMessages.reverse();
+
+      if (loadMore) {
+        // Prepend older messages to existing ones
+        setMessages(prev => [...orderedMessages, ...prev]);
+      } else {
+        // Set initial messages
+        setMessages(orderedMessages);
+        // Cache the initial load
+        messagesCache.current.set(cacheKey, orderedMessages);
+      }
+
+      setLoadingMore(false);
     } catch (error) {
       console.error('Error in fetchMessages:', error);
       toast.error('Failed to load messages');
+      setLoadingMore(false);
     }
+  };
+
+  // Load more older messages
+  const loadMoreMessages = async (roomId: string) => {
+    if (!hasMore || loadingMore) return;
+    
+    const currentOffset = messages.length;
+    await fetchMessages(roomId, 50, currentOffset, true);
   };
 
   // Send message (support text and image types)
@@ -102,6 +148,9 @@ export function useChatMessages(userId?: string) {
         console.error('Database insert error:', error);
         throw error;
       }
+
+      // Clear cache when new message is sent
+      messagesCache.current.clear();
 
       console.log('Message sent successfully:', data);
 
@@ -182,7 +231,11 @@ export function useChatMessages(userId?: string) {
             } : { display_name: 'Unknown User' }
           };
 
+          // Append new message to the end (most recent)
           setMessages(prev => [...prev, transformedMessage]);
+
+          // Clear cache when new message arrives
+          messagesCache.current.clear();
 
           // Show notification if message is from another user
           if (newMessage.sender_id !== userId) {
@@ -255,6 +308,29 @@ export function useChatMessages(userId?: string) {
     }
   };
 
+  // Optional cleanup old messages (can be called manually)
+  const cleanupOldMessages = async (daysToKeep: number = 30) => {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+      
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .lt('created_at', cutoffDate.toISOString());
+
+      if (error) throw error;
+
+      // Clear cache after cleanup
+      messagesCache.current.clear();
+      
+      toast.success(`Messages older than ${daysToKeep} days have been cleaned up`);
+    } catch (error) {
+      console.error('Error cleaning up old messages:', error);
+      toast.error('Failed to cleanup old messages');
+    }
+  };
+
   // Cleanup function
   const cleanup = () => {
     if (messagesChannel.current) {
@@ -265,6 +341,8 @@ export function useChatMessages(userId?: string) {
   // Clear cache function
   const clearCache = () => {
     setMessages([]);
+    setHasMore(true);
+    messagesCache.current.clear();
     
     // Remove any active message subscriptions
     if (messagesChannel.current) {
@@ -276,12 +354,16 @@ export function useChatMessages(userId?: string) {
   return {
     messages,
     sending,
+    loadingMore,
+    hasMore,
     fetchMessages,
+    loadMoreMessages,
     sendMessage,
     subscribeToMessages,
     markMessagesAsRead,
     getUnreadCount,
     getTotalUnreadCount,
+    cleanupOldMessages,
     cleanup,
     clearCache,
   };

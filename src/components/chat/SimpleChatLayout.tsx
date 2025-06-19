@@ -1,101 +1,241 @@
 
-import React, { useState } from 'react';
-import { ChatRoom } from '@/hooks/chat/types';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React, { useState, useEffect } from 'react';
 import { useSimpleChat } from '@/hooks/chat/use-simple-chat';
-import { ChatMobileLayout } from './ChatMobileLayout';
-import { ChatDesktopLayout } from './ChatDesktopLayout';
-import { ChatPopupLayout } from './ChatPopupLayout';
-import { ChatStatusBar } from './ChatStatusBar';
-import { ImprovedChatClearCacheButton } from './ImprovedChatClearCacheButton';
-import { ChatCleanupButton } from './ChatCleanupButton';
-import { useLocation } from 'react-router-dom';
+import { ChatRoomsList } from './ChatRoomsList';
+import { ChatInterface } from './ChatInterface';
+import { OnlineUsersList } from './OnlineUsersList';
+import { ChatEmptyState } from './ChatEmptyState';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/hooks/use-auth';
 
-type ViewType = 'rooms' | 'online' | 'chat';
+export function SimpleChatLayout() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('conversations');
+  const [showMobileChat, setShowMobileChat] = useState(false);
+  
+  const {
+    chatRooms,
+    activeRoom,
+    messages,
+    onlineUsers,
+    loading,
+    sending,
+    loadingMore,
+    hasMore,
+    connected,
+    error,
+    startChatWithUser,
+    setActiveRoomAndFetchMessages,
+    loadMoreMessages,
+    sendMessage,
+    fetchOnlineUsers,
+    clearAllChatCache,
+    cleanupOldMessages,
+  } = useSimpleChat();
 
-interface SimpleChatLayoutProps {
-  isPopup?: boolean;
-}
+  // Handle room selection
+  const handleRoomSelect = async (room: any) => {
+    await setActiveRoomAndFetchMessages(room);
+    setShowMobileChat(true);
+  };
 
-export function SimpleChatLayout({ isPopup = false }: SimpleChatLayoutProps) {
-  const chat = useSimpleChat();
-  const [currentView, setCurrentView] = useState<ViewType>('rooms');
-  const isMobile = useIsMobile();
-  const location = useLocation();
-
-  // Use popup layout if this is a popup or if we're on a mobile device in popup mode
-  if (isPopup || (location.pathname !== '/chat' && !isMobile)) {
-    return <ChatPopupLayout />;
-  }
-
-  const handleStartChat = async (userId: string) => {
-    const room = await chat.startChatWithUser(userId);
+  // Handle starting new chat
+  const handleStartChat = async (targetUser: any) => {
+    const room = await startChatWithUser(targetUser.user_id);
     if (room) {
-      await chat.setActiveRoomAndFetchMessages(room);
-      setCurrentView('chat');
+      await handleRoomSelect(room);
     }
   };
 
-  const handleSelectRoom = async (room: ChatRoom) => {
-    await chat.setActiveRoomAndFetchMessages(room);
-    if (isMobile) {
-      setCurrentView('chat');
-    }
+  // Handle sending message
+  const handleSendMessage = async (content: string, type: 'text' | 'image' = 'text') => {
+    if (!activeRoom) return;
+    await sendMessage(content, activeRoom.id, type);
   };
 
-  const handleBackToList = () => {
-    setCurrentView('rooms');
+  // Handle back to rooms list on mobile
+  const handleBackToRooms = () => {
+    setShowMobileChat(false);
   };
 
-  const handleViewChange = (view: ViewType) => {
-    setCurrentView(view);
+  // Handle load more messages
+  const handleLoadMore = () => {
+    loadMoreMessages();
   };
 
-  const handleSendMessage = async (message: string) => {
-    if (!chat.activeRoom) return;
-    await chat.sendMessage(message, chat.activeRoom.id);
+  // Handle cleanup with custom days
+  const handleCleanupMessages = async (days: number) => {
+    await cleanupOldMessages(days);
   };
 
-  if (isMobile) {
+  // Refresh online users periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOnlineUsers();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchOnlineUsers]);
+
+  if (!user) {
     return (
-      <div className="flex flex-col h-full">
-        <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
-        <ChatMobileLayout
-          currentView={currentView}
-          activeRoom={chat.activeRoom}
-          messages={chat.messages}
-          onSendMessage={handleSendMessage}
-          sending={chat.sending}
-          loading={chat.loading}
-          onViewChange={handleViewChange}
-          onStartChat={handleStartChat}
-          onSelectRoom={handleSelectRoom}
-          onBackToList={handleBackToList}
-        />
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center text-gray-500">
+          <p>Please log in to access chat</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-2 border-b bg-gray-50">
-        <ChatStatusBar connected={chat.connected} error={chat.error} loading={chat.loading} />
-        <div className="flex items-center gap-2">
-          <ChatCleanupButton onCleanup={chat.cleanupOldMessages} loading={chat.loading} />
-          <ImprovedChatClearCacheButton onClear={chat.clearAllChatCache} />
+    <div className="flex h-full bg-white">
+      {/* Desktop Layout */}
+      <div className="hidden md:flex w-full">
+        {/* Sidebar */}
+        <div className="w-80 border-r border-gray-200 flex flex-col">
+          {/* Header with Actions */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="font-semibold text-lg">Chat</h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleCleanupMessages(7)}>
+                  Clean up messages (7 days)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCleanupMessages(30)}>
+                  Clean up messages (30 days)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={clearAllChatCache}>
+                  Clear chat cache
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <TabsList className="grid w-full grid-cols-2 mx-4 mt-2">
+              <TabsTrigger value="conversations">Conversations</TabsTrigger>
+              <TabsTrigger value="online">Online ({onlineUsers.length})</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="conversations" className="flex-1 mt-0">
+              <ChatRoomsList
+                rooms={chatRooms}
+                activeRoom={activeRoom}
+                onRoomSelect={handleRoomSelect}
+                loading={loading}
+              />
+            </TabsContent>
+            
+            <TabsContent value="online" className="flex-1 mt-0">
+              <OnlineUsersList
+                users={onlineUsers}
+                onStartChat={handleStartChat}
+                connected={connected}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {activeRoom ? (
+            <ChatInterface
+              room={activeRoom}
+              messages={messages}
+              loading={loading}
+              sending={sending}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onSendMessage={handleSendMessage}
+              onLoadMore={handleLoadMore}
+            />
+          ) : (
+            <ChatEmptyState 
+              onlineUsers={onlineUsers}
+              onStartChat={handleStartChat}
+            />
+          )}
         </div>
       </div>
-      <ChatDesktopLayout
-        currentView={currentView as 'rooms' | 'online'}
-        activeRoom={chat.activeRoom}
-        messages={chat.messages}
-        onSendMessage={handleSendMessage}
-        sending={chat.sending}
-        loading={chat.loading}
-        onViewChange={handleViewChange}
-        onStartChat={handleStartChat}
-        onSelectRoom={handleSelectRoom}
-      />
+
+      {/* Mobile Layout */}
+      <div className="md:hidden flex flex-col w-full h-full">
+        {!showMobileChat ? (
+          <div className="flex flex-col h-full">
+            {/* Mobile Header */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="font-semibold text-lg">Chat</h2>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleCleanupMessages(7)}>
+                    Clean up messages (7 days)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleCleanupMessages(30)}>
+                    Clean up messages (30 days)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={clearAllChatCache}>
+                    Clear chat cache
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Mobile Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+              <TabsList className="grid w-full grid-cols-2 mx-4 mt-2">
+                <TabsTrigger value="conversations">Conversations</TabsTrigger>
+                <TabsTrigger value="online">Online ({onlineUsers.length})</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="conversations" className="flex-1 mt-0">
+                <ChatRoomsList
+                  rooms={chatRooms}
+                  activeRoom={activeRoom}
+                  onRoomSelect={handleRoomSelect}
+                  loading={loading}
+                />
+              </TabsContent>
+              
+              <TabsContent value="online" className="flex-1 mt-0">
+                <OnlineUsersList
+                  users={onlineUsers}
+                  onStartChat={handleStartChat}
+                  connected={connected}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        ) : (
+          /* Mobile Chat Interface */
+          activeRoom && (
+            <ChatInterface
+              room={activeRoom}
+              messages={messages}
+              loading={loading}
+              sending={sending}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onSendMessage={handleSendMessage}
+              onLoadMore={handleLoadMore}
+              onBack={handleBackToRooms}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 }
