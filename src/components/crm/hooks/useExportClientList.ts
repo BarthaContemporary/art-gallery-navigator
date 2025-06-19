@@ -80,7 +80,15 @@ export function useExportClientList() {
       if (error) throw error;
 
       if (data?.documentUrl) {
-        window.open(data.documentUrl, '_blank');
+        // Ensure the document opens in a new tab
+        const newWindow = window.open(data.documentUrl, '_blank', 'noopener,noreferrer');
+        
+        // Check if popup was blocked
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+          // Fallback: try to open without additional parameters
+          window.open(data.documentUrl, '_blank');
+        }
+        
         toast.success("Mailing labels created in Google Docs");
       } else {
         throw new Error("No document URL returned");
@@ -106,7 +114,15 @@ export function useExportClientList() {
       if (error) throw error;
 
       if (data?.spreadsheetUrl) {
-        window.open(data.spreadsheetUrl, '_blank');
+        // Ensure the spreadsheet opens in a new tab
+        const newWindow = window.open(data.spreadsheetUrl, '_blank', 'noopener,noreferrer');
+        
+        // Check if popup was blocked
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+          // Fallback: try to open without additional parameters
+          window.open(data.spreadsheetUrl, '_blank');
+        }
+        
         toast.success("Fact sheets created in Google Sheets");
       } else {
         throw new Error("No spreadsheet URL returned");
