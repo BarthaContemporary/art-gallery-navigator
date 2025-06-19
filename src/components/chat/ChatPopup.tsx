@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { ChatPopupButton } from './ChatPopupButton';
+import { OptimizedChatPopupButton } from './OptimizedChatPopupButton';
 import { ChatLayout } from './ChatLayout';
 import { useAuth } from '@/hooks/use-auth';
 
-export function ChatPopup() {
+export const ChatPopup = React.memo(function ChatPopup() {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
 
@@ -12,7 +12,7 @@ export function ChatPopup() {
 
   return (
     <>
-      <ChatPopupButton 
+      <OptimizedChatPopupButton 
         onClick={() => setIsOpen(!isOpen)} 
         isOpen={isOpen}
       />
@@ -26,4 +26,4 @@ export function ChatPopup() {
       )}
     </>
   );
-}
+});
