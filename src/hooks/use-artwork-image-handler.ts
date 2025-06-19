@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useImageCache } from '@/hooks/use-image-cache';
 import { logger } from '@/lib/logger';
-import { validateImageUrl } from '@/hooks/use-optimized-image/url-generator';
+import { validateImageUrl, getOptimizedImageUrl } from '@/hooks/use-optimized-image/url-generator';
 
 interface UseArtworkImageHandlerProps {
   displayImageUrl: string | null; 
@@ -47,30 +47,26 @@ export function useArtworkImageHandler({
       return;
     }
 
-    // Enhanced logging for debugging Cloudinary issues
-    if (displayImageUrl.includes('res.cloudinary.com')) {
-      logger.debug(`useArtworkImageHandler (${title}): Processing Cloudinary URL:`, {
-        displayImageUrl,
-        cacheKey,
-        imageTypeForCache
-      });
-      
-      // Check if Cloudinary URL is properly formatted
-      if (!displayImageUrl.includes('/image/fetch/') && !displayImageUrl.includes('/upload/')) {
-        logger.warn(`useArtworkImageHandler (${title}): Malformed Cloudinary URL:`, displayImageUrl);
-      }
-    }
+    // Get optimized URL using the improved URL generator
+    const optimizedUrl = getOptimizedImageUrl(displayImageUrl, imageTypeForCache);
+    
+    logger.debug(`useArtworkImageHandler (${title}): Processing URL:`, {
+      original: displayImageUrl,
+      optimized: optimizedUrl,
+      cacheKey,
+      imageTypeForCache
+    });
 
     // Try to get from cache first
     const cachedImage = getCachedImage(cacheKey, imageTypeForCache);
     if (cachedImage) {
-      logger.debug(`useArtworkImageHandler (${title}): Found cached ${imageTypeForCache} for key ${cacheKey}. Displaying cached.`);
+      logger.debug(`useArtworkImageHandler (${title}): Found cached ${imageTypeForCache} for key ${cacheKey}.`);
       setInitialCachedPreviewUrl(cachedImage.dataUrl);
       setDeterminedOptimizedUrl(cachedImage.dataUrl);
     } else {
-      logger.debug(`useArtworkImageHandler (${title}): No cached ${imageTypeForCache} for key ${cacheKey}. Will load: ${displayImageUrl}`);
+      logger.debug(`useArtworkImageHandler (${title}): No cached ${imageTypeForCache} for key ${cacheKey}. Will load: ${optimizedUrl}`);
       setInitialCachedPreviewUrl(null);
-      setDeterminedOptimizedUrl(displayImageUrl);
+      setDeterminedOptimizedUrl(optimizedUrl);
     }
 
   }, [displayImageUrl, cacheKey, imageTypeForCache, title, getCachedImage]);

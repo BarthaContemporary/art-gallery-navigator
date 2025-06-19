@@ -5,7 +5,7 @@ import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
 import { cn } from "@/lib/utils";
 import { Loader2, RefreshCw, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getImageFallbackChain } from "@/hooks/use-optimized-image/url-generator";
+import { getImageFallbackChain, fixCloudinaryUrl } from "@/hooks/use-optimized-image/url-generator";
 
 interface OptimizedArtworkImageProps {
   imageRecord?: ArtworkImage;
@@ -33,9 +33,10 @@ export function OptimizedArtworkImage({
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+  const [attemptedAutoFix, setAttemptedAutoFix] = useState(false);
   const fallbackChainRef = useRef<string[]>([]);
 
-  // Create fallback chain: optimized URL -> medium -> original -> placeholder
+  // Create fallback chain with auto-fixed URLs
   const primaryUrl = tier === 'thumbnail' ? imageRecord?.thumbnail_url : imageRecord?.medium_url;
   const fallbackUrl = imageRecord?.image_url;
   
@@ -79,12 +80,24 @@ export function OptimizedArtworkImage({
   const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     console.error(`Image failed to load: ${title}`, event.currentTarget.src);
     
+    // Try to auto-fix Cloudinary URL if this is the first error
+    if (!attemptedAutoFix && event.currentTarget.src.includes('res.cloudinary.com')) {
+      const fixedUrl = fixCloudinaryUrl(event.currentTarget.src);
+      if (fixedUrl !== event.currentTarget.src) {
+        console.log(`Attempting auto-fix for ${title}: ${event.currentTarget.src} -> ${fixedUrl}`);
+        setAttemptedAutoFix(true);
+        event.currentTarget.src = fixedUrl;
+        return;
+      }
+    }
+    
     // Try next URL in fallback chain
     if (currentUrlIndex < fallbackChainRef.current.length - 1) {
       console.log(`Trying fallback URL for ${title}`, fallbackChainRef.current[currentUrlIndex + 1]);
       setCurrentUrlIndex(prev => prev + 1);
       setImageLoaded(false);
       setImageError(false);
+      setAttemptedAutoFix(false);
       return;
     }
     
@@ -92,17 +105,18 @@ export function OptimizedArtworkImage({
     setImageError(true);
     setImageLoaded(true);
     setIsRetrying(false);
-  }, [title, currentUrlIndex]);
+  }, [title, currentUrlIndex, attemptedAutoFix]);
 
   const handleRetry = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     console.log(`Retrying image load for: ${title}`);
     
-    // Reset to first URL in chain
+    // Reset to first URL in chain and clear auto-fix attempt
     setCurrentUrlIndex(0);
     setImageError(false);
     setImageLoaded(false);
     setIsRetrying(true);
+    setAttemptedAutoFix(false);
     setRetryCount(prev => prev + 1);
   }, [title]);
 
@@ -149,6 +163,9 @@ export function OptimizedArtworkImage({
             {currentUrlIndex > 0 && (
               <span className="text-xs text-muted-foreground">Using fallback...</span>
             )}
+            {attemptedAutoFix && (
+              <span className="text-xs text-muted-foreground">Auto-fixing URL...</span>
+            )}
           </div>
         </div>
       )}
@@ -179,10 +196,15 @@ export function OptimizedArtworkImage({
         </div>
       )}
       
-      {/* Debug indicator for Cloudinary */}
+      {/* Status indicators */}
       {!isPlaceholder && determinedOptimizedUrl?.includes('res.cloudinary.com') && (
         <div className="absolute top-1 right-1 bg-green-500/80 text-white text-xs px-1 rounded opacity-70">
           CDN
+        </div>
+      )}
+      {attemptedAutoFix && (
+        <div className="absolute top-1 left-1 bg-orange-500/80 text-white text-xs px-1 rounded opacity-70">
+          FIXED
         </div>
       )}
     </div>
