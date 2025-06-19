@@ -292,34 +292,58 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
 }
 
 function generateArtworkListContent(artworks: Artwork[]): string {
-  let content = "ARTWORK LIST\n\n";
-  content += `Generated on: ${new Date().toLocaleDateString()}\n`;
+  let content = "";
+  
+  // Header
+  content += "ARTWORK LIST\n\n";
+  content += `Date: ${new Date().toLocaleDateString()}\n`;
   content += `Total Artworks: ${artworks.length}\n\n`;
   
-  // Create a table-like format
-  content += "=".repeat(120) + "\n";
-  content += "ARTIST\t\tTITLE\t\tYEAR\tMEDIUM\t\tDIMENSIONS\t\tPRICE\t\tSTATUS\n";
-  content += "=".repeat(120) + "\n";
-  
+  // Process each artwork
   artworks.forEach((artwork, index) => {
-    const artist = artwork.artist_name || "Unknown Artist";
-    const title = artwork.title || "Untitled";
-    const year = artwork.year ? artwork.year.toString() : "N/A";
-    const medium = artwork.medium_type || "N/A";
-    const dimensions = artwork.dimensions || "N/A";
-    const price = artwork.price ? `${artwork.currency} ${artwork.price.toLocaleString()}` : "N/A";
-    const status = artwork.status || "N/A";
+    content += `${index + 1}. `;
     
-    content += `${artist}\t\t${title}\t\t${year}\t${medium}\t\t${dimensions}\t\t${price}\t\t${status}\n`;
-    
-    if (artwork.materials) {
-      content += `\tMaterials: ${artwork.materials}\n`;
+    // Artist name
+    if (artwork.artist_name) {
+      content += `${artwork.artist_name}\n`;
+    } else {
+      content += "Unknown Artist\n";
     }
     
-    content += "-".repeat(120) + "\n";
+    // Title and year
+    const title = artwork.title || "Untitled";
+    const year = artwork.year ? `, ${artwork.year}` : "";
+    content += `${title}${year}\n`;
+    
+    // Medium and materials
+    if (artwork.medium_type) {
+      content += `${artwork.medium_type}`;
+      if (artwork.materials) {
+        content += `, ${artwork.materials}`;
+      }
+      content += "\n";
+    } else if (artwork.materials) {
+      content += `${artwork.materials}\n`;
+    }
+    
+    // Dimensions
+    if (artwork.dimensions) {
+      content += `${artwork.dimensions}\n`;
+    }
+    
+    // Price
+    if (artwork.price) {
+      content += `${artwork.currency} ${artwork.price.toLocaleString()}\n`;
+    }
+    
+    // Status
+    if (artwork.status) {
+      content += `Status: ${artwork.status}\n`;
+    }
+    
+    // Add spacing between artworks
+    content += "\n";
   });
-  
-  content += "\n\nEnd of List";
   
   return content;
 }
