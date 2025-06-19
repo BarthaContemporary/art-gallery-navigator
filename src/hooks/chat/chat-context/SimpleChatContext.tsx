@@ -49,17 +49,8 @@ const SimpleChatContext = createContext<SimpleChatContextType | null>(null);
 export function SimpleChatProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   
-  // Initialize API safely
-  const api = useMemo(() => {
-    try {
-      return useChatAPI(user?.id);
-    } catch (error) {
-      console.error('Failed to initialize chat API:', error);
-      return null;
-    }
-  }, [user?.id]);
-  
-  const [state, setState] = useState<SimpleChatState>({
+  // Single state object to avoid multiple useState calls that might cause React queue issues
+  const [state, setState] = useState<SimpleChatState>(() => ({
     rooms: [],
     messages: [],
     onlineUsers: [],
@@ -72,7 +63,24 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     },
     connected: false,
     error: null,
-  });
+  }));
+
+  // Initialize API safely with error handling
+  const api = useMemo(() => {
+    if (!user?.id) return null;
+    
+    try {
+      return useChatAPI(user.id);
+    } catch (error) {
+      console.error('Failed to initialize chat API:', error);
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to initialize chat',
+        connected: false
+      }));
+      return null;
+    }
+  }, [user?.id]);
 
   // Computed values with safe fallbacks
   const activeRoom = useMemo(() => 
@@ -81,7 +89,9 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
   );
 
   const roomMessages = useMemo(() => state.messages, [state.messages]);
+  
   const onlineUsersList = useMemo(() => state.onlineUsers, [state.onlineUsers]);
+  
   const roomsList = useMemo(() => 
     [...state.rooms].sort((a, b) => 
       new Date(b.last_message_at || b.updated_at).getTime() - 
@@ -90,27 +100,27 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     [state.rooms]
   );
 
-  // Safe state updater
-  const safeSetState = useCallback((updater: (prev: SimpleChatState) => SimpleChatState) => {
-    setState(prev => {
-      try {
-        return updater(prev);
-      } catch (error) {
-        console.error('State update error:', error);
-        return prev;
-      }
-    });
+  // Safe state updater with error handling
+  const updateState = useCallback((updater: (prev: SimpleChatState) => SimpleChatState) => {
+    try {
+      setState(updater);
+    } catch (error) {
+      console.error('State update error:', error);
+    }
   }, []);
 
-  // Core actions with safe error handling
+  // Core actions with comprehensive error handling
   const fetchRooms = useCallback(async () => {
-    if (!user?.id || !api) return;
+    if (!user?.id || !api) {
+      updateState(prev => ({ ...prev, error: 'Not authenticated or API not available' }));
+      return;
+    }
     
-    safeSetState(prev => ({ ...prev, loading: { ...prev.loading, rooms: true }, error: null }));
+    updateState(prev => ({ ...prev, loading: { ...prev.loading, rooms: true }, error: null }));
     
     try {
       const rooms = await api.fetchRooms();
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         rooms, 
         loading: { ...prev.loading, rooms: false },
@@ -118,23 +128,23 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       }));
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         loading: { ...prev.loading, rooms: false },
         error: 'Failed to load conversations',
         connected: false
       }));
     }
-  }, [user?.id, api, safeSetState]);
+  }, [user?.id, api, updateState]);
 
   const fetchMessages = useCallback(async (roomId: string) => {
     if (!user?.id || !api) return;
     
-    safeSetState(prev => ({ ...prev, loading: { ...prev.loading, messages: true }, error: null }));
+    updateState(prev => ({ ...prev, loading: { ...prev.loading, messages: true }, error: null }));
     
     try {
       const result = await api.fetchMessages(roomId, 50, 0);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         messages: result.messages,
         loading: { ...prev.loading, messages: false },
@@ -142,22 +152,22 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       }));
     } catch (error) {
       console.error('Failed to fetch messages:', error);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         loading: { ...prev.loading, messages: false },
         error: 'Failed to load messages'
       }));
     }
-  }, [user?.id, api, safeSetState]);
+  }, [user?.id, api, updateState]);
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' = 'text') => {
     if (!user?.id || !state.activeRoomId || !api) return;
     
-    safeSetState(prev => ({ ...prev, loading: { ...prev.loading, sending: true }, error: null }));
+    updateState(prev => ({ ...prev, loading: { ...prev.loading, sending: true }, error: null }));
     
     try {
       const message = await api.sendMessage(content, state.activeRoomId, type);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         messages: [...prev.messages, message],
         loading: { ...prev.loading, sending: false }
@@ -165,26 +175,26 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       toast.success('Message sent');
     } catch (error) {
       console.error('Failed to send message:', error);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         loading: { ...prev.loading, sending: false },
         error: 'Failed to send message'
       }));
       toast.error('Failed to send message');
     }
-  }, [user?.id, state.activeRoomId, api, safeSetState]);
+  }, [user?.id, state.activeRoomId, api, updateState]);
 
   const setActiveRoom = useCallback(async (roomId: string) => {
-    safeSetState(prev => ({ ...prev, activeRoomId: roomId, messages: [] }));
+    updateState(prev => ({ ...prev, activeRoomId: roomId, messages: [] }));
     await fetchMessages(roomId);
-  }, [fetchMessages, safeSetState]);
+  }, [fetchMessages, updateState]);
 
   const startChatWithUser = useCallback(async (userId: string): Promise<ChatRoom | null> => {
     if (!user?.id || !api) return null;
     
     try {
       const room = await api.createOrGetRoom(user.id, userId);
-      safeSetState(prev => ({ 
+      updateState(prev => ({ 
         ...prev, 
         rooms: [...prev.rooms.filter(r => r.id !== room.id), room]
       }));
@@ -194,14 +204,14 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       toast.error('Failed to start chat');
       return null;
     }
-  }, [user?.id, api, safeSetState]);
+  }, [user?.id, api, updateState]);
 
   const setCurrentView = useCallback((view: 'rooms' | 'online' | 'chat') => {
-    safeSetState(prev => ({ ...prev, currentView: view }));
-  }, [safeSetState]);
+    updateState(prev => ({ ...prev, currentView: view }));
+  }, [updateState]);
 
   const clearCache = useCallback(() => {
-    safeSetState(prev => ({ 
+    updateState(prev => ({ 
       ...prev, 
       rooms: [],
       messages: [],
@@ -209,38 +219,63 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       activeRoomId: null,
       error: null
     }));
-  }, [safeSetState]);
+  }, [updateState]);
 
   const retryConnection = useCallback(() => {
-    safeSetState(prev => ({ ...prev, error: null }));
+    updateState(prev => ({ ...prev, error: null }));
     if (user?.id && api) {
       fetchRooms();
     }
-  }, [user?.id, api, fetchRooms, safeSetState]);
+  }, [user?.id, api, fetchRooms, updateState]);
 
-  // Initialize safely
+  // Initialize safely with proper cleanup
   useEffect(() => {
-    if (user?.id && api) {
-      fetchRooms();
-      
-      // Fetch online users safely
-      const fetchOnlineUsers = async () => {
-        try {
-          const users = await api.fetchOnlineUsers();
-          safeSetState(prev => ({ ...prev, onlineUsers: users }));
-        } catch (error) {
-          console.error('Failed to fetch online users:', error);
-        }
-      };
-      
-      fetchOnlineUsers();
-      const interval = setInterval(fetchOnlineUsers, 30000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [user?.id, api, fetchRooms, safeSetState]);
+    if (!user?.id || !api) return;
 
-  const contextValue: SimpleChatContextType = useMemo(() => ({
+    let isMounted = true;
+
+    const initializeChat = async () => {
+      try {
+        await fetchRooms();
+        
+        if (!isMounted) return;
+        
+        // Fetch online users safely
+        const users = await api.fetchOnlineUsers();
+        if (isMounted) {
+          updateState(prev => ({ ...prev, onlineUsers: users }));
+        }
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        if (isMounted) {
+          updateState(prev => ({ ...prev, error: 'Failed to initialize chat' }));
+        }
+      }
+    };
+
+    initializeChat();
+
+    // Set up periodic online users update
+    const interval = setInterval(async () => {
+      if (!isMounted || !api) return;
+      
+      try {
+        const users = await api.fetchOnlineUsers();
+        if (isMounted) {
+          updateState(prev => ({ ...prev, onlineUsers: users }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch online users:', error);
+      }
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user?.id, api, fetchRooms, updateState]);
+
+  const contextValue = useMemo<SimpleChatContextType>(() => ({
     state,
     fetchRooms,
     fetchMessages,
@@ -277,7 +312,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
   );
 }
 
-export function useSimpleChat() {
+export function useSimpleChat(): SimpleChatContextType {
   const context = useContext(SimpleChatContext);
   if (!context) {
     // Return a safe fallback instead of throwing
