@@ -52,8 +52,8 @@ export function ChatLayout({ onClose }: ChatLayoutProps) {
   if (selectedRoom && activeRoom) {
     return (
       <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between p-2 border-b bg-white">
-          <h2 className="font-semibold">Chat</h2>
+        <div className="flex items-center justify-between pl-4 pr-2 py-2 border-b bg-white">
+          <h2 className="font-semibold">B_c Chat</h2>
           {onClose && (
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -76,8 +76,8 @@ export function ChatLayout({ onClose }: ChatLayoutProps) {
   // Show room/user list
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b bg-white">
-        <h2 className="font-semibold">Chat</h2>
+      <div className="flex items-center justify-between pl-4 pr-2 py-2 border-b bg-white">
+        <h2 className="font-semibold">B_c Chat</h2>
         {onClose && (
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
