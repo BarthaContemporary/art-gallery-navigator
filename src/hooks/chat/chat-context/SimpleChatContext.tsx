@@ -48,9 +48,9 @@ const SimpleChatContext = createContext<SimpleChatContextType | null>(null);
 
 export function SimpleChatProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id;
   
-  // Single state object to avoid multiple useState calls that might cause React queue issues
-  const [state, setState] = useState<SimpleChatState>(() => ({
+  const [state, setState] = useState<SimpleChatState>({
     rooms: [],
     messages: [],
     onlineUsers: [],
@@ -63,14 +63,13 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     },
     connected: false,
     error: null,
-  }));
+  });
 
-  // Initialize API safely with error handling
   const api = useMemo(() => {
-    if (!user?.id) return null;
+    if (!userId) return null;
     
     try {
-      return useChatAPI(user.id);
+      return useChatAPI(userId);
     } catch (error) {
       console.error('Failed to initialize chat API:', error);
       setState(prev => ({
@@ -80,9 +79,8 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       }));
       return null;
     }
-  }, [user?.id]);
+  }, [userId]);
 
-  // Computed values with safe fallbacks
   const activeRoom = useMemo(() => 
     state.rooms.find(room => room.id === state.activeRoomId) || null,
     [state.rooms, state.activeRoomId]
@@ -100,7 +98,6 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     [state.rooms]
   );
 
-  // Safe state updater with error handling
   const updateState = useCallback((updater: (prev: SimpleChatState) => SimpleChatState) => {
     try {
       setState(updater);
@@ -109,9 +106,8 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
-  // Core actions with comprehensive error handling
   const fetchRooms = useCallback(async () => {
-    if (!user?.id || !api) {
+    if (!userId || !api) {
       updateState(prev => ({ ...prev, error: 'Not authenticated or API not available' }));
       return;
     }
@@ -135,10 +131,10 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
         connected: false
       }));
     }
-  }, [user?.id, api, updateState]);
+  }, [userId, api, updateState]);
 
   const fetchMessages = useCallback(async (roomId: string) => {
-    if (!user?.id || !api) return;
+    if (!userId || !api) return;
     
     updateState(prev => ({ ...prev, loading: { ...prev.loading, messages: true }, error: null }));
     
@@ -158,10 +154,10 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
         error: 'Failed to load messages'
       }));
     }
-  }, [user?.id, api, updateState]);
+  }, [userId, api, updateState]);
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' = 'text') => {
-    if (!user?.id || !state.activeRoomId || !api) return;
+    if (!userId || !state.activeRoomId || !api) return;
     
     updateState(prev => ({ ...prev, loading: { ...prev.loading, sending: true }, error: null }));
     
@@ -182,7 +178,7 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
       }));
       toast.error('Failed to send message');
     }
-  }, [user?.id, state.activeRoomId, api, updateState]);
+  }, [userId, state.activeRoomId, api, updateState]);
 
   const setActiveRoom = useCallback(async (roomId: string) => {
     updateState(prev => ({ ...prev, activeRoomId: roomId, messages: [] }));
@@ -223,14 +219,14 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
 
   const retryConnection = useCallback(() => {
     updateState(prev => ({ ...prev, error: null }));
-    if (user?.id && api) {
+    if (userId && api) {
       fetchRooms();
     }
-  }, [user?.id, api, fetchRooms, updateState]);
+  }, [userId, api, fetchRooms, updateState]);
 
-  // Initialize safely with proper cleanup
+  // Initialize chat - simplified with proper dependency handling
   useEffect(() => {
-    if (!user?.id || !api) return;
+    if (!userId || !api) return;
 
     let isMounted = true;
 
@@ -240,7 +236,6 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
         
         if (!isMounted) return;
         
-        // Fetch online users safely
         const users = await api.fetchOnlineUsers();
         if (isMounted) {
           updateState(prev => ({ ...prev, onlineUsers: users }));
@@ -255,25 +250,26 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
 
     initializeChat();
 
-    // Set up periodic online users update
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]); // Simplified dependencies
+
+  // Separate effect for periodic updates
+  useEffect(() => {
+    if (!userId || !api) return;
+    
     const interval = setInterval(async () => {
-      if (!isMounted || !api) return;
-      
       try {
         const users = await api.fetchOnlineUsers();
-        if (isMounted) {
-          updateState(prev => ({ ...prev, onlineUsers: users }));
-        }
+        updateState(prev => ({ ...prev, onlineUsers: users }));
       } catch (error) {
         console.error('Failed to fetch online users:', error);
       }
     }, 30000);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [user?.id, api, fetchRooms, updateState]);
+    return () => clearInterval(interval);
+  }, [userId]); // Simplified dependencies
 
   const contextValue = useMemo<SimpleChatContextType>(() => ({
     state,
@@ -315,7 +311,6 @@ export function SimpleChatProvider({ children }: { children: React.ReactNode }) 
 export function useSimpleChat(): SimpleChatContextType {
   const context = useContext(SimpleChatContext);
   if (!context) {
-    // Return a safe fallback instead of throwing
     console.warn('useSimpleChat used outside of SimpleChatProvider');
     return {
       state: {
