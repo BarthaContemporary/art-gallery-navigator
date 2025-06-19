@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { EditClientDialog } from "./EditClientDialog";
 import { ClientDetailsDialog } from "./ClientDetailsDialog";
@@ -8,6 +7,7 @@ import { ClientItem } from "./ClientItem";
 import { ClientsEmptyState } from "./ClientsEmptyState";
 import { useClientsData } from "./hooks/useClientsData";
 import { useClientOperations } from "./hooks/useClientOperations";
+import { ExportClientListDialog } from "./ExportClientListDialog";
 
 interface ClientsListProps {
   searchTerm: string;
@@ -58,6 +58,16 @@ export function ClientsList({ searchTerm, statusFilter, selectedListId }: Client
 
   return (
     <>
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-sm text-muted-foreground">
+          {clients.length} client{clients.length === 1 ? '' : 's'} found
+        </div>
+        <ExportClientListDialog 
+          selectedListId={selectedListId}
+          clientsData={clients}
+        />
+      </div>
+
       <div className="space-y-2">
         {clients.map((client: any) => (
           <ClientItem

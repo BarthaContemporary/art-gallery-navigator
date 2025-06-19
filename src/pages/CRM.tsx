@@ -10,6 +10,7 @@ import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog";
 import { ClientListsFilter } from "@/components/crm/ClientListsFilter";
+import { ExportClientListDialog } from "@/components/crm/ExportClientListDialog";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
@@ -27,6 +28,10 @@ export default function CRM() {
         <div className="mb-4 md:mb-6 flex gap-2">
           <CreateClientDialog />
           <CreateClientListDialog />
+          <ExportClientListDialog 
+            selectedListId={selectedListId}
+            clientsData={[]} // This will be populated by the ClientsList component
+          />
         </div>
         
         <div>
