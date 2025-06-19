@@ -10,22 +10,7 @@ interface OnlineUsersListProps {
 }
 
 export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
-  // Safely try to access chat context
-  let chat;
-  try {
-    chat = useChat();
-  } catch (error) {
-    console.warn('OnlineUsersList: Chat context not available');
-    return (
-      <div className="flex items-center justify-center p-8 text-center">
-        <div className="text-sm text-muted-foreground">
-          Online users not available
-        </div>
-      </div>
-    );
-  }
-
-  const { onlineUsersList } = chat;
+  const { onlineUsersList } = useChat();
 
   if (onlineUsersList.length === 0) {
     return (

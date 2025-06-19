@@ -14,23 +14,7 @@ interface ChatRoomsListProps {
 
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
   const { user } = useAuth();
-  
-  // Safely try to access chat context
-  let chat;
-  try {
-    chat = useChat();
-  } catch (error) {
-    console.warn('ChatRoomsList: Chat context not available');
-    return (
-      <div className="flex items-center justify-center p-8 text-center">
-        <div className="text-sm text-muted-foreground">
-          Chat not available
-        </div>
-      </div>
-    );
-  }
-
-  const { roomsList, state } = chat;
+  const { roomsList, state } = useChat();
 
   if (state.loading.rooms) {
     return (

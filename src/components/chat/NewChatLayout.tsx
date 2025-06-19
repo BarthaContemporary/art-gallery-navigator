@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useChat } from '@/hooks/chat/chat-context/ChatContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -12,21 +13,7 @@ import { RefreshCw, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function NewChatLayout() {
-  // Safely try to access chat context
-  let chat;
-  try {
-    chat = useChat();
-  } catch (error) {
-    console.warn('NewChatLayout: Chat context not available');
-    return (
-      <div className="flex items-center justify-center h-full p-8 text-center">
-        <div className="text-sm text-muted-foreground">
-          Chat service temporarily unavailable
-        </div>
-      </div>
-    );
-  }
-
+  const chat = useChat();
   const isMobile = useIsMobile();
   
   const {
