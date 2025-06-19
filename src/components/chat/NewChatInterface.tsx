@@ -44,23 +44,23 @@ export function NewChatInterface({ room, onBack }: NewChatInterfaceProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header - Made more compact */}
-      <div className="flex items-center gap-3 p-3 border-b bg-background">
+      {/* Header - Made even more compact */}
+      <div className="flex items-center gap-2 p-2 border-b bg-background">
         {onBack && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onBack}>
+            <ArrowLeft className="h-3 w-3" />
           </Button>
         )}
         
-        <Avatar className="h-8 w-8">
+        <Avatar className="h-6 w-6">
           <AvatarImage src={otherParticipant?.avatar_url} />
-          <AvatarFallback>
+          <AvatarFallback className="text-xs">
             {otherParticipant?.display_name?.charAt(0) || 'U'}
           </AvatarFallback>
         </Avatar>
         
         <div className="flex-1">
-          <h3 className="font-medium text-sm">
+          <h3 className="font-medium text-xs">
             {otherParticipant?.display_name || 'Unknown User'}
           </h3>
         </div>
