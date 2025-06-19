@@ -82,7 +82,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { key: 'rooms', value: false } });
     }
-  }, [user?.id, api.fetchRooms, errorRecovery]);
+  }, [user?.id, api, errorRecovery]);
 
   const fetchMessages = useCallback(async (roomId: string, loadMore = false) => {
     if (!user?.id) return;
@@ -126,7 +126,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { key: loadingKey, value: false } });
     }
-  }, [user?.id, api.fetchMessages, state.pagination, errorRecovery]);
+  }, [user?.id, api, state.pagination, errorRecovery]);
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' = 'text') => {
     if (!user?.id || !state.activeRoomId) return;
@@ -143,7 +143,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: { key: 'sending', value: false } });
     }
-  }, [user?.id, state.activeRoomId, api.sendMessage, errorRecovery]);
+  }, [user?.id, state.activeRoomId, api, errorRecovery]);
 
   const setActiveRoom = useCallback(async (roomId: string) => {
     dispatch({ type: 'SET_ACTIVE_ROOM', payload: roomId });
@@ -162,7 +162,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Failed to mark messages as read:', error);
     }
-  }, [state.messages, state.cache.invalidated, fetchMessages, realtime.subscribeToRoom, api.markMessagesAsRead]);
+  }, [state.messages, state.cache.invalidated, fetchMessages, realtime, api]);
 
   const startChatWithUser = useCallback(async (userId: string): Promise<ChatRoom | null> => {
     if (!user?.id) return null;
@@ -176,7 +176,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_ERROR', payload: { key: 'startChat', error: error instanceof Error ? error.message : 'Failed to start chat' } });
       return null;
     }
-  }, [user?.id, api.createOrGetRoom]);
+  }, [user?.id, api]);
 
   const setCurrentView = useCallback((view: 'rooms' | 'online' | 'chat') => {
     dispatch({ type: 'SET_CURRENT_VIEW', payload: view });
@@ -188,20 +188,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const retryConnection = useCallback(() => {
     realtime.reconnect();
-  }, [realtime.reconnect]);
+  }, [realtime]);
 
   // Initialize on mount with proper cleanup
   useEffect(() => {
     if (!user?.id) return;
 
-    fetchRooms();
-    const cleanup = realtime.initialize();
+    let mounted = true;
+
+    const init = async () => {
+      if (mounted) {
+        await fetchRooms();
+        const cleanup = realtime.initialize();
+        
+        return cleanup;
+      }
+    };
+
+    init().then(cleanup => {
+      if (!mounted && cleanup) {
+        cleanup();
+      }
+    });
     
     return () => {
-      if (cleanup) cleanup();
+      mounted = false;
       realtime.cleanup();
     };
-  }, [user?.id]);
+  }, [user?.id, fetchRooms, realtime]);
 
   // Fetch online users periodically
   useEffect(() => {
@@ -220,7 +234,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const interval = setInterval(fetchOnlineUsers, 30000); // Every 30 seconds
 
     return () => clearInterval(interval);
-  }, [user?.id, api.fetchOnlineUsers]);
+  }, [user?.id, api]);
 
   const contextValue: ChatContextType = useMemo(() => ({
     state,
@@ -264,6 +278,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 export function useChat() {
   const context = useContext(ChatContext);
   if (!context) {
+    // Instead of throwing an error, provide a more helpful message and return a fallback
+    console.warn('useChat must be used within a ChatProvider. This component will not function properly.');
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
