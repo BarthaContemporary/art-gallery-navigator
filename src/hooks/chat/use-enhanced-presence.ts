@@ -7,6 +7,14 @@ interface PresenceState {
   isConnected: boolean;
   error: string | null;
   loading: boolean;
+  retryCount: number;
+  lastActivity: Date | null;
+}
+
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
 }
 
 export function useEnhancedPresence(currentUserId?: string) {
@@ -15,45 +23,68 @@ export function useEnhancedPresence(currentUserId?: string) {
     isConnected: false,
     error: null,
     loading: true,
+    retryCount: 0,
+    lastActivity: new Date(),
   });
 
   const presenceChannel = useRef<any>(null);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeout = useRef<NodeJS.Timeout | null>(null);
   const visibilityListener = useRef<(() => void) | null>(null);
   const beforeUnloadListener = useRef<((event: BeforeUnloadEvent) => void) | null>(null);
+  const activityListeners = useRef<(() => void)[]>([]);
 
-  // Enhanced fetch function with better error handling
-  const fetchOnlineUsers = useCallback(async () => {
+  const retryConfig: RetryConfig = {
+    maxRetries: 5,
+    baseDelay: 1000,
+    maxDelay: 30000,
+  };
+
+  // Calculate exponential backoff delay
+  const getRetryDelay = useCallback((retryCount: number): number => {
+    const delay = retryConfig.baseDelay * Math.pow(2, retryCount);
+    return Math.min(delay, retryConfig.maxDelay);
+  }, [retryConfig]);
+
+  // Enhanced fetch function with retry logic
+  const fetchOnlineUsers = useCallback(async (retryCount = 0): Promise<void> => {
     try {
-      console.log('Fetching online users...');
+      console.log('Fetching online users... (attempt', retryCount + 1, ')');
       
       const { data, error } = await supabase
         .from('user_presence')
         .select('*');
 
       if (error) {
-        console.error('Error fetching online users:', error);
-        setState(prev => ({ ...prev, error: error.message }));
-        return;
+        throw new Error(error.message);
       }
 
       if (!data || data.length === 0) {
-        console.log('No online users found');
-        setState(prev => ({ ...prev, onlineUsers: [], loading: false }));
+        setState(prev => ({ 
+          ...prev, 
+          onlineUsers: [], 
+          loading: false, 
+          error: null,
+          retryCount: 0 
+        }));
         return;
       }
 
-      // Filter out current user and only show actually online users
-      const filteredData = data.filter(item => 
-        item.user_id !== currentUserId && item.is_online === true
-      );
+      // Filter out current user and calculate sophisticated status
+      const filteredData = data.filter(item => item.user_id !== currentUserId);
 
       if (filteredData.length === 0) {
-        setState(prev => ({ ...prev, onlineUsers: [], loading: false }));
+        setState(prev => ({ 
+          ...prev, 
+          onlineUsers: [], 
+          loading: false, 
+          error: null,
+          retryCount: 0 
+        }));
         return;
       }
 
-      // Fetch profiles for online users
+      // Fetch profiles for users
       const userIds = filteredData.map(item => item.user_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -64,38 +95,69 @@ export function useEnhancedPresence(currentUserId?: string) {
         console.error('Error fetching profiles:', profilesError);
       }
 
-      // Transform data with profiles
+      // Transform data with profiles and calculate sophisticated status
       const transformedData = filteredData.map(item => {
         const profile = (profilesData || []).find(p => p.id === item.user_id);
+        const lastSeen = new Date(item.last_seen);
+        const now = new Date();
+        const minutesSinceLastSeen = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60));
+        
+        // Sophisticated status calculation
+        let isActuallyOnline = item.is_online;
+        
+        // Consider user offline if last seen > 5 minutes ago, even if marked online
+        if (minutesSinceLastSeen > 5) {
+          isActuallyOnline = false;
+        }
+        
         return {
           ...item,
+          is_online: isActuallyOnline,
           profile: profile ? {
             display_name: profile.display_name || 'Unknown User',
             avatar_url: profile.avatar_url
           } : { display_name: 'Unknown User' }
         };
-      });
+      }).filter(item => item.is_online); // Only show actually online users
 
       console.log('Online users updated:', transformedData.length);
       setState(prev => ({ 
         ...prev, 
         onlineUsers: transformedData, 
         loading: false, 
-        error: null 
+        error: null,
+        retryCount: 0 
       }));
 
     } catch (error) {
       console.error('Error in fetchOnlineUsers:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: 'Failed to fetch online users', 
-        loading: false 
-      }));
-    }
-  }, [currentUserId]);
+      
+      if (retryCount < retryConfig.maxRetries) {
+        const delay = getRetryDelay(retryCount);
+        console.log(`Retrying in ${delay}ms... (${retryCount + 1}/${retryConfig.maxRetries})`);
+        
+        setState(prev => ({ 
+          ...prev, 
+          error: `Connection failed, retrying... (${retryCount + 1}/${retryConfig.maxRetries})`,
+          retryCount: retryCount + 1
+        }));
 
-  // Update user presence status
-  const updatePresence = useCallback(async (isOnline: boolean) => {
+        retryTimeout.current = setTimeout(() => {
+          fetchOnlineUsers(retryCount + 1);
+        }, delay);
+      } else {
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Failed to fetch online users after multiple attempts', 
+          loading: false,
+          retryCount: retryConfig.maxRetries
+        }));
+      }
+    }
+  }, [currentUserId, retryConfig.maxRetries, getRetryDelay]);
+
+  // Update user presence status with retry logic
+  const updatePresence = useCallback(async (isOnline: boolean, retryCount = 0): Promise<void> => {
     if (!currentUserId) return;
 
     try {
@@ -111,15 +173,34 @@ export function useEnhancedPresence(currentUserId?: string) {
         });
 
       if (error) {
-        console.error('Error updating presence:', error);
-        setState(prev => ({ ...prev, error: error.message }));
+        throw new Error(error.message);
       }
+
+      // Update last activity if going online
+      if (isOnline) {
+        setState(prev => ({ ...prev, lastActivity: new Date() }));
+      }
+
     } catch (error) {
       console.error('Error in updatePresence:', error);
+      
+      if (retryCount < retryConfig.maxRetries) {
+        const delay = getRetryDelay(retryCount);
+        console.log(`Retrying presence update in ${delay}ms...`);
+        
+        retryTimeout.current = setTimeout(() => {
+          updatePresence(isOnline, retryCount + 1);
+        }, delay);
+      } else {
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Failed to update presence after multiple attempts' 
+        }));
+      }
     }
-  }, [currentUserId]);
+  }, [currentUserId, retryConfig.maxRetries, getRetryDelay]);
 
-  // Setup real-time subscription
+  // Setup real-time subscription with retry logic
   const setupRealtimeSubscription = useCallback(() => {
     if (!currentUserId) return;
 
@@ -138,27 +219,79 @@ export function useEnhancedPresence(currentUserId?: string) {
       .subscribe((status) => {
         console.log('Presence subscription status:', status);
         setState(prev => ({ ...prev, isConnected: status === 'SUBSCRIBED' }));
+        
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Retry subscription after delay
+          setTimeout(() => {
+            setupRealtimeSubscription();
+          }, getRetryDelay(state.retryCount));
+        }
       });
-  }, [currentUserId, fetchOnlineUsers]);
+  }, [currentUserId, fetchOnlineUsers, getRetryDelay, state.retryCount]);
 
-  // Setup heartbeat to keep user online
+  // Setup heartbeat with activity consideration
   const setupHeartbeat = useCallback(() => {
     if (!currentUserId) return;
 
     heartbeatInterval.current = setInterval(() => {
+      // Only update if tab is visible and user was recently active
       if (document.visibilityState === 'visible') {
-        updatePresence(true);
+        const now = new Date();
+        const lastActivity = state.lastActivity || new Date();
+        const minutesSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60));
+        
+        // Consider user active if last activity was within 10 minutes
+        if (minutesSinceActivity < 10) {
+          updatePresence(true);
+        } else {
+          // User hasn't been active, set to offline
+          updatePresence(false);
+        }
       }
-    }, 30000); // Update every 30 seconds
-  }, [currentUserId, updatePresence]);
+    }, 30000); // Check every 30 seconds
+  }, [currentUserId, updatePresence, state.lastActivity]);
 
-  // Setup visibility change listener
+  // Track user activity
+  const trackActivity = useCallback(() => {
+    setState(prev => ({ ...prev, lastActivity: new Date() }));
+  }, []);
+
+  // Setup activity listeners
+  const setupActivityListeners = useCallback(() => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const cleanup: (() => void)[] = [];
+    
+    events.forEach(event => {
+      const throttledTrackActivity = throttle(trackActivity, 5000); // Throttle to once per 5 seconds
+      document.addEventListener(event, throttledTrackActivity, { passive: true });
+      cleanup.push(() => document.removeEventListener(event, throttledTrackActivity));
+    });
+    
+    activityListeners.current = cleanup;
+  }, [trackActivity]);
+
+  // Throttle function
+  const throttle = (func: Function, limit: number) => {
+    let inThrottle: boolean;
+    return function(this: any, ...args: any[]) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  };
+
+  // Setup visibility change listener with immediate updates
   const setupVisibilityListener = useCallback(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log('Tab became visible - setting user online');
         updatePresence(true);
         fetchOnlineUsers();
+        // Track activity when tab becomes visible
+        trackActivity();
       } else {
         console.log('Tab became hidden - setting user offline');
         updatePresence(false);
@@ -169,22 +302,44 @@ export function useEnhancedPresence(currentUserId?: string) {
     visibilityListener.current = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [updatePresence, fetchOnlineUsers]);
+  }, [updatePresence, fetchOnlineUsers, trackActivity]);
 
-  // Setup beforeunload listener
+  // Setup beforeunload listener with proper cleanup
   const setupBeforeUnloadListener = useCallback(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (currentUserId) {
         // Use sendBeacon for reliable offline status update
-        const supabaseUrl = 'https://cvhdspyugfcvkrufqzrq.supabase.co';
-        navigator.sendBeacon(`${supabaseUrl}/rest/v1/user_presence`, 
-          JSON.stringify({
-            user_id: currentUserId,
-            is_online: false,
-            last_seen: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-        );
+        const payload = JSON.stringify({
+          user_id: currentUserId,
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+        // Try sendBeacon first, fallback to fetch with keepalive
+        if (navigator.sendBeacon) {
+          const url = 'https://cvhdspyugfcvkrufqzrq.supabase.co/rest/v1/user_presence';
+          const headers = {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y',
+            'Prefer': 'resolution=merge-duplicates'
+          };
+          
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon(url, blob);
+        } else {
+          // Fallback to fetch with keepalive
+          fetch('https://cvhdspyugfcvkrufqzrq.supabase.co/rest/v1/user_presence', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: payload,
+            keepalive: true
+          }).catch(console.error);
+        }
       }
     };
 
@@ -192,27 +347,35 @@ export function useEnhancedPresence(currentUserId?: string) {
     beforeUnloadListener.current = handleBeforeUnload;
   }, [currentUserId]);
 
-  // Cleanup function
+  // Comprehensive cleanup function
   const cleanup = useCallback(() => {
-    console.log('Cleaning up presence hooks');
+    console.log('Cleaning up enhanced presence hooks');
 
-    // Clear heartbeat
+    // Clear all timeouts and intervals
     if (heartbeatInterval.current) {
       clearInterval(heartbeatInterval.current);
       heartbeatInterval.current = null;
     }
 
-    // Remove visibility listener
+    if (retryTimeout.current) {
+      clearTimeout(retryTimeout.current);
+      retryTimeout.current = null;
+    }
+
+    // Remove all event listeners
     if (visibilityListener.current) {
       visibilityListener.current();
       visibilityListener.current = null;
     }
 
-    // Remove beforeunload listener
     if (beforeUnloadListener.current) {
       window.removeEventListener('beforeunload', beforeUnloadListener.current);
       beforeUnloadListener.current = null;
     }
+
+    // Clean up activity listeners
+    activityListeners.current.forEach(cleanup => cleanup());
+    activityListeners.current = [];
 
     // Clean up real-time subscription
     if (presenceChannel.current) {
@@ -220,44 +383,58 @@ export function useEnhancedPresence(currentUserId?: string) {
       presenceChannel.current = null;
     }
 
-    // Set user offline
+    // Set user offline with final update
     if (currentUserId) {
       updatePresence(false);
     }
   }, [currentUserId, updatePresence]);
 
-  // Initialize presence system
+  // Initialize enhanced presence system
   useEffect(() => {
     if (!currentUserId) {
-      // Still fetch online users even without current user
       fetchOnlineUsers();
       return;
     }
 
     console.log('Initializing enhanced presence system for user:', currentUserId);
 
-    // Set user online initially
+    // Set user online initially and track activity
     updatePresence(true);
+    trackActivity();
 
     // Setup all listeners and subscriptions
     setupRealtimeSubscription();
     setupHeartbeat();
     setupVisibilityListener();
     setupBeforeUnloadListener();
+    setupActivityListeners();
 
     // Fetch initial data
     fetchOnlineUsers();
 
     // Cleanup on unmount
     return cleanup;
-  }, [currentUserId, updatePresence, setupRealtimeSubscription, setupHeartbeat, setupVisibilityListener, setupBeforeUnloadListener, fetchOnlineUsers, cleanup]);
+  }, [
+    currentUserId, 
+    updatePresence, 
+    setupRealtimeSubscription, 
+    setupHeartbeat, 
+    setupVisibilityListener, 
+    setupBeforeUnloadListener,
+    setupActivityListeners,
+    fetchOnlineUsers, 
+    cleanup,
+    trackActivity
+  ]);
 
   return {
     onlineUsers: state.onlineUsers,
     isConnected: state.isConnected,
     error: state.error,
     loading: state.loading,
-    fetchOnlineUsers,
-    updatePresence,
+    retryCount: state.retryCount,
+    lastActivity: state.lastActivity,
+    fetchOnlineUsers: () => fetchOnlineUsers(),
+    updatePresence: (isOnline: boolean) => updatePresence(isOnline),
   };
 }

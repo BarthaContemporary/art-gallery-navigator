@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { Wifi, WifiOff, AlertTriangle, Loader2 } from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 
 interface ConnectionStatusIndicatorProps {
   isConnected: boolean;
   loading: boolean;
   error: string | null;
+  retryCount?: number;
   size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
 }
@@ -14,6 +15,7 @@ export function ConnectionStatusIndicator({
   isConnected, 
   loading, 
   error, 
+  retryCount = 0,
   size = 'sm',
   showText = false 
 }: ConnectionStatusIndicatorProps) {
@@ -25,6 +27,11 @@ export function ConnectionStatusIndicator({
 
   const getStatusIcon = () => {
     if (loading) {
+      if (retryCount > 0) {
+        return (
+          <RefreshCw className={`${iconSizeClass} text-orange-500 animate-spin`} />
+        );
+      }
       return (
         <Loader2 className={`${iconSizeClass} text-blue-500 animate-spin`} />
       );
@@ -48,15 +55,27 @@ export function ConnectionStatusIndicator({
   };
 
   const getStatusText = () => {
-    if (loading) return 'Connecting...';
-    if (error) return 'Connection error';
+    if (loading) {
+      return retryCount > 0 ? `Retrying... (${retryCount})` : 'Connecting...';
+    }
+    if (error) {
+      return retryCount > 0 ? `Reconnecting... (${retryCount})` : 'Connection error';
+    }
     if (isConnected) return 'Connected';
     return 'Reconnecting...';
   };
 
   const getTooltipText = () => {
-    if (loading) return 'Loading connection status';
-    if (error) return `Connection error: ${error}`;
+    if (loading) {
+      return retryCount > 0 
+        ? `Retrying connection (attempt ${retryCount})`
+        : 'Loading connection status';
+    }
+    if (error) {
+      return retryCount > 0 
+        ? `Reconnecting after error (attempt ${retryCount}): ${error}`
+        : `Connection error: ${error}`;
+    }
     if (isConnected) return 'Connected to real-time updates';
     return 'Reconnecting to real-time updates...';
   };
@@ -69,7 +88,7 @@ export function ConnectionStatusIndicator({
       {getStatusIcon()}
       {showText && (
         <span className={`text-xs ${
-          loading ? 'text-blue-500' : 
+          loading ? (retryCount > 0 ? 'text-orange-500' : 'text-blue-500') : 
           error ? 'text-red-500' : 
           isConnected ? 'text-green-500' : 'text-orange-500'
         }`}>

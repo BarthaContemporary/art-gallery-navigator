@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, WifiOff } from 'lucide-react';
+import { MessageCircle, WifiOff, AlertTriangle } from 'lucide-react';
 import { useChatMessages } from '@/hooks/chat/use-chat-messages';
 import { useEnhancedPresence } from '@/hooks/chat/use-enhanced-presence';
 import { useAuth } from '@/hooks/use-auth';
@@ -15,7 +15,7 @@ interface ChatPopupButtonProps {
 export function ChatPopupButton({ onClick, isOpen }: ChatPopupButtonProps) {
   const { user } = useAuth();
   const { getTotalUnreadCount } = useChatMessages(user?.id);
-  const { isConnected } = useEnhancedPresence(user?.id);
+  const { isConnected, error, retryCount } = useEnhancedPresence(user?.id);
   const [unreadCount, setUnreadCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);
   const [shouldPulse, setShouldPulse] = useState(false);
@@ -37,11 +37,22 @@ export function ChatPopupButton({ onClick, isOpen }: ChatPopupButtonProps) {
 
     updateUnreadCount();
     
-    // Update unread count every 30 seconds, but more frequently when connected to real-time
+    // Update unread count based on connection status
     const interval = setInterval(updateUnreadCount, isConnected ? 15000 : 30000);
     
     return () => clearInterval(interval);
   }, [user?.id, getTotalUnreadCount, unreadCount, isConnected]);
+
+  // Determine connection status indicator
+  const getConnectionIcon = () => {
+    if (error && retryCount > 0) {
+      return <AlertTriangle className="absolute -top-1 -left-1 h-3 w-3 text-red-500 bg-white rounded-full p-0.5" />;
+    }
+    if (!isConnected) {
+      return <WifiOff className="absolute -top-1 -left-1 h-3 w-3 text-orange-500 bg-white rounded-full p-0.5" />;
+    }
+    return null;
+  };
 
   return (
     <div className="fixed bottom-6 right-6 z-40">
@@ -58,10 +69,8 @@ export function ChatPopupButton({ onClick, isOpen }: ChatPopupButtonProps) {
           unreadCount > 0 ? 'animate-bounce' : ''
         }`} />
         
-        {/* Connection status indicator */}
-        {!isConnected && (
-          <WifiOff className="absolute -top-1 -left-1 h-3 w-3 text-orange-500 bg-white rounded-full p-0.5" />
-        )}
+        {/* Enhanced connection status indicator */}
+        {getConnectionIcon()}
 
         {unreadCount > 0 && (
           <Badge 

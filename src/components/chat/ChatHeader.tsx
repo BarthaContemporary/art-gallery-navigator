@@ -16,7 +16,14 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const { onlineUsers, isConnected, error, loading } = useEnhancedPresence(user?.id);
+  const { 
+    onlineUsers, 
+    isConnected, 
+    error, 
+    loading, 
+    retryCount,
+    lastActivity 
+  } = useEnhancedPresence(user?.id);
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
@@ -37,11 +44,11 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
 
   const getStatusText = () => {
     if (loading) {
-      return 'Checking status...';
+      return retryCount > 0 ? `Retrying... (${retryCount})` : 'Checking status...';
     }
     
     if (error) {
-      return 'Status unknown';
+      return retryCount > 0 ? `Reconnecting... (${retryCount})` : 'Status unknown';
     }
     
     if (isOnline) {
@@ -72,14 +79,14 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   };
 
   const getStatusColor = () => {
-    if (loading) return 'text-blue-500';
-    if (error) return 'text-orange-500';
+    if (loading) return retryCount > 0 ? 'text-orange-500' : 'text-blue-500';
+    if (error) return 'text-red-500';
     return isOnline ? 'text-green-500' : 'text-gray-400';
   };
 
   const getCircleColor = () => {
-    if (loading) return 'fill-blue-500 text-blue-500';
-    if (error) return 'fill-orange-500 text-orange-500';
+    if (loading) return retryCount > 0 ? 'fill-orange-500 text-orange-500' : 'fill-blue-500 text-blue-500';
+    if (error) return 'fill-red-500 text-red-500';
     return isOnline ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400';
   };
 
@@ -105,7 +112,7 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
         <h3 className="font-semibold text-sm">{participantName}</h3>
         <div className="flex items-center gap-1 text-xs">
           {loading ? (
-            <Loader2 className="h-2 w-2 animate-spin text-blue-500" />
+            <Loader2 className={`h-2 w-2 animate-spin ${retryCount > 0 ? 'text-orange-500' : 'text-blue-500'}`} />
           ) : (
             <Circle className={`h-2 w-2 ${getCircleColor()}`} />
           )}
@@ -113,11 +120,12 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
         </div>
       </div>
 
-      {/* Enhanced connection status indicator */}
+      {/* Enhanced connection status indicator with retry info */}
       <ConnectionStatusIndicator 
         isConnected={isConnected}
         loading={loading}
         error={error}
+        retryCount={retryCount}
         size="sm"
       />
     </div>
