@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useSimpleChat } from '@/hooks/chat/use-simple-chat';
+import { useOptimizedSimpleChat } from '@/hooks/chat/use-optimized-simple-chat';
 import { ChatRoomsList } from './ChatRoomsList';
 import { ChatInterface } from './ChatInterface';
 import { OnlineUsersList } from './OnlineUsersList';
@@ -10,20 +10,6 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
-
-interface ChatRoomsListPropsUpdated {
-  onSelectRoom: (room: any) => Promise<void>;
-  selectedRoomId?: string;
-}
-
-interface OnlineUsersListPropsUpdated {
-  onStartChat: (targetUser: any) => Promise<void>;
-}
-
-interface ChatEmptyStatePropsUpdated {
-  onlineUsers: any[];
-  onStartChat: (targetUser: any) => Promise<void>;
-}
 
 export function SimpleChatLayout() {
   const { user } = useAuth();
@@ -48,7 +34,7 @@ export function SimpleChatLayout() {
     fetchOnlineUsers,
     clearAllChatCache,
     cleanupOldMessages,
-  } = useSimpleChat();
+  } = useOptimizedSimpleChat();
 
   // Handle room selection
   const handleRoomSelect = async (room: any) => {
@@ -85,11 +71,11 @@ export function SimpleChatLayout() {
     await cleanupOldMessages(days);
   };
 
-  // Refresh online users periodically
+  // Refresh online users periodically (reduced frequency)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOnlineUsers();
-    }, 30000); // Refresh every 30 seconds
+    }, 60000); // Refresh every 60 seconds instead of 30
 
     return () => clearInterval(interval);
   }, [fetchOnlineUsers]);
