@@ -23,12 +23,17 @@ export function useExportClientList() {
         ...csvRows.map(row => row.join(","))
       ].join("\n");
 
+      // Create filename with B_c-ListName_Date.csv format
+      const date = new Date().toISOString().split('T')[0];
+      const listName = listId ? `${listId}` : 'all';
+      const filename = `B_c-${listName}_${date}.csv`;
+
       // Create and download file
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `client-emails-${listId || 'all'}-${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", filename);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
