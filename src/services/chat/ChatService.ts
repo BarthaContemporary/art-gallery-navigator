@@ -132,13 +132,13 @@ export class ChatService {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Not authenticated');
 
-      // Insert message with content field (database will store as encrypted_content)
+      // Insert message with encrypted_content field
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
           sender_id: user.user.id,
-          content: content, // Use content field for insert
+          encrypted_content: content, // Use encrypted_content field for insert
           message_type: messageType
         })
         .select('*')
@@ -157,7 +157,7 @@ export class ChatService {
         id: data.id,
         room_id: data.room_id,
         sender_id: data.sender_id,
-        content: data.encrypted_content || data.content || '', // Handle both fields
+        content: data.encrypted_content || '', // Use encrypted_content from response
         message_type: data.message_type,
         created_at: data.created_at,
         edited_at: data.edited_at,
