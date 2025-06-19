@@ -2,10 +2,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Circle, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Circle, Loader2 } from 'lucide-react';
 import { ChatRoom } from '@/hooks/chat/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useEnhancedPresence } from '@/hooks/chat/use-enhanced-presence';
+import { ConnectionStatusIndicator } from './ConnectionStatusIndicator';
 import { format } from 'date-fns';
 
 interface ChatHeaderProps {
@@ -15,7 +16,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const { onlineUsers, isConnected, error } = useEnhancedPresence(user?.id);
+  const { onlineUsers, isConnected, error, loading } = useEnhancedPresence(user?.id);
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
@@ -35,6 +36,10 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const lastSeen = presenceStatus?.last_seen;
 
   const getStatusText = () => {
+    if (loading) {
+      return 'Checking status...';
+    }
+    
     if (error) {
       return 'Status unknown';
     }
@@ -67,11 +72,13 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   };
 
   const getStatusColor = () => {
+    if (loading) return 'text-blue-500';
     if (error) return 'text-orange-500';
     return isOnline ? 'text-green-500' : 'text-gray-400';
   };
 
   const getCircleColor = () => {
+    if (loading) return 'fill-blue-500 text-blue-500';
     if (error) return 'fill-orange-500 text-orange-500';
     return isOnline ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400';
   };
@@ -97,23 +104,22 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
       <div className="flex-1">
         <h3 className="font-semibold text-sm">{participantName}</h3>
         <div className="flex items-center gap-1 text-xs">
-          <Circle className={`h-2 w-2 ${getCircleColor()}`} />
+          {loading ? (
+            <Loader2 className="h-2 w-2 animate-spin text-blue-500" />
+          ) : (
+            <Circle className={`h-2 w-2 ${getCircleColor()}`} />
+          )}
           <span className={getStatusColor()}>{getStatusText()}</span>
         </div>
       </div>
 
-      {/* Connection status indicator */}
-      <div className="flex items-center gap-1">
-        {isConnected ? (
-          <div title="Connected to real-time updates">
-            <Wifi className="h-3 w-3 text-green-500" />
-          </div>
-        ) : (
-          <div title="Reconnecting...">
-            <WifiOff className="h-3 w-3 text-orange-500" />
-          </div>
-        )}
-      </div>
+      {/* Enhanced connection status indicator */}
+      <ConnectionStatusIndicator 
+        isConnected={isConnected}
+        loading={loading}
+        error={error}
+        size="sm"
+      />
     </div>
   );
 }
