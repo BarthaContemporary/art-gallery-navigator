@@ -31,16 +31,20 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const { key, value } = action.payload;
       if (typeof key === 'string' && key.includes('.')) {
         const [category, subKey] = key.split('.');
-        return {
-          ...state,
-          loading: {
-            ...state.loading,
-            [category]: {
-              ...state.loading[category as keyof typeof state.loading],
-              [subKey]: value,
+        const currentCategory = state.loading[category as keyof typeof state.loading];
+        
+        if (typeof currentCategory === 'object' && currentCategory !== null) {
+          return {
+            ...state,
+            loading: {
+              ...state.loading,
+              [category]: {
+                ...currentCategory,
+                [subKey]: value,
+              },
             },
-          },
-        };
+          };
+        }
       }
       return {
         ...state,

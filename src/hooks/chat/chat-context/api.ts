@@ -12,8 +12,6 @@ export function useChatAPI(userId?: string) {
       .from('chat_rooms')
       .select(`
         *,
-        participant_1_profile:participant_1_id(display_name, avatar_url),
-        participant_2_profile:participant_2_id(display_name, avatar_url),
         last_message:chat_messages(
           id,
           encrypted_content,
@@ -23,10 +21,52 @@ export function useChatAPI(userId?: string) {
         )
       `)
       .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
-      .order('last_message_at', { ascending: false, nullsLast: true });
+      .order('last_message_at', { ascending: false, nullsFirst: false });
 
     if (error) throw error;
-    return data || [];
+
+    // Fetch profile data for participants
+    const roomIds = (data || []).map(room => room.id);
+    if (roomIds.length === 0) return [];
+
+    const participantIds = new Set<string>();
+    (data || []).forEach(room => {
+      participantIds.add(room.participant_1_id);
+      participantIds.add(room.participant_2_id);
+    });
+
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', Array.from(participantIds));
+
+    const profilesMap = new Map();
+    (profilesData || []).forEach(profile => {
+      profilesMap.set(profile.id, profile);
+    });
+
+    // Transform rooms with profile data
+    const transformedRooms: ChatRoom[] = (data || []).map(room => {
+      const participant1Profile = profilesMap.get(room.participant_1_id);
+      const participant2Profile = profilesMap.get(room.participant_2_id);
+
+      return {
+        ...room,
+        participant_1_profile: participant1Profile ? {
+          display_name: participant1Profile.display_name || 'Unknown User',
+          avatar_url: participant1Profile.avatar_url
+        } : { display_name: 'Unknown User' },
+        participant_2_profile: participant2Profile ? {
+          display_name: participant2Profile.display_name || 'Unknown User',
+          avatar_url: participant2Profile.avatar_url
+        } : { display_name: 'Unknown User' },
+        last_message: Array.isArray(room.last_message) && room.last_message.length > 0 
+          ? room.last_message[0] 
+          : undefined
+      };
+    });
+
+    return transformedRooms;
   }, [userId]);
 
   const fetchMessages = useCallback(async (
@@ -138,16 +178,37 @@ export function useChatAPI(userId?: string) {
     // Fetch the complete room data
     const { data: roomData, error: roomError } = await supabase
       .from('chat_rooms')
-      .select(`
-        *,
-        participant_1_profile:participant_1_id(display_name, avatar_url),
-        participant_2_profile:participant_2_id(display_name, avatar_url)
-      `)
+      .select('*')
       .eq('id', data)
       .single();
 
     if (roomError) throw roomError;
-    return roomData;
+
+    // Fetch profile data for participants
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', [roomData.participant_1_id, roomData.participant_2_id]);
+
+    const profilesMap = new Map();
+    (profilesData || []).forEach(profile => {
+      profilesMap.set(profile.id, profile);
+    });
+
+    const participant1Profile = profilesMap.get(roomData.participant_1_id);
+    const participant2Profile = profilesMap.get(roomData.participant_2_id);
+
+    return {
+      ...roomData,
+      participant_1_profile: participant1Profile ? {
+        display_name: participant1Profile.display_name || 'Unknown User',
+        avatar_url: participant1Profile.avatar_url
+      } : { display_name: 'Unknown User' },
+      participant_2_profile: participant2Profile ? {
+        display_name: participant2Profile.display_name || 'Unknown User',
+        avatar_url: participant2Profile.avatar_url
+      } : { display_name: 'Unknown User' }
+    };
   }, []);
 
   const markMessagesAsRead = useCallback(async (roomId: string) => {
