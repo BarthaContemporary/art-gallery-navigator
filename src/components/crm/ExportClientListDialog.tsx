@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,19 +46,6 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
     }
   };
 
-  const getExportDescription = () => {
-    switch (exportFormat) {
-      case "email-csv":
-        return "Export client names and email addresses as a CSV file";
-      case "mailing-labels":
-        return "Create Avery L7165 mailing labels (A4, 8 labels per sheet) in Google Docs";
-      case "fact-sheets":
-        return "Generate detailed client information in Google Sheets";
-      default:
-        return "";
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -97,10 +85,6 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
               </Label>
             </div>
           </RadioGroup>
-
-          <div className="text-sm text-muted-foreground bg-muted p-3 rounded">
-            {getExportDescription()}
-          </div>
         </div>
 
         <DialogFooter>
