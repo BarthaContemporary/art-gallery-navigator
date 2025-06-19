@@ -1,23 +1,18 @@
 
 import React, { useState } from "react";
-import { format, addDays, isSameDay } from "date-fns";
-import { Calendar, Clock, MapPin, User, Mail, Phone, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, addDays } from "date-fns";
 import { useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
 import { useLocations } from "@/hooks/use-locations";
 import { toast } from "sonner";
-import { AddToCalendarButton } from "@/components/appointments/AddToCalendarButton";
+import { DateTimeSelection } from "@/components/appointments/DateTimeSelection";
+import { ClientInformationForm } from "@/components/appointments/ClientInformationForm";
+import { AppointmentSummary } from "@/components/appointments/AppointmentSummary";
+import { BookingSuccessView } from "@/components/appointments/BookingSuccessView";
 
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedSlot, setSelectedSlot] = useState<string>("");
-  const [selectedLocation, setSelectedLocation] = useState<string>(""); // Will be set to Ledbury Mews default
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -38,7 +33,6 @@ export default function BookAppointment() {
       if (ledburyMews) {
         setSelectedLocation(ledburyMews.id);
       } else {
-        // Fallback to first location if Ledbury Mews not found
         setSelectedLocation(locations[0].id);
       }
     }
@@ -69,7 +63,6 @@ export default function BookAppointment() {
     const [startHour, startMinute] = slot.start_time.split(':');
     startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
 
-    // Default 15-minute duration
     const endDateTime = new Date(startDateTime);
     endDateTime.setMinutes(endDateTime.getMinutes() + 15);
 
@@ -88,7 +81,6 @@ export default function BookAppointment() {
     try {
       const result = await createAppointment.mutateAsync(appointmentData);
       
-      // Store the booked appointment for displaying calendar options
       setBookedAppointment({
         ...result,
         location: locations.find(l => l.id === selectedLocation)
@@ -109,202 +101,58 @@ export default function BookAppointment() {
   };
 
   const minDate = new Date();
-  const maxDate = addDays(new Date(), 30); // 30 days advance booking
+  const maxDate = addDays(new Date(), 30);
   const selectedLocationData = locations.find(l => l.id === selectedLocation);
+  const selectedSlotData = availableSlots.find(s => s.id === selectedSlot);
+
+  const isFormValid = selectedDate && selectedSlot && clientName && clientEmail && selectedLocation;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         {bookedAppointment ? (
-          // Success state with calendar integration
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="pt-6 text-center space-y-6">
-              <div className="text-green-600">
-                <Calendar className="h-16 w-16 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900">Appointment Confirmed!</h2>
-                <p className="text-gray-600 mt-2">
-                  Your appointment has been successfully booked for {format(new Date(bookedAppointment.start_datetime), 'MMMM d, yyyy')} at {format(new Date(bookedAppointment.start_datetime), 'h:mm a')}.
-                </p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-medium text-blue-900 mb-2">📅 Add to Your Calendar</h3>
-                <p className="text-blue-700 text-sm mb-4">
-                  Don't forget your appointment! Add it to your calendar now.
-                </p>
-                <div className="flex justify-center">
-                  <AddToCalendarButton appointment={bookedAppointment} />
-                </div>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                <p>You will receive a confirmation email shortly with calendar file attached.</p>
-              </div>
-
-              <Button 
-                onClick={() => setBookedAppointment(null)}
-                variant="outline"
-              >
-                Book Another Appointment
-              </Button>
-            </CardContent>
-          </Card>
+          <BookingSuccessView
+            appointment={bookedAppointment}
+            onBookAnother={() => setBookedAppointment(null)}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Date & Time Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Select Date & Time
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label>Select Date</Label>
-                  <CalendarComponent
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < minDate || date > maxDate}
-                    className="rounded-md border mt-2"
-                  />
-                </div>
+            <DateTimeSelection
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              selectedSlot={selectedSlot}
+              onSlotSelect={setSelectedSlot}
+              availableSlots={availableSlots}
+              minDate={minDate}
+              maxDate={maxDate}
+            />
 
-                {selectedDate && availableSlots.length > 0 && (
-                  <div>
-                    <Label>Available Times (15 minutes each)</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {availableSlots.map((slot) => (
-                        <Button
-                          key={slot.id}
-                          variant={selectedSlot === slot.id ? "default" : "outline"}
-                          onClick={() => setSelectedSlot(slot.id)}
-                          className="justify-start"
-                        >
-                          <Clock className="h-4 w-4 mr-2" />
-                          {slot.start_time}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <div className="space-y-4">
+              <ClientInformationForm
+                clientName={clientName}
+                onClientNameChange={setClientName}
+                clientEmail={clientEmail}
+                onClientEmailChange={setClientEmail}
+                clientPhone={clientPhone}
+                onClientPhoneChange={setClientPhone}
+                selectedLocation={selectedLocation}
+                onLocationChange={setSelectedLocation}
+                notes={notes}
+                onNotesChange={setNotes}
+                locations={locations}
+                onSubmit={handleSubmit}
+                isSubmitting={createAppointment.isPending}
+                isFormValid={!!isFormValid}
+              />
 
-                {selectedDate && availableSlots.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground">
-                    No available slots for this date. Please select another date.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Contact Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Your Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="email">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={clientEmail}
-                      onChange={(e) => setClientEmail(e.target.value)}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="location">Location *</Label>
-                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((location) => (
-                          <SelectItem key={location.id} value={location.id}>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
-                              {location.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Any specific requirements or questions..."
-                      rows={3}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {selectedDate && selectedSlot && selectedLocationData && (
-                    <Card className="bg-blue-50 border-blue-200">
-                      <CardContent className="pt-4">
-                        <h4 className="font-medium mb-2">Appointment Summary</h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            {format(selectedDate, 'MMMM d, yyyy')}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {availableSlots.find(s => s.id === selectedSlot)?.start_time} (15 minutes)
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            {selectedLocationData.name}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={!selectedDate || !selectedSlot || !clientName || !clientEmail || !selectedLocation || createAppointment.isPending}
-                  >
-                    {createAppointment.isPending ? 'Booking...' : 'Book Appointment'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+              {selectedDate && selectedSlotData && selectedLocationData && (
+                <AppointmentSummary
+                  selectedDate={selectedDate}
+                  selectedSlot={selectedSlotData}
+                  selectedLocation={selectedLocationData}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
