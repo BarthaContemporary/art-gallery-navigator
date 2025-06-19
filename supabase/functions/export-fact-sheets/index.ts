@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -50,32 +49,49 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get all unique artist IDs from clients
+    // Get all unique artist IDs from clients with better debugging
     const allArtistIds = new Set<string>();
     clients.forEach(client => {
-      if (client.interested_artists) {
-        client.interested_artists.forEach(id => allArtistIds.add(id));
+      console.log("Client:", client.full_name, "Interested artists:", client.interested_artists);
+      if (client.interested_artists && Array.isArray(client.interested_artists)) {
+        client.interested_artists.forEach(id => {
+          if (id && typeof id === 'string') {
+            allArtistIds.add(id);
+          }
+        });
       }
     });
+
+    console.log("All unique artist IDs:", Array.from(allArtistIds));
 
     // Fetch artist names for all IDs
     let artistNamesMap: Record<string, string> = {};
     if (allArtistIds.size > 0) {
       console.log("Fetching artist names for IDs:", Array.from(allArtistIds));
-      const { data: artists, error: artistError } = await supabase
-        .from('artists')
-        .select('id, full_name')
-        .in('id', Array.from(allArtistIds));
       
-      if (artistError) {
-        console.error("Error fetching artists:", artistError);
-      } else if (artists) {
-        artistNamesMap = artists.reduce((acc, artist) => {
-          acc[artist.id] = artist.full_name;
-          return acc;
-        }, {} as Record<string, string>);
-        console.log("Artist names map:", artistNamesMap);
+      try {
+        const { data: artists, error: artistError } = await supabase
+          .from('artists')
+          .select('id, full_name')
+          .in('id', Array.from(allArtistIds));
+        
+        if (artistError) {
+          console.error("Error fetching artists:", artistError);
+        } else if (artists && artists.length > 0) {
+          artistNamesMap = artists.reduce((acc, artist) => {
+            console.log("Mapping artist:", artist.id, "->", artist.full_name);
+            acc[artist.id] = artist.full_name;
+            return acc;
+          }, {} as Record<string, string>);
+          console.log("Final artist names map:", artistNamesMap);
+        } else {
+          console.log("No artists found in database");
+        }
+      } catch (dbError) {
+        console.error("Database query failed:", dbError);
       }
+    } else {
+      console.log("No artist IDs found in clients");
     }
 
     // Get Google API credentials from environment
@@ -153,13 +169,21 @@ const handler = async (req: Request): Promise<Response> => {
     ];
 
     const rows = clients.map(client => {
-      // Convert artist IDs to names
+      // Convert artist IDs to names with enhanced debugging
       let interestedArtistsText = "";
-      if (client.interested_artists && client.interested_artists.length > 0) {
+      if (client.interested_artists && Array.isArray(client.interested_artists) && client.interested_artists.length > 0) {
+        console.log(`Processing artists for client ${client.full_name}:`, client.interested_artists);
+        
         const artistNames = client.interested_artists
-          .map(id => artistNamesMap[id] || `Unknown Artist (${id})`)
+          .map(id => {
+            const name = artistNamesMap[id];
+            console.log(`Artist ID ${id} -> Name: ${name || 'NOT FOUND'}`);
+            return name || `Unknown Artist (${id})`;
+          })
           .filter(Boolean);
+        
         interestedArtistsText = artistNames.join(", ");
+        console.log(`Final artists text for ${client.full_name}:`, interestedArtistsText);
       }
 
       return [
@@ -184,9 +208,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     const allData = [headers, ...rows];
 
-    // Update the sheet with data - CORRECTED URL
+    // Calculate the range for the data
+    const lastColumn = String.fromCharCode(64 + headers.length); // A=65, so 64+1=A
+    const lastRow = allData.length;
+    const range = `A1:${lastColumn}${lastRow}`;
+    
+    // Update the sheet with data
     console.log("Inserting data into spreadsheet...");
-    const updateUrl = `${GOOGLE_SHEETS_API_URL}/${spreadsheetId}/values/A1:${String.fromCharCode(64 + headers.length)}${allData.length}?valueInputOption=RAW`;
+    const updateUrl = `${GOOGLE_SHEETS_API_URL}/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
     console.log("Update URL:", updateUrl);
     
     const updateResponse = await fetch(updateUrl, {
