@@ -25,9 +25,12 @@ export default function CRM() {
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       <div className="space-y-6">
-        <div className="mb-4 md:mb-6 flex gap-2">
-          <CreateClientDialog />
-          <CreateClientListDialog />
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <div></div>
+          <div className="flex gap-2">
+            <CreateClientDialog />
+            <CreateClientListDialog />
+          </div>
         </div>
         
         <div>
