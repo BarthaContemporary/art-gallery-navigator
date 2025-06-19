@@ -15,7 +15,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ room, onBack }: ChatHeaderProps) {
   const { user } = useAuth();
-  const { onlineUsers, fetchOnlineUsers } = useChatPresence(user?.id);
+  const { onlineUsers, fetchOnlineUsers } = useChatPresence();
   
   // Determine which participant is the other user
   const otherParticipant = room.participant_1_id === user?.id 
@@ -36,30 +36,38 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
 
   // Refresh presence data periodically
   React.useEffect(() => {
+    // Fetch immediately when component mounts
+    fetchOnlineUsers();
+    
     const interval = setInterval(() => {
       fetchOnlineUsers();
     }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
-  }, [fetchOnlineUsers]);
+  }, [fetchOnlineUsers, otherParticipantId]);
 
   const getStatusText = () => {
     if (isOnline) {
       return 'Online';
     } else if (lastSeen) {
-      const lastSeenDate = new Date(lastSeen);
-      const now = new Date();
-      const diffInMinutes = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60));
-      
-      if (diffInMinutes < 1) {
-        return 'Just now';
-      } else if (diffInMinutes < 60) {
-        return `${diffInMinutes}m ago`;
-      } else if (diffInMinutes < 1440) {
-        const hours = Math.floor(diffInMinutes / 60);
-        return `${hours}h ago`;
-      } else {
-        return `Last seen ${format(lastSeenDate, 'MMM d')}`;
+      try {
+        const lastSeenDate = new Date(lastSeen);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - lastSeenDate.getTime()) / (1000 * 60));
+        
+        if (diffInMinutes < 1) {
+          return 'Just now';
+        } else if (diffInMinutes < 60) {
+          return `${diffInMinutes}m ago`;
+        } else if (diffInMinutes < 1440) {
+          const hours = Math.floor(diffInMinutes / 60);
+          return `${hours}h ago`;
+        } else {
+          return `Last seen ${format(lastSeenDate, 'MMM d')}`;
+        }
+      } catch (error) {
+        console.error('Error parsing last seen date:', error);
+        return 'Offline';
       }
     } else {
       return 'Offline';

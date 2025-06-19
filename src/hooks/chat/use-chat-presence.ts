@@ -1,22 +1,73 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserPresence } from './types';
 
 export function useChatPresence(userId?: string) {
   const [onlineUsers, setOnlineUsers] = useState<UserPresence[]>([]);
   const presenceChannel = useRef<any>(null);
+  const currentUserId = userId;
+
+  // Fetch online users
+  const fetchOnlineUsers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_presence')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching online users:', error);
+        return;
+      }
+
+      // Get all users (online and offline) and their profiles
+      if (data && data.length > 0) {
+        const userIds = data.map(item => item.user_id);
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+
+        // Combine presence data with profile data
+        const transformedData = data.map(item => {
+          const profile = (profilesData || []).find(p => p.id === item.user_id);
+          return {
+            ...item,
+            profile: profile ? {
+              display_name: profile.display_name || 'Unknown User',
+              avatar_url: profile.avatar_url
+            } : { display_name: 'Unknown User' }
+          };
+        });
+
+        setOnlineUsers(transformedData);
+      } else {
+        setOnlineUsers([]);
+      }
+    } catch (error) {
+      console.error('Error in fetchOnlineUsers:', error);
+    }
+  }, []);
 
   // Initialize presence tracking
   useEffect(() => {
-    if (!userId) return;
+    if (!currentUserId) {
+      // Still fetch online users even if we don't have a current user
+      fetchOnlineUsers();
+      return;
+    }
 
     const initializePresence = async () => {
       // Update user presence to online
       await supabase
         .from('user_presence')
         .upsert({
-          user_id: userId,
+          user_id: currentUserId,
           is_online: true,
           last_seen: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -44,66 +95,21 @@ export function useChatPresence(userId?: string) {
     return () => {
       if (presenceChannel.current) {
         supabase.removeChannel(presenceChannel.current);
+        presenceChannel.current = null;
       }
       // Set user offline
-      if (userId) {
+      if (currentUserId) {
         supabase
           .from('user_presence')
           .upsert({
-            user_id: userId,
+            user_id: currentUserId,
             is_online: false,
             last_seen: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
       }
     };
-  }, [userId]);
-
-  // Fetch online users
-  const fetchOnlineUsers = async () => {
-    if (!userId) return;
-
-    const { data, error } = await supabase
-      .from('user_presence')
-      .select('*')
-      .eq('is_online', true)
-      .neq('user_id', userId);
-
-    if (error) {
-      console.error('Error fetching online users:', error);
-      return;
-    }
-
-    // Fetch profile data separately
-    const userIds = (data || []).map(item => item.user_id);
-    if (userIds.length === 0) {
-      setOnlineUsers([]);
-      return;
-    }
-
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, display_name, avatar_url')
-      .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-    }
-
-    // Combine presence data with profile data
-    const transformedData = (data || []).map(item => {
-      const profile = (profilesData || []).find(p => p.id === item.user_id);
-      return {
-        ...item,
-        profile: profile ? {
-          display_name: profile.display_name || 'Unknown User',
-          avatar_url: profile.avatar_url
-        } : { display_name: 'Unknown User' }
-      };
-    });
-
-    setOnlineUsers(transformedData);
-  };
+  }, [currentUserId, fetchOnlineUsers]);
 
   return {
     onlineUsers,
