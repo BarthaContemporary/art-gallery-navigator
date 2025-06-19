@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Circle, MessageCircle, Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { useEnhancedPresence } from '@/hooks/chat/use-enhanced-presence';
+import { useChat } from '@/hooks/chat/chat-context/ChatContext';
 import { format } from 'date-fns';
 
 interface OnlineUsersListProps {
@@ -14,50 +14,52 @@ interface OnlineUsersListProps {
 
 export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
   const { user } = useAuth();
-  const { 
-    onlineUsers, 
-    isConnected, 
-    error, 
-    loading, 
-    retryCount 
-  } = useEnhancedPresence(user?.id);
+  const { onlineUsersList, state, retryConnection } = useChat();
+  
+  const isConnected = state.connection.status === 'connected';
+  const isLoading = state.connection.status === 'connecting';
+  const hasError = state.connection.status === 'error';
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
         <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4 animate-pulse">
-          {retryCount > 0 ? (
+          {state.connection.retryCount > 0 ? (
             <RefreshCw className="h-6 w-6 text-orange-500 animate-spin" />
           ) : (
             <MessageCircle className="h-6 w-6 text-muted-foreground" />
           )}
         </div>
         <h3 className="font-medium mb-2">
-          {retryCount > 0 ? `Retrying... (${retryCount})` : 'Loading online users...'}
+          {state.connection.retryCount > 0 ? `Retrying... (${state.connection.retryCount})` : 'Loading online users...'}
         </h3>
-        {retryCount > 0 && (
+        {state.connection.retryCount > 0 && (
           <p className="text-sm text-orange-600">Connection issues detected, retrying...</p>
         )}
       </div>
     );
   }
 
-  if (error) {
+  if (hasError) {
     return (
       <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
           <AlertCircle className="h-6 w-6 text-red-500" />
         </div>
         <h3 className="font-medium mb-2 text-red-700">Error loading users</h3>
-        <p className="text-sm text-red-600">{error}</p>
-        {retryCount > 0 && (
-          <p className="text-xs text-orange-600 mt-1">Retry attempt {retryCount}</p>
+        <p className="text-sm text-red-600">{state.connection.error}</p>
+        {state.connection.retryCount > 0 && (
+          <p className="text-xs text-orange-600 mt-1">Retry attempt {state.connection.retryCount}</p>
         )}
+        <Button variant="outline" size="sm" onClick={retryConnection} className="mt-2">
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Retry Now
+        </Button>
       </div>
     );
   }
 
-  if (onlineUsers.length === 0) {
+  if (onlineUsersList.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
         <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -77,7 +79,7 @@ export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
       <div className={`flex items-center gap-2 px-4 py-2 text-xs border-b ${
         isConnected 
           ? 'bg-green-50 text-green-700 border-green-200' 
-          : error
+          : hasError
           ? 'bg-red-50 text-red-700 border-red-200'
           : 'bg-orange-50 text-orange-700 border-orange-200'
       }`}>
@@ -86,15 +88,15 @@ export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
             <Wifi className="h-3 w-3" />
             <span>Real-time updates active</span>
           </>
-        ) : error ? (
+        ) : hasError ? (
           <>
             <AlertCircle className="h-3 w-3" />
-            <span>Connection error{retryCount > 0 ? ` (retry ${retryCount})` : ''}</span>
+            <span>Connection error{state.connection.retryCount > 0 ? ` (retry ${state.connection.retryCount})` : ''}</span>
           </>
         ) : (
           <>
             <RefreshCw className="h-3 w-3 animate-spin" />
-            <span>Reconnecting{retryCount > 0 ? ` (attempt ${retryCount})` : ''}...</span>
+            <span>Reconnecting{state.connection.retryCount > 0 ? ` (attempt ${state.connection.retryCount})` : ''}...</span>
           </>
         )}
       </div>
@@ -102,10 +104,10 @@ export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-2">
           <h3 className="font-medium text-sm text-muted-foreground mb-3">
-            Online Users ({onlineUsers.length})
+            Online Users ({onlineUsersList.length})
           </h3>
           
-          {onlineUsers.map((userPresence) => {
+          {onlineUsersList.map((userPresence) => {
             const userName = userPresence.profile?.display_name || 'Unknown User';
             const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
             const lastSeen = new Date(userPresence.last_seen);

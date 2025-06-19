@@ -1,13 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle } from 'lucide-react';
-import { useChat } from '@/hooks/chat/use-chat';
-import { useMessages } from '@/hooks/chat/messages/use-messages';
+import { useChat } from '@/hooks/chat/chat-context/ChatContext';
 import { useAuth } from '@/hooks/use-auth';
-import { ChatRoom } from '@/hooks/chat/types';
+import { ChatRoom } from '@/hooks/chat/chat-context/types';
 import { format } from 'date-fns';
 
 interface ChatRoomsListProps {
@@ -16,29 +15,21 @@ interface ChatRoomsListProps {
 }
 
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
-  const { chatRooms } = useChat();
+  const { roomsList, state } = useChat();
   const { user } = useAuth();
-  const { getUnreadCount } = useMessages(user?.id);
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    const updateUnreadCounts = async () => {
-      const counts: Record<string, number> = {};
-      
-      for (const room of chatRooms) {
-        const count = await getUnreadCount(room.id);
-        counts[room.id] = count;
-      }
-      
-      setUnreadCounts(counts);
-    };
+  if (state.loading.rooms) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4 animate-pulse">
+          <MessageCircle className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="font-medium mb-2">Loading conversations...</h3>
+      </div>
+    );
+  }
 
-    if (chatRooms.length > 0) {
-      updateUnreadCounts();
-    }
-  }, [chatRooms, getUnreadCount]);
-
-  if (chatRooms.length === 0) {
+  if (roomsList.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
         <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -55,14 +46,13 @@ export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-1">
-        {chatRooms.map((room) => {
+        {roomsList.map((room) => {
           const otherParticipant = room.participant_1_id === user?.id 
             ? room.participant_2_profile 
             : room.participant_1_profile;
           
           const participantName = otherParticipant?.display_name || 'Unknown User';
           const participantInitials = participantName.split(' ').map(n => n[0]).join('').toUpperCase();
-          const unreadCount = unreadCounts[room.id] || 0;
           
           const lastMessage = room.last_message;
           const lastMessagePreview = lastMessage?.message_type === 'image' 
@@ -101,9 +91,9 @@ export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
                     {lastMessagePreview}
                   </p>
                   
-                  {unreadCount > 0 && (
+                  {room.unread_count && room.unread_count > 0 && (
                     <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                      {unreadCount}
+                      {room.unread_count}
                     </Badge>
                   )}
                 </div>
