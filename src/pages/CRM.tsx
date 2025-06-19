@@ -11,12 +11,20 @@ import { ClientsList } from "@/components/crm/ClientsList";
 import { CreateClientDialog } from "@/components/crm/CreateClientDialog";
 import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog";
 import { ClientListsFilter } from "@/components/crm/ClientListsFilter";
+import { ExportClientListDialog } from "@/components/crm/ExportClientListDialog";
+import { useClientsData } from "@/components/crm/hooks/useClientsData";
 
 export default function CRM() {
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedListId, setSelectedListId] = useState<string | undefined>();
+
+  const { clients } = useClientsData({ 
+    searchTerm, 
+    statusFilter, 
+    selectedListId 
+  });
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -28,6 +36,10 @@ export default function CRM() {
         <div className="mb-4 md:mb-6 flex gap-2">
           <CreateClientDialog />
           <CreateClientListDialog />
+          <ExportClientListDialog 
+            selectedListId={selectedListId}
+            clientsData={clients || []}
+          />
         </div>
         
         <div>
