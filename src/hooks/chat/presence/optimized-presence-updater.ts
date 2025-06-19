@@ -54,12 +54,12 @@ export function useOptimizedPresenceUpdater(currentUserId?: string) {
       }
 
       // Transform and filter data efficiently
-      const now = new Date();
+      const currentTime = new Date();
       const transformedData = filteredData
         .map(item => {
           const profile = (profilesData || []).find(p => p.id === item.user_id);
           const lastSeen = new Date(item.last_seen);
-          const minutesSinceLastSeen = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60));
+          const minutesSinceLastSeen = Math.floor((currentTime.getTime() - lastSeen.getTime()) / (1000 * 60));
           
           // Sophisticated status calculation
           const isActuallyOnline = item.is_online && minutesSinceLastSeen <= 5;
