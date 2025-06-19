@@ -5,6 +5,17 @@ import { corsHeaders } from "../_shared/cors.ts";
 const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
 const GOOGLE_DRIVE_API_URL = "https://www.googleapis.com/drive/v3/files";
 
+interface ArtworkImage {
+  id: string;
+  artwork_id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+  processed?: boolean;
+  thumbnail_url?: string | null;
+  medium_url?: string | null;
+}
+
 interface Artwork {
   id: string;
   title: string;
@@ -17,6 +28,7 @@ interface Artwork {
   currency: string;
   status: string | null;
   location_id: string | null;
+  artwork_images?: ArtworkImage[];
 }
 
 interface RequestBody {
@@ -339,6 +351,21 @@ function generateArtworkListContent(artworks: Artwork[]): string {
     // Status
     if (artwork.status) {
       content += `Status: ${artwork.status}\n`;
+    }
+    
+    // Add image URL if available
+    if (artwork.artwork_images && artwork.artwork_images.length > 0) {
+      // Find primary image first, then fall back to first image
+      const primaryImage = artwork.artwork_images.find(img => img.is_primary);
+      const imageToUse = primaryImage || artwork.artwork_images[0];
+      
+      if (imageToUse) {
+        // Prefer medium_url, then image_url as fallback
+        const imageUrl = imageToUse.medium_url || imageToUse.image_url;
+        if (imageUrl) {
+          content += `Image: ${imageUrl}\n`;
+        }
+      }
     }
     
     // Add spacing between artworks
