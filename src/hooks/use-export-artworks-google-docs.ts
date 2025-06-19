@@ -31,10 +31,6 @@ export function useExportArtworksToGoogleDocs() {
     try {
       console.log(`Exporting ${artworks.length} artworks to Google Docs...`);
 
-      // Pre-open a blank window before the async operation
-      // This ensures it's treated as a user-initiated action
-      const newWindow = window.open('', '_blank');
-
       const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
         body: {
           artworks: artworks.map(artwork => ({
@@ -56,10 +52,6 @@ export function useExportArtworksToGoogleDocs() {
 
       if (error) {
         console.error('Export error:', error);
-        // Close the blank window if there was an error
-        if (newWindow) {
-          newWindow.close();
-        }
         throw new Error(error.message || 'Failed to export artworks');
       }
 
@@ -71,21 +63,11 @@ export function useExportArtworksToGoogleDocs() {
           description: `Successfully exported ${response.artworkCount} artworks to Google Docs.`,
         });
 
-        // Navigate the pre-opened window to the document URL
-        if (newWindow && !newWindow.closed) {
-          newWindow.location.href = response.documentUrl;
-          newWindow.focus();
-        } else {
-          // Fallback: try to open normally if the pre-opened window failed
-          window.open(response.documentUrl, '_blank');
-        }
+        // Open the document in a new tab
+        window.open(response.documentUrl, '_blank', 'noopener,noreferrer');
 
         return response;
       } else {
-        // Close the blank window if there was an error
-        if (newWindow) {
-          newWindow.close();
-        }
         throw new Error(response.error || 'Unknown error occurred during export');
       }
     } catch (error: any) {
