@@ -56,11 +56,6 @@ export function NewChatLayout() {
         >
           <MessageSquare className="h-4 w-4 mr-2" />
           Conversations
-          {state.rooms.length > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {state.rooms.length}
-            </Badge>
-          )}
         </Button>
         
         <Button
