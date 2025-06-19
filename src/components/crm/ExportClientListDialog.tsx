@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Download, FileText, Mail, FileSpreadsheet } from "lucide-react";
+import { ArrowDown, FileText, Mail, FileSpreadsheet } from "lucide-react";
 import { useExportClientList } from "./hooks/useExportClientList";
 
 interface ExportClientListDialogProps {
@@ -62,9 +61,8 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex gap-2">
-          <Download className="h-4 w-4" />
-          Export
+        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+          <ArrowDown className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
