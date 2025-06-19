@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { Calendar, Clock, MapPin, User, Mail, Phone, MessageSquare } from "lucide-react";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppointmentSlots, useCreateAppointment } from "@/hooks/use-appointments";
 import { useLocations } from "@/hooks/use-locations";
 import { toast } from "sonner";
@@ -15,6 +17,7 @@ import { AddToCalendarButton } from "@/components/appointments/AddToCalendarButt
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedSlot, setSelectedSlot] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>(""); // Will be set to Ledbury Mews default
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -24,6 +27,22 @@ export default function BookAppointment() {
   const { data: locations = [] } = useLocations();
   const { data: slots = [] } = useAppointmentSlots(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
   const createAppointment = useCreateAppointment();
+
+  // Set default location to Ledbury Mews when locations are loaded
+  React.useEffect(() => {
+    if (locations.length > 0 && !selectedLocation) {
+      const ledburyMews = locations.find(loc => 
+        loc.name.toLowerCase().includes('ledbury mews') || 
+        loc.name.toLowerCase().includes('ledbury')
+      );
+      if (ledburyMews) {
+        setSelectedLocation(ledburyMews.id);
+      } else {
+        // Fallback to first location if Ledbury Mews not found
+        setSelectedLocation(locations[0].id);
+      }
+    }
+  }, [locations, selectedLocation]);
 
   const availableSlots = slots.filter(slot => {
     if (slot.recurrence_type === 'weekly') {
@@ -35,7 +54,7 @@ export default function BookAppointment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedDate || !selectedSlot || !clientName || !clientEmail) {
+    if (!selectedDate || !selectedSlot || !clientName || !clientEmail || !selectedLocation) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -62,7 +81,7 @@ export default function BookAppointment() {
       client_email: clientEmail,
       client_phone: clientPhone || undefined,
       notes: notes || undefined,
-      location_id: slot.location_id || undefined,
+      location_id: selectedLocation,
       status: 'pending' as const,
     };
 
@@ -72,7 +91,7 @@ export default function BookAppointment() {
       // Store the booked appointment for displaying calendar options
       setBookedAppointment({
         ...result,
-        locations: locations.find(l => l.id === slot.location_id)
+        location: locations.find(l => l.id === selectedLocation)
       });
 
       // Reset form
@@ -91,6 +110,7 @@ export default function BookAppointment() {
 
   const minDate = new Date();
   const maxDate = addDays(new Date(), 30); // 30 days advance booking
+  const selectedLocationData = locations.find(l => l.id === selectedLocation);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -223,6 +243,25 @@ export default function BookAppointment() {
                   </div>
 
                   <div>
+                    <Label htmlFor="location">Location *</Label>
+                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              {location.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
                     <Label htmlFor="notes">Additional Notes</Label>
                     <Textarea
                       id="notes"
@@ -234,7 +273,7 @@ export default function BookAppointment() {
                     />
                   </div>
 
-                  {selectedDate && selectedSlot && (
+                  {selectedDate && selectedSlot && selectedLocationData && (
                     <Card className="bg-blue-50 border-blue-200">
                       <CardContent className="pt-4">
                         <h4 className="font-medium mb-2">Appointment Summary</h4>
@@ -247,6 +286,10 @@ export default function BookAppointment() {
                             <Clock className="h-4 w-4" />
                             {availableSlots.find(s => s.id === selectedSlot)?.start_time} (15 minutes)
                           </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            {selectedLocationData.name}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -255,7 +298,7 @@ export default function BookAppointment() {
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={!selectedDate || !selectedSlot || !clientName || !clientEmail || createAppointment.isPending}
+                    disabled={!selectedDate || !selectedSlot || !clientName || !clientEmail || !selectedLocation || createAppointment.isPending}
                   >
                     {createAppointment.isPending ? 'Booking...' : 'Book Appointment'}
                   </Button>
