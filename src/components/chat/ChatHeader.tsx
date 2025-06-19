@@ -105,9 +105,13 @@ export function ChatHeader({ room, onBack }: ChatHeaderProps) {
       {/* Connection status indicator */}
       <div className="flex items-center gap-1">
         {isConnected ? (
-          <Wifi className="h-3 w-3 text-green-500" title="Connected to real-time updates" />
+          <div title="Connected to real-time updates">
+            <Wifi className="h-3 w-3 text-green-500" />
+          </div>
         ) : (
-          <WifiOff className="h-3 w-3 text-orange-500" title="Reconnecting..." />
+          <div title="Reconnecting...">
+            <WifiOff className="h-3 w-3 text-orange-500" />
+          </div>
         )}
       </div>
     </div>

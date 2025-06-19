@@ -176,7 +176,8 @@ export function useEnhancedPresence(currentUserId?: string) {
     const handleBeforeUnload = () => {
       if (currentUserId) {
         // Use sendBeacon for reliable offline status update
-        navigator.sendBeacon(`${supabase.supabaseUrl}/rest/v1/user_presence`, 
+        const supabaseUrl = 'https://cvhdspyugfcvkrufqzrq.supabase.co';
+        navigator.sendBeacon(`${supabaseUrl}/rest/v1/user_presence`, 
           JSON.stringify({
             user_id: currentUserId,
             is_online: false,
@@ -188,9 +189,7 @@ export function useEnhancedPresence(currentUserId?: string) {
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    beforeUnloadListener.current = () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    beforeUnloadListener.current = handleBeforeUnload;
   }, [currentUserId]);
 
   // Cleanup function
@@ -211,7 +210,7 @@ export function useEnhancedPresence(currentUserId?: string) {
 
     // Remove beforeunload listener
     if (beforeUnloadListener.current) {
-      beforeUnloadListener.current();
+      window.removeEventListener('beforeunload', beforeUnloadListener.current);
       beforeUnloadListener.current = null;
     }
 
