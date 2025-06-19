@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { EditClientDialog } from "./EditClientDialog";
 import { ClientDetailsDialog } from "./ClientDetailsDialog";
@@ -58,27 +59,32 @@ export function ClientsList({ searchTerm, statusFilter, selectedListId }: Client
 
   return (
     <>
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm text-muted-foreground">
-          {clients.length} client{clients.length === 1 ? '' : 's'} found
-        </div>
-        <ExportClientListDialog 
-          selectedListId={selectedListId}
-          clientsData={clients}
-        />
-      </div>
-
-      <div className="space-y-2">
-        {clients.map((client: any) => (
-          <ClientItem
-            key={client.id}
-            client={client}
-            onEdit={setEditingClient}
-            onDelete={handleDelete}
-            onViewDetails={setDetailsClient}
-            getStatusColor={getStatusColor}
+      <div className="relative">
+        <div className="absolute top-0 right-0 z-10">
+          <ExportClientListDialog 
+            selectedListId={selectedListId}
+            clientsData={clients}
           />
-        ))}
+        </div>
+        
+        <div className="flex justify-between items-center mb-4">
+          <div className="text-sm text-muted-foreground">
+            {clients.length} client{clients.length === 1 ? '' : 's'} found
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {clients.map((client: any) => (
+            <ClientItem
+              key={client.id}
+              client={client}
+              onEdit={setEditingClient}
+              onDelete={handleDelete}
+              onViewDetails={setDetailsClient}
+              getStatusColor={getStatusColor}
+            />
+          ))}
+        </div>
       </div>
 
       {editingClient && (
