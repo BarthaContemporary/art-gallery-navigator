@@ -14,10 +14,12 @@ export function useChatAPI(userId?: string) {
         *,
         last_message:chat_messages(
           id,
+          room_id,
           encrypted_content,
           message_type,
           created_at,
-          sender_id
+          sender_id,
+          read_by
         )
       `)
       .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
@@ -50,6 +52,21 @@ export function useChatAPI(userId?: string) {
       const participant1Profile = profilesMap.get(room.participant_1_id);
       const participant2Profile = profilesMap.get(room.participant_2_id);
 
+      // Transform last_message to proper ChatMessage format
+      let lastMessage: ChatMessage | undefined;
+      if (Array.isArray(room.last_message) && room.last_message.length > 0) {
+        const msg = room.last_message[0];
+        lastMessage = {
+          id: msg.id,
+          room_id: msg.room_id || room.id,
+          sender_id: msg.sender_id,
+          encrypted_content: msg.encrypted_content,
+          message_type: msg.message_type,
+          created_at: msg.created_at,
+          read_by: msg.read_by || []
+        };
+      }
+
       return {
         ...room,
         participant_1_profile: participant1Profile ? {
@@ -60,9 +77,7 @@ export function useChatAPI(userId?: string) {
           display_name: participant2Profile.display_name || 'Unknown User',
           avatar_url: participant2Profile.avatar_url
         } : { display_name: 'Unknown User' },
-        last_message: Array.isArray(room.last_message) && room.last_message.length > 0 
-          ? room.last_message[0] 
-          : undefined
+        last_message: lastMessage
       };
     });
 
