@@ -29,11 +29,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'SET_LOADING': {
       const { key, value } = action.payload;
-      if (typeof key === 'string' && key.includes('.')) {
+      
+      // Handle nested loading states properly
+      if (key.includes('.')) {
         const [category, subKey] = key.split('.');
         const currentCategory = state.loading[category as keyof typeof state.loading];
         
-        if (typeof currentCategory === 'object' && currentCategory !== null) {
+        if (typeof currentCategory === 'object' && currentCategory !== null && !Array.isArray(currentCategory)) {
           return {
             ...state,
             loading: {
@@ -46,6 +48,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           };
         }
       }
+      
       return {
         ...state,
         loading: {
@@ -55,14 +58,17 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
 
-    case 'SET_ROOMS':
+    case 'SET_ROOMS': {
+      const roomsMap = action.payload.reduce((acc, room) => {
+        acc[room.id] = room;
+        return acc;
+      }, {} as Record<string, any>);
+
       return {
         ...state,
-        rooms: action.payload.reduce((acc, room) => {
-          acc[room.id] = room;
-          return acc;
-        }, {} as Record<string, any>),
+        rooms: roomsMap,
       };
+    }
 
     case 'ADD_ROOM':
       return {
@@ -73,17 +79,23 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         },
       };
 
-    case 'UPDATE_ROOM':
+    case 'UPDATE_ROOM': {
+      const { roomId, updates } = action.payload;
+      const currentRoom = state.rooms[roomId];
+      
+      if (!currentRoom) return state;
+      
       return {
         ...state,
         rooms: {
           ...state.rooms,
-          [action.payload.roomId]: {
-            ...state.rooms[action.payload.roomId],
-            ...action.payload.updates,
+          [roomId]: {
+            ...currentRoom,
+            ...updates,
           },
         },
       };
+    }
 
     case 'SET_MESSAGES':
       return {
@@ -102,46 +114,52 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         },
       };
 
-    case 'ADD_MESSAGE':
+    case 'ADD_MESSAGE': {
+      const { roomId, message } = action.payload;
+      const currentMessages = state.messages[roomId] || [];
+      
       return {
         ...state,
         messages: {
           ...state.messages,
-          [action.payload.roomId]: [
-            ...(state.messages[action.payload.roomId] || []),
-            action.payload.message,
-          ],
+          [roomId]: [...currentMessages, message],
         },
       };
+    }
 
-    case 'PREPEND_MESSAGES':
+    case 'PREPEND_MESSAGES': {
+      const { roomId, messages, hasMore, nextCursor } = action.payload;
+      const currentMessages = state.messages[roomId] || [];
+      const currentPagination = state.pagination[roomId];
+      
       return {
         ...state,
         messages: {
           ...state.messages,
-          [action.payload.roomId]: [
-            ...action.payload.messages,
-            ...(state.messages[action.payload.roomId] || []),
-          ],
+          [roomId]: [...messages, ...currentMessages],
         },
         pagination: {
           ...state.pagination,
-          [action.payload.roomId]: {
-            hasMore: action.payload.hasMore,
-            nextCursor: action.payload.nextCursor,
-            totalLoaded: (state.pagination[action.payload.roomId]?.totalLoaded || 0) + action.payload.messages.length,
+          [roomId]: {
+            hasMore,
+            nextCursor,
+            totalLoaded: (currentPagination?.totalLoaded || 0) + messages.length,
           },
         },
       };
+    }
 
-    case 'SET_ONLINE_USERS':
+    case 'SET_ONLINE_USERS': {
+      const usersMap = action.payload.reduce((acc, user) => {
+        acc[user.user_id] = user;
+        return acc;
+      }, {} as Record<string, any>);
+
       return {
         ...state,
-        onlineUsers: action.payload.reduce((acc, user) => {
-          acc[user.user_id] = user;
-          return acc;
-        }, {} as Record<string, any>),
+        onlineUsers: usersMap,
       };
+    }
 
     case 'UPDATE_USER_PRESENCE':
       return {
@@ -182,13 +200,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         },
       };
 
-    case 'CLEAR_ERROR':
+    case 'CLEAR_ERROR': {
       const newErrors = { ...state.errors };
       delete newErrors[action.payload];
       return {
         ...state,
         errors: newErrors,
       };
+    }
 
     case 'INVALIDATE_CACHE':
       return {

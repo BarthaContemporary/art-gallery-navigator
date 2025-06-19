@@ -7,6 +7,7 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
   const subscriptions = useRef<Map<string, any>>(new Map());
   const presenceChannel = useRef<any>(null);
   const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const isInitialized = useRef(false);
 
   const updateConnectionState = useCallback((status: 'connecting' | 'connected' | 'disconnected' | 'error', error?: string) => {
     if (dispatch) {
@@ -24,10 +25,9 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
   const subscribeToRoom = useCallback(async (roomId: string) => {
     if (!userId || !dispatch) return;
 
-    // Clean up existing subscription for this room
-    const existingChannel = subscriptions.current.get(roomId);
-    if (existingChannel) {
-      supabase.removeChannel(existingChannel);
+    // Prevent duplicate subscriptions
+    if (subscriptions.current.has(roomId)) {
+      return;
     }
 
     updateConnectionState('connecting');
@@ -50,7 +50,7 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
             .eq('id', newMessage.sender_id)
             .single();
 
-          const transformedMessage = {
+          const transformedMessage: ChatMessage = {
             ...newMessage,
             sender_profile: senderProfile ? {
               display_name: senderProfile.display_name || 'Unknown User',
@@ -91,7 +91,7 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
   }, [userId, dispatch, updateConnectionState]);
 
   const subscribeToPresence = useCallback(() => {
-    if (!userId || !dispatch) return;
+    if (!userId || !dispatch || presenceChannel.current) return;
 
     updateConnectionState('connecting');
 
@@ -105,6 +105,9 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
         try {
           const presenceData = payload.new as UserPresence;
           
+          // Skip self updates
+          if (presenceData.user_id === userId) return;
+          
           // Fetch profile for the user
           const { data: profile } = await supabase
             .from('profiles')
@@ -112,7 +115,7 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
             .eq('id', presenceData.user_id)
             .single();
 
-          const transformedPresence = {
+          const transformedPresence: UserPresence = {
             ...presenceData,
             profile: profile ? {
               display_name: profile.display_name || 'Unknown User',
@@ -144,35 +147,10 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
 
     reconnectTimer.current = setTimeout(() => {
       console.log('Attempting to reconnect real-time subscriptions...');
-      if (dispatch) {
-        dispatch({ 
-          type: 'SET_CONNECTION_STATE', 
-          payload: { retryCount: Date.now() } 
-        });
-      }
-      
+      cleanup();
       initialize();
     }, 5000); // Reconnect after 5 seconds
-  }, [dispatch]);
-
-  const initialize = useCallback(() => {
-    if (!userId) return;
-
-    subscribeToPresence();
-    
-    // Update user's own presence
-    updatePresence(true);
-    
-    // Set up periodic presence updates
-    const presenceInterval = setInterval(() => {
-      updatePresence(true);
-    }, 60000); // Update every minute
-
-    return () => {
-      clearInterval(presenceInterval);
-      updatePresence(false);
-    };
-  }, [userId, subscribeToPresence]);
+  }, []);
 
   const updatePresence = useCallback(async (isOnline: boolean) => {
     if (!userId) return;
@@ -191,8 +169,27 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
     }
   }, [userId]);
 
+  const initialize = useCallback(() => {
+    if (!userId || isInitialized.current) return;
+
+    isInitialized.current = true;
+    subscribeToPresence();
+    updatePresence(true);
+    
+    // Set up periodic presence updates
+    const presenceInterval = setInterval(() => {
+      updatePresence(true);
+    }, 60000); // Update every minute
+
+    return () => {
+      clearInterval(presenceInterval);
+      updatePresence(false);
+    };
+  }, [userId, subscribeToPresence, updatePresence]);
+
   const reconnect = useCallback(() => {
     cleanup();
+    isInitialized.current = false;
     initialize();
   }, [initialize]);
 
@@ -221,6 +218,7 @@ export function useChatRealtime(userId?: string, dispatch?: React.Dispatch<ChatA
     }
 
     updateConnectionState('disconnected');
+    isInitialized.current = false;
   }, [userId, updatePresence, updateConnectionState]);
 
   return {

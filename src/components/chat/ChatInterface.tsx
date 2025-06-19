@@ -3,7 +3,7 @@ import React from 'react';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessagesList } from './ChatMessagesList';
 import { ChatMessageInput } from './ChatMessageInput';
-import { ChatRoom, ChatMessage } from '@/hooks/chat/types';
+import { ChatRoom, ChatMessage } from '@/hooks/chat/chat-context/types';
 
 interface ChatInterfaceProps {
   room: ChatRoom;

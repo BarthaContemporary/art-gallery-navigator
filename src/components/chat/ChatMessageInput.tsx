@@ -2,9 +2,7 @@
 import React, { useState, useRef, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2 } from 'lucide-react';
-import { ChatImageUpload } from './ChatImageUpload';
-import { EmojiPicker } from './EmojiPicker';
+import { Send, Paperclip } from 'lucide-react';
 
 interface ChatMessageInputProps {
   onSendMessage: (message: string, type?: 'text' | 'image') => Promise<void>;
@@ -16,42 +14,11 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = async () => {
-    if (!message.trim() || sending) return;
-    
-    const messageToSend = message.trim();
-    setMessage('');
-    
-    try {
-      await onSendMessage(messageToSend, 'text');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessage(messageToSend); // Restore message on error
+    if (message.trim() && !sending) {
+      const messageToSend = message.trim();
+      setMessage('');
+      await onSendMessage(messageToSend);
     }
-  };
-
-  const handleImageSend = async (imageUrl: string) => {
-    try {
-      await onSendMessage(imageUrl, 'image');
-    } catch (error) {
-      console.error('Error sending image:', error);
-    }
-  };
-
-  const handleEmojiSelect = (emoji: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newMessage = message.slice(0, start) + emoji + message.slice(end);
-    
-    setMessage(newMessage);
-    
-    // Set cursor position after the emoji
-    setTimeout(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
-      textarea.focus();
-    }, 0);
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -62,8 +29,12 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
   };
 
   return (
-    <div className="border-t p-4 bg-white">
-      <div className="flex gap-2 items-end">
+    <div className="p-4 border-t bg-white">
+      <div className="flex items-end gap-2">
+        <Button variant="ghost" size="sm" className="flex-shrink-0">
+          <Paperclip className="h-4 w-4" />
+        </Button>
+        
         <div className="flex-1">
           <Textarea
             ref={textareaRef}
@@ -71,35 +42,19 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="min-h-[40px] max-h-32 resize-none"
-            disabled={sending}
+            className="min-h-[40px] max-h-[120px] resize-none"
+            rows={1}
           />
         </div>
         
-        <div className="flex gap-1">
-          <EmojiPicker 
-            onEmojiSelect={handleEmojiSelect}
-            disabled={sending}
-          />
-          
-          <ChatImageUpload 
-            onImageSelect={handleImageSend}
-            disabled={sending}
-          />
-          
-          <Button
-            onClick={handleSend}
-            disabled={!message.trim() || sending}
-            size="icon"
-            className="h-10 w-10"
-          >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+        <Button 
+          onClick={handleSend} 
+          disabled={!message.trim() || sending}
+          size="sm"
+          className="flex-shrink-0"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
