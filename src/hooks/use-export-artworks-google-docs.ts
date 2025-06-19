@@ -33,7 +33,7 @@ export function useExportArtworksToGoogleDocs() {
 
       // Pre-open a blank window before the async operation
       // This ensures it's treated as a user-initiated action
-      const newWindow = window.open('about:blank', '_blank');
+      const newWindow = window.open('', '_blank');
 
       const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
         body: {
@@ -72,7 +72,7 @@ export function useExportArtworksToGoogleDocs() {
         });
 
         // Navigate the pre-opened window to the document URL
-        if (newWindow) {
+        if (newWindow && !newWindow.closed) {
           newWindow.location.href = response.documentUrl;
           newWindow.focus();
         } else {
