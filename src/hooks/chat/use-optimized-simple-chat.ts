@@ -2,6 +2,7 @@
 import { useEffect, useCallback } from 'react';
 import { useAuth } from '../use-auth';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useChatState } from './use-chat-state';
 import { useUnifiedMessages } from './use-unified-messages';
 import { useOptimizedChatPresence } from './use-optimized-chat-presence';
