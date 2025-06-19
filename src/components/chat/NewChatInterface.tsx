@@ -44,10 +44,10 @@ export function NewChatInterface({ room, onBack }: NewChatInterfaceProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-background">
+      {/* Header - Made more compact */}
+      <div className="flex items-center gap-3 p-3 border-b bg-background">
         {onBack && (
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
@@ -66,8 +66,8 @@ export function NewChatInterface({ room, onBack }: NewChatInterfaceProps) {
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      {/* Messages - Increased area */}
+      <ScrollArea className="flex-1 p-3">
         {state.loading.messages ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -86,19 +86,20 @@ export function NewChatInterface({ room, onBack }: NewChatInterfaceProps) {
         )}
       </ScrollArea>
 
-      {/* Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t bg-background">
+      {/* Input - Made more compact */}
+      <form onSubmit={handleSendMessage} className="p-3 border-t bg-background">
         <div className="flex gap-2">
           <Input
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             placeholder="Type a message..."
             disabled={state.loading.sending}
-            className="flex-1"
+            className="flex-1 h-9"
           />
           <Button 
             type="submit" 
             size="icon"
+            className="h-9 w-9"
             disabled={!messageInput.trim() || state.loading.sending}
           >
             {state.loading.sending ? (

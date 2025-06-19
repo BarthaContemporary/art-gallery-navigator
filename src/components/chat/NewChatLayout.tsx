@@ -46,11 +46,11 @@ export function NewChatLayout() {
   // Show room/user list
   return (
     <div className="flex flex-col h-full">
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Made more compact */}
       <div className="flex border-b">
         <Button
           variant={currentView === 'rooms' ? 'default' : 'ghost'}
-          className="flex-1 rounded-none h-12"
+          className="flex-1 rounded-none h-10"
           onClick={() => setCurrentView('rooms')}
         >
           <MessageSquare className="h-4 w-4 mr-2" />
@@ -59,7 +59,7 @@ export function NewChatLayout() {
         
         <Button
           variant={currentView === 'online' ? 'default' : 'ghost'}
-          className="flex-1 rounded-none h-12"
+          className="flex-1 rounded-none h-10"
           onClick={() => setCurrentView('online')}
         >
           <Users className="h-4 w-4 mr-2" />
@@ -70,7 +70,7 @@ export function NewChatLayout() {
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {state.error && (
-          <div className="p-4 bg-destructive/10 border-b">
+          <div className="p-3 bg-destructive/10 border-b">
             <p className="text-sm text-destructive">{state.error}</p>
           </div>
         )}
