@@ -44,22 +44,27 @@ export class ChatService {
 
   async getRooms(): Promise<ChatRoom[]> {
     try {
-      // First get the rooms
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return [];
+
+      // Get rooms where the current user is a participant
       const { data: rooms, error: roomsError } = await supabase
         .from('chat_rooms')
         .select('*')
+        .or(`participant_1_id.eq.${user.user.id},participant_2_id.eq.${user.user.id}`)
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (roomsError) throw roomsError;
       if (!rooms) return [];
 
-      // Then get the profiles for all participants
+      // Get all unique participant IDs
       const participantIds = new Set<string>();
       rooms.forEach(room => {
         participantIds.add(room.participant_1_id);
         participantIds.add(room.participant_2_id);
       });
 
+      // Fetch profiles for all participants
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
@@ -69,9 +74,10 @@ export class ChatService {
         console.error('Error fetching profiles:', profilesError);
       }
 
-      // Map profiles to rooms
+      // Create profile map for quick lookup
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
+      // Map profiles to rooms
       return rooms.map(room => ({
         ...room,
         participant_1_profile: profileMap.get(room.participant_1_id),
@@ -85,7 +91,7 @@ export class ChatService {
 
   async getMessages(roomId: string, limit = 50, offset = 0): Promise<ChatMessage[]> {
     try {
-      // First get the messages
+      // Get messages for the room
       const { data: messages, error: messagesError } = await supabase
         .from('chat_messages')
         .select('*')
