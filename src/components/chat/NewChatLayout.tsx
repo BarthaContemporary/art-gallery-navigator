@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useChat } from '@/hooks/chat/chat-context/ChatContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -76,8 +75,9 @@ export function NewChatLayout() {
     await sendMessage(message, type);
   };
 
-  // Error display
+  // Error display with proper typing
   const hasErrors = Object.keys(state.errors).length > 0;
+  const firstError = hasErrors ? String(Object.values(state.errors)[0] || '') : null;
   const isConnected = state.connection.status === 'connected';
   const isLoading = state.loading.rooms || state.loading.sending;
 
@@ -86,7 +86,7 @@ export function NewChatLayout() {
       <div className="flex flex-col h-full">
         <ChatStatusBar 
           connected={isConnected} 
-          error={hasErrors ? Object.values(state.errors)[0] : null} 
+          error={firstError} 
           loading={isLoading}
         />
         
@@ -144,7 +144,7 @@ export function NewChatLayout() {
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <ChatStatusBar 
           connected={isConnected} 
-          error={hasErrors ? Object.values(state.errors)[0] : null} 
+          error={firstError} 
           loading={isLoading}
         />
         <div className="flex gap-2">
@@ -162,7 +162,7 @@ export function NewChatLayout() {
       {hasErrors && (
         <Alert className="m-4 border-red-200 bg-red-50">
           <AlertDescription className="text-red-800">
-            {Object.values(state.errors).join(', ')}
+            {Object.values(state.errors).map(error => String(error || '')).join(', ')}
           </AlertDescription>
         </Alert>
       )}
