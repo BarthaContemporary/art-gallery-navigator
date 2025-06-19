@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useChat } from '@/hooks/chat/chat-context/ChatContext';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ChatInterface } from './ChatInterface';
 import { ChatRoomsList } from './ChatRoomsList';
@@ -13,7 +13,7 @@ import { RefreshCw, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function NewChatLayout() {
-  const chat = useChat();
+  const chat = useSimpleChat();
   const isMobile = useIsMobile();
   
   const {
@@ -53,8 +53,8 @@ export function NewChatLayout() {
   };
 
   const handleLoadMore = async () => {
-    if (activeRoom && state.pagination[activeRoom.id]?.hasMore) {
-      await fetchMessages(activeRoom.id, true);
+    if (activeRoom) {
+      await fetchMessages(activeRoom.id);
     }
   };
 
@@ -62,25 +62,19 @@ export function NewChatLayout() {
     await sendMessage(message, type);
   };
 
-  // Error display with proper typing
-  const hasErrors = Object.keys(state.errors).length > 0;
-  const firstError = hasErrors ? String(Object.values(state.errors)[0] || '') : null;
-  const isConnected = state.connection.status === 'connected';
-  const isLoading = state.loading.rooms || state.loading.sending;
-
   if (isMobile) {
     return (
       <div className="flex flex-col h-full">
         <ChatStatusBar 
-          connected={isConnected} 
-          error={firstError} 
-          loading={isLoading}
+          connected={state.connected} 
+          error={state.error} 
+          loading={state.loading.rooms || state.loading.messages}
         />
         
-        {hasErrors && (
+        {state.error && (
           <Alert className="m-4 border-red-200 bg-red-50">
             <AlertDescription className="flex items-center justify-between">
-              <span className="text-red-800">Connection issues detected</span>
+              <span className="text-red-800">{state.error}</span>
               <Button variant="outline" size="sm" onClick={retryConnection}>
                 <RefreshCw className="h-3 w-3 mr-1" />
                 Retry
@@ -93,10 +87,10 @@ export function NewChatLayout() {
           <ChatInterface 
             room={activeRoom} 
             messages={roomMessages}
-            loading={state.loading.messages[activeRoom.id] || false}
+            loading={state.loading.messages}
             sending={state.loading.sending}
-            loadingMore={state.loading.loadingMore[activeRoom.id] || false}
-            hasMore={state.pagination[activeRoom.id]?.hasMore || false}
+            loadingMore={false}
+            hasMore={false}
             onSendMessage={handleSendMessage}
             onLoadMore={handleLoadMore}
             onBack={handleBackToList} 
@@ -130,9 +124,9 @@ export function NewChatLayout() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <ChatStatusBar 
-          connected={isConnected} 
-          error={firstError} 
-          loading={isLoading}
+          connected={state.connected} 
+          error={state.error} 
+          loading={state.loading.rooms || state.loading.messages}
         />
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={retryConnection}>
@@ -146,16 +140,15 @@ export function NewChatLayout() {
         </div>
       </div>
 
-      {hasErrors && (
+      {state.error && (
         <Alert className="m-4 border-red-200 bg-red-50">
           <AlertDescription className="text-red-800">
-            {Object.values(state.errors).map(error => String(error || '')).join(', ')}
+            {state.error}
           </AlertDescription>
         </Alert>
       )}
       
       <div className="flex h-full">
-        {/* Left sidebar - 1/3 width */}
         <div className="w-1/3 min-w-[300px] flex flex-col">
           <div className="border-r">
             <ChatTabNavigation 
@@ -178,16 +171,15 @@ export function NewChatLayout() {
           </div>
         </div>
 
-        {/* Right content - 2/3 width */}
         <div className="flex-1">
           {activeRoom ? (
             <ChatInterface 
               room={activeRoom} 
               messages={roomMessages}
-              loading={state.loading.messages[activeRoom.id] || false}
+              loading={state.loading.messages}
               sending={state.loading.sending}
-              loadingMore={state.loading.loadingMore[activeRoom.id] || false}
-              hasMore={state.pagination[activeRoom.id]?.hasMore || false}
+              loadingMore={false}
+              hasMore={false}
               onSendMessage={handleSendMessage}
               onLoadMore={handleLoadMore}
             />

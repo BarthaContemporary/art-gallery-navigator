@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ChatMessage } from '@/hooks/chat/types';
+import { ChatMessage } from '@/hooks/chat/chat-context/types';
 import { format } from 'date-fns';
 
 interface MessageBubbleProps {

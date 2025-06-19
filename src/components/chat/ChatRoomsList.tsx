@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useChat } from '@/hooks/chat/chat-context/ChatContext';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,7 +14,7 @@ interface ChatRoomsListProps {
 
 export function ChatRoomsList({ onSelectRoom, selectedRoomId }: ChatRoomsListProps) {
   const { user } = useAuth();
-  const { roomsList, state } = useChat();
+  const { roomsList, state } = useSimpleChat();
 
   if (state.loading.rooms) {
     return (

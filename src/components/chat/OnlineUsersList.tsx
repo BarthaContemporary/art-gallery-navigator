@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useChat } from '@/hooks/chat/chat-context/ChatContext';
+import { useSimpleChat } from '@/hooks/chat/chat-context/SimpleChatContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { MessageCircle } from 'lucide-react';
@@ -10,7 +10,7 @@ interface OnlineUsersListProps {
 }
 
 export function OnlineUsersList({ onStartChat }: OnlineUsersListProps) {
-  const { onlineUsersList } = useChat();
+  const { onlineUsersList } = useSimpleChat();
 
   if (onlineUsersList.length === 0) {
     return (

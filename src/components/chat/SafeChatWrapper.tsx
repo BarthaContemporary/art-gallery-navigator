@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChatProvider } from '@/hooks/chat/chat-context/ChatContext';
+import { SimpleChatProvider } from '@/hooks/chat/chat-context/SimpleChatContext';
 import { ChatErrorBoundary } from './ChatErrorBoundary';
 
 interface SafeChatWrapperProps {
@@ -14,9 +14,9 @@ export function SafeChatWrapper({ children }: SafeChatWrapperProps) {
         Chat temporarily unavailable
       </div>
     }>
-      <ChatProvider>
+      <SimpleChatProvider>
         {children}
-      </ChatProvider>
+      </SimpleChatProvider>
     </ChatErrorBoundary>
   );
 }
