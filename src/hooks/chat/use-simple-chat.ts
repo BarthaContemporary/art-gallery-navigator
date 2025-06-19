@@ -28,7 +28,7 @@ export function useSimpleChat() {
     await dataOps.fetchMessages(room.id, 50, 0, false);
     await messageOps.markMessagesAsRead(room.id);
     realtimeOps.subscribeToMessages(room.id);
-  }, [dataOps.fetchMessages, messageOps.markMessagesAsRead, realtimeOps.subscribeToMessages, setState]);
+  }, [dataOps, messageOps, realtimeOps, setState]);
 
   // Load more older messages
   const loadMoreMessages = useCallback(async () => {
@@ -36,7 +36,7 @@ export function useSimpleChat() {
     
     const currentOffset = state.messages.length;
     await dataOps.fetchMessages(state.activeRoom.id, 50, currentOffset, true);
-  }, [state.activeRoom, state.hasMore, state.loadingMore, state.messages.length, dataOps.fetchMessages]);
+  }, [state.activeRoom, state.hasMore, state.loadingMore, state.messages.length, dataOps]);
 
   // Clear cache
   const clearAllChatCache = useCallback(() => {
@@ -66,7 +66,7 @@ export function useSimpleChat() {
     if (state.activeRoom) {
       await dataOps.fetchMessages(state.activeRoom.id, 50, 0, false);
     }
-  }, [messageOps, state.activeRoom, dataOps.fetchMessages]);
+  }, [messageOps, state.activeRoom, dataOps]);
 
   // Initialize chat when user is available
   useEffect(() => {
@@ -74,7 +74,7 @@ export function useSimpleChat() {
       dataOps.fetchChatRooms();
       dataOps.fetchOnlineUsers();
     }
-  }, [authLoading, user, dataOps.fetchChatRooms, dataOps.fetchOnlineUsers]);
+  }, [authLoading, user, dataOps]);
 
   // Cleanup on unmount
   useEffect(() => {

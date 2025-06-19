@@ -2,98 +2,70 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ChatRoom } from './types';
+import { ChatRoom, ChatMessage } from './types';
 
 export function useChatData(user: any, setState: any) {
-  // Fetch chat rooms
-  const fetchChatRooms = useCallback(async () => {
+  // Fetch messages for a room with pagination
+  const fetchMessages = useCallback(async (roomId: string, limit: number = 50, offset: number = 0, loadMore: boolean = false) => {
     if (!user) return;
 
     try {
-      setState((prev: any) => ({ ...prev, loading: true, error: null }));
-
-      const { data, error } = await supabase
-        .from('chat_rooms')
-        .select('*')
-        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
-        .order('last_message_at', { ascending: false, nullsFirst: false });
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        setState((prev: any) => ({ ...prev, chatRooms: [], loading: false }));
-        return;
+      if (!loadMore) {
+        setState((prev: any) => ({ ...prev, loading: true }));
+      } else {
+        setState((prev: any) => ({ ...prev, loadingMore: true }));
       }
-
-      // Fetch profile data
-      const participantIds = data.flatMap(room => [room.participant_1_id, room.participant_2_id]);
-      const uniqueParticipantIds = [...new Set(participantIds)];
-      
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', uniqueParticipantIds);
-
-      // Transform data with profiles
-      const roomsWithProfiles = data.map(room => {
-        const participant1Profile = profilesData?.find(p => p.id === room.participant_1_id);
-        const participant2Profile = profilesData?.find(p => p.id === room.participant_2_id);
-        
-        return {
-          ...room,
-          participant_1_profile: participant1Profile ? {
-            display_name: participant1Profile.display_name || 'Unknown User',
-            avatar_url: participant1Profile.avatar_url
-          } : { display_name: 'Unknown User' },
-          participant_2_profile: participant2Profile ? {
-            display_name: participant2Profile.display_name || 'Unknown User',
-            avatar_url: participant2Profile.avatar_url
-          } : { display_name: 'Unknown User' },
-          unread_count: 0
-        };
-      });
-
-      setState((prev: any) => ({ ...prev, chatRooms: roomsWithProfiles, loading: false }));
-    } catch (error) {
-      console.error('Error fetching chat rooms:', error);
-      setState((prev: any) => ({ ...prev, error: 'Failed to load chat rooms', loading: false }));
-    }
-  }, [user, setState]);
-
-  // Fetch messages for a room (plain text - no decryption needed)
-  const fetchMessages = useCallback(async (roomId: string, markAsRead?: (roomId: string) => Promise<void>) => {
-    if (!user) return;
-
-    try {
-      setState((prev: any) => ({ ...prev, loading: true, error: null }));
 
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        setState((prev: any) => ({ ...prev, messages: [], loading: false }));
+      if (error) {
+        console.error('Error fetching messages:', error);
+        toast.error('Failed to load messages');
         return;
       }
 
-      // Fetch sender profiles
-      const senderIds = [...new Set(data.map(msg => msg.sender_id))];
-      const { data: profilesData } = await supabase
+      if (!data || data.length === 0) {
+        if (!loadMore) {
+          setState((prev: any) => ({ ...prev, messages: [], hasMore: false, loading: false, loadingMore: false }));
+        } else {
+          setState((prev: any) => ({ ...prev, hasMore: false, loadingMore: false }));
+        }
+        return;
+      }
+
+      // Check if we have fewer messages than requested (reached the end)
+      const hasMoreMessages = data.length === limit;
+
+      // Fetch profile data for all senders
+      const senderIds = data.map(message => message.sender_id);
+      const uniqueSenderIds = [...new Set(senderIds)];
+      
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
-        .in('id', senderIds);
+        .in('id', uniqueSenderIds);
 
-      // Transform messages with profile data (encrypted_content now contains plain text)
-      const messagesWithProfiles = data.map((message) => {
-        const senderProfile = profilesData?.find(p => p.id === message.sender_id);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Create profiles map for efficient lookup
+      const profilesMap = new Map();
+      (profilesData || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Transform messages with profile data
+      const transformedMessages = data.map(message => {
+        const senderProfile = profilesMap.get(message.sender_id);
         
         return {
           ...message,
-          content: message.encrypted_content, // encrypted_content field now contains plain text
           sender_profile: senderProfile ? {
             display_name: senderProfile.display_name || 'Unknown User',
             avatar_url: senderProfile.avatar_url
@@ -101,73 +73,103 @@ export function useChatData(user: any, setState: any) {
         };
       });
 
-      setState((prev: any) => ({ ...prev, messages: messagesWithProfiles, loading: false }));
+      // Reverse to show oldest first in UI
+      const orderedMessages = transformedMessages.reverse();
 
-      // Mark messages as read if function provided
-      if (markAsRead) {
-        await markAsRead(roomId);
+      if (loadMore) {
+        // Prepend older messages to existing ones
+        setState((prev: any) => ({ 
+          ...prev, 
+          messages: [...orderedMessages, ...prev.messages],
+          hasMore: hasMoreMessages,
+          loadingMore: false
+        }));
+      } else {
+        // Set initial messages
+        setState((prev: any) => ({ 
+          ...prev, 
+          messages: orderedMessages,
+          hasMore: hasMoreMessages,
+          loading: false,
+          loadingMore: false
+        }));
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      setState((prev: any) => ({ ...prev, error: 'Failed to load messages', loading: false }));
+      console.error('Error in fetchMessages:', error);
+      toast.error('Failed to load messages');
+      setState((prev: any) => ({ ...prev, loading: false, loadingMore: false }));
     }
   }, [user, setState]);
 
-  // Start or find chat with user
-  const startChatWithUser = useCallback(async (targetUserId: string): Promise<ChatRoom | null> => {
-    if (!user) return null;
+  // Fetch chat rooms
+  const fetchChatRooms = useCallback(async () => {
+    if (!user) return;
+
+    setState((prev: any) => ({ ...prev, loading: true }));
 
     try {
-      setState((prev: any) => ({ ...prev, loading: true, error: null }));
-
-      const { data, error } = await supabase.rpc('find_or_create_chat_room', {
-        _participant_1_id: user.id,
-        _participant_2_id: targetUserId
-      });
+      const { data: rooms, error } = await supabase
+        .from('chat_rooms')
+        .select(`
+          *,
+          participant_1_profile:profiles!participant_1_id(display_name, avatar_url),
+          participant_2_profile:profiles!participant_2_id(display_name, avatar_url)
+        `)
+        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
+        .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
 
-      // Fetch the complete room data
-      const { data: roomData, error: roomError } = await supabase
+      setState((prev: any) => ({ 
+        ...prev, 
+        chatRooms: rooms || [],
+        loading: false 
+      }));
+    } catch (error) {
+      console.error('Error fetching chat rooms:', error);
+      toast.error('Failed to load chat rooms');
+      setState((prev: any) => ({ ...prev, loading: false }));
+    }
+  }, [user, setState]);
+
+  // Start chat with user
+  const startChatWithUser = useCallback(async (targetUserId: string) => {
+    if (!user) return null;
+
+    try {
+      // Check if room already exists
+      const { data: existingRoom } = await supabase
         .from('chat_rooms')
         .select('*')
-        .eq('id', data)
+        .or(`and(participant_1_id.eq.${user.id},participant_2_id.eq.${targetUserId}),and(participant_1_id.eq.${targetUserId},participant_2_id.eq.${user.id})`)
         .single();
 
-      if (roomError) throw roomError;
+      if (existingRoom) {
+        return existingRoom;
+      }
 
-      // Fetch profiles
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', [roomData.participant_1_id, roomData.participant_2_id]);
+      // Create new room
+      const { data: newRoom, error } = await supabase
+        .from('chat_rooms')
+        .insert({
+          participant_1_id: user.id,
+          participant_2_id: targetUserId,
+        })
+        .select()
+        .single();
 
-      const participant1Profile = profilesData?.find(p => p.id === roomData.participant_1_id);
-      const participant2Profile = profilesData?.find(p => p.id === roomData.participant_2_id);
+      if (error) throw error;
 
-      const transformedRoom = {
-        ...roomData,
-        participant_1_profile: participant1Profile ? {
-          display_name: participant1Profile.display_name || 'Unknown User',
-          avatar_url: participant1Profile.avatar_url
-        } : { display_name: 'Unknown User' },
-        participant_2_profile: participant2Profile ? {
-          display_name: participant2Profile.display_name || 'Unknown User',
-          avatar_url: participant2Profile.avatar_url
-        } : { display_name: 'Unknown User' },
-        unread_count: 0
-      };
-
-      setState((prev: any) => ({ ...prev, loading: false }));
+      // Refresh chat rooms
       await fetchChatRooms();
-      
-      return transformedRoom;
+
+      return newRoom;
     } catch (error) {
       console.error('Error starting chat:', error);
-      setState((prev: any) => ({ ...prev, error: 'Failed to start chat', loading: false }));
+      toast.error('Failed to start chat');
       return null;
     }
-  }, [user, setState, fetchChatRooms]);
+  }, [user, fetchChatRooms, setState]);
 
   // Fetch online users
   const fetchOnlineUsers = useCallback(async () => {
@@ -176,9 +178,7 @@ export function useChatData(user: any, setState: any) {
     try {
       const { data, error } = await supabase
         .from('user_presence')
-        .select('*')
-        .eq('is_online', true)
-        .neq('user_id', user.id);
+        .select('*');
 
       if (error) throw error;
 
@@ -187,33 +187,59 @@ export function useChatData(user: any, setState: any) {
         return;
       }
 
-      // Fetch profiles
-      const userIds = data.map(item => item.user_id);
-      const { data: profilesData } = await supabase
+      // Filter out current user and calculate sophisticated status
+      const filteredData = data.filter(item => item.user_id !== user.id);
+
+      if (filteredData.length === 0) {
+        setState((prev: any) => ({ ...prev, onlineUsers: [] }));
+        return;
+      }
+
+      // Fetch profiles for users
+      const userIds = filteredData.map(item => item.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url')
         .in('id', userIds);
 
-      const usersWithProfiles = data.map(item => {
-        const profile = profilesData?.find(p => p.id === item.user_id);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Transform data with profiles and calculate sophisticated status
+      const transformedData = filteredData.map(item => {
+        const profile = (profilesData || []).find(p => p.id === item.user_id);
+        const lastSeen = new Date(item.last_seen);
+        const now = new Date();
+        const minutesSinceLastSeen = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60));
+        
+        // Sophisticated status calculation
+        let isActuallyOnline = item.is_online;
+        
+        // Consider user offline if last seen > 5 minutes ago, even if marked online
+        if (minutesSinceLastSeen > 5) {
+          isActuallyOnline = false;
+        }
+        
         return {
           ...item,
+          is_online: isActuallyOnline,
           profile: profile ? {
             display_name: profile.display_name || 'Unknown User',
             avatar_url: profile.avatar_url
           } : { display_name: 'Unknown User' }
         };
-      });
+      }).filter(item => item.is_online); // Only show actually online users
 
-      setState((prev: any) => ({ ...prev, onlineUsers: usersWithProfiles }));
+      setState((prev: any) => ({ ...prev, onlineUsers: transformedData }));
     } catch (error) {
       console.error('Error fetching online users:', error);
     }
   }, [user, setState]);
 
   return {
-    fetchChatRooms,
     fetchMessages,
+    fetchChatRooms,
     startChatWithUser,
     fetchOnlineUsers,
   };
