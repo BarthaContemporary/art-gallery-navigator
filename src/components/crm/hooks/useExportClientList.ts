@@ -6,6 +6,24 @@ import { supabase } from "@/integrations/supabase/client";
 export function useExportClientList() {
   const [isExporting, setIsExporting] = useState(false);
 
+  const getListName = async (listId?: string) => {
+    if (!listId) return 'all';
+    
+    try {
+      const { data, error } = await supabase
+        .from('client_lists')
+        .select('name')
+        .eq('id', listId)
+        .single();
+      
+      if (error) throw error;
+      return data?.name || listId;
+    } catch (error) {
+      console.error("Failed to fetch list name:", error);
+      return listId;
+    }
+  };
+
   const exportEmailList = async (clients: any[], listId?: string) => {
     setIsExporting(true);
     try {
@@ -25,7 +43,7 @@ export function useExportClientList() {
 
       // Create filename with B_c-ListName_Date.csv format
       const date = new Date().toISOString().split('T')[0];
-      const listName = listId ? `${listId}` : 'all';
+      const listName = await getListName(listId);
       const filename = `B_c-${listName}_${date}.csv`;
 
       // Create and download file
