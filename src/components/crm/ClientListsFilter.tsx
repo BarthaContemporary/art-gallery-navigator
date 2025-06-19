@@ -89,10 +89,7 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
           <SelectValue>
             <div className="flex items-center">
               {selectedList ? (
-                <>
-                  {selectedList.name}
-                  <ListMemberCount listId={selectedList.id} />
-                </>
+                selectedList.name
               ) : (
                 "All Lists"
               )}
@@ -111,7 +108,6 @@ export function ClientListsFilter({ selectedListId, onListSelect }: ClientListsF
             <SelectItem key={list.id} value={list.id} className="text-xs">
               <div className="flex items-center justify-between w-full">
                 <span>{list.name}</span>
-                <ListMemberCount listId={list.id} />
               </div>
             </SelectItem>
           ))}
