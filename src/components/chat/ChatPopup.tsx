@@ -22,8 +22,8 @@ export function ChatPopup() {
 
   return (
     <div className="fixed bottom-4 right-4 w-80 h-96 bg-white border rounded-lg shadow-xl z-50 flex flex-col">
-      <div className="flex items-center justify-between p-3 border-b">
-        <h3 className="font-semibold">Chat</h3>
+      <div className="flex items-center justify-between p-2 border-b">
+        <h3 className="font-semibold text-sm">B_c Chat</h3>
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
           <X className="h-4 w-4" />
         </Button>
