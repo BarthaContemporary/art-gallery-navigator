@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
 import { ChatImageUpload } from './ChatImageUpload';
+import { EmojiPicker } from './EmojiPicker';
 
 interface ChatMessageInputProps {
   onSendMessage: (message: string, type?: 'text' | 'image') => Promise<void>;
@@ -36,6 +37,23 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
     }
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newMessage = message.slice(0, start) + emoji + message.slice(end);
+    
+    setMessage(newMessage);
+    
+    // Set cursor position after the emoji
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+      textarea.focus();
+    }, 0);
+  };
+
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -59,6 +77,11 @@ export function ChatMessageInput({ onSendMessage, sending }: ChatMessageInputPro
         </div>
         
         <div className="flex gap-1">
+          <EmojiPicker 
+            onEmojiSelect={handleEmojiSelect}
+            disabled={sending}
+          />
+          
           <ChatImageUpload 
             onImageSelect={handleImageSend}
             disabled={sending}
