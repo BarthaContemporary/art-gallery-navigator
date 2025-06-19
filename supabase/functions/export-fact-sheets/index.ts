@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const GOOGLE_SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_DRIVE_API_URL = "https://www.googleapis.com/drive/v3/files";
@@ -42,6 +43,39 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "No clients provided" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
+    }
+
+    // Initialize Supabase client to fetch artist names
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get all unique artist IDs from clients
+    const allArtistIds = new Set<string>();
+    clients.forEach(client => {
+      if (client.interested_artists) {
+        client.interested_artists.forEach(id => allArtistIds.add(id));
+      }
+    });
+
+    // Fetch artist names for all IDs
+    let artistNamesMap: Record<string, string> = {};
+    if (allArtistIds.size > 0) {
+      console.log("Fetching artist names for IDs:", Array.from(allArtistIds));
+      const { data: artists, error: artistError } = await supabase
+        .from('artists')
+        .select('id, full_name')
+        .in('id', Array.from(allArtistIds));
+      
+      if (artistError) {
+        console.error("Error fetching artists:", artistError);
+      } else if (artists) {
+        artistNamesMap = artists.reduce((acc, artist) => {
+          acc[artist.id] = artist.full_name;
+          return acc;
+        }, {} as Record<string, string>);
+        console.log("Artist names map:", artistNamesMap);
+      }
     }
 
     // Get Google API credentials from environment
@@ -118,24 +152,35 @@ const handler = async (req: Request): Promise<Response> => {
       "Source", "Website", "Instagram", "LinkedIn"
     ];
 
-    const rows = clients.map(client => [
-      client.full_name || "",
-      client.email || "",
-      client.phone || "",
-      client.company || "",
-      client.address || "",
-      client.status || "",
-      client.client_type || "",
-      client.interested_artists ? client.interested_artists.join(", ") : "",
-      client.notes || "",
-      client.birthday || "",
-      client.tags ? client.tags.join(", ") : "",
-      client.last_activity_date ? new Date(client.last_activity_date).toLocaleDateString() : "",
-      client.source || "",
-      client.website || "",
-      client.instagram_handle || "",
-      client.linkedin_handle || ""
-    ]);
+    const rows = clients.map(client => {
+      // Convert artist IDs to names
+      let interestedArtistsText = "";
+      if (client.interested_artists && client.interested_artists.length > 0) {
+        const artistNames = client.interested_artists
+          .map(id => artistNamesMap[id] || `Unknown Artist (${id})`)
+          .filter(Boolean);
+        interestedArtistsText = artistNames.join(", ");
+      }
+
+      return [
+        client.full_name || "",
+        client.email || "",
+        client.phone || "",
+        client.company || "",
+        client.address || "",
+        client.status || "",
+        client.client_type || "",
+        interestedArtistsText,
+        client.notes || "",
+        client.birthday || "",
+        client.tags ? client.tags.join(", ") : "",
+        client.last_activity_date ? new Date(client.last_activity_date).toLocaleDateString() : "",
+        client.source || "",
+        client.website || "",
+        client.instagram_handle || "",
+        client.linkedin_handle || ""
+      ];
+    });
 
     const allData = [headers, ...rows];
 
