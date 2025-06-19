@@ -135,13 +135,14 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function getGoogleAccessToken(credentials: any): Promise<string> {
-  const jwtHeader = {
+  // Create JWT header
+  const header = {
     alg: "RS256",
     typ: "JWT"
   };
 
   const now = Math.floor(Date.now() / 1000);
-  const jwtPayload = {
+  const payload = {
     iss: credentials.client_email,
     scope: "https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive",
     aud: "https://oauth2.googleapis.com/token",
@@ -149,26 +150,69 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
     iat: now
   };
 
-  // Import the key for signing
-  const keyData = credentials.private_key.replace(/\\n/g, '\n');
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    new TextEncoder().encode(keyData),
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256",
-    },
-    false,
-    ["sign"]
-  );
-
-  // Create JWT
-  const encodedHeader = btoa(JSON.stringify(jwtHeader)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const encodedPayload = btoa(JSON.stringify(jwtPayload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  // Encode header and payload
+  const encodedHeader = btoa(JSON.stringify(header)).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
+  const encodedPayload = btoa(JSON.stringify(payload)).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
   
-  const signatureData = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, signatureData);
-  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  // Prepare private key
+  let privateKey = credentials.private_key;
+  
+  // Clean up the private key format
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  
+  // Remove any extra whitespace or formatting issues
+  privateKey = privateKey.trim();
+  
+  // Ensure proper PEM format
+  if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing BEGIN header');
+  }
+  
+  if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing END footer');
+  }
+
+  // Extract the base64 content between the headers
+  const keyContent = privateKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s+/g, '');
+
+  let keyBytes;
+  try {
+    keyBytes = Uint8Array.from(atob(keyContent), c => c.charCodeAt(0));
+  } catch (error) {
+    throw new Error(`Failed to decode private key: ${error.message}`);
+  }
+
+  // Import the private key
+  let cryptoKey;
+  try {
+    cryptoKey = await crypto.subtle.importKey(
+      "pkcs8",
+      keyBytes,
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256",
+      },
+      false,
+      ["sign"]
+    );
+  } catch (error) {
+    throw new Error(`Failed to import private key: ${error.message}`);
+  }
+
+  // Sign the JWT
+  const dataToSign = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+  
+  let signature;
+  try {
+    signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, dataToSign);
+  } catch (error) {
+    throw new Error(`Failed to sign JWT: ${error.message}`);
+  }
+  
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/[+/=]/g, (m) => ({'+':'-','/':'_','=':''}[m]));
   
   const jwt = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 
@@ -185,7 +229,8 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
   });
 
   if (!tokenResponse.ok) {
-    throw new Error(`Failed to get access token: ${tokenResponse.statusText}`);
+    const errorText = await tokenResponse.text();
+    throw new Error(`Failed to get access token: ${tokenResponse.statusText} - ${errorText}`);
   }
 
   const tokenData = await tokenResponse.json();
