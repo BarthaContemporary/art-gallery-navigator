@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { MessageSquare, Users } from 'lucide-react';
 import { useChat } from '@/contexts/chat/ChatContext';
 import { NewChatRoomsList } from './NewChatRoomsList';
@@ -65,11 +64,6 @@ export function NewChatLayout() {
         >
           <Users className="h-4 w-4 mr-2" />
           Online
-          {state.onlineUsers.length > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {state.onlineUsers.length}
-            </Badge>
-          )}
         </Button>
       </div>
       
