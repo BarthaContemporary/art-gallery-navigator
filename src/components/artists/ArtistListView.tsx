@@ -9,6 +9,7 @@ import { EditArtistDialog } from "@/components/artists/EditArtistDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OptimizedArtistImage } from "@/components/artists/OptimizedArtistImage";
+import { useGmailCompose } from "@/hooks/use-gmail-compose";
 
 interface Artist {
   id: string;
@@ -31,6 +32,7 @@ interface ArtistListViewProps {
 
 export function ArtistListView({ artists }: ArtistListViewProps) {
   const { isAdmin } = useAuth();
+  const { composeEmail, isLoading } = useGmailCompose();
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -53,6 +55,16 @@ export function ArtistListView({ artists }: ArtistListViewProps) {
     } catch (error) {
       console.error('Error deleting artist:', error);
       toast.error('Failed to delete artist');
+    }
+  };
+
+  const handleEmailClick = async (artist: Artist) => {
+    if (artist.email) {
+      await composeEmail({
+        to: artist.email,
+        subject: `Gallery Correspondence - ${artist.full_name}`,
+        body: `Dear ${artist.full_name},\n\nI hope this email finds you well.\n\nBest regards`
+      });
     }
   };
 
@@ -111,12 +123,15 @@ export function ArtistListView({ artists }: ArtistListViewProps) {
                       {artist.email && (
                         <div className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
-                          <a 
-                            href={`mailto:${artist.email}`}
-                            className="hover:underline text-primary"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEmailClick(artist)}
+                            disabled={isLoading}
+                            className="h-auto p-0 text-primary hover:underline"
                           >
                             {artist.email}
-                          </a>
+                          </Button>
                         </div>
                       )}
                     </div>

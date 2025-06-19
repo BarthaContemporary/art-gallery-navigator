@@ -2,12 +2,15 @@
 import { Button } from "@/components/ui/button";
 import { Globe, Instagram, Linkedin, Copy, MapPin, Mail, Phone, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { useGmailCompose } from "@/hooks/use-gmail-compose";
 
 interface ClientContactSectionProps {
   client: any;
 }
 
 export function ClientContactSection({ client }: ClientContactSectionProps) {
+  const { composeEmail, isLoading } = useGmailCompose();
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
@@ -21,9 +24,13 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
     }
   };
 
-  const handleMailClick = () => {
+  const handleMailClick = async () => {
     if (client.email) {
-      window.open(`mailto:${client.email}`, '_blank');
+      await composeEmail({
+        to: client.email,
+        subject: `Following up - ${client.full_name}`,
+        body: `Dear ${client.full_name},\n\nI hope this email finds you well.\n\nBest regards`
+      });
     }
   };
 
@@ -126,8 +133,9 @@ export function ClientContactSection({ client }: ClientContactSectionProps) {
               variant="ghost"
               size="sm"
               onClick={handleMailClick}
+              disabled={isLoading}
               className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600"
-              title="Send Email"
+              title="Send Email via Gmail"
             >
               <Mail className="h-4 w-4" />
             </Button>

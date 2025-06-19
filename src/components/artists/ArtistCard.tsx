@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Check, Clock, Edit, Trash2, X, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
 import { OptimizedArtistImage } from "./OptimizedArtistImage";
+import { useGmailCompose } from "@/hooks/use-gmail-compose";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,7 @@ const statusIcons = {
 
 export function ArtistCard({ artist }: { artist: any }) {
   const { isAdmin } = useAuth();
+  const { composeEmail, isLoading } = useGmailCompose();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -48,6 +49,19 @@ export function ArtistCard({ artist }: { artist: any }) {
     e?.preventDefault();
     e?.stopPropagation();
     setShowDeleteConfirm(true);
+  };
+
+  const handleEmailClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (artist.email) {
+      await composeEmail({
+        to: artist.email,
+        subject: `Gallery Correspondence - ${artist.full_name}`,
+        body: `Dear ${artist.full_name},\n\nI hope this email finds you well.\n\nBest regards`
+      });
+    }
   };
 
   const confirmDelete = async () => {
@@ -125,14 +139,16 @@ export function ArtistCard({ artist }: { artist: any }) {
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-medium text-sm sm:text-lg leading-tight line-clamp-2">{artist.full_name}</h3>
           {artist.email && (
-            <a
-              href={`mailto:${artist.email}`}
-              className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEmailClick}
+              disabled={isLoading}
+              className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0 h-6 w-6 p-0"
               title={`Email ${artist.full_name}`}
             >
               <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
-            </a>
+            </Button>
           )}
         </div>
         
