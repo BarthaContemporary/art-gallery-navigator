@@ -35,9 +35,6 @@ export function ChatTabNavigation({
         >
           <MessageCircle className="h-4 w-4 mr-2" />
           Chats
-          {roomsCount !== undefined && roomsCount > 0 && (
-            <span className="ml-1 text-xs">({roomsCount})</span>
-          )}
         </Button>
         <Button
           variant={view === 'online' ? 'default' : 'ghost'}
