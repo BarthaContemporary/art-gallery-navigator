@@ -26,6 +26,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     canScrollNext,
   } = useArtworkCarousel(artworkId);
 
+  console.log(`[ArtworkImageViewer] Rendering with ${images?.length || 0} images, current index: ${currentIndex}`);
+
   if (loading) {
     return (
       <div className="w-full h-96 flex items-center justify-center bg-muted/20">
@@ -74,7 +76,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                   <OptimizedArtworkImage
                     imageRecord={image}
                     title={`${artworkTitle} - Image ${index + 1}`}
-                    className="w-full h-full"
+                    className="w-full h-full object-cover"
                     tier="medium"
                     onLoadingStart={() => console.log(`[Carousel] Loading started: ${image.image_url}`)}
                     onLoadingComplete={() => console.log(`[Carousel] Loading completed: ${image.image_url}`)}
