@@ -34,34 +34,31 @@ export function PullToRefresh({
 
   return (
     <div ref={elementRef} className={cn('relative', className)}>
-      {/* Pull indicator - just icon, no text */}
-      <div 
-        className={cn(
-          'absolute top-0 left-0 right-0 z-50 flex items-center justify-center transition-all duration-200',
-          'bg-background/95 backdrop-blur-sm',
-          showIndicator ? 'opacity-100' : 'opacity-0'
-        )}
-        style={{
-          height: `${indicatorHeight}px`,
-          transform: `translateY(-${showIndicator ? 0 : indicatorHeight}px)`
-        }}
-      >
-        <RefreshCw 
+      {/* Pull indicator - positioned fixed to avoid layout shifts */}
+      {showIndicator && (
+        <div 
           className={cn(
-            'h-5 w-5 text-muted-foreground transition-transform duration-200',
-            isRefreshing ? 'animate-spin' : '',
-            canRefresh ? 'rotate-180' : ''
-          )} 
-        />
-      </div>
+            'fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-all duration-200',
+            'bg-background/95 backdrop-blur-sm border-b border-border/20',
+            'transform-gpu' // Use GPU acceleration for smoother animations
+          )}
+          style={{
+            height: `${indicatorHeight}px`,
+            transform: `translateY(${showIndicator ? 0 : -indicatorHeight}px)`
+          }}
+        >
+          <RefreshCw 
+            className={cn(
+              'h-5 w-5 text-muted-foreground transition-transform duration-200',
+              isRefreshing ? 'animate-spin' : '',
+              canRefresh ? 'rotate-180' : ''
+            )} 
+          />
+        </div>
+      )}
 
-      {/* Content with padding for indicator */}
-      <div 
-        style={{
-          paddingTop: showIndicator ? `${indicatorHeight}px` : '0px',
-          transition: 'padding-top 200ms ease-in-out'
-        }}
-      >
+      {/* Content - no padding manipulation to avoid scroll jumps */}
+      <div className="relative">
         {children}
       </div>
     </div>

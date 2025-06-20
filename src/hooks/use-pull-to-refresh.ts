@@ -31,44 +31,67 @@ export function usePullToRefresh({
   const startY = useRef<number>(0);
   const currentY = useRef<number>(0);
   const elementRef = useRef<HTMLDivElement | null>(null);
+  const isValidPull = useRef<boolean>(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (!enabled || state.isRefreshing) return;
     
-    // Only trigger if we're at the top of the page
+    // Only start tracking if we're at the very top of the page
     if (window.scrollY > 0) return;
     
     startY.current = e.touches[0].clientY;
-    setState(prev => ({ ...prev, isPulling: true }));
+    isValidPull.current = false;
   }, [enabled, state.isRefreshing]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!enabled || state.isRefreshing || !state.isPulling) return;
+    if (!enabled || state.isRefreshing) return;
     
     currentY.current = e.touches[0].clientY;
     const diff = currentY.current - startY.current;
     
-    if (diff > 0 && window.scrollY === 0) {
-      e.preventDefault(); // Prevent default scroll behavior
+    // Only engage pull-to-refresh if:
+    // 1. We're pulling down (diff > 0)
+    // 2. We're at the top of the page (scrollY === 0)
+    // 3. The pull distance is significant enough (> 10px to avoid accidental triggers)
+    if (diff > 10 && window.scrollY === 0) {
+      isValidPull.current = true;
       
-      const pullDistance = Math.min(diff / resistance, threshold * 1.5);
-      const canRefresh = pullDistance >= threshold;
-      
+      // Only prevent default if we're in a valid pull state
+      if (isValidPull.current) {
+        e.preventDefault();
+        
+        const pullDistance = Math.min(diff / resistance, threshold * 1.5);
+        const canRefresh = pullDistance >= threshold;
+        
+        setState(prev => ({
+          ...prev,
+          isPulling: true,
+          pullDistance,
+          canRefresh
+        }));
+      }
+    } else if (diff <= 0) {
+      // Reset if user starts scrolling up
+      isValidPull.current = false;
       setState(prev => ({
         ...prev,
-        pullDistance,
-        canRefresh
+        isPulling: false,
+        pullDistance: 0,
+        canRefresh: false
       }));
     }
-  }, [enabled, state.isRefreshing, state.isPulling, threshold, resistance]);
+  }, [enabled, state.isRefreshing, threshold, resistance]);
 
   const handleTouchEnd = useCallback(async () => {
-    if (!enabled || state.isRefreshing || !state.isPulling) return;
+    if (!enabled || state.isRefreshing) return;
     
-    setState(prev => ({ ...prev, isPulling: false }));
-    
-    if (state.canRefresh) {
-      setState(prev => ({ ...prev, isRefreshing: true, pullDistance: threshold }));
+    if (isValidPull.current && state.canRefresh) {
+      setState(prev => ({ 
+        ...prev, 
+        isRefreshing: true, 
+        isPulling: false,
+        pullDistance: threshold 
+      }));
       
       try {
         await onRefresh();
@@ -83,16 +106,24 @@ export function usePullToRefresh({
         }));
       }
     } else {
-      setState(prev => ({ ...prev, pullDistance: 0, canRefresh: false }));
+      setState(prev => ({ 
+        ...prev, 
+        isPulling: false,
+        pullDistance: 0, 
+        canRefresh: false 
+      }));
     }
-  }, [enabled, state.isRefreshing, state.isPulling, state.canRefresh, onRefresh, threshold]);
+    
+    isValidPull.current = false;
+  }, [enabled, state.isRefreshing, state.canRefresh, onRefresh, threshold]);
 
   useEffect(() => {
     const element = elementRef.current || document.body;
     
-    element.addEventListener('touchstart', handleTouchStart, { passive: false });
+    // Use passive: false only for touchmove to allow preventDefault when needed
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
     element.addEventListener('touchmove', handleTouchMove, { passive: false });
-    element.addEventListener('touchend', handleTouchEnd, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
       element.removeEventListener('touchstart', handleTouchStart);
