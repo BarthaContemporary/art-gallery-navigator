@@ -76,6 +76,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                     title={`${artworkTitle} - Image ${index + 1}`}
                     className="w-full h-full"
                     tier="medium"
+                    onLoadingStart={() => console.log(`[Carousel] Loading started: ${image.image_url}`)}
+                    onLoadingComplete={() => console.log(`[Carousel] Loading completed: ${image.image_url}`)}
                   />
                   
                   {/* Zoom button overlay */}
