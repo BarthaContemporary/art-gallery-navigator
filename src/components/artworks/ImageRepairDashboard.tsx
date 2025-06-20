@@ -302,7 +302,7 @@ export function ImageRepairDashboard() {
                       Artwork: {image.artwork_id}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Created: {new Date(image.created_at || '').toLocaleString()}
+                      Created: {image.created_at ? new Date(image.created_at).toLocaleString() : 'Unknown'}
                     </div>
                   </div>
                   

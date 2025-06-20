@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { LocalArtworkImage } from "./LocalArtworkImage";
@@ -143,8 +142,8 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
 
   const getProcessingStatusBadge = (image: any) => {
     const status = image.processing_status;
-    const isStuck = status === 'processing' && 
-      new Date().getTime() - new Date(image.created_at || '').getTime() > 30 * 60 * 1000;
+    const isStuck = status === 'processing' && image.created_at &&
+      new Date().getTime() - new Date(image.created_at).getTime() > 30 * 60 * 1000;
 
     switch (status) {
       case 'completed':
@@ -209,8 +208,8 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {sortedImages.map((image, index) => {
         const needsRetry = image.processing_status === 'failed' || 
-          (image.processing_status === 'processing' && 
-           new Date().getTime() - new Date(image.created_at || '').getTime() > 30 * 60 * 1000);
+          (image.processing_status === 'processing' && image.created_at &&
+           new Date().getTime() - new Date(image.created_at).getTime() > 30 * 60 * 1000);
 
         return (
           <Card key={image.id} className="relative group">
