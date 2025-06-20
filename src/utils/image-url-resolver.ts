@@ -1,4 +1,3 @@
-
 import { logger } from "@/lib/logger";
 
 export interface ImageRecord {
@@ -7,6 +6,18 @@ export interface ImageRecord {
   thumbnail_url?: string | null;
   medium_url?: string | null;
   processed?: boolean;
+  is_primary?: boolean;
+  display_order?: number;
+  artwork_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  original_width?: number | null;
+  original_height?: number | null;
+  thumbnail_width?: number | null;
+  thumbnail_height?: number | null;
+  medium_width?: number | null;
+  medium_height?: number | null;
+  original_size?: number | null;
 }
 
 export interface UrlValidationResult {
