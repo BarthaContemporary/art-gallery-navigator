@@ -1,54 +1,53 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Save, Download } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
+import { useExportArtworksToGoogleDocs } from "@/hooks/use-export-artworks-google-docs";
+import { ImageDownloadDropdown } from "./ImageDownloadDropdown";
+import { Artwork } from "@/hooks/use-artworks";
 
 interface DialogHeaderActionsProps {
-  isGenerating?: boolean;
-  setPDFPreviewOpen?: (open: boolean) => void;
-  handleDownloadAllImages?: () => void;
-
-  // New props to control visibility
+  artwork: Artwork;
   showCreatePdf?: boolean;
   showDownloadAllImages?: boolean;
 }
 
 export function DialogHeaderActions({
-  isGenerating,
-  setPDFPreviewOpen,
-  handleDownloadAllImages,
-  showCreatePdf = true, // Default to true, so existing usages are not broken
-  showDownloadAllImages = true, // Default to true
+  artwork,
+  showCreatePdf = true,
+  showDownloadAllImages = true,
 }: DialogHeaderActionsProps) {
-  // If all buttons are meant to be hidden, and no other content, render nothing.
-  if (!showCreatePdf && !showDownloadAllImages) {
-    return null;
-  }
-  
+  const { exportToGoogleDocs, isExporting } = useExportArtworksToGoogleDocs();
+
+  const handleExportToGoogleDocs = async () => {
+    try {
+      await exportToGoogleDocs([artwork], `${artwork.title} - Artwork Details`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Error is already handled in the hook with toast notifications
+    }
+  };
+
   return (
     <div className="flex gap-2">
-      {showCreatePdf && setPDFPreviewOpen && (
+      {showCreatePdf && (
         <Button
           variant="outline"
           size="sm"
           className="flex items-center gap-2"
-          onClick={() => setPDFPreviewOpen(true)}
-          disabled={isGenerating}
+          onClick={handleExportToGoogleDocs}
+          disabled={isExporting}
         >
-          <Save className="h-4 w-4" />
-          {isGenerating ? "Creating PDF..." : "Create PDF"}
+          {isExporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
+          {isExporting ? "Exporting..." : "Export to Google Docs"}
         </Button>
       )}
-      {showDownloadAllImages && handleDownloadAllImages && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-          onClick={handleDownloadAllImages}
-        >
-          <Download className="h-4 w-4" />
-          Download All Images
-        </Button>
+      {showDownloadAllImages && (
+        <ImageDownloadDropdown artworkId={artwork.id} />
       )}
     </div>
   );

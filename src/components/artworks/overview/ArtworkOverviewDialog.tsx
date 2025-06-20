@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/scrollable-dialog";
 import { ArtworkImageViewer } from "./ArtworkImageViewer";
 import { ArtworkOverviewTabs } from "./ArtworkOverviewTabs";
-import { ArtworkActions } from "../actions/ArtworkActions";
+import { DialogHeaderActions } from "./DialogHeaderActions";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -81,10 +81,7 @@ export function ArtworkOverviewDialog({
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <ArtworkActions 
-                    artwork={artwork}
-                    artist={artist}
-                  />
+                  <DialogHeaderActions artwork={artwork} />
                 </div>
               </div>
               <div className="mt-6">

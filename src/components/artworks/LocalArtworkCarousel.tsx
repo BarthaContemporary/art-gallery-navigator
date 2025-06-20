@@ -4,7 +4,7 @@ import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import useEmblaCarousel from "embla-carousel-react";
 import { ZoomControls } from "./carousel/ZoomControls";
 import { NavigationArrows } from "./carousel/NavigationArrows";
-import { ElegantDialIndicator } from "./carousel/ElegantDialIndicator";
+import { CompactCarouselIndicator } from "./carousel/CompactCarouselIndicator";
 import { CarouselContainer } from "./carousel/CarouselContainer";
 import { useZoomControls } from "./carousel/useZoomControls";
 
@@ -153,8 +153,8 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         onScrollNext={scrollNext}
       />
 
-      {/* Elegant Dial Indicator */}
-      <ElegantDialIndicator
+      {/* Compact Carousel Indicator */}
+      <CompactCarouselIndicator
         hasMultipleImages={hasMultipleImages}
         currentIndex={currentIndex}
         totalImages={sortedImages.length}

@@ -46,11 +46,11 @@ export function useExportArtworksToGoogleDocs() {
           is_primary: img.is_primary,
           display_order: img.display_order,
           processed: img.processed,
-          // Include storage paths for URL construction
-          medium_storage_path: img.medium_storage_path,
-          large_storage_path: img.large_storage_path,
-          thumbnail_storage_path: img.thumbnail_storage_path,
-          original_storage_path: img.original_storage_path
+          // Include storage paths for URL construction (making them optional to fix TypeScript errors)
+          medium_storage_path: (img as any).medium_storage_path,
+          large_storage_path: (img as any).large_storage_path,
+          thumbnail_storage_path: (img as any).thumbnail_storage_path,
+          original_storage_path: (img as any).original_storage_path
         })) || [];
         
         return {
