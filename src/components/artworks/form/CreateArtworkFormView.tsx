@@ -62,11 +62,15 @@ export function CreateArtworkFormView({
     }
   };
 
+  const handleFormSubmit = (data: ArtworkFormData) => {
+    onSubmit(data);
+  };
+
   return (
     <Form {...form}>
       <form 
         id={formId}
-        onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
+        onSubmit={form.handleSubmit(handleFormSubmit, handleInvalidSubmit)}
         className="space-y-6"
       >
         <BasicInformationFields 

@@ -52,6 +52,15 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     }
   }, [onOpenChange, isMounted]);
 
+  const handleUpdateArtwork = useCallback(() => {
+    // Trigger form submission by clicking the hidden submit button
+    const form = document.getElementById('edit-artwork-form');
+    if (form) {
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      form.dispatchEvent(submitEvent);
+    }
+  }, []);
+
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent
@@ -128,8 +137,8 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Cancel
           </Button>
           <Button
-            type="submit"
-            form="edit-artwork-form"
+            type="button"
+            onClick={handleUpdateArtwork}
             disabled={isFormActuallySaving}
           >
             {isFormActuallySaving ? "Updating..." : "Update Artwork"}
