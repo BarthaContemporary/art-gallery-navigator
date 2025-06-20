@@ -1,8 +1,7 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-// Moved from use-artwork-images.ts to consolidate types
+// Updated ArtworkImage interface to include storage paths
 export interface ArtworkImage {
   id: string;
   artwork_id: string;
@@ -12,6 +11,11 @@ export interface ArtworkImage {
   processed?: boolean;
   thumbnail_url?: string | null;
   medium_url?: string | null;
+  // Add the missing storage path properties
+  medium_storage_path?: string | null;
+  large_storage_path?: string | null;
+  thumbnail_storage_path?: string | null;
+  original_storage_path?: string | null;
 }
 
 export interface Artwork {

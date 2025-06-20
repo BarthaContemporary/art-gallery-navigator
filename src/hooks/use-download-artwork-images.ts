@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { toast } from "sonner";
@@ -11,7 +10,8 @@ export function useDownloadArtworkImages(artworkId: string) {
   const downloadImage = async (imageRecord: any, filename: string) => {
     try {
       // Get the best quality URL (preferring original, then large, then medium)
-      const imageUrl = await ImageUrlResolver.getBestValidUrl(imageRecord, 'original');
+      // Fix: Use 'full' instead of 'original' to match the expected parameter type
+      const imageUrl = await ImageUrlResolver.getBestValidUrl(imageRecord, 'full');
       
       if (!imageUrl) {
         throw new Error('No valid image URL found');
