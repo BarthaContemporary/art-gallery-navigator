@@ -26,79 +26,98 @@ export function OptimizedArtworkImage({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState<string | null>(null);
+  const [attemptedUrls, setAttemptedUrls] = useState<string[]>([]);
 
-  // Simplified image URL selection with better fallback logic
-  const getImageUrl = useCallback(() => {
-    if (!imageRecord) return null;
+  // Get available image URLs in order of preference
+  const getAvailableUrls = useCallback(() => {
+    if (!imageRecord) return [];
     
-    console.log(`Getting image URL for tier ${tier}:`, imageRecord);
+    const urls: string[] = [];
     
-    // Simple tier-based selection with fallbacks
-    let imageUrl: string | null = null;
-    
+    // Based on tier, try different URLs
     switch (tier) {
       case 'thumbnail':
-        imageUrl = imageRecord.thumbnail_url || imageRecord.medium_url || imageRecord.image_url;
+        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
+        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
+        if (imageRecord.image_url) urls.push(imageRecord.image_url);
         break;
       case 'full':
-        imageUrl = imageRecord.image_url || imageRecord.medium_url || imageRecord.thumbnail_url;
+        if (imageRecord.image_url) urls.push(imageRecord.image_url);
+        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
+        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
         break;
       case 'medium':
       default:
-        imageUrl = imageRecord.medium_url || imageRecord.image_url || imageRecord.thumbnail_url;
+        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
+        if (imageRecord.image_url) urls.push(imageRecord.image_url);
+        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
         break;
     }
 
-    // Validate the URL
-    if (imageUrl && imageUrl !== "/placeholder.svg" && imageUrl.trim() !== "") {
-      return imageUrl;
-    }
-    
-    return null;
+    // Filter out invalid URLs
+    return urls.filter(url => 
+      url && 
+      url !== "/placeholder.svg" && 
+      url.trim() !== "" &&
+      (url.startsWith('http') || url.startsWith('data:'))
+    );
   }, [imageRecord, tier]);
 
+  // Initialize with first available URL
   React.useEffect(() => {
-    const url = getImageUrl();
-    setCurrentSrc(url);
-    setHasError(false);
-    setIsLoading(!!url);
+    const availableUrls = getAvailableUrls();
+    setAttemptedUrls([]);
     
-    if (url) {
-      console.log(`Loading image for ${title}: ${url}`);
+    if (availableUrls.length > 0) {
+      const firstUrl = availableUrls[0];
+      setCurrentSrc(firstUrl);
+      setHasError(false);
+      setIsLoading(true);
+      console.log(`Loading image for ${title}: ${firstUrl}`);
     } else {
-      console.log(`No valid image URL for ${title}`);
+      console.log(`No valid image URLs for ${title}`);
+      setCurrentSrc(null);
       setIsLoading(false);
+      setHasError(true);
     }
-  }, [getImageUrl, title]);
+  }, [getAvailableUrls, title]);
 
   const handleImageLoad = useCallback(() => {
-    console.log(`Image loaded successfully for: ${title}`);
+    console.log(`Image loaded successfully for: ${title} - ${currentSrc}`);
     setIsLoading(false);
     setHasError(false);
     onLoadingComplete?.();
-  }, [onLoadingComplete, title]);
+  }, [onLoadingComplete, title, currentSrc]);
 
   const handleImageError = useCallback(() => {
-    console.error(`Image failed to load for: ${title}`, currentSrc);
-    setIsLoading(false);
-    setHasError(true);
-    onLoadingComplete?.();
+    console.error(`Image failed to load for: ${title} - ${currentSrc}`);
     
-    // Try fallback to original image_url if we were using processed versions
-    if (imageRecord?.image_url && currentSrc !== imageRecord.image_url) {
-      console.log(`Trying fallback URL for ${title}: ${imageRecord.image_url}`);
-      setCurrentSrc(imageRecord.image_url);
+    const availableUrls = getAvailableUrls();
+    const newAttemptedUrls = [...attemptedUrls, currentSrc].filter(Boolean);
+    setAttemptedUrls(newAttemptedUrls);
+
+    // Find next URL that hasn't been tried
+    const nextUrl = availableUrls.find(url => !newAttemptedUrls.includes(url));
+    
+    if (nextUrl) {
+      console.log(`Trying fallback URL for ${title}: ${nextUrl}`);
+      setCurrentSrc(nextUrl);
       setIsLoading(true);
       setHasError(false);
+    } else {
+      console.error(`All URLs failed for ${title}. Attempted: ${newAttemptedUrls.join(', ')}`);
+      setIsLoading(false);
+      setHasError(true);
+      onLoadingComplete?.();
     }
-  }, [onLoadingComplete, title, currentSrc, imageRecord]);
+  }, [onLoadingComplete, title, currentSrc, attemptedUrls, getAvailableUrls]);
 
   const handleLoadStart = useCallback(() => {
-    console.log(`Image load started for: ${title}`);
+    console.log(`Image load started for: ${title} - ${currentSrc}`);
     setIsLoading(true);
     setHasError(false);
     onLoadingStart?.();
-  }, [onLoadingStart, title]);
+  }, [onLoadingStart, title, currentSrc]);
 
   if (!imageRecord || !currentSrc) {
     return (
