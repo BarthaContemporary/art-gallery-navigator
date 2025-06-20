@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { LocalImageUploader } from "./LocalImageUploader";
 import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
+import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
@@ -34,6 +35,9 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     scrollToErrorOnValidation: true,
     enableKeyboardNavigation: true,
   });
+
+  // Get the refresh function from the images hook
+  const { refreshImages } = useLocalArtworkImages(artwork.id);
 
   useEffect(() => {
     setIsMounted(true);
@@ -60,6 +64,11 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       form.dispatchEvent(submitEvent);
     }
   }, []);
+
+  const handleImageUploadComplete = useCallback(() => {
+    // Refresh the images list when upload completes
+    refreshImages();
+  }, [refreshImages]);
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
@@ -105,9 +114,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                   <h4 className="text-sm font-medium mb-4">Upload New Images</h4>
                   <LocalImageUploader 
                     artworkId={artwork.id}
-                    onUploadComplete={() => {
-                      // Images will auto-refresh via the hook
-                    }}
+                    onUploadComplete={handleImageUploadComplete}
                   />
                 </div>
                 <div>
