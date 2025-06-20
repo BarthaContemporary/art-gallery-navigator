@@ -125,11 +125,6 @@ export function OptimizedArtworkImage({
           CDN
         </div>
       )}
-      {imageRecord.is_primary && (
-        <div className="absolute bottom-1 left-1 bg-blue-500/80 text-white text-xs px-1 rounded opacity-70">
-          PRIMARY
-        </div>
-      )}
     </div>
   );
 }
