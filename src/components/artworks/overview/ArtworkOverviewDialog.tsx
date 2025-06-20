@@ -52,7 +52,6 @@ export function ArtworkOverviewDialog({
           <div className="relative w-full bg-black/95 flex-shrink-0">
             <ArtworkImageViewer 
               artworkId={artwork.id}
-              artistName={artist?.full_name || "Unknown_Artist"}
               artworkTitle={artwork.title}
             />
           </div>
