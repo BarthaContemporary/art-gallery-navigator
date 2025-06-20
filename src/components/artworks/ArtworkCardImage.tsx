@@ -1,14 +1,14 @@
 
 import React from "react";
-import { SimpleArtworkImage } from "./SimpleArtworkImage";
+import { LocalArtworkImage } from "./LocalArtworkImage";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { Artwork } from "@/hooks/use-artworks";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 
 interface ArtworkCardImageProps {
   artwork: Artwork;
   title: string;
-  primaryImage?: any;
   onClick: () => void;
   onEdit: (e: React.MouseEvent) => void;
   onDuplicate: (e: React.MouseEvent) => void;
@@ -19,7 +19,6 @@ interface ArtworkCardImageProps {
 export function ArtworkCardImage({
   artwork,
   title,
-  primaryImage,
   onClick,
   onEdit,
   onDuplicate,
@@ -27,6 +26,7 @@ export function ArtworkCardImage({
   onDelete,
 }: ArtworkCardImageProps) {
   const isMobile = useIsMobile();
+  const { primaryImage, hasProcessingImages } = useLocalArtworkImages(artwork.id);
   
   return (
     <div
@@ -49,14 +49,22 @@ export function ArtworkCardImage({
           onDelete={onDelete}
         />
       </div>
+
+      {/* Processing indicator */}
+      {hasProcessingImages && (
+        <div className="absolute top-2 left-2 z-10 bg-blue-500/90 text-white px-2 py-1 rounded text-xs">
+          Processing
+        </div>
+      )}
       
       {primaryImage ? (
-        <SimpleArtworkImage
+        <LocalArtworkImage
           imageRecord={primaryImage}
           title={title}
           onClick={onClick}
           className="w-full h-full cursor-pointer"
           size="thumbnail"
+          showProcessingStatus={false}
         />
       ) : (
         <div

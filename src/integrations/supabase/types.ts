@@ -259,14 +259,20 @@ export type Database = {
           id: string
           image_url: string
           is_primary: boolean | null
+          large_storage_path: string | null
           medium_height: number | null
+          medium_storage_path: string | null
           medium_url: string | null
           medium_width: number | null
           original_height: number | null
           original_size: number | null
+          original_storage_path: string | null
           original_width: number | null
           processed: boolean | null
+          processing_error: string | null
+          processing_status: string | null
           thumbnail_height: number | null
+          thumbnail_storage_path: string | null
           thumbnail_url: string | null
           thumbnail_width: number | null
           updated_at: string | null
@@ -278,14 +284,20 @@ export type Database = {
           id?: string
           image_url: string
           is_primary?: boolean | null
+          large_storage_path?: string | null
           medium_height?: number | null
+          medium_storage_path?: string | null
           medium_url?: string | null
           medium_width?: number | null
           original_height?: number | null
           original_size?: number | null
+          original_storage_path?: string | null
           original_width?: number | null
           processed?: boolean | null
+          processing_error?: string | null
+          processing_status?: string | null
           thumbnail_height?: number | null
+          thumbnail_storage_path?: string | null
           thumbnail_url?: string | null
           thumbnail_width?: number | null
           updated_at?: string | null
@@ -297,14 +309,20 @@ export type Database = {
           id?: string
           image_url?: string
           is_primary?: boolean | null
+          large_storage_path?: string | null
           medium_height?: number | null
+          medium_storage_path?: string | null
           medium_url?: string | null
           medium_width?: number | null
           original_height?: number | null
           original_size?: number | null
+          original_storage_path?: string | null
           original_width?: number | null
           processed?: boolean | null
+          processing_error?: string | null
+          processing_status?: string | null
           thumbnail_height?: number | null
+          thumbnail_storage_path?: string | null
           thumbnail_url?: string | null
           thumbnail_width?: number | null
           updated_at?: string | null

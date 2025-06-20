@@ -1,6 +1,6 @@
 
 import React from "react";
-import { SimpleArtworkCarousel } from "../SimpleArtworkCarousel";
+import { LocalArtworkImageViewer } from "./LocalArtworkImageViewer";
 
 interface ArtworkImageViewerProps {
   artworkId: string;
@@ -8,5 +8,5 @@ interface ArtworkImageViewerProps {
 }
 
 export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageViewerProps) {
-  return <SimpleArtworkCarousel artworkId={artworkId} artworkTitle={artworkTitle} />;
+  return <LocalArtworkImageViewer artworkId={artworkId} artworkTitle={artworkTitle} />;
 }
