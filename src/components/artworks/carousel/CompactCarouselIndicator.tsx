@@ -1,3 +1,4 @@
+
 import React from "react";
 import { CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ export function CompactCarouselIndicator({
 }: CompactCarouselIndicatorProps) {
   if (!hasMultipleImages) return null;
   return <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <div className="bg-black/50 backdrop-blur-sm rounded-full flex items-center gap-2 py-px px-[8px]">
+      <div className="bg-black/50 backdrop-blur-sm rounded-full flex items-center gap-2 py-px px-2">
         {/* Counter */}
         <div className="text-white text-xs font-medium">
           {currentIndex + 1}/{totalImages}
@@ -25,8 +26,8 @@ export function CompactCarouselIndicator({
         <div className="flex items-center gap-1">
           {Array.from({
           length: totalImages
-        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="text-center">
-              <CircleDot size={12} />
+        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="flex items-center justify-center">
+              <CircleDot size={12} className="text-white" />
             </button>)}
         </div>
       </div>
