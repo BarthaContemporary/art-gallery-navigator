@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { LocalArtworkImage } from "./LocalArtworkImage";
@@ -269,10 +268,10 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                       variant="outline"
                       onClick={() => handleSetPrimary(image.id)}
                       disabled={updatingImageId === image.id}
-                      className="text-xs h-6 w-6 p-0"
+                      className="text-xs h-5 w-5 p-0"
                       title="Set as Primary"
                     >
-                      <Star className="w-2.5 h-2.5" />
+                      <Star className="w-2 h-2" />
                     </Button>
                   )}
 
@@ -282,13 +281,13 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                       variant="outline"
                       onClick={() => handleRetryProcessing(image.id)}
                       disabled={retryingImageId === image.id}
-                      className="text-xs h-6"
+                      className="text-xs h-5"
                     >
                       {retryingImageId === image.id ? (
-                        <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                        <RefreshCw className="w-2 h-2 animate-spin" />
                       ) : (
                         <>
-                          <RefreshCw className="w-2.5 h-2.5 mr-1" />
+                          <RefreshCw className="w-2 h-2 mr-1" />
                           Retry
                         </>
                       )}
@@ -300,9 +299,9 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                     variant="outline"
                     onClick={() => handleReorder(image.id, 'up')}
                     disabled={updatingImageId === image.id || index === 0}
-                    className="text-xs h-6 w-6 p-0"
+                    className="text-xs h-5 w-5 p-0"
                   >
-                    <MoveUp className="w-2.5 h-2.5" />
+                    <MoveUp className="w-2 h-2" />
                   </Button>
                   
                   <Button
@@ -310,9 +309,9 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                     variant="outline"
                     onClick={() => handleReorder(image.id, 'down')}
                     disabled={updatingImageId === image.id || index === sortedImages.length - 1}
-                    className="text-xs h-6 w-6 p-0"
+                    className="text-xs h-5 w-5 p-0"
                   >
-                    <MoveDown className="w-2.5 h-2.5" />
+                    <MoveDown className="w-2 h-2" />
                   </Button>
                   
                   <AlertDialog>
@@ -321,9 +320,9 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                         size="sm"
                         variant="destructive"
                         disabled={deletingImageId === image.id}
-                        className="text-xs h-6 w-6 p-0"
+                        className="text-xs h-5 w-5 p-0"
                       >
-                        <Trash2 className="w-2.5 h-2.5" />
+                        <Trash2 className="w-2 h-2" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
