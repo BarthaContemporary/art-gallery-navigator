@@ -1,9 +1,8 @@
-
 import React, { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { LocalImageService } from "@/services/local-image-service";
+import { ImageUploadService } from "@/services/image-upload-service";
 import { logger } from "@/lib/logger";
 
 interface LocalImageUploaderProps {
@@ -62,7 +61,7 @@ export function LocalImageUploader({
           index === i ? { ...item, progress: 0, status: 'uploading' } : item
         ));
 
-        const result = await LocalImageService.uploadAndProcessImage(
+        const result = await ImageUploadService.uploadAndProcessImage(
           file,
           artworkId,
           i === 0, // First image is primary

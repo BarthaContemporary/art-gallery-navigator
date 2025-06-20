@@ -15,7 +15,7 @@ import { ConditionSignatureFields } from "./ConditionSignatureFields";
 import { FramingCrateFields } from "./FramingCrateFields";
 import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { VideoUploadFields } from "./VideoUploadFields";
-import { MultipleImageUploader } from "../MultipleImageUploader";
+import { LocalImageUploader } from "../LocalImageUploader";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
@@ -34,6 +34,7 @@ interface CreateArtworkFormViewProps {
   formId?: string;
   isSaving?: boolean;
   scrollToFirstError?: () => void;
+  artworkId?: string; // For created artworks
 }
 
 export function CreateArtworkFormView({
@@ -50,6 +51,7 @@ export function CreateArtworkFormView({
   formId,
   isSaving = false,
   scrollToFirstError,
+  artworkId,
 }: CreateArtworkFormViewProps) {
 
   const handleInvalidSubmit = () => {
@@ -104,7 +106,21 @@ export function CreateArtworkFormView({
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium">Upload Images</label>
-              <MultipleImageUploader onImagesUploaded={handleImagesUploaded} />
+              <p className="text-xs text-muted-foreground mb-4">
+                Upload high-quality images of your artwork. The first image will be set as primary.
+              </p>
+              {artworkId ? (
+                <LocalImageUploader 
+                  artworkId={artworkId}
+                  onUploadComplete={() => {
+                    // Images uploaded successfully
+                  }}
+                />
+              ) : (
+                <div className="p-4 border-2 border-dashed rounded-lg text-center text-muted-foreground">
+                  <p className="text-sm">Images can be uploaded after creating the artwork</p>
+                </div>
+              )}
             </div>
             
             <VideoUploadFields />
