@@ -36,12 +36,28 @@ export function OptimizedArtworkImage({
   const [attemptedAutoFix, setAttemptedAutoFix] = useState(false);
   const fallbackChainRef = useRef<string[]>([]);
 
-  // Create fallback chain with auto-fixed URLs
+  // Create enhanced fallback chain with all available URLs
   const primaryUrl = tier === 'thumbnail' ? imageRecord?.thumbnail_url : imageRecord?.medium_url;
   const fallbackUrl = imageRecord?.image_url;
   
-  if (fallbackChainRef.current.length === 0) {
+  if (fallbackChainRef.current.length === 0 && imageRecord) {
+    // Create a comprehensive fallback chain including all URL variants
+    const allUrls = [
+      imageRecord.thumbnail_url,
+      imageRecord.medium_url,
+      imageRecord.image_url
+    ].filter(Boolean);
+    
     fallbackChainRef.current = getImageFallbackChain(primaryUrl, fallbackUrl);
+    
+    // Add any missing URLs from the imageRecord to the fallback chain
+    allUrls.forEach(url => {
+      if (url && !fallbackChainRef.current.includes(url)) {
+        fallbackChainRef.current.push(url);
+      }
+    });
+    
+    console.log(`Created fallback chain for ${title}:`, fallbackChainRef.current);
   }
 
   const currentImageUrl = fallbackChainRef.current[currentUrlIndex] || "/placeholder.svg";
@@ -61,13 +77,20 @@ export function OptimizedArtworkImage({
     console.log(`OptimizedArtworkImage: Using fallback for ${title}:`, {
       currentUrlIndex,
       fallbackChain: fallbackChainRef.current,
-      imageRecord,
+      imageRecord: {
+        id: imageRecord.id,
+        thumbnail_url: imageRecord.thumbnail_url,
+        medium_url: imageRecord.medium_url,
+        image_url: imageRecord.image_url,
+        is_primary: imageRecord.is_primary,
+        display_order: imageRecord.display_order
+      },
       determinedOptimizedUrl
     });
   }
 
   const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log(`Image loaded successfully: ${title}`, event.currentTarget.src);
+    console.log(`Image loaded successfully: ${title} from ${event.currentTarget.src}`);
     setImageLoaded(true);
     setImageError(false);
     setIsRetrying(false);
@@ -78,13 +101,14 @@ export function OptimizedArtworkImage({
   }, [cacheLoadedImage, title]);
 
   const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    console.error(`Image failed to load: ${title}`, event.currentTarget.src);
+    const failedUrl = event.currentTarget.src;
+    console.error(`Image failed to load: ${title} from ${failedUrl}`);
     
     // Try to auto-fix Cloudinary URL if this is the first error
-    if (!attemptedAutoFix && event.currentTarget.src.includes('res.cloudinary.com')) {
-      const fixedUrl = fixCloudinaryUrl(event.currentTarget.src);
-      if (fixedUrl !== event.currentTarget.src) {
-        console.log(`Attempting auto-fix for ${title}: ${event.currentTarget.src} -> ${fixedUrl}`);
+    if (!attemptedAutoFix && failedUrl.includes('res.cloudinary.com')) {
+      const fixedUrl = fixCloudinaryUrl(failedUrl);
+      if (fixedUrl !== failedUrl) {
+        console.log(`Attempting auto-fix for ${title}: ${failedUrl} -> ${fixedUrl}`);
         setAttemptedAutoFix(true);
         event.currentTarget.src = fixedUrl;
         return;
@@ -93,7 +117,8 @@ export function OptimizedArtworkImage({
     
     // Try next URL in fallback chain
     if (currentUrlIndex < fallbackChainRef.current.length - 1) {
-      console.log(`Trying fallback URL for ${title}`, fallbackChainRef.current[currentUrlIndex + 1]);
+      const nextUrl = fallbackChainRef.current[currentUrlIndex + 1];
+      console.log(`Trying fallback URL for ${title}: ${nextUrl} (attempt ${currentUrlIndex + 2}/${fallbackChainRef.current.length})`);
       setCurrentUrlIndex(prev => prev + 1);
       setImageLoaded(false);
       setImageError(false);
@@ -102,6 +127,7 @@ export function OptimizedArtworkImage({
     }
     
     // All URLs failed
+    console.error(`All image URLs failed for ${title}. Attempted URLs:`, fallbackChainRef.current);
     setImageError(true);
     setImageLoaded(true);
     setIsRetrying(false);
@@ -109,7 +135,7 @@ export function OptimizedArtworkImage({
 
   const handleRetry = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log(`Retrying image load for: ${title}`);
+    console.log(`Retrying image load for: ${title} (retry ${retryCount + 1})`);
     
     // Reset to first URL in chain and clear auto-fix attempt
     setCurrentUrlIndex(0);
@@ -118,11 +144,29 @@ export function OptimizedArtworkImage({
     setIsRetrying(true);
     setAttemptedAutoFix(false);
     setRetryCount(prev => prev + 1);
-  }, [title]);
+  }, [title, retryCount]);
 
   const handleClick = useCallback(() => {
     if (onClick) onClick();
   }, [onClick]);
+
+  if (!imageRecord) {
+    return (
+      <div 
+        className={cn(
+          "relative w-full h-full bg-muted/10 overflow-hidden flex items-center justify-center",
+          onClick && "cursor-pointer",
+          className
+        )}
+        onClick={handleClick}
+      >
+        <div className="text-center text-muted-foreground">
+          <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+          <p className="text-xs">No Image</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -161,7 +205,9 @@ export function OptimizedArtworkImage({
               <span className="text-xs text-muted-foreground">Retrying...</span>
             )}
             {currentUrlIndex > 0 && (
-              <span className="text-xs text-muted-foreground">Using fallback...</span>
+              <span className="text-xs text-muted-foreground">
+                Fallback {currentUrlIndex + 1}/{fallbackChainRef.current.length}
+              </span>
             )}
             {attemptedAutoFix && (
               <span className="text-xs text-muted-foreground">Auto-fixing URL...</span>
@@ -176,6 +222,9 @@ export function OptimizedArtworkImage({
           <div className="text-center text-muted-foreground p-4">
             <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
             <p className="text-xs mb-3">Image unavailable</p>
+            <p className="text-xs mb-3 text-muted-foreground/70">
+              Failed: {fallbackChainRef.current.length} URLs
+            </p>
             {retryCount < 3 && (
               <Button
                 variant="outline"
@@ -205,6 +254,11 @@ export function OptimizedArtworkImage({
       {attemptedAutoFix && (
         <div className="absolute top-1 left-1 bg-orange-500/80 text-white text-xs px-1 rounded opacity-70">
           FIXED
+        </div>
+      )}
+      {imageRecord.is_primary && (
+        <div className="absolute bottom-1 left-1 bg-blue-500/80 text-white text-xs px-1 rounded opacity-70">
+          PRIMARY
         </div>
       )}
     </div>

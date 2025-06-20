@@ -1,312 +1,141 @@
 
-import React, { useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { useArtwork } from "@/hooks/use-artworks";
-import { toast } from "sonner";
-import type { ArtworkImage } from "@/hooks/use-artworks";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
+import { cn } from "@/lib/utils";
 
 interface ArtworkImageViewerProps {
   artworkId: string;
-  artistName?: string;
-  artworkTitle?: string;
+  artworkTitle: string;
 }
 
-const ZOOM_LEVELS = [1, 1.5, 2, 3]; // 100%, 150%, 200%, 300%
+export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageViewerProps) {
+  const {
+    images,
+    currentIndex,
+    loading,
+    error,
+    emblaRef,
+    handleDotClick,
+    scrollPrev,
+    scrollNext,
+    getImageUrl,
+    handleImageError,
+    handleImageLoad,
+  } = useArtworkCarousel(artworkId);
 
-export function ArtworkImageViewer({
-  artworkId,
-  artistName: initialArtistName = "Unknown_Artist",
-  artworkTitle: initialArtworkTitle = "Untitled",
-}: ArtworkImageViewerProps) {
-  const { data: artwork, isLoading: loading, error: queryError } = useArtwork(artworkId);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [zoomLevelIndex, setZoomLevelIndex] = useState(0); // Index into ZOOM_LEVELS array
-  const [imageLoading, setImageLoading] = useState(true);
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-  const [dragStart, setDragStart] = useState<{ x: number, y: number } | null>(null);
-  const [imageOffset, setImageOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
-
-  const images = artwork?.artwork_images || [];
-
-  const displayImages: (ArtworkImage | { id: string, artwork_id: string, image_url: string, is_primary: boolean, display_order: number })[] = images.length > 0 ? images : [{
-    id: "placeholder",
-    artwork_id: artworkId,
-    image_url: "/placeholder.svg",
-    is_primary: true,
-    display_order: 0
-  }];
-
-  const currentImage = displayImages[currentIndex];
-
-  const artistName = artwork?.artist_name || initialArtistName;
-  const artworkTitle = artwork?.title || initialArtworkTitle;
-
-  const currentZoomLevel = ZOOM_LEVELS[zoomLevelIndex];
-  const isZoomed = currentZoomLevel > 1;
-  const panEnabled = isZoomed && currentImage.image_url !== "/placeholder.svg";
-
-  // Drag/pan handlers for zoomed image
-  function onImageDragStart(e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) {
-    if (!panEnabled) return;
-    const x = 'touches' in e ? e.touches[0].clientX : e.nativeEvent.clientX;
-    const y = 'touches' in e ? e.touches[0].clientY : e.nativeEvent.clientY;
-    setDragStart({ x, y });
-  }
-
-  function onImageDragMove(e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) {
-    if (!dragStart || !panEnabled) return;
-    const x = 'touches' in e ? e.touches[0].clientX : e.nativeEvent.clientX;
-    const y = 'touches' in e ? e.touches[0].clientY : e.nativeEvent.clientY;
-    setImageOffset(offset => ({
-      x: offset.x + (x - dragStart.x),
-      y: offset.y + (y - dragStart.y)
-    }));
-    setDragStart({ x, y });
-  }
-
-  function onImageDragEnd() {
-    setDragStart(null);
-  }
-
-  const goToPrevious = () => {
-    setCurrentIndex(prev => prev === 0 ? displayImages.length - 1 : prev - 1);
-    setImageOffset({ x: 0, y: 0 }); // reset pan
-  };
-
-  const goToNext = () => {
-    setCurrentIndex(prev => prev === displayImages.length - 1 ? 0 : prev + 1);
-    setImageOffset({ x: 0, y: 0 }); // reset pan
-  };
-
-  const handleZoomIn = () => {
-    if (zoomLevelIndex < ZOOM_LEVELS.length - 1) {
-      setZoomLevelIndex(prev => prev + 1);
-      setImageOffset({ x: 0, y: 0 }); // Reset offset when changing zoom
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (zoomLevelIndex > 0) {
-      setZoomLevelIndex(prev => prev - 1);
-      setImageOffset({ x: 0, y: 0 }); // Reset offset when changing zoom
-    }
-  };
-
-  const handleImageClick = () => {
-    // Cycle through zoom levels on click
-    if (zoomLevelIndex === ZOOM_LEVELS.length - 1) {
-      setZoomLevelIndex(0); // Reset to 100%
-    } else {
-      setZoomLevelIndex(prev => prev + 1);
-    }
-    setImageOffset({ x: 0, y: 0 });
-  };
-
-  const handleDownload = () => {
-    if (!currentImage || currentImage.image_url === "/placeholder.svg") return;
-    const fileName = `${artistName}-${artworkTitle}_${currentIndex + 1}-${displayImages.length}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-    try {
-      const link = document.createElement("a");
-      link.href = currentImage.image_url;
-      link.download = `${fileName}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success("Download started");
-    } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Failed to download image");
-    }
-  };
-
-  if (loading && !artwork) {
+  if (loading) {
     return (
-      <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
-        <div className="flex items-center gap-2 text-white">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          <p className="text-white/80">Loading images...</p>
+      <div className="w-full bg-muted/20 overflow-hidden flex-shrink-0 h-96 flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <div className="w-12 h-12 bg-muted/60 rounded mx-auto mb-2 animate-pulse"></div>
+          <p className="text-sm">Loading images...</p>
         </div>
       </div>
     );
   }
 
-  if (queryError) {
+  if (error) {
     return (
-      <div className="w-full h-[60vh] flex items-center justify-center bg-black/95">
-        <p className="text-red-400">Error loading image details.</p>
+      <div className="w-full bg-muted/20 overflow-hidden flex-shrink-0 h-96 flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <div className="w-12 h-12 bg-red-100 rounded mx-auto mb-2 flex items-center justify-center">
+            <span className="text-red-500">⚠️</span>
+          </div>
+          <p className="text-sm">{error}</p>
+        </div>
       </div>
     );
   }
+
+  if (!images || images.length === 0) {
+    return (
+      <div className="w-full bg-muted/20 overflow-hidden flex-shrink-0 h-96 flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <div className="w-12 h-12 bg-muted/60 rounded mx-auto mb-2"></div>
+          <p className="text-sm">No images available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const showNavigation = images.length > 1;
 
   return (
-    <div className="relative w-full h-[60vh] bg-black/95 group">
-      {/* Controls: Zoom and Download buttons */}
-      <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center">
-        <div className="flex gap-1 items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={e => {
-              e.stopPropagation();
-              handleZoomOut();
-            }}
-            disabled={zoomLevelIndex === 0}
-            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
-            title="Zoom Out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <div className="bg-black/20 backdrop-blur-sm border border-white/20 text-white px-3 rounded text-sm flex items-center justify-center h-9 w-9 md:h-10 md:w-10">
-            {Math.round(currentZoomLevel * 100)}%
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={e => {
-              e.stopPropagation();
-              handleZoomIn();
-            }}
-            disabled={zoomLevelIndex === ZOOM_LEVELS.length - 1}
-            className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white disabled:opacity-50"
-            title="Zoom In"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
+    <div className="relative w-full h-96 bg-muted/10">
+      {/* Main carousel container */}
+      <div className="embla h-full" ref={emblaRef}>
+        <div className="embla__container h-full flex">
+          {images.map((image, index) => {
+            const imageUrl = getImageUrl(image);
+            return (
+              <div
+                key={image.id}
+                className="embla__slide flex-shrink-0 flex-grow-0 basis-full relative"
+              >
+                <img
+                  src={imageUrl}
+                  alt={`${artworkTitle} - Image ${index + 1}`}
+                  className="w-full h-full object-contain bg-white"
+                  onLoad={() => handleImageLoad(imageUrl, image.id)}
+                  onError={() => handleImageError(imageUrl, image.id)}
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+                
+                {/* Image info overlay */}
+                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                  {index + 1} / {images.length}
+                  {image.is_primary && " (Primary)"}
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {currentImage.image_url !== "/placeholder.svg" && (
-          <div className="ml-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDownload}
-              className="bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:text-white"
-              title="Download"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Main image container with enhanced zoom/panning */}
-      <div
-        ref={imageContainerRef}
-        className={`w-full h-full flex items-center justify-center ${isZoomed ? 'overflow-auto bg-black' : 'overflow-hidden'}`}
-        onClick={handleImageClick}
-        style={{
-          cursor: isZoomed ? "grab" : "zoom-in",
-          touchAction: panEnabled ? "none" : undefined
-        }}
-        onMouseDown={onImageDragStart}
-        onMouseMove={onImageDragMove}
-        onMouseUp={onImageDragEnd}
-        onMouseLeave={onImageDragEnd}
-        onTouchStart={onImageDragStart}
-        onTouchMove={onImageDragMove}
-        onTouchEnd={onImageDragEnd}
-      >
-        <img
-          src={currentImage.image_url}
-          alt={`${artworkTitle} by ${artistName} (${currentIndex + 1} of ${displayImages.length})`}
-          className={`
-            max-w-full max-h-full object-contain transition-all duration-300
-            ${isZoomed ? 'cursor-grab' : 'hover:scale-105'}
-            ${imageLoading ? "opacity-0" : "opacity-100"}
-          `}
-          style={
-            isZoomed
-              ? {
-                  transform: `scale(${currentZoomLevel}) translate(${imageOffset.x / currentZoomLevel}px, ${imageOffset.y / currentZoomLevel}px)`,
-                  transition: dragStart ? "none" : "transform 0.23s cubic-bezier(.4,2,.6,1)", // smooth out when not dragging
-                  cursor: dragStart ? "grabbing" : "grab"
-                }
-              : {}
-          }
-          loading="lazy"
-          onLoad={() => setImageLoading(false)}
-          onError={() => setImageLoading(false)}
-          draggable={false}
-        />
-        {imageLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-            {/* Improved Shimmer Loader */}
-            <div className="w-20 h-20 rounded-xl bg-black/30 relative overflow-hidden flex items-center justify-center border border-white/30">
-              <div className="absolute inset-0 animate-[shine_1.1s_linear_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-70" />
-              <svg className="w-7 h-7 text-white/80 z-10 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <circle cx="12" cy="12" r="10" strokeWidth="2" className="opacity-40" />
-                <path d="M8 12l2 2 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-80" />
-              </svg>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Navigation arrows */}
-      {displayImages.length > 1 && (
+      {showNavigation && (
         <>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
-            onClick={goToPrevious}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-black/20 border border-white/20 text-white hover:bg-black/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-md"
+            onClick={scrollPrev}
             aria-label="Previous image"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
-            onClick={goToNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-black/20 border border-white/20 text-white hover:bg-black/40 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-md"
+            onClick={scrollNext}
             aria-label="Next image"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </>
       )}
 
-      {/* Bottom section: counter and dots on one row, no overlap */}
-      {displayImages.length > 1 && displayImages.length <= 10 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20 w-fit">
-          <div className="flex items-center gap-4 bg-black/20 border border-white/15 px-4 py-1.5 md:py-1 rounded-full shadow-sm justify-center">
-            {/* Image Counter */}
-            <span className="text-xs text-white px-1 py-0 font-medium rounded bg-black/30">{currentIndex + 1} of {displayImages.length}</span>
-            {/* Navigation dots - now smaller */}
-            <div className="flex gap-1.5">
-              {displayImages.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setCurrentIndex(index);
-                    setImageOffset({ x: 0, y: 0 });
-                    setImageLoading(true);
-                  }}
-                  aria-label={`Go to slide ${index + 1}`}
-                  className={`
-                    transition-all duration-150 
-                    rounded-full
-                    border-none p-0
-                    ${currentIndex === index 
-                      ? "bg-white w-2 h-2"    // 8px active dot
-                      : "bg-white/40 hover:bg-white/70 w-1.5 h-1.5" // 6px inactive dot
-                    }
-                  `}
-                  style={{outline: "none", minWidth: 0, minHeight: 0}}
-                />
-              ))}
-            </div>
-          </div>
+      {/* Dot indicators */}
+      {showNavigation && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {images.map((_, index) => (
+            <button
+              key={index}
+              className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                index === currentIndex
+                  ? "bg-white shadow-lg"
+                  : "bg-white/50 hover:bg-white/75"
+              )}
+              onClick={() => handleDotClick(index)}
+              aria-label={`Go to image ${index + 1}`}
+            />
+          ))}
         </div>
       )}
-
-      {/* Add keyframes for shine animation */}
-      <style>{`
-        @keyframes shine {
-          from {transform:translateX(-100%);}
-          to {transform:translateX(100%);}
-        }
-      `}</style>
     </div>
   );
 }
