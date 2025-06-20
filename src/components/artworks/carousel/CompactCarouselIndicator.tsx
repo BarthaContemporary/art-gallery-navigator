@@ -1,5 +1,6 @@
 
 import React from "react";
+import { CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CompactCarouselIndicatorProps {
@@ -25,20 +26,22 @@ export function CompactCarouselIndicator({
           {currentIndex + 1}/{totalImages}
         </div>
         
-        {/* Tiny dots */}
+        {/* Circle dot icons */}
         <div className="flex items-center gap-1">
           {Array.from({ length: totalImages }, (_, index) => (
             <button
               key={index}
               className={cn(
-                "w-1 h-1 rounded-full transition-all duration-200 hover:scale-125",
+                "transition-all duration-200 hover:scale-125",
                 index === currentIndex 
-                  ? "bg-white" 
-                  : "bg-white/40 hover:bg-white/60"
+                  ? "text-white" 
+                  : "text-white/40 hover:text-white/60"
               )}
               onClick={() => onScrollTo(index)}
               aria-label={`Go to image ${index + 1}`}
-            />
+            >
+              <CircleDot size={12} />
+            </button>
           ))}
         </div>
       </div>
