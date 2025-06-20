@@ -48,8 +48,8 @@ export function validateImageUrl(url: string): boolean {
   }
 
   try {
-    const urlObj = new URL(url, window.location.origin);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:' || urlObj.protocol === 'data:';
+    new URL(url, window.location.origin);
+    return true;
   } catch {
     return false;
   }
@@ -66,19 +66,20 @@ export function getPriorityOrderedUrls(imageRecord: any): string[] {
     thumbnail_url: imageRecord.thumbnail_url
   });
 
-  // Simple priority: medium -> thumbnail -> full, preferring valid URLs
-  const allUrls = [
+  // Priority: image_url (most reliable) -> medium_url -> thumbnail_url
+  const candidates = [
+    imageRecord.image_url,
     imageRecord.medium_url,
-    imageRecord.thumbnail_url, 
-    imageRecord.image_url
-  ].filter(url => url && validateImageUrl(url));
+    imageRecord.thumbnail_url
+  ];
 
-  // Add all valid URLs in order
-  urls.push(...allUrls);
+  // Add valid URLs in priority order
+  for (const url of candidates) {
+    if (url && validateImageUrl(url) && !urls.includes(url)) {
+      urls.push(url);
+    }
+  }
 
-  // Remove duplicates while preserving order
-  const uniqueUrls = urls.filter((url, index, array) => array.indexOf(url) === index);
-
-  console.log(`[getPriorityOrderedUrls] Final prioritized URLs:`, uniqueUrls);
-  return uniqueUrls;
+  console.log(`[getPriorityOrderedUrls] Final prioritized URLs:`, urls);
+  return urls;
 }

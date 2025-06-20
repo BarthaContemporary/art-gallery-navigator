@@ -24,77 +24,99 @@ export function OptimizedArtworkImage({
   onLoadingStart,
   onLoadingComplete
 }: OptimizedArtworkImageProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState<string | null>(null);
-  const [urlIndex, setUrlIndex] = useState(0);
+  const [loadingState, setLoadingState] = useState<{
+    isLoading: boolean;
+    hasError: boolean;
+    currentUrl: string | null;
+    urlIndex: number;
+  }>({
+    isLoading: true,
+    hasError: false,
+    currentUrl: null,
+    urlIndex: 0
+  });
+
   const [availableUrls, setAvailableUrls] = useState<string[]>([]);
 
   // Get priority-ordered URLs when imageRecord changes
   useEffect(() => {
     if (!imageRecord) {
       setAvailableUrls([]);
-      setCurrentSrc(null);
-      setIsLoading(false);
-      setHasError(true);
+      setLoadingState({
+        isLoading: false,
+        hasError: true,
+        currentUrl: null,
+        urlIndex: 0
+      });
       return;
     }
 
     const urls = getPriorityOrderedUrls(imageRecord);
-    console.log(`[${title}] Available URLs in priority order:`, urls);
+    console.log(`[${title}] Available URLs:`, urls);
     
     setAvailableUrls(urls);
-    setUrlIndex(0);
     
     if (urls.length > 0) {
-      setCurrentSrc(urls[0]);
-      setIsLoading(true);
-      setHasError(false);
+      setLoadingState({
+        isLoading: true,
+        hasError: false,
+        currentUrl: urls[0],
+        urlIndex: 0
+      });
       console.log(`[${title}] Starting with URL: ${urls[0]}`);
     } else {
       console.warn(`[${title}] No valid URLs found`);
-      setCurrentSrc(null);
-      setIsLoading(false);
-      setHasError(true);
+      setLoadingState({
+        isLoading: false,
+        hasError: true,
+        currentUrl: null,
+        urlIndex: 0
+      });
     }
   }, [imageRecord, title]);
 
-  const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log(`[${title}] ✅ Image loaded successfully: ${currentSrc}`);
-    setIsLoading(false);
-    setHasError(false);
+  const handleImageLoad = useCallback(() => {
+    console.log(`[${title}] ✅ Image loaded successfully: ${loadingState.currentUrl}`);
+    setLoadingState(prev => ({
+      ...prev,
+      isLoading: false,
+      hasError: false
+    }));
     onLoadingComplete?.();
-  }, [title, currentSrc, onLoadingComplete]);
+  }, [title, loadingState.currentUrl, onLoadingComplete]);
 
   const handleImageError = useCallback(() => {
-    console.error(`[${title}] ❌ Image failed to load: ${currentSrc}`);
+    console.error(`[${title}] ❌ Image failed to load: ${loadingState.currentUrl}`);
     
-    const nextIndex = urlIndex + 1;
+    const nextIndex = loadingState.urlIndex + 1;
     if (nextIndex < availableUrls.length) {
       const nextUrl = availableUrls[nextIndex];
       console.log(`[${title}] 🔄 Trying fallback URL ${nextIndex + 1}/${availableUrls.length}: ${nextUrl}`);
       
-      setUrlIndex(nextIndex);
-      setCurrentSrc(nextUrl);
-      setIsLoading(true);
-      setHasError(false);
+      setLoadingState({
+        isLoading: true,
+        hasError: false,
+        currentUrl: nextUrl,
+        urlIndex: nextIndex
+      });
     } else {
       console.error(`[${title}] 💥 All URLs failed. Tried: ${availableUrls.join(', ')}`);
-      setIsLoading(false);
-      setHasError(true);
+      setLoadingState(prev => ({
+        ...prev,
+        isLoading: false,
+        hasError: true
+      }));
       onLoadingComplete?.();
     }
-  }, [title, currentSrc, urlIndex, availableUrls, onLoadingComplete]);
+  }, [title, loadingState.currentUrl, loadingState.urlIndex, availableUrls, onLoadingComplete]);
 
   const handleLoadStart = useCallback(() => {
-    console.log(`[${title}] 🔄 Loading started: ${currentSrc}`);
-    setIsLoading(true);
-    setHasError(false);
+    console.log(`[${title}] 🔄 Loading started: ${loadingState.currentUrl}`);
     onLoadingStart?.();
-  }, [title, currentSrc, onLoadingStart]);
+  }, [title, loadingState.currentUrl, onLoadingStart]);
 
   // Show error state if no valid URLs or all failed
-  if (!currentSrc || (hasError && urlIndex >= availableUrls.length)) {
+  if (!loadingState.currentUrl || (loadingState.hasError && loadingState.urlIndex >= availableUrls.length)) {
     return (
       <div 
         className={cn(
@@ -122,11 +144,11 @@ export function OptimizedArtworkImage({
       onClick={onClick}
     >
       <img
-        src={currentSrc}
+        src={loadingState.currentUrl}
         alt={title}
         className={cn(
-          "w-full h-full transition-opacity duration-300 object-cover",
-          isLoading ? "opacity-0" : "opacity-100"
+          "w-full h-full object-cover transition-opacity duration-300",
+          loadingState.isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoadStart={handleLoadStart}
         onLoad={handleImageLoad}
@@ -136,7 +158,7 @@ export function OptimizedArtworkImage({
       />
       
       {/* Loading State */}
-      {isLoading && (
+      {loadingState.isLoading && (
         <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
         </div>

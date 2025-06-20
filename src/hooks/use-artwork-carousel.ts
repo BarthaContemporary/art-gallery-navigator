@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,7 +19,6 @@ export function useArtworkCarousel(artworkId: string) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCarouselReady, setIsCarouselReady] = useState(false);
   
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: false,
@@ -29,10 +28,7 @@ export function useArtworkCarousel(artworkId: string) {
 
   // Initialize carousel when emblaApi becomes available
   useEffect(() => {
-    if (!emblaApi || images.length === 0) {
-      setIsCarouselReady(false);
-      return;
-    }
+    if (!emblaApi || images.length === 0) return;
 
     console.log(`[Carousel] Setting up Embla API with ${images.length} images`);
     
@@ -42,36 +38,33 @@ export function useArtworkCarousel(artworkId: string) {
       setCurrentIndex(newIndex);
     };
 
-    // Wait a bit for DOM to be ready
-    const timer = setTimeout(() => {
-      emblaApi.reInit();
-      onSelect();
-      emblaApi.on("select", onSelect);
-      setIsCarouselReady(true);
-      console.log(`[Carousel] Embla API ready with ${emblaApi.slideNodes().length} slides`);
-    }, 100);
+    // Simple initialization without complex timing
+    emblaApi.reInit();
+    onSelect();
+    emblaApi.on("select", onSelect);
+    
+    console.log(`[Carousel] Embla API ready with ${emblaApi.slideNodes().length} slides`);
 
     return () => {
-      clearTimeout(timer);
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi, images]);
 
   // Navigation functions
   const handleDotClick = useCallback((index: number) => {
-    if (!emblaApi || !isCarouselReady) return;
+    if (!emblaApi) return;
     emblaApi.scrollTo(index);
-  }, [emblaApi, isCarouselReady]);
+  }, [emblaApi]);
 
   const scrollPrev = useCallback(() => {
-    if (!emblaApi || !isCarouselReady) return;
+    if (!emblaApi) return;
     emblaApi.scrollPrev();
-  }, [emblaApi, isCarouselReady]);
+  }, [emblaApi]);
 
   const scrollNext = useCallback(() => {
-    if (!emblaApi || !isCarouselReady) return;
+    if (!emblaApi) return;
     emblaApi.scrollNext();
-  }, [emblaApi, isCarouselReady]);
+  }, [emblaApi]);
 
   // Fetch artwork images
   useEffect(() => {
@@ -120,6 +113,7 @@ export function useArtworkCarousel(artworkId: string) {
   // Get navigation state
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;
+  const isCarouselReady = emblaApi !== undefined && images.length > 0;
 
   const handleImageLoadComplete = useCallback(() => {
     // Simple callback for when images load

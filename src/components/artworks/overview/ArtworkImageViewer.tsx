@@ -63,7 +63,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     );
   }
 
-  const showNavigation = images.length > 1;
+  const showNavigation = images.length > 1 && isCarouselReady;
 
   return (
     <div className="artwork-viewer">
