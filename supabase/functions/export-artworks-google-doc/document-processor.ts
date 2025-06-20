@@ -5,6 +5,36 @@ import { generateHeaderContent, generateArtworkContent } from "./content-generat
 
 const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
 
+/**
+ * Generate a proper public URL for artwork images
+ */
+function generateImageUrl(imageRecord: any): string | null {
+  // Try different storage paths in order of preference
+  const storagePaths = [
+    { path: imageRecord.medium_storage_path, bucket: 'artwork-images-processed' },
+    { path: imageRecord.large_storage_path, bucket: 'artwork-images-processed' },
+    { path: imageRecord.thumbnail_storage_path, bucket: 'artwork-images-processed' },
+    { path: imageRecord.original_storage_path, bucket: 'artwork-images-original' }
+  ];
+
+  for (const { path, bucket } of storagePaths) {
+    if (path) {
+      // Generate proper Supabase public URL
+      const baseUrl = Deno.env.get("SUPABASE_URL");
+      if (baseUrl) {
+        return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
+      }
+    }
+  }
+
+  // Fallback to the legacy image_url if available
+  if (imageRecord.image_url && imageRecord.image_url !== 'processing') {
+    return imageRecord.image_url;
+  }
+
+  return null;
+}
+
 export async function processDocumentContent(
   documentId: string, 
   accessToken: string, 
@@ -41,35 +71,25 @@ export async function processDocumentContent(
     
     // Insert image FIRST if available
     if (artwork.artwork_images && artwork.artwork_images.length > 0) {
+      // Find primary image, or use first available
       const primaryImage = artwork.artwork_images.find(img => img.is_primary);
       const imageToUse = primaryImage || artwork.artwork_images[0];
       
-      // Try different image URLs in order of preference
-      const imageUrls = [
-        imageToUse.thumbnail_url,
-        imageToUse.medium_url,
-        imageToUse.image_url
-      ].filter(Boolean); // Remove null/undefined values
+      // Generate proper public URL
+      const imageUrl = generateImageUrl(imageToUse);
       
-      let imageInserted = false;
-      for (const imageUrl of imageUrls) {
-        if (imageUrl) {
-          console.log(`Attempting to insert image for artwork: ${artwork.title} using URL: ${imageUrl}`);
-          try {
-            await insertImageAtIndex(documentId, accessToken, currentIndex, imageUrl);
-            currentIndex += 1; // Account for the inserted image
-            imageInserted = true;
-            console.log(`Successfully inserted image for artwork: ${artwork.title}`);
-            break; // Exit loop if successful
-          } catch (error) {
-            console.warn(`Failed to insert image from ${imageUrl} for artwork ${artwork.title}:`, error);
-            // Continue to try next URL
-          }
+      if (imageUrl) {
+        console.log(`Attempting to insert image for artwork: ${artwork.title} using URL: ${imageUrl}`);
+        try {
+          await insertImageAtIndex(documentId, accessToken, currentIndex, imageUrl);
+          currentIndex += 1; // Account for the inserted image
+          console.log(`Successfully inserted image for artwork: ${artwork.title}`);
+        } catch (error) {
+          console.warn(`Failed to insert image for artwork ${artwork.title}:`, error);
+          // Continue without the image
         }
-      }
-      
-      if (!imageInserted) {
-        console.warn(`No suitable image could be inserted for artwork: ${artwork.title}`);
+      } else {
+        console.warn(`No valid image URL found for artwork: ${artwork.title}`);
       }
     }
     
