@@ -25,25 +25,74 @@ export function useArtworkCarousel(artworkId: string) {
     align: "center",
     slidesToScroll: 1,
     containScroll: "trimSnaps",
+    skipSnaps: false,
   });
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    setCurrentIndex(emblaApi.selectedScrollSnap());
+    const newIndex = emblaApi.selectedScrollSnap();
+    console.log(`[useArtworkCarousel] Carousel selected index: ${newIndex}`);
+    setCurrentIndex(newIndex);
   }, [emblaApi]);
 
+  const handleDotClick = useCallback((index: number) => {
+    if (!emblaApi) {
+      console.warn(`[useArtworkCarousel] Cannot scroll to ${index}: emblaApi not ready`);
+      return;
+    }
+    console.log(`[useArtworkCarousel] Scrolling to index ${index}`);
+    emblaApi.scrollTo(index);
+  }, [emblaApi]);
+
+  const scrollPrev = useCallback(() => {
+    if (!emblaApi) {
+      console.warn(`[useArtworkCarousel] Cannot scroll prev: emblaApi not ready`);
+      return;
+    }
+    console.log(`[useArtworkCarousel] Scrolling previous`);
+    emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (!emblaApi) {
+      console.warn(`[useArtworkCarousel] Cannot scroll next: emblaApi not ready`);
+      return;
+    }
+    console.log(`[useArtworkCarousel] Scrolling next`);
+    emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  // Set up event listeners when emblaApi changes
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!emblaApi) {
+      console.log(`[useArtworkCarousel] Embla API not ready yet`);
+      return;
+    }
     
+    console.log(`[useArtworkCarousel] Setting up Embla API listeners`);
+    
+    // Set initial state
     onSelect();
+    
+    // Add event listeners
     emblaApi.on("select", onSelect);
     emblaApi.on("reInit", onSelect);
     
     return () => {
+      console.log(`[useArtworkCarousel] Cleaning up Embla API listeners`);
       emblaApi.off("select", onSelect);
       emblaApi.off("reInit", onSelect);
     };
   }, [emblaApi, onSelect]);
+
+  // Reset carousel when images change
+  useEffect(() => {
+    if (emblaApi && images.length > 0) {
+      console.log(`[useArtworkCarousel] Reinitializing carousel with ${images.length} images`);
+      emblaApi.reInit();
+      setCurrentIndex(0);
+    }
+  }, [emblaApi, images]);
 
   useEffect(() => {
     async function fetchArtworkImages() {
@@ -56,7 +105,7 @@ export function useArtworkCarousel(artworkId: string) {
         setLoading(true);
         setError(null);
         
-        console.log(`Fetching images for artwork: ${artworkId}`);
+        console.log(`[useArtworkCarousel] Fetching images for artwork: ${artworkId}`);
         
         const { data, error: fetchError } = await supabase
           .from("artwork_images")
@@ -66,7 +115,7 @@ export function useArtworkCarousel(artworkId: string) {
           
         if (fetchError) throw fetchError;
         
-        console.log(`Found ${data?.length || 0} images for artwork ${artworkId}`);
+        console.log(`[useArtworkCarousel] Found ${data?.length || 0} images for artwork ${artworkId}`);
         
         // Sort images to ensure primary image comes first
         const sortedImages = (data || []).sort((a, b) => {
@@ -79,7 +128,7 @@ export function useArtworkCarousel(artworkId: string) {
         setCurrentIndex(0);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching artwork images:", err);
+        console.error("[useArtworkCarousel] Error fetching artwork images:", err);
         setError("Failed to load images");
         setLoading(false);
       }
@@ -87,23 +136,11 @@ export function useArtworkCarousel(artworkId: string) {
     
     fetchArtworkImages();
   }, [artworkId]);
-  
-  const handleDotClick = useCallback((index: number) => {
-    if (emblaApi) {
-      emblaApi.scrollTo(index);
-    }
-  }, [emblaApi]);
-
-  const scrollPrev = useCallback(() => {
-    emblaApi?.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    emblaApi?.scrollNext();
-  }, [emblaApi]);
 
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;
+
+  console.log(`[useArtworkCarousel] Current state - index: ${currentIndex}, canPrev: ${canScrollPrev}, canNext: ${canScrollNext}, emblaReady: ${!!emblaApi}`);
 
   return {
     images,
