@@ -91,6 +91,9 @@ export function LocalArtworkImage({
     );
   }
 
+  // Use object-cover for thumbnail size (artwork cards) and object-contain for larger sizes
+  const objectFit = size === 'thumbnail' ? 'object-cover' : 'object-contain';
+
   return (
     <div 
       className={cn(
@@ -104,17 +107,13 @@ export function LocalArtworkImage({
         src={imageUrl}
         alt={title}
         className={cn(
-          "max-w-full max-h-full object-contain transition-opacity duration-300",
+          `w-full h-full ${objectFit} transition-opacity duration-300`,
           isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoad={handleImageLoad}
         onError={handleImageError}
         loading="lazy"
         decoding="async"
-        style={{
-          width: 'auto',
-          height: 'auto'
-        }}
       />
       
       {/* Loading State */}
