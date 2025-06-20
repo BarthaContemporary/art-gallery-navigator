@@ -1,11 +1,12 @@
 
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import { LocalArtworkImage } from "./LocalArtworkImage";
-import { cn } from "@/lib/utils";
 import useEmblaCarousel from "embla-carousel-react";
+import { ZoomControls } from "./carousel/ZoomControls";
+import { NavigationArrows } from "./carousel/NavigationArrows";
+import { ElegantDialIndicator } from "./carousel/ElegantDialIndicator";
+import { CarouselContainer } from "./carousel/CarouselContainer";
+import { useZoomControls } from "./carousel/useZoomControls";
 
 interface LocalArtworkCarouselProps {
   artworkId: string;
@@ -21,11 +22,17 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   });
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
-  const [zoomLevel, setZoomLevel] = React.useState(1);
-  const [isZoomed, setIsZoomed] = React.useState(false);
-
-  // Zoom levels: 1x, 1.5x, 2x, 3x, 4x
-  const zoomLevels = [1, 1.5, 2, 3, 4];
+  
+  const {
+    zoomLevel,
+    isZoomed,
+    canZoomIn,
+    canZoomOut,
+    handleZoomIn,
+    handleZoomOut,
+    handleZoomReset,
+    resetZoom,
+  } = useZoomControls();
 
   // Sort images by display_order to ensure consistent ordering
   const sortedImages = React.useMemo(() => {
@@ -44,8 +51,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
     const onSelect = () => {
       setCurrentIndex(emblaApi.selectedScrollSnap());
       // Reset zoom when changing slides
-      setZoomLevel(1);
-      setIsZoomed(false);
+      resetZoom();
     };
 
     emblaApi.on("select", onSelect);
@@ -54,7 +60,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
     return () => {
       emblaApi.off("select", onSelect);
     };
-  }, [emblaApi]);
+  }, [emblaApi, resetZoom]);
 
   const scrollTo = React.useCallback((index: number) => {
     if (!emblaApi) return;
@@ -71,34 +77,9 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
     emblaApi.scrollNext();
   }, [emblaApi]);
 
-  const handleZoomIn = React.useCallback(() => {
-    const currentZoomIndex = zoomLevels.indexOf(zoomLevel);
-    if (currentZoomIndex < zoomLevels.length - 1) {
-      const newZoom = zoomLevels[currentZoomIndex + 1];
-      setZoomLevel(newZoom);
-      setIsZoomed(newZoom > 1);
-    }
-  }, [zoomLevel, zoomLevels]);
-
-  const handleZoomOut = React.useCallback(() => {
-    const currentZoomIndex = zoomLevels.indexOf(zoomLevel);
-    if (currentZoomIndex > 0) {
-      const newZoom = zoomLevels[currentZoomIndex - 1];
-      setZoomLevel(newZoom);
-      setIsZoomed(newZoom > 1);
-    }
-  }, [zoomLevel, zoomLevels]);
-
-  const handleZoomReset = React.useCallback(() => {
-    setZoomLevel(1);
-    setIsZoomed(false);
-  }, []);
-
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;
   const hasMultipleImages = sortedImages.length > 1;
-  const canZoomIn = zoomLevel < Math.max(...zoomLevels);
-  const canZoomOut = zoomLevel > Math.min(...zoomLevels);
 
   if (loading) {
     return (
@@ -142,177 +123,43 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         </div>
       )}
 
-      {/* Zoom Controls - Top Left Corner (Semi-transparent) */}
-      <div className="absolute top-4 left-4 z-30 flex flex-col gap-1 opacity-60 hover:opacity-100 transition-opacity">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="w-8 h-8 p-0 bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm"
-          onClick={handleZoomIn}
-          disabled={!canZoomIn}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </Button>
-        
-        <Button
-          variant="secondary"
-          size="sm"
-          className="w-8 h-8 p-0 bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm"
-          onClick={handleZoomOut}
-          disabled={!canZoomOut}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </Button>
-        
-        {isZoomed && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-8 h-8 p-0 bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm"
-            onClick={handleZoomReset}
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
-        )}
-        
-        {/* Zoom Level Indicator */}
-        {isZoomed && (
-          <div className="bg-black/40 text-white px-2 py-1 rounded text-xs backdrop-blur-sm text-center">
-            {zoomLevel}x
-          </div>
-        )}
-      </div>
+      {/* Zoom Controls */}
+      <ZoomControls
+        zoomLevel={zoomLevel}
+        isZoomed={isZoomed}
+        canZoomIn={canZoomIn}
+        canZoomOut={canZoomOut}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
+      />
 
-      {/* Embla Carousel */}
-      <div className="h-full" ref={emblaRef}>
-        <div className="flex h-full">
-          {sortedImages.map((image, index) => (
-            <div 
-              key={image.id} 
-              className={cn(
-                "flex-none w-full h-full relative",
-                // Hide non-current images when zoomed
-                isZoomed && index !== currentIndex ? "hidden" : ""
-              )}
-            >
-              <div 
-                className={cn(
-                  "w-full h-full transition-transform duration-300 ease-in-out",
-                  isZoomed ? "cursor-grab active:cursor-grabbing overflow-auto" : "overflow-hidden"
-                )}
-                style={{
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: 'center center'
-                }}
-              >
-                <LocalArtworkImage
-                  imageRecord={image}
-                  title={`${artworkTitle} - Image ${index + 1}`}
-                  className="w-full h-full object-contain"
-                  size="large"
-                  showProcessingStatus={true}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Carousel Container */}
+      <CarouselContainer
+        sortedImages={sortedImages}
+        artworkTitle={artworkTitle}
+        currentIndex={currentIndex}
+        zoomLevel={zoomLevel}
+        isZoomed={isZoomed}
+        emblaRef={emblaRef}
+      />
 
       {/* Navigation Arrows */}
-      {hasMultipleImages && (
-        <>
-          <Button
-            variant="secondary"
-            size="icon"
-            className={cn(
-              "absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm",
-              !canScrollPrev && "opacity-30 cursor-not-allowed"
-            )}
-            onClick={scrollPrev}
-            disabled={!canScrollPrev}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="secondary"
-            size="icon"
-            className={cn(
-              "absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm",
-              !canScrollNext && "opacity-30 cursor-not-allowed"
-            )}
-            onClick={scrollNext}
-            disabled={!canScrollNext}
-          >
-            <ChevronRight className="w-5 h-5" />
-          </Button>
-        </>
-      )}
+      <NavigationArrows
+        hasMultipleImages={hasMultipleImages}
+        canScrollPrev={canScrollPrev}
+        canScrollNext={canScrollNext}
+        onScrollPrev={scrollPrev}
+        onScrollNext={scrollNext}
+      />
 
-      {/* Elegant Dial Indicator with Counter */}
-      {hasMultipleImages && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="relative bg-black/60 backdrop-blur-sm rounded-full p-3 flex items-center justify-center">
-            {/* Counter Text */}
-            <div className="text-white text-sm font-medium px-2">
-              {currentIndex + 1} / {sortedImages.length}
-            </div>
-            
-            {/* Elegant Dial Background */}
-            <div className="absolute inset-0 rounded-full">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                {/* Background circle */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="2"
-                />
-                {/* Progress circle */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.8)"
-                  strokeWidth="2"
-                  strokeDasharray={`${(currentIndex + 1) / sortedImages.length * 283} 283`}
-                  className="transition-all duration-300 ease-in-out"
-                />
-              </svg>
-            </div>
-            
-            {/* Individual dots for each image */}
-            <div className="absolute inset-0 rounded-full">
-              {sortedImages.map((_, index) => {
-                const angle = (index / sortedImages.length) * 360 - 90;
-                const x = 50 + 35 * Math.cos((angle * Math.PI) / 180);
-                const y = 50 + 35 * Math.sin((angle * Math.PI) / 180);
-                
-                return (
-                  <button
-                    key={index}
-                    className={cn(
-                      "absolute w-1.5 h-1.5 rounded-full transition-all duration-200 hover:scale-125",
-                      index === currentIndex 
-                        ? "bg-white shadow-lg" 
-                        : "bg-white/50 hover:bg-white/70"
-                    )}
-                    style={{
-                      left: `${x}%`,
-                      top: `${y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                    onClick={() => scrollTo(index)}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Elegant Dial Indicator */}
+      <ElegantDialIndicator
+        hasMultipleImages={hasMultipleImages}
+        currentIndex={currentIndex}
+        totalImages={sortedImages.length}
+        onScrollTo={scrollTo}
+      />
     </div>
   );
 }
