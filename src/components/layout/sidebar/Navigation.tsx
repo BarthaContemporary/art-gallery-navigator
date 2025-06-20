@@ -1,8 +1,6 @@
 
 import { SidebarNavItem } from "@/components/layout/sidebar/components/SidebarNavItem";
-import { CompendiumTreeView } from "@/components/layout/sidebar/CompendiumTreeView";
 import { useNavItems } from '@/hooks/use-nav-items';
-import { Separator } from "@/components/ui/separator";
 
 export const Navigation = () => {
   const navItems = useNavItems();
@@ -20,11 +18,6 @@ export const Navigation = () => {
           />
         ))}
       </div>
-      
-      <Separator />
-      
-      {/* Tree view compendium */}
-      <CompendiumTreeView />
     </nav>
   );
 };
