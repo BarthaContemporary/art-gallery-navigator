@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 import { useArtworkImageHandler } from "@/hooks/use-artwork-image-handler";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ interface OptimizedArtworkImageProps {
   onClick?: () => void;
   className?: string;
   tier?: 'thumbnail' | 'medium' | 'full';
+  onLoadingStart?: () => void;
+  onLoadingComplete?: () => void;
 }
 
 export function OptimizedArtworkImage({
@@ -20,11 +22,14 @@ export function OptimizedArtworkImage({
   onClick,
   className = "",
   tier = 'medium',
+  onLoadingStart,
+  onLoadingComplete,
 }: OptimizedArtworkImageProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const loadingStartedRef = useRef(false);
 
   // Get the appropriate image URL based on tier
   const getImageUrl = useCallback(() => {
@@ -51,16 +56,33 @@ export function OptimizedArtworkImage({
     title,
   });
 
+  // Reset states when image changes
+  useEffect(() => {
+    setImageError(false);
+    setImageLoaded(false);
+    setRetryCount(0);
+    setIsRetrying(false);
+    loadingStartedRef.current = false;
+  }, [determinedOptimizedUrl, imageRecord?.id]);
+
+  const handleImageLoadStart = useCallback(() => {
+    if (!loadingStartedRef.current) {
+      loadingStartedRef.current = true;
+      onLoadingStart?.();
+    }
+  }, [onLoadingStart]);
+
   const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     console.log(`Image loaded successfully: ${title} from ${event.currentTarget.src}`);
     setImageLoaded(true);
     setImageError(false);
     setIsRetrying(false);
+    onLoadingComplete?.();
 
     if (event.currentTarget.src && event.currentTarget.src !== "/placeholder.svg") {
       cacheLoadedImage(event.currentTarget.src);
     }
-  }, [cacheLoadedImage, title]);
+  }, [cacheLoadedImage, title, onLoadingComplete]);
 
   const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     const failedUrl = event.currentTarget.src;
@@ -68,7 +90,8 @@ export function OptimizedArtworkImage({
     setImageError(true);
     setImageLoaded(true);
     setIsRetrying(false);
-  }, [title]);
+    onLoadingComplete?.();
+  }, [title, onLoadingComplete]);
 
   const handleRetry = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -78,7 +101,13 @@ export function OptimizedArtworkImage({
     setImageLoaded(false);
     setIsRetrying(true);
     setRetryCount(prev => prev + 1);
-  }, [title, retryCount]);
+    loadingStartedRef.current = false;
+    
+    // Trigger loading start callback for retry
+    setTimeout(() => {
+      onLoadingStart?.();
+    }, 0);
+  }, [title, retryCount, onLoadingStart]);
 
   const handleClick = useCallback(() => {
     if (onClick) onClick();
@@ -118,10 +147,12 @@ export function OptimizedArtworkImage({
           "w-full h-full object-contain transition-opacity duration-300",
           imageLoaded && !imageError ? "opacity-100" : "opacity-0"
         )}
+        onLoadStart={handleImageLoadStart}
         onLoad={handleImageLoad}
         onError={handleImageError}
         loading="lazy"
         decoding="async"
+        data-loading={!imageLoaded}
       />
       
       {/* Loading State */}

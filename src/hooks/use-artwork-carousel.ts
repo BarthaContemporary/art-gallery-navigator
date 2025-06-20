@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,38 +14,60 @@ interface ArtworkImage {
   processed?: boolean;
 }
 
-/**
- * Simplified hook to manage artwork image carousel state and Embla integration.
- * Focuses on fetching images and carousel navigation, letting OptimizedArtworkImage handle image optimization.
- */
 export function useArtworkCarousel(artworkId: string) {
   const [images, setImages] = useState<ArtworkImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
+  const imagesLoadedRef = useRef<Set<string>>(new Set());
   
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: true,
-    align: "start",
+    align: "center",
     slidesToScroll: 1,
     containScroll: "trimSnaps",
-    watchDrag: true, // Enable drag/swipe functionality
-    skipSnaps: false 
+    watchDrag: true,
+    skipSnaps: false,
+    duration: 25,
+    dragFree: false,
+    inViewThreshold: 0.7
   });
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    setCurrentIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
+    const newIndex = emblaApi.selectedScrollSnap();
+    setCurrentIndex(newIndex);
+    
+    // Preload adjacent images
+    const totalImages = images.length;
+    if (totalImages > 0) {
+      const prevIndex = (newIndex - 1 + totalImages) % totalImages;
+      const nextIndex = (newIndex + 1) % totalImages;
+      
+      [prevIndex, nextIndex].forEach(index => {
+        const image = images[index];
+        if (image && !imagesLoadedRef.current.has(image.id)) {
+          const img = new Image();
+          img.src = image.medium_url || image.image_url;
+          img.onload = () => {
+            imagesLoadedRef.current.add(image.id);
+          };
+        }
+      });
+    }
+  }, [emblaApi, images]);
 
   useEffect(() => {
     if (!emblaApi) return;
     
     onSelect();
     emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
     
     return () => {
       emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
     };
   }, [emblaApi, onSelect]);
 
@@ -83,6 +105,22 @@ export function useArtworkCarousel(artworkId: string) {
           });
           
           setImages(sortedImages as ArtworkImage[]);
+          setCurrentIndex(0);
+          
+          // Reset image loading states
+          setImageLoadingStates({});
+          imagesLoadedRef.current.clear();
+          
+          // Preload the first image
+          if (sortedImages.length > 0) {
+            const firstImage = sortedImages[0];
+            const img = new Image();
+            img.src = firstImage.medium_url || firstImage.image_url;
+            img.onload = () => {
+              imagesLoadedRef.current.add(firstImage.id);
+            };
+          }
+          
           setLoading(false);
         }
       } catch (err) {
@@ -115,6 +153,18 @@ export function useArtworkCarousel(artworkId: string) {
     emblaApi?.scrollNext();
   }, [emblaApi]);
 
+  const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
+  const canScrollNext = emblaApi?.canScrollNext() ?? false;
+
+  const markImageAsLoading = useCallback((imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: true }));
+  }, []);
+
+  const markImageAsLoaded = useCallback((imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }));
+    imagesLoadedRef.current.add(imageId);
+  }, []);
+
   return {
     images,
     currentIndex,
@@ -125,6 +175,11 @@ export function useArtworkCarousel(artworkId: string) {
     handleDotClick,
     scrollPrev,
     scrollNext,
+    canScrollPrev,
+    canScrollNext,
+    imageLoadingStates,
+    markImageAsLoading,
+    markImageAsLoaded,
   };
 }
 

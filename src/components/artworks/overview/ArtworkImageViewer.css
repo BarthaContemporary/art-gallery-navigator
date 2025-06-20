@@ -1,0 +1,188 @@
+
+/* Embla Carousel Core Styles */
+.embla {
+  position: relative;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.embla__viewport {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.embla__container {
+  display: flex;
+  height: 100%;
+  margin-left: -16px;
+  touch-action: pan-y;
+}
+
+.embla__slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-width: 0;
+  padding-left: 16px;
+  height: 100%;
+}
+
+/* Image container within slide */
+.embla__slide__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+/* Navigation arrows */
+.embla__nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.embla__nav-button:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.embla__nav-button--prev {
+  left: 12px;
+}
+
+.embla__nav-button--next {
+  right: 12px;
+}
+
+.embla__nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.embla__nav-button:disabled:hover {
+  transform: translateY(-50%) scale(1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Dot indicators */
+.embla__dots {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.embla__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  padding: 0;
+}
+
+.embla__dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: scale(1.2);
+}
+
+.embla__dot--selected {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(1.2);
+}
+
+/* Image overlay info */
+.embla__image-info {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+/* Loading and error states */
+.embla__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.embla__error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+  text-align: center;
+  padding: 16px;
+  z-index: 5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .embla__nav-button {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .embla__nav-button--prev {
+    left: 8px;
+  }
+  
+  .embla__nav-button--next {
+    right: 8px;
+  }
+  
+  .embla__dots {
+    bottom: 12px;
+    gap: 6px;
+  }
+  
+  .embla__dot {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Smooth transitions for image changes */
+.embla__slide img {
+  transition: opacity 0.3s ease;
+}
+
+.embla__slide img[data-loading="true"] {
+  opacity: 0.7;
+}
