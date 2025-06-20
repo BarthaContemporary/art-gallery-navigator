@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Book, Users, Palette, FileText, Calendar, MapPin } from 'lucide-react';
+import { ChevronDown, ChevronRight, Book, Users, Palette, FileText, Calendar, MapPin, Wrench, Activity } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -63,8 +62,8 @@ const compendiumTree: TreeNode[] = [
     children: [
       { id: 'admin-appointments', label: 'Appointments', href: '/appointments' },
       { id: 'admin-locations', label: 'Locations', href: '/locations' },
-      { id: 'admin-image-repair', label: 'Image Repair', href: '/admin/image-repair' },
-      { id: 'admin-image-health', label: 'Image Health', href: '/admin/image-health' },
+      { id: 'admin-image-repair', label: 'Image Repair', icon: Wrench, href: '/admin/image-repair' },
+      { id: 'admin-image-health', label: 'Image Health', icon: Activity, href: '/admin/image-health' },
     ]
   }
 ];

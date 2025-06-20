@@ -42,6 +42,41 @@ export class ImageRepairService {
   }
 
   /**
+   * Find orphaned image records (no original file)
+   */
+  static async findOrphanedImages(): Promise<LocalImageRecord[]> {
+    const { data: images, error } = await supabase
+      .from('artwork_images')
+      .select('*')
+      .not('original_storage_path', 'is', null);
+
+    if (error) {
+      logger.error('[ImageRepairService] Failed to fetch images:', error);
+      return [];
+    }
+
+    const orphaned: LocalImageRecord[] = [];
+
+    for (const image of images || []) {
+      try {
+        // Check if original file exists
+        const { error: downloadError } = await supabase.storage
+          .from('artwork-images-original')
+          .download(image.original_storage_path);
+
+        if (downloadError && downloadError.message.includes('not found')) {
+          orphaned.push(image as LocalImageRecord);
+        }
+      } catch (error) {
+        // If we can't check, assume it might be orphaned
+        logger.warn(`[ImageRepairService] Could not verify file for image ${image.id}`);
+      }
+    }
+
+    return orphaned;
+  }
+
+  /**
    * Retry processing for a specific image
    */
   static async retryImageProcessing(imageId: string): Promise<{ success: boolean; error?: string }> {
@@ -61,7 +96,16 @@ export class ImageRepairService {
         return { success: false, error: 'No original image path found' };
       }
 
-      // Reset status to pending
+      // Check if original file exists
+      const { error: fileCheckError } = await supabase.storage
+        .from('artwork-images-original')
+        .download(imageData.original_storage_path);
+
+      if (fileCheckError && fileCheckError.message.includes('not found')) {
+        return { success: false, error: 'Original image file not found in storage' };
+      }
+
+      // Reset status to pending and clear error
       const { error: resetError } = await supabase
         .from('artwork_images')
         .update({ 
@@ -124,47 +168,30 @@ export class ImageRepairService {
   }
 
   /**
-   * Clean up orphaned image records (no original file)
+   * Clean up orphaned image records
    */
   static async cleanupOrphanedRecords(): Promise<{ cleaned: number; errors: string[] }> {
     const errors: string[] = [];
     let cleaned = 0;
 
     try {
-      // Get all image records
-      const { data: images, error } = await supabase
-        .from('artwork_images')
-        .select('id, original_storage_path')
-        .not('original_storage_path', 'is', null);
+      const orphanedImages = await this.findOrphanedImages();
 
-      if (error) {
-        errors.push(`Failed to fetch images: ${error.message}`);
-        return { cleaned, errors };
-      }
-
-      for (const image of images || []) {
+      for (const image of orphanedImages) {
         try {
-          // Check if original file exists
-          const { error: downloadError } = await supabase.storage
-            .from('artwork-images-original')
-            .download(image.original_storage_path);
+          const { error: deleteError } = await supabase
+            .from('artwork_images')
+            .delete()
+            .eq('id', image.id);
 
-          if (downloadError && downloadError.message.includes('not found')) {
-            // File doesn't exist, remove the record
-            const { error: deleteError } = await supabase
-              .from('artwork_images')
-              .delete()
-              .eq('id', image.id);
-
-            if (deleteError) {
-              errors.push(`Failed to delete orphaned record ${image.id}: ${deleteError.message}`);
-            } else {
-              cleaned++;
-              logger.log(`[ImageRepairService] Cleaned orphaned record ${image.id}`);
-            }
+          if (deleteError) {
+            errors.push(`Failed to delete orphaned record ${image.id}: ${deleteError.message}`);
+          } else {
+            cleaned++;
+            logger.log(`[ImageRepairService] Cleaned orphaned record ${image.id}`);
           }
         } catch (error) {
-          errors.push(`Error checking image ${image.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errors.push(`Error cleaning image ${image.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
@@ -212,5 +239,46 @@ export class ImageRepairService {
     }, { total: 0, pending: 0, processing: 0, completed: 0, failed: 0, stuck: 0 });
 
     return summary;
+  }
+
+  /**
+   * Recover images from specific artwork
+   */
+  static async recoverArtworkImages(artworkId: string): Promise<{
+    recovered: number;
+    failed: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let recovered = 0;
+    let failed = 0;
+
+    try {
+      const { data: images, error } = await supabase
+        .from('artwork_images')
+        .select('*')
+        .eq('artwork_id', artworkId)
+        .in('processing_status', ['failed', 'pending', 'processing']);
+
+      if (error) {
+        errors.push(`Failed to fetch images: ${error.message}`);
+        return { recovered, failed, errors };
+      }
+
+      for (const image of images || []) {
+        const result = await this.retryImageProcessing(image.id);
+        if (result.success) {
+          recovered++;
+        } else {
+          failed++;
+          errors.push(`Failed to recover ${image.id}: ${result.error}`);
+        }
+      }
+
+    } catch (error) {
+      errors.push(`Recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    return { recovered, failed, errors };
   }
 }

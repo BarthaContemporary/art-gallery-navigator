@@ -147,7 +147,7 @@ export class LocalImageService {
   }
 
   /**
-   * Upload an image file and trigger processing
+   * Upload an image file and trigger processing with proper error handling
    */
   static async uploadAndProcessImage(
     file: File,
@@ -155,10 +155,44 @@ export class LocalImageService {
     isPrimary: boolean = false,
     displayOrder: number = 0
   ): Promise<{ success: boolean; imageId?: string; error?: string }> {
+    const imageId = crypto.randomUUID();
+    
     try {
-      const imageId = crypto.randomUUID();
+      // Validate file
+      if (!file.type.startsWith('image/')) {
+        throw new Error('File must be an image');
+      }
+
+      if (file.size > 100 * 1024 * 1024) { // 100MB limit
+        throw new Error('File size must be less than 100MB');
+      }
+
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      if (!fileExtension || !['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExtension)) {
+        throw new Error('Unsupported file format. Please use JPG, PNG, WebP, or GIF');
+      }
+
       const originalPath = `${artworkId}/${imageId}_original.${fileExtension}`;
+
+      // Create database record first to ensure consistency
+      const { error: dbError } = await supabase
+        .from('artwork_images')
+        .insert({
+          id: imageId,
+          artwork_id: artworkId,
+          image_url: 'processing',
+          original_storage_path: originalPath,
+          processing_status: 'pending',
+          is_primary: isPrimary,
+          display_order: displayOrder,
+          original_width: null,
+          original_height: null,
+          original_size: file.size
+        });
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
 
       // Upload original to private bucket
       const { error: uploadError } = await supabase.storage
@@ -166,40 +200,40 @@ export class LocalImageService {
         .upload(originalPath, file);
 
       if (uploadError) {
-        throw uploadError;
-      }
-
-      // Create database record
-      const { error: dbError } = await supabase
-        .from('artwork_images')
-        .insert({
-          id: imageId,
-          artwork_id: artworkId,
-          image_url: 'processing', // Legacy field, will be updated after processing
-          original_storage_path: originalPath,
-          processing_status: 'pending',
-          is_primary: isPrimary,
-          display_order: displayOrder,
-          original_width: null,
-          original_height: null
-        });
-
-      if (dbError) {
-        throw dbError;
+        // Clean up database record if upload fails
+        await supabase
+          .from('artwork_images')
+          .delete()
+          .eq('id', imageId);
+        
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
       // Trigger background processing
       this.triggerImageProcessing(imageId, originalPath);
 
+      logger.log(`[LocalImageService] Successfully uploaded image ${imageId}`);
       return { success: true, imageId };
+
     } catch (error) {
       logger.error('[LocalImageService] Upload failed:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+      
+      // Try to clean up any partial data
+      try {
+        await supabase.from('artwork_images').delete().eq('id', imageId);
+      } catch (cleanupError) {
+        logger.warn('[LocalImageService] Failed to cleanup after upload error:', cleanupError);
+      }
+      
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Upload failed' 
+      };
     }
   }
 
   /**
-   * Trigger background image processing
+   * Trigger background image processing with improved error handling
    */
   private static async triggerImageProcessing(imageId: string, originalPath: string) {
     try {
@@ -229,6 +263,19 @@ export class LocalImageService {
       }
     } catch (error) {
       logger.error('[LocalImageService] Background processing failed:', error);
+      
+      // Mark as failed if we can't even trigger processing
+      try {
+        await supabase
+          .from('artwork_images')
+          .update({ 
+            processing_status: 'failed',
+            processing_error: 'Failed to trigger image processing'
+          })
+          .eq('id', imageId);
+      } catch (updateError) {
+        logger.error('[LocalImageService] Failed to update error status:', updateError);
+      }
     }
   }
 
@@ -250,19 +297,57 @@ export class LocalImageService {
   }
 
   /**
-   * Delete image record
+   * Delete image record and associated files
    */
   static async deleteImage(imageId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('artwork_images')
-      .delete()
-      .eq('id', imageId);
+    try {
+      // Get image record first to clean up files
+      const { data: imageRecord } = await supabase
+        .from('artwork_images')
+        .select('*')
+        .eq('id', imageId)
+        .single();
 
-    if (error) {
+      // Delete from database
+      const { error } = await supabase
+        .from('artwork_images')
+        .delete()
+        .eq('id', imageId);
+
+      if (error) {
+        logger.error('[LocalImageService] Failed to delete image record:', error);
+        return false;
+      }
+
+      // Clean up storage files (best effort)
+      if (imageRecord) {
+        const filesToDelete: Array<{ bucket: string; path: string }> = [];
+        
+        if (imageRecord.original_storage_path) {
+          filesToDelete.push({ bucket: 'artwork-images-original', path: imageRecord.original_storage_path });
+        }
+        if (imageRecord.thumbnail_storage_path) {
+          filesToDelete.push({ bucket: 'artwork-images-processed', path: imageRecord.thumbnail_storage_path });
+        }
+        if (imageRecord.medium_storage_path) {
+          filesToDelete.push({ bucket: 'artwork-images-processed', path: imageRecord.medium_storage_path });
+        }
+        if (imageRecord.large_storage_path) {
+          filesToDelete.push({ bucket: 'artwork-images-processed', path: imageRecord.large_storage_path });
+        }
+
+        // Delete files in background (don't wait for completion)
+        for (const file of filesToDelete) {
+          supabase.storage.from(file.bucket).remove([file.path]).catch(error => {
+            logger.warn(`[LocalImageService] Failed to delete storage file ${file.path}:`, error);
+          });
+        }
+      }
+
+      return true;
+    } catch (error) {
       logger.error('[LocalImageService] Failed to delete image:', error);
       return false;
     }
-
-    return true;
   }
 }
