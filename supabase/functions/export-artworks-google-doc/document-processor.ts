@@ -9,7 +9,20 @@ const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
  * Generate a proper public URL for artwork images
  */
 function generateImageUrl(imageRecord: any): string | null {
-  // Try different storage paths in order of preference
+  // First, try the processed URLs (thumbnail_url, medium_url) which should be complete URLs
+  const directUrls = [
+    imageRecord.medium_url,
+    imageRecord.thumbnail_url,
+    imageRecord.image_url
+  ];
+
+  for (const url of directUrls) {
+    if (url && typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+      return url;
+    }
+  }
+
+  // If no direct URLs, try constructing from storage paths
   const storagePaths = [
     { path: imageRecord.medium_storage_path, bucket: 'artwork-images-processed' },
     { path: imageRecord.large_storage_path, bucket: 'artwork-images-processed' },
@@ -17,20 +30,26 @@ function generateImageUrl(imageRecord: any): string | null {
     { path: imageRecord.original_storage_path, bucket: 'artwork-images-original' }
   ];
 
-  for (const { path, bucket } of storagePaths) {
-    if (path) {
-      // Generate proper Supabase public URL
-      const baseUrl = Deno.env.get("SUPABASE_URL");
-      if (baseUrl) {
-        return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
+  const baseUrl = Deno.env.get("SUPABASE_URL");
+  if (baseUrl) {
+    for (const { path, bucket } of storagePaths) {
+      if (path && typeof path === 'string') {
+        // Ensure path doesn't start with slash
+        const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+        const fullUrl = `${baseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`;
+        return fullUrl;
       }
     }
   }
 
-  // Fallback to the legacy image_url if available
-  if (imageRecord.image_url && imageRecord.image_url !== 'processing') {
-    return imageRecord.image_url;
-  }
+  console.warn(`[generateImageUrl] No valid image URL found for image record:`, {
+    id: imageRecord.id,
+    medium_url: imageRecord.medium_url,
+    thumbnail_url: imageRecord.thumbnail_url,
+    image_url: imageRecord.image_url,
+    medium_storage_path: imageRecord.medium_storage_path,
+    baseUrl: baseUrl
+  });
 
   return null;
 }
@@ -75,6 +94,15 @@ export async function processDocumentContent(
       const primaryImage = artwork.artwork_images.find(img => img.is_primary);
       const imageToUse = primaryImage || artwork.artwork_images[0];
       
+      console.log(`[processDocumentContent] Image record for ${artwork.title}:`, {
+        id: imageToUse.id,
+        is_primary: imageToUse.is_primary,
+        medium_url: imageToUse.medium_url,
+        thumbnail_url: imageToUse.thumbnail_url,
+        image_url: imageToUse.image_url,
+        medium_storage_path: imageToUse.medium_storage_path
+      });
+      
       // Generate proper public URL
       const imageUrl = generateImageUrl(imageToUse);
       
@@ -85,12 +113,14 @@ export async function processDocumentContent(
           currentIndex += 1; // Account for the inserted image
           console.log(`Successfully inserted image for artwork: ${artwork.title}`);
         } catch (error) {
-          console.warn(`Failed to insert image for artwork ${artwork.title}:`, error);
+          console.error(`Failed to insert image for artwork ${artwork.title}:`, error);
           // Continue without the image
         }
       } else {
         console.warn(`No valid image URL found for artwork: ${artwork.title}`);
       }
+    } else {
+      console.log(`No images available for artwork: ${artwork.title}`);
     }
     
     // Insert artwork text content AFTER the image

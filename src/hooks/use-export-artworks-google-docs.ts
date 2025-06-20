@@ -36,7 +36,7 @@ export function useExportArtworksToGoogleDocs() {
         // Get artist name from multiple possible sources
         const artistName = artwork.artist_name || artwork.artists?.full_name || "Artist information not available";
         
-        // Ensure all artwork images are included with all URL variants
+        // Ensure all artwork images are included with ALL URL variants for better compatibility
         const processedImages = artwork.artwork_images?.map(img => ({
           id: img.id,
           artwork_id: img.artwork_id,
@@ -45,7 +45,12 @@ export function useExportArtworksToGoogleDocs() {
           medium_url: img.medium_url,
           is_primary: img.is_primary,
           display_order: img.display_order,
-          processed: img.processed
+          processed: img.processed,
+          // Include storage paths for URL construction
+          medium_storage_path: img.medium_storage_path,
+          large_storage_path: img.large_storage_path,
+          thumbnail_storage_path: img.thumbnail_storage_path,
+          original_storage_path: img.original_storage_path
         })) || [];
         
         return {
@@ -68,10 +73,11 @@ export function useExportArtworksToGoogleDocs() {
         title: a.title, 
         artist_name: a.artist_name, 
         images: a.artwork_images?.length || 0,
-        imageUrls: a.artwork_images?.map(img => ({
+        sampleImageUrls: a.artwork_images?.slice(0, 1).map(img => ({
           image_url: img.image_url,
           thumbnail_url: img.thumbnail_url,
           medium_url: img.medium_url,
+          medium_storage_path: img.medium_storage_path,
           is_primary: img.is_primary
         })) || []
       })));
