@@ -1,3 +1,4 @@
+
 import { OptimizedImageConfig, ImageTierType } from "./types";
 import { validateImageUrl, isCloudinaryUrl, isSupabaseUrl, extractOriginalUrlFromCloudinary } from "@/utils/image-url-utils";
 
@@ -112,23 +113,6 @@ export const convertToCloudinaryUrl = (url: string, sizeConfig: any): string => 
   } catch (error) {
     console.warn('Failed to convert to Cloudinary URL:', url, error);
     return url;
-  }
-};
-
-export const validateImageUrl = (url: string): boolean => {
-  if (!url || url === "/placeholder.svg") return true;
-  
-  try {
-    const urlObj = new URL(url);
-    
-    // Additional validation for Cloudinary URLs
-    if (url.includes('res.cloudinary.com')) {
-      return isValidCloudinaryUrl(url);
-    }
-    
-    return true;
-  } catch {
-    return false;
   }
 };
 
