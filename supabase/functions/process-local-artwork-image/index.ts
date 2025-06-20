@@ -12,19 +12,40 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  let requestBody: any
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    // Parse request body once and store it
+    requestBody = await req.json()
+  } catch (error) {
+    console.error('Failed to parse request body:', error)
+    return new Response(
+      JSON.stringify({ error: 'Invalid request body' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+  }
 
-    const { image_id, original_path } = await req.json()
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
 
-    if (!image_id || !original_path) {
-      throw new Error('Missing required parameters')
-    }
+  const { image_id, original_path } = requestBody
 
-    console.log(`Processing image ${image_id} from path ${original_path}`)
+  if (!image_id || !original_path) {
+    return new Response(
+      JSON.stringify({ error: 'Missing required parameters: image_id and original_path' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  console.log(`Processing image ${image_id} from path ${original_path}`)
+
+  try {
+    // Update status to processing
+    await supabaseClient
+      .from('artwork_images')
+      .update({ processing_status: 'processing' })
+      .eq('id', image_id)
 
     // Download original image
     const { data: originalFile, error: downloadError } = await supabaseClient.storage
@@ -37,30 +58,53 @@ serve(async (req) => {
 
     // Convert to array buffer for processing
     const originalBuffer = await originalFile.arrayBuffer()
+    console.log(`Downloaded original image, size: ${originalBuffer.byteLength} bytes`)
+
+    // Process images using direct Cloudinary API calls (no upload preset needed)
+    const cloudinaryCloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME')
+    const cloudinaryApiKey = Deno.env.get('CLOUDINARY_API_KEY')
+    const cloudinaryApiSecret = Deno.env.get('CLOUDINARY_API_SECRET')
+
+    if (!cloudinaryCloudName || !cloudinaryApiKey || !cloudinaryApiSecret) {
+      throw new Error('Missing Cloudinary configuration')
+    }
+
+    // Upload to Cloudinary for processing
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`
     
-    // Process with Cloudinary
-    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${Deno.env.get('CLOUDINARY_CLOUD_NAME')}/image/upload`
-    
-    // Create form data for Cloudinary upload
     const formData = new FormData()
     formData.append('file', new Blob([originalBuffer]))
-    formData.append('upload_preset', 'artwork_processing') // You'll need to create this preset
-    formData.append('api_key', Deno.env.get('CLOUDINARY_API_KEY') ?? '')
+    formData.append('api_key', cloudinaryApiKey)
+    formData.append('timestamp', Math.floor(Date.now() / 1000).toString())
+    formData.append('folder', 'artwork_processing')
     
-    // Upload to Cloudinary for processing
+    // Generate signature for authentication
+    const timestamp = Math.floor(Date.now() / 1000)
+    const stringToSign = `folder=artwork_processing&timestamp=${timestamp}${cloudinaryApiSecret}`
+    const encoder = new TextEncoder()
+    const data = encoder.encode(stringToSign)
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    
+    formData.append('signature', signature)
+
     const cloudinaryResponse = await fetch(cloudinaryUrl, {
       method: 'POST',
       body: formData
     })
 
     if (!cloudinaryResponse.ok) {
-      throw new Error('Cloudinary upload failed')
+      const errorText = await cloudinaryResponse.text()
+      console.error('Cloudinary upload failed:', errorText)
+      throw new Error(`Cloudinary upload failed: ${cloudinaryResponse.status}`)
     }
 
     const cloudinaryData = await cloudinaryResponse.json()
     const publicId = cloudinaryData.public_id
+    console.log(`Successfully uploaded to Cloudinary with public_id: ${publicId}`)
 
-    // Generate different sizes
+    // Generate different sizes and upload to local storage
     const sizes = [
       { name: 'thumbnail', width: 300, height: 300 },
       { name: 'medium', width: 800, height: 800 },
@@ -72,26 +116,30 @@ serve(async (req) => {
     for (const size of sizes) {
       try {
         // Generate transformed URL
-        const transformedUrl = `https://res.cloudinary.com/${Deno.env.get('CLOUDINARY_CLOUD_NAME')}/image/upload/c_fit,w_${size.width},h_${size.height},q_90,f_webp/${publicId}`
+        const transformedUrl = `https://res.cloudinary.com/${cloudinaryCloudName}/image/upload/c_fit,w_${size.width},h_${size.height},q_90,f_webp/${publicId}`
         
         // Download processed image
         const processedResponse = await fetch(transformedUrl)
         if (!processedResponse.ok) {
-          throw new Error(`Failed to fetch ${size.name} version`)
+          console.error(`Failed to fetch ${size.name} version: ${processedResponse.status}`)
+          continue
         }
 
         const processedBuffer = await processedResponse.arrayBuffer()
+        console.log(`Downloaded ${size.name} version, size: ${processedBuffer.byteLength} bytes`)
         
         // Upload to local storage
         const storagePath = `${image_id}/${size.name}.webp`
         const { error: uploadError } = await supabaseClient.storage
           .from('artwork-images-processed')
           .upload(storagePath, new Uint8Array(processedBuffer), {
-            contentType: 'image/webp'
+            contentType: 'image/webp',
+            upsert: true
           })
 
         if (uploadError) {
-          throw new Error(`Failed to store ${size.name}: ${uploadError.message}`)
+          console.error(`Failed to store ${size.name}: ${uploadError.message}`)
+          continue
         }
 
         processedPaths[`${size.name}_storage_path`] = storagePath
@@ -100,6 +148,32 @@ serve(async (req) => {
         console.error(`Failed to process ${size.name}:`, sizeError)
         // Continue with other sizes even if one fails
       }
+    }
+
+    // Clean up Cloudinary (optional, to save storage)
+    try {
+      const destroyUrl = `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/destroy`
+      const destroyTimestamp = Math.floor(Date.now() / 1000)
+      const destroyStringToSign = `public_id=${publicId}&timestamp=${destroyTimestamp}${cloudinaryApiSecret}`
+      const destroyData = encoder.encode(destroyStringToSign)
+      const destroyHashBuffer = await crypto.subtle.digest('SHA-1', destroyData)
+      const destroyHashArray = Array.from(new Uint8Array(destroyHashBuffer))
+      const destroySignature = destroyHashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+      
+      await fetch(destroyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          public_id: publicId,
+          api_key: cloudinaryApiKey,
+          timestamp: destroyTimestamp.toString(),
+          signature: destroySignature
+        })
+      })
+      console.log(`Cleaned up Cloudinary image ${publicId}`)
+    } catch (cleanupError) {
+      console.warn('Failed to cleanup Cloudinary image:', cleanupError)
+      // Not critical, continue
     }
 
     // Update database with processed paths
@@ -119,22 +193,6 @@ serve(async (req) => {
       throw new Error(`Failed to update database: ${updateError.message}`)
     }
 
-    // Clean up Cloudinary (optional, to save storage)
-    try {
-      await fetch(`https://api.cloudinary.com/v1_1/${Deno.env.get('CLOUDINARY_CLOUD_NAME')}/image/destroy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_id: publicId,
-          api_key: Deno.env.get('CLOUDINARY_API_KEY'),
-          api_secret: Deno.env.get('CLOUDINARY_API_SECRET')
-        })
-      })
-    } catch (cleanupError) {
-      console.warn('Failed to cleanup Cloudinary image:', cleanupError)
-      // Not critical, continue
-    }
-
     console.log(`Successfully processed image ${image_id}`)
 
     return new Response(
@@ -145,29 +203,21 @@ serve(async (req) => {
   } catch (error) {
     console.error('Processing failed:', error)
     
-    // Update database with error status if we have image_id
+    // Update database with error status
     try {
-      const { image_id } = await req.json()
-      if (image_id) {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        )
-        
-        await supabaseClient
-          .from('artwork_images')
-          .update({
-            processing_status: 'failed',
-            processing_error: error.message
-          })
-          .eq('id', image_id)
-      }
+      await supabaseClient
+        .from('artwork_images')
+        .update({
+          processing_status: 'failed',
+          processing_error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('id', image_id)
     } catch (dbError) {
       console.error('Failed to update error status:', dbError)
     }
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Processing failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

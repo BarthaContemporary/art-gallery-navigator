@@ -5,11 +5,12 @@ import { LocalArtworkImage } from "./LocalArtworkImage";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, Trash2, MoveUp, MoveDown, RefreshCw } from "lucide-react";
+import { Star, Trash2, MoveUp, MoveDown, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
+import { ImageRepairService } from "@/services/image-repair-service";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,11 +31,21 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
   const { images, loading, error, refreshImages } = useLocalArtworkImages(artworkId);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
+  const [retryingImageId, setRetryingImageId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const handleSetPrimary = async (imageId: string) => {
     setUpdatingImageId(imageId);
     try {
+      // First, unset all primary images for this artwork
+      const { error: unsetError } = await supabase
+        .from('artwork_images')
+        .update({ is_primary: false })
+        .eq('artwork_id', artworkId);
+
+      if (unsetError) throw unsetError;
+
+      // Then set the selected image as primary
       const { error } = await supabase
         .from('artwork_images')
         .update({ is_primary: true })
@@ -111,6 +122,48 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
     }
   };
 
+  const handleRetryProcessing = async (imageId: string) => {
+    setRetryingImageId(imageId);
+    try {
+      const result = await ImageRepairService.retryImageProcessing(imageId);
+      
+      if (result.success) {
+        toast.success('Processing retry initiated');
+        refreshImages();
+      } else {
+        toast.error(`Retry failed: ${result.error}`);
+      }
+    } catch (error) {
+      logger.error('[LocalArtworkImageManager] Retry failed:', error);
+      toast.error('Failed to retry processing');
+    } finally {
+      setRetryingImageId(null);
+    }
+  };
+
+  const getProcessingStatusBadge = (image: any) => {
+    const status = image.processing_status;
+    const isStuck = status === 'processing' && 
+      new Date().getTime() - new Date(image.created_at || '').getTime() > 30 * 60 * 1000;
+
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default" className="text-xs bg-green-600">Completed</Badge>;
+      case 'failed':
+        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+      case 'processing':
+        return (
+          <Badge variant={isStuck ? "destructive" : "secondary"} className="text-xs">
+            {isStuck ? 'Stuck' : 'Processing...'}
+          </Badge>
+        );
+      case 'pending':
+        return <Badge variant="secondary" className="text-xs">Pending</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">Unknown</Badge>;
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -154,118 +207,149 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {sortedImages.map((image, index) => (
-        <Card key={image.id} className="relative group">
-          <CardContent className="p-0">
-            <div className="aspect-square relative">
-              <LocalArtworkImage
-                imageRecord={image}
-                title={`Image ${index + 1}`}
-                className="w-full h-full rounded-t-lg"
-                size="medium"
-                showProcessingStatus={true}
-              />
-              
-              {/* Image badges */}
-              <div className="absolute top-2 left-2 flex gap-1">
-                {image.is_primary && (
-                  <Badge variant="default" className="text-xs">
-                    <Star className="w-3 h-3 mr-1" />
-                    Primary
-                  </Badge>
-                )}
-                {image.processing_status === 'processing' && (
-                  <Badge variant="secondary" className="text-xs">
-                    Processing...
-                  </Badge>
-                )}
-                {image.processing_status === 'failed' && (
-                  <Badge variant="destructive" className="text-xs">
-                    Failed
-                  </Badge>
+      {sortedImages.map((image, index) => {
+        const needsRetry = image.processing_status === 'failed' || 
+          (image.processing_status === 'processing' && 
+           new Date().getTime() - new Date(image.created_at || '').getTime() > 30 * 60 * 1000);
+
+        return (
+          <Card key={image.id} className="relative group">
+            <CardContent className="p-0">
+              <div className="aspect-square relative">
+                <LocalArtworkImage
+                  imageRecord={image}
+                  title={`Image ${index + 1}`}
+                  className="w-full h-full rounded-t-lg"
+                  size="medium"
+                  showProcessingStatus={true}
+                />
+                
+                {/* Image badges */}
+                <div className="absolute top-2 left-2 flex gap-1">
+                  {image.is_primary && (
+                    <Badge variant="default" className="text-xs">
+                      <Star className="w-3 h-3 mr-1" />
+                      Primary
+                    </Badge>
+                  )}
+                  {getProcessingStatusBadge(image)}
+                </div>
+
+                {/* Error indicator */}
+                {needsRetry && (
+                  <div className="absolute top-2 right-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
                 )}
               </div>
-            </div>
-            
-            {/* Image actions */}
-            <div className="p-3 space-y-2">
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
-                <span>Order: {image.display_order || 0}</span>
-                <span>
-                  {image.original_width && image.original_height && 
-                    `${image.original_width}×${image.original_height}`
-                  }
-                </span>
-              </div>
               
-              <div className="flex flex-wrap gap-1">
-                {!image.is_primary && (
+              {/* Image info and actions */}
+              <div className="p-3 space-y-2">
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                  <span>Order: {image.display_order || 0}</span>
+                  <span>
+                    {image.original_width && image.original_height && 
+                      `${image.original_width}×${image.original_height}`
+                    }
+                  </span>
+                </div>
+
+                {/* Error message */}
+                {image.processing_error && (
+                  <div className="text-xs text-red-600 p-2 bg-red-50 rounded">
+                    <strong>Error:</strong> {image.processing_error}
+                  </div>
+                )}
+                
+                {/* Action buttons */}
+                <div className="flex flex-wrap gap-1">
+                  {!image.is_primary && image.processing_status === 'completed' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSetPrimary(image.id)}
+                      disabled={updatingImageId === image.id}
+                      className="text-xs h-7"
+                    >
+                      <Star className="w-3 h-3 mr-1" />
+                      Set Primary
+                    </Button>
+                  )}
+
+                  {needsRetry && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRetryProcessing(image.id)}
+                      disabled={retryingImageId === image.id}
+                      className="text-xs h-7"
+                    >
+                      {retryingImageId === image.id ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Retry
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleSetPrimary(image.id)}
-                    disabled={updatingImageId === image.id}
+                    onClick={() => handleReorder(image.id, 'up')}
+                    disabled={updatingImageId === image.id || index === 0}
                     className="text-xs h-7"
                   >
-                    <Star className="w-3 h-3 mr-1" />
-                    Set Primary
+                    <MoveUp className="w-3 h-3" />
                   </Button>
-                )}
-                
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleReorder(image.id, 'up')}
-                  disabled={updatingImageId === image.id || index === 0}
-                  className="text-xs h-7"
-                >
-                  <MoveUp className="w-3 h-3" />
-                </Button>
-                
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleReorder(image.id, 'down')}
-                  disabled={updatingImageId === image.id || index === sortedImages.length - 1}
-                  className="text-xs h-7"
-                >
-                  <MoveDown className="w-3 h-3" />
-                </Button>
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={deletingImageId === image.id}
-                      className="text-xs h-7"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Image</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this image? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDelete(image.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReorder(image.id, 'down')}
+                    disabled={updatingImageId === image.id || index === sortedImages.length - 1}
+                    className="text-xs h-7"
+                  >
+                    <MoveDown className="w-3 h-3" />
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={deletingImageId === image.id}
+                        className="text-xs h-7"
                       >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Image</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this image? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(image.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUploadService } from "@/services/image-upload-service";
 import { logger } from "@/lib/logger";
@@ -25,6 +25,7 @@ export function LocalImageUploader({
     progress: number;
     status: 'uploading' | 'processing' | 'completed' | 'error';
     error?: string;
+    imageId?: string;
   }>>([]);
 
   const handleFiles = useCallback(async (files: FileList) => {
@@ -52,48 +53,80 @@ export function LocalImageUploader({
       status: 'uploading'
     })));
 
+    let successCount = 0;
+    let errorCount = 0;
+
     try {
       for (let i = 0; i < validFiles.length; i++) {
         const file = validFiles[i];
         
         // Update progress to uploading
         setUploadProgress(prev => prev.map((item, index) => 
-          index === i ? { ...item, progress: 0, status: 'uploading' } : item
+          index === i ? { ...item, progress: 10, status: 'uploading' } : item
         ));
 
-        const result = await ImageUploadService.uploadAndProcessImage(
-          file,
-          artworkId,
-          i === 0, // First image is primary
-          i
-        );
+        try {
+          const result = await ImageUploadService.uploadAndProcessImage(
+            file,
+            artworkId,
+            i === 0, // First image is primary
+            i
+          );
 
-        if (result.success) {
-          // Update progress to processing
-          setUploadProgress(prev => prev.map((item, index) => 
-            index === i ? { ...item, progress: 100, status: 'processing' } : item
-          ));
-          
-          logger.log(`[LocalImageUploader] Successfully uploaded ${file.name}`);
-        } else {
+          if (result.success) {
+            // Update progress to processing
+            setUploadProgress(prev => prev.map((item, index) => 
+              index === i ? { 
+                ...item, 
+                progress: 100, 
+                status: 'processing',
+                imageId: result.imageId 
+              } : item
+            ));
+            
+            successCount++;
+            logger.log(`[LocalImageUploader] Successfully uploaded ${file.name}`);
+          } else {
+            // Update progress to error
+            setUploadProgress(prev => prev.map((item, index) => 
+              index === i ? { 
+                ...item, 
+                progress: 0, 
+                status: 'error',
+                error: result.error 
+              } : item
+            ));
+            
+            errorCount++;
+            toast.error(`Failed to upload ${file.name}: ${result.error}`);
+          }
+        } catch (fileError) {
           // Update progress to error
           setUploadProgress(prev => prev.map((item, index) => 
             index === i ? { 
               ...item, 
               progress: 0, 
               status: 'error',
-              error: result.error 
+              error: fileError instanceof Error ? fileError.message : 'Upload failed'
             } : item
           ));
           
-          toast.error(`Failed to upload ${file.name}: ${result.error}`);
+          errorCount++;
+          logger.error(`[LocalImageUploader] Upload error for ${file.name}:`, fileError);
         }
       }
 
-      const successCount = uploadProgress.filter(p => p.status !== 'error').length;
+      // Show summary
       if (successCount > 0) {
-        toast.success(`${successCount} image(s) uploaded successfully and are being processed`);
+        toast.success(
+          `${successCount} image(s) uploaded successfully and are being processed`,
+          { 
+            description: errorCount > 0 ? `${errorCount} uploads failed` : undefined 
+          }
+        );
         onUploadComplete?.();
+      } else if (errorCount > 0) {
+        toast.error(`All ${errorCount} uploads failed`);
       }
 
     } catch (error) {
@@ -101,7 +134,16 @@ export function LocalImageUploader({
       toast.error('Upload failed');
     } finally {
       setUploading(false);
-      setTimeout(() => setUploadProgress([]), 3000); // Clear progress after 3 seconds
+      
+      // Clear progress after a delay, but keep error states longer
+      setTimeout(() => {
+        setUploadProgress(prev => prev.filter(item => item.status === 'error'));
+      }, 3000);
+      
+      // Clear errors after longer delay
+      setTimeout(() => {
+        setUploadProgress([]);
+      }, 10000);
     }
   }, [artworkId, maxFiles, acceptedFileTypes, onUploadComplete]);
 
@@ -126,6 +168,30 @@ export function LocalImageUploader({
       handleFiles(e.target.files);
     }
   }, [handleFiles]);
+
+  const retryUpload = useCallback((index: number) => {
+    const progressItem = uploadProgress[index];
+    if (!progressItem || progressItem.status !== 'error') return;
+
+    // Create a new FileList with just this file (we'll need to re-select it)
+    toast.info('Please select the file again to retry upload');
+    document.getElementById('file-input')?.click();
+  }, [uploadProgress]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'uploading':
+        return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+      case 'processing':
+        return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'error':
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="w-full">
@@ -174,30 +240,45 @@ export function LocalImageUploader({
         <div className="mt-4 space-y-2">
           {uploadProgress.map((item, index) => (
             <div key={index} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-shrink-0">
+                {getStatusIcon(item.status)}
+              </div>
+              
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  {item.status === 'uploading' && (
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${item.progress}%` }}
-                      />
-                    </div>
-                  )}
-                  {item.status === 'processing' && (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-xs text-muted-foreground">Processing...</span>
-                    </div>
-                  )}
-                  {item.status === 'completed' && (
-                    <span className="text-xs text-green-600">✓ Completed</span>
-                  )}
-                  {item.status === 'error' && (
-                    <span className="text-xs text-red-600">✗ {item.error}</span>
-                  )}
-                </div>
+                
+                {item.status === 'uploading' && (
+                  <div className="w-full bg-muted rounded-full h-2 mt-1">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                )}
+                
+                {item.status === 'processing' && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">Processing image...</span>
+                  </div>
+                )}
+                
+                {item.status === 'completed' && (
+                  <span className="text-xs text-green-600">✓ Upload completed - processing in background</span>
+                )}
+                
+                {item.status === 'error' && (
+                  <div className="mt-1">
+                    <span className="text-xs text-red-600 block">✗ {item.error}</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => retryUpload(index)}
+                    >
+                      Retry upload
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
