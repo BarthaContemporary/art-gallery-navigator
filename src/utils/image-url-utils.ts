@@ -22,10 +22,15 @@ export function extractOriginalUrlFromCloudinary(cloudinaryUrl: string): string 
       const parts = cloudinaryUrl.split('/image/fetch/');
       if (parts.length === 2) {
         const afterFetch = parts[1];
-        // Find the last part that looks like a URL (starts with http)
-        const urlMatch = afterFetch.match(/(https?:\/\/[^\/]+.*)/);
+        // Find the encoded URL part (everything after the transformations)
+        const urlMatch = afterFetch.match(/https?%3A%2F%2F[^?&]+/);
         if (urlMatch) {
-          return decodeURIComponent(urlMatch[1]);
+          return decodeURIComponent(urlMatch[0]);
+        }
+        // Also try to find unencoded URLs
+        const directUrlMatch = afterFetch.match(/(https?:\/\/[^?&\s]+)/);
+        if (directUrlMatch) {
+          return directUrlMatch[1];
         }
       }
     }
@@ -62,41 +67,47 @@ export function getPriorityOrderedUrls(imageRecord: any): string[] {
   
   if (!imageRecord) return urls;
 
-  // Priority 1: Direct Supabase URLs (most reliable)
-  if (imageRecord.image_url && isSupabaseUrl(imageRecord.image_url)) {
-    urls.push(imageRecord.image_url);
-  }
-  if (imageRecord.medium_url && isSupabaseUrl(imageRecord.medium_url)) {
-    urls.push(imageRecord.medium_url);
-  }
-  if (imageRecord.thumbnail_url && isSupabaseUrl(imageRecord.thumbnail_url)) {
-    urls.push(imageRecord.thumbnail_url);
-  }
+  console.log(`[getPriorityOrderedUrls] Processing image record:`, {
+    image_url: imageRecord.image_url,
+    medium_url: imageRecord.medium_url,
+    thumbnail_url: imageRecord.thumbnail_url
+  });
 
-  // Priority 2: Extract original URLs from Cloudinary URLs
-  const cloudinaryUrls = [
+  // Collect all available URLs
+  const allUrls = [
     imageRecord.image_url,
     imageRecord.medium_url, 
     imageRecord.thumbnail_url
-  ].filter(url => url && isCloudinaryUrl(url));
+  ].filter(url => url && validateImageUrl(url));
 
+  // Priority 1: Direct Supabase URLs (most reliable)
+  const directSupabaseUrls = allUrls.filter(url => isSupabaseUrl(url));
+  urls.push(...directSupabaseUrls);
+  console.log(`[getPriorityOrderedUrls] Found ${directSupabaseUrls.length} direct Supabase URLs:`, directSupabaseUrls);
+
+  // Priority 2: Extract original URLs from Cloudinary URLs
+  const cloudinaryUrls = allUrls.filter(url => isCloudinaryUrl(url));
   for (const cloudinaryUrl of cloudinaryUrls) {
     const originalUrl = extractOriginalUrlFromCloudinary(cloudinaryUrl);
     if (originalUrl && validateImageUrl(originalUrl) && !urls.includes(originalUrl)) {
+      console.log(`[getPriorityOrderedUrls] Extracted original URL from Cloudinary: ${originalUrl}`);
       urls.push(originalUrl);
     }
   }
 
-  // Priority 3: Valid Cloudinary URLs (as last resort)
-  const validCloudinaryUrls = cloudinaryUrls.filter(url => 
-    validateImageUrl(url) && !urls.some(existingUrl => 
-      extractOriginalUrlFromCloudinary(url) === existingUrl
-    )
+  // Priority 3: Valid non-Cloudinary URLs that aren't already included
+  const otherValidUrls = allUrls.filter(url => 
+    !isCloudinaryUrl(url) && 
+    !isSupabaseUrl(url) && 
+    !urls.includes(url)
   );
-  urls.push(...validCloudinaryUrls);
+  urls.push(...otherValidUrls);
 
-  // Filter out invalid URLs and duplicates
-  return urls.filter((url, index, array) => 
+  // Filter out duplicates and invalid URLs
+  const finalUrls = urls.filter((url, index, array) => 
     validateImageUrl(url) && array.indexOf(url) === index
   );
+
+  console.log(`[getPriorityOrderedUrls] Final prioritized URLs:`, finalUrls);
+  return finalUrls;
 }
