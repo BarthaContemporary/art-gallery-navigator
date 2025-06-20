@@ -31,21 +31,28 @@ export function useExportArtworksToGoogleDocs() {
     try {
       console.log(`Exporting ${artworks.length} artworks to Google Docs...`);
 
-      // Prepare artwork data with images
-      const artworkData = artworks.map(artwork => ({
-        id: artwork.id,
-        title: artwork.title,
-        artist_name: artwork.artist_name,
-        year: artwork.year,
-        medium_type: artwork.medium_type,
-        materials: artwork.materials,
-        dimensions: artwork.dimensions,
-        price: artwork.price,
-        currency: artwork.currency,
-        status: artwork.status,
-        location_id: artwork.location_id,
-        artwork_images: artwork.artwork_images || []
-      }));
+      // Prepare artwork data with proper artist information and images
+      const artworkData = artworks.map(artwork => {
+        // Get artist name from the artwork object - it should already be populated via joins
+        const artistName = artwork.artist_name || "Artist information not available";
+        
+        return {
+          id: artwork.id,
+          title: artwork.title,
+          artist_name: artistName, // Ensure this is properly set
+          year: artwork.year,
+          medium_type: artwork.medium_type,
+          materials: artwork.materials,
+          dimensions: artwork.dimensions,
+          price: artwork.price,
+          currency: artwork.currency,
+          status: artwork.status,
+          location_id: artwork.location_id,
+          artwork_images: artwork.artwork_images || []
+        };
+      });
+
+      console.log("Artwork data prepared:", artworkData.map(a => ({ title: a.title, artist_name: a.artist_name, images: a.artwork_images?.length || 0 })));
 
       const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
         body: {

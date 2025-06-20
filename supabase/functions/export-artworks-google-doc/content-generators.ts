@@ -11,11 +11,11 @@ export function generateHeaderContent(artworks: Artwork[]): string {
 export function generateArtworkContent(artwork: Artwork, index: number): string {
   let content = `${index}. `;
   
-  // Artist name
-  if (artwork.artist_name) {
+  // Artist name - improved logic to handle artist_name field properly
+  if (artwork.artist_name && artwork.artist_name.trim() !== '') {
     content += `${artwork.artist_name}\n`;
   } else {
-    content += "Unknown Artist\n";
+    content += "Artist information not available\n";
   }
   
   // Title and year
