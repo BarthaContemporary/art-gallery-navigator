@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -22,7 +23,6 @@ interface ArtworkListViewProps {
   artworks: Artwork[];
 }
 
-// ... keep existing code (statusColors, listItemImageSizes definitions)
 const statusColors: Record<string, string> = {
   available: 'bg-green-100 text-green-800',
   'on hold': 'bg-amber-100 text-amber-800',
@@ -32,18 +32,11 @@ const statusColors: Record<string, string> = {
   returned: 'bg-orange-100 text-orange-800',
 };
 
-const listItemImageSizes = {
-  thumbnail: { width: 64, height: 48, quality: 70 },
-  medium: { width: 128, height: 96, quality: 80 },
-  full: { width: 256, height: 192, quality: 90 }
-};
-
 function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
   const { data: artists, isLoading: artistsLoading } = useArtists();
   const { isAdmin } = useAuth();
 
-  // ... keep existing code (getArtistName, formatDimensions, formatPrice, formatUpdatedDate, handleArtworkClick, handleCloseDialog, handleActionClick, createOptimizedImageClickHandler, memoizedArtworks check)
   const getArtistName = useCallback((artwork: Artwork): string => {
     if (!artwork.artist_id || !artists || artistsLoading) {
       return "Unknown Artist";
@@ -148,7 +141,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                       title={artwork.title || "Untitled"}
                       onClick={createOptimizedImageClickHandler(artwork)}
                       className="rounded-md aspect-[4/3] object-cover"
-                      sizes={listItemImageSizes} 
+                      tier="thumbnail"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -182,12 +175,12 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                     title={artwork.title || "Untitled"}
                     onClick={createOptimizedImageClickHandler(artwork)}
                     className="rounded-md aspect-[4/3] object-cover"
-                    sizes={listItemImageSizes}
+                    tier="thumbnail"
                   />
                 </div>
               </div>
 
-              {/* ... keep existing code (desktop/tablet title, artist, materials, year, dimensions, status, price, updated, actions) ... */}
+              {/* Desktop/Tablet view Title, Artist, Materials */}
               <div className="hidden md:block md:col-span-2 lg:col-span-3">
                 <div className="font-medium text-sm line-clamp-1">{artwork.title || "Untitled"}</div>
                 <div className="text-xs text-muted-foreground">{getArtistName(artwork)}</div>
@@ -239,7 +232,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleActionClick}> {/* TODO: Link this to actual edit action */}
+                      <DropdownMenuItem onClick={handleActionClick}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
@@ -252,7 +245,6 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
         })}
       </div>
 
-      {/* ... keep existing code (Suspense for ArtworkOverviewDialogLazy) ... */}
       {selectedArtwork && (
         <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>}>
           <ArtworkOverviewDialogLazy
@@ -267,7 +259,6 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
 }
 
 export function ArtworkListView({ artworks }: ArtworkListViewProps) {
-  // ... keep existing code (ErrorBoundary wrapper)
   return (
     <ErrorBoundary
       fallback={
