@@ -25,25 +25,51 @@ export function OptimizedArtworkImage({
 }: OptimizedArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState<string | null>(null);
 
-  // Get the appropriate image URL based on tier
+  // Simplified image URL selection with better fallback logic
   const getImageUrl = useCallback(() => {
     if (!imageRecord) return null;
     
     console.log(`Getting image URL for tier ${tier}:`, imageRecord);
     
+    // Simple tier-based selection with fallbacks
+    let imageUrl: string | null = null;
+    
     switch (tier) {
       case 'thumbnail':
-        return imageRecord.thumbnail_url || imageRecord.medium_url || imageRecord.image_url;
+        imageUrl = imageRecord.thumbnail_url || imageRecord.medium_url || imageRecord.image_url;
+        break;
       case 'full':
-        return imageRecord.image_url || imageRecord.medium_url || imageRecord.thumbnail_url;
+        imageUrl = imageRecord.image_url || imageRecord.medium_url || imageRecord.thumbnail_url;
+        break;
       case 'medium':
       default:
-        return imageRecord.medium_url || imageRecord.image_url || imageRecord.thumbnail_url;
+        imageUrl = imageRecord.medium_url || imageRecord.image_url || imageRecord.thumbnail_url;
+        break;
     }
+
+    // Validate the URL
+    if (imageUrl && imageUrl !== "/placeholder.svg" && imageUrl.trim() !== "") {
+      return imageUrl;
+    }
+    
+    return null;
   }, [imageRecord, tier]);
 
-  const imageUrl = getImageUrl();
+  React.useEffect(() => {
+    const url = getImageUrl();
+    setCurrentSrc(url);
+    setHasError(false);
+    setIsLoading(!!url);
+    
+    if (url) {
+      console.log(`Loading image for ${title}: ${url}`);
+    } else {
+      console.log(`No valid image URL for ${title}`);
+      setIsLoading(false);
+    }
+  }, [getImageUrl, title]);
 
   const handleImageLoad = useCallback(() => {
     console.log(`Image loaded successfully for: ${title}`);
@@ -53,11 +79,19 @@ export function OptimizedArtworkImage({
   }, [onLoadingComplete, title]);
 
   const handleImageError = useCallback(() => {
-    console.error(`Image failed to load for: ${title}`, imageUrl);
+    console.error(`Image failed to load for: ${title}`, currentSrc);
     setIsLoading(false);
     setHasError(true);
     onLoadingComplete?.();
-  }, [onLoadingComplete, title, imageUrl]);
+    
+    // Try fallback to original image_url if we were using processed versions
+    if (imageRecord?.image_url && currentSrc !== imageRecord.image_url) {
+      console.log(`Trying fallback URL for ${title}: ${imageRecord.image_url}`);
+      setCurrentSrc(imageRecord.image_url);
+      setIsLoading(true);
+      setHasError(false);
+    }
+  }, [onLoadingComplete, title, currentSrc, imageRecord]);
 
   const handleLoadStart = useCallback(() => {
     console.log(`Image load started for: ${title}`);
@@ -66,7 +100,7 @@ export function OptimizedArtworkImage({
     onLoadingStart?.();
   }, [onLoadingStart, title]);
 
-  if (!imageRecord || !imageUrl) {
+  if (!imageRecord || !currentSrc) {
     return (
       <div 
         className={cn(
@@ -78,7 +112,7 @@ export function OptimizedArtworkImage({
       >
         <div className="text-center text-muted-foreground">
           <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
-          <p className="text-xs">No Image</p>
+          <p className="text-xs">No Image Available</p>
         </div>
       </div>
     );
@@ -94,7 +128,7 @@ export function OptimizedArtworkImage({
       onClick={onClick}
     >
       <img
-        src={imageUrl}
+        src={currentSrc}
         alt={title}
         className={cn(
           "w-full h-full object-contain transition-opacity duration-300",
@@ -119,7 +153,8 @@ export function OptimizedArtworkImage({
         <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
           <div className="text-center text-muted-foreground">
             <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
-            <p className="text-xs">Image unavailable</p>
+            <p className="text-xs">Failed to Load</p>
+            <p className="text-xs opacity-75">{tier} quality</p>
           </div>
         </div>
       )}
