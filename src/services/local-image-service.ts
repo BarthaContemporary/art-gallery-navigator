@@ -193,7 +193,11 @@ export class LocalImageService {
       return [];
     }
 
-    return data || [];
+    // Type assertion to ensure proper typing after database query
+    return (data || []).map(item => ({
+      ...item,
+      processing_status: item.processing_status as 'pending' | 'processing' | 'completed' | 'failed'
+    }));
   }
 
   /**
@@ -223,7 +227,8 @@ export class LocalImageService {
     }
 
     const counts = data.reduce((acc, item) => {
-      acc[item.processing_status as keyof typeof acc]++;
+      const status = item.processing_status as 'pending' | 'processing' | 'completed' | 'failed';
+      acc[status]++;
       return acc;
     }, { total: data.length, pending: 0, processing: 0, completed: 0, failed: 0 });
 

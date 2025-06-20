@@ -1,3 +1,4 @@
+
 import React, { memo, useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useArtists } from "@/hooks/useArtists";
@@ -14,18 +15,6 @@ interface ArtworkCardProps {
 
 function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-
-  const images = artwork.artwork_images || [];
-  const primaryImage = images.find(img => img.is_primary) || images[0];
-  const imageToDisplay = primaryImage || (artwork.image_url ? {
-    id: `fallback-${artwork.id}`,
-    artwork_id: artwork.id,
-    image_url: artwork.image_url,
-    is_primary: true,
-    display_order: 0,
-    medium_url: artwork.image_url,
-    thumbnail_url: artwork.image_url
-  } : undefined);
 
   // Fetch artists map for fast lookup
   const { data: artists } = useArtists();
@@ -78,7 +67,6 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         <ArtworkCardImage
           artwork={artwork}
           title={artwork.title}
-          primaryImage={imageToDisplay}
           onClick={handleView}
           onEdit={onEdit}
           onDuplicate={onDuplicate}
