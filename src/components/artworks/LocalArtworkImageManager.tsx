@@ -261,17 +261,17 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                 )}
                 
                 {/* Action buttons */}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex justify-center gap-0.5">
                   {!image.is_primary && image.processing_status === 'completed' && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleSetPrimary(image.id)}
                       disabled={updatingImageId === image.id}
-                      className="text-xs h-5 w-5 p-0"
+                      className="text-xs h-4 w-4 p-0"
                       title="Set as Primary"
                     >
-                      <Star className="w-2 h-2" />
+                      <Star className="w-1.5 h-1.5" />
                     </Button>
                   )}
 
@@ -281,14 +281,14 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                       variant="outline"
                       onClick={() => handleRetryProcessing(image.id)}
                       disabled={retryingImageId === image.id}
-                      className="text-xs h-5"
+                      className="text-xs h-4 px-1"
                     >
                       {retryingImageId === image.id ? (
-                        <RefreshCw className="w-2 h-2 animate-spin" />
+                        <RefreshCw className="w-1.5 h-1.5 animate-spin" />
                       ) : (
                         <>
-                          <RefreshCw className="w-2 h-2 mr-1" />
-                          Retry
+                          <RefreshCw className="w-1.5 h-1.5 mr-0.5" />
+                          <span className="text-xs">Retry</span>
                         </>
                       )}
                     </Button>
@@ -299,9 +299,10 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                     variant="outline"
                     onClick={() => handleReorder(image.id, 'up')}
                     disabled={updatingImageId === image.id || index === 0}
-                    className="text-xs h-5 w-5 p-0"
+                    className="text-xs h-4 w-4 p-0"
+                    title="Move Up"
                   >
-                    <MoveUp className="w-2 h-2" />
+                    <MoveUp className="w-1.5 h-1.5" />
                   </Button>
                   
                   <Button
@@ -309,9 +310,10 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                     variant="outline"
                     onClick={() => handleReorder(image.id, 'down')}
                     disabled={updatingImageId === image.id || index === sortedImages.length - 1}
-                    className="text-xs h-5 w-5 p-0"
+                    className="text-xs h-4 w-4 p-0"
+                    title="Move Down"
                   >
-                    <MoveDown className="w-2 h-2" />
+                    <MoveDown className="w-1.5 h-1.5" />
                   </Button>
                   
                   <AlertDialog>
@@ -320,9 +322,10 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                         size="sm"
                         variant="destructive"
                         disabled={deletingImageId === image.id}
-                        className="text-xs h-5 w-5 p-0"
+                        className="text-xs h-4 w-4 p-0"
+                        title="Delete"
                       >
-                        <Trash2 className="w-2 h-2" />
+                        <Trash2 className="w-1.5 h-1.5" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
