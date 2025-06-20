@@ -94,7 +94,7 @@ export function LocalArtworkImage({
   return (
     <div 
       className={cn(
-        "relative w-full h-full bg-muted/10 overflow-hidden",
+        "relative w-full h-full bg-muted/10 overflow-hidden flex items-center justify-center",
         onClick && "cursor-pointer",
         className
       )}
@@ -104,13 +104,17 @@ export function LocalArtworkImage({
         src={imageUrl}
         alt={title}
         className={cn(
-          "w-full h-full object-cover transition-opacity duration-300",
+          "max-w-full max-h-full object-contain transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoad={handleImageLoad}
         onError={handleImageError}
         loading="lazy"
         decoding="async"
+        style={{
+          width: 'auto',
+          height: 'auto'
+        }}
       />
       
       {/* Loading State */}
