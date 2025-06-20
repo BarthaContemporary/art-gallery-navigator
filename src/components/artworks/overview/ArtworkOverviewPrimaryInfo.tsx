@@ -67,7 +67,7 @@ export const ArtworkOverviewPrimaryInfo: React.FC<ArtworkOverviewPrimaryInfoProp
       <ArtworkField label="Dimensions" value={formatDimensionsDisplay(artwork)} />
       <ArtworkField label="Medium Type" value={artwork.medium_type} />
       {shouldShowPrice && (
-        <ArtworkField label="Price" value={`${artwork.currency} ${artwork.price.toLocaleString()}`} />
+        <ArtworkField label="Price" value={`${artwork.currency} ${artwork.price.toLocaleString().replace(/,/g, "'")}`} />
       )}
     </div>
   );

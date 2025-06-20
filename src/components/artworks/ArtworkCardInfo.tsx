@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { Check, X } from "lucide-react";
@@ -53,7 +54,7 @@ export function ArtworkCardInfo({ artwork, artistName, available }: ArtworkCardI
         <div className="flex-1 min-w-0">
           {available && artwork.price ? (
             <span className="text-sm font-medium block truncate">
-              {artwork.currency} {Number(artwork.price).toLocaleString()}
+              {artwork.currency} {Number(artwork.price).toLocaleString().replace(/,/g, "'")}
             </span>
           ) : (
             <span className="text-sm text-muted-foreground block">&nbsp;</span>

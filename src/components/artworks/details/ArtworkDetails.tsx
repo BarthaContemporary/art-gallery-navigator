@@ -33,7 +33,7 @@ export function ArtworkDetails({
 
   const formatPrice = () => {
     if (!artwork.price) return null;
-    return `${artwork.currency} ${artwork.price.toLocaleString()}`;
+    return `${artwork.currency} ${artwork.price.toLocaleString().replace(/,/g, "'")}`;
   };
 
   return (

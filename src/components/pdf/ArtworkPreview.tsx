@@ -33,11 +33,12 @@ export function ArtworkPDFPreview({ artwork }: ArtworkPreviewProps) {
   let formattedPriceDisplay = null;
   if (artwork.price !== null && artwork.currency) {
     try {
-      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price);
+      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: artwork.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(artwork.price).replace(/,/g, "'");
       formattedPriceDisplay = <p className="mt-3"><strong>Price: {formatted}</strong></p>;
     } catch (e) {
       console.error("Error formatting price for preview:", e);
-      formattedPriceDisplay = <p className="mt-3"><strong>Price: {artwork.price} {artwork.currency}</strong></p>;
+      const fallbackPrice = `${artwork.price.toLocaleString().replace(/,/g, "'")} ${artwork.currency}`;
+      formattedPriceDisplay = <p className="mt-3"><strong>Price: {fallbackPrice}</strong></p>;
     }
   }
   

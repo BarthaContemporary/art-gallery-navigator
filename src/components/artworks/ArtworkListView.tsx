@@ -55,7 +55,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
 
   const formatPrice = useCallback((artwork: Artwork): string => {
     if (!artwork.price) return "—";
-    return `${artwork.currency || 'USD'} ${artwork.price.toLocaleString()}`;
+    return `${artwork.currency || 'USD'} ${artwork.price.toLocaleString().replace(/,/g, "'")}`;
   }, []);
 
   const formatUpdatedDate = useCallback((artwork: Artwork): string => {

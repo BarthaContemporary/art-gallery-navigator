@@ -56,7 +56,7 @@ export function ArtworkGridItemCard({ artwork, showPrices, onArtworkClick }: Art
           )}
           {showPrices && artwork.price && (
             <p className="text-sm font-medium text-gray-900 mt-2">
-              {artwork.currency} {artwork.price.toLocaleString()}
+              {artwork.currency} {artwork.price.toLocaleString().replace(/,/g, "'")}
             </p>
           )}
           {imageRecordToPass?.image_url?.includes('res.cloudinary.com') && (
