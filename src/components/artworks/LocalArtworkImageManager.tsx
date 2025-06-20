@@ -268,10 +268,10 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                       variant="outline"
                       onClick={() => handleSetPrimary(image.id)}
                       disabled={updatingImageId === image.id}
-                      className="text-xs h-7"
+                      className="text-xs h-7 w-7 p-0"
+                      title="Set as Primary"
                     >
-                      <Star className="w-3 h-3 mr-1" />
-                      Set Primary
+                      <Star className="w-3 h-3" />
                     </Button>
                   )}
 
