@@ -59,39 +59,47 @@ export function useCloudinaryCarousel(artworkId: string) {
     fetchImages();
   }, [artworkId]);
 
-  // Handle carousel events
+  // Handle carousel events - simplified and more reliable
   useEffect(() => {
-    if (!emblaApi || images.length === 0) return;
+    if (!emblaApi || loading || images.length === 0) return;
 
     const onSelect = () => {
       const newIndex = emblaApi.selectedScrollSnap();
+      logger.log(`[Cloudinary Carousel] Selected slide ${newIndex}`);
       setCurrentIndex(newIndex);
     };
 
-    emblaApi.reInit();
-    onSelect();
-    emblaApi.on("select", onSelect);
+    // Wait for next tick to ensure DOM is ready
+    const timeout = setTimeout(() => {
+      emblaApi.reInit();
+      onSelect();
+      emblaApi.on("select", onSelect);
+    }, 0);
 
     return () => {
+      clearTimeout(timeout);
       emblaApi.off("select", onSelect);
     };
-  }, [emblaApi, images]);
+  }, [emblaApi, images, loading]);
 
   // Navigation functions
   const scrollTo = useCallback((index: number) => {
-    if (!emblaApi) return;
+    if (!emblaApi || loading) return;
+    logger.log(`[Cloudinary Carousel] Scrolling to index ${index}`);
     emblaApi.scrollTo(index);
-  }, [emblaApi]);
+  }, [emblaApi, loading]);
 
   const scrollPrev = useCallback(() => {
-    if (!emblaApi) return;
+    if (!emblaApi || loading) return;
+    logger.log(`[Cloudinary Carousel] Scrolling previous`);
     emblaApi.scrollPrev();
-  }, [emblaApi]);
+  }, [emblaApi, loading]);
 
   const scrollNext = useCallback(() => {
-    if (!emblaApi) return;
+    if (!emblaApi || loading) return;
+    logger.log(`[Cloudinary Carousel] Scrolling next`);
     emblaApi.scrollNext();
-  }, [emblaApi]);
+  }, [emblaApi, loading]);
 
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;

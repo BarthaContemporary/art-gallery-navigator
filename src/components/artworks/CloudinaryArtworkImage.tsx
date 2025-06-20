@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 import { cn } from "@/lib/utils";
 import { Loader2, ImageOff } from "lucide-react";
@@ -25,86 +25,42 @@ export function CloudinaryArtworkImage({
   onLoadingStart,
   onLoadingComplete
 }: CloudinaryArtworkImageProps) {
-  const [state, setState] = useState<{
-    isLoading: boolean;
-    hasError: boolean;
-    currentUrl: string | null;
-  }>({
-    isLoading: true,
-    hasError: false,
-    currentUrl: null
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
-  // Initialize image URL and handle processing
-  useEffect(() => {
-    if (!imageRecord) {
-      setState({
-        isLoading: false,
-        hasError: true,
-        currentUrl: null
-      });
-      return;
-    }
-
-    const status = CloudinaryImageService.analyzeProcessingStatus(imageRecord);
-    const bestUrl = CloudinaryImageService.getBestAvailableUrl(imageRecord, tier);
-    
-    logger.log(`[${title}] Image status:`, {
-      isProcessed: status.isProcessed,
-      needsProcessing: status.needsProcessing,
-      bestUrl
-    });
-
-    setState({
-      isLoading: true,
-      hasError: false,
-      currentUrl: bestUrl
-    });
-
-    // Trigger background processing if needed
-    if (status.needsProcessing && !status.processingInProgress) {
-      CloudinaryImageService.triggerProcessing(imageRecord);
-    }
-  }, [imageRecord, tier, title]);
+  // Get the best available URL
+  const imageUrl = CloudinaryImageService.getBestAvailableUrl(imageRecord, tier);
 
   const handleImageLoad = useCallback(() => {
-    logger.log(`[${title}] ✅ Image loaded successfully: ${state.currentUrl}`);
-    setState(prev => ({
-      ...prev,
-      isLoading: false,
-      hasError: false
-    }));
+    logger.log(`[${title}] Image loaded successfully: ${imageUrl}`);
+    setIsLoading(false);
+    setHasError(false);
     onLoadingComplete?.();
-  }, [title, state.currentUrl, onLoadingComplete]);
+  }, [title, imageUrl, onLoadingComplete]);
 
   const handleImageError = useCallback(() => {
-    logger.error(`[${title}] ❌ Image failed to load: ${state.currentUrl}`);
-    
-    // For Cloudinary errors, fall back to original URL
-    if (imageRecord?.image_url && state.currentUrl !== imageRecord.image_url) {
-      logger.log(`[${title}] 🔄 Trying original URL: ${imageRecord.image_url}`);
-      setState(prev => ({
-        ...prev,
-        currentUrl: imageRecord.image_url,
-        isLoading: true
-      }));
-    } else {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        hasError: true
-      }));
-      onLoadingComplete?.();
-    }
-  }, [title, state.currentUrl, imageRecord, onLoadingComplete]);
+    logger.error(`[${title}] Image failed to load: ${imageUrl}`);
+    setIsLoading(false);
+    setHasError(true);
+    onLoadingComplete?.();
+  }, [title, imageUrl, onLoadingComplete]);
 
   const handleLoadStart = useCallback(() => {
-    logger.log(`[${title}] 🔄 Loading started: ${state.currentUrl}`);
+    logger.log(`[${title}] Loading started: ${imageUrl}`);
+    setIsLoading(true);
+    setHasError(false);
     onLoadingStart?.();
-  }, [title, state.currentUrl, onLoadingStart]);
+  }, [title, imageUrl, onLoadingStart]);
+
+  // Trigger background processing if needed
+  React.useEffect(() => {
+    if (imageRecord && CloudinaryImageService.analyzeProcessingStatus(imageRecord).needsProcessing) {
+      CloudinaryImageService.triggerProcessing(imageRecord);
+    }
+  }, [imageRecord]);
 
   // Error state
-  if (!state.currentUrl || (state.hasError && !state.isLoading)) {
+  if (hasError || !imageUrl || imageUrl === '/placeholder.svg') {
     return (
       <div 
         className={cn(
@@ -132,11 +88,11 @@ export function CloudinaryArtworkImage({
       onClick={onClick}
     >
       <img
-        src={state.currentUrl}
+        src={imageUrl}
         alt={title}
         className={cn(
           "w-full h-full object-cover transition-opacity duration-300",
-          state.isLoading ? "opacity-0" : "opacity-100"
+          isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoadStart={handleLoadStart}
         onLoad={handleImageLoad}
@@ -146,7 +102,7 @@ export function CloudinaryArtworkImage({
       />
       
       {/* Loading State */}
-      {state.isLoading && (
+      {isLoading && (
         <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
         </div>

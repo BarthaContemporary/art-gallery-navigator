@@ -14,6 +14,5 @@ interface OptimizedArtworkImageProps {
 }
 
 export function OptimizedArtworkImage(props: OptimizedArtworkImageProps) {
-  // Simply delegate to the new Cloudinary component
   return <CloudinaryArtworkImage {...props} />;
 }

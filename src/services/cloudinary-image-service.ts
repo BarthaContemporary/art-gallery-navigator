@@ -17,7 +17,7 @@ interface ImageProcessingStatus {
 }
 
 export class CloudinaryImageService {
-  private static cloudName = 'your-cloud-name'; // This should be set from env
+  private static cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
   private static processingQueue = new Set<string>();
 
   static getOptimizedUrl(
@@ -69,19 +69,19 @@ export class CloudinaryImageService {
   }
 
   static analyzeProcessingStatus(imageRecord: any): ImageProcessingStatus {
-    const hasCloudinaryUrls = imageRecord.thumbnail_url || imageRecord.medium_url;
-    const hasProcessedFlag = imageRecord.processed === true;
+    const hasCloudinaryUrls = imageRecord?.thumbnail_url || imageRecord?.medium_url;
+    const hasProcessedFlag = imageRecord?.processed === true;
     
     return {
       isProcessed: hasProcessedFlag && hasCloudinaryUrls,
       needsProcessing: !hasProcessedFlag || !hasCloudinaryUrls,
-      processingInProgress: this.processingQueue.has(imageRecord.id)
+      processingInProgress: this.processingQueue.has(imageRecord?.id)
     };
   }
 
   static async triggerProcessing(imageRecord: any): Promise<boolean> {
-    if (this.processingQueue.has(imageRecord.id)) {
-      return false; // Already processing
+    if (!imageRecord?.id || this.processingQueue.has(imageRecord.id)) {
+      return false;
     }
 
     this.processingQueue.add(imageRecord.id);
@@ -110,6 +110,10 @@ export class CloudinaryImageService {
     imageRecord: any, 
     tier: 'thumbnail' | 'medium' | 'full'
   ): string {
+    if (!imageRecord) {
+      return '/placeholder.svg';
+    }
+
     const status = this.analyzeProcessingStatus(imageRecord);
     
     if (status.isProcessed) {
@@ -124,7 +128,7 @@ export class CloudinaryImageService {
       }
     }
 
-    // Fallback to optimized fetch URL
-    return this.getOptimizedUrl(imageRecord.image_url, tier);
+    // Fallback to original or optimized fetch URL
+    return imageRecord.image_url || '/placeholder.svg';
   }
 }
