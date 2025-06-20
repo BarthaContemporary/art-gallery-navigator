@@ -1,6 +1,6 @@
 
 import React from "react";
-import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
+import { SimpleArtworkImage } from "./SimpleArtworkImage";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { Artwork } from "@/hooks/use-artworks";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -27,10 +27,11 @@ export function ArtworkCardImage({
   onDelete,
 }: ArtworkCardImageProps) {
   const isMobile = useIsMobile();
+  
   return (
     <div
       className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
-      style={{ height: "192px" }} // Reduced from 256px
+      style={{ height: "192px" }}
     >
       <div
         className={`
@@ -48,12 +49,14 @@ export function ArtworkCardImage({
           onDelete={onDelete}
         />
       </div>
+      
       {primaryImage ? (
-        <OptimizedArtworkImage
+        <SimpleArtworkImage
           imageRecord={primaryImage}
           title={title}
           onClick={onClick}
-          className="w-full h-full object-cover cursor-pointer"
+          className="w-full h-full cursor-pointer"
+          size="thumbnail"
         />
       ) : (
         <div

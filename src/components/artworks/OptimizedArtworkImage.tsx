@@ -1,7 +1,7 @@
 
 import React from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
-import { CloudinaryArtworkImage } from "./CloudinaryArtworkImage";
+import { SimpleArtworkImage } from "./SimpleArtworkImage";
 
 interface OptimizedArtworkImageProps {
   imageRecord?: ArtworkImage;
@@ -13,6 +13,20 @@ interface OptimizedArtworkImageProps {
   onLoadingComplete?: () => void;
 }
 
-export function OptimizedArtworkImage(props: OptimizedArtworkImageProps) {
-  return <CloudinaryArtworkImage {...props} />;
+export function OptimizedArtworkImage({
+  imageRecord,
+  title,
+  onClick,
+  className,
+  tier = 'medium'
+}: OptimizedArtworkImageProps) {
+  return (
+    <SimpleArtworkImage
+      imageRecord={imageRecord}
+      title={title}
+      onClick={onClick}
+      className={className}
+      size={tier}
+    />
+  );
 }
