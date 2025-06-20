@@ -123,13 +123,6 @@ export function OptimizedArtworkImage({
           </div>
         </div>
       )}
-      
-      {/* CDN indicator */}
-      {imageUrl?.includes('res.cloudinary.com') && (
-        <div className="absolute top-1 right-1 bg-green-500/80 text-white text-xs px-1 rounded opacity-70">
-          CDN
-        </div>
-      )}
     </div>
   );
 }
