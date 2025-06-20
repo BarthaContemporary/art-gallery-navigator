@@ -27,6 +27,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
   } = useArtworkCarousel(artworkId);
 
   console.log(`[ArtworkImageViewer] Rendering with ${images?.length || 0} images, current index: ${currentIndex}`);
+  console.log(`[ArtworkImageViewer] Navigation state - canScrollPrev: ${canScrollPrev}, canScrollNext: ${canScrollNext}`);
 
   if (loading) {
     return (
@@ -64,6 +65,21 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
   }
 
   const showNavigation = images.length > 1;
+
+  const handlePrevClick = () => {
+    console.log(`[ArtworkImageViewer] Previous button clicked, canScrollPrev: ${canScrollPrev}`);
+    scrollPrev();
+  };
+
+  const handleNextClick = () => {
+    console.log(`[ArtworkImageViewer] Next button clicked, canScrollNext: ${canScrollNext}`);
+    scrollNext();
+  };
+
+  const handleDotNavClick = (index: number) => {
+    console.log(`[ArtworkImageViewer] Dot ${index + 1} clicked, current index: ${currentIndex}`);
+    handleDotClick(index);
+  };
 
   return (
     <div className="artwork-viewer">
@@ -116,7 +132,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
               "embla__nav-button embla__nav-button--prev",
               !canScrollPrev && "opacity-50 cursor-not-allowed"
             )}
-            onClick={scrollPrev}
+            onClick={handlePrevClick}
             disabled={!canScrollPrev}
             aria-label="Previous image"
           >
@@ -129,7 +145,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
               "embla__nav-button embla__nav-button--next",
               !canScrollNext && "opacity-50 cursor-not-allowed"
             )}
-            onClick={scrollNext}
+            onClick={handleNextClick}
             disabled={!canScrollNext}
             aria-label="Next image"
           >
@@ -148,7 +164,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                 "embla__dot",
                 index === currentIndex && "embla__dot--selected"
               )}
-              onClick={() => handleDotClick(index)}
+              onClick={() => handleDotNavClick(index)}
               aria-label={`Go to image ${index + 1}`}
             />
           ))}
