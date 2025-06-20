@@ -19,6 +19,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     loading,
     error,
     emblaRef,
+    isCarouselReady,
     handleDotClick,
     scrollPrev,
     scrollNext,
@@ -26,15 +27,14 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     canScrollNext,
   } = useArtworkCarousel(artworkId);
 
-  console.log(`[ArtworkImageViewer] Rendering with ${images?.length || 0} images, current index: ${currentIndex}`);
-  console.log(`[ArtworkImageViewer] Navigation state - canScrollPrev: ${canScrollPrev}, canScrollNext: ${canScrollNext}`);
+  console.log(`[ArtworkImageViewer] Rendering - ${images?.length || 0} images, ready: ${isCarouselReady}`);
 
   if (loading) {
     return (
-      <div className="w-full h-96 flex items-center justify-center bg-muted/20">
-        <div className="text-center text-muted-foreground">
-          <div className="w-12 h-12 bg-muted/60 rounded mx-auto mb-2 animate-pulse"></div>
-          <p className="text-sm">Loading images...</p>
+      <div className="artwork-viewer-loading">
+        <div className="loading-content">
+          <div className="loading-placeholder animate-pulse"></div>
+          <p className="loading-text">Loading images...</p>
         </div>
       </div>
     );
@@ -42,12 +42,10 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
 
   if (error) {
     return (
-      <div className="w-full h-96 flex items-center justify-center bg-muted/20">
-        <div className="text-center text-muted-foreground">
-          <div className="w-12 h-12 bg-red-100 rounded mx-auto mb-2 flex items-center justify-center">
-            <span className="text-red-500">⚠️</span>
-          </div>
-          <p className="text-sm">{error}</p>
+      <div className="artwork-viewer-error">
+        <div className="error-content">
+          <div className="error-icon">⚠️</div>
+          <p className="error-text">{error}</p>
         </div>
       </div>
     );
@@ -55,10 +53,10 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
 
   if (!images || images.length === 0) {
     return (
-      <div className="w-full h-96 flex items-center justify-center bg-muted/20">
-        <div className="text-center text-muted-foreground">
-          <div className="w-12 h-12 bg-muted/60 rounded mx-auto mb-2"></div>
-          <p className="text-sm">No images available</p>
+      <div className="artwork-viewer-empty">
+        <div className="empty-content">
+          <div className="empty-icon">🖼️</div>
+          <p className="empty-text">No images available</p>
         </div>
       </div>
     );
@@ -67,17 +65,17 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
   const showNavigation = images.length > 1;
 
   const handlePrevClick = () => {
-    console.log(`[ArtworkImageViewer] Previous button clicked, canScrollPrev: ${canScrollPrev}`);
+    console.log(`[ArtworkImageViewer] Previous clicked - canScrollPrev: ${canScrollPrev}`);
     scrollPrev();
   };
 
   const handleNextClick = () => {
-    console.log(`[ArtworkImageViewer] Next button clicked, canScrollNext: ${canScrollNext}`);
+    console.log(`[ArtworkImageViewer] Next clicked - canScrollNext: ${canScrollNext}`);
     scrollNext();
   };
 
   const handleDotNavClick = (index: number) => {
-    console.log(`[ArtworkImageViewer] Dot ${index + 1} clicked, current index: ${currentIndex}`);
+    console.log(`[ArtworkImageViewer] Dot ${index + 1} clicked`);
     handleDotClick(index);
   };
 
@@ -88,22 +86,22 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
           <div className="embla__container">
             {images.map((image, index) => (
               <div key={image.id} className="embla__slide">
-                <div className="embla__slide__inner">
+                <div className="embla__slide__content">
                   <OptimizedArtworkImage
                     imageRecord={image}
                     title={`${artworkTitle} - Image ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="slide-image"
                     tier="medium"
-                    onLoadingStart={() => console.log(`[Carousel] Loading started: ${image.image_url}`)}
-                    onLoadingComplete={() => console.log(`[Carousel] Loading completed: ${image.image_url}`)}
+                    onLoadingStart={() => console.log(`[Carousel] Loading image ${index + 1}`)}
+                    onLoadingComplete={() => console.log(`[Carousel] Loaded image ${index + 1}`)}
                   />
                   
                   {/* Zoom button overlay */}
-                  <div className="embla__zoom-overlay">
+                  <div className="slide-overlay slide-overlay--zoom">
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="opacity-80 hover:opacity-100"
+                      className="zoom-button"
                     >
                       <ZoomIn className="h-4 w-4 mr-1" />
                       Zoom
@@ -111,9 +109,13 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                   </div>
                   
                   {/* Image info overlay */}
-                  <div className="embla__image-info">
-                    {index + 1} / {images.length}
-                    {image.is_primary && " (Primary)"}
+                  <div className="slide-overlay slide-overlay--info">
+                    <span className="image-counter">
+                      {index + 1} / {images.length}
+                    </span>
+                    {image.is_primary && (
+                      <span className="primary-badge">Primary</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -123,14 +125,14 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       </div>
 
       {/* Navigation arrows */}
-      {showNavigation && (
+      {showNavigation && isCarouselReady && (
         <>
           <Button
             variant="secondary"
             size="icon"
             className={cn(
-              "embla__nav-button embla__nav-button--prev",
-              !canScrollPrev && "opacity-50 cursor-not-allowed"
+              "carousel-nav carousel-nav--prev",
+              !canScrollPrev && "carousel-nav--disabled"
             )}
             onClick={handlePrevClick}
             disabled={!canScrollPrev}
@@ -142,8 +144,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
             variant="secondary"
             size="icon"
             className={cn(
-              "embla__nav-button embla__nav-button--next",
-              !canScrollNext && "opacity-50 cursor-not-allowed"
+              "carousel-nav carousel-nav--next",
+              !canScrollNext && "carousel-nav--disabled"
             )}
             onClick={handleNextClick}
             disabled={!canScrollNext}
@@ -155,19 +157,29 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       )}
 
       {/* Dot indicators */}
-      {showNavigation && (
-        <div className="embla__dots">
+      {showNavigation && isCarouselReady && (
+        <div className="carousel-dots">
           {images.map((_, index) => (
             <button
               key={index}
               className={cn(
-                "embla__dot",
-                index === currentIndex && "embla__dot--selected"
+                "carousel-dot",
+                index === currentIndex && "carousel-dot--active"
               )}
               onClick={() => handleDotNavClick(index)}
               aria-label={`Go to image ${index + 1}`}
             />
           ))}
+        </div>
+      )}
+
+      {/* Debug info (only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="carousel-debug">
+          Ready: {isCarouselReady ? '✅' : '❌'} | 
+          Index: {currentIndex} | 
+          Prev: {canScrollPrev ? '✅' : '❌'} | 
+          Next: {canScrollNext ? '✅' : '❌'}
         </div>
       )}
     </div>
