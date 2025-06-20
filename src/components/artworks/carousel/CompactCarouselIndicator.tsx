@@ -20,7 +20,7 @@ export function CompactCarouselIndicator({
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-2">
+      <div className="bg-black/50 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-2">
         {/* Counter */}
         <div className="text-white text-xs font-medium">
           {currentIndex + 1}/{totalImages}
