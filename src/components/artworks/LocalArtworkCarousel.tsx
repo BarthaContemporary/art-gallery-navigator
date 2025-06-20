@@ -16,7 +16,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   const { images, loading, error, hasProcessingImages } = useLocalArtworkImages(artworkId);
   
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
-    loop: false,
+    loop: true, // Enable looping
     align: "center",
   });
 
@@ -26,6 +26,16 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
 
   // Zoom levels: 1x, 1.5x, 2x, 3x, 4x
   const zoomLevels = [1, 1.5, 2, 3, 4];
+
+  // Sort images by display_order to ensure consistent ordering
+  const sortedImages = React.useMemo(() => {
+    return [...images].sort((a, b) => {
+      // Primary image first, then by display_order
+      if (a.is_primary && !b.is_primary) return -1;
+      if (!a.is_primary && b.is_primary) return 1;
+      return (a.display_order || 0) - (b.display_order || 0);
+    });
+  }, [images]);
 
   // Handle carousel selection
   React.useEffect(() => {
@@ -86,7 +96,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
 
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;
-  const hasMultipleImages = images.length > 1;
+  const hasMultipleImages = sortedImages.length > 1;
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
   const canZoomOut = zoomLevel > Math.min(...zoomLevels);
 
@@ -112,7 +122,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
     );
   }
 
-  if (!images || images.length === 0) {
+  if (!sortedImages || sortedImages.length === 0) {
     return (
       <div className="w-full h-[500px] bg-muted/10 rounded-lg flex items-center justify-center">
         <div className="text-center text-muted-foreground">
@@ -176,8 +186,15 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
       {/* Embla Carousel */}
       <div className="h-full" ref={emblaRef}>
         <div className="flex h-full">
-          {images.map((image, index) => (
-            <div key={image.id} className="flex-none w-full h-full relative">
+          {sortedImages.map((image, index) => (
+            <div 
+              key={image.id} 
+              className={cn(
+                "flex-none w-full h-full relative",
+                // Hide non-current images when zoomed
+                isZoomed && index !== currentIndex ? "hidden" : ""
+              )}
+            >
               <div 
                 className={cn(
                   "w-full h-full transition-transform duration-300 ease-in-out",
@@ -195,14 +212,6 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
                   size="large"
                   showProcessingStatus={true}
                 />
-              </div>
-              
-              {/* Image Info Overlay - Top Right */}
-              <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                <span>{index + 1} / {images.length}</span>
-                {image.is_primary && (
-                  <span className="ml-2 bg-primary px-2 py-0.5 rounded text-xs">Primary</span>
-                )}
               </div>
             </div>
           ))}
@@ -240,21 +249,68 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         </>
       )}
 
-      {/* Dot Indicators */}
+      {/* Elegant Dial Indicator with Counter */}
       {hasMultipleImages && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 px-3 py-2 rounded-full backdrop-blur-sm">
-          {images.map((_, index) => (
-            <button
-              key={index}
-              className={cn(
-                "w-2 h-2 rounded-full transition-all",
-                index === currentIndex 
-                  ? "bg-white shadow-lg" 
-                  : "bg-white/50 hover:bg-white/70"
-              )}
-              onClick={() => scrollTo(index)}
-            />
-          ))}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="relative bg-black/60 backdrop-blur-sm rounded-full p-3 flex items-center justify-center">
+            {/* Counter Text */}
+            <div className="text-white text-sm font-medium px-2">
+              {currentIndex + 1} / {sortedImages.length}
+            </div>
+            
+            {/* Elegant Dial Background */}
+            <div className="absolute inset-0 rounded-full">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                {/* Background circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="2"
+                />
+                {/* Progress circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.8)"
+                  strokeWidth="2"
+                  strokeDasharray={`${(currentIndex + 1) / sortedImages.length * 283} 283`}
+                  className="transition-all duration-300 ease-in-out"
+                />
+              </svg>
+            </div>
+            
+            {/* Individual dots for each image */}
+            <div className="absolute inset-0 rounded-full">
+              {sortedImages.map((_, index) => {
+                const angle = (index / sortedImages.length) * 360 - 90;
+                const x = 50 + 35 * Math.cos((angle * Math.PI) / 180);
+                const y = 50 + 35 * Math.sin((angle * Math.PI) / 180);
+                
+                return (
+                  <button
+                    key={index}
+                    className={cn(
+                      "absolute w-1.5 h-1.5 rounded-full transition-all duration-200 hover:scale-125",
+                      index === currentIndex 
+                        ? "bg-white shadow-lg" 
+                        : "bg-white/50 hover:bg-white/70"
+                    )}
+                    style={{
+                      left: `${x}%`,
+                      top: `${y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                    onClick={() => scrollTo(index)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
