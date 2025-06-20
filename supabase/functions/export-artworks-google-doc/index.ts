@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -118,9 +117,6 @@ const handler = async (req: Request): Promise<Response> => {
     const documentId = docData.id;
     console.log("Template document copied with new ID:", documentId);
 
-    // Generate content for the document
-    const documentContent = generateArtworkListContent(artworks);
-
     // Get the document content to find where to insert the artwork list
     console.log("Getting document content to find insertion point...");
     const getDocResponse = await fetch(`${GOOGLE_API_URL}/${documentId}`, {
@@ -137,32 +133,41 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const docContent = await getDocResponse.json();
-    const endIndex = docContent.body.content[docContent.body.content.length - 1].endIndex - 1;
+    let currentIndex = docContent.body.content[docContent.body.content.length - 1].endIndex - 1;
 
-    // Insert content at the end of the document
-    console.log("Inserting artwork content into document...");
-    const batchUpdateResponse = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            insertText: {
-              location: { index: endIndex },
-              text: "\n\n" + documentContent
-            }
+    // Insert header content
+    console.log("Inserting header content...");
+    const headerContent = generateHeaderContent(artworks);
+    await insertTextAtIndex(documentId, accessToken, currentIndex, "\n\n" + headerContent);
+    currentIndex += headerContent.length + 2;
+
+    // Process each artwork with images
+    for (let i = 0; i < artworks.length; i++) {
+      const artwork = artworks[i];
+      console.log(`Processing artwork ${i + 1}: ${artwork.title}`);
+      
+      // Insert artwork text content
+      const artworkContent = generateArtworkContent(artwork, i + 1);
+      await insertTextAtIndex(documentId, accessToken, currentIndex, "\n\n" + artworkContent);
+      currentIndex += artworkContent.length + 2;
+      
+      // Insert image if available
+      if (artwork.artwork_images && artwork.artwork_images.length > 0) {
+        const primaryImage = artwork.artwork_images.find(img => img.is_primary);
+        const imageToUse = primaryImage || artwork.artwork_images[0];
+        const imageUrl = imageToUse.medium_url || imageToUse.image_url;
+        
+        if (imageUrl) {
+          console.log(`Inserting image for artwork: ${artwork.title}`);
+          try {
+            await insertImageAtIndex(documentId, accessToken, currentIndex, imageUrl);
+            currentIndex += 1; // Account for the inserted image
+          } catch (error) {
+            console.warn(`Failed to insert image for artwork ${artwork.title}:`, error);
+            // Continue with next artwork even if image insertion fails
           }
-        ]
-      })
-    });
-
-    if (!batchUpdateResponse.ok) {
-      const errorText = await batchUpdateResponse.text();
-      console.error("Failed to update document:", batchUpdateResponse.status, errorText);
-      throw new Error(`Failed to update document: ${batchUpdateResponse.status} - ${errorText}`);
+        }
+      }
     }
 
     console.log("Document content updated successfully");
@@ -218,6 +223,69 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+async function insertTextAtIndex(documentId: string, accessToken: string, index: number, text: string) {
+  const response = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          insertText: {
+            location: { index },
+            text
+          }
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to insert text: ${response.status} - ${errorText}`);
+  }
+}
+
+async function insertImageAtIndex(documentId: string, accessToken: string, index: number, imageUrl: string) {
+  // Convert 4cm to points (1 cm = 28.35 points)
+  const maxHeightPoints = 4 * 28.35;
+  
+  const response = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          insertInlineImage: {
+            location: { index },
+            uri: imageUrl,
+            objectSize: {
+              height: {
+                magnitude: maxHeightPoints,
+                unit: "PT"
+              },
+              width: {
+                magnitude: maxHeightPoints, // Will be adjusted proportionally by Google Docs
+                unit: "PT"
+              }
+            }
+          }
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to insert image: ${response.status} - ${errorText}`);
+  }
+}
 
 async function getGoogleAccessToken(credentials: any): Promise<string> {
   // Create JWT header
@@ -324,74 +392,53 @@ async function getGoogleAccessToken(credentials: any): Promise<string> {
   return tokenData.access_token;
 }
 
-function generateArtworkListContent(artworks: Artwork[]): string {
-  let content = "";
-  
-  // Header
-  content += "ARTWORK LIST\n\n";
+function generateHeaderContent(artworks: Artwork[]): string {
+  let content = "ARTWORK LIST\n\n";
   content += `Date: ${new Date().toLocaleDateString()}\n`;
-  content += `Total Artworks: ${artworks.length}\n\n`;
+  content += `Total Artworks: ${artworks.length}\n`;
+  return content;
+}
+
+function generateArtworkContent(artwork: Artwork, index: number): string {
+  let content = `${index}. `;
   
-  // Process each artwork
-  artworks.forEach((artwork, index) => {
-    content += `${index + 1}. `;
-    
-    // Artist name
-    if (artwork.artist_name) {
-      content += `${artwork.artist_name}\n`;
-    } else {
-      content += "Unknown Artist\n";
+  // Artist name
+  if (artwork.artist_name) {
+    content += `${artwork.artist_name}\n`;
+  } else {
+    content += "Unknown Artist\n";
+  }
+  
+  // Title and year
+  const title = artwork.title || "Untitled";
+  const year = artwork.year ? `, ${artwork.year}` : "";
+  content += `${title}${year}\n`;
+  
+  // Medium and materials
+  if (artwork.medium_type) {
+    content += `${artwork.medium_type}`;
+    if (artwork.materials) {
+      content += `, ${artwork.materials}`;
     }
-    
-    // Title and year
-    const title = artwork.title || "Untitled";
-    const year = artwork.year ? `, ${artwork.year}` : "";
-    content += `${title}${year}\n`;
-    
-    // Medium and materials
-    if (artwork.medium_type) {
-      content += `${artwork.medium_type}`;
-      if (artwork.materials) {
-        content += `, ${artwork.materials}`;
-      }
-      content += "\n";
-    } else if (artwork.materials) {
-      content += `${artwork.materials}\n`;
-    }
-    
-    // Dimensions
-    if (artwork.dimensions) {
-      content += `${artwork.dimensions}\n`;
-    }
-    
-    // Price
-    if (artwork.price) {
-      content += `${artwork.currency} ${artwork.price.toLocaleString()}\n`;
-    }
-    
-    // Status
-    if (artwork.status) {
-      content += `Status: ${artwork.status}\n`;
-    }
-    
-    // Add image URL if available
-    if (artwork.artwork_images && artwork.artwork_images.length > 0) {
-      // Find primary image first, then fall back to first image
-      const primaryImage = artwork.artwork_images.find(img => img.is_primary);
-      const imageToUse = primaryImage || artwork.artwork_images[0];
-      
-      if (imageToUse) {
-        // Prefer medium_url, then image_url as fallback
-        const imageUrl = imageToUse.medium_url || imageToUse.image_url;
-        if (imageUrl) {
-          content += `Image: ${imageUrl}\n`;
-        }
-      }
-    }
-    
-    // Add spacing between artworks
     content += "\n";
-  });
+  } else if (artwork.materials) {
+    content += `${artwork.materials}\n`;
+  }
+  
+  // Dimensions
+  if (artwork.dimensions) {
+    content += `${artwork.dimensions}\n`;
+  }
+  
+  // Price
+  if (artwork.price) {
+    content += `${artwork.currency} ${artwork.price.toLocaleString()}\n`;
+  }
+  
+  // Status
+  if (artwork.status) {
+    content += `Status: ${artwork.status}\n`;
+  }
   
   return content;
 }
