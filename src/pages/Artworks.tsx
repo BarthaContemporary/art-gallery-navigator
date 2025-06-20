@@ -1,4 +1,3 @@
-
 import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
 import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
 import { ArtworksStats } from "@/components/artworks/ArtworksStats";
@@ -6,6 +5,7 @@ import { ArtworksContent } from "@/components/artworks/ArtworksContent";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
+import { useBackgroundImageProcessing } from "@/hooks/use-background-image-processing";
 
 const Artworks = () => {
   const {
@@ -29,6 +29,9 @@ const Artworks = () => {
     handleScrollToTop,
     handleRefresh,
   } = useArtworksPageLogic();
+
+  // Enable background image processing
+  useBackgroundImageProcessing(true);
 
   const handleShowAll = () => {
     setSearchTerm("");

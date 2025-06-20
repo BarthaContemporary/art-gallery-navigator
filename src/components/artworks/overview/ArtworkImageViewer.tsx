@@ -2,8 +2,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
-import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
-import { OptimizedArtworkImage } from "@/components/artworks/OptimizedArtworkImage";
+import { useCloudinaryCarousel } from "@/hooks/use-cloudinary-carousel";
+import { CloudinaryArtworkImage } from "@/components/artworks/CloudinaryArtworkImage";
 import { cn } from "@/lib/utils";
 import "./ArtworkImageViewer.css";
 
@@ -19,16 +19,13 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     loading,
     error,
     emblaRef,
-    isCarouselReady,
-    handleDotClick,
+    hasMultipleImages,
+    scrollTo,
     scrollPrev,
     scrollNext,
     canScrollPrev,
     canScrollNext,
-    handleImageLoadComplete,
-  } = useArtworkCarousel(artworkId);
-
-  console.log(`[ArtworkImageViewer] Rendering - ${images?.length || 0} images, ready: ${isCarouselReady}`);
+  } = useCloudinaryCarousel(artworkId);
 
   if (loading) {
     return (
@@ -63,8 +60,6 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     );
   }
 
-  const showNavigation = images.length > 1 && isCarouselReady;
-
   return (
     <div className="artwork-viewer">
       <div className="embla" ref={emblaRef}>
@@ -73,12 +68,11 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
             {images.map((image, index) => (
               <div key={image.id} className="embla__slide">
                 <div className="embla__slide__content">
-                  <OptimizedArtworkImage
+                  <CloudinaryArtworkImage
                     imageRecord={image}
                     title={`${artworkTitle} - Image ${index + 1}`}
                     className="slide-image"
                     tier="medium"
-                    onLoadingComplete={handleImageLoadComplete}
                   />
                   
                   {/* Zoom button overlay */}
@@ -110,7 +104,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       </div>
 
       {/* Navigation arrows */}
-      {showNavigation && (
+      {hasMultipleImages && (
         <>
           <Button
             variant="secondary"
@@ -142,7 +136,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       )}
 
       {/* Dot indicators */}
-      {showNavigation && (
+      {hasMultipleImages && (
         <div className="carousel-dots">
           {images.map((_, index) => (
             <button
@@ -151,21 +145,10 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                 "carousel-dot",
                 index === currentIndex && "carousel-dot--active"
               )}
-              onClick={() => handleDotClick(index)}
+              onClick={() => scrollTo(index)}
               aria-label={`Go to image ${index + 1}`}
             />
           ))}
-        </div>
-      )}
-
-      {/* Debug info (only in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="carousel-debug">
-          Ready: {isCarouselReady ? '✅' : '❌'} | 
-          Index: {currentIndex} | 
-          Prev: {canScrollPrev ? '✅' : '❌'} | 
-          Next: {canScrollNext ? '✅' : '❌'} |
-          Images: {images.length}
         </div>
       )}
     </div>
