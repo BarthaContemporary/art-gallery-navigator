@@ -5,6 +5,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
 const GOOGLE_DRIVE_API_URL = "https://www.googleapis.com/drive/v3/files";
 
+// Template document ID extracted from the URL
+const TEMPLATE_DOCUMENT_ID = "1uHXsP9k-rkSGmfamNfS-LMy7hg6Xp_aMSPZVRkKtGpc";
+
 interface ArtworkImage {
   id: string;
   artwork_id: string;
@@ -78,48 +81,66 @@ const handler = async (req: Request): Promise<Response> => {
     const accessToken = await getGoogleAccessToken(credentials);
     console.log("Access token obtained successfully");
     
-    // Create a new Google Doc
+    // Copy the template document
     const docTitle = title || `Artwork List - ${new Date().toLocaleDateString()}`;
-    console.log("Creating Google Doc with title:", docTitle);
+    console.log("Copying template document and creating new document with title:", docTitle);
     
-    const createDocResponse = await fetch(GOOGLE_API_URL, {
+    const copyDocResponse = await fetch(`${GOOGLE_DRIVE_API_URL}/${TEMPLATE_DOCUMENT_ID}/copy`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        title: docTitle
+        name: docTitle
       })
     });
 
-    console.log("Create document response status:", createDocResponse.status);
+    console.log("Copy document response status:", copyDocResponse.status);
     
-    if (!createDocResponse.ok) {
-      const errorText = await createDocResponse.text();
-      console.error("Failed to create document:", createDocResponse.status, errorText);
+    if (!copyDocResponse.ok) {
+      const errorText = await copyDocResponse.text();
+      console.error("Failed to copy template document:", copyDocResponse.status, errorText);
       
-      if (createDocResponse.status === 403) {
+      if (copyDocResponse.status === 403) {
         return new Response(
           JSON.stringify({ 
-            error: "Google API access forbidden. Please ensure the Google Docs API is enabled in your Google Cloud Console and the service account has the necessary permissions." 
+            error: "Google API access forbidden. Please ensure the Google Docs API and Drive API are enabled, and the service account has access to the template document." 
           }),
           { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
       
-      throw new Error(`Failed to create document: ${createDocResponse.status} - ${errorText}`);
+      throw new Error(`Failed to copy template document: ${copyDocResponse.status} - ${errorText}`);
     }
 
-    const docData = await createDocResponse.json();
-    const documentId = docData.documentId;
-    console.log("Document created with ID:", documentId);
+    const docData = await copyDocResponse.json();
+    const documentId = docData.id;
+    console.log("Template document copied with new ID:", documentId);
 
     // Generate content for the document
     const documentContent = generateArtworkListContent(artworks);
 
-    // Insert content into the document
-    console.log("Inserting content into document...");
+    // Get the document content to find where to insert the artwork list
+    console.log("Getting document content to find insertion point...");
+    const getDocResponse = await fetch(`${GOOGLE_API_URL}/${documentId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+      }
+    });
+
+    if (!getDocResponse.ok) {
+      const errorText = await getDocResponse.text();
+      console.error("Failed to get document content:", getDocResponse.status, errorText);
+      throw new Error(`Failed to get document content: ${getDocResponse.status} - ${errorText}`);
+    }
+
+    const docContent = await getDocResponse.json();
+    const endIndex = docContent.body.content[docContent.body.content.length - 1].endIndex - 1;
+
+    // Insert content at the end of the document
+    console.log("Inserting artwork content into document...");
     const batchUpdateResponse = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
       method: "POST",
       headers: {
@@ -130,8 +151,8 @@ const handler = async (req: Request): Promise<Response> => {
         requests: [
           {
             insertText: {
-              location: { index: 1 },
-              text: documentContent
+              location: { index: endIndex },
+              text: "\n\n" + documentContent
             }
           }
         ]
