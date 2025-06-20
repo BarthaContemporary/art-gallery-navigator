@@ -223,8 +223,8 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
                   showProcessingStatus={true}
                 />
                 
-                {/* Image badges */}
-                <div className="absolute top-2 left-2 flex gap-1">
+                {/* Image badges - moved to top-right */}
+                <div className="absolute top-2 right-2 flex gap-1">
                   {image.is_primary && (
                     <Badge variant="default" className="text-xs">
                       <Star className="w-3 h-3 mr-1" />
@@ -236,7 +236,7 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
 
                 {/* Error indicator */}
                 {needsRetry && (
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 left-2">
                     <AlertTriangle className="w-5 h-5 text-red-500" />
                   </div>
                 )}
