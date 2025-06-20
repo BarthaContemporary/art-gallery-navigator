@@ -51,11 +51,41 @@ export function useFixArtworkImages() {
 
       await Promise.all(primaryUpdates);
 
+      // Process images through Cloudinary if they haven't been processed
+      const unprocessedImages = images.filter(img => !img.processed || !img.thumbnail_url || !img.medium_url);
+      
+      for (const image of unprocessedImages) {
+        try {
+          console.log(`Processing image ${image.id} through Cloudinary`);
+          
+          const { data: processResult, error: processError } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
+            body: { 
+              image_url: image.image_url, 
+              artwork_image_id: image.id,
+              options: {
+                quality: 85,
+                format: 'webp',
+                sharpen: true,
+                autoOrient: true
+              }
+            }
+          });
+
+          if (processError) {
+            console.error(`Failed to process image ${image.id}:`, processError);
+          } else {
+            console.log(`Successfully processed image ${image.id}:`, processResult);
+          }
+        } catch (error) {
+          console.error(`Error processing image ${image.id}:`, error);
+        }
+      }
+
       console.log(`Successfully fixed ${images.length} images for artwork ${artworkId}`);
       
       toast({
         title: "Images Fixed",
-        description: `Successfully fixed display order and primary status for ${images.length} images.`,
+        description: `Successfully fixed display order and primary status for ${images.length} images. ${unprocessedImages.length} images were processed through Cloudinary.`,
       });
 
     } catch (error: any) {

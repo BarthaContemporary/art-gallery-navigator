@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,44 +19,18 @@ export function useArtworkCarousel(artworkId: string) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
-  const imagesLoadedRef = useRef<Set<string>>(new Set());
   
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
-    loop: true,
+    loop: false,
     align: "center",
     slidesToScroll: 1,
     containScroll: "trimSnaps",
-    watchDrag: true,
-    skipSnaps: false,
-    duration: 25,
-    dragFree: false,
-    inViewThreshold: 0.7
   });
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    const newIndex = emblaApi.selectedScrollSnap();
-    setCurrentIndex(newIndex);
-    
-    // Preload adjacent images
-    const totalImages = images.length;
-    if (totalImages > 0) {
-      const prevIndex = (newIndex - 1 + totalImages) % totalImages;
-      const nextIndex = (newIndex + 1) % totalImages;
-      
-      [prevIndex, nextIndex].forEach(index => {
-        const image = images[index];
-        if (image && !imagesLoadedRef.current.has(image.id)) {
-          const img = new Image();
-          img.src = image.medium_url || image.image_url;
-          img.onload = () => {
-            imagesLoadedRef.current.add(image.id);
-          };
-        }
-      });
-    }
-  }, [emblaApi, images]);
+    setCurrentIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -72,8 +46,6 @@ export function useArtworkCarousel(artworkId: string) {
   }, [emblaApi, onSelect]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    
     async function fetchArtworkImages() {
       if (!artworkId) {
         setLoading(false);
@@ -94,49 +66,26 @@ export function useArtworkCarousel(artworkId: string) {
           
         if (fetchError) throw fetchError;
         
-        if (!controller.signal.aborted) {
-          console.log(`Found ${data?.length || 0} images for artwork ${artworkId}`);
-          
-          // Sort images to ensure primary image comes first, then by display_order
-          const sortedImages = (data || []).sort((a, b) => {
-            if (a.is_primary && !b.is_primary) return -1;
-            if (!a.is_primary && b.is_primary) return 1;
-            return a.display_order - b.display_order;
-          });
-          
-          setImages(sortedImages as ArtworkImage[]);
-          setCurrentIndex(0);
-          
-          // Reset image loading states
-          setImageLoadingStates({});
-          imagesLoadedRef.current.clear();
-          
-          // Preload the first image
-          if (sortedImages.length > 0) {
-            const firstImage = sortedImages[0];
-            const img = new Image();
-            img.src = firstImage.medium_url || firstImage.image_url;
-            img.onload = () => {
-              imagesLoadedRef.current.add(firstImage.id);
-            };
-          }
-          
-          setLoading(false);
-        }
+        console.log(`Found ${data?.length || 0} images for artwork ${artworkId}`);
+        
+        // Sort images to ensure primary image comes first
+        const sortedImages = (data || []).sort((a, b) => {
+          if (a.is_primary && !b.is_primary) return -1;
+          if (!a.is_primary && b.is_primary) return 1;
+          return a.display_order - b.display_order;
+        });
+        
+        setImages(sortedImages as ArtworkImage[]);
+        setCurrentIndex(0);
+        setLoading(false);
       } catch (err) {
         console.error("Error fetching artwork images:", err);
-        if (!controller.signal.aborted) {
-          setError("Failed to load images");
-          setLoading(false);
-        }
+        setError("Failed to load images");
+        setLoading(false);
       }
     }
     
     fetchArtworkImages();
-    
-    return () => {
-      controller.abort();
-    };
   }, [artworkId]);
   
   const handleDotClick = useCallback((index: number) => {
@@ -156,15 +105,6 @@ export function useArtworkCarousel(artworkId: string) {
   const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
   const canScrollNext = emblaApi?.canScrollNext() ?? false;
 
-  const markImageAsLoading = useCallback((imageId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [imageId]: true }));
-  }, []);
-
-  const markImageAsLoaded = useCallback((imageId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }));
-    imagesLoadedRef.current.add(imageId);
-  }, []);
-
   return {
     images,
     currentIndex,
@@ -177,9 +117,6 @@ export function useArtworkCarousel(artworkId: string) {
     scrollNext,
     canScrollPrev,
     canScrollNext,
-    imageLoadingStates,
-    markImageAsLoading,
-    markImageAsLoaded,
   };
 }
 

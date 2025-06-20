@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
 import { OptimizedArtworkImage } from "@/components/artworks/OptimizedArtworkImage";
 import { cn } from "@/lib/utils";
@@ -24,9 +24,6 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     scrollNext,
     canScrollPrev,
     canScrollNext,
-    imageLoadingStates,
-    markImageAsLoading,
-    markImageAsLoaded,
   } = useArtworkCarousel(artworkId);
 
   if (loading) {
@@ -67,8 +64,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
   const showNavigation = images.length > 1;
 
   return (
-    <div className="relative w-full h-96">
-      <div className="embla h-full" ref={emblaRef}>
+    <div className="artwork-viewer">
+      <div className="embla" ref={emblaRef}>
         <div className="embla__viewport">
           <div className="embla__container">
             {images.map((image, index) => (
@@ -79,22 +76,25 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                     title={`${artworkTitle} - Image ${index + 1}`}
                     className="w-full h-full"
                     tier="medium"
-                    onLoadingStart={() => markImageAsLoading(image.id)}
-                    onLoadingComplete={() => markImageAsLoaded(image.id)}
                   />
+                  
+                  {/* Zoom button overlay */}
+                  <div className="embla__zoom-overlay">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="opacity-80 hover:opacity-100"
+                    >
+                      <ZoomIn className="h-4 w-4 mr-1" />
+                      Zoom
+                    </Button>
+                  </div>
                   
                   {/* Image info overlay */}
                   <div className="embla__image-info">
                     {index + 1} / {images.length}
                     {image.is_primary && " (Primary)"}
                   </div>
-                  
-                  {/* Loading overlay for this specific image */}
-                  {imageLoadingStates[image.id] && (
-                    <div className="embla__loading">
-                      <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -105,7 +105,9 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       {/* Navigation arrows */}
       {showNavigation && (
         <>
-          <button
+          <Button
+            variant="secondary"
+            size="icon"
             className={cn(
               "embla__nav-button embla__nav-button--prev",
               !canScrollPrev && "opacity-50 cursor-not-allowed"
@@ -115,8 +117,10 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
             aria-label="Previous image"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
             className={cn(
               "embla__nav-button embla__nav-button--next",
               !canScrollNext && "opacity-50 cursor-not-allowed"
@@ -126,7 +130,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
             aria-label="Next image"
           >
             <ChevronRight className="h-5 w-5" />
-          </button>
+          </Button>
         </>
       )}
 
