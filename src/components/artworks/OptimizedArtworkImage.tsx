@@ -1,10 +1,10 @@
 
 import React from "react";
-import type { ArtworkImage } from "@/hooks/use-artworks";
 import { SimpleArtworkImage } from "./SimpleArtworkImage";
+import type { ImageRecord } from "@/utils/image-url-resolver";
 
 interface OptimizedArtworkImageProps {
-  imageRecord?: ArtworkImage;
+  imageRecord?: ImageRecord;
   title: string;
   onClick?: () => void;
   className?: string;

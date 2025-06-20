@@ -1,17 +1,12 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, ImageOff } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { ImageUrlResolver, type ImageRecord } from "@/utils/image-url-resolver";
 
 interface SimpleArtworkImageProps {
-  imageRecord?: {
-    id: string;
-    image_url: string;
-    thumbnail_url?: string | null;
-    medium_url?: string | null;
-    processed?: boolean;
-  };
+  imageRecord?: ImageRecord;
   title: string;
   onClick?: () => void;
   className?: string;
@@ -27,55 +22,80 @@ export function SimpleArtworkImage({
 }: SimpleArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState<string>(() => {
-    if (!imageRecord) return '/placeholder.svg';
-    
-    // Simple priority: processed URLs first, then original
-    if (size === 'thumbnail' && imageRecord.thumbnail_url) {
-      return imageRecord.thumbnail_url;
+  const [resolvedUrl, setResolvedUrl] = useState<string>('/placeholder.svg');
+
+  // Resolve the best available URL when component mounts or imageRecord changes
+  useEffect(() => {
+    let isMounted = true;
+
+    async function resolveImageUrl() {
+      if (!imageRecord) {
+        setResolvedUrl('/placeholder.svg');
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setHasError(false);
+
+      try {
+        const bestUrl = await ImageUrlResolver.getBestValidUrl(imageRecord, size);
+        
+        if (isMounted) {
+          setResolvedUrl(bestUrl);
+          
+          // If we got a real URL, preload it to ensure it works
+          if (bestUrl !== '/placeholder.svg') {
+            const isValidImage = await ImageUrlResolver.preloadImage(bestUrl);
+            if (isMounted) {
+              if (!isValidImage) {
+                logger.warn(`[SimpleArtworkImage] Preload failed for resolved URL: ${bestUrl}`);
+                setResolvedUrl('/placeholder.svg');
+                setHasError(true);
+              }
+              setIsLoading(false);
+            }
+          } else {
+            setIsLoading(false);
+            setHasError(true);
+          }
+        }
+      } catch (error) {
+        logger.error(`[SimpleArtworkImage] Error resolving URL for ${title}:`, error);
+        if (isMounted) {
+          setResolvedUrl('/placeholder.svg');
+          setHasError(true);
+          setIsLoading(false);
+        }
+      }
     }
-    if (size === 'medium' && imageRecord.medium_url) {
-      return imageRecord.medium_url;
-    }
-    if (imageRecord.image_url) {
-      return imageRecord.image_url;
-    }
-    return '/placeholder.svg';
-  });
+
+    resolveImageUrl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imageRecord, size, title]);
 
   const handleImageLoad = useCallback(() => {
-    logger.log(`[SimpleArtworkImage] Loaded: ${title}`);
+    logger.log(`[SimpleArtworkImage] Image loaded successfully: ${title}`);
     setIsLoading(false);
     setHasError(false);
   }, [title]);
 
   const handleImageError = useCallback(() => {
-    logger.error(`[SimpleArtworkImage] Error loading: ${title} - ${currentUrl}`);
+    logger.error(`[SimpleArtworkImage] Image load error: ${title} - ${resolvedUrl}`);
     setHasError(true);
     setIsLoading(false);
     
-    // Simple fallback logic
-    if (imageRecord) {
-      if (currentUrl === imageRecord.thumbnail_url && imageRecord.medium_url) {
-        setCurrentUrl(imageRecord.medium_url);
-        setIsLoading(true);
-        setHasError(false);
-        return;
-      }
-      if (currentUrl !== imageRecord.image_url && imageRecord.image_url) {
-        setCurrentUrl(imageRecord.image_url);
-        setIsLoading(true);
-        setHasError(false);
-        return;
-      }
+    // If this wasn't already the placeholder, try to fall back to it
+    if (resolvedUrl !== '/placeholder.svg') {
+      setResolvedUrl('/placeholder.svg');
     }
-    
-    // Final fallback
-    setCurrentUrl('/placeholder.svg');
-  }, [title, currentUrl, imageRecord]);
+  }, [title, resolvedUrl]);
 
   // Error state
-  if (hasError && currentUrl === '/placeholder.svg') {
+  if (hasError && resolvedUrl === '/placeholder.svg') {
     return (
       <div 
         className={cn(
@@ -103,7 +123,7 @@ export function SimpleArtworkImage({
       onClick={onClick}
     >
       <img
-        src={currentUrl}
+        src={resolvedUrl}
         alt={title}
         className={cn(
           "w-full h-full object-cover transition-opacity duration-300",

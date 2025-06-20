@@ -3,20 +3,10 @@ import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
-
-interface SimpleArtworkImage {
-  id: string;
-  artwork_id: string;
-  image_url: string;
-  thumbnail_url?: string | null;
-  medium_url?: string | null;
-  is_primary: boolean;
-  display_order: number;
-  processed?: boolean;
-}
+import { ImageUrlResolver, type ImageRecord } from "@/utils/image-url-resolver";
 
 export function useSimpleArtworkCarousel(artworkId: string) {
-  const [images, setImages] = useState<SimpleArtworkImage[]>([]);
+  const [images, setImages] = useState<ImageRecord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +20,7 @@ export function useSimpleArtworkCarousel(artworkId: string) {
   useEffect(() => {
     async function fetchImages() {
       if (!artworkId) {
+        setImages([]);
         setLoading(false);
         return;
       }
@@ -56,7 +47,18 @@ export function useSimpleArtworkCarousel(artworkId: string) {
         });
         
         logger.log(`[SimpleCarousel] Loaded ${sortedImages.length} images`);
-        setImages(sortedImages as SimpleArtworkImage[]);
+        
+        // Pre-validate the first few image URLs for better initial experience
+        const imagesToValidate = sortedImages.slice(0, 3); // Validate first 3 images
+        const validationPromises = imagesToValidate.map(async (image) => {
+          const bestUrl = await ImageUrlResolver.getBestValidUrl(image as ImageRecord, 'medium');
+          return { ...image, resolvedUrl: bestUrl };
+        });
+        
+        // Wait for initial validations to complete
+        await Promise.all(validationPromises);
+        
+        setImages(sortedImages as ImageRecord[]);
       } catch (err) {
         logger.error("[SimpleCarousel] Error fetching images:", err);
         setError("Failed to load images");
@@ -68,13 +70,14 @@ export function useSimpleArtworkCarousel(artworkId: string) {
     fetchImages();
   }, [artworkId]);
 
-  // Handle carousel selection
+  // Handle carousel selection - separate from loading state
   useEffect(() => {
-    if (!emblaApi || loading) return;
+    if (!emblaApi) return;
 
     const onSelect = () => {
       const newIndex = emblaApi.selectedScrollSnap();
       setCurrentIndex(newIndex);
+      logger.log(`[SimpleCarousel] Selected slide ${newIndex}`);
     };
 
     emblaApi.on("select", onSelect);
@@ -83,7 +86,7 @@ export function useSimpleArtworkCarousel(artworkId: string) {
     return () => {
       emblaApi.off("select", onSelect);
     };
-  }, [emblaApi, loading]);
+  }, [emblaApi]);
 
   // Navigation functions
   const scrollTo = useCallback((index: number) => {
