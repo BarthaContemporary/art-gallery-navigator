@@ -17,25 +17,36 @@ export function ExportToGoogleDocsButton({
 
   const handleExport = async () => {
     try {
+      console.log('Starting export with artworks:', artworks.length);
       await exportToGoogleDocs(artworks);
+      console.log('Export completed successfully');
     } catch (error) {
-      // Error is already handled in the hook
-      console.error('Export failed:', error);
+      console.error('Export failed in button handler:', error);
+      // Error is already handled in the hook with toast notifications
     }
   };
+
+  const isDisabled = isExporting || artworks.length === 0;
 
   return (
     <Button
       variant="outline"
       size="sm"
       onClick={handleExport}
-      disabled={isExporting || artworks.length === 0}
+      disabled={isDisabled}
       className={className}
+      title={artworks.length === 0 ? "No artworks to export" : "Export to Google Docs"}
     >
       {isExporting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <>
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Exporting...
+        </>
       ) : (
-        <FileText className="h-4 w-4" />
+        <>
+          <FileText className="h-4 w-4 mr-2" />
+          Export
+        </>
       )}
     </Button>
   );

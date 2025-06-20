@@ -31,21 +31,25 @@ export function useExportArtworksToGoogleDocs() {
     try {
       console.log(`Exporting ${artworks.length} artworks to Google Docs...`);
 
+      // Prepare artwork data with images
+      const artworkData = artworks.map(artwork => ({
+        id: artwork.id,
+        title: artwork.title,
+        artist_name: artwork.artist_name,
+        year: artwork.year,
+        medium_type: artwork.medium_type,
+        materials: artwork.materials,
+        dimensions: artwork.dimensions,
+        price: artwork.price,
+        currency: artwork.currency,
+        status: artwork.status,
+        location_id: artwork.location_id,
+        artwork_images: artwork.artwork_images || []
+      }));
+
       const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
         body: {
-          artworks: artworks.map(artwork => ({
-            id: artwork.id,
-            title: artwork.title,
-            artist_name: artwork.artist_name,
-            year: artwork.year,
-            medium_type: artwork.medium_type,
-            materials: artwork.materials,
-            dimensions: artwork.dimensions,
-            price: artwork.price,
-            currency: artwork.currency,
-            status: artwork.status,
-            location_id: artwork.location_id,
-          })),
+          artworks: artworkData,
           title: title || `Artwork List - ${new Date().toLocaleDateString()}`,
         },
       });
@@ -56,11 +60,12 @@ export function useExportArtworksToGoogleDocs() {
       }
 
       const response = data as ExportResponse;
+      console.log('Export response:', response);
 
       if (response.success && response.documentUrl) {
         toast({
           title: "Export Successful",
-          description: `Successfully exported ${response.artworkCount} artworks to Google Docs.`,
+          description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Opening document...`,
         });
 
         // Open the document in a new tab
