@@ -29,16 +29,15 @@ export function ImageDownloadDropdown({ artworkId }: ImageDownloadDropdownProps)
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
+          size="icon"
           disabled={isDownloading}
+          title={`Download Images (${images.length})`}
         >
           {isDownloading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Image className="h-4 w-4" />
           )}
-          Images
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
