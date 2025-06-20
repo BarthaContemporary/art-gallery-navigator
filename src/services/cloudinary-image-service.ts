@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
@@ -17,8 +16,12 @@ interface ImageProcessingStatus {
 }
 
 export class CloudinaryImageService {
-  private static cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
+  private static cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   private static processingQueue = new Set<string>();
+
+  static isCloudinaryConfigured(): boolean {
+    return !!this.cloudName && this.cloudName !== 'demo';
+  }
 
   static getOptimizedUrl(
     originalUrl: string | null,
@@ -27,6 +30,12 @@ export class CloudinaryImageService {
   ): string {
     if (!originalUrl || originalUrl === '/placeholder.svg') {
       return '/placeholder.svg';
+    }
+
+    // If Cloudinary is not configured, return original URL
+    if (!this.isCloudinaryConfigured()) {
+      logger.warn('Cloudinary not configured, returning original URL');
+      return originalUrl;
     }
 
     // If it's already a Cloudinary URL, return as is
@@ -47,9 +56,9 @@ export class CloudinaryImageService {
       case 'thumbnail':
         return { width: 400, height: 400, quality: 85, format: 'auto', crop: 'fill' };
       case 'medium':
-        return { width: 1200, height: 1200, quality: 90, format: 'auto', crop: 'limit' };
+        return { width: 800, height: 800, quality: 90, format: 'auto', crop: 'limit' };
       case 'full':
-        return { width: 2400, height: 2400, quality: 95, format: 'auto', crop: 'limit' };
+        return { width: 1600, height: 1600, quality: 95, format: 'auto', crop: 'limit' };
     }
   }
 
@@ -69,12 +78,20 @@ export class CloudinaryImageService {
   }
 
   static analyzeProcessingStatus(imageRecord: any): ImageProcessingStatus {
+    if (!imageRecord) {
+      return {
+        isProcessed: false,
+        needsProcessing: false,
+        processingInProgress: false
+      };
+    }
+
     const hasCloudinaryUrls = imageRecord?.thumbnail_url || imageRecord?.medium_url;
     const hasProcessedFlag = imageRecord?.processed === true;
     
     return {
       isProcessed: hasProcessedFlag && hasCloudinaryUrls,
-      needsProcessing: !hasProcessedFlag || !hasCloudinaryUrls,
+      needsProcessing: !hasProcessedFlag && !!imageRecord.image_url,
       processingInProgress: this.processingQueue.has(imageRecord?.id)
     };
   }
@@ -114,21 +131,32 @@ export class CloudinaryImageService {
       return '/placeholder.svg';
     }
 
-    const status = this.analyzeProcessingStatus(imageRecord);
-    
-    if (status.isProcessed) {
-      // Use Cloudinary URLs if available
+    // First priority: processed Cloudinary URLs
+    if (imageRecord.processed) {
       switch (tier) {
         case 'thumbnail':
-          return imageRecord.thumbnail_url || this.getOptimizedUrl(imageRecord.image_url, tier);
+          if (imageRecord.thumbnail_url) return imageRecord.thumbnail_url;
+          break;
         case 'medium':
-          return imageRecord.medium_url || this.getOptimizedUrl(imageRecord.image_url, tier);
+          if (imageRecord.medium_url) return imageRecord.medium_url;
+          break;
         case 'full':
-          return imageRecord.image_url || this.getOptimizedUrl(imageRecord.image_url, tier);
+          if (imageRecord.image_url) return imageRecord.image_url;
+          break;
       }
     }
 
-    // Fallback to original or optimized fetch URL
-    return imageRecord.image_url || '/placeholder.svg';
+    // Second priority: original image URL (direct or via Cloudinary optimization)
+    if (imageRecord.image_url) {
+      // If Cloudinary is configured, try to optimize the original URL
+      if (this.isCloudinaryConfigured()) {
+        return this.getOptimizedUrl(imageRecord.image_url, tier);
+      }
+      // Otherwise return the original URL
+      return imageRecord.image_url;
+    }
+
+    // Fallback to placeholder
+    return '/placeholder.svg';
   }
 }

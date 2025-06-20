@@ -27,9 +27,9 @@ export function CloudinaryArtworkImage({
 }: CloudinaryArtworkImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-
-  // Get the best available URL
-  const imageUrl = CloudinaryImageService.getBestAvailableUrl(imageRecord, tier);
+  const [imageUrl, setImageUrl] = useState<string>(() => 
+    CloudinaryImageService.getBestAvailableUrl(imageRecord, tier)
+  );
 
   const handleImageLoad = useCallback(() => {
     logger.log(`[${title}] Image loaded successfully: ${imageUrl}`);
@@ -40,10 +40,20 @@ export function CloudinaryArtworkImage({
 
   const handleImageError = useCallback(() => {
     logger.error(`[${title}] Image failed to load: ${imageUrl}`);
-    setIsLoading(false);
     setHasError(true);
+    setIsLoading(false);
+    
+    // Try fallback to original URL if we were using Cloudinary
+    if (imageRecord?.image_url && imageUrl !== imageRecord.image_url) {
+      logger.log(`[${title}] Trying fallback to original URL: ${imageRecord.image_url}`);
+      setImageUrl(imageRecord.image_url);
+      setHasError(false);
+      setIsLoading(true);
+      return;
+    }
+    
     onLoadingComplete?.();
-  }, [title, imageUrl, onLoadingComplete]);
+  }, [title, imageUrl, imageRecord, onLoadingComplete]);
 
   const handleLoadStart = useCallback(() => {
     logger.log(`[${title}] Loading started: ${imageUrl}`);
@@ -58,6 +68,16 @@ export function CloudinaryArtworkImage({
       CloudinaryImageService.triggerProcessing(imageRecord);
     }
   }, [imageRecord]);
+
+  // Update image URL when imageRecord or tier changes
+  React.useEffect(() => {
+    const newUrl = CloudinaryImageService.getBestAvailableUrl(imageRecord, tier);
+    if (newUrl !== imageUrl) {
+      setImageUrl(newUrl);
+      setIsLoading(true);
+      setHasError(false);
+    }
+  }, [imageRecord, tier]);
 
   // Error state
   if (hasError || !imageUrl || imageUrl === '/placeholder.svg') {

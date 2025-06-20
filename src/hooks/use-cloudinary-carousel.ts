@@ -59,7 +59,7 @@ export function useCloudinaryCarousel(artworkId: string) {
     fetchImages();
   }, [artworkId]);
 
-  // Handle carousel events - simplified and more reliable
+  // Handle carousel events
   useEffect(() => {
     if (!emblaApi || loading || images.length === 0) return;
 
@@ -69,15 +69,11 @@ export function useCloudinaryCarousel(artworkId: string) {
       setCurrentIndex(newIndex);
     };
 
-    // Wait for next tick to ensure DOM is ready
-    const timeout = setTimeout(() => {
-      emblaApi.reInit();
-      onSelect();
-      emblaApi.on("select", onSelect);
-    }, 0);
+    emblaApi.reInit();
+    onSelect();
+    emblaApi.on("select", onSelect);
 
     return () => {
-      clearTimeout(timeout);
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi, images, loading]);

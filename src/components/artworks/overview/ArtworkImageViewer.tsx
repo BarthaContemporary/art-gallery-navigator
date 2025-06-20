@@ -72,7 +72,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                     imageRecord={image}
                     title={`${artworkTitle} - Image ${index + 1}`}
                     className="slide-image"
-                    tier="medium"
+                    tier="full"
                   />
                   
                   {/* Zoom button overlay */}
@@ -81,6 +81,11 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                       variant="secondary"
                       size="sm"
                       className="zoom-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // TODO: Implement zoom functionality in Phase 2
+                        console.log('Zoom functionality coming in Phase 2');
+                      }}
                     >
                       <ZoomIn className="h-4 w-4 mr-1" />
                       Zoom
