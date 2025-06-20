@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -53,6 +54,9 @@ export interface Artwork {
   created_at?: string | null;
   updated_at?: string | null;
   artwork_images?: ArtworkImage[]; // Add the artwork_images array
+  artists?: {
+    full_name: string;
+  };
 }
 
 export function useArtworks() {
@@ -61,16 +65,31 @@ export function useArtworks() {
     queryFn: async (): Promise<Artwork[]> => {
       const { data, error } = await supabase
         .from("artworks")
-        .select("*, artwork_images(*)") // Fetch related artwork_images
+        .select(`
+          *,
+          artwork_images(*),
+          artists(full_name)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching artworks with images:", error);
+        console.error("Error fetching artworks with images and artists:", error);
         throw error;
       }
       
-      // console.log("Fetched artworks with images:", data);
-      return data as unknown as Artwork[];
+      // Map the artist name to artist_name for easier access
+      const artworksWithArtistNames = data?.map(artwork => ({
+        ...artwork,
+        artist_name: artwork.artists?.full_name || null
+      })) || [];
+      
+      console.log("Fetched artworks with images and artists:", artworksWithArtistNames.map(a => ({ 
+        title: a.title, 
+        artist_name: a.artist_name, 
+        images: a.artwork_images?.length || 0 
+      })));
+      
+      return artworksWithArtistNames as unknown as Artwork[];
     },
   });
 }
@@ -82,7 +101,11 @@ export function useArtwork(id: string) {
     queryFn: async (): Promise<Artwork> => {
       const { data, error } = await supabase
         .from("artworks")
-        .select("*, artwork_images(*)")
+        .select(`
+          *,
+          artwork_images(*),
+          artists(full_name)
+        `)
         .eq("id", id)
         .single();
 
@@ -91,7 +114,13 @@ export function useArtwork(id: string) {
         throw error;
       }
       
-      return data as unknown as Artwork;
+      // Map the artist name to artist_name for easier access
+      const artworkWithArtistName = {
+        ...data,
+        artist_name: data.artists?.full_name || null
+      };
+      
+      return artworkWithArtistName as unknown as Artwork;
     },
     enabled: !!id,
     initialData: () => {

@@ -31,15 +31,27 @@ export function useExportArtworksToGoogleDocs() {
     try {
       console.log(`Exporting ${artworks.length} artworks to Google Docs...`);
 
-      // Prepare artwork data with proper artist information and images
+      // Prepare artwork data with proper artist information and all image data
       const artworkData = artworks.map(artwork => {
-        // Get artist name from the artwork object - it should already be populated via joins
-        const artistName = artwork.artist_name || "Artist information not available";
+        // Get artist name from multiple possible sources
+        const artistName = artwork.artist_name || artwork.artists?.full_name || "Artist information not available";
+        
+        // Ensure all artwork images are included with all URL variants
+        const processedImages = artwork.artwork_images?.map(img => ({
+          id: img.id,
+          artwork_id: img.artwork_id,
+          image_url: img.image_url,
+          thumbnail_url: img.thumbnail_url,
+          medium_url: img.medium_url,
+          is_primary: img.is_primary,
+          display_order: img.display_order,
+          processed: img.processed
+        })) || [];
         
         return {
           id: artwork.id,
           title: artwork.title,
-          artist_name: artistName, // Ensure this is properly set
+          artist_name: artistName,
           year: artwork.year,
           medium_type: artwork.medium_type,
           materials: artwork.materials,
@@ -48,11 +60,21 @@ export function useExportArtworksToGoogleDocs() {
           currency: artwork.currency,
           status: artwork.status,
           location_id: artwork.location_id,
-          artwork_images: artwork.artwork_images || []
+          artwork_images: processedImages
         };
       });
 
-      console.log("Artwork data prepared:", artworkData.map(a => ({ title: a.title, artist_name: a.artist_name, images: a.artwork_images?.length || 0 })));
+      console.log("Artwork data prepared for export:", artworkData.map(a => ({ 
+        title: a.title, 
+        artist_name: a.artist_name, 
+        images: a.artwork_images?.length || 0,
+        imageUrls: a.artwork_images?.map(img => ({
+          image_url: img.image_url,
+          thumbnail_url: img.thumbnail_url,
+          medium_url: img.medium_url,
+          is_primary: img.is_primary
+        })) || []
+      })));
 
       const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
         body: {
