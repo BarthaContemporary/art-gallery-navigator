@@ -29,7 +29,6 @@ export function OptimizedArtworkImage({
   const [currentSrc, setCurrentSrc] = useState<string | null>(null);
   const [urlIndex, setUrlIndex] = useState(0);
   const [availableUrls, setAvailableUrls] = useState<string[]>([]);
-  const [imageNaturalDimensions, setImageNaturalDimensions] = useState<{width: number, height: number} | null>(null);
 
   // Get priority-ordered URLs when imageRecord changes
   useEffect(() => {
@@ -46,7 +45,6 @@ export function OptimizedArtworkImage({
     
     setAvailableUrls(urls);
     setUrlIndex(0);
-    setImageNaturalDimensions(null);
     
     if (urls.length > 0) {
       setCurrentSrc(urls[0]);
@@ -62,15 +60,7 @@ export function OptimizedArtworkImage({
   }, [imageRecord, title]);
 
   const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event.currentTarget;
     console.log(`[${title}] ✅ Image loaded successfully: ${currentSrc}`);
-    
-    // Store natural dimensions for better aspect ratio handling
-    setImageNaturalDimensions({
-      width: img.naturalWidth,
-      height: img.naturalHeight
-    });
-    
     setIsLoading(false);
     setHasError(false);
     onLoadingComplete?.();
@@ -117,9 +107,6 @@ export function OptimizedArtworkImage({
         <div className="text-center text-muted-foreground">
           <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
           <p className="text-xs">No Image Available</p>
-          {hasError && (
-            <p className="text-xs text-red-500 mt-1">Failed to Load</p>
-          )}
         </div>
       </div>
     );
@@ -138,9 +125,7 @@ export function OptimizedArtworkImage({
         src={currentSrc}
         alt={title}
         className={cn(
-          "w-full h-full transition-opacity duration-300",
-          // Use object-cover for carousel images to fill container properly
-          "object-cover",
+          "w-full h-full transition-opacity duration-300 object-cover",
           isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoadStart={handleLoadStart}
@@ -154,16 +139,6 @@ export function OptimizedArtworkImage({
       {isLoading && (
         <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-        </div>
-      )}
-      
-      {/* Error State Overlay (while trying fallbacks) */}
-      {hasError && urlIndex < availableUrls.length - 1 && (
-        <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
-            <p className="text-xs">Trying fallback...</p>
-          </div>
         </div>
       )}
     </div>

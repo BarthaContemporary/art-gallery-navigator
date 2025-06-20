@@ -65,21 +65,6 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
 
   const showNavigation = images.length > 1;
 
-  const handlePrevClick = () => {
-    console.log(`[ArtworkImageViewer] Previous clicked - canScrollPrev: ${canScrollPrev}`);
-    scrollPrev();
-  };
-
-  const handleNextClick = () => {
-    console.log(`[ArtworkImageViewer] Next clicked - canScrollNext: ${canScrollNext}`);
-    scrollNext();
-  };
-
-  const handleDotNavClick = (index: number) => {
-    console.log(`[ArtworkImageViewer] Dot ${index + 1} clicked`);
-    handleDotClick(index);
-  };
-
   return (
     <div className="artwork-viewer">
       <div className="embla" ref={emblaRef}>
@@ -93,7 +78,6 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                     title={`${artworkTitle} - Image ${index + 1}`}
                     className="slide-image"
                     tier="medium"
-                    onLoadingStart={() => console.log(`[Carousel] Loading image ${index + 1}`)}
                     onLoadingComplete={handleImageLoadComplete}
                   />
                   
@@ -125,7 +109,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
         </div>
       </div>
 
-      {/* Navigation arrows - Always render but conditionally show */}
+      {/* Navigation arrows */}
       {showNavigation && (
         <>
           <Button
@@ -135,7 +119,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
               "carousel-nav carousel-nav--prev",
               !canScrollPrev && "carousel-nav--disabled"
             )}
-            onClick={handlePrevClick}
+            onClick={scrollPrev}
             disabled={!canScrollPrev}
             aria-label="Previous image"
           >
@@ -148,7 +132,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
               "carousel-nav carousel-nav--next",
               !canScrollNext && "carousel-nav--disabled"
             )}
-            onClick={handleNextClick}
+            onClick={scrollNext}
             disabled={!canScrollNext}
             aria-label="Next image"
           >
@@ -157,7 +141,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
         </>
       )}
 
-      {/* Dot indicators - Always render but conditionally show */}
+      {/* Dot indicators */}
       {showNavigation && (
         <div className="carousel-dots">
           {images.map((_, index) => (
@@ -167,7 +151,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                 "carousel-dot",
                 index === currentIndex && "carousel-dot--active"
               )}
-              onClick={() => handleDotNavClick(index)}
+              onClick={() => handleDotClick(index)}
               aria-label={`Go to image ${index + 1}`}
             />
           ))}

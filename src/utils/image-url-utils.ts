@@ -66,38 +66,19 @@ export function getPriorityOrderedUrls(imageRecord: any): string[] {
     thumbnail_url: imageRecord.thumbnail_url
   });
 
-  // Collect all available URLs
+  // Simple priority: medium -> thumbnail -> full, preferring valid URLs
   const allUrls = [
-    imageRecord.medium_url,    // Priority 1: Medium optimized images
-    imageRecord.thumbnail_url, // Priority 2: Thumbnail optimized images  
-    imageRecord.image_url      // Priority 3: Original/full images
+    imageRecord.medium_url,
+    imageRecord.thumbnail_url, 
+    imageRecord.image_url
   ].filter(url => url && validateImageUrl(url));
 
-  // Priority 1: Valid Cloudinary URLs (optimized)
-  const cloudinaryUrls = allUrls.filter(url => isCloudinaryUrl(url));
-  urls.push(...cloudinaryUrls);
-  console.log(`[getPriorityOrderedUrls] Found ${cloudinaryUrls.length} Cloudinary URLs:`, cloudinaryUrls);
+  // Add all valid URLs in order
+  urls.push(...allUrls);
 
-  // Priority 2: Direct Supabase URLs
-  const directSupabaseUrls = allUrls.filter(url => 
-    isSupabaseUrl(url) && !urls.includes(url)
-  );
-  urls.push(...directSupabaseUrls);
-  console.log(`[getPriorityOrderedUrls] Found ${directSupabaseUrls.length} direct Supabase URLs:`, directSupabaseUrls);
+  // Remove duplicates while preserving order
+  const uniqueUrls = urls.filter((url, index, array) => array.indexOf(url) === index);
 
-  // Priority 3: Other valid URLs not already included
-  const otherValidUrls = allUrls.filter(url => 
-    !isCloudinaryUrl(url) && 
-    !isSupabaseUrl(url) && 
-    !urls.includes(url)
-  );
-  urls.push(...otherValidUrls);
-
-  // Filter out duplicates and invalid URLs
-  const finalUrls = urls.filter((url, index, array) => 
-    validateImageUrl(url) && array.indexOf(url) === index
-  );
-
-  console.log(`[getPriorityOrderedUrls] Final prioritized URLs:`, finalUrls);
-  return finalUrls;
+  console.log(`[getPriorityOrderedUrls] Final prioritized URLs:`, uniqueUrls);
+  return uniqueUrls;
 }
