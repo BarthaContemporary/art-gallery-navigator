@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { toast } from "sonner";
-import { ImageUrlService } from "@/services/image-url-service";
 
 export function useDownloadArtworkImages(artworkId: string) {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -10,22 +9,16 @@ export function useDownloadArtworkImages(artworkId: string) {
 
   const downloadImage = async (imageRecord: any, filename: string) => {
     try {
-      // Prioritize original image first, then fall back to processed versions
+      // Use the best available image URL from the imageRecord
       let imageUrl = '';
       
-      // First try original storage path for highest quality
-      if (imageRecord.original_storage_path) {
-        imageUrl = ImageUrlService.getBestImageUrl(imageRecord, 'original');
-      }
-      
-      // If no original path or it's placeholder, try the original image_url
-      if (!imageUrl || imageUrl === '/placeholder.svg') {
+      // Priority: image_url (most reliable) -> medium_url -> thumbnail_url
+      if (imageRecord.image_url && imageRecord.image_url !== '/placeholder.svg') {
         imageUrl = imageRecord.image_url;
-      }
-      
-      // Final fallback to largest processed version
-      if (!imageUrl || imageUrl === '/placeholder.svg') {
-        imageUrl = ImageUrlService.getBestImageUrl(imageRecord, 'large');
+      } else if (imageRecord.medium_url && imageRecord.medium_url !== '/placeholder.svg') {
+        imageUrl = imageRecord.medium_url;
+      } else if (imageRecord.thumbnail_url && imageRecord.thumbnail_url !== '/placeholder.svg') {
+        imageUrl = imageRecord.thumbnail_url;
       }
       
       if (!imageUrl || imageUrl === '/placeholder.svg') {
