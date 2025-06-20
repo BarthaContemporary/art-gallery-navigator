@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useArtworkCarousel } from "@/hooks/use-artwork-carousel";
+import { OptimizedArtworkImage } from "@/components/artworks/OptimizedArtworkImage";
 import { cn } from "@/lib/utils";
 
 interface ArtworkImageViewerProps {
@@ -20,9 +21,6 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     handleDotClick,
     scrollPrev,
     scrollNext,
-    getImageUrl,
-    handleImageError,
-    handleImageLoad,
   } = useArtworkCarousel(artworkId);
 
   if (loading) {
@@ -67,30 +65,25 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
       {/* Main carousel container */}
       <div className="embla h-full" ref={emblaRef}>
         <div className="embla__container h-full flex">
-          {images.map((image, index) => {
-            const imageUrl = getImageUrl(image);
-            return (
-              <div
-                key={image.id}
-                className="embla__slide flex-shrink-0 flex-grow-0 basis-full relative"
-              >
-                <img
-                  src={imageUrl}
-                  alt={`${artworkTitle} - Image ${index + 1}`}
-                  className="w-full h-full object-contain bg-white"
-                  onLoad={() => handleImageLoad(imageUrl, image.id)}
-                  onError={() => handleImageError(imageUrl, image.id)}
-                  loading={index === 0 ? "eager" : "lazy"}
-                />
-                
-                {/* Image info overlay */}
-                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                  {index + 1} / {images.length}
-                  {image.is_primary && " (Primary)"}
-                </div>
+          {images.map((image, index) => (
+            <div
+              key={image.id}
+              className="embla__slide flex-shrink-0 flex-grow-0 basis-full relative h-full"
+            >
+              <OptimizedArtworkImage
+                imageRecord={image}
+                title={`${artworkTitle} - Image ${index + 1}`}
+                className="w-full h-full"
+                tier="medium"
+              />
+              
+              {/* Image info overlay */}
+              <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                {index + 1} / {images.length}
+                {image.is_primary && " (Primary)"}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
