@@ -31,7 +31,7 @@ export function CompactCarouselIndicator({
             <button
               key={index}
               className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all duration-200 hover:scale-125",
+                "w-1 h-1 rounded-full transition-all duration-200 hover:scale-125",
                 index === currentIndex 
                   ? "bg-white" 
                   : "bg-white/40 hover:bg-white/60"
