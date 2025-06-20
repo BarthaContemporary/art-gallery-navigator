@@ -32,7 +32,7 @@ export function CompactCarouselIndicator({
             <button
               key={index}
               className={cn(
-                "transition-all duration-200 hover:scale-125",
+                "transition-all duration-200 hover:scale-125 flex items-center justify-center",
                 index === currentIndex 
                   ? "text-white" 
                   : "text-white/40 hover:text-white/60"
