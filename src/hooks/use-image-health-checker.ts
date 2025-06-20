@@ -1,9 +1,9 @@
-
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
-import { validateImageUrl, fixCloudinaryUrl, isValidCloudinaryUrl } from './use-optimized-image/url-generator';
+import { validateImageUrl, isCloudinaryUrl, isSupabaseUrl, extractOriginalUrlFromCloudinary } from '@/utils/image-url-utils';
+import { fixCloudinaryUrl, isValidCloudinaryUrl } from './use-optimized-image/url-generator';
 
 interface ImageHealthReport {
   totalImages: number;
@@ -57,7 +57,7 @@ export function useImageHealthChecker() {
           if (url === '/placeholder.svg') {
             status = 'placeholder';
             report.placeholderImages++;
-          } else if (url.includes('res.cloudinary.com')) {
+          } else if (isCloudinaryUrl(url)) {
             if (isValidCloudinaryUrl(url)) {
               report.cloudinaryImages++;
             } else {
@@ -71,7 +71,7 @@ export function useImageHealthChecker() {
                 report.brokenImages++;
               }
             }
-          } else if (url.includes('supabase.co')) {
+          } else if (isSupabaseUrl(url)) {
             report.supabaseImages++;
             // Check if Supabase URL is accessible
             if (!validateImageUrl(url)) {
