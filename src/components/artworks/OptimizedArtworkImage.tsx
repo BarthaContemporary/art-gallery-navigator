@@ -1,8 +1,9 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 import { cn } from "@/lib/utils";
 import { Loader2, ImageOff } from "lucide-react";
+import { getPriorityOrderedUrls } from "@/utils/image-url-utils";
 
 interface OptimizedArtworkImageProps {
   imageRecord?: ArtworkImage;
@@ -26,100 +27,74 @@ export function OptimizedArtworkImage({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState<string | null>(null);
-  const [attemptedUrls, setAttemptedUrls] = useState<string[]>([]);
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [availableUrls, setAvailableUrls] = useState<string[]>([]);
 
-  // Get available image URLs in order of preference
-  const getAvailableUrls = useCallback(() => {
-    if (!imageRecord) return [];
-    
-    const urls: string[] = [];
-    
-    // Based on tier, try different URLs
-    switch (tier) {
-      case 'thumbnail':
-        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
-        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
-        if (imageRecord.image_url) urls.push(imageRecord.image_url);
-        break;
-      case 'full':
-        if (imageRecord.image_url) urls.push(imageRecord.image_url);
-        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
-        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
-        break;
-      case 'medium':
-      default:
-        if (imageRecord.medium_url) urls.push(imageRecord.medium_url);
-        if (imageRecord.image_url) urls.push(imageRecord.image_url);
-        if (imageRecord.thumbnail_url) urls.push(imageRecord.thumbnail_url);
-        break;
+  // Get priority-ordered URLs when imageRecord changes
+  useEffect(() => {
+    if (!imageRecord) {
+      setAvailableUrls([]);
+      setCurrentSrc(null);
+      setIsLoading(false);
+      setHasError(true);
+      return;
     }
 
-    // Filter out invalid URLs
-    return urls.filter(url => 
-      url && 
-      url !== "/placeholder.svg" && 
-      url.trim() !== "" &&
-      (url.startsWith('http') || url.startsWith('data:'))
-    );
-  }, [imageRecord, tier]);
-
-  // Initialize with first available URL
-  React.useEffect(() => {
-    const availableUrls = getAvailableUrls();
-    setAttemptedUrls([]);
+    const urls = getPriorityOrderedUrls(imageRecord);
+    console.log(`[${title}] Available URLs in priority order:`, urls);
     
-    if (availableUrls.length > 0) {
-      const firstUrl = availableUrls[0];
-      setCurrentSrc(firstUrl);
-      setHasError(false);
+    setAvailableUrls(urls);
+    setUrlIndex(0);
+    
+    if (urls.length > 0) {
+      setCurrentSrc(urls[0]);
       setIsLoading(true);
-      console.log(`Loading image for ${title}: ${firstUrl}`);
+      setHasError(false);
+      console.log(`[${title}] Starting with URL: ${urls[0]}`);
     } else {
-      console.log(`No valid image URLs for ${title}`);
+      console.warn(`[${title}] No valid URLs found`);
       setCurrentSrc(null);
       setIsLoading(false);
       setHasError(true);
     }
-  }, [getAvailableUrls, title]);
+  }, [imageRecord, title]);
 
   const handleImageLoad = useCallback(() => {
-    console.log(`Image loaded successfully for: ${title} - ${currentSrc}`);
+    console.log(`[${title}] ✅ Image loaded successfully: ${currentSrc}`);
     setIsLoading(false);
     setHasError(false);
     onLoadingComplete?.();
-  }, [onLoadingComplete, title, currentSrc]);
+  }, [title, currentSrc, onLoadingComplete]);
 
   const handleImageError = useCallback(() => {
-    console.error(`Image failed to load for: ${title} - ${currentSrc}`);
+    console.error(`[${title}] ❌ Image failed to load: ${currentSrc}`);
     
-    const availableUrls = getAvailableUrls();
-    const newAttemptedUrls = [...attemptedUrls, currentSrc].filter(Boolean);
-    setAttemptedUrls(newAttemptedUrls);
-
-    // Find next URL that hasn't been tried
-    const nextUrl = availableUrls.find(url => !newAttemptedUrls.includes(url));
-    
-    if (nextUrl) {
-      console.log(`Trying fallback URL for ${title}: ${nextUrl}`);
+    const nextIndex = urlIndex + 1;
+    if (nextIndex < availableUrls.length) {
+      const nextUrl = availableUrls[nextIndex];
+      console.log(`[${title}] 🔄 Trying fallback URL ${nextIndex + 1}/${availableUrls.length}: ${nextUrl}`);
+      
+      setUrlIndex(nextIndex);
       setCurrentSrc(nextUrl);
       setIsLoading(true);
       setHasError(false);
     } else {
-      console.error(`All URLs failed for ${title}. Attempted: ${newAttemptedUrls.join(', ')}`);
+      console.error(`[${title}] 💥 All URLs failed. Tried: ${availableUrls.join(', ')}`);
       setIsLoading(false);
       setHasError(true);
       onLoadingComplete?.();
     }
-  }, [onLoadingComplete, title, currentSrc, attemptedUrls, getAvailableUrls]);
+  }, [title, currentSrc, urlIndex, availableUrls, onLoadingComplete]);
 
   const handleLoadStart = useCallback(() => {
-    console.log(`Image load started for: ${title} - ${currentSrc}`);
+    console.log(`[${title}] 🔄 Loading started: ${currentSrc}`);
     setIsLoading(true);
     setHasError(false);
     onLoadingStart?.();
-  }, [onLoadingStart, title, currentSrc]);
+  }, [title, currentSrc, onLoadingStart]);
 
-  if (!imageRecord || !currentSrc) {
+  // Show error state if no valid URLs or all failed
+  if (!currentSrc || (hasError && urlIndex >= availableUrls.length)) {
     return (
       <div 
         className={cn(
@@ -132,6 +107,9 @@ export function OptimizedArtworkImage({
         <div className="text-center text-muted-foreground">
           <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
           <p className="text-xs">No Image Available</p>
+          {hasError && (
+            <p className="text-xs text-red-500 mt-1">Failed to Load</p>
+          )}
         </div>
       </div>
     );
@@ -161,19 +139,18 @@ export function OptimizedArtworkImage({
       />
       
       {/* Loading State */}
-      {isLoading && !hasError && (
+      {isLoading && (
         <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
         </div>
       )}
       
-      {/* Error State */}
-      {hasError && (
+      {/* Error State Overlay (while trying fallbacks) */}
+      {hasError && urlIndex < availableUrls.length - 1 && (
         <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
           <div className="text-center text-muted-foreground">
-            <ImageOff className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
-            <p className="text-xs">Failed to Load</p>
-            <p className="text-xs opacity-75">{tier} quality</p>
+            <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
+            <p className="text-xs">Trying fallback...</p>
           </div>
         </div>
       )}

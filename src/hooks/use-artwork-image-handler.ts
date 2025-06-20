@@ -1,5 +1,6 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { validateImageUrl } from '@/utils/image-url-utils';
 import { logger } from '@/lib/logger';
 
 interface UseArtworkImageHandlerProps {
@@ -19,40 +20,33 @@ export function useArtworkImageHandler({
   const [isValidUrl, setIsValidUrl] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!displayImageUrl || displayImageUrl === "/placeholder.svg" || displayImageUrl.trim() === "") {
-      logger.debug(`useArtworkImageHandler (${title}): No valid displayImageUrl, using placeholder.`);
+    if (!displayImageUrl) {
+      logger.debug(`useArtworkImageHandler (${title}): No displayImageUrl provided`);
       setDeterminedOptimizedUrl("/placeholder.svg");
       setIsValidUrl(false);
       return;
     }
 
-    // Simple URL validation
-    try {
-      const url = new URL(displayImageUrl, window.location.origin);
-      if (url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'data:') {
-        setDeterminedOptimizedUrl(displayImageUrl);
-        setIsValidUrl(true);
-        logger.debug(`useArtworkImageHandler (${title}): Using URL: ${displayImageUrl}`);
-      } else {
-        throw new Error('Invalid protocol');
-      }
-    } catch (error) {
-      logger.warn(`useArtworkImageHandler (${title}): Invalid URL detected:`, displayImageUrl);
+    if (validateImageUrl(displayImageUrl)) {
+      setDeterminedOptimizedUrl(displayImageUrl);
+      setIsValidUrl(true);
+      logger.debug(`useArtworkImageHandler (${title}): Using valid URL: ${displayImageUrl}`);
+    } else {
+      logger.warn(`useArtworkImageHandler (${title}): Invalid URL detected: ${displayImageUrl}`);
       setDeterminedOptimizedUrl("/placeholder.svg");
       setIsValidUrl(false);
     }
   }, [displayImageUrl, title]);
 
-  const cacheLoadedImage = useCallback(() => {
-    // Simplified - just log for debugging
+  const cacheLoadedImage = () => {
     if (isValidUrl && determinedOptimizedUrl !== "/placeholder.svg") {
-      logger.log(`useArtworkImageHandler (${title}): Image loaded successfully: ${determinedOptimizedUrl}`);
+      logger.log(`useArtworkImageHandler (${title}): Image ready: ${determinedOptimizedUrl}`);
     }
-  }, [determinedOptimizedUrl, isValidUrl, title]);
+  };
 
   return {
     determinedOptimizedUrl,
-    initialCachedPreviewUrl: null, // Simplified - no caching for now
+    initialCachedPreviewUrl: null,
     cacheLoadedImage,
   };
 }

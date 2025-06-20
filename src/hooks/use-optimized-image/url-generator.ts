@@ -1,36 +1,32 @@
-
 import { OptimizedImageConfig, ImageTierType } from "./types";
+import { validateImageUrl, isCloudinaryUrl, isSupabaseUrl, extractOriginalUrlFromCloudinary } from "@/utils/image-url-utils";
 
 export const generateImageUrl = (config: OptimizedImageConfig, tier: ImageTierType): string => {
   if (!config.originalUrl || config.originalUrl === "/placeholder.svg") {
     return "/placeholder.svg";
   }
 
-  const sizeConfig = config.sizes[tier];
-  
-  // Fix malformed Cloudinary URLs
-  const fixedUrl = fixCloudinaryUrl(config.originalUrl);
-  
-  // Check if it's a valid Cloudinary URL
-  if (isValidCloudinaryUrl(fixedUrl)) {
-    return fixedUrl;
+  // If it's a direct Supabase URL, use it as-is (most reliable)
+  if (isSupabaseUrl(config.originalUrl)) {
+    return config.originalUrl;
   }
-  
-  // For Supabase storage URLs, apply transformations
-  if (fixedUrl.includes('supabase.co/storage') && fixedUrl.includes('/public/')) {
-    const transformParams = `w=${sizeConfig.width}&h=${sizeConfig.height}&resize=contain&q=${sizeConfig.quality}&f=webp`;
-    return fixedUrl.includes('?') 
-      ? `${fixedUrl}&transform=${transformParams}`
-      : `${fixedUrl}?transform=${transformParams}`;
+
+  // If it's a Cloudinary URL, try to extract the original URL first
+  if (isCloudinaryUrl(config.originalUrl)) {
+    const originalUrl = extractOriginalUrlFromCloudinary(config.originalUrl);
+    if (originalUrl && validateImageUrl(originalUrl)) {
+      return originalUrl;
+    }
+    // If extraction fails, use the Cloudinary URL as-is
+    return config.originalUrl;
   }
-  
-  // Convert regular URLs to Cloudinary URLs if possible
-  if (shouldConvertToCloudinary(fixedUrl)) {
-    return convertToCloudinaryUrl(fixedUrl, sizeConfig);
+
+  // For other URLs, validate and return
+  if (validateImageUrl(config.originalUrl)) {
+    return config.originalUrl;
   }
-  
-  // Return original URL if no transformations can be applied
-  return fixedUrl;
+
+  return "/placeholder.svg";
 };
 
 export const fixCloudinaryUrl = (url: string): string => {
