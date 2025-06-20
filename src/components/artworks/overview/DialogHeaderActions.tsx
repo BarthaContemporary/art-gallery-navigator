@@ -33,17 +33,16 @@ export function DialogHeaderActions({
       {showCreatePdf && (
         <Button
           variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
+          size="icon"
           onClick={handleExportToGoogleDocs}
           disabled={isExporting}
+          title={isExporting ? "Exporting..." : "Export to Google Docs"}
         >
           {isExporting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <FileText className="h-4 w-4" />
           )}
-          {isExporting ? "Exporting..." : "Export to Google Docs"}
         </Button>
       )}
       {showDownloadAllImages && (
