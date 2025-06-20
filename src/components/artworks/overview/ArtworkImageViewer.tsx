@@ -25,6 +25,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
     scrollNext,
     canScrollPrev,
     canScrollNext,
+    handleImageLoadComplete,
   } = useArtworkCarousel(artworkId);
 
   console.log(`[ArtworkImageViewer] Rendering - ${images?.length || 0} images, ready: ${isCarouselReady}`);
@@ -93,7 +94,7 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
                     className="slide-image"
                     tier="medium"
                     onLoadingStart={() => console.log(`[Carousel] Loading image ${index + 1}`)}
-                    onLoadingComplete={() => console.log(`[Carousel] Loaded image ${index + 1}`)}
+                    onLoadingComplete={handleImageLoadComplete}
                   />
                   
                   {/* Zoom button overlay */}
@@ -124,8 +125,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
         </div>
       </div>
 
-      {/* Navigation arrows */}
-      {showNavigation && isCarouselReady && (
+      {/* Navigation arrows - Always render but conditionally show */}
+      {showNavigation && (
         <>
           <Button
             variant="secondary"
@@ -156,8 +157,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
         </>
       )}
 
-      {/* Dot indicators */}
-      {showNavigation && isCarouselReady && (
+      {/* Dot indicators - Always render but conditionally show */}
+      {showNavigation && (
         <div className="carousel-dots">
           {images.map((_, index) => (
             <button
@@ -179,7 +180,8 @@ export function ArtworkImageViewer({ artworkId, artworkTitle }: ArtworkImageView
           Ready: {isCarouselReady ? '✅' : '❌'} | 
           Index: {currentIndex} | 
           Prev: {canScrollPrev ? '✅' : '❌'} | 
-          Next: {canScrollNext ? '✅' : '❌'}
+          Next: {canScrollNext ? '✅' : '❌'} |
+          Images: {images.length}
         </div>
       )}
     </div>

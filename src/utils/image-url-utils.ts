@@ -35,13 +35,6 @@ export function extractOriginalUrlFromCloudinary(cloudinaryUrl: string): string 
       }
     }
 
-    // Handle upload URLs with transformations
-    if (cloudinaryUrl.includes('/image/upload/')) {
-      // For upload URLs, we can't extract the original URL easily
-      // So we return null to indicate this URL should be skipped
-      return null;
-    }
-
     return null;
   } catch (error) {
     console.warn('Failed to extract original URL from Cloudinary:', cloudinaryUrl, error);
@@ -75,27 +68,24 @@ export function getPriorityOrderedUrls(imageRecord: any): string[] {
 
   // Collect all available URLs
   const allUrls = [
-    imageRecord.image_url,
-    imageRecord.medium_url, 
-    imageRecord.thumbnail_url
+    imageRecord.medium_url,    // Priority 1: Medium optimized images
+    imageRecord.thumbnail_url, // Priority 2: Thumbnail optimized images  
+    imageRecord.image_url      // Priority 3: Original/full images
   ].filter(url => url && validateImageUrl(url));
 
-  // Priority 1: Direct Supabase URLs (most reliable)
-  const directSupabaseUrls = allUrls.filter(url => isSupabaseUrl(url));
+  // Priority 1: Valid Cloudinary URLs (optimized)
+  const cloudinaryUrls = allUrls.filter(url => isCloudinaryUrl(url));
+  urls.push(...cloudinaryUrls);
+  console.log(`[getPriorityOrderedUrls] Found ${cloudinaryUrls.length} Cloudinary URLs:`, cloudinaryUrls);
+
+  // Priority 2: Direct Supabase URLs
+  const directSupabaseUrls = allUrls.filter(url => 
+    isSupabaseUrl(url) && !urls.includes(url)
+  );
   urls.push(...directSupabaseUrls);
   console.log(`[getPriorityOrderedUrls] Found ${directSupabaseUrls.length} direct Supabase URLs:`, directSupabaseUrls);
 
-  // Priority 2: Extract original URLs from Cloudinary URLs
-  const cloudinaryUrls = allUrls.filter(url => isCloudinaryUrl(url));
-  for (const cloudinaryUrl of cloudinaryUrls) {
-    const originalUrl = extractOriginalUrlFromCloudinary(cloudinaryUrl);
-    if (originalUrl && validateImageUrl(originalUrl) && !urls.includes(originalUrl)) {
-      console.log(`[getPriorityOrderedUrls] Extracted original URL from Cloudinary: ${originalUrl}`);
-      urls.push(originalUrl);
-    }
-  }
-
-  // Priority 3: Valid non-Cloudinary URLs that aren't already included
+  // Priority 3: Other valid URLs not already included
   const otherValidUrls = allUrls.filter(url => 
     !isCloudinaryUrl(url) && 
     !isSupabaseUrl(url) && 
