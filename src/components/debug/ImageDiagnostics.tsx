@@ -51,7 +51,7 @@ export function ImageDiagnostics({ artworkId, artworkTitle }: ImageDiagnosticsPr
                   <p><strong>Image URL:</strong> {image.image_url || 'None'}</p>
                   <p><strong>Thumbnail URL:</strong> {image.thumbnail_url || 'None'}</p>
                   <p><strong>Medium URL:</strong> {image.medium_url || 'None'}</p>
-                  <p><strong>Processed:</strong> {image.processed ? 'Yes' : 'No'}</p>
+                  <p><strong>Processing Status:</strong> {image.processing_status || 'unknown'}</p>
                 </div>
               </div>
               
