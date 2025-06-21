@@ -25,7 +25,7 @@ export function CompactCarouselIndicator({
         <div className="flex items-center gap-0.5">
           {Array.from({
           length: totalImages
-        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="flex items-center justify-center w-2 h-2 ">
+        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="flex items-center justify-center w-1 h-1 ">
               <CircleDot size={7} className="text-white" />
             </button>)}
         </div>
