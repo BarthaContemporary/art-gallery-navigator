@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LocalImageService } from "@/services/local-image-service";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageUploaderProps {
   artworkId?: string;

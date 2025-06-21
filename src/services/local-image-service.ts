@@ -12,11 +12,20 @@ export interface LocalImageRecord {
   medium_storage_path?: string | null;
   large_storage_path?: string | null;
   processing_status?: string | null;
+  processing_error?: string | null;
   is_primary: boolean;
   display_order: number;
   image_url?: string | null;
   thumbnail_url?: string | null;
   medium_url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  original_width?: number | null;
+  original_height?: number | null;
+  thumbnail_width?: number | null;
+  thumbnail_height?: number | null;
+  medium_width?: number | null;
+  medium_height?: number | null;
 }
 
 export class LocalImageService {
@@ -138,6 +147,96 @@ export class LocalImageService {
     } catch (error) {
       logger.error('[LocalImageService] Get artwork images failed:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get the best available image URL for display
+   */
+  static getBestImageUrl(imageRecord: LocalImageRecord, preferredSize: ImageSize = 'medium'): string {
+    // If still processing, return placeholder
+    if (imageRecord.processing_status === 'pending' || imageRecord.processing_status === 'processing') {
+      return '/placeholder.svg';
+    }
+
+    // Try to get the preferred size first
+    switch (preferredSize) {
+      case 'thumbnail':
+        if (imageRecord.thumbnail_url && imageRecord.thumbnail_url !== '/placeholder.svg') {
+          return imageRecord.thumbnail_url;
+        }
+        break;
+      case 'medium':
+        if (imageRecord.medium_url && imageRecord.medium_url !== '/placeholder.svg') {
+          return imageRecord.medium_url;
+        }
+        break;
+      case 'large':
+        if (imageRecord.image_url && imageRecord.image_url !== '/placeholder.svg') {
+          return imageRecord.image_url;
+        }
+        break;
+    }
+
+    // Fallback hierarchy: image_url -> medium_url -> thumbnail_url -> placeholder
+    if (imageRecord.image_url && imageRecord.image_url !== '/placeholder.svg') {
+      return imageRecord.image_url;
+    }
+    if (imageRecord.medium_url && imageRecord.medium_url !== '/placeholder.svg') {
+      return imageRecord.medium_url;
+    }
+    if (imageRecord.thumbnail_url && imageRecord.thumbnail_url !== '/placeholder.svg') {
+      return imageRecord.thumbnail_url;
+    }
+
+    return '/placeholder.svg';
+  }
+
+  /**
+   * Get processing status for an artwork
+   */
+  static async getProcessingStatus(artworkId: string): Promise<{
+    total: number;
+    pending: number;
+    processing: number;
+    completed: number;
+    failed: number;
+  }> {
+    try {
+      const { data, error } = await supabase
+        .from('artwork_images')
+        .select('processing_status')
+        .eq('artwork_id', artworkId);
+
+      if (error) {
+        logger.error('[LocalImageService] Failed to fetch processing status:', error);
+        return { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
+      }
+
+      const status = { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
+      
+      data?.forEach(image => {
+        status.total++;
+        switch (image.processing_status) {
+          case 'pending':
+            status.pending++;
+            break;
+          case 'processing':
+            status.processing++;
+            break;
+          case 'completed':
+            status.completed++;
+            break;
+          case 'failed':
+            status.failed++;
+            break;
+        }
+      });
+
+      return status;
+    } catch (error) {
+      logger.error('[LocalImageService] Get processing status failed:', error);
+      return { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
     }
   }
 
