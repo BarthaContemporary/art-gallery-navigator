@@ -1,130 +1,218 @@
 
-import 'https://deno.land/x/xhr@0.1.0/mod.ts'; // Required for Supabase client
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+)
 
-console.log('hash-collection-password function initializing');
+// Rate limiting storage
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
-// Initialize Supabase client if needed for verification
-let supabaseAdmin: SupabaseClient | null = null;
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false
-    }
-  });
-  console.log('Supabase admin client initialized for verification.');
-} else {
-  console.warn('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set. Password verification will fail.');
+function checkRateLimit(identifier: string, maxRequests: number = 5, windowMs: number = 60000): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(identifier)
+  
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + windowMs })
+    return true
+  }
+  
+  if (record.count >= maxRequests) {
+    return false
+  }
+  
+  record.count++
+  return true
 }
 
+async function logSecurityEvent(
+  eventType: string,
+  details: any,
+  userId?: string,
+  ipAddress?: string,
+  userAgent?: string
+) {
+  try {
+    await supabase.rpc('log_security_event', {
+      _event_type: eventType,
+      _ip_address: ipAddress,
+      _user_agent: userAgent,
+      _details: details
+    })
+  } catch (error) {
+    console.error('Failed to log security event:', error)
+  }
+}
 
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
+function sanitizeInput(input: string): string {
+  if (!input || typeof input !== 'string') {
+    throw new Error('Invalid input')
+  }
+  return input.trim().slice(0, 1000) // Limit length
+}
+
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    console.log('OPTIONS request received');
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const payload = await req.json();
-    console.log('Request payload:', payload);
-
-    // VERIFY MODE
-    if (payload.slug && payload.attemptedPassword) {
-      console.log('Entering verification mode for slug:', payload.slug);
-      if (!supabaseAdmin) {
-        console.error('Supabase admin client not initialized. Cannot verify password.');
-        return new Response(
-          JSON.stringify({ error: 'Server configuration error for password verification.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const { data: website, error: fetchError } = await supabaseAdmin
-        .from('collection_websites')
-        .select('password_hash')
-        .eq('slug', payload.slug)
-        .eq('is_active', true) // Ensure website is active
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching website for verification:', fetchError);
-        return new Response(
-          JSON.stringify({ error: 'Could not find website or database error.' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (!website || !website.password_hash) {
-        console.log('Website not found or no password hash for slug:', payload.slug);
-        // This case means the website is public or doesn't exist, client shouldn't have called verify.
-        // However, respond politely.
-        return new Response(
-          JSON.stringify({ verified: false, error: 'Website is not password protected or not found.' }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const passwordsMatch = bcrypt.compareSync(payload.attemptedPassword, website.password_hash);
-      console.log('Password comparison result:', passwordsMatch);
-
-      if (passwordsMatch) {
-        return new Response(
-          JSON.stringify({ verified: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } else {
-        return new Response(
-          JSON.stringify({ verified: false, error: 'Invalid password.' }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } // Status 200 for failed auth attempt, error in body
-        );
-      }
-    } 
-    // HASH MODE
-    else if (payload.password && typeof payload.password === 'string') {
-      console.log('Entering hash mode.');
-      if (payload.password.length === 0) {
-         // Allow empty string to effectively remove password if client logic sends it for that purpose
-        // In this mode, we just hash what's given. Client decides if empty string means "remove".
-        // The update hook useUpdateCollectionWebsite handles `password: null` for removal.
-        // This function only hashes.
-        console.log('Password is an empty string, hashing it.');
-      }
+    // Get client IP and user agent for rate limiting and logging
+    const clientIP = req.headers.get('x-forwarded-for') || 
+                    req.headers.get('x-real-ip') || 
+                    'unknown'
+    const userAgent = req.headers.get('user-agent') || 'unknown'
+    
+    // Rate limiting
+    if (!checkRateLimit(clientIP, 10, 60000)) {
+      await logSecurityEvent(
+        'rate_limit_exceeded',
+        { endpoint: 'hash-collection-password', ip: clientIP },
+        undefined,
+        clientIP,
+        userAgent
+      )
       
-      const salt = bcrypt.genSaltSync(10);
-      const hashedPassword = bcrypt.hashSync(payload.password, salt);
-      console.log('Password hashed successfully');
-
       return new Response(
-        JSON.stringify({ hashedPassword }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } 
-    // INVALID PAYLOAD
-    else {
-      console.error('Invalid payload structure:', payload);
-      return new Response(
-        JSON.stringify({ error: 'Invalid request payload. Must provide either (slug and attemptedPassword) or (password).' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
-  } catch (error) {
-    console.error('Error in hash-collection-password function:', error);
+
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      await logSecurityEvent(
+        'unauthorized_access_attempt',
+        { endpoint: 'hash-collection-password', reason: 'missing_auth_header' },
+        undefined,
+        clientIP,
+        userAgent
+      )
+      
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    )
+
+    if (authError || !user) {
+      await logSecurityEvent(
+        'unauthorized_access_attempt',
+        { endpoint: 'hash-collection-password', reason: 'invalid_token' },
+        undefined,
+        clientIP,
+        userAgent
+      )
+      
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Check if user is admin
+    const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'gallery_admin'
+    })
+
+    if (roleError || !isAdmin) {
+      await logSecurityEvent(
+        'unauthorized_access_attempt',
+        { 
+          endpoint: 'hash-collection-password', 
+          reason: 'insufficient_permissions',
+          userId: user.id 
+        },
+        user.id,
+        clientIP,
+        userAgent
+      )
+      
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions' }),
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const { password } = await req.json()
+    
+    if (!password) {
+      return new Response(
+        JSON.stringify({ error: 'Password is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Sanitize input
+    const sanitizedPassword = sanitizeInput(password)
+
+    // Hash the password
+    const encoder = new TextEncoder()
+    const data = encoder.encode(sanitizedPassword)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+    // Log successful operation
+    await logSecurityEvent(
+      'password_hash_generated',
+      { endpoint: 'hash-collection-password' },
+      user.id,
+      clientIP,
+      userAgent
+    )
+
     return new Response(
-      JSON.stringify({ error: error.message || 'An unexpected error occurred.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ hash: hashHex }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+
+  } catch (error) {
+    console.error('Error in hash-collection-password function:', error)
+    
+    await logSecurityEvent(
+      'function_error',
+      { 
+        endpoint: 'hash-collection-password',
+        error: error.message 
+      },
+      undefined,
+      req.headers.get('x-forwarded-for') || 'unknown',
+      req.headers.get('user-agent') || 'unknown'
+    )
+
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
-});
+})

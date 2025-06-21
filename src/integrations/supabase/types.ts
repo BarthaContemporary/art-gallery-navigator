@@ -1563,6 +1563,36 @@ export type Database = {
           },
         ]
       }
+      security_events: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       uploads: {
         Row: {
           created_at: string
@@ -1686,6 +1716,15 @@ export type Database = {
       is_document_accessible_by_current_artist: {
         Args: { _document_id: string }
         Returns: boolean
+      }
+      log_security_event: {
+        Args: {
+          _event_type: string
+          _ip_address?: unknown
+          _user_agent?: string
+          _details?: Json
+        }
+        Returns: string
       }
       mark_message_as_read: {
         Args: { message_id: string; reader_id: string }
