@@ -5,6 +5,7 @@ import { ArtworkCardActions } from "./ArtworkCardActions";
 import { Artwork } from "@/hooks/use-artworks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
+import { CloudinaryImageService } from "@/services/cloudinary-image-service";
 
 interface ArtworkCardImageProps {
   artwork: Artwork;
@@ -27,6 +28,15 @@ export function ArtworkCardImage({
 }: ArtworkCardImageProps) {
   const isMobile = useIsMobile();
   const { primaryImage, hasProcessingImages } = useLocalArtworkImages(artwork.id);
+  
+  // Check if we should show processing indicator based on CloudinaryImageService
+  const processingStatus = primaryImage ? 
+    CloudinaryImageService.analyzeProcessingStatus(primaryImage) : 
+    { isProcessed: false, needsProcessing: false, processingInProgress: false };
+  
+  const showProcessingIndicator = hasProcessingImages || 
+    processingStatus.processingInProgress || 
+    processingStatus.needsProcessing;
   
   return (
     <div
@@ -51,9 +61,9 @@ export function ArtworkCardImage({
       </div>
 
       {/* Processing indicator */}
-      {hasProcessingImages && (
+      {showProcessingIndicator && (
         <div className="absolute top-2 left-2 z-10 bg-blue-500/90 text-white px-2 py-1 rounded text-xs">
-          Processing
+          {processingStatus.processingInProgress ? 'Processing' : 'Needs Processing'}
         </div>
       )}
       

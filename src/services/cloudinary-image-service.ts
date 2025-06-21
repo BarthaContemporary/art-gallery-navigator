@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
@@ -131,7 +132,7 @@ export class CloudinaryImageService {
       return '/placeholder.svg';
     }
 
-    // First priority: processed Cloudinary URLs
+    // First priority: processed Cloudinary URLs stored in database
     if (imageRecord.processed) {
       switch (tier) {
         case 'thumbnail':
@@ -141,7 +142,9 @@ export class CloudinaryImageService {
           if (imageRecord.medium_url) return imageRecord.medium_url;
           break;
         case 'full':
-          if (imageRecord.image_url) return imageRecord.image_url;
+          if (imageRecord.image_url && imageRecord.image_url.includes('res.cloudinary.com')) {
+            return imageRecord.image_url;
+          }
           break;
       }
     }
@@ -157,6 +160,69 @@ export class CloudinaryImageService {
     }
 
     // Fallback to placeholder
+    return '/placeholder.svg';
+  }
+
+  /**
+   * Get optimized storage URL from the processed images bucket
+   */
+  static getOptimizedStorageUrl(
+    imageRecord: any,
+    tier: 'thumbnail' | 'medium' | 'full'
+  ): string | null {
+    if (!imageRecord) return null;
+
+    // Check if we have processed storage paths for optimized images
+    const storagePathMap = {
+      thumbnail: imageRecord.thumbnail_storage_path,
+      medium: imageRecord.medium_storage_path,
+      full: imageRecord.large_storage_path
+    };
+
+    const storagePath = storagePathMap[tier];
+    if (!storagePath) return null;
+
+    // Generate Supabase storage URL for the processed image
+    const { data } = supabase.storage
+      .from('artwork-images-processed')
+      .getPublicUrl(storagePath);
+
+    return data.publicUrl;
+  }
+
+  /**
+   * Get the best available image URL with fallback hierarchy
+   */
+  static getBestImageUrl(
+    imageRecord: any,
+    tier: 'thumbnail' | 'medium' | 'full'
+  ): string {
+    if (!imageRecord) return '/placeholder.svg';
+
+    // 1. Try optimized storage URLs first (from processed bucket)
+    const optimizedStorageUrl = this.getOptimizedStorageUrl(imageRecord, tier);
+    if (optimizedStorageUrl) {
+      return optimizedStorageUrl;
+    }
+
+    // 2. Try Cloudinary URLs from database
+    if (imageRecord.processed) {
+      const cloudinaryUrl = this.getBestAvailableUrl(imageRecord, tier);
+      if (cloudinaryUrl !== '/placeholder.svg') {
+        return cloudinaryUrl;
+      }
+    }
+
+    // 3. Fallback to original image with Cloudinary optimization
+    if (imageRecord.image_url && this.isCloudinaryConfigured()) {
+      return this.getOptimizedUrl(imageRecord.image_url, tier);
+    }
+
+    // 4. Last resort: original image URL
+    if (imageRecord.image_url) {
+      return imageRecord.image_url;
+    }
+
     return '/placeholder.svg';
   }
 }

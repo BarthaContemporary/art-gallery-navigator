@@ -3,7 +3,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, ImageOff, AlertCircle } from "lucide-react";
 import { logger } from "@/lib/logger";
-import { LocalImageService, type LocalImageRecord, type ImageSize } from "@/services/local-image-service";
+import { CloudinaryImageService } from "@/services/cloudinary-image-service";
+import type { LocalImageRecord, ImageSize } from "@/services/local-image-service";
 
 interface LocalArtworkImageProps {
   imageRecord?: LocalImageRecord;
@@ -35,7 +36,16 @@ export function LocalArtworkImage({
       return;
     }
 
-    const url = LocalImageService.getBestImageUrl(imageRecord, size);
+    // Map ImageSize to CloudinaryImageService tier
+    const tierMap: Record<ImageSize, 'thumbnail' | 'medium' | 'full'> = {
+      thumbnail: 'thumbnail',
+      medium: 'medium',
+      large: 'full',
+      original: 'full'
+    };
+
+    const tier = tierMap[size];
+    const url = CloudinaryImageService.getBestImageUrl(imageRecord, tier);
     setImageUrl(url);
     
     if (url === '/placeholder.svg') {
