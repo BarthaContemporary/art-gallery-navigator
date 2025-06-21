@@ -2,14 +2,15 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { LocalImageService } from "@/services/local-image-service";
 
 interface MultipleImageUploaderProps {
+  artworkId?: string;
   onImagesUploaded: (urls: string[]) => void;
 }
 
-export function MultipleImageUploader({ onImagesUploaded }: MultipleImageUploaderProps) {
+export function MultipleImageUploader({ artworkId, onImagesUploaded }: MultipleImageUploaderProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -19,31 +20,61 @@ export function MultipleImageUploader({ onImagesUploaded }: MultipleImageUploade
     const uploadedUrls: string[] = [];
 
     try {
-      for (const file of files) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = fileName;
+      if (!artworkId) {
+        // Fallback for non-artwork uploads - use simple storage upload
+        const { supabase } = await import("@/integrations/supabase/client");
+        
+        for (const file of files) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = fileName;
 
-        const { error: uploadError, data } = await supabase.storage
-          .from('artwork-images')
-          .upload(filePath, file);
+          const { error: uploadError, data } = await supabase.storage
+            .from('artwork-images')
+            .upload(filePath, file);
 
-        if (uploadError) {
-          throw uploadError;
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('artwork-images')
+            .getPublicUrl(filePath);
+
+          uploadedUrls.push(publicUrl);
         }
+      } else {
+        // Use LocalImageService for artwork images to save originals
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const result = await LocalImageService.uploadAndProcessImage(
+            file,
+            artworkId,
+            i === 0, // first image is primary
+            i // display order
+          );
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('artwork-images')
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(publicUrl);
+          if (result.success) {
+            uploadedUrls.push('processing'); // Placeholder since actual URLs will be set during processing
+          } else {
+            console.error(`Failed to upload ${file.name}:`, result.error);
+          }
+        }
       }
 
       onImagesUploaded(uploadedUrls);
-      toast({
-        title: "Success",
-        description: `${uploadedUrls.length} image(s) uploaded successfully`,
-      });
+      
+      if (artworkId) {
+        toast({
+          title: "Success",
+          description: `${uploadedUrls.length} image(s) uploaded and are being processed`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `${uploadedUrls.length} image(s) uploaded successfully`,
+        });
+      }
     } catch (error) {
       console.error("Error uploading images:", error);
       toast({
@@ -54,7 +85,7 @@ export function MultipleImageUploader({ onImagesUploaded }: MultipleImageUploade
     } finally {
       setIsUploading(false);
     }
-  }, [onImagesUploaded, toast]);
+  }, [onImagesUploaded, toast, artworkId]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
