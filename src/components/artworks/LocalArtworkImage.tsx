@@ -26,10 +26,12 @@ export function LocalArtworkImage({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>('/placeholder.svg');
+  const [retryCount, setRetryCount] = useState(0);
 
   // Get image URL when component mounts or imageRecord changes
   useEffect(() => {
     if (!imageRecord) {
+      logger.warn(`[LocalArtworkImage] No image record for: ${title}`);
       setImageUrl('/placeholder.svg');
       setIsLoading(false);
       setHasError(true);
@@ -45,34 +47,57 @@ export function LocalArtworkImage({
     };
 
     const tier = tierMap[size];
+    logger.log(`[LocalArtworkImage] Resolving image URL for: ${title}`, {
+      imageRecordId: imageRecord.id,
+      tier,
+      processingStatus: imageRecord.processing_status
+    });
+
     const url = CloudinaryImageService.getBestImageUrl(imageRecord, tier);
     setImageUrl(url);
     
     if (url === '/placeholder.svg') {
+      logger.warn(`[LocalArtworkImage] No valid URL found for: ${title}`);
       setHasError(true);
       setIsLoading(false);
     } else {
+      logger.log(`[LocalArtworkImage] Using URL for ${title}: ${url}`);
       setHasError(false);
       setIsLoading(true);
     }
-  }, [imageRecord, size]);
+  }, [imageRecord, size, title]);
 
   const handleImageLoad = useCallback(() => {
-    logger.log(`[LocalArtworkImage] Image loaded successfully: ${title}`);
+    logger.log(`[LocalArtworkImage] Image loaded successfully: ${title} - ${imageUrl}`);
     setIsLoading(false);
     setHasError(false);
-  }, [title]);
+    setRetryCount(0);
+  }, [title, imageUrl]);
 
   const handleImageError = useCallback(() => {
-    logger.error(`[LocalArtworkImage] Image load error: ${title} - ${imageUrl}`);
+    logger.error(`[LocalArtworkImage] Image load error: ${title} - ${imageUrl} (attempt ${retryCount + 1})`);
+    
+    // Try fallback if this is the first failure and we have an original storage path
+    if (retryCount === 0 && imageRecord?.original_storage_path && imageUrl !== '/placeholder.svg') {
+      const fallbackUrl = CloudinaryImageService.getSupabaseStorageUrl(
+        imageRecord.original_storage_path,
+        'artwork-images-original'
+      );
+      
+      if (fallbackUrl !== imageUrl && fallbackUrl !== '/placeholder.svg') {
+        logger.log(`[LocalArtworkImage] Trying fallback URL for ${title}: ${fallbackUrl}`);
+        setImageUrl(fallbackUrl);
+        setRetryCount(1);
+        setIsLoading(true);
+        return;
+      }
+    }
+    
+    // Final fallback to placeholder
     setHasError(true);
     setIsLoading(false);
-    
-    // If this wasn't already the placeholder, fall back to it
-    if (imageUrl !== '/placeholder.svg') {
-      setImageUrl('/placeholder.svg');
-    }
-  }, [title, imageUrl]);
+    setImageUrl('/placeholder.svg');
+  }, [title, imageUrl, retryCount, imageRecord]);
 
   // Show processing status if image is still being processed
   const isProcessing = imageRecord?.processing_status === 'processing' || 
@@ -95,6 +120,9 @@ export function LocalArtworkImage({
           <p className="text-xs">No Image Available</p>
           {hasFailed && showProcessingStatus && (
             <p className="text-xs text-red-500 mt-1">Processing Failed</p>
+          )}
+          {isProcessing && showProcessingStatus && (
+            <p className="text-xs text-blue-500 mt-1">Processing...</p>
           )}
         </div>
       </div>
@@ -146,6 +174,13 @@ export function LocalArtworkImage({
         <div className="absolute top-2 left-2 bg-red-500/90 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           Failed
+        </div>
+      )}
+
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
+          {imageUrl.split('/').pop()}
         </div>
       )}
     </div>

@@ -164,6 +164,25 @@ export class CloudinaryImageService {
   }
 
   /**
+   * Generate Supabase storage URL from storage path
+   */
+  static getSupabaseStorageUrl(storagePath: string, bucketName: string): string {
+    if (!storagePath) return '/placeholder.svg';
+    
+    try {
+      const { data } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(storagePath);
+      
+      logger.log(`[CloudinaryImageService] Generated storage URL: ${data.publicUrl} from path: ${storagePath}`);
+      return data.publicUrl;
+    } catch (error) {
+      logger.error(`[CloudinaryImageService] Failed to generate storage URL for path: ${storagePath}`, error);
+      return '/placeholder.svg';
+    }
+  }
+
+  /**
    * Get optimized storage URL from the processed images bucket
    */
   static getOptimizedStorageUrl(
@@ -182,47 +201,74 @@ export class CloudinaryImageService {
     const storagePath = storagePathMap[tier];
     if (!storagePath) return null;
 
-    // Generate Supabase storage URL for the processed image
-    const { data } = supabase.storage
-      .from('artwork-images-processed')
-      .getPublicUrl(storagePath);
-
-    return data.publicUrl;
+    return this.getSupabaseStorageUrl(storagePath, 'artwork-images-processed');
   }
 
   /**
-   * Get the best available image URL with fallback hierarchy
+   * Get the best available image URL with improved fallback hierarchy
    */
   static getBestImageUrl(
     imageRecord: any,
     tier: 'thumbnail' | 'medium' | 'full'
   ): string {
-    if (!imageRecord) return '/placeholder.svg';
+    if (!imageRecord) {
+      logger.warn('[CloudinaryImageService] No image record provided');
+      return '/placeholder.svg';
+    }
+
+    logger.log(`[CloudinaryImageService] Getting best image URL for tier: ${tier}`, {
+      id: imageRecord.id,
+      processed: imageRecord.processed,
+      thumbnail_storage_path: imageRecord.thumbnail_storage_path,
+      medium_storage_path: imageRecord.medium_storage_path,
+      large_storage_path: imageRecord.large_storage_path,
+      thumbnail_url: imageRecord.thumbnail_url,
+      medium_url: imageRecord.medium_url,
+      image_url: imageRecord.image_url
+    });
 
     // 1. Try optimized storage URLs first (from processed bucket)
     const optimizedStorageUrl = this.getOptimizedStorageUrl(imageRecord, tier);
-    if (optimizedStorageUrl) {
+    if (optimizedStorageUrl && optimizedStorageUrl !== '/placeholder.svg') {
+      logger.log(`[CloudinaryImageService] Using optimized storage URL: ${optimizedStorageUrl}`);
       return optimizedStorageUrl;
     }
 
-    // 2. Try Cloudinary URLs from database
+    // 2. Try original storage path if available
+    if (imageRecord.original_storage_path) {
+      const originalStorageUrl = this.getSupabaseStorageUrl(
+        imageRecord.original_storage_path, 
+        'artwork-images-original'
+      );
+      if (originalStorageUrl && originalStorageUrl !== '/placeholder.svg') {
+        logger.log(`[CloudinaryImageService] Using original storage URL: ${originalStorageUrl}`);
+        return originalStorageUrl;
+      }
+    }
+
+    // 3. Try Cloudinary URLs from database
     if (imageRecord.processed) {
       const cloudinaryUrl = this.getBestAvailableUrl(imageRecord, tier);
       if (cloudinaryUrl !== '/placeholder.svg') {
+        logger.log(`[CloudinaryImageService] Using Cloudinary URL: ${cloudinaryUrl}`);
         return cloudinaryUrl;
       }
     }
 
-    // 3. Fallback to original image with Cloudinary optimization
-    if (imageRecord.image_url && this.isCloudinaryConfigured()) {
-      return this.getOptimizedUrl(imageRecord.image_url, tier);
+    // 4. Fallback to original image with Cloudinary optimization
+    if (imageRecord.image_url && imageRecord.image_url !== 'processing' && this.isCloudinaryConfigured()) {
+      const optimizedUrl = this.getOptimizedUrl(imageRecord.image_url, tier);
+      logger.log(`[CloudinaryImageService] Using optimized original URL: ${optimizedUrl}`);
+      return optimizedUrl;
     }
 
-    // 4. Last resort: original image URL
-    if (imageRecord.image_url) {
+    // 5. Last resort: original image URL if valid
+    if (imageRecord.image_url && imageRecord.image_url !== 'processing' && imageRecord.image_url !== '/placeholder.svg') {
+      logger.log(`[CloudinaryImageService] Using original image URL: ${imageRecord.image_url}`);
       return imageRecord.image_url;
     }
 
+    logger.warn('[CloudinaryImageService] No valid image URL found, returning placeholder');
     return '/placeholder.svg';
   }
 }
