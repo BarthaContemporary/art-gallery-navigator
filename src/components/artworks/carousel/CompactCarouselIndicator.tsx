@@ -17,7 +17,7 @@ export function CompactCarouselIndicator({
   return <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
       <div className="bg-black/50 backdrop-blur-sm rounded-full flex items-center gap-0.5 py-0.5 px-1">
         {/* Counter */}
-        <div className="text-white text-[10px] font-medium">
+        <div className="text-white text-[10px] font-medium mx-[5px]">
           {currentIndex + 1}/{totalImages}
         </div>
         
@@ -25,7 +25,7 @@ export function CompactCarouselIndicator({
         <div className="flex items-center gap-0.5">
           {Array.from({
           length: totalImages
-        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="flex items-center justify-center w-1 h-1 ">
+        }, (_, index) => <button key={index} onClick={() => onScrollTo(index)} aria-label={`Go to image ${index + 1}`} className="flex items-center justify-center w-1/2 h-1/2 ">
               <CircleDot size={7} className="text-white" />
             </button>)}
         </div>
