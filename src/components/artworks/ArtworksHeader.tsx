@@ -19,8 +19,6 @@ interface ArtworksHeaderProps {
 }
 
 export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderProps) {
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const [showBulkOptimizer, setShowBulkOptimizer] = useState(false);
   const { isAdmin } = useAuth();
 
@@ -44,44 +42,19 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               
               <ExportToGoogleDocsButton artworks={artworks} />
               
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowImportDialog(true)}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import CSV
-              </Button>
+              <ImportCSVDialog />
             </>
           )}
           
-          <Button 
-            onClick={() => setShowCreateDialog(true)}
-            size="sm"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Artwork
-          </Button>
+          <CreateArtworkDialog />
         </div>
       </div>
 
-      <CreateArtworkDialog 
-        open={showCreateDialog} 
-        onOpenChange={setShowCreateDialog} 
-      />
-      
-      {isAdmin && (
-        <>
-          <ImportCSVDialog 
-            open={showImportDialog} 
-            onOpenChange={setShowImportDialog} 
-          />
-          
-          <BulkImageOptimizer 
-            open={showBulkOptimizer}
-            onOpenChange={setShowBulkOptimizer}
-          />
-        </>
+      {isAdmin && showBulkOptimizer && (
+        <BulkImageOptimizer 
+          open={showBulkOptimizer}
+          onOpenChange={setShowBulkOptimizer}
+        />
       )}
     </>
   );
