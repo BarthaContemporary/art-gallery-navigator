@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import type { ImageProcessingStatus } from "./types";
 
 export class CloudinaryProcessingStatus {
-  private static processingQueue = new Set<string>();
+  private static processingQueue: Set<string> = new Set<string>();
 
   static analyzeProcessingStatus(imageRecord: any): ImageProcessingStatus {
     if (!imageRecord) {
