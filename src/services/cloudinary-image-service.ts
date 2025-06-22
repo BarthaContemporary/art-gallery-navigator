@@ -227,6 +227,20 @@ export class CloudinaryImageService {
       image_url: imageRecord.image_url
     });
 
+    // Handle legacy image records (from artworks.image_url fallback)
+    if (imageRecord.id?.startsWith('legacy-')) {
+      const legacyUrl = imageRecord.image_url;
+      if (legacyUrl && legacyUrl !== '/placeholder.svg') {
+        // For legacy images, try to optimize if Cloudinary is configured
+        if (this.isCloudinaryConfigured()) {
+          logger.log(`[CloudinaryImageService] Using optimized legacy URL: ${legacyUrl}`);
+          return this.getOptimizedUrl(legacyUrl, tier);
+        }
+        logger.log(`[CloudinaryImageService] Using legacy URL as-is: ${legacyUrl}`);
+        return legacyUrl;
+      }
+    }
+
     // 1. Try optimized storage URLs first (from processed bucket)
     const optimizedStorageUrl = this.getOptimizedStorageUrl(imageRecord, tier);
     if (optimizedStorageUrl && optimizedStorageUrl !== '/placeholder.svg') {

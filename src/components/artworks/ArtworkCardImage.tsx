@@ -28,7 +28,7 @@ export function ArtworkCardImage({
   onDelete,
 }: ArtworkCardImageProps) {
   const isMobile = useIsMobile();
-  const { primaryImage, hasProcessingImages, loading } = useLocalArtworkImages(artwork.id);
+  const { primaryImage, legacyImageUrl, hasProcessingImages, loading } = useLocalArtworkImages(artwork.id);
   
   // Debug logging for troubleshooting
   React.useEffect(() => {
@@ -42,10 +42,12 @@ export function ArtworkCardImage({
         original_storage_path: primaryImage.original_storage_path,
         image_url: primaryImage.image_url
       } : null,
+      legacyImageUrl,
       hasProcessingImages,
-      loading
+      loading,
+      artworkImageUrl: artwork.image_url
     });
-  }, [artwork.id, title, primaryImage, hasProcessingImages, loading]);
+  }, [artwork.id, title, primaryImage, legacyImageUrl, hasProcessingImages, loading, artwork.image_url]);
   
   // Check if we should show processing indicator based on CloudinaryImageService
   const processingStatus = primaryImage ? 
@@ -55,6 +57,9 @@ export function ArtworkCardImage({
   const showProcessingIndicator = hasProcessingImages || 
     processingStatus.processingInProgress || 
     processingStatus.needsProcessing;
+  
+  // Determine if we have any image to show
+  const hasAnyImage = primaryImage || legacyImageUrl || artwork.image_url;
   
   return (
     <div
@@ -85,7 +90,7 @@ export function ArtworkCardImage({
         </div>
       )}
       
-      {primaryImage ? (
+      {hasAnyImage ? (
         <LocalArtworkImage
           imageRecord={primaryImage}
           title={title}

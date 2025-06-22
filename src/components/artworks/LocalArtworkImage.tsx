@@ -50,7 +50,8 @@ export function LocalArtworkImage({
     logger.log(`[LocalArtworkImage] Resolving image URL for: ${title}`, {
       imageRecordId: imageRecord.id,
       tier,
-      processingStatus: imageRecord.processing_status
+      processingStatus: imageRecord.processing_status,
+      isLegacy: imageRecord.id?.startsWith('legacy-')
     });
 
     const url = CloudinaryImageService.getBestImageUrl(imageRecord, tier);
@@ -103,6 +104,7 @@ export function LocalArtworkImage({
   const isProcessing = imageRecord?.processing_status === 'processing' || 
                      imageRecord?.processing_status === 'pending';
   const hasFailed = imageRecord?.processing_status === 'failed';
+  const isLegacyImage = imageRecord?.id?.startsWith('legacy-');
 
   // Error state
   if (hasError && imageUrl === '/placeholder.svg') {
@@ -162,7 +164,7 @@ export function LocalArtworkImage({
       )}
 
       {/* Processing Status Overlay */}
-      {showProcessingStatus && isProcessing && (
+      {showProcessingStatus && isProcessing && !isLegacyImage && (
         <div className="absolute top-2 left-2 bg-blue-500/90 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
           <Loader2 className="w-3 h-3 animate-spin" />
           Processing
@@ -170,15 +172,22 @@ export function LocalArtworkImage({
       )}
 
       {/* Failed Processing Overlay */}
-      {showProcessingStatus && hasFailed && (
+      {showProcessingStatus && hasFailed && !isLegacyImage && (
         <div className="absolute top-2 left-2 bg-red-500/90 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           Failed
         </div>
       )}
 
+      {/* Legacy Image Indicator (only in development) */}
+      {process.env.NODE_ENV === 'development' && isLegacyImage && (
+        <div className="absolute bottom-0 left-0 right-0 bg-yellow-500/70 text-white text-xs p-1 text-center">
+          Legacy Image
+        </div>
+      )}
+
       {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === 'development' && !isLegacyImage && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
           {imageUrl.split('/').pop()}
         </div>
