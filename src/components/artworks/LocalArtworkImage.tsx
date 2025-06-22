@@ -15,6 +15,8 @@ interface LocalArtworkImageProps {
   showProcessingStatus?: boolean;
 }
 
+const SIZE_FALLBACK_HIERARCHY: ImageSize[] = ['original', 'large', 'medium', 'thumbnail'];
+
 export function LocalArtworkImage({
   imageRecord,
   title,
@@ -26,7 +28,16 @@ export function LocalArtworkImage({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>('/placeholder.svg');
-  const [retryCount, setRetryCount] = useState(0);
+  const [currentFallbackIndex, setCurrentFallbackIndex] = useState(0);
+
+  // Get fallback sizes starting from requested size
+  const getFallbackSizes = useCallback((requestedSize: ImageSize): ImageSize[] => {
+    const requestedIndex = SIZE_FALLBACK_HIERARCHY.indexOf(requestedSize);
+    if (requestedIndex === -1) return SIZE_FALLBACK_HIERARCHY;
+    
+    // Start from requested size and include all larger sizes
+    return SIZE_FALLBACK_HIERARCHY.slice(requestedIndex);
+  }, []);
 
   // Get image URL when component mounts or imageRecord changes
   useEffect(() => {
@@ -37,6 +48,10 @@ export function LocalArtworkImage({
       setHasError(true);
       return;
     }
+
+    // Reset fallback state
+    setCurrentFallbackIndex(0);
+    setHasError(false);
 
     // Map ImageSize to CloudinaryImageService tier
     const tierMap: Record<ImageSize, 'thumbnail' | 'medium' | 'full'> = {
@@ -63,42 +78,81 @@ export function LocalArtworkImage({
       setIsLoading(false);
     } else {
       logger.log(`[LocalArtworkImage] Using URL for ${title}: ${url}`);
-      setHasError(false);
       setIsLoading(true);
     }
   }, [imageRecord, size, title]);
+
+  const tryNextFallback = useCallback(() => {
+    if (!imageRecord) return false;
+
+    const fallbackSizes = getFallbackSizes(size);
+    const nextIndex = currentFallbackIndex + 1;
+
+    if (nextIndex >= fallbackSizes.length) {
+      // No more fallbacks available
+      return false;
+    }
+
+    const nextSize = fallbackSizes[nextIndex];
+    const tierMap: Record<ImageSize, 'thumbnail' | 'medium' | 'full'> = {
+      thumbnail: 'thumbnail',
+      medium: 'medium',
+      large: 'full',
+      original: 'full'
+    };
+
+    const nextTier = tierMap[nextSize];
+    const fallbackUrl = CloudinaryImageService.getBestImageUrl(imageRecord, nextTier);
+
+    if (fallbackUrl !== '/placeholder.svg' && fallbackUrl !== imageUrl) {
+      logger.log(`[LocalArtworkImage] Trying fallback ${nextSize} for ${title}: ${fallbackUrl}`);
+      setImageUrl(fallbackUrl);
+      setCurrentFallbackIndex(nextIndex);
+      setIsLoading(true);
+      return true;
+    }
+
+    // Try next fallback if this one is also invalid
+    setCurrentFallbackIndex(nextIndex);
+    return tryNextFallback();
+  }, [imageRecord, size, title, currentFallbackIndex, imageUrl, getFallbackSizes]);
 
   const handleImageLoad = useCallback(() => {
     logger.log(`[LocalArtworkImage] Image loaded successfully: ${title} - ${imageUrl}`);
     setIsLoading(false);
     setHasError(false);
-    setRetryCount(0);
   }, [title, imageUrl]);
 
   const handleImageError = useCallback(() => {
-    logger.error(`[LocalArtworkImage] Image load error: ${title} - ${imageUrl} (attempt ${retryCount + 1})`);
+    logger.error(`[LocalArtworkImage] Image load error: ${title} - ${imageUrl}`);
     
-    // Try fallback if this is the first failure and we have an original storage path
-    if (retryCount === 0 && imageRecord?.original_storage_path && imageUrl !== '/placeholder.svg') {
+    // Try next fallback size
+    if (tryNextFallback()) {
+      logger.log(`[LocalArtworkImage] Attempting fallback for ${title}`);
+      return;
+    }
+    
+    // No more fallbacks, try original storage path if available
+    if (imageRecord?.original_storage_path && imageUrl !== '/placeholder.svg') {
       const fallbackUrl = CloudinaryImageService.getSupabaseStorageUrl(
         imageRecord.original_storage_path,
         'artwork-images-original'
       );
       
       if (fallbackUrl !== imageUrl && fallbackUrl !== '/placeholder.svg') {
-        logger.log(`[LocalArtworkImage] Trying fallback URL for ${title}: ${fallbackUrl}`);
+        logger.log(`[LocalArtworkImage] Trying original storage fallback for ${title}: ${fallbackUrl}`);
         setImageUrl(fallbackUrl);
-        setRetryCount(1);
         setIsLoading(true);
         return;
       }
     }
     
     // Final fallback to placeholder
+    logger.warn(`[LocalArtworkImage] All fallbacks exhausted for ${title}, using placeholder`);
     setHasError(true);
     setIsLoading(false);
     setImageUrl('/placeholder.svg');
-  }, [title, imageUrl, retryCount, imageRecord]);
+  }, [title, imageUrl, imageRecord, tryNextFallback]);
 
   // Show processing status if image is still being processed
   const isProcessing = imageRecord?.processing_status === 'processing' || 
