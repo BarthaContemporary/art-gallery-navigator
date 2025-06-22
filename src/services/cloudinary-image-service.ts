@@ -20,6 +20,7 @@ export class CloudinaryImageService {
   
   static getBestAvailableUrl = CloudinaryBestUrlResolver.getBestAvailableUrl;
   static getBestImageUrl = CloudinaryBestUrlResolver.getBestImageUrl;
+  static needsReprocessing = CloudinaryBestUrlResolver.needsReprocessing;
 }
 
 // Re-export types for backward compatibility

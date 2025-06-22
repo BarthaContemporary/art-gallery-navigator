@@ -1,64 +1,79 @@
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, ArrowUp, Settings } from "lucide-react";
+import { Plus, Upload, Download, Settings } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
 import { ExportToGoogleDocsButton } from "./ExportToGoogleDocsButton";
-import { exportArtworksToCSV } from "@/lib/csv";
-import { ArtworkViewToggle, ViewMode } from "./ArtworkViewToggle";
-import { Artwork } from "@/hooks/use-artworks";
+import { BulkImageOptimizer } from "./BulkImageOptimizer";
+import { ImageReprocessingButton } from "./ImageReprocessingButton";
 import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
 
-interface ArtworksHeaderProps {
-  artworks: Artwork[];
-  filteredArtworks: Artwork[];
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
-}
-
-export function ArtworksHeader({
-  artworks,
-  filteredArtworks,
-  viewMode,
-  onViewModeChange,
-}: ArtworksHeaderProps) {
+export function ArtworksHeader() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showBulkOptimizer, setShowBulkOptimizer] = useState(false);
   const { isAdmin } = useAuth();
 
-  const handleExportCSV = () => {
-    exportArtworksToCSV(filteredArtworks, "artworks.csv");
-  };
-
   return (
-    <div className="space-y-4 mb-4 md:mb-6">
-      {/* Single row with Add Artwork on left, Admin tools and View Toggle on right */}
-      <div className="flex items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-2">
-          {isAdmin && <CreateArtworkDialog />}
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Admin tools */}
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Artworks</h1>
+        <div className="flex gap-2">
+          <ImageReprocessingButton />
+          
           {isAdmin && (
             <>
-              <ExportToGoogleDocsButton 
-                artworks={filteredArtworks} 
-                className="hidden sm:flex"
-              />
-
-              <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex">
-                <ArrowUp className="h-4 w-4 rotate-180" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowBulkOptimizer(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Optimize Images
               </Button>
-
-              <div className="hidden sm:block">
-                <ImportCSVDialog />
-              </div>
+              
+              <ExportToGoogleDocsButton />
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowImportDialog(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
             </>
           )}
           
-          <ArtworkViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+          <Button 
+            onClick={() => setShowCreateDialog(true)}
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Artwork
+          </Button>
         </div>
       </div>
-    </div>
+
+      <CreateArtworkDialog 
+        open={showCreateDialog} 
+        onOpenChange={setShowCreateDialog} 
+      />
+      
+      {isAdmin && (
+        <>
+          <ImportCSVDialog 
+            open={showImportDialog} 
+            onOpenChange={setShowImportDialog} 
+          />
+          
+          <BulkImageOptimizer 
+            open={showBulkOptimizer}
+            onOpenChange={setShowBulkOptimizer}
+          />
+        </>
+      )}
+    </>
   );
 }

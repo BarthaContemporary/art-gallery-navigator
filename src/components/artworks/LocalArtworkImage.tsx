@@ -178,20 +178,6 @@ export function LocalArtworkImage({
           Failed
         </div>
       )}
-
-      {/* Legacy Image Indicator (only in development) */}
-      {process.env.NODE_ENV === 'development' && isLegacyImage && (
-        <div className="absolute bottom-0 left-0 right-0 bg-yellow-500/70 text-white text-xs p-1 text-center">
-          Legacy Image
-        </div>
-      )}
-
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && !isLegacyImage && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
-          {imageUrl.split('/').pop()}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 import { logger } from "@/lib/logger";
 import { CloudinaryUrlOptimizer } from "./url-optimizer";
 import { CloudinaryStorageUtils } from "./storage-utils";
@@ -109,19 +110,44 @@ export class CloudinaryBestUrlResolver {
     }
 
     // 4. Fallback to original image with Cloudinary optimization
-    if (imageRecord.image_url && imageRecord.image_url !== 'processing' && CloudinaryUrlOptimizer.isCloudinaryConfigured()) {
+    if (imageRecord.image_url && 
+        imageRecord.image_url !== 'processing' && 
+        imageRecord.image_url !== '/placeholder.svg' &&
+        CloudinaryUrlOptimizer.isCloudinaryConfigured()) {
       const optimizedUrl = CloudinaryUrlOptimizer.getOptimizedUrl(imageRecord.image_url, tier);
       logger.log(`[CloudinaryBestUrlResolver] Using optimized original URL: ${optimizedUrl}`);
       return optimizedUrl;
     }
 
     // 5. Last resort: original image URL if valid
-    if (imageRecord.image_url && imageRecord.image_url !== 'processing' && imageRecord.image_url !== '/placeholder.svg') {
+    if (imageRecord.image_url && 
+        imageRecord.image_url !== 'processing' && 
+        imageRecord.image_url !== '/placeholder.svg') {
       logger.log(`[CloudinaryBestUrlResolver] Using original image URL: ${imageRecord.image_url}`);
       return imageRecord.image_url;
     }
 
     logger.warn('[CloudinaryBestUrlResolver] No valid image URL found, returning placeholder');
     return '/placeholder.svg';
+  }
+
+  /**
+   * Check if an image record needs reprocessing
+   */
+  static needsReprocessing(imageRecord: any): boolean {
+    if (!imageRecord) return false;
+    
+    // If it's a legacy image with a valid URL but no artwork_images record
+    if (imageRecord.id?.startsWith('legacy-')) {
+      return imageRecord.image_url && imageRecord.image_url !== '/placeholder.svg';
+    }
+    
+    // If it has an image_url but no processed versions or storage paths
+    return !!(imageRecord.image_url && 
+             imageRecord.image_url !== '/placeholder.svg' &&
+             imageRecord.image_url !== 'processing' &&
+             !imageRecord.processed &&
+             !imageRecord.thumbnail_storage_path &&
+             !imageRecord.medium_storage_path);
   }
 }
