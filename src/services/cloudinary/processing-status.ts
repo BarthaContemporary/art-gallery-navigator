@@ -21,16 +21,16 @@ export class CloudinaryProcessingStatus {
     return {
       isProcessed: hasProcessedFlag && hasCloudinaryUrls,
       needsProcessing: !hasProcessedFlag && !!imageRecord.image_url,
-      processingInProgress: this.processingQueue.has(imageRecord?.id)
+      processingInProgress: CloudinaryProcessingStatus.processingQueue.has(imageRecord?.id)
     };
   }
 
   static async triggerProcessing(imageRecord: any): Promise<boolean> {
-    if (!imageRecord?.id || this.processingQueue.has(imageRecord.id)) {
+    if (!imageRecord?.id || CloudinaryProcessingStatus.processingQueue.has(imageRecord.id)) {
       return false;
     }
 
-    this.processingQueue.add(imageRecord.id);
+    CloudinaryProcessingStatus.processingQueue.add(imageRecord.id);
     
     try {
       const { data, error } = await supabase.functions.invoke('process-artwork-image-cloudinary', {
@@ -48,7 +48,7 @@ export class CloudinaryProcessingStatus {
       logger.error(`Failed to trigger Cloudinary processing for image ${imageRecord.id}:`, error);
       return false;
     } finally {
-      this.processingQueue.delete(imageRecord.id);
+      CloudinaryProcessingStatus.processingQueue.delete(imageRecord.id);
     }
   }
 }
