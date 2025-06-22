@@ -8,8 +8,17 @@ import { BulkImageOptimizer } from "./BulkImageOptimizer";
 import { ImageReprocessingButton } from "./ImageReprocessingButton";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
+import { Artwork } from "@/hooks/use-artworks";
+import { ViewMode } from "./ArtworkViewToggle";
 
-export function ArtworksHeader() {
+interface ArtworksHeaderProps {
+  artworks: Artwork[];
+  filteredArtworks: Artwork[];
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+}
+
+export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showBulkOptimizer, setShowBulkOptimizer] = useState(false);
@@ -33,7 +42,7 @@ export function ArtworksHeader() {
                 Optimize Images
               </Button>
               
-              <ExportToGoogleDocsButton />
+              <ExportToGoogleDocsButton artworks={artworks} />
               
               <Button 
                 variant="outline" 
