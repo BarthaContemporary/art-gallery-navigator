@@ -51,10 +51,17 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
       </div>
 
       {isAdmin && showBulkOptimizer && (
-        <BulkImageOptimizer 
-          open={showBulkOptimizer}
-          onOpenChange={setShowBulkOptimizer}
-        />
+        <div className="mb-6">
+          <BulkImageOptimizer />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowBulkOptimizer(false)}
+            className="mt-4"
+          >
+            Close Optimizer
+          </Button>
+        </div>
       )}
     </>
   );
