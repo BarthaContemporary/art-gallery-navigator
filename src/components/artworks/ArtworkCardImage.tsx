@@ -1,11 +1,10 @@
 
 import React from "react";
-import { LocalArtworkImage } from "./LocalArtworkImage";
+import { SimplifiedLocalArtworkImage } from "./SimplifiedLocalArtworkImage";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { Artwork } from "@/hooks/use-artworks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import { CloudinaryImageService } from "@/services/cloudinary-image-service";
 import { logger } from "@/lib/logger";
 
 interface ArtworkCardImageProps {
@@ -49,14 +48,10 @@ export function ArtworkCardImage({
     });
   }, [artwork.id, title, primaryImage, legacyImageUrl, hasProcessingImages, loading, artwork.image_url]);
   
-  // Check if we should show processing indicator based on CloudinaryImageService
-  const processingStatus = primaryImage ? 
-    CloudinaryImageService.analyzeProcessingStatus(primaryImage) : 
-    { isProcessed: false, needsProcessing: false, processingInProgress: false };
-  
+  // Show processing indicator if there are processing images
   const showProcessingIndicator = hasProcessingImages || 
-    processingStatus.processingInProgress || 
-    processingStatus.needsProcessing;
+    (primaryImage?.processing_status === 'processing') ||
+    (primaryImage?.processing_status === 'pending');
   
   // Determine if we have any image to show
   const hasAnyImage = primaryImage || legacyImageUrl || artwork.image_url;
@@ -86,12 +81,12 @@ export function ArtworkCardImage({
       {/* Processing indicator */}
       {showProcessingIndicator && (
         <div className="absolute top-2 left-2 z-10 bg-blue-500/90 text-white px-2 py-1 rounded text-xs">
-          {processingStatus.processingInProgress ? 'Processing' : 'Needs Processing'}
+          Processing
         </div>
       )}
       
       {hasAnyImage ? (
-        <LocalArtworkImage
+        <SimplifiedLocalArtworkImage
           imageRecord={primaryImage}
           title={title}
           onClick={onClick}

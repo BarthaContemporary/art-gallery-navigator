@@ -1,83 +1,85 @@
-
-import React, { Suspense, lazy } from "react"; // Added React, Suspense, lazy
-import { Artwork } from "@/hooks/use-artworks";
+import React, { useState, useMemo } from "react";
+import { useArtworks } from "@/hooks/use-artworks";
+import { ArtworkGrid } from "./ArtworkGrid";
+import { ArtworkListView } from "./ArtworkListView";
+import { ArtworkFiltersBar } from "./ArtworksFilters";
+import { SearchBar } from "./SearchBar";
+import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid";
 import { ViewMode } from "./ArtworkViewToggle";
-// import { ArtworkGrid } from "./ArtworkGrid"; // To be lazy loaded
-// import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid"; // To be lazy loaded
-// import { ArtworkListView } from "./ArtworkListView"; // To be lazy loaded
-import { AlphabeticalIndex } from "./AlphabeticalIndex";
-import { Loader2 } from "lucide-react"; // Added Loader2
-
-const ArtworkGridLazy = lazy(() => import('./ArtworkGrid').then(module => ({ default: module.ArtworkGrid })));
-const VirtualizedArtworkGridLazy = lazy(() => import('./VirtualizedArtworkGrid').then(module => ({ default: module.VirtualizedArtworkGrid })));
-const ArtworkListViewLazy = lazy(() => import('./ArtworkListView').then(module => ({ default: module.ArtworkListView })));
+import { useStorageBucketChecker } from "@/hooks/use-storage-bucket-checker";
 
 interface ArtworksContentProps {
-  artworks: Artwork[];
   viewMode: ViewMode;
-  useVirtualization: boolean;
-  containerHeight: number;
-  letters: string[];
-  activeIndex?: string;
-  onActiveIndexChange: (index: string) => void;
-  onScrollToTop: () => void;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
-const ContentLoadingFallback = () => (
-  <div className="flex items-center justify-center h-64">
-    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-  </div>
-);
+export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentProps) {
+  const { data: artworks = [], isLoading, error } = useArtworks();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedArtist, setSelectedArtist] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedType, setSelectedType] = useState<string>("");
+  
+  // Check storage bucket configuration on mount
+  useStorageBucketChecker();
 
-export function ArtworksContent({
-  artworks,
-  viewMode,
-  useVirtualization,
-  containerHeight,
-  letters,
-  activeIndex,
-  onActiveIndexChange,
-  onScrollToTop
-}: ArtworksContentProps) {
-  const renderContent = () => {
-    if (viewMode === 'list') {
-      return <ArtworkListViewLazy artworks={artworks} />;
-    }
+  const filteredArtworks = useMemo(() => {
+    return artworks.filter((artwork) => {
+      const matchesSearch = artwork.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        artwork.artist_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesArtist = !selectedArtist || artwork.artist_id === selectedArtist;
+      const matchesStatus = !selectedStatus || artwork.status?.toLowerCase() === selectedStatus.toLowerCase();
+      const matchesType = !selectedType || artwork.medium_type?.toLowerCase() === selectedType.toLowerCase();
+      
+      return matchesSearch && matchesArtist && matchesStatus && matchesType;
+    });
+  }, [artworks, searchQuery, selectedArtist, selectedStatus, selectedType]);
 
-    if (viewMode === 'grid') {
-      if (useVirtualization && artworks.length > 50) {
-        return (
-          <VirtualizedArtworkGridLazy 
-            artworks={artworks} 
-            containerHeight={containerHeight}
-            onScrollToTop={onScrollToTop}
-          />
-        );
-      }
-      return (
-        <ArtworkGridLazy 
-          artworks={artworks} 
-          activeIndex={activeIndex} 
-          onScrollToTop={onScrollToTop} 
-        />
-      );
-    }
-    // Default to list view if viewMode is somehow unrecognized
-    return <ArtworkListViewLazy artworks={artworks} />;
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading artworks...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-500">Error loading artworks: {error.message}</div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {viewMode === 'grid' && letters.length > 0 && !useVirtualization && (
-        <AlphabeticalIndex 
-          letters={letters} 
-          onLetterClick={onActiveIndexChange} 
-          activeLetter={activeIndex}
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4">
+        <SearchBar 
+          searchQuery={searchQuery} 
+          onSearchChange={setSearchQuery} 
         />
+        <ArtworkFiltersBar
+          artworks={artworks}
+          selectedArtist={selectedArtist}
+          onArtistChange={setSelectedArtist}
+          selectedStatus={selectedStatus}
+          onStatusChange={setSelectedStatus}
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+        />
+      </div>
+      
+      {viewMode === "grid" && (
+        <ArtworkGrid artworks={filteredArtworks} />
       )}
-      <Suspense fallback={<ContentLoadingFallback />}>
-        {renderContent()}
-      </Suspense>
-    </>
+      {viewMode === "virtualized" && (
+        <VirtualizedArtworkGrid artworks={filteredArtworks} />
+      )}
+      {viewMode === "list" && (
+        <ArtworkListView artworks={filteredArtworks} />
+      )}
+    </div>
   );
 }
