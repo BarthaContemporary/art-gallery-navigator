@@ -52,15 +52,14 @@ export function ImageReprocessingButton() {
       onClick={handleReprocessing}
       disabled={isProcessing}
       variant="outline"
-      size="sm"
-      className="flex items-center gap-2"
+      size="icon"
+      title={isProcessing ? "Checking..." : "Fix Images"}
     >
       {isProcessing ? (
         <RefreshCw className="h-4 w-4 animate-spin" />
       ) : (
         <CheckCircle className="h-4 w-4" />
       )}
-      {isProcessing ? "Checking..." : "Fix Images"}
     </Button>
   );
 }
