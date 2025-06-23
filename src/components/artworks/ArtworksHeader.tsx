@@ -24,8 +24,10 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
 
   return (
     <>
-      <div className="flex justify-end items-center mb-6">
+      <div className="flex justify-start items-center mb-6">
         <div className="flex gap-2">
+          <CreateArtworkDialog />
+          
           <ImageReprocessingButton />
           
           {isAdmin && (
@@ -44,8 +46,6 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               <ImportCSVDialog />
             </>
           )}
-          
-          <CreateArtworkDialog />
         </div>
       </div>
 
