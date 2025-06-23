@@ -32,11 +32,11 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
             <>
               <Button 
                 variant="outline" 
-                size="sm"
+                size="icon"
                 onClick={() => setShowBulkOptimizer(true)}
+                title="Optimize Images"
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Optimize Images
+                <Settings className="h-4 w-4" />
               </Button>
               
               <ExportToGoogleDocsButton artworks={artworks} />
