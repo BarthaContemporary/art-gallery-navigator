@@ -31,18 +31,17 @@ export function ExportToGoogleDocsButton({
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="icon"
       onClick={handleExport}
       disabled={isDisabled}
       className={className}
       title={artworks.length === 0 ? "No artworks to export" : "Export to Google Docs"}
     >
       {isExporting ? (
-        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <FileText className="h-4 w-4 mr-2" />
+        <FileText className="h-4 w-4" />
       )}
-      Export
     </Button>
   );
 }
