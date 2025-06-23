@@ -33,13 +33,6 @@ const Artworks = () => {
   // Enable background image processing
   useBackgroundImageProcessing(true);
 
-  const handleShowAll = () => {
-    setSearchTerm("");
-    setStatusFilter(null);
-    setTypeFilter(null);
-    setArtistFilter(null);
-  };
-
   if (artworksLoading || artistsLoading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -69,18 +62,6 @@ const Artworks = () => {
         onViewModeChange={setViewMode}
       />
 
-      <ArtworksFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        typeFilter={typeFilter}
-        onTypeFilterChange={setTypeFilter}
-        artistFilter={artistFilter}
-        onArtistFilterChange={setArtistFilter}
-        onShowAll={handleShowAll}
-      />
-
       <ArtworksStats
         filteredCount={filteredArtworks.length}
         totalCount={artworks.length}
@@ -88,14 +69,8 @@ const Artworks = () => {
       />
 
       <ArtworksContent
-        artworks={filteredArtworks}
         viewMode={viewMode}
-        useVirtualization={useVirtualization}
-        containerHeight={containerHeight}
-        letters={letters}
-        activeIndex={activeIndex}
-        onActiveIndexChange={setActiveIndex}
-        onScrollToTop={handleScrollToTop}
+        onViewModeChange={setViewMode}
       />
     </div>
   );

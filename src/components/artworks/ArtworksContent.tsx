@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from "react";
 import { useArtworks } from "@/hooks/use-artworks";
 import { ArtworkGrid } from "./ArtworkGrid";
 import { ArtworkListView } from "./ArtworkListView";
-import { ArtworkFiltersBar } from "./ArtworksFilters";
+import { ArtworksFilters } from "./ArtworksFilters";
 import { SearchBar } from "./SearchBar";
 import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid";
 import { ViewMode } from "./ArtworkViewToggle";
@@ -15,25 +16,32 @@ interface ArtworksContentProps {
 
 export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentProps) {
   const { data: artworks = [], isLoading, error } = useArtworks();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedArtist, setSelectedArtist] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedType, setSelectedType] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [artistFilter, setArtistFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   
   // Check storage bucket configuration on mount
   useStorageBucketChecker();
 
   const filteredArtworks = useMemo(() => {
     return artworks.filter((artwork) => {
-      const matchesSearch = artwork.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        artwork.artist_name?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesArtist = !selectedArtist || artwork.artist_id === selectedArtist;
-      const matchesStatus = !selectedStatus || artwork.status?.toLowerCase() === selectedStatus.toLowerCase();
-      const matchesType = !selectedType || artwork.medium_type?.toLowerCase() === selectedType.toLowerCase();
+      const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        artwork.artist_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesArtist = !artistFilter || artwork.artist_id === artistFilter;
+      const matchesStatus = !statusFilter || artwork.status?.toLowerCase() === statusFilter.toLowerCase();
+      const matchesType = !typeFilter || artwork.medium_type?.toLowerCase() === typeFilter.toLowerCase();
       
       return matchesSearch && matchesArtist && matchesStatus && matchesType;
     });
-  }, [artworks, searchQuery, selectedArtist, selectedStatus, selectedType]);
+  }, [artworks, searchTerm, artistFilter, statusFilter, typeFilter]);
+
+  const handleShowAll = () => {
+    setSearchTerm("");
+    setArtistFilter(null);
+    setStatusFilter(null);
+    setTypeFilter(null);
+  };
 
   if (isLoading) {
     return (
@@ -53,29 +61,20 @@ export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentP
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <SearchBar 
-          searchQuery={searchQuery} 
-          onSearchChange={setSearchQuery} 
-        />
-        <ArtworkFiltersBar
-          artworks={artworks}
-          selectedArtist={selectedArtist}
-          onArtistChange={setSelectedArtist}
-          selectedStatus={selectedStatus}
-          onStatusChange={setSelectedStatus}
-          selectedType={selectedType}
-          onTypeChange={setSelectedType}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-        />
-      </div>
+      <ArtworksFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        artistFilter={artistFilter}
+        onArtistFilterChange={setArtistFilter}
+        onShowAll={handleShowAll}
+      />
       
       {viewMode === "grid" && (
         <ArtworkGrid artworks={filteredArtworks} />
-      )}
-      {viewMode === "virtualized" && (
-        <VirtualizedArtworkGrid artworks={filteredArtworks} />
       )}
       {viewMode === "list" && (
         <ArtworkListView artworks={filteredArtworks} />
