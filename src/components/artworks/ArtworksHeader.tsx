@@ -24,10 +24,10 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
 
   return (
     <>
-      <div className="flex justify-start items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <CreateArtworkDialog />
+        
         <div className="flex gap-2">
-          <CreateArtworkDialog />
-          
           <ImageReprocessingButton />
           
           {isAdmin && (
