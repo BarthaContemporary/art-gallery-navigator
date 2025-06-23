@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, Download, Settings } from "lucide-react";
+import { Plus, Upload, Download, Settings, ArrowDown } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
 import { ExportToGoogleDocsButton } from "./ExportToGoogleDocsButton";
@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { ViewMode } from "./ArtworkViewToggle";
+import { exportArtworksToCSV } from "@/lib/csv/export-artworks-csv";
 
 interface ArtworksHeaderProps {
   artworks: Artwork[];
@@ -21,6 +22,10 @@ interface ArtworksHeaderProps {
 export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderProps) {
   const [showBulkOptimizer, setShowBulkOptimizer] = useState(false);
   const { isAdmin } = useAuth();
+
+  const handleCSVExport = () => {
+    exportArtworksToCSV(artworks, 'artworks-export.csv');
+  };
 
   return (
     <>
@@ -42,6 +47,16 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               </Button>
               
               <ExportToGoogleDocsButton artworks={artworks} />
+              
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={handleCSVExport}
+                disabled={artworks.length === 0}
+                title={artworks.length === 0 ? "No artworks to export" : "Export to CSV"}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
               
               <ImportCSVDialog />
             </>
