@@ -42,6 +42,7 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     try {
       const result = await createSharedLink.mutateAsync({
@@ -60,7 +61,10 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
     }
   };
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (generatedLink) {
       await navigator.clipboard.writeText(generatedLink);
       setCopied(true);
@@ -93,18 +97,24 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
     setHasDownloadLimit(checked === true);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) resetForm();
+  };
+
+  const handleDialogContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      setOpen(newOpen);
-      if (!newOpen) resetForm();
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <div className="flex items-center w-full" onClick={(e) => e.stopPropagation()}>
           <Share2 className="h-4 w-4 mr-2" />
           Share
-        </Button>
+        </div>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" onClick={handleDialogContentClick}>
         <DialogHeader>
           <DialogTitle>Share {fileName || folderName}</DialogTitle>
           <DialogDescription>
