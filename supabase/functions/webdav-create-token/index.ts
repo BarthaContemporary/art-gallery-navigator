@@ -22,28 +22,25 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
-    // Extract the JWT token from the Bearer token
-    const token = authHeader.replace('Bearer ', '');
-    console.log('Token extracted, length:', token.length);
-
-    // Create supabase client to verify the token
+    // Create supabase client with the user's JWT token
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    // Create client with service role for admin operations
-    const serviceSupabase = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
+    // Create user client to verify authentication
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
         }
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
       }
-    );
+    });
 
-    // Verify the JWT token manually
-    const { data: { user }, error: authError } = await serviceSupabase.auth.getUser(token);
+    // Verify user authentication
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
 
     if (authError || !user) {
       console.error('Auth error:', authError);
@@ -76,6 +73,18 @@ serve(async (req) => {
       : null;
 
     console.log('Creating token for user:', user.id, 'with name:', name);
+
+    // Create service role client for database operations
+    const serviceSupabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
     // Store the token using service role client
     const { data: tokenRecord, error } = await serviceSupabase
