@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Copy, Plus, Key } from "lucide-react";
+import { Trash2, Copy, Plus, Key, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
 
 interface WebDAVToken {
@@ -24,6 +25,7 @@ interface WebDAVToken {
 export function WebDAVTokenManager() {
   const [tokenName, setTokenName] = useState("");
   const [expiresIn, setExpiresIn] = useState<number>(30); // days
+  const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: tokens = [], isLoading } = useQuery({
@@ -53,7 +55,10 @@ export function WebDAVTokenManager() {
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
       toast.success("WebDAV token created successfully");
       
-      // Show the token to the user (only time they'll see it)
+      // Store the token temporarily so user can copy it
+      setLastCreatedToken(data.token);
+      
+      // Also copy to clipboard immediately
       navigator.clipboard.writeText(data.token);
       toast.success(`Token copied to clipboard: ${data.token.substring(0, 20)}...`);
       
@@ -96,6 +101,17 @@ export function WebDAVTokenManager() {
     const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
     navigator.clipboard.writeText(webdavUrl);
     toast.success("WebDAV URL copied to clipboard");
+  };
+
+  const copyLastCreatedToken = () => {
+    if (lastCreatedToken) {
+      navigator.clipboard.writeText(lastCreatedToken);
+      toast.success("Token copied to clipboard");
+    }
+  };
+
+  const handleTokenLost = () => {
+    toast.info("Create a new token to replace the lost one. Old tokens cannot be recovered for security reasons.");
   };
 
   return (
@@ -156,6 +172,19 @@ export function WebDAVTokenManager() {
               </Button>
             </div>
           </div>
+
+          {lastCreatedToken && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Your new token was created successfully. Copy it now - you won't see it again!</span>
+                <Button size="sm" variant="outline" onClick={copyLastCreatedToken}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Token
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
@@ -194,14 +223,24 @@ export function WebDAVTokenManager() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => revokeTokenMutation.mutate(token.id)}
-                    disabled={revokeTokenMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleTokenLost}
+                      title="Token lost? Create a new one"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => revokeTokenMutation.mutate(token.id)}
+                      disabled={revokeTokenMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
