@@ -1862,6 +1862,13 @@ export type Database = {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
       }
+      get_artist_folder_access: {
+        Args: { folder_id: string }
+        Returns: {
+          can_access: boolean
+          artist_id: string
+        }[]
+      }
       get_artist_id_for_current_user: {
         Args: Record<PropertyKey, never>
         Returns: string

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -64,12 +63,24 @@ export function useCreateFolder() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // If creating a subfolder, get the artist_id from the parent folder's hierarchy
+      let finalArtistId = artistId;
+      if (parentFolderId && !artistId) {
+        const { data: accessData } = await supabase.rpc('get_artist_folder_access', {
+          folder_id: parentFolderId
+        });
+        
+        if (accessData && accessData.length > 0) {
+          finalArtistId = accessData[0].artist_id;
+        }
+      }
+
       const { data, error } = await supabase
         .from("folders")
         .insert({
           name,
           parent_folder_id: parentFolderId || null,
-          artist_id: artistId || null,
+          artist_id: finalArtistId || null,
           created_by: user.id,
         })
         .select()
@@ -137,5 +148,23 @@ export function useRenameFolder() {
       console.error("Error renaming folder:", error);
       toast.error("Failed to rename folder");
     },
+  });
+}
+
+// Hook to check folder access permissions
+export function useFolderAccess(folderId: string | null) {
+  return useQuery({
+    queryKey: ["folder-access", folderId],
+    queryFn: async () => {
+      if (!folderId) return { can_access: true, artist_id: null };
+      
+      const { data, error } = await supabase.rpc('get_artist_folder_access', {
+        folder_id: folderId
+      });
+      
+      if (error) throw error;
+      return data && data.length > 0 ? data[0] : { can_access: false, artist_id: null };
+    },
+    enabled: !!folderId,
   });
 }

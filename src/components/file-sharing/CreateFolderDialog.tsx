@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FolderPlus } from "lucide-react";
-import { useCreateFolder } from "@/hooks/use-folders";
+import { useCreateFolder, useFolderAccess } from "@/hooks/use-folders";
 import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -28,9 +28,9 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
   const createFolder = useCreateFolder();
   const currentUserArtist = useCurrentUserArtist();
   const { isAdmin } = useAuth();
-
-  // Determine the artist ID to use
-  const targetArtistId = artistId || currentUserArtist?.id || null;
+  
+  // Check access to parent folder if creating a subfolder
+  const { data: folderAccess } = useFolderAccess(parentFolderId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +40,7 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
       await createFolder.mutateAsync({
         name: name.trim(),
         parentFolderId,
-        artistId: targetArtistId,
+        artistId,
       });
       setName("");
       setOpen(false);
@@ -49,8 +49,22 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
     }
   };
 
-  // Don't show the button if user is not an admin and not an artist
-  if (!isAdmin && !currentUserArtist) {
+  // Determine if user can create folders
+  const canCreateFolder = () => {
+    // Admins can always create folders
+    if (isAdmin) return true;
+    
+    // If creating a root folder, user must be an artist
+    if (!parentFolderId) {
+      return !!currentUserArtist;
+    }
+    
+    // If creating a subfolder, check parent folder access
+    return folderAccess?.can_access ?? false;
+  };
+
+  // Don't show the button if user cannot create folders
+  if (!canCreateFolder()) {
     return null;
   }
 
@@ -66,7 +80,10 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
           <DialogDescription>
-            Enter a name for your new folder.
+            {parentFolderId 
+              ? "Create a new subfolder in the current location."
+              : "Create a new folder in your file space."
+            }
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>

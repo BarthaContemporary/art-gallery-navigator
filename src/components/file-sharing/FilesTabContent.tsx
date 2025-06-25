@@ -8,7 +8,7 @@ import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { CreateFolderDialog } from "./CreateFolderDialog";
 import { FileGridView } from "./FileGridView";
 import { EnhancedUploadDocumentDialog } from "@/components/documents/EnhancedUploadDocumentDialog";
-import { Folder } from "@/hooks/use-folders";
+import { Folder, useFolderAccess } from "@/hooks/use-folders";
 import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
 
 interface FilesTabContentProps {
@@ -50,6 +50,23 @@ export function FilesTabContent({
   currentUserArtist,
   isAdmin
 }: FilesTabContentProps) {
+  // Check access to current folder
+  const { data: folderAccess } = useFolderAccess(currentFolder?.id || null);
+  
+  // Determine if user can create content in current location
+  const canCreateContent = () => {
+    // Admins can always create content
+    if (isAdmin) return true;
+    
+    // If in root (no current folder), user must be an artist
+    if (!currentFolder) {
+      return !!currentUserArtist;
+    }
+    
+    // If in a folder, check access permissions
+    return folderAccess?.can_access ?? false;
+  };
+
   return (
     <div className="space-y-4">
       <FolderBreadcrumb 
@@ -101,11 +118,15 @@ export function FilesTabContent({
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <CreateFolderDialog 
-            parentFolderId={currentFolder?.id || null} 
-            artistId={currentFolder?.artist_id || currentUserArtist?.id}
-          />
-          <EnhancedUploadDocumentDialog />
+          {canCreateContent() && (
+            <>
+              <CreateFolderDialog 
+                parentFolderId={currentFolder?.id || null} 
+                artistId={currentFolder?.artist_id || currentUserArtist?.id}
+              />
+              <EnhancedUploadDocumentDialog />
+            </>
+          )}
         </div>
       </div>
 
@@ -138,7 +159,7 @@ export function FilesTabContent({
           <p className="text-muted-foreground mb-4">
             {searchTerm ? "No results found for your search." : "This folder is empty. Create a folder or upload some files to get started."}
           </p>
-          {!searchTerm && (isAdmin || currentUserArtist) && (
+          {!searchTerm && canCreateContent() && (
             <div className="flex gap-2 justify-center">
               <CreateFolderDialog 
                 parentFolderId={currentFolder?.id || null}
