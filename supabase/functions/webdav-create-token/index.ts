@@ -22,24 +22,28 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
-    // Create supabase client for user authentication
+    // Extract the JWT token from the Bearer token
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token extracted, length:', token.length);
+
+    // Create supabase client to verify the token
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader
+    // Create client with service role for admin operations
+    const serviceSupabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
         }
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
       }
-    });
+    );
 
-    // Get the current user from the JWT token
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verify the JWT token manually
+    const { data: { user }, error: authError } = await serviceSupabase.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Auth error:', authError);
@@ -72,18 +76,6 @@ serve(async (req) => {
       : null;
 
     console.log('Creating token for user:', user.id, 'with name:', name);
-
-    // Use service role client for database operations (bypasses RLS)
-    const serviceSupabase = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
 
     // Store the token using service role client
     const { data: tokenRecord, error } = await serviceSupabase
