@@ -577,13 +577,6 @@ export type Database = {
             foreignKeyName: "artworks_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "artworks_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
@@ -1207,13 +1200,6 @@ export type Database = {
             foreignKeyName: "documents_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "documents_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
@@ -1230,13 +1216,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "collections"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_folder_id_fkey"
-            columns: ["folder_id"]
-            isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["folder_id"]
           },
           {
             foreignKeyName: "documents_folder_id_fkey"
@@ -1396,22 +1375,8 @@ export type Database = {
             foreignKeyName: "folders_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["artist_id"]
-          },
-          {
-            foreignKeyName: "folders_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "folders_parent_folder_id_fkey"
-            columns: ["parent_folder_id"]
-            isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["folder_id"]
           },
           {
             foreignKeyName: "folders_parent_folder_id_fkey"
@@ -1806,13 +1771,6 @@ export type Database = {
             foreignKeyName: "shared_links_folder_id_fkey"
             columns: ["folder_id"]
             isOneToOne: false
-            referencedRelation: "artist_folder_overview"
-            referencedColumns: ["folder_id"]
-          },
-          {
-            foreignKeyName: "shared_links_folder_id_fkey"
-            columns: ["folder_id"]
-            isOneToOne: false
             referencedRelation: "folders"
             referencedColumns: ["id"]
           },
@@ -1969,20 +1927,7 @@ export type Database = {
       }
     }
     Views: {
-      artist_folder_overview: {
-        Row: {
-          artist_id: string | null
-          artist_name: string | null
-          assignment_method: string | null
-          folder_created_at: string | null
-          folder_id: string | null
-          folder_name: string | null
-          status: string | null
-          user_email: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       cleanup_old_chat_messages: {
@@ -2002,6 +1947,20 @@ export type Database = {
         Returns: {
           can_access: boolean
           artist_id: string
+        }[]
+      }
+      get_artist_folder_overview: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          artist_id: string
+          artist_name: string
+          user_id: string
+          user_email: string
+          folder_id: string
+          folder_name: string
+          assignment_method: string
+          folder_created_at: string
+          status: string
         }[]
       }
       get_artist_id_for_current_user: {

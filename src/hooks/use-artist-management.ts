@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,9 +18,8 @@ export function useArtistFolderOverview() {
   return useQuery({
     queryKey: ['artist-folder-overview'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('artist_folder_overview')
-        .select('*');
+      // Use the new function instead of the view
+      const { data, error } = await supabase.rpc('get_artist_folder_overview');
       
       if (error) throw error;
       return data as ArtistFolderOverview[];
