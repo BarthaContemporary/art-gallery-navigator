@@ -26,7 +26,6 @@ export function SidebarNavItem({
         style={{
           fontWeight: isActive ? 600 : 500
         }}
-        className="no-underline hover:no-underline active:no-underline focus:no-underline"
       >
         <Icon className="w-5 h-5 shrink-0" />
         <span className="flex items-center gap-2">
