@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,7 @@ import { Trash2, Copy, Plus, Key, AlertCircle, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
+import { WebDAVStatusChecker } from "./WebDAVStatusChecker";
 
 interface WebDAVToken {
   id: string;
@@ -138,6 +138,7 @@ export function WebDAVTokenManager() {
 
   return (
     <div className="space-y-6">
+      <WebDAVStatusChecker />
       <WebDAVConnectionTest />
       
       <Card>

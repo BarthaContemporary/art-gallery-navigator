@@ -1,5 +1,5 @@
 
--- Create function to get user accessible folders with proper access control
+-- Fix the get_user_accessible_folders function to properly handle admin access
 CREATE OR REPLACE FUNCTION public.get_user_accessible_folders()
 RETURNS TABLE(
   folder_id uuid,
@@ -18,8 +18,11 @@ DECLARE
   current_user_id uuid := auth.uid();
   user_is_admin boolean;
 BEGIN
-  -- Check if user is admin
-  user_is_admin := public.is_user_admin();
+  -- Check if user is admin using the existing function
+  SELECT public.is_user_admin() INTO user_is_admin;
+  
+  -- Add debug logging
+  RAISE LOG 'get_user_accessible_folders: user_id=%, is_admin=%', current_user_id, user_is_admin;
   
   IF user_is_admin THEN
     -- Admin can access all folders
@@ -53,11 +56,7 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.get_user_accessible_folders() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_accessible_folders() TO service_role;
-
--- Create function to get user accessible documents with proper access control
+-- Fix the get_user_accessible_documents function to properly handle admin access
 CREATE OR REPLACE FUNCTION public.get_user_accessible_documents(folder_id_param uuid DEFAULT NULL)
 RETURNS TABLE(
   document_id uuid,
@@ -78,8 +77,11 @@ DECLARE
   current_user_id uuid := auth.uid();
   user_is_admin boolean;
 BEGIN
-  -- Check if user is admin
-  user_is_admin := public.is_user_admin();
+  -- Check if user is admin using the existing function
+  SELECT public.is_user_admin() INTO user_is_admin;
+  
+  -- Add debug logging
+  RAISE LOG 'get_user_accessible_documents: user_id=%, is_admin=%, folder_id=%', current_user_id, user_is_admin, folder_id_param;
   
   IF user_is_admin THEN
     -- Admin can access all documents
@@ -126,65 +128,96 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.get_user_accessible_documents(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_accessible_documents(uuid) TO service_role;
-
--- Fix the validate_webdav_token function to handle edge cases properly
-CREATE OR REPLACE FUNCTION public.validate_webdav_token(token_text text)
-RETURNS TABLE(user_id uuid, token_id uuid, is_valid boolean)
+-- Create a debug function to check WebDAV access status
+CREATE OR REPLACE FUNCTION public.debug_webdav_access()
+RETURNS TABLE(
+  user_id uuid,
+  is_admin boolean,
+  folders_count bigint,
+  documents_count bigint,
+  artist_count bigint,
+  user_roles text[]
+)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
 DECLARE
-  token_record RECORD;
-  token_hash_value text;
+  current_user_id uuid := auth.uid();
+  admin_status boolean;
+  folders_accessible bigint;
+  docs_accessible bigint;
+  artists_linked bigint;
+  roles_array text[];
 BEGIN
-  -- Validate input
-  IF token_text IS NULL OR LENGTH(trim(token_text)) = 0 THEN
-    RETURN QUERY SELECT NULL::uuid, NULL::uuid, false;
-    RETURN;
-  END IF;
+  -- Get admin status
+  SELECT public.is_user_admin() INTO admin_status;
   
-  -- Hash the provided token
-  BEGIN
-    token_hash_value := encode(digest(token_text, 'sha256'), 'hex');
-  EXCEPTION WHEN OTHERS THEN
-    -- If hashing fails, return invalid
-    RETURN QUERY SELECT NULL::uuid, NULL::uuid, false;
-    RETURN;
-  END;
+  -- Count accessible folders
+  SELECT COUNT(*) INTO folders_accessible
+  FROM public.get_user_accessible_folders();
   
-  -- Look up the token
-  SELECT wt.user_id, wt.id, 
-         (wt.is_active AND (wt.expires_at IS NULL OR wt.expires_at > NOW())) as is_valid
-  INTO token_record
-  FROM public.webdav_tokens wt
-  WHERE wt.token_hash = token_hash_value;
+  -- Count accessible documents
+  SELECT COUNT(*) INTO docs_accessible
+  FROM public.get_user_accessible_documents();
   
-  IF token_record IS NOT NULL THEN
-    -- Update last used timestamp only if token is valid
-    IF token_record.is_valid THEN
-      BEGIN
-        UPDATE public.webdav_tokens 
-        SET last_used_at = NOW()
-        WHERE id = token_record.id;
-      EXCEPTION WHEN OTHERS THEN
-        -- Continue even if update fails
-        NULL;
-      END;
-    END IF;
-    
-    RETURN QUERY SELECT token_record.user_id, token_record.id, token_record.is_valid;
-  ELSE
-    RETURN QUERY SELECT NULL::uuid, NULL::uuid, false;
-  END IF;
+  -- Count linked artists
+  SELECT COUNT(*) INTO artists_linked
+  FROM public.artists a
+  WHERE a.user_id = current_user_id;
+  
+  -- Get user roles
+  SELECT ARRAY_AGG(role::text) INTO roles_array
+  FROM public.user_roles ur
+  WHERE ur.user_id = current_user_id;
+  
+  RETURN QUERY
+  SELECT 
+    current_user_id,
+    admin_status,
+    folders_accessible,
+    docs_accessible,
+    artists_linked,
+    COALESCE(roles_array, ARRAY[]::text[]);
 END;
 $$;
 
--- Add indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_webdav_tokens_hash ON public.webdav_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_webdav_tokens_user_active ON public.webdav_tokens(user_id, is_active);
-CREATE INDEX IF NOT EXISTS idx_documents_folder_deleted ON public.documents(folder_id, is_deleted);
-CREATE INDEX IF NOT EXISTS idx_folders_artist ON public.folders(artist_id);
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION public.debug_webdav_access() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.debug_webdav_access() TO service_role;
+
+-- Create some sample test data for admin users if tables are empty
+DO $$
+DECLARE
+  sample_folder_id uuid;
+  sample_doc_id uuid;
+BEGIN
+  -- Only create sample data if folders table is empty
+  IF NOT EXISTS (SELECT 1 FROM public.folders LIMIT 1) THEN
+    -- Create a sample folder
+    INSERT INTO public.folders (name, created_by, assignment_method)
+    VALUES ('Sample WebDAV Folder', auth.uid(), 'manual')
+    RETURNING id INTO sample_folder_id;
+    
+    -- Create a sample document
+    INSERT INTO public.documents (
+      file_name, 
+      file_url, 
+      type, 
+      mime_type, 
+      folder_id,
+      file_size
+    )
+    VALUES (
+      'sample-document.txt',
+      'https://example.com/sample.txt',
+      'document',
+      'text/plain',
+      sample_folder_id,
+      1024
+    );
+    
+    RAISE LOG 'Created sample WebDAV test data: folder_id=%, doc_id=%', sample_folder_id, sample_doc_id;
+  END IF;
+END;
+$$;

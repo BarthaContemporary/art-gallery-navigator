@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -39,10 +38,11 @@ interface AccessibleDocument {
 }
 
 serve(async (req) => {
-  console.log(`WebDAV ${req.method} ${req.url}`);
+  console.log(`WebDAV ${req.method} ${req.url} - Headers:`, Object.fromEntries(req.headers.entries()));
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    console.log('WebDAV: Handling CORS preflight');
     return new Response(null, { 
       status: 200,
       headers: corsHeaders 
@@ -53,6 +53,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('WebDAV: Missing required environment variables');
+      return new Response('Server configuration error', { status: 500, headers: corsHeaders });
+    }
+
+    console.log('WebDAV: Creating Supabase client');
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -63,7 +69,8 @@ serve(async (req) => {
     // Extract credentials from Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Basic ')) {
-      // Return proper WebDAV authentication challenge, not a redirect
+      console.log('WebDAV: No valid auth header, returning HTML info page');
+      // HTML response for browsers
       return new Response(`<!DOCTYPE html>
 <html>
 <head>
@@ -109,6 +116,7 @@ serve(async (req) => {
     }
 
     // Decode Basic Auth
+    console.log('WebDAV: Decoding Basic Auth credentials');
     const base64Credentials = authHeader.slice(6);
     const credentials = new TextDecoder().decode(
       Uint8Array.from(atob(base64Credentials), c => c.charCodeAt(0))
@@ -116,7 +124,8 @@ serve(async (req) => {
     const [username, token] = credentials.split(':');
 
     if (!token) {
-      return new Response('Invalid credentials', {
+      console.error('WebDAV: No token provided in credentials');
+      return new Response('Invalid credentials - no token provided', {
         status: 401,
         headers: {
           ...corsHeaders,
@@ -125,13 +134,17 @@ serve(async (req) => {
       });
     }
 
+    console.log('WebDAV: Validating token:', token.substring(0, 8) + '...');
+
     // Validate token using the enhanced function
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
 
+    console.log('WebDAV: Token validation result:', { tokenValidation, tokenError });
+
     if (tokenError || !tokenValidation || tokenValidation.length === 0 || !tokenValidation[0].is_valid) {
-      console.error('Token validation failed:', tokenError);
-      return new Response('Invalid token', {
+      console.error('WebDAV: Token validation failed:', tokenError);
+      return new Response('Invalid or expired token', {
         status: 401,
         headers: {
           ...corsHeaders,
@@ -146,6 +159,17 @@ serve(async (req) => {
       is_admin: false // Will be determined by access functions
     };
 
+    console.log('WebDAV: User authenticated:', userInfo.user_id);
+
+    // Check user access permissions using debug function
+    const { data: debugInfo, error: debugError } = await supabase
+      .rpc('debug_webdav_access');
+
+    if (!debugError && debugInfo && debugInfo.length > 0) {
+      userInfo.is_admin = debugInfo[0].is_admin;
+      console.log('WebDAV: User debug info:', debugInfo[0]);
+    }
+
     // Log access attempt
     await supabase.from('webdav_access_logs').insert({
       user_id: userInfo.user_id,
@@ -159,6 +183,7 @@ serve(async (req) => {
 
     const url = new URL(req.url);
     const path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
+    console.log('WebDAV: Processing request for path:', path);
 
     // Handle different WebDAV methods
     switch (req.method) {
@@ -177,6 +202,7 @@ serve(async (req) => {
       case 'COPY':
         return await handleCopy(supabase, userInfo, path, req);
       default:
+        console.log('WebDAV: Method not allowed:', req.method);
         return new Response('Method not allowed', {
           status: 405,
           headers: {
@@ -188,7 +214,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('WebDAV error:', error);
-    return new Response('Internal server error', {
+    return new Response('Internal server error: ' + error.message, {
       status: 500,
       headers: corsHeaders
     });
@@ -196,26 +222,28 @@ serve(async (req) => {
 });
 
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request) {
-  console.log('PROPFIND for path:', path);
+  console.log('PROPFIND for path:', path, 'user:', userInfo.user_id, 'is_admin:', userInfo.is_admin);
 
   const depth = req.headers.get('Depth') || '1';
   
   try {
     if (path === '/' || path === '') {
       // Root directory - list accessible folders
+      console.log('PROPFIND: Fetching accessible folders for user');
       const { data: folders, error } = await supabase
         .rpc('get_user_accessible_folders');
 
       if (error) {
         console.error('Error fetching folders:', error);
-        return new Response('Internal server error', { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
       }
 
-      // Check if user is admin based on folder access
-      userInfo.is_admin = folders.some((f: AccessibleFolder) => f.artist_id === null) || 
-                         folders.length > 1; // Heuristic: admins typically see multiple folders
+      console.log('PROPFIND: Found', folders?.length || 0, 'accessible folders');
 
-      const folderItems = folders.map((folder: AccessibleFolder) => `
+      // Update admin status based on actual access
+      userInfo.is_admin = folders && folders.length > 0;
+
+      const folderItems = (folders || []).map((folder: AccessibleFolder) => `
         <D:response>
           <D:href>/functions/v1/webdav/${encodeURIComponent(folder.folder_name)}/</D:href>
           <D:propstat>
@@ -248,6 +276,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
           ${folderItems}
         </D:multistatus>`;
 
+      console.log('PROPFIND: Returning root directory with', (folders || []).length, 'folders');
       return new Response(response, {
         status: 207,
         headers: {
@@ -258,17 +287,19 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     } else {
       // Specific folder - find the folder and list its contents
       const folderName = path.split('/').filter(p => p)[0];
+      console.log('PROPFIND: Fetching folder contents for:', folderName);
       
       const { data: folders, error: foldersError } = await supabase
         .rpc('get_user_accessible_folders');
 
       if (foldersError) {
         console.error('Error fetching folders:', foldersError);
-        return new Response('Internal server error', { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + foldersError.message, { status: 500, headers: corsHeaders });
       }
 
-      const folder = folders.find((f: AccessibleFolder) => f.folder_name === folderName);
+      const folder = folders?.find((f: AccessibleFolder) => f.folder_name === folderName);
       if (!folder) {
+        console.log('PROPFIND: Folder not found:', folderName);
         return new Response('Folder not found', { status: 404, headers: corsHeaders });
       }
 
@@ -278,10 +309,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       if (docsError) {
         console.error('Error fetching documents:', docsError);
-        return new Response('Internal server error', { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + docsError.message, { status: 500, headers: corsHeaders });
       }
 
-      const documentItems = documents.map((doc: AccessibleDocument) => `
+      console.log('PROPFIND: Found', documents?.length || 0, 'documents in folder');
+
+      const documentItems = (documents || []).map((doc: AccessibleDocument) => `
         <D:response>
           <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
           <D:propstat>
@@ -325,15 +358,16 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     }
   } catch (error) {
     console.error('PROPFIND error:', error);
-    return new Response('Internal server error', { status: 500, headers: corsHeaders });
+    return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
   }
 }
 
 async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
-  console.log('GET for path:', path);
+  console.log('GET for path:', path, 'user:', userInfo.user_id);
 
   const pathParts = path.split('/').filter(p => p);
   if (pathParts.length !== 2) {
+    console.log('GET: Invalid path structure:', path);
     return new Response('Invalid path', { status: 404, headers: corsHeaders });
   }
 
@@ -346,17 +380,19 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
 
     if (error) {
       console.error('Error fetching documents:', error);
-      return new Response('Internal server error', { status: 500, headers: corsHeaders });
+      return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
     }
 
-    const document = documents.find((doc: AccessibleDocument) => 
+    const document = documents?.find((doc: AccessibleDocument) => 
       doc.document_name === fileName && doc.can_read
     );
 
     if (!document) {
+      console.log('GET: File not found or not accessible:', fileName);
       return new Response('File not found', { status: 404, headers: corsHeaders });
     }
 
+    console.log('GET: Redirecting to file URL:', document.file_url);
     // Redirect to the actual file URL
     return new Response(null, {
       status: 302,
@@ -367,7 +403,7 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
     });
   } catch (error) {
     console.error('GET error:', error);
-    return new Response('Internal server error', { status: 500, headers: corsHeaders });
+    return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
   }
 }
 
