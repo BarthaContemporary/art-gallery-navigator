@@ -1,13 +1,30 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+// Enhanced CORS headers with WebDAV-specific methods and headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL, MOVE, COPY',
-  'DAV': '1, 2',
-  'MS-Author-Via': 'DAV'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, lock-token, timeout, translate, range',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH',
+  'Access-Control-Expose-Headers': 'dav, ms-author-via, etag, last-modified, content-length, content-type, location',
+  'Access-Control-Max-Age': '86400' // Cache preflight for 24 hours
 };
+
+// WebDAV-specific response headers
+const webdavHeaders = {
+  'DAV': '1, 2, 3',
+  'MS-Author-Via': 'DAV',
+  'Server': 'Supabase-WebDAV/1.0',
+  'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
+};
+
+// Combined headers for all WebDAV responses
+const getWebDAVResponseHeaders = (additionalHeaders = {}) => ({
+  ...corsHeaders,
+  ...webdavHeaders,
+  ...additionalHeaders
+});
 
 interface UserInfo {
   user_id: string;
@@ -40,12 +57,14 @@ interface AccessibleDocument {
 serve(async (req) => {
   console.log(`WebDAV ${req.method} ${req.url} - Headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight
+  // Handle CORS preflight with comprehensive WebDAV support
   if (req.method === 'OPTIONS') {
     console.log('WebDAV: Handling CORS preflight');
     return new Response(null, { 
       status: 200,
-      headers: corsHeaders 
+      headers: getWebDAVResponseHeaders({
+        'Content-Length': '0'
+      })
     });
   }
 
@@ -55,7 +74,10 @@ serve(async (req) => {
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error('WebDAV: Missing required environment variables');
-      return new Response('Server configuration error', { status: 500, headers: corsHeaders });
+      return new Response('Server configuration error', { 
+        status: 500, 
+        headers: getWebDAVResponseHeaders()
+      });
     }
 
     console.log('WebDAV: Creating Supabase client');
@@ -70,7 +92,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Basic ')) {
       console.log('WebDAV: No valid auth header, returning HTML info page');
-      // HTML response for browsers
+      // Enhanced HTML response with WebDAV capability information
       return new Response(`<!DOCTYPE html>
 <html>
 <head>
@@ -79,6 +101,7 @@ serve(async (req) => {
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
         .info { background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }
         .warning { background: #fefce8; border: 1px solid #eab308; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .capabilities { background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; }
         code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
         ol { line-height: 1.6; }
     </style>
@@ -86,6 +109,15 @@ serve(async (req) => {
 <body>
     <h1>WebDAV Server</h1>
     <p>This is a WebDAV server endpoint that should be accessed using a WebDAV client, not a web browser.</p>
+    
+    <div class="capabilities">
+        <h3>📋 WebDAV Capabilities:</h3>
+        <ul>
+            <li><strong>DAV Compliance:</strong> ${webdavHeaders.DAV}</li>
+            <li><strong>Supported Methods:</strong> ${webdavHeaders.Allow}</li>
+            <li><strong>Server:</strong> ${webdavHeaders.Server}</li>
+        </ul>
+    </div>
     
     <div class="info">
         <h3>📁 WebDAV Connection Instructions:</h3>
@@ -107,11 +139,10 @@ serve(async (req) => {
 </body>
 </html>`, {
         status: 401,
-        headers: {
-          ...corsHeaders,
+        headers: getWebDAVResponseHeaders({
           'Content-Type': 'text/html; charset=utf-8',
           'WWW-Authenticate': 'Basic realm="WebDAV"'
-        }
+        })
       });
     }
 
@@ -127,10 +158,9 @@ serve(async (req) => {
       console.error('WebDAV: No token provided in credentials');
       return new Response('Invalid credentials - no token provided', {
         status: 401,
-        headers: {
-          ...corsHeaders,
+        headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV"'
-        }
+        })
       });
     }
 
@@ -146,10 +176,9 @@ serve(async (req) => {
       console.error('WebDAV: Token validation failed:', tokenError);
       return new Response('Invalid or expired token', {
         status: 401,
-        headers: {
-          ...corsHeaders,
+        headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV"'
-        }
+        })
       });
     }
 
@@ -201,14 +230,17 @@ serve(async (req) => {
         return await handleMove(supabase, userInfo, path, req);
       case 'COPY':
         return await handleCopy(supabase, userInfo, path, req);
+      case 'LOCK':
+        return await handleLock(supabase, userInfo, path, req);
+      case 'UNLOCK':
+        return await handleUnlock(supabase, userInfo, path, req);
+      case 'PROPPATCH':
+        return await handleProppatch(supabase, userInfo, path, req);
       default:
         console.log('WebDAV: Method not allowed:', req.method);
         return new Response('Method not allowed', {
           status: 405,
-          headers: {
-            ...corsHeaders,
-            'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY'
-          }
+          headers: getWebDAVResponseHeaders()
         });
     }
 
@@ -216,7 +248,7 @@ serve(async (req) => {
     console.error('WebDAV error:', error);
     return new Response('Internal server error: ' + error.message, {
       status: 500,
-      headers: corsHeaders
+      headers: getWebDAVResponseHeaders()
     });
   }
 });
@@ -235,7 +267,10 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       if (error) {
         console.error('Error fetching folders:', error);
-        return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + error.message, { 
+          status: 500, 
+          headers: getWebDAVResponseHeaders()
+        });
       }
 
       console.log('PROPFIND: Found', folders?.length || 0, 'accessible folders');
@@ -253,6 +288,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
               <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
               <D:creationdate>${new Date().toISOString()}</D:creationdate>
               <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+              <D:supportedlock>
+                <D:lockentry>
+                  <D:lockscope><D:exclusive/></D:lockscope>
+                  <D:locktype><D:write/></D:locktype>
+                </D:lockentry>
+              </D:supportedlock>
             </D:prop>
             <D:status>HTTP/1.1 200 OK</D:status>
           </D:propstat>
@@ -269,6 +310,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
                 <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
                 <D:creationdate>${new Date().toISOString()}</D:creationdate>
                 <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+                <D:supportedlock>
+                  <D:lockentry>
+                    <D:lockscope><D:exclusive/></D:lockscope>
+                    <D:locktype><D:write/></D:locktype>
+                  </D:lockentry>
+                </D:supportedlock>
               </D:prop>
               <D:status>HTTP/1.1 200 OK</D:status>
             </D:propstat>
@@ -279,10 +326,9 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       console.log('PROPFIND: Returning root directory with', (folders || []).length, 'folders');
       return new Response(response, {
         status: 207,
-        headers: {
-          ...corsHeaders,
+        headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset="utf-8"'
-        }
+        })
       });
     } else {
       // Specific folder - find the folder and list its contents
@@ -294,13 +340,19 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       if (foldersError) {
         console.error('Error fetching folders:', foldersError);
-        return new Response('Internal server error: ' + foldersError.message, { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + foldersError.message, { 
+          status: 500, 
+          headers: getWebDAVResponseHeaders()
+        });
       }
 
       const folder = folders?.find((f: AccessibleFolder) => f.folder_name === folderName);
       if (!folder) {
         console.log('PROPFIND: Folder not found:', folderName);
-        return new Response('Folder not found', { status: 404, headers: corsHeaders });
+        return new Response('Folder not found', { 
+          status: 404, 
+          headers: getWebDAVResponseHeaders()
+        });
       }
 
       // Get documents in this folder
@@ -309,7 +361,10 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       if (docsError) {
         console.error('Error fetching documents:', docsError);
-        return new Response('Internal server error: ' + docsError.message, { status: 500, headers: corsHeaders });
+        return new Response('Internal server error: ' + docsError.message, { 
+          status: 500, 
+          headers: getWebDAVResponseHeaders()
+        });
       }
 
       console.log('PROPFIND: Found', documents?.length || 0, 'documents in folder');
@@ -325,6 +380,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
               <D:creationdate>${new Date().toISOString()}</D:creationdate>
               <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
               <D:resourcetype/>
+              <D:supportedlock>
+                <D:lockentry>
+                  <D:lockscope><D:exclusive/></D:lockscope>
+                  <D:locktype><D:write/></D:locktype>
+                </D:lockentry>
+              </D:supportedlock>
             </D:prop>
             <D:status>HTTP/1.1 200 OK</D:status>
           </D:propstat>
@@ -341,6 +402,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
                 <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
                 <D:creationdate>${new Date().toISOString()}</D:creationdate>
                 <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+                <D:supportedlock>
+                  <D:lockentry>
+                    <D:lockscope><D:exclusive/></D:lockscope>
+                    <D:locktype><D:write/></D:locktype>
+                  </D:lockentry>
+                </D:supportedlock>
               </D:prop>
               <D:status>HTTP/1.1 200 OK</D:status>
             </D:propstat>
@@ -350,15 +417,17 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       return new Response(response, {
         status: 207,
-        headers: {
-          ...corsHeaders,
+        headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset="utf-8"'
-        }
+        })
       });
     }
   } catch (error) {
     console.error('PROPFIND error:', error);
-    return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
+    return new Response('Internal server error: ' + error.message, { 
+      status: 500, 
+      headers: getWebDAVResponseHeaders()
+    });
   }
 }
 
@@ -368,7 +437,10 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
   const pathParts = path.split('/').filter(p => p);
   if (pathParts.length !== 2) {
     console.log('GET: Invalid path structure:', path);
-    return new Response('Invalid path', { status: 404, headers: corsHeaders });
+    return new Response('Invalid path', { 
+      status: 404, 
+      headers: getWebDAVResponseHeaders()
+    });
   }
 
   const [folderName, fileName] = pathParts;
@@ -380,7 +452,10 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
 
     if (error) {
       console.error('Error fetching documents:', error);
-      return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
+      return new Response('Internal server error: ' + error.message, { 
+        status: 500, 
+        headers: getWebDAVResponseHeaders()
+      });
     }
 
     const document = documents?.find((doc: AccessibleDocument) => 
@@ -389,21 +464,26 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
 
     if (!document) {
       console.log('GET: File not found or not accessible:', fileName);
-      return new Response('File not found', { status: 404, headers: corsHeaders });
+      return new Response('File not found', { 
+        status: 404, 
+        headers: getWebDAVResponseHeaders()
+      });
     }
 
     console.log('GET: Redirecting to file URL:', document.file_url);
     // Redirect to the actual file URL
     return new Response(null, {
       status: 302,
-      headers: {
-        ...corsHeaders,
+      headers: getWebDAVResponseHeaders({
         'Location': document.file_url
-      }
+      })
     });
   } catch (error) {
     console.error('GET error:', error);
-    return new Response('Internal server error: ' + error.message, { status: 500, headers: corsHeaders });
+    return new Response('Internal server error: ' + error.message, { 
+      status: 500, 
+      headers: getWebDAVResponseHeaders()
+    });
   }
 }
 
@@ -413,7 +493,7 @@ async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: R
   // For now, return method not allowed as file uploads need more complex handling
   return new Response('File uploads not yet supported', {
     status: 405,
-    headers: corsHeaders
+    headers: getWebDAVResponseHeaders()
   });
 }
 
@@ -423,7 +503,7 @@ async function handleDelete(supabase: any, userInfo: UserInfo, path: string) {
   // For now, return method not allowed as deletions need careful access control
   return new Response('File deletions not yet supported', {
     status: 405,
-    headers: corsHeaders
+    headers: getWebDAVResponseHeaders()
   });
 }
 
@@ -433,7 +513,7 @@ async function handleMkcol(supabase: any, userInfo: UserInfo, path: string) {
   // For now, return method not allowed as folder creation needs proper access control
   return new Response('Folder creation not yet supported', {
     status: 405,
-    headers: corsHeaders
+    headers: getWebDAVResponseHeaders()
   });
 }
 
@@ -442,7 +522,7 @@ async function handleMove(supabase: any, userInfo: UserInfo, path: string, req: 
   
   return new Response('Move operation not yet supported', {
     status: 405,
-    headers: corsHeaders
+    headers: getWebDAVResponseHeaders()
   });
 }
 
@@ -451,6 +531,65 @@ async function handleCopy(supabase: any, userInfo: UserInfo, path: string, req: 
   
   return new Response('Copy operation not yet supported', {
     status: 405,
-    headers: corsHeaders
+    headers: getWebDAVResponseHeaders()
+  });
+}
+
+async function handleLock(supabase: any, userInfo: UserInfo, path: string, req: Request) {
+  console.log('LOCK for path:', path);
+  
+  // Return a simple lock response for compatibility
+  const lockResponse = `<?xml version="1.0" encoding="utf-8"?>
+    <D:prop xmlns:D="DAV:">
+      <D:lockdiscovery>
+        <D:activelock>
+          <D:locktype><D:write/></D:locktype>
+          <D:lockscope><D:exclusive/></D:lockscope>
+          <D:depth>0</D:depth>
+          <D:timeout>Second-3600</D:timeout>
+          <D:locktoken>
+            <D:href>urn:uuid:${crypto.randomUUID()}</D:href>
+          </D:locktoken>
+        </D:activelock>
+      </D:lockdiscovery>
+    </D:prop>`;
+  
+  return new Response(lockResponse, {
+    status: 200,
+    headers: getWebDAVResponseHeaders({
+      'Content-Type': 'application/xml; charset="utf-8"',
+      'Lock-Token': `<urn:uuid:${crypto.randomUUID()}>`
+    })
+  });
+}
+
+async function handleUnlock(supabase: any, userInfo: UserInfo, path: string, req: Request) {
+  console.log('UNLOCK for path:', path);
+  
+  return new Response('', {
+    status: 204,
+    headers: getWebDAVResponseHeaders()
+  });
+}
+
+async function handleProppatch(supabase: any, userInfo: UserInfo, path: string, req: Request) {
+  console.log('PROPPATCH for path:', path);
+  
+  // Return a simple success response for property updates
+  const response = `<?xml version="1.0" encoding="utf-8"?>
+    <D:multistatus xmlns:D="DAV:">
+      <D:response>
+        <D:href>${path}</D:href>
+        <D:propstat>
+          <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+      </D:response>
+    </D:multistatus>`;
+  
+  return new Response(response, {
+    status: 207,
+    headers: getWebDAVResponseHeaders({
+      'Content-Type': 'application/xml; charset="utf-8"'
+    })
   });
 }
