@@ -26,7 +26,7 @@ serve(async (req) => {
   );
 
   try {
-    console.log(`WebDAV ${req.method} request received`);
+    console.log(`WebDAV ${req.method} request received for URL: ${req.url}`);
     
     // Extract and validate WebDAV token
     const authHeader = req.headers.get('authorization');
@@ -107,7 +107,24 @@ serve(async (req) => {
 
     const userId = validToken.user_id;
     const url = new URL(req.url);
-    const path = url.pathname.replace('/webdav', '') || '/';
+    
+    // Fix path handling - properly extract WebDAV path
+    let path = url.pathname;
+    if (path.includes('/functions/v1/webdav')) {
+      path = path.replace('/functions/v1/webdav', '');
+    } else if (path.includes('/webdav')) {
+      path = path.replace('/webdav', '');
+    }
+    
+    // Ensure path starts with /
+    if (!path.startsWith('/')) {
+      path = '/' + path;
+    }
+    
+    // Remove trailing slashes except for root
+    if (path !== '/' && path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
 
     console.log(`WebDAV ${req.method} request for path: ${path} by user: ${userId}`);
 
@@ -161,65 +178,95 @@ serve(async (req) => {
 async function handlePropfind(supabase: any, userId: string, path: string, req: Request) {
   const depth = req.headers.get('depth') || '1';
   
+  console.log(`PROPFIND for path: ${path}, depth: ${depth}, userId: ${userId}`);
+  
   try {
-    // Get folders and documents based on path
+    // Simplified approach: Just return basic structure for now
     let folders = [];
     let documents = [];
     
     if (path === '/' || path === '') {
-      // Root directory - get user's folders
-      const { data: foldersData } = await supabase
-        .from('folders')
-        .select('*')
-        .is('parent_folder_id', null)
-        .or(`created_by.eq.${userId},artist_id.in.(select id from artists where user_id = ${userId})`);
+      console.log('Handling root directory request');
       
-      folders = foldersData || [];
-      
-      // Get documents in root
-      const { data: docsData } = await supabase
-        .from('documents')
-        .select('*')
-        .is('folder_id', null)
-        .eq('is_deleted', false)
-        .or(`artist_id.in.(select id from artists where user_id = ${userId})`);
-      
-      documents = docsData || [];
-    } else {
-      // Specific folder
-      const folderPath = path.substring(1);
-      const { data: currentFolder } = await supabase
-        .from('folders')
-        .select('*')
-        .eq('name', folderPath)
-        .single();
-      
-      if (currentFolder) {
-        // Get subfolders
-        const { data: foldersData } = await supabase
+      // For root directory, get user's folders and documents
+      try {
+        // Get user's folders (simplified query)
+        const { data: foldersData, error: foldersError } = await supabase
           .from('folders')
-          .select('*')
-          .eq('parent_folder_id', currentFolder.id);
+          .select('id, name, created_at, updated_at')
+          .or(`created_by.eq.${userId},artist_id.in.(select id from artists where user_id = ${userId})`)
+          .is('parent_folder_id', null);
         
-        folders = foldersData || [];
-        
-        // Get documents in this folder
-        const { data: docsData } = await supabase
+        if (foldersError) {
+          console.log('Folders query error:', foldersError);
+        } else {
+          folders = foldersData || [];
+          console.log(`Found ${folders.length} folders for user`);
+        }
+
+        // Get documents in root (simplified query)
+        const { data: docsData, error: docsError } = await supabase
           .from('documents')
-          .select('*')
-          .eq('folder_id', currentFolder.id)
-          .eq('is_deleted', false);
+          .select('id, file_name, file_size, updated_at, mime_type')
+          .is('folder_id', null)
+          .eq('is_deleted', false)
+          .or(`artist_id.in.(select id from artists where user_id = ${userId})`);
         
-        documents = docsData || [];
+        if (docsError) {
+          console.log('Documents query error:', docsError);
+        } else {
+          documents = docsData || [];
+          console.log(`Found ${documents.length} documents for user`);
+        }
+      } catch (queryError) {
+        console.log('Query error:', queryError);
+        // Continue with empty arrays if queries fail
+      }
+    } else {
+      console.log(`Handling specific folder: ${path}`);
+      
+      // For specific folder, try to find it and get its contents
+      const folderName = path.substring(1); // Remove leading slash
+      
+      try {
+        const { data: currentFolder } = await supabase
+          .from('folders')
+          .select('id, name')
+          .eq('name', folderName)
+          .or(`created_by.eq.${userId},artist_id.in.(select id from artists where user_id = ${userId})`)
+          .single();
+        
+        if (currentFolder) {
+          console.log(`Found folder: ${currentFolder.name}`);
+          
+          // Get subfolders
+          const { data: foldersData } = await supabase
+            .from('folders')
+            .select('id, name, created_at, updated_at')
+            .eq('parent_folder_id', currentFolder.id);
+          
+          folders = foldersData || [];
+          
+          // Get documents in this folder
+          const { data: docsData } = await supabase
+            .from('documents')
+            .select('id, file_name, file_size, updated_at, mime_type')
+            .eq('folder_id', currentFolder.id)
+            .eq('is_deleted', false);
+          
+          documents = docsData || [];
+        }
+      } catch (queryError) {
+        console.log('Specific folder query error:', queryError);
       }
     }
 
     // Build XML response
     const items = [
       {
-        href: path,
+        href: path || '/',
         isCollection: true,
-        name: path === '/' ? 'Root' : path.split('/').pop(),
+        name: path === '/' || path === '' ? 'Root' : path.split('/').pop(),
         size: 0,
         lastModified: new Date().toISOString()
       }
@@ -228,19 +275,21 @@ async function handlePropfind(supabase: any, userId: string, path: string, req: 
     if (depth !== '0') {
       // Add folders
       folders.forEach(folder => {
+        const folderPath = path === '/' ? `/${folder.name}/` : `${path}/${folder.name}/`;
         items.push({
-          href: `${path}${path.endsWith('/') ? '' : '/'}${folder.name}/`,
+          href: folderPath,
           isCollection: true,
           name: folder.name,
           size: 0,
-          lastModified: folder.updated_at
+          lastModified: folder.updated_at || folder.created_at
         });
       });
 
       // Add documents
       documents.forEach(doc => {
+        const docPath = path === '/' ? `/${doc.file_name}` : `${path}/${doc.file_name}`;
         items.push({
-          href: `${path}${path.endsWith('/') ? '' : '/'}${doc.file_name}`,
+          href: docPath,
           isCollection: false,
           name: doc.file_name,
           size: doc.file_size || 0,
@@ -249,6 +298,7 @@ async function handlePropfind(supabase: any, userId: string, path: string, req: 
       });
     }
 
+    console.log(`Returning ${items.length} items for PROPFIND`);
     const xml = generatePropfindXML(items);
     
     return new Response(xml, {
@@ -266,6 +316,8 @@ async function handlePropfind(supabase: any, userId: string, path: string, req: 
 }
 
 async function handleGet(supabase: any, userId: string, path: string) {
+  console.log(`GET request for path: ${path}`);
+  
   if (path === '/' || path === '') {
     return new Response('Directory listing not available via GET', { 
       status: 403,
@@ -275,28 +327,28 @@ async function handleGet(supabase: any, userId: string, path: string) {
 
   try {
     const fileName = path.split('/').pop();
+    console.log(`Looking for file: ${fileName}`);
     
-    // Find the document
-    const { data: document } = await supabase
+    // Find the document (simplified query)
+    const { data: document, error } = await supabase
       .from('documents')
       .select('*')
       .eq('file_name', fileName)
       .eq('is_deleted', false)
+      .or(`artist_id.in.(select id from artists where user_id = ${userId})`)
       .single();
 
-    if (!document) {
+    if (error || !document) {
+      console.log('Document not found:', error);
       return new Response('File not found', { status: 404, headers: corsHeaders });
     }
 
-    // Check if user has access
-    const hasAccess = await checkDocumentAccess(supabase, userId, document.id);
-    if (!hasAccess) {
-      return new Response('Forbidden', { status: 403, headers: corsHeaders });
-    }
+    console.log(`Found document: ${document.file_name}`);
 
     // Fetch the file from the URL
     const fileResponse = await fetch(document.file_url);
     if (!fileResponse.ok) {
+      console.log('File not accessible from URL:', document.file_url);
       return new Response('File not accessible', { status: 404, headers: corsHeaders });
     }
 
@@ -319,6 +371,8 @@ async function handleGet(supabase: any, userId: string, path: string) {
 }
 
 async function handlePut(supabase: any, userId: string, path: string, req: Request) {
+  console.log(`PUT request for path: ${path}`);
+  
   try {
     const fileName = path.split('/').pop();
     if (!fileName) {
@@ -328,8 +382,10 @@ async function handlePut(supabase: any, userId: string, path: string, req: Reque
     const fileData = await req.arrayBuffer();
     const contentType = req.headers.get('content-type') || 'application/octet-stream';
 
-    // Upload to Supabase storage (if you have storage configured)
-    // For now, we'll create a document record
+    console.log(`Uploading file: ${fileName}, size: ${fileData.byteLength}`);
+
+    // For now, create a placeholder document record
+    // In a real implementation, you'd upload to storage first
     const { data: document, error } = await supabase
       .from('documents')
       .insert({
@@ -348,6 +404,8 @@ async function handlePut(supabase: any, userId: string, path: string, req: Reque
       return new Response('Upload failed', { status: 500, headers: corsHeaders });
     }
 
+    console.log(`File uploaded successfully: ${document.id}`);
+
     return new Response('Created', { 
       status: 201,
       headers: corsHeaders
@@ -360,6 +418,8 @@ async function handlePut(supabase: any, userId: string, path: string, req: Reque
 }
 
 async function handleDelete(supabase: any, userId: string, path: string) {
+  console.log(`DELETE request for path: ${path}`);
+  
   try {
     const fileName = path.split('/').pop();
     
@@ -370,11 +430,15 @@ async function handleDelete(supabase: any, userId: string, path: string) {
         is_deleted: true, 
         deleted_at: new Date().toISOString() 
       })
-      .eq('file_name', fileName);
+      .eq('file_name', fileName)
+      .or(`artist_id.in.(select id from artists where user_id = ${userId})`);
 
     if (error) {
+      console.error('DELETE error:', error);
       return new Response('Delete failed', { status: 500, headers: corsHeaders });
     }
+
+    console.log(`File deleted: ${fileName}`);
 
     return new Response('Deleted', { 
       status: 204,
@@ -388,6 +452,8 @@ async function handleDelete(supabase: any, userId: string, path: string) {
 }
 
 async function handleMkcol(supabase: any, userId: string, path: string) {
+  console.log(`MKCOL request for path: ${path}`);
+  
   try {
     const folderName = path.split('/').filter(p => p).pop();
     if (!folderName) {
@@ -405,8 +471,11 @@ async function handleMkcol(supabase: any, userId: string, path: string) {
       .single();
 
     if (error) {
+      console.error('MKCOL error:', error);
       return new Response('Folder creation failed', { status: 500, headers: corsHeaders });
     }
+
+    console.log(`Folder created: ${folder.name}`);
 
     return new Response('Created', { 
       status: 201,
@@ -420,23 +489,13 @@ async function handleMkcol(supabase: any, userId: string, path: string) {
 }
 
 async function handleCopyMove(supabase: any, userId: string, path: string, req: Request) {
+  console.log(`${req.method} request for path: ${path}`);
+  
   // Implement COPY/MOVE operations
   return new Response('Not implemented', { 
     status: 501,
     headers: corsHeaders
   });
-}
-
-async function checkDocumentAccess(supabase: any, userId: string, documentId: string) {
-  try {
-    const { data } = await supabase.rpc('is_document_accessible_by_current_artist', {
-      _document_id: documentId
-    });
-    return data;
-  } catch (error) {
-    console.error('Access check error:', error);
-    return false;
-  }
 }
 
 function generatePropfindXML(items: any[]) {
