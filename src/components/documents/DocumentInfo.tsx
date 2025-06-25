@@ -1,34 +1,45 @@
 
-import { Calendar } from "lucide-react";
-import { formatDate, getDocumentTypeInfo } from "./utils/document-utils";
+import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
+import { FileText, Calendar, FolderOpen, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
 
 interface DocumentInfoProps {
-  type: string;
-  fileName: string;
-  dateUploaded: string;
-  description?: string | null;
+  document: EnhancedDocument;
 }
 
-export function DocumentInfo({ type, fileName, dateUploaded, description }: DocumentInfoProps) {
-  const { color } = getDocumentTypeInfo(type);
-  
+export function DocumentInfo({ document }: DocumentInfoProps) {
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "Unknown size";
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`text-xs px-2 py-1 rounded-full capitalize ${color}`}>
-          {type === "artwork_overview" ? "Artwork Overview" : type}
-        </span>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-muted-foreground" />
+        <h3 className="font-medium truncate">{document.file_name}</h3>
+        {document.is_favorite && (
+          <Star className="h-4 w-4 text-yellow-500 fill-current" />
+        )}
       </div>
-      <h3 className="font-semibold">{fileName}</h3>
-      <div className="flex items-center gap-2 mb-2">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">
-          Uploaded on {formatDate(dateUploaded)}
-        </span>
+      
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <Badge variant="secondary" className="text-xs">
+          {document.type}
+        </Badge>
+        
+        {document.file_size && (
+          <span>{formatFileSize(document.file_size)}</span>
+        )}
+        
+        <div className="flex items-center gap-1">
+          <Calendar className="h-3 w-3" />
+          <span>{formatDistanceToNow(new Date(document.created_at), { addSuffix: true })}</span>
+        </div>
       </div>
-      {description && (
-        <p className="text-sm text-muted-foreground">{description}</p>
-      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 
-import { Document } from "@/hooks/use-documents-simplified";
+import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
 import { ResponsiveDocumentCard } from "./ResponsiveDocumentCard";
 
 interface DocumentsListProps {
-  documents: Document[];
+  documents: EnhancedDocument[];
 }
 
 export function DocumentsList({ documents }: DocumentsListProps) {

@@ -1,38 +1,88 @@
 
+import { EnhancedDocument, useToggleFavorite, useSoftDeleteDocument } from "@/hooks/use-enhanced-documents";
 import { Button } from "@/components/ui/button";
-import { Download, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreVertical, Download, Star, StarOff, Trash2, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
 interface DocumentActionsProps {
-  onDownload: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onDelete: () => void;
-  isDeleting: boolean;
+  document: EnhancedDocument;
 }
 
-export function DocumentActions({ onDownload, onDelete, isDeleting }: DocumentActionsProps) {
+export function DocumentActions({ document }: DocumentActionsProps) {
+  const toggleFavoriteMutation = useToggleFavorite();
+  const softDeleteMutation = useSoftDeleteDocument();
+
+  const handleDownload = () => {
+    window.open(document.file_url, '_blank');
+  };
+
+  const handleToggleFavorite = () => {
+    toggleFavoriteMutation.mutate({
+      documentId: document.id,
+      isFavorite: !document.is_favorite
+    });
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      softDeleteMutation.mutate(document.id);
+    }
+  };
+
+  const handleView = () => {
+    window.open(document.file_url, '_blank');
+  };
+
   return (
-    <div className="flex gap-2 mt-1 self-start">
+    <div className="flex items-center gap-2">
       <Button
         variant="outline"
-        size="icon"
-        onClick={onDownload}
-        aria-label="Download"
+        size="sm"
+        onClick={handleView}
+        className="hidden sm:flex"
       >
-        <Download className="h-3 w-3 md:h-4 md:w-4" />
+        <ExternalLink className="h-4 w-4 mr-2" />
+        View
       </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={onDelete}
-        disabled={isDeleting}
-        className="border-red-500 text-red-600 hover:bg-red-50"
-        style={{
-          borderColor: "#ea384c",
-          color: "#ea384c",
-        }}
-        aria-label="Delete"
-      >
-        <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
-      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleView} className="sm:hidden">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            View
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDownload}>
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleToggleFavorite}>
+            {document.is_favorite ? (
+              <>
+                <StarOff className="h-4 w-4 mr-2" />
+                Remove from favorites
+              </>
+            ) : (
+              <>
+                <Star className="h-4 w-4 mr-2" />
+                Add to favorites
+              </>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
