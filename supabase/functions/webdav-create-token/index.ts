@@ -12,22 +12,29 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Use service role client for admin operations
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
   try {
-    // Get user from auth header
+    // Get user from auth header using anon client
+    const anonSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await anonSupabase.auth.getUser(token);
 
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
@@ -54,7 +61,7 @@ serve(async (req) => {
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    // Store the token
+    // Store the token using service role client
     const { data: tokenRecord, error } = await supabase
       .from('webdav_tokens')
       .insert({
