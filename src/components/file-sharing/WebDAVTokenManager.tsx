@@ -28,6 +28,24 @@ export function WebDAVTokenManager() {
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Get the correct WebDAV URL based on current domain
+  const getWebDAVUrl = () => {
+    if (typeof window !== 'undefined') {
+      const currentOrigin = window.location.origin;
+      
+      // Check if we're on a custom domain (not supabase.co)
+      if (!currentOrigin.includes('.supabase.co')) {
+        // Custom domain - construct the edge function URL
+        return `${currentOrigin}/functions/v1/webdav/`;
+      }
+    }
+    
+    // Default to Supabase URL
+    return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  };
+
+  const webdavUrl = getWebDAVUrl();
+
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: ["webdav-tokens"],
     queryFn: async () => {
@@ -98,7 +116,6 @@ export function WebDAVTokenManager() {
   };
 
   const copyWebDAVUrl = () => {
-    const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
     navigator.clipboard.writeText(webdavUrl);
     toast.success("WebDAV URL copied to clipboard");
   };
@@ -129,10 +146,15 @@ export function WebDAVTokenManager() {
           <div className="bg-muted p-4 rounded-lg">
             <p className="text-sm text-muted-foreground mb-2">
               WebDAV allows you to access your files directly from file managers and applications.
+              {!webdavUrl.includes('.supabase.co') && (
+                <span className="block mt-1 text-blue-600 font-medium">
+                  Using custom domain URL for enhanced compatibility.
+                </span>
+              )}
             </p>
             <div className="flex items-center gap-2">
               <code className="bg-background px-2 py-1 rounded text-sm flex-1">
-                https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/
+                {webdavUrl}
               </code>
               <Button size="sm" variant="outline" onClick={copyWebDAVUrl}>
                 <Copy className="h-4 w-4" />
@@ -185,6 +207,17 @@ export function WebDAVTokenManager() {
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Additional info for custom domains */}
+          {!webdavUrl.includes('.supabase.co') && (
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+              <h5 className="font-medium text-blue-900 mb-1">Custom Domain Setup:</h5>
+              <p className="text-sm text-blue-800">
+                You're using a custom domain. Make sure your domain is properly configured to proxy 
+                requests to <code>/functions/v1/*</code> to your Supabase edge functions.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -211,6 +244,9 @@ export function WebDAVTokenManager() {
                       <span className="font-medium">{token.name}</span>
                       {token.expires_at && new Date(token.expires_at) < new Date() && (
                         <Badge variant="destructive">Expired</Badge>
+                      )}
+                      {token.last_used_at && (
+                        <Badge variant="secondary">Recently Used</Badge>
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">

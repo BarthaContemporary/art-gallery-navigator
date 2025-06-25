@@ -11,8 +11,23 @@ export function WebDAVConnectionTest() {
   const [connectionResult, setConnectionResult] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<{ [key: string]: { status: string; message: string } }>({});
 
-  // Get the correct WebDAV URL
-  const supabaseWebdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  // Get the correct WebDAV URL based on current domain
+  const getWebDAVUrl = () => {
+    if (typeof window !== 'undefined') {
+      const currentOrigin = window.location.origin;
+      
+      // Check if we're on a custom domain (not supabase.co)
+      if (!currentOrigin.includes('.supabase.co')) {
+        // Custom domain - construct the edge function URL
+        return `${currentOrigin}/functions/v1/webdav/`;
+      }
+    }
+    
+    // Default to Supabase URL
+    return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  };
+
+  const webdavUrl = getWebDAVUrl();
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -27,41 +42,61 @@ export function WebDAVConnectionTest() {
     const results: { [key: string]: { status: string; message: string } } = {};
 
     try {
-      console.log('Testing WebDAV connection to:', supabaseWebdavUrl);
+      console.log('Testing WebDAV connection to:', webdavUrl);
       
       // Test 1: Basic connectivity (OPTIONS)
       try {
-        const optionsResponse = await fetch(supabaseWebdavUrl, {
+        const optionsResponse = await fetch(webdavUrl, {
           method: 'OPTIONS',
         });
 
         if (optionsResponse.ok) {
-          results.connectivity = { status: 'success', message: 'Server is reachable and responds to OPTIONS' };
+          const davHeader = optionsResponse.headers.get('DAV');
+          results.connectivity = { 
+            status: 'success', 
+            message: `Server is reachable and supports WebDAV${davHeader ? ` (DAV: ${davHeader})` : ''}`
+          };
         } else {
-          results.connectivity = { status: 'warning', message: `Server responded with ${optionsResponse.status} ${optionsResponse.statusText}` };
+          results.connectivity = { 
+            status: 'warning', 
+            message: `Server responded with ${optionsResponse.status} ${optionsResponse.statusText}` 
+          };
         }
       } catch (error) {
-        results.connectivity = { status: 'error', message: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        results.connectivity = { 
+          status: 'error', 
+          message: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        };
       }
 
       // Test 2: Authentication without credentials (should return 401)
       try {
-        const authResponse = await fetch(supabaseWebdavUrl, {
+        const authResponse = await fetch(webdavUrl, {
           method: 'PROPFIND',
         });
 
         if (authResponse.status === 401) {
-          results.authentication = { status: 'success', message: 'Server correctly requests authentication (401 Unauthorized)' };
+          const authHeader = authResponse.headers.get('WWW-Authenticate');
+          results.authentication = { 
+            status: 'success', 
+            message: `Server correctly requests authentication${authHeader ? ` (${authHeader})` : ''}`
+          };
         } else {
-          results.authentication = { status: 'warning', message: `Unexpected response: ${authResponse.status} ${authResponse.statusText}` };
+          results.authentication = { 
+            status: 'warning', 
+            message: `Unexpected response: ${authResponse.status} ${authResponse.statusText}` 
+          };
         }
       } catch (error) {
-        results.authentication = { status: 'error', message: `Auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        results.authentication = { 
+          status: 'error', 
+          message: `Auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        };
       }
 
       // Test 3: Test with invalid credentials (should return 401)
       try {
-        const invalidAuthResponse = await fetch(supabaseWebdavUrl, {
+        const invalidAuthResponse = await fetch(webdavUrl, {
           method: 'PROPFIND',
           headers: {
             'Authorization': 'Basic ' + btoa('test:invalid-token')
@@ -69,17 +104,26 @@ export function WebDAVConnectionTest() {
         });
 
         if (invalidAuthResponse.status === 401) {
-          results.invalidAuth = { status: 'success', message: 'Server correctly rejects invalid credentials' };
+          results.invalidAuth = { 
+            status: 'success', 
+            message: 'Server correctly rejects invalid credentials' 
+          };
         } else {
-          results.invalidAuth = { status: 'warning', message: `Unexpected response to invalid auth: ${invalidAuthResponse.status}` };
+          results.invalidAuth = { 
+            status: 'warning', 
+            message: `Unexpected response to invalid auth: ${invalidAuthResponse.status}` 
+          };
         }
       } catch (error) {
-        results.invalidAuth = { status: 'error', message: `Invalid auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        results.invalidAuth = { 
+          status: 'error', 
+          message: `Invalid auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        };
       }
 
       // Test 4: Check CORS headers
       try {
-        const corsResponse = await fetch(supabaseWebdavUrl, {
+        const corsResponse = await fetch(webdavUrl, {
           method: 'OPTIONS',
         });
 
@@ -87,12 +131,48 @@ export function WebDAVConnectionTest() {
         const accessControlMethods = corsResponse.headers.get('Access-Control-Allow-Methods');
 
         if (accessControlOrigin && accessControlMethods) {
-          results.cors = { status: 'success', message: 'CORS headers are properly configured' };
+          results.cors = { 
+            status: 'success', 
+            message: 'CORS headers are properly configured' 
+          };
         } else {
-          results.cors = { status: 'warning', message: 'CORS headers may not be properly configured' };
+          results.cors = { 
+            status: 'warning', 
+            message: 'CORS headers may not be properly configured' 
+          };
         }
       } catch (error) {
-        results.cors = { status: 'error', message: `CORS test failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        results.cors = { 
+          status: 'error', 
+          message: `CORS test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        };
+      }
+
+      // Test 5: Test WebDAV-specific headers
+      try {
+        const davResponse = await fetch(webdavUrl, {
+          method: 'OPTIONS',
+        });
+
+        const davHeader = davResponse.headers.get('DAV');
+        const msAuthorVia = davResponse.headers.get('MS-Author-Via');
+
+        if (davHeader) {
+          results.webdavHeaders = { 
+            status: 'success', 
+            message: `WebDAV headers present (DAV: ${davHeader}${msAuthorVia ? ', MS-Author-Via: ' + msAuthorVia : ''})` 
+          };
+        } else {
+          results.webdavHeaders = { 
+            status: 'warning', 
+            message: 'WebDAV-specific headers not found' 
+          };
+        }
+      } catch (error) {
+        results.webdavHeaders = { 
+          status: 'error', 
+          message: `WebDAV headers test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        };
       }
 
       setTestResults(results);
@@ -156,11 +236,16 @@ export function WebDAVConnectionTest() {
           <div>
             <h4 className="font-medium mb-2">WebDAV Server URL:</h4>
             <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <code className="flex-1 text-sm">{supabaseWebdavUrl}</code>
-              <Button size="sm" variant="outline" onClick={() => copyToClipboard(supabaseWebdavUrl)}>
+              <code className="flex-1 text-sm">{webdavUrl}</code>
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(webdavUrl)}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+            {!webdavUrl.includes('.supabase.co') && (
+              <div className="mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                📌 Using custom domain URL - this should work with your domain setup
+              </div>
+            )}
           </div>
 
           <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg">
@@ -212,7 +297,9 @@ export function WebDAVConnectionTest() {
                   <div className="flex items-start gap-2">
                     {getStatusIcon(result.status)}
                     <div>
-                      <div className="font-medium text-sm capitalize">{testName.replace(/([A-Z])/g, ' $1')}</div>
+                      <div className="font-medium text-sm capitalize">
+                        {testName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </div>
                       <div className="text-sm">{result.message}</div>
                     </div>
                   </div>
@@ -232,6 +319,7 @@ export function WebDAVConnectionTest() {
             <li>5. Username: type anything (e.g., "user")</li>
             <li>6. Password: paste your copied token</li>
             <li>7. If it still fails, try Cyberduck for more detailed error messages</li>
+            <li>8. Make sure your custom domain supports edge functions if using one</li>
           </ul>
         </div>
       </CardContent>
