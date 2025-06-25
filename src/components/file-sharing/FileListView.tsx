@@ -101,6 +101,12 @@ export function FileListView({ folders, documents, onFolderClick, onFileClick }:
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
+  const getItemName = (item: { type: string; data: FolderType | EnhancedDocument }) => {
+    return item.type === 'folder' 
+      ? (item.data as FolderType).name 
+      : (item.data as EnhancedDocument).file_name;
+  };
+
   // Combine folders and documents for unified display
   const allItems = [
     ...folders.map(folder => ({ type: 'folder', data: folder })),
@@ -143,7 +149,7 @@ export function FileListView({ folders, documents, onFolderClick, onFileClick }:
                 </TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
-                    {item.type === 'folder' ? item.data.name : (item.data as EnhancedDocument).file_name}
+                    {getItemName(item)}
                     {item.type === 'document' && (item.data as EnhancedDocument).is_favorite && (
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                     )}
@@ -185,7 +191,7 @@ export function FileListView({ folders, documents, onFolderClick, onFileClick }:
                             <Edit3 className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
-                          <ShareDialog folderId={item.data.id} folderName={item.data.name} />
+                          <ShareDialog folderId={item.data.id} folderName={(item.data as FolderType).name} />
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-red-600"
@@ -195,7 +201,7 @@ export function FileListView({ folders, documents, onFolderClick, onFileClick }:
                                 open: true,
                                 type: 'folder',
                                 id: item.data.id,
-                                name: item.data.name
+                                name: (item.data as FolderType).name
                               });
                             }}
                           >
