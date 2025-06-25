@@ -22,7 +22,7 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
-    // Create supabase client with the provided auth token
+    // Create supabase client for user authentication
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
@@ -31,10 +31,14 @@ serve(async (req) => {
         headers: {
           Authorization: authHeader
         }
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
       }
     });
 
-    // Get the current user
+    // Get the current user from the JWT token
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
