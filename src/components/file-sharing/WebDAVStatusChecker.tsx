@@ -34,49 +34,46 @@ export function WebDAVStatusChecker() {
     const newChecks: StatusCheck[] = [];
 
     try {
-      // Check 1: Database access functions - using direct function call instead of rpc
+      // Check 1: Database access functions - try to call the RPC function
       try {
         console.log('Checking database access functions...');
-        // Call the function directly using SQL
-        const { data: debugData, error: debugError } = await supabase
-          .from('debug_webdav_access')
-          .select('*')
-          .limit(1);
+        // Try to call get_user_accessible_folders first to test basic access
+        const { data: folders, error: foldersError } = await supabase
+          .rpc('get_user_accessible_folders');
         
-        if (debugError) {
-          // Try alternative approach with SQL function call
-          const { data: sqlResult, error: sqlError } = await supabase
-            .rpc('get_user_accessible_folders');
+        if (foldersError) {
+          newChecks.push({
+            name: 'Database Access',
+            status: 'error',
+            message: `Database function error: ${foldersError.message}`,
+            details: foldersError
+          });
+        } else {
+          const folderCount = Array.isArray(folders) ? folders.length : 0;
           
-          if (sqlError) {
-            newChecks.push({
-              name: 'Database Access',
-              status: 'error',
-              message: `Database function error: ${sqlError.message}`,
-              details: sqlError
-            });
-          } else {
-            newChecks.push({
-              name: 'Database Access',
-              status: 'success',
-              message: `Functions accessible, found ${Array.isArray(sqlResult) ? sqlResult.length : 0} folders`,
-              details: sqlResult
-            });
-          }
-        } else if (Array.isArray(debugData) && debugData.length > 0) {
-          const info = debugData[0] as DebugInfo;
+          // Get current user info
+          const { data: { user } } = await supabase.auth.getUser();
+          const userId = user?.id || 'unknown';
+          
+          // Check user roles
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId);
+          
+          const userRoles = roles?.map(r => r.role) || [];
+          const isAdmin = userRoles.includes('gallery_admin');
+          
           newChecks.push({
             name: 'Database Access',
             status: 'success',
-            message: `Admin: ${info.is_admin}, Folders: ${info.folders_count}, Docs: ${info.documents_count}, Artists: ${info.artist_count}`,
-            details: info
-          });
-        } else {
-          newChecks.push({
-            name: 'Database Access',
-            status: 'warning',
-            message: 'No debug data returned from database',
-            details: debugData
+            message: `Functions accessible. User: ${userId.substring(0, 8)}..., Admin: ${isAdmin}, Folders: ${folderCount}`,
+            details: {
+              user_id: userId,
+              is_admin: isAdmin,
+              folders_count: folderCount,
+              user_roles: userRoles
+            }
           });
         }
       } catch (error) {
