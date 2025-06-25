@@ -1,5 +1,6 @@
 
-import { EnhancedDocument, Folder } from "@/hooks/use-enhanced-documents";
+import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
+import { Folder } from "@/hooks/use-folders";
 
 export const formatFileSize = (bytes?: number | null) => {
   if (!bytes) return 'Unknown size';
