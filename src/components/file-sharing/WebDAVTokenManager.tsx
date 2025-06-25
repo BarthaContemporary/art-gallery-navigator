@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Copy, Plus, Key } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
 
 interface WebDAVToken {
   id: string;
@@ -92,13 +93,15 @@ export function WebDAVTokenManager() {
   };
 
   const copyWebDAVUrl = () => {
-    const webdavUrl = `${window.location.origin}/webdav/`;
+    const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
     navigator.clipboard.writeText(webdavUrl);
     toast.success("WebDAV URL copied to clipboard");
   };
 
   return (
     <div className="space-y-6">
+      <WebDAVConnectionTest />
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -113,7 +116,7 @@ export function WebDAVTokenManager() {
             </p>
             <div className="flex items-center gap-2">
               <code className="bg-background px-2 py-1 rounded text-sm flex-1">
-                {window.location.origin}/webdav/
+                https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/
               </code>
               <Button size="sm" variant="outline" onClick={copyWebDAVUrl}>
                 <Copy className="h-4 w-4" />
