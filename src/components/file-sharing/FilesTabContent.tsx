@@ -3,10 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Grid3X3, List } from "lucide-react";
+import { Search } from "lucide-react";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { CreateFolderDialog } from "./CreateFolderDialog";
-import { FileGridView } from "./FileGridView";
+import { FileListView } from "./FileListView";
 import { EnhancedUploadDocumentDialog } from "@/components/documents/EnhancedUploadDocumentDialog";
 import { Folder, useFolderAccess } from "@/hooks/use-folders";
 import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
@@ -20,8 +20,6 @@ interface FilesTabContentProps {
   setSearchTerm: (term: string) => void;
   sortBy: string;
   setSortBy: (sort: string) => void;
-  viewMode: "grid" | "list";
-  setViewMode: (mode: "grid" | "list") => void;
   onNavigate: (folderId: string | null) => void;
   onFolderClick: (folderId: string) => void;
   onFileClick: (document: EnhancedDocument) => void;
@@ -40,8 +38,6 @@ export function FilesTabContent({
   setSearchTerm,
   sortBy,
   setSortBy,
-  viewMode,
-  setViewMode,
   onNavigate,
   onFolderClick,
   onFileClick,
@@ -100,24 +96,6 @@ export function FilesTabContent({
         </div>
         
         <div className="flex gap-2">
-          <div className="flex bg-muted rounded-md p-1">
-            <Button
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-              className="h-8 w-8 p-0"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className="h-8 w-8 p-0"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
           {canCreateContent() && (
             <>
               <CreateFolderDialog 
@@ -144,7 +122,7 @@ export function FilesTabContent({
           <Button onClick={() => window.location.reload()}>Reload Page</Button>
         </div>
       ) : (
-        <FileGridView
+        <FileListView
           folders={filteredFolders}
           documents={filteredDocuments}
           onFolderClick={onFolderClick}

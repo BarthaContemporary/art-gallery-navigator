@@ -16,7 +16,6 @@ export default function FileSharing() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("files");
 
@@ -115,8 +114,6 @@ export default function FileSharing() {
             setSearchTerm={setSearchTerm}
             sortBy={sortBy}
             setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
             onNavigate={setCurrentFolderId}
             onFolderClick={handleFolderClick}
             onFileClick={handleFileClick}
