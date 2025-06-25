@@ -72,7 +72,7 @@ serve(async (req) => {
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    console.log('Creating token for user:', user.id, 'with name:', name);
+    console.log('Creating token for user:', user.id, 'with name:', name, 'expires at:', expiresAt);
 
     // Create service role client for database operations
     const serviceSupabase = createClient(
@@ -86,7 +86,7 @@ serve(async (req) => {
       }
     );
 
-    // Store the token using service role client
+    // Store the token using service role client - EXPLICITLY SET is_active to true
     const { data: tokenRecord, error } = await serviceSupabase
       .from('webdav_tokens')
       .insert({
@@ -94,7 +94,7 @@ serve(async (req) => {
         name: name,
         token_hash: tokenHash,
         expires_at: expiresAt,
-        is_active: true
+        is_active: true  // Explicitly set to true
       })
       .select()
       .single();
@@ -104,13 +104,14 @@ serve(async (req) => {
       return new Response('Failed to create token', { status: 500, headers: corsHeaders });
     }
 
-    console.log('Token created successfully:', tokenRecord.id);
+    console.log('Token created successfully:', tokenRecord.id, 'is_active:', tokenRecord.is_active);
 
     return new Response(JSON.stringify({
       token: tokenString,
       id: tokenRecord.id,
       name: tokenRecord.name,
-      expires_at: tokenRecord.expires_at
+      expires_at: tokenRecord.expires_at,
+      is_active: tokenRecord.is_active
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Copy, Plus, Key, AlertCircle } from "lucide-react";
+import { Trash2, Copy, Plus, Key, AlertCircle, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
@@ -26,6 +26,7 @@ export function WebDAVTokenManager() {
   const [tokenName, setTokenName] = useState("");
   const [expiresIn, setExpiresIn] = useState<number>(30); // days
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
+  const [creationStatus, setCreationStatus] = useState<'idle' | 'creating' | 'success' | 'error'>('idle');
   const queryClient = useQueryClient();
 
   // Get the correct WebDAV URL based on current domain
@@ -62,6 +63,8 @@ export function WebDAVTokenManager() {
 
   const createTokenMutation = useMutation({
     mutationFn: async ({ name, expiresInDays }: { name: string; expiresInDays: number }) => {
+      setCreationStatus('creating');
+      
       const { data, error } = await supabase.functions.invoke("webdav-create-token", {
         body: { name, expiresInDays },
       });
@@ -70,19 +73,20 @@ export function WebDAVTokenManager() {
       return data;
     },
     onSuccess: (data) => {
+      setCreationStatus('success');
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
-      toast.success("WebDAV token created successfully");
       
       // Store the token temporarily so user can copy it
       setLastCreatedToken(data.token);
       
       // Also copy to clipboard immediately
       navigator.clipboard.writeText(data.token);
-      toast.success(`Token copied to clipboard: ${data.token.substring(0, 20)}...`);
+      toast.success(`Token created successfully! Copied to clipboard.`);
       
       setTokenName("");
     },
     onError: (error) => {
+      setCreationStatus('error');
       console.error("Error creating token:", error);
       toast.error("Failed to create WebDAV token");
     },
@@ -112,6 +116,7 @@ export function WebDAVTokenManager() {
       toast.error("Please enter a token name");
       return;
     }
+    setCreationStatus('idle');
     createTokenMutation.mutate({ name: tokenName, expiresInDays: expiresIn });
   };
 
@@ -139,7 +144,7 @@ export function WebDAVTokenManager() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            WebDAV Access
+            WebDAV Access Tokens
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -170,6 +175,7 @@ export function WebDAVTokenManager() {
                 placeholder="e.g., My Desktop"
                 value={tokenName}
                 onChange={(e) => setTokenName(e.target.value)}
+                disabled={createTokenMutation.isPending}
               />
             </div>
             <div>
@@ -181,6 +187,7 @@ export function WebDAVTokenManager() {
                 max="365"
                 value={expiresIn}
                 onChange={(e) => setExpiresIn(parseInt(e.target.value) || 30)}
+                disabled={createTokenMutation.isPending}
               />
             </div>
             <div className="flex items-end">
@@ -189,17 +196,35 @@ export function WebDAVTokenManager() {
                 disabled={createTokenMutation.isPending}
                 className="w-full"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Token
+                {createTokenMutation.isPending ? (
+                  <>Creating...</>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Token
+                  </>
+                )}
               </Button>
             </div>
           </div>
 
-          {lastCreatedToken && (
+          {/* Creation Status Feedback */}
+          {creationStatus === 'creating' && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Creating your WebDAV token... This may take a moment.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {creationStatus === 'success' && lastCreatedToken && (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="flex items-center justify-between">
-                <span>Your new token was created successfully. Copy it now - you won't see it again!</span>
+                <span className="text-green-800">
+                  Token created successfully! Copy it now - you won't see it again.
+                </span>
                 <Button size="sm" variant="outline" onClick={copyLastCreatedToken}>
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Token
@@ -208,16 +233,27 @@ export function WebDAVTokenManager() {
             </Alert>
           )}
 
-          {/* Additional info for custom domains */}
-          {!webdavUrl.includes('.supabase.co') && (
-            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-              <h5 className="font-medium text-blue-900 mb-1">Custom Domain Setup:</h5>
-              <p className="text-sm text-blue-800">
-                You're using a custom domain. Make sure your domain is properly configured to proxy 
-                requests to <code>/functions/v1/*</code> to your Supabase edge functions.
-              </p>
-            </div>
+          {creationStatus === 'error' && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                Failed to create token. Please try again or check the console for errors.
+              </AlertDescription>
+            </Alert>
           )}
+
+          {/* Connection Instructions */}
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+            <h5 className="font-medium text-blue-900 mb-1">Connection Instructions:</h5>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Create a WebDAV token using the form above</li>
+              <li>Open your file manager (Finder, Windows Explorer, etc.)</li>
+              <li>Connect to: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
+              <li>Username: <code className="bg-blue-100 px-1 rounded">webdav</code> (or any value)</li>
+              <li>Password: Your WebDAV token from below</li>
+              <li>You'll see folders based on your access level (artist folders or all folders for admins)</li>
+            </ol>
+          </div>
         </CardContent>
       </Card>
 
@@ -247,6 +283,9 @@ export function WebDAVTokenManager() {
                       )}
                       {token.last_used_at && (
                         <Badge variant="secondary">Recently Used</Badge>
+                      )}
+                      {token.is_active && (
+                        <Badge variant="default">Active</Badge>
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">

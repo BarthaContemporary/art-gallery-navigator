@@ -1971,6 +1971,32 @@ export type Database = {
         Args: { folder_id_param: string }
         Returns: string
       }
+      get_user_accessible_documents: {
+        Args: { folder_id_param?: string }
+        Returns: {
+          document_id: string
+          document_name: string
+          file_url: string
+          file_size: number
+          mime_type: string
+          folder_id: string
+          artist_id: string
+          can_read: boolean
+          can_write: boolean
+        }[]
+      }
+      get_user_accessible_folders: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          folder_id: string
+          folder_name: string
+          folder_path: string
+          artist_id: string
+          parent_folder_id: string
+          can_read: boolean
+          can_write: boolean
+        }[]
+      }
       get_user_projects: {
         Args: { user_uuid: string }
         Returns: string[]
