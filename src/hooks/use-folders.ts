@@ -20,11 +20,19 @@ export function useFolders(parentFolderId?: string | null) {
     queryFn: async (): Promise<Folder[]> => {
       console.log("useFolders - Fetching folders for parent:", parentFolderId);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("folders")
         .select("*")
-        .eq("parent_folder_id", parentFolderId || null)
         .order("name", { ascending: true });
+
+      // Handle null parent folder ID properly
+      if (parentFolderId === null || parentFolderId === undefined) {
+        query = query.is("parent_folder_id", null);
+      } else {
+        query = query.eq("parent_folder_id", parentFolderId);
+      }
+
+      const { data, error } = await query;
 
       console.log("useFolders - Query result:", { data, error });
 
