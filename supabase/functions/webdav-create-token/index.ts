@@ -13,20 +13,29 @@ serve(async (req) => {
   }
 
   try {
-    // Get user from auth header using anon client
-    const anonSupabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
+    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       console.error('No authorization header provided');
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await anonSupabase.auth.getUser(token);
+    // Create supabase client with the provided auth token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    });
+
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error('Auth error:', authError);
@@ -62,7 +71,7 @@ serve(async (req) => {
 
     // Use service role client for database operations (bypasses RLS)
     const serviceSupabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
+      supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
