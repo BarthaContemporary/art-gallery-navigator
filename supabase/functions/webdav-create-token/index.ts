@@ -12,12 +12,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Use service role client for admin operations
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
   try {
     // Get user from auth header using anon client
     const anonSupabase = createClient(
@@ -27,6 +21,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header provided');
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
@@ -37,6 +32,8 @@ serve(async (req) => {
       console.error('Auth error:', authError);
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
+
+    console.log('User authenticated:', user.id);
 
     const { name, expiresInDays } = await req.json();
 
@@ -61,8 +58,22 @@ serve(async (req) => {
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
+    console.log('Creating token for user:', user.id, 'with name:', name);
+
+    // Use service role client for database operations (bypasses RLS)
+    const serviceSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
     // Store the token using service role client
-    const { data: tokenRecord, error } = await supabase
+    const { data: tokenRecord, error } = await serviceSupabase
       .from('webdav_tokens')
       .insert({
         user_id: user.id,
@@ -78,6 +89,8 @@ serve(async (req) => {
       console.error('Token creation error:', error);
       return new Response('Failed to create token', { status: 500, headers: corsHeaders });
     }
+
+    console.log('Token created successfully:', tokenRecord.id);
 
     return new Response(JSON.stringify({
       token: tokenString,
