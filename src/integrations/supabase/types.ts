@@ -1873,6 +1873,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_folder_artist_access: {
+        Args: { folder_id_param: string }
+        Returns: string
+      }
       get_user_projects: {
         Args: { user_uuid: string }
         Returns: string[]
@@ -1886,6 +1890,10 @@ export type Database = {
       }
       is_admin: {
         Args: { _user_id: string }
+        Returns: boolean
+      }
+      is_artist_owner: {
+        Args: { artist_id_param: string }
         Returns: boolean
       }
       is_artist_user: {
@@ -1902,6 +1910,10 @@ export type Database = {
       }
       is_document_accessible_by_current_artist: {
         Args: { _document_id: string }
+        Returns: boolean
+      }
+      is_user_admin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       log_security_event: {
