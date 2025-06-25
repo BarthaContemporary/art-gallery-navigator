@@ -1141,12 +1141,19 @@ export type Database = {
           collection_id: string | null
           created_at: string | null
           date_uploaded: string | null
+          deleted_at: string | null
           description: string | null
           file_name: string
+          file_size: number | null
           file_url: string
+          folder_id: string | null
           id: string
+          is_deleted: boolean
+          is_favorite: boolean
+          mime_type: string | null
           type: string
           updated_at: string | null
+          version_number: number
         }
         Insert: {
           artist_id?: string | null
@@ -1154,12 +1161,19 @@ export type Database = {
           collection_id?: string | null
           created_at?: string | null
           date_uploaded?: string | null
+          deleted_at?: string | null
           description?: string | null
           file_name: string
+          file_size?: number | null
           file_url: string
+          folder_id?: string | null
           id?: string
+          is_deleted?: boolean
+          is_favorite?: boolean
+          mime_type?: string | null
           type: string
           updated_at?: string | null
+          version_number?: number
         }
         Update: {
           artist_id?: string | null
@@ -1167,12 +1181,19 @@ export type Database = {
           collection_id?: string | null
           created_at?: string | null
           date_uploaded?: string | null
+          deleted_at?: string | null
           description?: string | null
           file_name?: string
+          file_size?: number | null
           file_url?: string
+          folder_id?: string | null
           id?: string
+          is_deleted?: boolean
+          is_favorite?: boolean
+          mime_type?: string | null
           type?: string
           updated_at?: string | null
+          version_number?: number
         }
         Relationships: [
           {
@@ -1194,6 +1215,13 @@ export type Database = {
             columns: ["collection_id"]
             isOneToOne: false
             referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
             referencedColumns: ["id"]
           },
         ]
@@ -1266,6 +1294,85 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      file_versions: {
+        Row: {
+          change_notes: string | null
+          created_at: string
+          created_by: string
+          document_id: string
+          file_size: number | null
+          file_url: string
+          id: string
+          version_number: number
+        }
+        Insert: {
+          change_notes?: string | null
+          created_at?: string
+          created_by: string
+          document_id: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          version_number: number
+        }
+        Update: {
+          change_notes?: string | null
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folders: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          parent_folder_id: string | null
+          path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          parent_folder_id?: string | null
+          path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          parent_folder_id?: string | null
+          path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       locations: {
         Row: {
@@ -1592,6 +1699,69 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      shared_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          download_count: number
+          expires_at: string | null
+          file_id: string | null
+          folder_id: string | null
+          id: string
+          is_active: boolean
+          max_downloads: number | null
+          password_hash: string | null
+          permissions: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          download_count?: number
+          expires_at?: string | null
+          file_id?: string | null
+          folder_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_downloads?: number | null
+          password_hash?: string | null
+          permissions?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          download_count?: number
+          expires_at?: string | null
+          file_id?: string | null
+          folder_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_downloads?: number | null
+          password_hash?: string | null
+          permissions?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_links_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_links_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploads: {
         Row: {
