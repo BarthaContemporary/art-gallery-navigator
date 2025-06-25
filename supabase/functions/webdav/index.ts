@@ -63,10 +63,46 @@ serve(async (req) => {
     // Extract credentials from Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Basic ')) {
-      return new Response('Unauthorized', {
+      // Return proper WebDAV authentication challenge, not a redirect
+      return new Response(`<!DOCTYPE html>
+<html>
+<head>
+    <title>WebDAV Server</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .info { background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .warning { background: #fefce8; border: 1px solid #eab308; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        ol { line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <h1>WebDAV Server</h1>
+    <p>This is a WebDAV server endpoint that should be accessed using a WebDAV client, not a web browser.</p>
+    
+    <div class="info">
+        <h3>📁 WebDAV Connection Instructions:</h3>
+        <ol>
+            <li>Create a WebDAV token in your account (File Management → WebDAV Access)</li>
+            <li>Open your file manager (Finder, Windows Explorer, etc.)</li>
+            <li>Connect to: <code>${req.url}</code></li>
+            <li>Username: <code>webdav</code> (or any value)</li>
+            <li>Password: Your WebDAV token</li>
+        </ol>
+    </div>
+    
+    <div class="warning">
+        <h3>⚠️ For macOS Finder:</h3>
+        <p>Press <strong>Cmd+K</strong> and enter the URL above, then use your WebDAV token as the password.</p>
+    </div>
+    
+    <p>If you're seeing this page, the WebDAV server is running correctly!</p>
+</body>
+</html>`, {
         status: 401,
         headers: {
           ...corsHeaders,
+          'Content-Type': 'text/html; charset=utf-8',
           'WWW-Authenticate': 'Basic realm="WebDAV"'
         }
       });
