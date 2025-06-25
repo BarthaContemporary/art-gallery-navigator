@@ -1338,6 +1338,7 @@ export type Database = {
       }
       folders: {
         Row: {
+          artist_id: string | null
           created_at: string
           created_by: string
           id: string
@@ -1347,6 +1348,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artist_id?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -1356,6 +1358,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artist_id?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -1365,6 +1368,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "folders_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "folders_parent_folder_id_fkey"
             columns: ["parent_folder_id"]

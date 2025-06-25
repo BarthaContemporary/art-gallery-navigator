@@ -7,6 +7,7 @@ export interface Folder {
   id: string;
   name: string;
   parent_folder_id: string | null;
+  artist_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -33,7 +34,15 @@ export function useCreateFolder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ name, parentFolderId }: { name: string; parentFolderId?: string | null }) => {
+    mutationFn: async ({ 
+      name, 
+      parentFolderId, 
+      artistId 
+    }: { 
+      name: string; 
+      parentFolderId?: string | null;
+      artistId?: string | null;
+    }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
@@ -42,6 +51,7 @@ export function useCreateFolder() {
         .insert({
           name,
           parent_folder_id: parentFolderId || null,
+          artist_id: artistId || null,
           created_by: user.id,
         })
         .select()

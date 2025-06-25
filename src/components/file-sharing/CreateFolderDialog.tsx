@@ -14,15 +14,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FolderPlus } from "lucide-react";
 import { useCreateFolder } from "@/hooks/use-folders";
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
+import { useAuth } from "@/hooks/use-auth";
 
 interface CreateFolderDialogProps {
   parentFolderId?: string | null;
+  artistId?: string | null;
 }
 
-export function CreateFolderDialog({ parentFolderId }: CreateFolderDialogProps) {
+export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const createFolder = useCreateFolder();
+  const currentUserArtist = useCurrentUserArtist();
+  const { isAdmin } = useAuth();
+
+  // Determine the artist ID to use
+  const targetArtistId = artistId || currentUserArtist?.id || null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +40,7 @@ export function CreateFolderDialog({ parentFolderId }: CreateFolderDialogProps) 
       await createFolder.mutateAsync({
         name: name.trim(),
         parentFolderId,
+        artistId: targetArtistId,
       });
       setName("");
       setOpen(false);
@@ -39,6 +48,11 @@ export function CreateFolderDialog({ parentFolderId }: CreateFolderDialogProps) 
       console.error("Failed to create folder:", error);
     }
   };
+
+  // Don't show the button if user is not an admin and not an artist
+  if (!isAdmin && !currentUserArtist) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
