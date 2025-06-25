@@ -18,6 +18,7 @@ import {
   Trash2,
   Edit3,
   Move,
+  Share2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { EnhancedDocument, useToggleFavorite } from "@/hooks/use-enhanced-documents";
@@ -112,7 +113,14 @@ export function FileListTableRow({
                   <Edit3 className="h-4 w-4 mr-2" />
                   Rename
                 </DropdownMenuItem>
-                <ShareDialog folderId={item.data.id} folderName={(item.data as FolderType).name} />
+                <DropdownMenuItem asChild>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ShareDialog 
+                      folderId={item.data.id} 
+                      folderName={(item.data as FolderType).name} 
+                    />
+                  </div>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="text-red-600"
@@ -147,7 +155,14 @@ export function FileListTableRow({
                   <Move className="h-4 w-4 mr-2" />
                   Move
                 </DropdownMenuItem>
-                <ShareDialog fileId={item.data.id} fileName={(item.data as EnhancedDocument).file_name} />
+                <DropdownMenuItem asChild>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ShareDialog 
+                      fileId={item.data.id} 
+                      fileName={(item.data as EnhancedDocument).file_name} 
+                    />
+                  </div>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="text-red-600"
