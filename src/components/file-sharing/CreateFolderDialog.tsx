@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FolderPlus } from "lucide-react";
-import { useCreateFolder, useFolderAccess } from "@/hooks/use-folders";
-import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
+import { useCreateFolder } from "@/hooks/use-folders";
+import { useArtists } from "@/hooks/useArtists";
 import { useAuth } from "@/hooks/use-auth";
 
 interface CreateFolderDialogProps {
@@ -25,53 +26,36 @@ interface CreateFolderDialogProps {
 export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const createFolder = useCreateFolder();
-  const currentUserArtist = useCurrentUserArtist();
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(artistId || null);
+
   const { isAdmin } = useAuth();
-  
-  // Check access to parent folder if creating a subfolder
-  const { data: folderAccess } = useFolderAccess(parentFolderId);
+  const { data: artists = [] } = useArtists();
+  const createFolder = useCreateFolder();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!name.trim()) return;
 
     try {
       await createFolder.mutateAsync({
         name: name.trim(),
         parentFolderId,
-        artistId,
+        artistId: selectedArtistId === "none" ? null : selectedArtistId,
       });
-      setName("");
+      
       setOpen(false);
+      setName("");
+      setSelectedArtistId(artistId || null);
     } catch (error) {
       console.error("Failed to create folder:", error);
     }
   };
 
-  // Determine if user can create folders
-  const canCreateFolder = () => {
-    // Admins can always create folders
-    if (isAdmin) return true;
-    
-    // If creating a root folder, user must be an artist
-    if (!parentFolderId) {
-      return !!currentUserArtist;
-    }
-    
-    // If creating a subfolder, check parent folder access
-    return folderAccess?.can_access ?? false;
-  };
-
-  // Don't show the button if user cannot create folders
-  if (!canCreateFolder()) {
-    return null;
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm">
           <FolderPlus className="h-4 w-4 mr-2" />
           New Folder
         </Button>
@@ -80,10 +64,7 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
           <DialogDescription>
-            {parentFolderId 
-              ? "Create a new subfolder in the current location."
-              : "Create a new folder in your file space."
-            }
+            Create a new folder to organize your files.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -97,19 +78,38 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="col-span-3"
-                placeholder="Folder name"
-                autoFocus
+                placeholder="Enter folder name"
+                required
               />
             </div>
+            
+            {isAdmin && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="artist" className="text-right">
+                  Assign to Artist
+                </Label>
+                <Select value={selectedArtistId || "none"} onValueChange={setSelectedArtistId}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select an artist (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No artist assignment</SelectItem>
+                    {artists.map((artist) => (
+                      <SelectItem key={artist.id} value={artist.id}>
+                        {artist.full_name}
+                        {artist.user_id ? " (linked)" : " (not linked)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={!name.trim() || createFolder.isPending}
-            >
+            <Button type="submit" disabled={createFolder.isPending}>
               {createFolder.isPending ? "Creating..." : "Create Folder"}
             </Button>
           </DialogFooter>

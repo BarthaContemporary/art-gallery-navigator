@@ -577,6 +577,13 @@ export type Database = {
             foreignKeyName: "artworks_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
@@ -1200,6 +1207,13 @@ export type Database = {
             foreignKeyName: "documents_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "documents_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
@@ -1216,6 +1230,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "collections"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["folder_id"]
           },
           {
             foreignKeyName: "documents_folder_id_fkey"
@@ -1339,6 +1360,7 @@ export type Database = {
       folders: {
         Row: {
           artist_id: string | null
+          assignment_method: string | null
           created_at: string
           created_by: string
           id: string
@@ -1349,6 +1371,7 @@ export type Database = {
         }
         Insert: {
           artist_id?: string | null
+          assignment_method?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -1359,6 +1382,7 @@ export type Database = {
         }
         Update: {
           artist_id?: string | null
+          assignment_method?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -1372,8 +1396,22 @@ export type Database = {
             foreignKeyName: "folders_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "folders_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["folder_id"]
           },
           {
             foreignKeyName: "folders_parent_folder_id_fkey"
@@ -1768,6 +1806,13 @@ export type Database = {
             foreignKeyName: "shared_links_folder_id_fkey"
             columns: ["folder_id"]
             isOneToOne: false
+            referencedRelation: "artist_folder_overview"
+            referencedColumns: ["folder_id"]
+          },
+          {
+            foreignKeyName: "shared_links_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
             referencedRelation: "folders"
             referencedColumns: ["id"]
           },
@@ -1847,7 +1892,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      artist_folder_overview: {
+        Row: {
+          artist_id: string | null
+          artist_name: string | null
+          assignment_method: string | null
+          folder_created_at: string | null
+          folder_id: string | null
+          folder_name: string | null
+          status: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_old_chat_messages: {
@@ -1914,6 +1972,10 @@ export type Database = {
       }
       is_user_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      link_artist_to_user: {
+        Args: { artist_name: string; user_email: string }
         Returns: boolean
       }
       log_security_event: {

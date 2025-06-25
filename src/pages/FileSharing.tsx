@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Folder } from "lucide-react";
+import { FileText, Folder, Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useFolders } from "@/hooks/use-folders";
 import { useEnhancedDocuments } from "@/hooks/use-enhanced-documents";
@@ -11,6 +11,7 @@ import { ArtistFolderNavigation } from "@/components/file-sharing/ArtistFolderNa
 import { FileManagementDebugPanel } from "@/components/file-sharing/FileManagementDebugPanel";
 import { FilesTabContent } from "@/components/file-sharing/FilesTabContent";
 import { DocumentsTabContent } from "@/components/file-sharing/DocumentsTabContent";
+import { ArtistFolderManagement } from "@/components/file-sharing/ArtistFolderManagement";
 
 export default function FileSharing() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function FileSharing() {
       )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
           <TabsTrigger value="files" className="flex items-center gap-2">
             <Folder className="h-4 w-4" />
             Folder View
@@ -102,6 +103,12 @@ export default function FileSharing() {
             <FileText className="h-4 w-4" />
             All Documents
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="artist-management" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Artist Management
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="files" className="space-y-4">
@@ -133,6 +140,12 @@ export default function FileSharing() {
             onTypeFilterChange={setTypeFilter}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="artist-management" className="space-y-4">
+            <ArtistFolderManagement />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
