@@ -1890,6 +1890,83 @@ export type Database = {
         }
         Relationships: []
       }
+      webdav_access_logs: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          method: string
+          path: string
+          status_code: number | null
+          token_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          method: string
+          path: string
+          status_code?: number | null
+          token_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          method?: string
+          path?: string
+          status_code?: number | null
+          token_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webdav_access_logs_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "webdav_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webdav_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          name: string
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name: string
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name?: string
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       artist_folder_overview: {
@@ -1990,6 +2067,14 @@ export type Database = {
       mark_message_as_read: {
         Args: { message_id: string; reader_id: string }
         Returns: undefined
+      }
+      validate_webdav_token: {
+        Args: { token_text: string }
+        Returns: {
+          user_id: string
+          token_id: string
+          is_valid: boolean
+        }[]
       }
     }
     Enums: {
