@@ -1,6 +1,6 @@
 
 import { SidebarNavItem } from "./components/SidebarNavItem";
-import { Home, Palette, Users, FileText, Calendar, MapPin, FolderOpen, Share2, MessageCircle, Settings, BarChart3, Upload, Archive } from "lucide-react";
+import { Home, Palette, Users, FileText, Calendar, MapPin, FolderOpen, Share2, Settings, Upload, Archive } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Navigation() {
@@ -10,12 +10,10 @@ export function Navigation() {
     { href: "/", icon: Home, name: "Dashboard" },
     { href: "/artworks", icon: Palette, name: "Artworks" },
     { href: "/artists", icon: Users, name: "Artists" },
-    { href: "/documents", icon: FileText, name: "Documents" },
     { href: "/file-sharing", icon: Share2, name: "File Sharing" },
     { href: "/collections", icon: FolderOpen, name: "Collections" },
     { href: "/appointments", icon: Calendar, name: "Appointments" },
     { href: "/locations", icon: MapPin, name: "Locations" },
-    { href: "/chat", icon: MessageCircle, name: "Chat" },
   ];
 
   const adminNavItems = [

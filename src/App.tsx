@@ -17,6 +17,8 @@ import Artists from "@/pages/Artists";
 import Artworks from "@/pages/Artworks";
 import Collections from "@/pages/Collections";
 import Documents from "@/pages/Documents";
+import FileSharing from "@/pages/FileSharing";
+import FileTransfer from "@/pages/FileTransfer";
 import Projects from "@/pages/Projects";
 import Locations from "@/pages/Locations";
 import Profile from "@/pages/Profile";
@@ -28,6 +30,7 @@ import ManageWebsites from "@/pages/ManageWebsites";
 import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
 import PublicCollectionView from "@/pages/PublicCollectionView";
 import CRM from "@/pages/CRM";
+import Chat from "@/pages/Chat";
 
 const queryClient = new QueryClient();
 
@@ -51,12 +54,16 @@ function App() {
                 <Route path="artists" element={<Artists />} />
                 <Route path="artworks" element={<Artworks />} />
                 <Route path="collections" element={<Collections />} />
-                <Route path="documents" element={<Documents />} />
+                <Route path="documents" element={<Navigate to="/file-sharing" replace />} />
+                <Route path="file-sharing" element={<FileSharing />} />
+                <Route path="file-transfer" element={<FileTransfer />} />
                 <Route path="projects" element={<Projects />} />
                 <Route path="locations" element={<Locations />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="appointments" element={<Appointments />} />
                 <Route path="crm" element={<CRM />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="admin" element={<UserSignup />} />
                 <Route path="settings" element={<UserSignup />} />
                 <Route path="manage-websites" element={<ManageWebsites />} />
                 <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
