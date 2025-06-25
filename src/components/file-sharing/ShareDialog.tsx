@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Share2, Copy, Check } from "lucide-react";
 import { useCreateSharedLink, getSharedLinkUrl } from "@/hooks/use-shared-links";
 import { toast } from "sonner";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 
 interface ShareDialogProps {
   fileId?: string;
@@ -80,6 +81,18 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
     setCopied(false);
   };
 
+  const handleExpiryCheckedChange = (checked: CheckedState) => {
+    setHasExpiry(checked === true);
+  };
+
+  const handlePasswordCheckedChange = (checked: CheckedState) => {
+    setHasPassword(checked === true);
+  };
+
+  const handleDownloadLimitCheckedChange = (checked: CheckedState) => {
+    setHasDownloadLimit(checked === true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       setOpen(newOpen);
@@ -137,7 +150,7 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
                 <Checkbox
                   id="expiry"
                   checked={hasExpiry}
-                  onCheckedChange={setHasExpiry}
+                  onCheckedChange={handleExpiryCheckedChange}
                 />
                 <Label htmlFor="expiry">Set expiration date</Label>
               </div>
@@ -161,7 +174,7 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
                 <Checkbox
                   id="password"
                   checked={hasPassword}
-                  onCheckedChange={setHasPassword}
+                  onCheckedChange={handlePasswordCheckedChange}
                 />
                 <Label htmlFor="password">Require password</Label>
               </div>
@@ -186,7 +199,7 @@ export function ShareDialog({ fileId, folderId, fileName, folderName }: ShareDia
                 <Checkbox
                   id="downloadLimit"
                   checked={hasDownloadLimit}
-                  onCheckedChange={setHasDownloadLimit}
+                  onCheckedChange={handleDownloadLimitCheckedChange}
                 />
                 <Label htmlFor="downloadLimit">Limit downloads</Label>
               </div>

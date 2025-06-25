@@ -7,28 +7,28 @@ export function Navigation() {
   const { isAdmin } = useAuth();
 
   const mainNavItems = [
-    { to: "/", icon: Home, label: "Dashboard" },
-    { to: "/artworks", icon: Palette, label: "Artworks" },
-    { to: "/artists", icon: Users, label: "Artists" },
-    { to: "/documents", icon: FileText, label: "Documents" },
-    { to: "/file-sharing", icon: Share2, label: "File Sharing" },
-    { to: "/collections", icon: FolderOpen, label: "Collections" },
-    { to: "/appointments", icon: Calendar, label: "Appointments" },
-    { to: "/locations", icon: MapPin, label: "Locations" },
-    { to: "/chat", icon: MessageCircle, label: "Chat" },
+    { href: "/", icon: Home, name: "Dashboard" },
+    { href: "/artworks", icon: Palette, name: "Artworks" },
+    { href: "/artists", icon: Users, name: "Artists" },
+    { href: "/documents", icon: FileText, name: "Documents" },
+    { href: "/file-sharing", icon: Share2, name: "File Sharing" },
+    { href: "/collections", icon: FolderOpen, name: "Collections" },
+    { href: "/appointments", icon: Calendar, name: "Appointments" },
+    { href: "/locations", icon: MapPin, name: "Locations" },
+    { href: "/chat", icon: MessageCircle, name: "Chat" },
   ];
 
   const adminNavItems = [
-    { to: "/crm", icon: Users, label: "CRM" },
-    { to: "/projects", icon: Archive, label: "Projects" },
-    { to: "/file-transfer", icon: Upload, label: "File Transfer" },
-    { to: "/admin", icon: Settings, label: "Admin" },
+    { href: "/crm", icon: Users, name: "CRM" },
+    { href: "/projects", icon: Archive, name: "Projects" },
+    { href: "/file-transfer", icon: Upload, name: "File Transfer" },
+    { href: "/admin", icon: Settings, name: "Admin" },
   ];
 
   return (
     <nav className="flex-1 px-4 py-6 space-y-1">
       {mainNavItems.map((item) => (
-        <SidebarNavItem key={item.to} {...item} />
+        <SidebarNavItem key={item.href} {...item} />
       ))}
 
       {isAdmin && (
@@ -39,7 +39,7 @@ export function Navigation() {
             </p>
           </div>
           {adminNavItems.map((item) => (
-            <SidebarNavItem key={item.to} {...item} />
+            <SidebarNavItem key={item.href} {...item} />
           ))}
         </>
       )}
