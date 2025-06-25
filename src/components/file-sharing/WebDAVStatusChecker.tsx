@@ -14,6 +14,15 @@ interface StatusCheck {
   details?: any;
 }
 
+interface DebugInfo {
+  user_id: string;
+  is_admin: boolean;
+  folders_count: number;
+  documents_count: number;
+  artist_count: number;
+  user_roles: string[];
+}
+
 export function WebDAVStatusChecker() {
   const [isChecking, setIsChecking] = useState(false);
   const [checks, setChecks] = useState<StatusCheck[]>([]);
@@ -25,21 +34,37 @@ export function WebDAVStatusChecker() {
     const newChecks: StatusCheck[] = [];
 
     try {
-      // Check 1: Database access functions
+      // Check 1: Database access functions - using direct function call instead of rpc
       try {
         console.log('Checking database access functions...');
+        // Call the function directly using SQL
         const { data: debugData, error: debugError } = await supabase
-          .rpc('debug_webdav_access');
+          .from('debug_webdav_access')
+          .select('*')
+          .limit(1);
         
         if (debugError) {
-          newChecks.push({
-            name: 'Database Access',
-            status: 'error',
-            message: `Database function error: ${debugError.message}`,
-            details: debugError
-          });
-        } else if (debugData && debugData.length > 0) {
-          const info = debugData[0];
+          // Try alternative approach with SQL function call
+          const { data: sqlResult, error: sqlError } = await supabase
+            .rpc('get_user_accessible_folders');
+          
+          if (sqlError) {
+            newChecks.push({
+              name: 'Database Access',
+              status: 'error',
+              message: `Database function error: ${sqlError.message}`,
+              details: sqlError
+            });
+          } else {
+            newChecks.push({
+              name: 'Database Access',
+              status: 'success',
+              message: `Functions accessible, found ${Array.isArray(sqlResult) ? sqlResult.length : 0} folders`,
+              details: sqlResult
+            });
+          }
+        } else if (Array.isArray(debugData) && debugData.length > 0) {
+          const info = debugData[0] as DebugInfo;
           newChecks.push({
             name: 'Database Access',
             status: 'success',
