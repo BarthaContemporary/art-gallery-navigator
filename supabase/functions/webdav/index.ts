@@ -1,13 +1,13 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, range',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, range, user-agent',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, HEAD',
   'DAV': '1, 2',
   'MS-Author-Via': 'DAV',
+  'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE',
 };
 
 interface WebDAVToken {
@@ -21,6 +21,7 @@ serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   
   console.log(`[${requestId}] WebDAV ${req.method} request received for URL: ${req.url}`);
+  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -53,7 +54,7 @@ serve(async (req) => {
     }
 
     if (!authHeader.startsWith('Basic ')) {
-      console.log(`[${requestId}] Invalid authorization header format`);
+      console.log(`[${requestId}] Invalid authorization header format: ${authHeader.substring(0, 20)}...`);
       return new Response('Unauthorized - Basic authentication required', { 
         status: 401,
         headers: { 
@@ -73,7 +74,7 @@ serve(async (req) => {
       decoded = atob(token);
       const colonIndex = decoded.indexOf(':');
       if (colonIndex === -1) {
-        throw new Error('Invalid credentials format');
+        throw new Error('Invalid credentials format - no colon separator');
       }
       username = decoded.substring(0, colonIndex);
       password = decoded.substring(colonIndex + 1);
@@ -110,7 +111,8 @@ serve(async (req) => {
     console.log(`[${requestId}] Token validation result:`, { 
       hasData: !!tokenData, 
       dataLength: Array.isArray(tokenData) ? tokenData.length : 0,
-      error: tokenError 
+      error: tokenError,
+      tokenDataSample: tokenData ? JSON.stringify(tokenData).substring(0, 200) : 'null'
     });
 
     if (tokenError) {
@@ -274,7 +276,7 @@ async function handlePropfind(supabase: any, userId: string, path: string, req: 
           console.log(`[${requestId}] Found ${folders.length} folders for user`);
         }
 
-        // Get documents in root with better error handling
+        // Get documents in root with better error handling - fix UUID null issue
         const { data: docsData, error: docsError } = await supabase
           .from('documents')
           .select('id, file_name, file_size, updated_at, mime_type, created_at')

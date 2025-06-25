@@ -16,8 +16,8 @@ export function WebDAVConnectionTest() {
     if (typeof window !== 'undefined') {
       const currentOrigin = window.location.origin;
       
-      // Check if we're on a custom domain (not supabase.co)
-      if (!currentOrigin.includes('.supabase.co')) {
+      // Check if we're on a custom domain (not supabase.co and not lovableproject.com)
+      if (!currentOrigin.includes('.supabase.co') && !currentOrigin.includes('.lovableproject.com')) {
         // Custom domain - construct the edge function URL
         return `${currentOrigin}/functions/v1/webdav/`;
       }
@@ -48,13 +48,20 @@ export function WebDAVConnectionTest() {
       try {
         const optionsResponse = await fetch(webdavUrl, {
           method: 'OPTIONS',
+          headers: {
+            'User-Agent': 'WebDAV-Test-Client/1.0'
+          }
         });
+
+        console.log('OPTIONS response:', optionsResponse.status, optionsResponse.statusText);
+        console.log('OPTIONS headers:', Object.fromEntries(optionsResponse.headers.entries()));
 
         if (optionsResponse.ok) {
           const davHeader = optionsResponse.headers.get('DAV');
+          const allowedMethods = optionsResponse.headers.get('Allow');
           results.connectivity = { 
             status: 'success', 
-            message: `Server is reachable and supports WebDAV${davHeader ? ` (DAV: ${davHeader})` : ''}`
+            message: `Server is reachable and supports WebDAV${davHeader ? ` (DAV: ${davHeader})` : ''}${allowedMethods ? ` (Methods: ${allowedMethods})` : ''}`
           };
         } else {
           results.connectivity = { 
@@ -63,6 +70,7 @@ export function WebDAVConnectionTest() {
           };
         }
       } catch (error) {
+        console.error('OPTIONS request failed:', error);
         results.connectivity = { 
           status: 'error', 
           message: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -73,7 +81,13 @@ export function WebDAVConnectionTest() {
       try {
         const authResponse = await fetch(webdavUrl, {
           method: 'PROPFIND',
+          headers: {
+            'User-Agent': 'WebDAV-Test-Client/1.0',
+            'Depth': '0'
+          }
         });
+
+        console.log('PROPFIND (no auth) response:', authResponse.status, authResponse.statusText);
 
         if (authResponse.status === 401) {
           const authHeader = authResponse.headers.get('WWW-Authenticate');
@@ -88,6 +102,7 @@ export function WebDAVConnectionTest() {
           };
         }
       } catch (error) {
+        console.error('PROPFIND request failed:', error);
         results.authentication = { 
           status: 'error', 
           message: `Auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -99,9 +114,13 @@ export function WebDAVConnectionTest() {
         const invalidAuthResponse = await fetch(webdavUrl, {
           method: 'PROPFIND',
           headers: {
-            'Authorization': 'Basic ' + btoa('test:invalid-token')
+            'Authorization': 'Basic ' + btoa('test:invalid-token'),
+            'User-Agent': 'WebDAV-Test-Client/1.0',
+            'Depth': '0'
           }
         });
+
+        console.log('PROPFIND (invalid auth) response:', invalidAuthResponse.status, invalidAuthResponse.statusText);
 
         if (invalidAuthResponse.status === 401) {
           results.invalidAuth = { 
@@ -115,6 +134,7 @@ export function WebDAVConnectionTest() {
           };
         }
       } catch (error) {
+        console.error('Invalid auth test failed:', error);
         results.invalidAuth = { 
           status: 'error', 
           message: `Invalid auth test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -125,6 +145,11 @@ export function WebDAVConnectionTest() {
       try {
         const corsResponse = await fetch(webdavUrl, {
           method: 'OPTIONS',
+          headers: {
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'PROPFIND',
+            'Access-Control-Request-Headers': 'authorization,depth'
+          }
         });
 
         const accessControlOrigin = corsResponse.headers.get('Access-Control-Allow-Origin');
@@ -133,15 +158,16 @@ export function WebDAVConnectionTest() {
         if (accessControlOrigin && accessControlMethods) {
           results.cors = { 
             status: 'success', 
-            message: 'CORS headers are properly configured' 
+            message: `CORS headers are properly configured (Origin: ${accessControlOrigin}, Methods: ${accessControlMethods})` 
           };
         } else {
           results.cors = { 
             status: 'warning', 
-            message: 'CORS headers may not be properly configured' 
+            message: 'CORS headers may not be properly configured for WebDAV clients' 
           };
         }
       } catch (error) {
+        console.error('CORS test failed:', error);
         results.cors = { 
           status: 'error', 
           message: `CORS test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -152,6 +178,9 @@ export function WebDAVConnectionTest() {
       try {
         const davResponse = await fetch(webdavUrl, {
           method: 'OPTIONS',
+          headers: {
+            'User-Agent': 'WebDAV-Test-Client/1.0'
+          }
         });
 
         const davHeader = davResponse.headers.get('DAV');
@@ -165,10 +194,11 @@ export function WebDAVConnectionTest() {
         } else {
           results.webdavHeaders = { 
             status: 'warning', 
-            message: 'WebDAV-specific headers not found' 
+            message: 'WebDAV-specific headers not found - may impact client compatibility' 
           };
         }
       } catch (error) {
+        console.error('WebDAV headers test failed:', error);
         results.webdavHeaders = { 
           status: 'error', 
           message: `WebDAV headers test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -241,7 +271,7 @@ export function WebDAVConnectionTest() {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-            {!webdavUrl.includes('.supabase.co') && (
+            {!webdavUrl.includes('.supabase.co') && !webdavUrl.includes('.lovableproject.com') && (
               <div className="mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
                 📌 Using custom domain URL - this should work with your domain setup
               </div>
@@ -320,6 +350,7 @@ export function WebDAVConnectionTest() {
             <li>6. Password: paste your copied token</li>
             <li>7. If it still fails, try Cyberduck for more detailed error messages</li>
             <li>8. Make sure your custom domain supports edge functions if using one</li>
+            <li>9. Check browser console for any error messages during testing</li>
           </ul>
         </div>
       </CardContent>
