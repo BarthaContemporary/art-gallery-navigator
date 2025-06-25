@@ -26,46 +26,105 @@ serve(async (req) => {
   );
 
   try {
+    console.log(`WebDAV ${req.method} request received`);
+    
     // Extract and validate WebDAV token
     const authHeader = req.headers.get('authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
-      return new Response('Unauthorized', { 
+      console.log('No authorization header provided');
+      return new Response('Unauthorized - No credentials provided', { 
+        status: 401,
+        headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
+      });
+    }
+
+    if (!authHeader.startsWith('Basic ')) {
+      console.log('Invalid authorization header format:', authHeader.substring(0, 20));
+      return new Response('Unauthorized - Invalid credentials format', { 
         status: 401,
         headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
       });
     }
 
     const token = authHeader.replace('Basic ', '');
-    const decoded = atob(token);
-    const [username, password] = decoded.split(':');
-
-    // Validate token using the existing function
-    const { data: tokenData } = await supabase.rpc('validate_webdav_token', {
-      token_text: password
-    });
-
-    if (!tokenData || !tokenData[0]?.is_valid) {
-      return new Response('Invalid token', { 
+    let decoded;
+    try {
+      decoded = atob(token);
+    } catch (error) {
+      console.log('Failed to decode base64 credentials:', error);
+      return new Response('Unauthorized - Invalid credentials encoding', { 
         status: 401,
         headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
       });
     }
 
-    const userId = tokenData[0].user_id;
+    const [username, password] = decoded.split(':');
+    console.log('Username:', username);
+    console.log('Password length:', password?.length || 0);
+
+    if (!password) {
+      console.log('No password provided');
+      return new Response('Unauthorized - No password provided', { 
+        status: 401,
+        headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
+      });
+    }
+
+    // Validate token using the existing function
+    console.log('Validating token with validate_webdav_token function');
+    const { data: tokenData, error: tokenError } = await supabase.rpc('validate_webdav_token', {
+      token_text: password
+    });
+
+    console.log('Token validation result:', { tokenData, tokenError });
+
+    if (tokenError) {
+      console.log('Token validation error:', tokenError);
+      return new Response('Unauthorized - Token validation failed', { 
+        status: 401,
+        headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
+      });
+    }
+
+    if (!tokenData || !Array.isArray(tokenData) || tokenData.length === 0) {
+      console.log('No token data returned or empty array');
+      return new Response('Unauthorized - Invalid token', { 
+        status: 401,
+        headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
+      });
+    }
+
+    const validToken = tokenData.find(t => t.is_valid);
+    if (!validToken) {
+      console.log('Token found but not valid:', tokenData);
+      return new Response('Unauthorized - Token expired or inactive', { 
+        status: 401,
+        headers: { ...corsHeaders, 'WWW-Authenticate': 'Basic realm="WebDAV"' }
+      });
+    }
+
+    const userId = validToken.user_id;
     const url = new URL(req.url);
     const path = url.pathname.replace('/webdav', '') || '/';
 
     console.log(`WebDAV ${req.method} request for path: ${path} by user: ${userId}`);
 
     // Log access
-    await supabase.from('webdav_access_logs').insert({
-      user_id: userId,
-      token_id: tokenData[0].token_id,
-      method: req.method,
-      path: path,
-      ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || 'unknown'
-    });
+    try {
+      await supabase.from('webdav_access_logs').insert({
+        user_id: userId,
+        token_id: validToken.token_id,
+        method: req.method,
+        path: path,
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        user_agent: req.headers.get('user-agent') || 'unknown'
+      });
+    } catch (logError) {
+      console.log('Failed to log access:', logError);
+      // Don't fail the request if logging fails
+    }
 
     // Route WebDAV methods
     switch (req.method) {
@@ -83,6 +142,7 @@ serve(async (req) => {
       case 'MOVE':
         return await handleCopyMove(supabase, userId, path, req);
       default:
+        console.log('Unsupported method:', req.method);
         return new Response('Method not allowed', { 
           status: 405,
           headers: corsHeaders
