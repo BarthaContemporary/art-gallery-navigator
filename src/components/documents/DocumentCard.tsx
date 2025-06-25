@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DocumentInfo } from "./DocumentInfo";
 import { DocumentActions } from "./DocumentActions";
 import { DocumentDeleteDialog } from "./DocumentDeleteDialog";
+import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
 
 interface DocumentCardProps {
   document: Document;
@@ -69,6 +70,22 @@ export function DocumentCard({ document }: DocumentCardProps) {
     queryClient.invalidateQueries({ queryKey: ["documents"] });
   };
 
+  // Convert Document to EnhancedDocument format for the new components
+  const enhancedDocument: EnhancedDocument = {
+    id: document.id,
+    file_name: document.file_name,
+    file_url: document.file_url,
+    file_size: null, // Document interface doesn't have file_size
+    mime_type: null, // Document interface doesn't have mime_type
+    type: document.type,
+    folder_id: null, // Document interface doesn't have folder_id
+    artist_id: document.artist_id,
+    is_favorite: false, // Document interface doesn't have is_favorite
+    is_deleted: false, // Document interface doesn't have is_deleted
+    created_at: document.date_uploaded,
+    updated_at: document.date_uploaded,
+  };
+
   return (
     <>
       <Card>
@@ -78,17 +95,8 @@ export function DocumentCard({ document }: DocumentCardProps) {
           </div>
           <CardContent className="flex-1 p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <DocumentInfo
-                type={document.type}
-                fileName={document.file_name}
-                dateUploaded={document.date_uploaded}
-                description={document.description}
-              />
-              <DocumentActions
-                onDownload={handleDownload}
-                onDelete={() => setShowDeleteDialog(true)}
-                isDeleting={deleting}
-              />
+              <DocumentInfo document={enhancedDocument} />
+              <DocumentActions document={enhancedDocument} />
             </div>
           </CardContent>
         </div>
