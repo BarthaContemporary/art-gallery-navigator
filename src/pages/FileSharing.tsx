@@ -28,10 +28,17 @@ export default function FileSharing() {
   const currentUserArtist = useCurrentUserArtist();
   const { isAdmin } = useAuth();
 
-  const { data: folders = [], isLoading: foldersLoading } = useFolders(currentFolderId);
+  const { data: folders = [], isLoading: foldersLoading, error: foldersError } = useFolders(currentFolderId);
   const { data: documents = [], isLoading: documentsLoading } = useEnhancedDocuments(currentFolderId);
   const { data: allFolders = [] } = useFolders(); // For breadcrumb navigation
   const { data: allDocuments = [] } = useEnhancedDocuments(); // For documents tab
+
+  // Add debugging
+  console.log("FileSharing - Current folders:", folders);
+  console.log("FileSharing - Current user artist:", currentUserArtist);
+  console.log("FileSharing - Is admin:", isAdmin);
+  console.log("FileSharing - Current folder ID:", currentFolderId);
+  console.log("FileSharing - Folders error:", foldersError);
 
   const currentFolder = allFolders.find(f => f.id === currentFolderId) || null;
 
@@ -52,6 +59,7 @@ export default function FileSharing() {
   });
 
   const handleFolderClick = (folderId: string) => {
+    console.log("Navigating to folder:", folderId);
     setCurrentFolderId(folderId);
   };
 
@@ -64,6 +72,7 @@ export default function FileSharing() {
   const handleNavigateToArtistFolder = () => {
     if (currentUserArtist) {
       const artistFolder = allFolders.find(f => f.artist_id === currentUserArtist.id && f.parent_folder_id === null);
+      console.log("Artist folder found:", artistFolder);
       if (artistFolder) {
         setCurrentFolderId(artistFolder.id);
       }
@@ -75,6 +84,18 @@ export default function FileSharing() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="FILE MANAGEMENT" />
+      
+      {/* Debug information - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+          <p><strong>Debug Info:</strong></p>
+          <p>Folders count: {folders.length}</p>
+          <p>Current user artist: {currentUserArtist?.full_name || 'None'}</p>
+          <p>Is admin: {isAdmin ? 'Yes' : 'No'}</p>
+          <p>Current folder: {currentFolder?.name || 'Root'}</p>
+          {foldersError && <p className="text-red-600">Error: {foldersError.message}</p>}
+        </div>
+      )}
       
       {/* Artist folder navigation for non-admin users */}
       {!isAdmin && currentUserArtist && !currentFolderId && (
@@ -174,6 +195,13 @@ export default function FileSharing() {
               <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading files...</p>
             </div>
+          ) : foldersError ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h3 className="text-lg font-medium mb-2 text-red-600">Error Loading Folders</h3>
+              <p className="text-muted-foreground mb-4">{foldersError.message}</p>
+              <Button onClick={() => window.location.reload()}>Reload Page</Button>
+            </div>
           ) : (
             <FileGridView
               folders={filteredFolders}
@@ -183,7 +211,7 @@ export default function FileSharing() {
             />
           )}
 
-          {!isLoading && filteredFolders.length === 0 && filteredDocuments.length === 0 && (
+          {!isLoading && !foldersError && filteredFolders.length === 0 && filteredDocuments.length === 0 && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📁</div>
               <h3 className="text-lg font-medium mb-2">No files or folders</h3>

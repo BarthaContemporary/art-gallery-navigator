@@ -18,13 +18,21 @@ export function useFolders(parentFolderId?: string | null) {
   return useQuery({
     queryKey: ["folders", parentFolderId],
     queryFn: async (): Promise<Folder[]> => {
+      console.log("useFolders - Fetching folders for parent:", parentFolderId);
+      
       const { data, error } = await supabase
         .from("folders")
         .select("*")
         .eq("parent_folder_id", parentFolderId || null)
         .order("name", { ascending: true });
 
-      if (error) throw error;
+      console.log("useFolders - Query result:", { data, error });
+
+      if (error) {
+        console.error("useFolders - Error fetching folders:", error);
+        throw error;
+      }
+      
       return data as Folder[];
     },
   });
@@ -43,6 +51,8 @@ export function useCreateFolder() {
       parentFolderId?: string | null;
       artistId?: string | null;
     }) => {
+      console.log("Creating folder with:", { name, parentFolderId, artistId });
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
@@ -56,6 +66,8 @@ export function useCreateFolder() {
         })
         .select()
         .single();
+
+      console.log("Create folder result:", { data, error });
 
       if (error) throw error;
       return data;
