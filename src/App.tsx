@@ -18,7 +18,6 @@ import Artworks from "@/pages/Artworks";
 import Collections from "@/pages/Collections";
 import Documents from "@/pages/Documents";
 import FileSharing from "@/pages/FileSharing";
-import FileTransfer from "@/pages/FileTransfer";
 import Projects from "@/pages/Projects";
 import Locations from "@/pages/Locations";
 import Profile from "@/pages/Profile";
@@ -56,7 +55,6 @@ function App() {
                 <Route path="collections" element={<Collections />} />
                 <Route path="documents" element={<Navigate to="/file-sharing" replace />} />
                 <Route path="file-sharing" element={<FileSharing />} />
-                <Route path="file-transfer" element={<FileTransfer />} />
                 <Route path="projects" element={<Projects />} />
                 <Route path="locations" element={<Locations />} />
                 <Route path="profile" element={<Profile />} />
