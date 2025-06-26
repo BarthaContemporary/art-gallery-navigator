@@ -9,6 +9,7 @@ import { Copy, Key, Trash2, Plus, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WebDAVDebugPanel } from "./WebDAVDebugPanel";
 
 interface WebDAVToken {
   id: string;
@@ -114,6 +115,9 @@ export function WebDAVTokenManager() {
 
   return (
     <div className="space-y-6">
+      {/* Debug Panel */}
+      <WebDAVDebugPanel />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -239,14 +243,15 @@ export function WebDAVTokenManager() {
           </div>
 
           <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-            <h5 className="font-medium text-blue-900 mb-1">How to Connect:</h5>
+            <h5 className="font-medium text-blue-900 mb-1">macOS Finder Connection Steps:</h5>
             <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>Create a token using the form above</li>
-              <li>Open your file manager (Finder: Cmd+K, Windows: Map Network Drive)</li>
-              <li>Connect to: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
+              <li>Create a token using the form above and test it with the debug panel</li>
+              <li>In Finder, press <kbd className="bg-blue-100 px-1 rounded">Cmd+K</kbd> (Connect to Server)</li>
+              <li>Enter: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
+              <li>Choose "Registered User" when prompted</li>
               <li>Username: <code className="bg-blue-100 px-1 rounded">webdav</code> (any value works)</li>
-              <li>Password: Your WebDAV token</li>
-              <li>Browse your folders based on your access permissions</li>
+              <li>Password: Your WebDAV token from above</li>
+              <li>The server should appear in Finder's sidebar under "Locations"</li>
             </ol>
           </div>
 

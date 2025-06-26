@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -30,20 +29,96 @@ interface UserInfo {
   is_admin: boolean;
 }
 
+// Debug endpoint for token testing
+async function handleDebugToken(req: Request, requestId: string) {
+  console.log(`[${requestId}] DEBUG TOKEN ENDPOINT`);
+  
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return new Response(JSON.stringify({
+      error: 'No Basic auth header provided',
+      expected: 'Authorization: Basic <base64-encoded-credentials>'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+
+  try {
+    const base64Credentials = authHeader.slice(6);
+    const credentials = atob(base64Credentials);
+    const colonIndex = credentials.indexOf(':');
+    
+    if (colonIndex === -1) {
+      return new Response(JSON.stringify({
+        error: 'Invalid credentials format',
+        received: 'Missing colon separator',
+        base64Length: base64Credentials.length,
+        decodedLength: credentials.length
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+    
+    const username = credentials.substring(0, colonIndex);
+    const token = credentials.substring(colonIndex + 1);
+    
+    // Hash the token using the same method as creation
+    const encoder = new TextEncoder();
+    const tokenBytes = encoder.encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
+    const hashArray = new Uint8Array(hashBuffer);
+    const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+    
+    return new Response(JSON.stringify({
+      debug: 'Token analysis',
+      username: username,
+      tokenLength: token.length,
+      tokenSample: token.substring(0, 8) + '...',
+      computedHashLength: computedHash.length,
+      computedHashSample: computedHash.substring(0, 16) + '...',
+      isValidHex: /^[a-f0-9]+$/i.test(token),
+      base64Header: base64Credentials.substring(0, 20) + '...',
+      timestamp: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: 'Failed to parse credentials',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
 serve(async (req) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID().substring(0, 8);
+  const url = new URL(req.url);
   
-  console.log(`[${requestId}] ${req.method} ${new URL(req.url).pathname}`);
+  console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
-  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
+  console.log(`[${requestId}] Full headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight with enhanced logging
+  // Debug endpoint for token testing
+  if (url.pathname.includes('/debug-token')) {
+    return await handleDebugToken(req, requestId);
+  }
+
+  // Enhanced CORS preflight with macOS-specific headers
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] CORS preflight - responding with enhanced headers`);
+    console.log(`[${requestId}] CORS preflight - responding with macOS-compatible headers`);
     return new Response('', { 
       status: 200,
-      headers: getWebDAVResponseHeaders()
+      headers: {
+        ...getWebDAVResponseHeaders(),
+        'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+      }
     });
   }
 
@@ -65,38 +140,53 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
+    console.log(`[${requestId}] Auth header type: ${authHeader ? authHeader.substring(0, 10) + '...' : 'none'}`);
     
-    // Enhanced WebDAV authentication flow
+    // Enhanced WebDAV authentication flow with macOS compatibility
     if (!authHeader) {
-      console.log(`[${requestId}] No auth header - sending WWW-Authenticate challenge`);
-      return new Response('WebDAV authentication required', {
+      console.log(`[${requestId}] No auth header - sending WWW-Authenticate challenge for macOS`);
+      return new Response('WebDAV Server - Authentication Required\n\nThis server requires authentication.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Length': '72'
         })
       });
     }
 
     if (!authHeader.startsWith('Basic ')) {
       console.log(`[${requestId}] Invalid auth type: ${authHeader.substring(0, 20)}...`);
-      return new Response('Basic authentication required', {
+      return new Response('Basic Authentication Required', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
 
-    // Enhanced Basic Auth parsing with detailed logging
+    // Enhanced Basic Auth parsing with multiple encoding attempts
     let username: string, token: string;
     try {
-      const base64Credentials = authHeader.slice(6);
+      const base64Credentials = authHeader.slice(6).trim();
       console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
+      console.log(`[${requestId}] Base64 sample: ${base64Credentials.substring(0, 20)}...`);
       
-      const credentials = atob(base64Credentials);
+      // Try multiple decoding approaches for macOS compatibility
+      let credentials: string;
+      try {
+        credentials = atob(base64Credentials);
+      } catch (e) {
+        console.log(`[${requestId}] Standard atob failed, trying alternative decoding`);
+        // Alternative decoding for potential macOS encoding differences
+        const decoder = new TextDecoder();
+        const bytes = Uint8Array.from(atob(base64Credentials), c => c.charCodeAt(0));
+        credentials = decoder.decode(bytes);
+      }
+      
       console.log(`[${requestId}] Decoded credentials length: ${credentials.length}`);
+      console.log(`[${requestId}] Credentials sample: ${credentials.substring(0, 10)}...`);
       
       const colonIndex = credentials.indexOf(':');
       
@@ -110,8 +200,9 @@ serve(async (req) => {
       
       console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
       console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
+      console.log(`[${requestId}] Token is valid hex: ${/^[a-f0-9]+$/i.test(token)}`);
       
-      // Validate token format
+      // Enhanced validation for macOS compatibility
       if (token.length !== 64) {
         console.log(`[${requestId}] Invalid token length: expected 64, got ${token.length}`);
         throw new Error(`Invalid token length: expected 64 characters, got ${token.length}`);
@@ -125,17 +216,26 @@ serve(async (req) => {
       
     } catch (error) {
       console.error(`[${requestId}] Failed to parse credentials:`, error.message);
-      return new Response('Invalid credentials format', {
+      return new Response('Invalid credentials format\n\nPlease check your username and token.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
 
-    // Enhanced token validation with comprehensive logging
+    // Enhanced token validation with comprehensive debugging
     console.log(`[${requestId}] Validating token with database function...`);
+    
+    // Create the hash using the exact same method as token creation
+    const encoder = new TextEncoder();
+    const tokenBytes = encoder.encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
+    const hashArray = new Uint8Array(hashBuffer);
+    const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+    
+    console.log(`[${requestId}] Computed token hash: ${computedHash.substring(0, 16)}... (length: ${computedHash.length})`);
     
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
@@ -148,22 +248,22 @@ serve(async (req) => {
 
     if (tokenError) {
       console.error(`[${requestId}] Token validation RPC error:`, tokenError);
-      return new Response('Token validation failed', {
+      return new Response('Token validation failed\n\nPlease check your token and try again.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
 
     if (!tokenValidation || tokenValidation.length === 0) {
       console.log(`[${requestId}] No validation result returned from database`);
-      return new Response('Invalid or expired token', {
+      return new Response('Invalid or expired token\n\nPlease create a new WebDAV token.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
@@ -173,22 +273,22 @@ serve(async (req) => {
     
     if (!validationResult.is_valid) {
       console.log(`[${requestId}] Token validation failed: token is not valid`);
-      return new Response('Token is invalid or expired', {
+      return new Response('Token is invalid or expired\n\nPlease create a new WebDAV token.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
 
     if (!validationResult.user_id || !validationResult.token_id) {
       console.log(`[${requestId}] Invalid validation result: missing user_id or token_id`);
-      return new Response('Authentication failed', {
+      return new Response('Authentication failed\n\nPlease try again.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain; charset=utf-8'
         })
       });
     }
@@ -206,7 +306,7 @@ serve(async (req) => {
       user_id: userInfo.user_id,
       token_id: userInfo.token_id,
       method: req.method,
-      path: new URL(req.url).pathname,
+      path: url.pathname,
       ip_address: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown',
       user_agent: req.headers.get('User-Agent') || 'unknown',
       status_code: 200
@@ -217,7 +317,6 @@ serve(async (req) => {
     });
 
     // Parse path with enhanced logging
-    const url = new URL(req.url);
     let path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
     if (!path.startsWith('/')) path = '/' + path;
     
@@ -287,6 +386,7 @@ serve(async (req) => {
   }
 });
 
+// Enhanced PROPFIND with macOS-specific XML formatting
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PROPFIND for path: "${path}"`);
 
@@ -295,7 +395,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   
   try {
     if (path === '/' || path === '') {
-      // Root directory - show accessible folders
+      // Root directory - show accessible folders with macOS-compatible XML
       console.log(`[${requestId}] Fetching accessible folders for user`);
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
 
@@ -310,20 +410,26 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
 
       const folderItems = (folders || []).map((folder: any) => `
-        <D:response>
-          <D:href>/functions/v1/webdav/${encodeURIComponent(folder.folder_name)}/</D:href>
-          <D:propstat>
-            <D:prop>
-              <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
-              <D:resourcetype><D:collection/></D:resourcetype>
-              <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
-              <D:creationdate>${new Date().toISOString()}</D:creationdate>
-              <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
-              <D:getcontentlength>0</D:getcontentlength>
-            </D:prop>
-            <D:status>HTTP/1.1 200 OK</D:status>
-          </D:propstat>
-        </D:response>`).join('');
+    <D:response>
+      <D:href>/functions/v1/webdav/${encodeURIComponent(folder.folder_name)}/</D:href>
+      <D:propstat>
+        <D:prop>
+          <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
+          <D:resourcetype><D:collection/></D:resourcetype>
+          <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
+          <D:creationdate>${new Date().toISOString()}</D:creationdate>
+          <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+          <D:getcontentlength>0</D:getcontentlength>
+          <D:supportedlock>
+            <D:lockentry>
+              <D:lockscope><D:exclusive/></D:lockscope>
+              <D:locktype><D:write/></D:locktype>
+            </D:lockentry>
+          </D:supportedlock>
+        </D:prop>
+        <D:status>HTTP/1.1 200 OK</D:status>
+      </D:propstat>
+    </D:response>`).join('');
 
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -337,11 +443,16 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         <D:creationdate>${new Date().toISOString()}</D:creationdate>
         <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
+        <D:supportedlock>
+          <D:lockentry>
+            <D:lockscope><D:exclusive/></D:lockscope>
+            <D:locktype><D:write/></D:locktype>
+          </D:lockentry>
+        </D:supportedlock>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
-  </D:response>
-  ${folderItems}
+  </D:response>${folderItems}
 </D:multistatus>`;
 
       return new Response(xmlResponse, {
@@ -352,7 +463,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         })
       });
     } else {
-      // Folder contents
+      // ... keep existing code (folder contents handling)
       const folderName = path.split('/').filter(p => p)[0];
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
       
@@ -375,21 +486,27 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
 
       const documentItems = (documents || []).map((doc: any) => `
-        <D:response>
-          <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
-          <D:propstat>
-            <D:prop>
-              <D:displayname>${escapeXml(doc.document_name)}</D:displayname>
-              <D:getcontentlength>${doc.file_size || 0}</D:getcontentlength>
-              <D:getcontenttype>${doc.mime_type || 'application/octet-stream'}</D:getcontenttype>
-              <D:creationdate>${new Date().toISOString()}</D:creationdate>
-              <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
-              <D:resourcetype/>
-              <D:getetag>"${crypto.randomUUID()}"</D:getetag>
-            </D:prop>
-            <D:status>HTTP/1.1 200 OK</D:status>
-          </D:propstat>
-        </D:response>`).join('');
+    <D:response>
+      <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
+      <D:propstat>
+        <D:prop>
+          <D:displayname>${escapeXml(doc.document_name)}</D:displayname>
+          <D:getcontentlength>${doc.file_size || 0}</D:getcontentlength>
+          <D:getcontenttype>${doc.mime_type || 'application/octet-stream'}</D:getcontenttype>
+          <D:creationdate>${new Date().toISOString()}</D:creationdate>
+          <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+          <D:resourcetype/>
+          <D:getetag>"${crypto.randomUUID()}"</D:getetag>
+          <D:supportedlock>
+            <D:lockentry>
+              <D:lockscope><D:exclusive/></D:lockscope>
+              <D:locktype><D:write/></D:locktype>
+            </D:lockentry>
+          </D:supportedlock>
+        </D:prop>
+        <D:status>HTTP/1.1 200 OK</D:status>
+      </D:propstat>
+    </D:response>`).join('');
 
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -403,11 +520,16 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         <D:creationdate>${new Date().toISOString()}</D:creationdate>
         <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
+        <D:supportedlock>
+          <D:lockentry>
+            <D:lockscope><D:exclusive/></D:lockscope>
+            <D:locktype><D:write/></D:locktype>
+          </D:lockentry>
+        </D:supportedlock>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
-  </D:response>
-  ${documentItems}
+  </D:response>${documentItems}
 </D:multistatus>`;
 
       return new Response(xmlResponse, {
