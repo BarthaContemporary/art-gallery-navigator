@@ -72,10 +72,11 @@ serve(async (req) => {
     console.log('Generated token length:', tokenString.length);
     console.log('Generated token sample:', tokenString.substring(0, 8) + '...');
 
-    // Hash the token using the same method as validation (convert to bytea first)
+    // Hash the token using the EXACT same method as validation function
+    // Convert string to Uint8Array (bytea equivalent), then hash
     const encoder = new TextEncoder();
-    const data = encoder.encode(tokenString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const tokenBytes2 = encoder.encode(tokenString);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes2);
     const hashArray = new Uint8Array(hashBuffer);
     const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
 
