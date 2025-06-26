@@ -28,23 +28,8 @@ export function WebDAVTokenManager() {
   
   const queryClient = useQueryClient();
 
-  // Get the correct WebDAV URL based on current domain
-  const getWebDAVUrl = () => {
-    if (typeof window !== 'undefined') {
-      const currentOrigin = window.location.origin;
-      
-      // Check if we're on a custom domain (not supabase.co and not lovableproject.com)
-      if (!currentOrigin.includes('.supabase.co') && !currentOrigin.includes('.lovableproject.com')) {
-        // Custom domain - construct the edge function URL
-        return `${currentOrigin}/functions/v1/webdav/`;
-      }
-    }
-    
-    // Default to Supabase URL
-    return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
-  };
-
-  const webdavUrl = getWebDAVUrl();
+  // Always use the Supabase edge function URL
+  const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: ["webdav-tokens"],
@@ -146,11 +131,9 @@ export function WebDAVTokenManager() {
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
-              {!webdavUrl.includes('.supabase.co') && !webdavUrl.includes('.lovableproject.com') && (
-                <div className="mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                  📌 Using custom domain URL - this should work with your domain setup
-                </div>
-              )}
+              <div className="mt-2 text-sm text-green-600 bg-green-50 p-2 rounded">
+                ✅ Using official Supabase edge function URL
+              </div>
             </div>
           </div>
 
