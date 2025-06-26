@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Copy, Plus, Key, AlertCircle, CheckCircle, User, UserX } from "lucide-react";
+import { Trash2, Copy, Plus, Key, AlertCircle, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
@@ -27,36 +27,9 @@ export function WebDAVTokenManager() {
   const [tokenName, setTokenName] = useState("");
   const [expiresIn, setExpiresIn] = useState<number>(30);
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
-  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
   const queryClient = useQueryClient();
 
-  const { data: user } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      console.log('WebDAV: Checking authentication status...');
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        console.error('WebDAV: Auth check error:', error);
-        setAuthStatus('unauthenticated');
-        return null;
-      }
-      
-      console.log('WebDAV: Current user:', user?.email, 'ID:', user?.id?.substring(0, 8) + '...');
-      setAuthStatus(user ? 'authenticated' : 'unauthenticated');
-      return user;
-    },
-  });
-
   const getWebDAVUrl = () => {
-    if (typeof window !== 'undefined') {
-      const currentOrigin = window.location.origin;
-      
-      if (!currentOrigin.includes('.supabase.co')) {
-        return `${currentOrigin}/functions/v1/webdav/`;
-      }
-    }
-    
     return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
   };
 
@@ -74,61 +47,32 @@ export function WebDAVTokenManager() {
       if (error) throw error;
       return data as WebDAVToken[];
     },
-    enabled: authStatus === 'authenticated',
   });
 
   const createTokenMutation = useMutation({
     mutationFn: async ({ name, expiresInDays }: { name: string; expiresInDays: number }) => {
-      console.log('WebDAV: Creating token with params:', { name, expiresInDays });
-      console.log('WebDAV: Current user:', user?.email);
-      console.log('WebDAV: Auth status:', authStatus);
+      console.log('Creating WebDAV token:', { name, expiresInDays });
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('WebDAV: Session error:', sessionError);
-        throw new Error(`Session error: ${sessionError.message}`);
+      const { data, error } = await supabase.functions.invoke("webdav-create-token", {
+        body: { name, expiresInDays },
+      });
+
+      if (error) {
+        console.error('Token creation error:', error);
+        throw new Error(error.message || 'Failed to create token');
       }
 
-      if (!session) {
-        console.error('WebDAV: No active session found');
-        throw new Error('No active session. Please log in again.');
-      }
-
-      console.log('WebDAV: Session valid, access token present:', !!session.access_token);
-
-      try {
-        console.log('WebDAV: Calling edge function...');
-        const { data, error } = await supabase.functions.invoke("webdav-create-token", {
-          body: { name, expiresInDays },
-        });
-
-        console.log('WebDAV: Edge function response:', { data, error });
-        
-        if (error) {
-          console.error('WebDAV: Edge function error:', error);
-          throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
-        }
-
-        console.log('WebDAV: Token created successfully:', data);
-        return data;
-      } catch (functionError) {
-        console.error('WebDAV: Function invocation failed:', functionError);
-        throw functionError;
-      }
+      return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
-      
       setLastCreatedToken(data.token);
-      
       navigator.clipboard.writeText(data.token);
-      toast.success(`Token created successfully! Copied to clipboard.`);
-      
+      toast.success("Token created successfully! Copied to clipboard.");
       setTokenName("");
     },
     onError: (error) => {
-      console.error("WebDAV: Token creation failed:", error);
+      console.error("Token creation failed:", error);
       toast.error(`Failed to create WebDAV token: ${error.message}`);
     },
   });
@@ -158,11 +102,6 @@ export function WebDAVTokenManager() {
       return;
     }
 
-    if (authStatus !== 'authenticated') {
-      toast.error("Please log in to create WebDAV tokens");
-      return;
-    }
-
     createTokenMutation.mutate({ name: tokenName, expiresInDays: expiresIn });
   };
 
@@ -175,24 +114,6 @@ export function WebDAVTokenManager() {
     if (lastCreatedToken) {
       navigator.clipboard.writeText(lastCreatedToken);
       toast.success("Token copied to clipboard");
-    }
-  };
-
-  const handleTokenLost = () => {
-    toast.info("Create a new token to replace the lost one. Old tokens cannot be recovered for security reasons.");
-  };
-
-  const refreshAuth = async () => {
-    setAuthStatus('checking');
-    const { data: { session }, error } = await supabase.auth.refreshSession();
-    
-    if (error) {
-      console.error('Auth refresh error:', error);
-      setAuthStatus('unauthenticated');
-      toast.error('Authentication refresh failed. Please log in again.');
-    } else {
-      setAuthStatus('authenticated');
-      toast.success('Authentication refreshed successfully');
     }
   };
 
@@ -209,43 +130,9 @@ export function WebDAVTokenManager() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-            {authStatus === 'checking' ? (
-              <>
-                <AlertCircle className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Checking authentication...</span>
-              </>
-            ) : authStatus === 'authenticated' ? (
-              <>
-                <User className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-700">
-                  Authenticated as: {user?.email}
-                </span>
-                <Button size="sm" variant="outline" onClick={refreshAuth}>
-                  Refresh Auth
-                </Button>
-              </>
-            ) : (
-              <>
-                <UserX className="h-4 w-4 text-red-600" />
-                <span className="text-sm text-red-700">
-                  Not authenticated - please log in to create tokens
-                </span>
-                <Button size="sm" variant="outline" onClick={refreshAuth}>
-                  Retry Auth
-                </Button>
-              </>
-            )}
-          </div>
-
           <div className="bg-muted p-4 rounded-lg">
             <p className="text-sm text-muted-foreground mb-2">
               WebDAV allows you to access your files directly from file managers and applications.
-              {!webdavUrl.includes('.supabase.co') && (
-                <span className="block mt-1 text-blue-600 font-medium">
-                  Using custom domain URL for enhanced compatibility.
-                </span>
-              )}
             </p>
             <div className="flex items-center gap-2">
               <code className="bg-background px-2 py-1 rounded text-sm flex-1">
@@ -265,7 +152,7 @@ export function WebDAVTokenManager() {
                 placeholder="e.g., My Desktop"
                 value={tokenName}
                 onChange={(e) => setTokenName(e.target.value)}
-                disabled={createTokenMutation.isPending || authStatus !== 'authenticated'}
+                disabled={createTokenMutation.isPending}
               />
             </div>
             <div>
@@ -277,13 +164,13 @@ export function WebDAVTokenManager() {
                 max="365"
                 value={expiresIn}
                 onChange={(e) => setExpiresIn(parseInt(e.target.value) || 30)}
-                disabled={createTokenMutation.isPending || authStatus !== 'authenticated'}
+                disabled={createTokenMutation.isPending}
               />
             </div>
             <div className="flex items-end">
               <Button
                 onClick={handleCreateToken}
-                disabled={createTokenMutation.isPending || authStatus !== 'authenticated'}
+                disabled={createTokenMutation.isPending}
                 className="w-full"
               >
                 {createTokenMutation.isPending ? (
@@ -321,7 +208,7 @@ export function WebDAVTokenManager() {
               <li>Connect to: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
               <li>Username: <code className="bg-blue-100 px-1 rounded">webdav</code> (or any value)</li>
               <li>Password: Your WebDAV token from below</li>
-              <li>You'll see folders based on your access level (artist folders or all folders for admins)</li>
+              <li>You'll see folders based on your access level</li>
             </ol>
           </div>
         </CardContent>
@@ -332,11 +219,7 @@ export function WebDAVTokenManager() {
           <CardTitle>Active Tokens</CardTitle>
         </CardHeader>
         <CardContent>
-          {authStatus !== 'authenticated' ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Please log in to view your WebDAV tokens.
-            </div>
-          ) : isLoading ? (
+          {isLoading ? (
             <div className="text-center py-4">Loading tokens...</div>
           ) : tokens.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -373,14 +256,6 @@ export function WebDAVTokenManager() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleTokenLost}
-                      title="Token lost? Create a new one"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

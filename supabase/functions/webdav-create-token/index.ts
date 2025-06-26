@@ -8,26 +8,17 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log(`[${new Date().toISOString()}] WebDAV Token Creation - ${req.method} ${req.url}`);
+  console.log(`WebDAV Token Creation - ${req.method} ${req.url}`);
   
   if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Request headers:', {
-      authorization: req.headers.get('Authorization') ? 'Bearer [PRESENT]' : 'MISSING',
-      contentType: req.headers.get('Content-Type'),
-      userAgent: req.headers.get('User-Agent'),
-    });
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('ERROR: No authorization header provided');
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized - No authorization header' 
-      }), { 
+      console.error('No authorization header provided');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -35,92 +26,50 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('ERROR: Missing environment variables');
-      return new Response(JSON.stringify({ 
-        error: 'Server configuration error' 
-      }), { 
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+      console.error('Missing environment variables');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
+    // Verify user auth
     const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader
-        }
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false }
     });
 
-    console.log('Verifying user authentication...');
-    
     const { data: { user }, error: authError } = await userSupabase.auth.getUser();
 
-    if (authError) {
-      console.error('AUTH ERROR:', authError);
-      return new Response(JSON.stringify({ 
-        error: `Authentication failed: ${authError.message}`
-      }), { 
+    if (authError || !user) {
+      console.error('Authentication failed:', authError);
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    if (!user) {
-      console.error('ERROR: No user found in auth context');
-      return new Response(JSON.stringify({ 
-        error: 'No authenticated user found' 
-      }), { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    console.log('User authenticated:', user.email);
 
-    console.log('User authenticated successfully:', {
-      userId: user.id,
-      email: user.email,
-    });
-
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log('Request body parsed:', requestBody);
-    } catch (parseError) {
-      console.error('ERROR: Failed to parse request body:', parseError);
-      return new Response(JSON.stringify({ 
-        error: 'Invalid JSON in request body'
-      }), { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
+    const requestBody = await req.json();
     const { name, expiresInDays } = requestBody;
 
     if (!name) {
-      console.error('ERROR: Token name is required');
-      return new Response(JSON.stringify({ 
-        error: 'Token name is required' 
-      }), { 
+      return new Response(JSON.stringify({ error: 'Token name is required' }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    console.log('Generating secure token...');
-    
+    // Generate token
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Token generated, creating hash...');
-    
+    // Hash token
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -131,18 +80,10 @@ serve(async (req) => {
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    console.log('Creating database record...');
-
-    const serviceSupabase = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    // Store token using service role
+    const serviceSupabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     const { data: tokenRecord, error: dbError } = await serviceSupabase
       .from('webdav_tokens')
@@ -157,10 +98,8 @@ serve(async (req) => {
       .single();
 
     if (dbError) {
-      console.error('DATABASE ERROR:', dbError);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to store token in database'
-      }), { 
+      console.error('Database error:', dbError);
+      return new Response(JSON.stringify({ error: 'Failed to create token' }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -168,23 +107,19 @@ serve(async (req) => {
 
     console.log('Token created successfully:', tokenRecord.id);
 
-    const response = {
+    return new Response(JSON.stringify({
       token: tokenString,
       id: tokenRecord.id,
       name: tokenRecord.name,
       expires_at: tokenRecord.expires_at,
       is_active: tokenRecord.is_active,
       created_at: tokenRecord.created_at
-    };
-
-    console.log('Returning successful response');
-    
-    return new Response(JSON.stringify(response), {
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('UNEXPECTED ERROR in webdav-create-token:', error);
+    console.error('Unexpected error:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
       details: error.message
