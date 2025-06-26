@@ -64,17 +64,23 @@ serve(async (req) => {
       });
     }
 
-    // Generate token
+    // Generate a more secure token - 64 characters hex
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
 
-    // Hash token
+    console.log('Generated token length:', tokenString.length);
+    console.log('Generated token sample:', tokenString.substring(0, 8) + '...');
+
+    // Hash the token using the same method as validation
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = new Uint8Array(hashBuffer);
     const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+
+    console.log('Token hash length:', tokenHash.length);
+    console.log('Token hash sample:', tokenHash.substring(0, 8) + '...');
 
     const expiresAt = expiresInDays > 0 
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
@@ -106,6 +112,7 @@ serve(async (req) => {
     }
 
     console.log('Token created successfully:', tokenRecord.id);
+    console.log('Stored hash:', tokenRecord.token_hash.substring(0, 8) + '...');
 
     return new Response(JSON.stringify({
       token: tokenString,

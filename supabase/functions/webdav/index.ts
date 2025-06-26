@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -91,6 +90,7 @@ serve(async (req) => {
       token = credentials.substring(colonIndex + 1);
       
       console.log(`[${requestId}] Parsed username: ${username}, token length: ${token.length}`);
+      console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
     } catch (error) {
       console.error(`[${requestId}] Failed to parse credentials:`, error);
       return new Response('Invalid credentials format', {
@@ -101,13 +101,56 @@ serve(async (req) => {
       });
     }
 
-    // Validate token
+    // Validate token with detailed logging
     console.log(`[${requestId}] Validating token...`);
+    
+    // Hash the token the same way we do in creation
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = new Uint8Array(hashBuffer);
+    const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+    
+    console.log(`[${requestId}] Computed token hash length: ${tokenHash.length}`);
+    console.log(`[${requestId}] Computed token hash sample: ${tokenHash.substring(0, 8)}...`);
+
+    // Look up token directly in database for debugging
+    const { data: tokenLookup, error: lookupError } = await supabase
+      .from('webdav_tokens')
+      .select('*')
+      .eq('token_hash', tokenHash)
+      .single();
+
+    if (lookupError) {
+      console.error(`[${requestId}] Token lookup error:`, lookupError);
+    } else if (tokenLookup) {
+      console.log(`[${requestId}] Found token:`, {
+        id: tokenLookup.id,
+        name: tokenLookup.name,
+        is_active: tokenLookup.is_active,
+        expires_at: tokenLookup.expires_at,
+        hash_sample: tokenLookup.token_hash.substring(0, 8) + '...'
+      });
+    } else {
+      console.log(`[${requestId}] No token found with hash`);
+    }
+
+    // Use the RPC function for validation
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
 
-    if (tokenError || !tokenValidation || tokenValidation.length === 0) {
-      console.error(`[${requestId}] Token validation failed:`, tokenError);
+    if (tokenError) {
+      console.error(`[${requestId}] Token validation RPC error:`, tokenError);
+      return new Response('Token validation failed', {
+        status: 401,
+        headers: getWebDAVResponseHeaders({
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+        })
+      });
+    }
+
+    if (!tokenValidation || tokenValidation.length === 0) {
+      console.log(`[${requestId}] No validation result returned`);
       return new Response('Invalid or expired token', {
         status: 401,
         headers: getWebDAVResponseHeaders({
@@ -117,6 +160,8 @@ serve(async (req) => {
     }
 
     const validationResult = tokenValidation[0];
+    console.log(`[${requestId}] Validation result:`, validationResult);
+    
     if (!validationResult.is_valid) {
       console.log(`[${requestId}] Token is not valid`);
       return new Response('Token is invalid or expired', {
