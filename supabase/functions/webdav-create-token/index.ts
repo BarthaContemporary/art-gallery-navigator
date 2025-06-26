@@ -64,7 +64,7 @@ serve(async (req) => {
       });
     }
 
-    // Generate a more secure token - 64 characters hex
+    // Generate a secure token - 64 characters hex
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -72,7 +72,7 @@ serve(async (req) => {
     console.log('Generated token length:', tokenString.length);
     console.log('Generated token sample:', tokenString.substring(0, 8) + '...');
 
-    // Hash the token using the same method as validation
+    // Hash the token using the same method as validation (convert to bytea first)
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
