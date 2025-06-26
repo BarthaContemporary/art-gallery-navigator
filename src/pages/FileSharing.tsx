@@ -12,7 +12,7 @@ import { FileManagementDebugPanel } from "@/components/file-sharing/FileManageme
 import { FilesTabContent } from "@/components/file-sharing/FilesTabContent";
 import { DocumentsTabContent } from "@/components/file-sharing/DocumentsTabContent";
 import { ArtistFolderManagement } from "@/components/file-sharing/ArtistFolderManagement";
-import { WebDAVTokenManager } from "@/components/file-sharing/WebDAVTokenManager";
+import { SimpleWebDAVTokenManager } from "@/components/file-sharing/SimpleWebDAVTokenManager";
 
 export default function FileSharing() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -106,7 +106,7 @@ export default function FileSharing() {
           </TabsTrigger>
           <TabsTrigger value="webdav" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
-            WebDAV Access
+            File Server Access
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="artist-management" className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function FileSharing() {
         </TabsContent>
 
         <TabsContent value="webdav" className="space-y-4">
-          <WebDAVTokenManager />
+          <SimpleWebDAVTokenManager />
         </TabsContent>
 
         {isAdmin && (
