@@ -8,79 +8,44 @@ schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
+[auth]
+enabled = true
+port = 54324
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+security_update_password_require_reauthentication = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+
 [db]
 enabled = true
 port = 54322
 shadow_port = 54320
 major_version = 15
 
-[db.pooler]
-enabled = false
-port = 54329
-pool_mode = "transaction"
-default_pool_size = 20
-max_client_conn = 100
-
-[realtime]
-enabled = true
-ip_version = "ipv4"
-port = 54323
-max_header_length = 4096
-
-[studio]
-enabled = true
-port = 54324
-api_url = "http://127.0.0.1:54321"
-openai_api_key = "env(OPENAI_API_KEY)"
-
-[inbucket]
-enabled = true
-port = 54325
-smtp_port = 54326
-pop3_port = 54327
-
-[storage]
-enabled = true
-port = 54326
-file_size_limit = "50MiB"
-features = {
-  image_transformation = true,
-  duplicate_prevention = false
-}
-
-[auth]
-enabled = true
-port = 54327
-site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["https://localhost:3000"]
-jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-security_update_password_require_reauthentication = true
-enable_signup = true
-enable_confirmations = false
-enable_manual_linking = false
-
-[auth.email]
-enable_signup = true
-double_confirm_changes = true
-enable_confirmations = false
-template = {}
-
-[auth.sms]
-enable_signup = false
-enable_confirmations = false
-template = "Your code is {{ .Code }}"
-
-[edge_runtime]
-enabled = true
-port = 54328
-inspector_port = 54329
-
 [functions.webdav]
 verify_jwt = false
 
 [functions.webdav-create-token]
 verify_jwt = true
+
+[edge_runtime]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+port = 54324
+file_size_limit = "50MiB"
 
 [analytics]
 enabled = false
