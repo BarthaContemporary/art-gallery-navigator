@@ -9,6 +9,8 @@ import { Copy, Key, Trash2, Plus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { MacWebDAVConnectionGuide } from "./MacWebDAVConnectionGuide";
+import { WebDAVDebugPanel } from "./WebDAVDebugPanel";
 
 interface WebDAVToken {
   id: string;
@@ -102,8 +104,16 @@ export function SimpleWebDAVTokenManager() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const hasActiveTokens = tokens.length > 0;
+
   return (
     <div className="space-y-6">
+      {/* Debug Panel */}
+      <WebDAVDebugPanel />
+
+      {/* Mac Connection Guide */}
+      <MacWebDAVConnectionGuide webdavUrl={webdavUrl} hasToken={hasActiveTokens} />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -114,7 +124,7 @@ export function SimpleWebDAVTokenManager() {
         <CardContent className="space-y-6">
           {/* Quick Setup */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Quick Setup</h3>
+            <h3 className="font-semibold text-blue-900 mb-2">Create Access Token</h3>
             <p className="text-sm text-blue-800 mb-3">
               Create an access token to connect your Mac's Finder to the file server.
             </p>
@@ -165,12 +175,12 @@ export function SimpleWebDAVTokenManager() {
               </div>
 
               <div className="bg-white rounded border p-3 space-y-2">
-                <h5 className="font-medium text-green-800">Mac Finder Connection:</h5>
+                <h5 className="font-medium text-green-800">Important:</h5>
                 <div className="text-sm text-green-700 space-y-1">
-                  <p>1. Press <kbd className="bg-green-100 px-1.5 py-0.5 rounded text-xs">⌘ + K</kbd> in Finder</p>
-                  <p>2. Enter server address: <code className="bg-green-100 px-1 rounded text-xs">{webdavUrl}</code></p>
-                  <p>3. Username: <code className="bg-green-100 px-1 rounded text-xs">webdav</code></p>
-                  <p>4. Password: Use the token above</p>
+                  <p>• Save this token securely - you won't see it again</p>
+                  <p>• Use this token as your password in Mac Finder</p>
+                  <p>• Username: <code className="bg-green-100 px-1 rounded text-xs">webdav</code></p>
+                  <p>• Test with the debug panel above before trying Mac Finder</p>
                 </div>
               </div>
             </div>

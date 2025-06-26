@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -29,71 +30,138 @@ interface UserInfo {
   is_admin: boolean;
 }
 
-// Debug endpoint for token testing
+// Enhanced credential parsing for Mac Finder compatibility
+function parseCredentials(authHeader: string, requestId: string): { username: string; token: string } | null {
+  console.log(`[${requestId}] Starting credential parsing...`);
+  
+  if (!authHeader.startsWith('Basic ')) {
+    console.log(`[${requestId}] Not a Basic auth header`);
+    return null;
+  }
+
+  const base64Credentials = authHeader.slice(6).trim();
+  console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
+  console.log(`[${requestId}] Base64 sample: ${base64Credentials.substring(0, 20)}...`);
+
+  let credentials: string;
+  
+  try {
+    // Primary decoding method
+    credentials = atob(base64Credentials);
+    console.log(`[${requestId}] Primary decoding successful, length: ${credentials.length}`);
+  } catch (primaryError) {
+    console.log(`[${requestId}] Primary decoding failed: ${primaryError.message}`);
+    
+    try {
+      // Alternative decoding for Mac compatibility
+      const decoder = new TextDecoder('utf-8');
+      const bytes = new Uint8Array(atob(base64Credentials).split('').map(c => c.charCodeAt(0)));
+      credentials = decoder.decode(bytes);
+      console.log(`[${requestId}] Alternative decoding successful, length: ${credentials.length}`);
+    } catch (altError) {
+      console.log(`[${requestId}] Alternative decoding failed: ${altError.message}`);
+      return null;
+    }
+  }
+
+  const colonIndex = credentials.indexOf(':');
+  if (colonIndex === -1) {
+    console.log(`[${requestId}] No colon separator found in credentials`);
+    return null;
+  }
+
+  const username = credentials.substring(0, colonIndex);
+  const token = credentials.substring(colonIndex + 1);
+  
+  console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
+  console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
+
+  // Enhanced token validation and cleanup
+  let cleanToken = token.trim();
+  
+  // Handle Mac Finder sending URLs instead of tokens
+  if (cleanToken.startsWith('http://') || cleanToken.startsWith('https://')) {
+    console.log(`[${requestId}] Token appears to be a URL, this is a Mac Finder authentication issue`);
+    return null;
+  }
+
+  // Check if token is valid hex and correct length
+  if (cleanToken.length !== 64) {
+    console.log(`[${requestId}] Invalid token length: expected 64, got ${cleanToken.length}`);
+    return null;
+  }
+
+  if (!/^[a-f0-9]+$/i.test(cleanToken)) {
+    console.log(`[${requestId}] Token contains invalid characters - expected hex only`);
+    return null;
+  }
+
+  return { username, token: cleanToken };
+}
+
+// Debug endpoint for comprehensive token testing
 async function handleDebugToken(req: Request, requestId: string) {
-  console.log(`[${requestId}] DEBUG TOKEN ENDPOINT`);
+  console.log(`[${requestId}] === DEBUG TOKEN ENDPOINT ===`);
   
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return new Response(JSON.stringify({
-      error: 'No Basic auth header provided',
-      expected: 'Authorization: Basic <base64-encoded-credentials>'
-    }), {
+  const result: any = {
+    timestamp: new Date().toISOString(),
+    requestId,
+    authHeaderPresent: !!authHeader,
+    userAgent: req.headers.get('User-Agent') || 'unknown'
+  };
+
+  if (!authHeader) {
+    result.error = 'No Authorization header provided';
+    result.expectedFormat = 'Authorization: Basic <base64-encoded-credentials>';
+    return new Response(JSON.stringify(result, null, 2), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 
-  try {
-    const base64Credentials = authHeader.slice(6);
-    const credentials = atob(base64Credentials);
-    const colonIndex = credentials.indexOf(':');
-    
-    if (colonIndex === -1) {
-      return new Response(JSON.stringify({
-        error: 'Invalid credentials format',
-        received: 'Missing colon separator',
-        base64Length: base64Credentials.length,
-        decodedLength: credentials.length
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-    
-    const username = credentials.substring(0, colonIndex);
-    const token = credentials.substring(colonIndex + 1);
-    
-    // Hash the token using the same method as creation
-    const encoder = new TextEncoder();
-    const tokenBytes = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
-    const hashArray = new Uint8Array(hashBuffer);
-    const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-    
-    return new Response(JSON.stringify({
-      debug: 'Token analysis',
-      username: username,
-      tokenLength: token.length,
-      tokenSample: token.substring(0, 8) + '...',
-      computedHashLength: computedHash.length,
-      computedHashSample: computedHash.substring(0, 16) + '...',
-      isValidHex: /^[a-f0-9]+$/i.test(token),
-      base64Header: base64Credentials.substring(0, 20) + '...',
-      timestamp: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: 'Failed to parse credentials',
-      details: error.message
-    }), {
-      status: 500,
+  if (!authHeader.startsWith('Basic ')) {
+    result.error = 'Invalid auth type - expected Basic';
+    result.received = authHeader.substring(0, 20) + '...';
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
+
+  const credentials = parseCredentials(authHeader, requestId);
+  if (!credentials) {
+    result.error = 'Failed to parse credentials';
+    result.base64Sample = authHeader.slice(6).substring(0, 20) + '...';
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+
+  // Test token hash computation
+  const encoder = new TextEncoder();
+  const tokenBytes = encoder.encode(credentials.token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
+  const hashArray = new Uint8Array(hashBuffer);
+  const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+
+  result.success = true;
+  result.credentials = {
+    username: credentials.username,
+    tokenLength: credentials.token.length,
+    tokenSample: credentials.token.substring(0, 8) + '...',
+    tokenIsValidHex: /^[a-f0-9]+$/i.test(credentials.token)
+  };
+  result.hash = {
+    computedHashLength: computedHash.length,
+    computedHashSample: computedHash.substring(0, 16) + '...'
+  };
+
+  return new Response(JSON.stringify(result, null, 2), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
 }
 
 serve(async (req) => {
@@ -101,18 +169,18 @@ serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   const url = new URL(req.url);
   
+  console.log(`[${requestId}] === NEW REQUEST ===`);
   console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
-  console.log(`[${requestId}] Full headers:`, Object.fromEntries(req.headers.entries()));
 
   // Debug endpoint for token testing
   if (url.pathname.includes('/debug-token')) {
     return await handleDebugToken(req, requestId);
   }
 
-  // Enhanced CORS preflight with macOS-specific headers
+  // Enhanced CORS preflight with Mac-specific headers
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] CORS preflight - responding with macOS-compatible headers`);
+    console.log(`[${requestId}] CORS preflight - responding with Mac-compatible headers`);
     return new Response('', { 
       status: 200,
       headers: {
@@ -140,24 +208,11 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
-    console.log(`[${requestId}] Auth header type: ${authHeader ? authHeader.substring(0, 10) + '...' : 'none'}`);
     
-    // Enhanced WebDAV authentication flow with macOS compatibility
+    // Enhanced WebDAV authentication flow with Mac compatibility
     if (!authHeader) {
-      console.log(`[${requestId}] No auth header - sending WWW-Authenticate challenge for macOS`);
-      return new Response('WebDAV Server - Authentication Required\n\nThis server requires authentication.', {
-        status: 401,
-        headers: getWebDAVResponseHeaders({
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Length': '72'
-        })
-      });
-    }
-
-    if (!authHeader.startsWith('Basic ')) {
-      console.log(`[${requestId}] Invalid auth type: ${authHeader.substring(0, 20)}...`);
-      return new Response('Basic Authentication Required', {
+      console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
+      return new Response('WebDAV Server - Authentication Required\n\nThis server requires authentication.\nPlease use your WebDAV token as the password.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
@@ -166,57 +221,11 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced Basic Auth parsing with multiple encoding attempts
-    let username: string, token: string;
-    try {
-      const base64Credentials = authHeader.slice(6).trim();
-      console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
-      console.log(`[${requestId}] Base64 sample: ${base64Credentials.substring(0, 20)}...`);
-      
-      // Try multiple decoding approaches for macOS compatibility
-      let credentials: string;
-      try {
-        credentials = atob(base64Credentials);
-      } catch (e) {
-        console.log(`[${requestId}] Standard atob failed, trying alternative decoding`);
-        // Alternative decoding for potential macOS encoding differences
-        const decoder = new TextDecoder();
-        const bytes = Uint8Array.from(atob(base64Credentials), c => c.charCodeAt(0));
-        credentials = decoder.decode(bytes);
-      }
-      
-      console.log(`[${requestId}] Decoded credentials length: ${credentials.length}`);
-      console.log(`[${requestId}] Credentials sample: ${credentials.substring(0, 10)}...`);
-      
-      const colonIndex = credentials.indexOf(':');
-      
-      if (colonIndex === -1) {
-        console.log(`[${requestId}] No colon found in credentials`);
-        throw new Error('Invalid credentials format - no colon separator');
-      }
-      
-      username = credentials.substring(0, colonIndex);
-      token = credentials.substring(colonIndex + 1);
-      
-      console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
-      console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
-      console.log(`[${requestId}] Token is valid hex: ${/^[a-f0-9]+$/i.test(token)}`);
-      
-      // Enhanced validation for macOS compatibility
-      if (token.length !== 64) {
-        console.log(`[${requestId}] Invalid token length: expected 64, got ${token.length}`);
-        throw new Error(`Invalid token length: expected 64 characters, got ${token.length}`);
-      }
-      
-      // Check if token contains only valid hex characters
-      if (!/^[a-f0-9]+$/i.test(token)) {
-        console.log(`[${requestId}] Token contains invalid characters`);
-        throw new Error('Token contains invalid characters - expected hex only');
-      }
-      
-    } catch (error) {
-      console.error(`[${requestId}] Failed to parse credentials:`, error.message);
-      return new Response('Invalid credentials format\n\nPlease check your username and token.', {
+    // Parse credentials with enhanced Mac support
+    const credentials = parseCredentials(authHeader, requestId);
+    if (!credentials) {
+      console.log(`[${requestId}] Failed to parse credentials - Mac Finder compatibility issue`);
+      return new Response('Invalid credentials format\n\nFor Mac Finder:\n1. Username: webdav\n2. Password: Your 64-character WebDAV token\n\nIf this continues to fail, try a third-party WebDAV client like Transmit or ForkLift.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
@@ -226,19 +235,10 @@ serve(async (req) => {
     }
 
     // Enhanced token validation with comprehensive debugging
-    console.log(`[${requestId}] Validating token with database function...`);
-    
-    // Create the hash using the exact same method as token creation
-    const encoder = new TextEncoder();
-    const tokenBytes = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
-    const hashArray = new Uint8Array(hashBuffer);
-    const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-    
-    console.log(`[${requestId}] Computed token hash: ${computedHash.substring(0, 16)}... (length: ${computedHash.length})`);
+    console.log(`[${requestId}] Validating token with database...`);
     
     const { data: tokenValidation, error: tokenError } = await supabase
-      .rpc('validate_webdav_token', { token_text: token });
+      .rpc('validate_webdav_token', { token_text: credentials.token });
 
     console.log(`[${requestId}] Token validation response:`, { 
       tokenValidation, 
@@ -248,7 +248,7 @@ serve(async (req) => {
 
     if (tokenError) {
       console.error(`[${requestId}] Token validation RPC error:`, tokenError);
-      return new Response('Token validation failed\n\nPlease check your token and try again.', {
+      return new Response('Token validation failed\n\nPlease verify your WebDAV token is correct.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
@@ -258,8 +258,8 @@ serve(async (req) => {
     }
 
     if (!tokenValidation || tokenValidation.length === 0) {
-      console.log(`[${requestId}] No validation result returned from database`);
-      return new Response('Invalid or expired token\n\nPlease create a new WebDAV token.', {
+      console.log(`[${requestId}] No validation result - token not found`);
+      return new Response('Invalid or expired token\n\nPlease create a new WebDAV token in the File Server Access tab.', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
@@ -386,7 +386,7 @@ serve(async (req) => {
   }
 });
 
-// Enhanced PROPFIND with macOS-specific XML formatting
+// Enhanced PROPFIND with Mac-specific XML formatting
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PROPFIND for path: "${path}"`);
 
@@ -395,7 +395,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   
   try {
     if (path === '/' || path === '') {
-      // Root directory - show accessible folders with macOS-compatible XML
+      // Root directory - show accessible folders with Mac-compatible XML
       console.log(`[${requestId}] Fetching accessible folders for user`);
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
 
@@ -463,7 +463,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         })
       });
     } else {
-      // ... keep existing code (folder contents handling)
+      // Folder contents handling
       const folderName = path.split('/').filter(p => p)[0];
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
       
