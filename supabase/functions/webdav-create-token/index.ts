@@ -64,7 +64,7 @@ serve(async (req) => {
       });
     }
 
-    // Generate a secure token - 64 characters hex
+    // Generate a secure token - 64 characters hex (exactly matching validation function expectation)
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -72,8 +72,8 @@ serve(async (req) => {
     console.log('Generated token length:', tokenString.length);
     console.log('Generated token sample:', tokenString.substring(0, 8) + '...');
 
-    // Hash the token using the EXACT same method as validation function
-    // Convert string to Uint8Array (bytea equivalent), then hash
+    // Hash the token using the EXACT same method as the validation function
+    // This MUST match the database function: encode(digest(token_text::bytea, 'sha256'), 'hex')
     const encoder = new TextEncoder();
     const tokenBytes2 = encoder.encode(tokenString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes2);
@@ -82,6 +82,15 @@ serve(async (req) => {
 
     console.log('Token hash length:', tokenHash.length);
     console.log('Token hash sample:', tokenHash.substring(0, 8) + '...');
+
+    // Verify our hashing method produces the expected result
+    if (tokenHash.length !== 64) {
+      console.error('Hash length mismatch: expected 64, got', tokenHash.length);
+      return new Response(JSON.stringify({ error: 'Token hashing failed' }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const expiresAt = expiresInDays > 0 
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
@@ -114,6 +123,15 @@ serve(async (req) => {
 
     console.log('Token created successfully:', tokenRecord.id);
     console.log('Stored hash:', tokenRecord.token_hash.substring(0, 8) + '...');
+
+    // Verify the hash was stored correctly
+    if (tokenRecord.token_hash !== tokenHash) {
+      console.error('Hash verification failed: stored hash does not match computed hash');
+      console.error('Computed:', tokenHash.substring(0, 16) + '...');
+      console.error('Stored:  ', tokenRecord.token_hash.substring(0, 16) + '...');
+    } else {
+      console.log('Hash verification successful: stored hash matches computed hash');
+    }
 
     return new Response(JSON.stringify({
       token: tokenString,

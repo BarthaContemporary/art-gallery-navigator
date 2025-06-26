@@ -35,9 +35,10 @@ serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   
   console.log(`[${requestId}] ${req.method} ${new URL(req.url).pathname}`);
+  console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
   console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight - more comprehensive
+  // Handle CORS preflight with enhanced logging
   if (req.method === 'OPTIONS') {
     console.log(`[${requestId}] CORS preflight - responding with enhanced headers`);
     return new Response('', { 
@@ -64,10 +65,10 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
-
-    // Always require authentication for WebDAV
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-      console.log(`[${requestId}] No/invalid auth - sending 401`);
+    
+    // Enhanced WebDAV authentication flow
+    if (!authHeader) {
+      console.log(`[${requestId}] No auth header - sending WWW-Authenticate challenge`);
       return new Response('WebDAV authentication required', {
         status: 401,
         headers: getWebDAVResponseHeaders({
@@ -77,56 +78,92 @@ serve(async (req) => {
       });
     }
 
-    // Parse Basic Auth
+    if (!authHeader.startsWith('Basic ')) {
+      console.log(`[${requestId}] Invalid auth type: ${authHeader.substring(0, 20)}...`);
+      return new Response('Basic authentication required', {
+        status: 401,
+        headers: getWebDAVResponseHeaders({
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
+        })
+      });
+    }
+
+    // Enhanced Basic Auth parsing with detailed logging
     let username: string, token: string;
     try {
       const base64Credentials = authHeader.slice(6);
+      console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
+      
       const credentials = atob(base64Credentials);
+      console.log(`[${requestId}] Decoded credentials length: ${credentials.length}`);
+      
       const colonIndex = credentials.indexOf(':');
       
       if (colonIndex === -1) {
-        throw new Error('Invalid credentials format');
+        console.log(`[${requestId}] No colon found in credentials`);
+        throw new Error('Invalid credentials format - no colon separator');
       }
       
       username = credentials.substring(0, colonIndex);
       token = credentials.substring(colonIndex + 1);
       
-      console.log(`[${requestId}] Parsed username: ${username}, token length: ${token.length}`);
+      console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
       console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
+      
+      // Validate token format
+      if (token.length !== 64) {
+        console.log(`[${requestId}] Invalid token length: expected 64, got ${token.length}`);
+        throw new Error(`Invalid token length: expected 64 characters, got ${token.length}`);
+      }
+      
+      // Check if token contains only valid hex characters
+      if (!/^[a-f0-9]+$/i.test(token)) {
+        console.log(`[${requestId}] Token contains invalid characters`);
+        throw new Error('Token contains invalid characters - expected hex only');
+      }
+      
     } catch (error) {
-      console.error(`[${requestId}] Failed to parse credentials:`, error);
+      console.error(`[${requestId}] Failed to parse credentials:`, error.message);
       return new Response('Invalid credentials format', {
         status: 401,
         headers: getWebDAVResponseHeaders({
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
         })
       });
     }
 
-    // Validate token using the fixed RPC function
-    console.log(`[${requestId}] Validating token...`);
+    // Enhanced token validation with comprehensive logging
+    console.log(`[${requestId}] Validating token with database function...`);
     
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
 
-    console.log(`[${requestId}] Token validation response:`, { tokenValidation, tokenError });
+    console.log(`[${requestId}] Token validation response:`, { 
+      tokenValidation, 
+      tokenError,
+      validationCount: tokenValidation?.length || 0
+    });
 
     if (tokenError) {
       console.error(`[${requestId}] Token validation RPC error:`, tokenError);
       return new Response('Token validation failed', {
         status: 401,
         headers: getWebDAVResponseHeaders({
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
         })
       });
     }
 
     if (!tokenValidation || tokenValidation.length === 0) {
-      console.log(`[${requestId}] No validation result returned`);
+      console.log(`[${requestId}] No validation result returned from database`);
       return new Response('Invalid or expired token', {
         status: 401,
         headers: getWebDAVResponseHeaders({
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
         })
       });
     }
@@ -135,11 +172,23 @@ serve(async (req) => {
     console.log(`[${requestId}] Validation result:`, validationResult);
     
     if (!validationResult.is_valid) {
-      console.log(`[${requestId}] Token is not valid`);
+      console.log(`[${requestId}] Token validation failed: token is not valid`);
       return new Response('Token is invalid or expired', {
         status: 401,
         headers: getWebDAVResponseHeaders({
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
+        })
+      });
+    }
+
+    if (!validationResult.user_id || !validationResult.token_id) {
+      console.log(`[${requestId}] Invalid validation result: missing user_id or token_id`);
+      return new Response('Authentication failed', {
+        status: 401,
+        headers: getWebDAVResponseHeaders({
+          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+          'Content-Type': 'text/plain'
         })
       });
     }
@@ -150,10 +199,10 @@ serve(async (req) => {
       is_admin: false
     };
 
-    console.log(`[${requestId}] User authenticated: ${userInfo.user_id}`);
+    console.log(`[${requestId}] User authenticated successfully: ${userInfo.user_id}`);
 
-    // Log access
-    await supabase.from('webdav_access_logs').insert({
+    // Log access attempt (non-blocking)
+    supabase.from('webdav_access_logs').insert({
       user_id: userInfo.user_id,
       token_id: userInfo.token_id,
       method: req.method,
@@ -161,54 +210,69 @@ serve(async (req) => {
       ip_address: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown',
       user_agent: req.headers.get('User-Agent') || 'unknown',
       status_code: 200
-    }).catch(() => {}); // Don't fail on logging errors
+    }).then(result => {
+      if (result.error) {
+        console.log(`[${requestId}] Failed to log access (non-critical):`, result.error);
+      }
+    });
 
-    // Parse path
+    // Parse path with enhanced logging
     const url = new URL(req.url);
     let path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
     if (!path.startsWith('/')) path = '/' + path;
     
-    console.log(`[${requestId}] Processing ${req.method} for path: ${path}`);
+    console.log(`[${requestId}] Processing ${req.method} for path: "${path}"`);
 
-    // Route to handlers
+    // Route to handlers with comprehensive error handling
     let response: Response;
     
-    switch (req.method) {
-      case 'PROPFIND':
-        response = await handlePropfind(supabase, userInfo, path, req, requestId);
-        break;
-      case 'GET':
-      case 'HEAD':
-        response = await handleGet(supabase, userInfo, path, requestId);
-        break;
-      case 'PUT':
-      case 'DELETE':
-      case 'MKCOL':
-      case 'MOVE':
-      case 'COPY':
-        response = new Response('Method not implemented', {
-          status: 501,
-          headers: getWebDAVResponseHeaders()
-        });
-        break;
-      case 'LOCK':
-        response = await handleLock(path, requestId);
-        break;
-      case 'UNLOCK':
-        response = new Response('', {
-          status: 204,
-          headers: getWebDAVResponseHeaders()
-        });
-        break;
-      case 'PROPPATCH':
-        response = await handleProppatch(path, requestId);
-        break;
-      default:
-        console.log(`[${requestId}] Method not allowed: ${req.method}`);
-        response = new Response('Method not allowed', {
-          status: 405,
-          headers: getWebDAVResponseHeaders()
-        });
+    try {
+      switch (req.method) {
+        case 'PROPFIND':
+          response = await handlePropfind(supabase, userInfo, path, req, requestId);
+          break;
+        case 'GET':
+        case 'HEAD':
+          response = await handleGet(supabase, userInfo, path, requestId, req.method === 'HEAD');
+          break;
+        case 'PUT':
+        case 'DELETE':
+        case 'MKCOL':
+        case 'MOVE':
+        case 'COPY':
+          console.log(`[${requestId}] Method ${req.method} not yet implemented`);
+          response = new Response('Method not implemented', {
+            status: 501,
+            headers: getWebDAVResponseHeaders()
+          });
+          break;
+        case 'LOCK':
+          response = await handleLock(path, requestId);
+          break;
+        case 'UNLOCK':
+          response = new Response('', {
+            status: 204,
+            headers: getWebDAVResponseHeaders()
+          });
+          break;
+        case 'PROPPATCH':
+          response = await handleProppatch(path, requestId);
+          break;
+        default:
+          console.log(`[${requestId}] Method not allowed: ${req.method}`);
+          response = new Response('Method not allowed', {
+            status: 405,
+            headers: getWebDAVResponseHeaders({
+              'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
+            })
+          });
+      }
+    } catch (handlerError) {
+      console.error(`[${requestId}] Handler error for ${req.method}:`, handlerError);
+      response = new Response('Internal server error in request handler', {
+        status: 500,
+        headers: getWebDAVResponseHeaders()
+      });
     }
 
     console.log(`[${requestId}] Completed in ${Date.now() - startTime}ms with status ${response.status}`);
@@ -224,13 +288,15 @@ serve(async (req) => {
 });
 
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
-  console.log(`[${requestId}] PROPFIND for path: ${path}`);
+  console.log(`[${requestId}] PROPFIND for path: "${path}"`);
 
   const depth = req.headers.get('Depth') || '1';
+  console.log(`[${requestId}] PROPFIND depth: ${depth}`);
   
   try {
     if (path === '/' || path === '') {
       // Root directory - show accessible folders
+      console.log(`[${requestId}] Fetching accessible folders for user`);
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
 
       if (error) {
@@ -240,6 +306,8 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
           headers: getWebDAVResponseHeaders()
         });
       }
+
+      console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
 
       const folderItems = (folders || []).map((folder: any) => `
         <D:response>
@@ -286,20 +354,25 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     } else {
       // Folder contents
       const folderName = path.split('/').filter(p => p)[0];
+      console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
       
       const { data: folders } = await supabase.rpc('get_user_accessible_folders');
       const folder = folders?.find((f: any) => f.folder_name === folderName);
       
       if (!folder) {
+        console.log(`[${requestId}] Folder not found or not accessible: "${folderName}"`);
         return new Response('Not Found', { 
           status: 404, 
           headers: getWebDAVResponseHeaders()
         });
       }
 
+      console.log(`[${requestId}] Fetching documents for folder ID: ${folder.folder_id}`);
       const { data: documents } = await supabase.rpc('get_user_accessible_documents', { 
         folder_id_param: folder.folder_id 
       });
+
+      console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
 
       const documentItems = (documents || []).map((doc: any) => `
         <D:response>
@@ -354,11 +427,12 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   }
 }
 
-async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string) {
-  console.log(`[${requestId}] GET for path: ${path}`);
+async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead = false) {
+  console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
 
   const pathParts = path.split('/').filter(p => p);
   if (pathParts.length !== 2) {
+    console.log(`[${requestId}] Invalid path structure: expected 2 parts, got ${pathParts.length}`);
     return new Response('Not Found', { 
       status: 404, 
       headers: getWebDAVResponseHeaders()
@@ -366,6 +440,7 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
   }
 
   const [folderName, fileName] = pathParts;
+  console.log(`[${requestId}] Looking for file "${fileName}" in folder "${folderName}"`);
 
   try {
     const { data: documents } = await supabase.rpc('get_user_accessible_documents');
@@ -374,9 +449,24 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
     );
 
     if (!document) {
+      console.log(`[${requestId}] Document not found or not accessible: "${fileName}"`);
       return new Response('Not Found', { 
         status: 404, 
         headers: getWebDAVResponseHeaders()
+      });
+    }
+
+    console.log(`[${requestId}] Found document, redirecting to: ${document.file_url}`);
+
+    if (isHead) {
+      return new Response(null, {
+        status: 200,
+        headers: getWebDAVResponseHeaders({
+          'Content-Length': document.file_size?.toString() || '0',
+          'Content-Type': document.mime_type || 'application/octet-stream',
+          'Last-Modified': new Date().toUTCString(),
+          'ETag': `"${crypto.randomUUID()}"`
+        })
       });
     }
 
@@ -396,7 +486,7 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
 }
 
 async function handleLock(path: string, requestId: string) {
-  console.log(`[${requestId}] LOCK for path: ${path}`);
+  console.log(`[${requestId}] LOCK for path: "${path}"`);
   
   const lockToken = crypto.randomUUID();
   const lockResponse = `<?xml version="1.0" encoding="utf-8"?>
@@ -425,7 +515,7 @@ async function handleLock(path: string, requestId: string) {
 }
 
 async function handleProppatch(path: string, requestId: string) {
-  console.log(`[${requestId}] PROPPATCH for path: ${path}`);
+  console.log(`[${requestId}] PROPPATCH for path: "${path}"`);
   
   const response = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
