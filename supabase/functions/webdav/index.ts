@@ -4,17 +4,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, lock-token, timeout, translate, range',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH',
-  'Access-Control-Expose-Headers': 'dav, ms-author-via, etag, last-modified, content-length, content-type, location',
-  'Access-Control-Max-Age': '86400'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, lock-token, timeout, translate, range, content-length, user-agent, accept, accept-encoding, accept-language, cache-control, connection, host, pragma',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD',
+  'Access-Control-Expose-Headers': 'dav, ms-author-via, etag, last-modified, content-length, content-type, location, lock-token, timeout',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'true'
 };
 
 const webdavHeaders = {
-  'DAV': '1, 2',
+  'DAV': '1, 2, 3, extend, access-control',
   'MS-Author-Via': 'DAV',
   'Server': 'Supabase-WebDAV/1.0',
-  'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
+  'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD'
 };
 
 const getWebDAVResponseHeaders = (additionalHeaders = {}) => ({
@@ -34,10 +35,11 @@ serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   
   console.log(`[${requestId}] ${req.method} ${new URL(req.url).pathname}`);
+  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight
+  // Handle CORS preflight - more comprehensive
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] CORS preflight - responding with headers`);
+    console.log(`[${requestId}] CORS preflight - responding with enhanced headers`);
     return new Response('', { 
       status: 200,
       headers: getWebDAVResponseHeaders()
@@ -156,7 +158,7 @@ serve(async (req) => {
       token_id: userInfo.token_id,
       method: req.method,
       path: new URL(req.url).pathname,
-      ip_address: req.headers.get('CF-Connecting-IP') || 'unknown',
+      ip_address: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown',
       user_agent: req.headers.get('User-Agent') || 'unknown',
       status_code: 200
     }).catch(() => {}); // Don't fail on logging errors
@@ -176,6 +178,7 @@ serve(async (req) => {
         response = await handlePropfind(supabase, userInfo, path, req, requestId);
         break;
       case 'GET':
+      case 'HEAD':
         response = await handleGet(supabase, userInfo, path, requestId);
         break;
       case 'PUT':
