@@ -16,14 +16,12 @@ serve(async (req) => {
   }
 
   try {
-    // Log request details
     console.log('Request headers:', {
       authorization: req.headers.get('Authorization') ? 'Bearer [PRESENT]' : 'MISSING',
       contentType: req.headers.get('Content-Type'),
       userAgent: req.headers.get('User-Agent'),
     });
 
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('ERROR: No authorization header provided');
@@ -35,26 +33,19 @@ serve(async (req) => {
       });
     }
 
-    console.log('Authorization header present, creating Supabase client...');
-
-    // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('ERROR: Missing environment variables:', {
-        supabaseUrl: !!supabaseUrl,
-        supabaseAnonKey: !!supabaseAnonKey
-      });
+      console.error('ERROR: Missing environment variables');
       return new Response(JSON.stringify({ 
-        error: 'Server configuration error - missing environment variables' 
+        error: 'Server configuration error' 
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Create user client to verify authentication
     const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
@@ -69,14 +60,12 @@ serve(async (req) => {
 
     console.log('Verifying user authentication...');
     
-    // Verify user authentication
     const { data: { user }, error: authError } = await userSupabase.auth.getUser();
 
     if (authError) {
       console.error('AUTH ERROR:', authError);
       return new Response(JSON.stringify({ 
-        error: `Authentication failed: ${authError.message}`,
-        details: authError
+        error: `Authentication failed: ${authError.message}`
       }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -96,10 +85,8 @@ serve(async (req) => {
     console.log('User authenticated successfully:', {
       userId: user.id,
       email: user.email,
-      emailConfirmed: user.email_confirmed_at ? 'YES' : 'NO'
     });
 
-    // Parse request body
     let requestBody;
     try {
       requestBody = await req.json();
@@ -107,8 +94,7 @@ serve(async (req) => {
     } catch (parseError) {
       console.error('ERROR: Failed to parse request body:', parseError);
       return new Response(JSON.stringify({ 
-        error: 'Invalid JSON in request body',
-        details: parseError.message
+        error: 'Invalid JSON in request body'
       }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -129,33 +115,24 @@ serve(async (req) => {
 
     console.log('Generating secure token...');
     
-    // Generate a secure random token
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
 
     console.log('Token generated, creating hash...');
     
-    // Hash the token for storage
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = new Uint8Array(hashBuffer);
     const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
 
-    // Calculate expiration date
     const expiresAt = expiresInDays > 0 
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    console.log('Creating database record with service role client...', {
-      userId: user.id,
-      tokenName: name,
-      expiresAt: expiresAt,
-      tokenHashLength: tokenHash.length
-    });
+    console.log('Creating database record...');
 
-    // Create service role client for database operations
     const serviceSupabase = createClient(
       supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -167,7 +144,6 @@ serve(async (req) => {
       }
     );
 
-    // Store the token using service role client - EXPLICITLY SET is_active to true
     const { data: tokenRecord, error: dbError } = await serviceSupabase
       .from('webdav_tokens')
       .insert({
@@ -175,7 +151,7 @@ serve(async (req) => {
         name: name,
         token_hash: tokenHash,
         expires_at: expiresAt,
-        is_active: true  // Explicitly set to true
+        is_active: true
       })
       .select()
       .single();
@@ -183,19 +159,14 @@ serve(async (req) => {
     if (dbError) {
       console.error('DATABASE ERROR:', dbError);
       return new Response(JSON.stringify({ 
-        error: 'Failed to store token in database',
-        details: dbError
+        error: 'Failed to store token in database'
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    console.log('Token created successfully in database:', {
-      tokenId: tokenRecord.id,
-      isActive: tokenRecord.is_active,
-      createdAt: tokenRecord.created_at
-    });
+    console.log('Token created successfully:', tokenRecord.id);
 
     const response = {
       token: tokenString,
@@ -216,8 +187,7 @@ serve(async (req) => {
     console.error('UNEXPECTED ERROR in webdav-create-token:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message,
-      stack: error.stack
+      details: error.message
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

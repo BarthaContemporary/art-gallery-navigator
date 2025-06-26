@@ -1,17 +1,14 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-// Enhanced CORS headers with WebDAV-specific methods and headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, if, lock-token, timeout, translate, range',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH',
   'Access-Control-Expose-Headers': 'dav, ms-author-via, etag, last-modified, content-length, content-type, location',
-  'Access-Control-Max-Age': '86400' // Cache preflight for 24 hours
+  'Access-Control-Max-Age': '86400'
 };
 
-// WebDAV-specific response headers
 const webdavHeaders = {
   'DAV': '1, 2, 3',
   'MS-Author-Via': 'DAV',
@@ -19,7 +16,6 @@ const webdavHeaders = {
   'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
 };
 
-// Combined headers for all WebDAV responses
 const getWebDAVResponseHeaders = (additionalHeaders = {}) => ({
   ...corsHeaders,
   ...webdavHeaders,
@@ -57,7 +53,6 @@ interface AccessibleDocument {
 serve(async (req) => {
   console.log(`WebDAV ${req.method} ${req.url} - Headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle CORS preflight with comprehensive WebDAV support
   if (req.method === 'OPTIONS') {
     console.log('WebDAV: Handling CORS preflight');
     return new Response(null, { 
@@ -88,12 +83,11 @@ serve(async (req) => {
       }
     });
 
-    // Extract credentials from Authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Basic ')) {
-      console.log('WebDAV: No valid auth header, returning HTML info page');
-      // Enhanced HTML response with WebDAV capability information
-      return new Response(`<!DOCTYPE html>
+      console.log('WebDAV: No valid auth header, returning info page');
+      
+      const infoPage = `<!DOCTYPE html>
 <html>
 <head>
     <title>WebDAV Server</title>
@@ -137,7 +131,9 @@ serve(async (req) => {
     
     <p>If you're seeing this page, the WebDAV server is running correctly!</p>
 </body>
-</html>`, {
+</html>`;
+
+      return new Response(infoPage, {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'text/html; charset=utf-8',
@@ -146,7 +142,6 @@ serve(async (req) => {
       });
     }
 
-    // Decode Basic Auth
     console.log('WebDAV: Decoding Basic Auth credentials');
     const base64Credentials = authHeader.slice(6);
     const credentials = new TextDecoder().decode(
@@ -166,7 +161,6 @@ serve(async (req) => {
 
     console.log('WebDAV: Validating token:', token.substring(0, 8) + '...');
 
-    // Validate token using the enhanced function
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
 
@@ -185,21 +179,11 @@ serve(async (req) => {
     const userInfo: UserInfo = {
       user_id: tokenValidation[0].user_id,
       token_id: tokenValidation[0].token_id,
-      is_admin: false // Will be determined by access functions
+      is_admin: false
     };
 
     console.log('WebDAV: User authenticated:', userInfo.user_id);
 
-    // Check user access permissions using debug function
-    const { data: debugInfo, error: debugError } = await supabase
-      .rpc('debug_webdav_access');
-
-    if (!debugError && debugInfo && debugInfo.length > 0) {
-      userInfo.is_admin = debugInfo[0].is_admin;
-      console.log('WebDAV: User debug info:', debugInfo[0]);
-    }
-
-    // Log access attempt
     await supabase.from('webdav_access_logs').insert({
       user_id: userInfo.user_id,
       token_id: userInfo.token_id,
@@ -214,7 +198,6 @@ serve(async (req) => {
     const path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
     console.log('WebDAV: Processing request for path:', path);
 
-    // Handle different WebDAV methods
     switch (req.method) {
       case 'PROPFIND':
         return await handlePropfind(supabase, userInfo, path, req);
@@ -254,13 +237,12 @@ serve(async (req) => {
 });
 
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request) {
-  console.log('PROPFIND for path:', path, 'user:', userInfo.user_id, 'is_admin:', userInfo.is_admin);
+  console.log('PROPFIND for path:', path, 'user:', userInfo.user_id);
 
   const depth = req.headers.get('Depth') || '1';
   
   try {
     if (path === '/' || path === '') {
-      // Root directory - list accessible folders
       console.log('PROPFIND: Fetching accessible folders for user');
       const { data: folders, error } = await supabase
         .rpc('get_user_accessible_folders');
@@ -275,7 +257,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
 
       console.log('PROPFIND: Found', folders?.length || 0, 'accessible folders');
 
-      // Update admin status based on actual access
       userInfo.is_admin = folders && folders.length > 0;
 
       const folderItems = (folders || []).map((folder: AccessibleFolder) => `
@@ -331,7 +312,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         })
       });
     } else {
-      // Specific folder - find the folder and list its contents
       const folderName = path.split('/').filter(p => p)[0];
       console.log('PROPFIND: Fetching folder contents for:', folderName);
       
@@ -355,7 +335,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         });
       }
 
-      // Get documents in this folder
       const { data: documents, error: docsError } = await supabase
         .rpc('get_user_accessible_documents', { folder_id_param: folder.folder_id });
 
@@ -446,7 +425,6 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
   const [folderName, fileName] = pathParts;
 
   try {
-    // Get accessible documents
     const { data: documents, error } = await supabase
       .rpc('get_user_accessible_documents');
 
@@ -471,7 +449,6 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
     }
 
     console.log('GET: Redirecting to file URL:', document.file_url);
-    // Redirect to the actual file URL
     return new Response(null, {
       status: 302,
       headers: getWebDAVResponseHeaders({
@@ -490,7 +467,6 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string) {
 async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request) {
   console.log('PUT for path:', path);
   
-  // For now, return method not allowed as file uploads need more complex handling
   return new Response('File uploads not yet supported', {
     status: 405,
     headers: getWebDAVResponseHeaders()
@@ -500,7 +476,6 @@ async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: R
 async function handleDelete(supabase: any, userInfo: UserInfo, path: string) {
   console.log('DELETE for path:', path);
   
-  // For now, return method not allowed as deletions need careful access control
   return new Response('File deletions not yet supported', {
     status: 405,
     headers: getWebDAVResponseHeaders()
@@ -510,7 +485,6 @@ async function handleDelete(supabase: any, userInfo: UserInfo, path: string) {
 async function handleMkcol(supabase: any, userInfo: UserInfo, path: string) {
   console.log('MKCOL for path:', path);
   
-  // For now, return method not allowed as folder creation needs proper access control
   return new Response('Folder creation not yet supported', {
     status: 405,
     headers: getWebDAVResponseHeaders()
@@ -538,7 +512,6 @@ async function handleCopy(supabase: any, userInfo: UserInfo, path: string, req: 
 async function handleLock(supabase: any, userInfo: UserInfo, path: string, req: Request) {
   console.log('LOCK for path:', path);
   
-  // Return a simple lock response for compatibility
   const lockResponse = `<?xml version="1.0" encoding="utf-8"?>
     <D:prop xmlns:D="DAV:">
       <D:lockdiscovery>
@@ -575,7 +548,6 @@ async function handleUnlock(supabase: any, userInfo: UserInfo, path: string, req
 async function handleProppatch(supabase: any, userInfo: UserInfo, path: string, req: Request) {
   console.log('PROPPATCH for path:', path);
   
-  // Return a simple success response for property updates
   const response = `<?xml version="1.0" encoding="utf-8"?>
     <D:multistatus xmlns:D="DAV:">
       <D:response>

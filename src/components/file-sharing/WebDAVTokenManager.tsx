@@ -25,14 +25,11 @@ interface WebDAVToken {
 
 export function WebDAVTokenManager() {
   const [tokenName, setTokenName] = useState("");
-  const [expiresIn, setExpiresIn] = useState<number>(30); // days
+  const [expiresIn, setExpiresIn] = useState<number>(30);
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
-  const [creationStatus, setCreationStatus] = useState<'idle' | 'creating' | 'success' | 'error'>('idle');
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
   const queryClient = useQueryClient();
 
-  // Check authentication status
   const { data: user } = useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
@@ -51,19 +48,15 @@ export function WebDAVTokenManager() {
     },
   });
 
-  // Get the correct WebDAV URL based on current domain
   const getWebDAVUrl = () => {
     if (typeof window !== 'undefined') {
       const currentOrigin = window.location.origin;
       
-      // Check if we're on a custom domain (not supabase.co)
       if (!currentOrigin.includes('.supabase.co')) {
-        // Custom domain - construct the edge function URL
         return `${currentOrigin}/functions/v1/webdav/`;
       }
     }
     
-    // Default to Supabase URL
     return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
   };
 
@@ -86,14 +79,10 @@ export function WebDAVTokenManager() {
 
   const createTokenMutation = useMutation({
     mutationFn: async ({ name, expiresInDays }: { name: string; expiresInDays: number }) => {
-      setCreationStatus('creating');
-      setDebugInfo(null);
-      
       console.log('WebDAV: Creating token with params:', { name, expiresInDays });
       console.log('WebDAV: Current user:', user?.email);
       console.log('WebDAV: Auth status:', authStatus);
 
-      // Check authentication first
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -107,7 +96,6 @@ export function WebDAVTokenManager() {
       }
 
       console.log('WebDAV: Session valid, access token present:', !!session.access_token);
-      console.log('WebDAV: Session expires at:', session.expires_at);
 
       try {
         console.log('WebDAV: Calling edge function...');
@@ -119,51 +107,27 @@ export function WebDAVTokenManager() {
         
         if (error) {
           console.error('WebDAV: Edge function error:', error);
-          setDebugInfo({ 
-            type: 'edge_function_error',
-            error: error,
-            session_valid: !!session,
-            user_id: user?.id,
-            timestamp: new Date().toISOString()
-          });
           throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
         }
 
         console.log('WebDAV: Token created successfully:', data);
-        setDebugInfo({ 
-          type: 'success',
-          data: data,
-          timestamp: new Date().toISOString()
-        });
-        
         return data;
       } catch (functionError) {
         console.error('WebDAV: Function invocation failed:', functionError);
-        setDebugInfo({ 
-          type: 'invocation_error',
-          error: functionError,
-          session_valid: !!session,
-          user_id: user?.id,
-          timestamp: new Date().toISOString()
-        });
         throw functionError;
       }
     },
     onSuccess: (data) => {
-      setCreationStatus('success');
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
       
-      // Store the token temporarily so user can copy it
       setLastCreatedToken(data.token);
       
-      // Also copy to clipboard immediately
       navigator.clipboard.writeText(data.token);
       toast.success(`Token created successfully! Copied to clipboard.`);
       
       setTokenName("");
     },
     onError: (error) => {
-      setCreationStatus('error');
       console.error("WebDAV: Token creation failed:", error);
       toast.error(`Failed to create WebDAV token: ${error.message}`);
     },
@@ -199,7 +163,6 @@ export function WebDAVTokenManager() {
       return;
     }
 
-    setCreationStatus('idle');
     createTokenMutation.mutate({ name: tokenName, expiresInDays: expiresIn });
   };
 
@@ -246,7 +209,6 @@ export function WebDAVTokenManager() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Authentication Status */}
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
             {authStatus === 'checking' ? (
               <>
@@ -336,17 +298,7 @@ export function WebDAVTokenManager() {
             </div>
           </div>
 
-          {/* Creation Status Feedback */}
-          {creationStatus === 'creating' && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Creating your WebDAV token... This may take a moment.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {creationStatus === 'success' && lastCreatedToken && (
+          {lastCreatedToken && (
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="flex items-center justify-between">
@@ -361,26 +313,6 @@ export function WebDAVTokenManager() {
             </Alert>
           )}
 
-          {creationStatus === 'error' && (
-            <Alert className="border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                Failed to create token. Please check the debug information below or try refreshing authentication.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Debug Information */}
-          {debugInfo && (
-            <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-              <h5 className="font-medium text-gray-900 mb-2">Debug Information:</h5>
-              <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* Connection Instructions */}
           <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
             <h5 className="font-medium text-blue-900 mb-1">Connection Instructions:</h5>
             <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
