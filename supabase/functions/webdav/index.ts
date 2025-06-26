@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -33,7 +34,6 @@ serve(async (req) => {
   const requestId = crypto.randomUUID().substring(0, 8);
   
   console.log(`[${requestId}] ${req.method} ${new URL(req.url).pathname}`);
-  console.log(`[${requestId}] Headers:`, Object.fromEntries([...req.headers.entries()]));
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -101,43 +101,13 @@ serve(async (req) => {
       });
     }
 
-    // Validate token with detailed logging
+    // Validate token using the fixed RPC function
     console.log(`[${requestId}] Validating token...`);
     
-    // Hash the token the same way we do in creation
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = new Uint8Array(hashBuffer);
-    const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-    
-    console.log(`[${requestId}] Computed token hash length: ${tokenHash.length}`);
-    console.log(`[${requestId}] Computed token hash sample: ${tokenHash.substring(0, 8)}...`);
-
-    // Look up token directly in database for debugging
-    const { data: tokenLookup, error: lookupError } = await supabase
-      .from('webdav_tokens')
-      .select('*')
-      .eq('token_hash', tokenHash)
-      .single();
-
-    if (lookupError) {
-      console.error(`[${requestId}] Token lookup error:`, lookupError);
-    } else if (tokenLookup) {
-      console.log(`[${requestId}] Found token:`, {
-        id: tokenLookup.id,
-        name: tokenLookup.name,
-        is_active: tokenLookup.is_active,
-        expires_at: tokenLookup.expires_at,
-        hash_sample: tokenLookup.token_hash.substring(0, 8) + '...'
-      });
-    } else {
-      console.log(`[${requestId}] No token found with hash`);
-    }
-
-    // Use the RPC function for validation
     const { data: tokenValidation, error: tokenError } = await supabase
       .rpc('validate_webdav_token', { token_text: token });
+
+    console.log(`[${requestId}] Token validation response:`, { tokenValidation, tokenError });
 
     if (tokenError) {
       console.error(`[${requestId}] Token validation RPC error:`, tokenError);
