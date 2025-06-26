@@ -1,35 +1,46 @@
-
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Copy, Plus, Key, AlertCircle, CheckCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { WebDAVConnectionTest } from "./WebDAVConnectionTest";
-import { WebDAVStatusChecker } from "./WebDAVStatusChecker";
+import { Copy, Key, Trash2, Plus, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WebDAVToken {
   id: string;
   name: string;
   token_hash: string;
   expires_at: string | null;
-  last_used_at: string | null;
   is_active: boolean;
   created_at: string;
+  last_used_at: string | null;
 }
 
 export function WebDAVTokenManager() {
   const [tokenName, setTokenName] = useState("");
-  const [expiresIn, setExpiresIn] = useState<number>(30);
-  const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
+  const [expiresInDays, setExpiresInDays] = useState("30");
+  const [isCreating, setIsCreating] = useState(false);
+  const [newToken, setNewToken] = useState<string | null>(null);
+  
   const queryClient = useQueryClient();
 
+  // Get the correct WebDAV URL based on current domain
   const getWebDAVUrl = () => {
+    if (typeof window !== 'undefined') {
+      const currentOrigin = window.location.origin;
+      
+      // Check if we're on a custom domain (not supabase.co and not lovableproject.com)
+      if (!currentOrigin.includes('.supabase.co') && !currentOrigin.includes('.lovableproject.com')) {
+        // Custom domain - construct the edge function URL
+        return `${currentOrigin}/functions/v1/webdav/`;
+      }
+    }
+    
+    // Default to Supabase URL
     return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
   };
 
@@ -37,7 +48,7 @@ export function WebDAVTokenManager() {
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: ["webdav-tokens"],
-    queryFn: async () => {
+    queryFn: async (): Promise<WebDAVToken[]> => {
       const { data, error } = await supabase
         .from("webdav_tokens")
         .select("*")
@@ -51,33 +62,27 @@ export function WebDAVTokenManager() {
 
   const createTokenMutation = useMutation({
     mutationFn: async ({ name, expiresInDays }: { name: string; expiresInDays: number }) => {
-      console.log('Creating WebDAV token:', { name, expiresInDays });
-
       const { data, error } = await supabase.functions.invoke("webdav-create-token", {
-        body: { name, expiresInDays },
+        body: { name, expiresInDays }
       });
 
-      if (error) {
-        console.error('Token creation error:', error);
-        throw new Error(error.message || 'Failed to create token');
-      }
-
+      if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
-      setLastCreatedToken(data.token);
-      navigator.clipboard.writeText(data.token);
-      toast.success("Token created successfully! Copied to clipboard.");
+      setNewToken(data.token);
       setTokenName("");
+      setExpiresInDays("30");
+      toast.success("WebDAV token created successfully");
     },
     onError: (error) => {
-      console.error("Token creation failed:", error);
-      toast.error(`Failed to create WebDAV token: ${error.message}`);
+      console.error("Error creating WebDAV token:", error);
+      toast.error("Failed to create WebDAV token");
     },
   });
 
-  const revokeTokenMutation = useMutation({
+  const deleteTokenMutation = useMutation({
     mutationFn: async (tokenId: string) => {
       const { error } = await supabase
         .from("webdav_tokens")
@@ -88,40 +93,42 @@ export function WebDAVTokenManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
-      toast.success("WebDAV token revoked");
+      toast.success("WebDAV token deleted successfully");
     },
     onError: (error) => {
-      console.error("Error revoking token:", error);
-      toast.error("Failed to revoke WebDAV token");
+      console.error("Error deleting WebDAV token:", error);
+      toast.error("Failed to delete WebDAV token");
     },
   });
 
-  const handleCreateToken = () => {
+  const handleCreateToken = async () => {
     if (!tokenName.trim()) {
       toast.error("Please enter a token name");
       return;
     }
 
-    createTokenMutation.mutate({ name: tokenName, expiresInDays: expiresIn });
-  };
-
-  const copyWebDAVUrl = () => {
-    navigator.clipboard.writeText(webdavUrl);
-    toast.success("WebDAV URL copied to clipboard");
-  };
-
-  const copyLastCreatedToken = () => {
-    if (lastCreatedToken) {
-      navigator.clipboard.writeText(lastCreatedToken);
-      toast.success("Token copied to clipboard");
+    setIsCreating(true);
+    try {
+      await createTokenMutation.mutateAsync({
+        name: tokenName.trim(),
+        expiresInDays: parseInt(expiresInDays) || 0
+      });
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
   return (
     <div className="space-y-6">
-      <WebDAVStatusChecker />
-      <WebDAVConnectionTest />
-      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -130,145 +137,145 @@ export function WebDAVTokenManager() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg">
-            <p className="text-sm text-muted-foreground mb-2">
-              WebDAV allows you to access your files directly from file managers and applications.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="bg-background px-2 py-1 rounded text-sm flex-1">
-                {webdavUrl}
-              </code>
-              <Button size="sm" variant="outline" onClick={copyWebDAVUrl}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-3">
             <div>
-              <Label htmlFor="tokenName">Token Name</Label>
-              <Input
-                id="tokenName"
-                placeholder="e.g., My Desktop"
-                value={tokenName}
-                onChange={(e) => setTokenName(e.target.value)}
-                disabled={createTokenMutation.isPending}
-              />
-            </div>
-            <div>
-              <Label htmlFor="expiresIn">Expires In (Days)</Label>
-              <Input
-                id="expiresIn"
-                type="number"
-                min="1"
-                max="365"
-                value={expiresIn}
-                onChange={(e) => setExpiresIn(parseInt(e.target.value) || 30)}
-                disabled={createTokenMutation.isPending}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={handleCreateToken}
-                disabled={createTokenMutation.isPending}
-                className="w-full"
-              >
-                {createTokenMutation.isPending ? (
-                  <>Creating...</>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Token
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {lastCreatedToken && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="flex items-center justify-between">
-                <span className="text-green-800">
-                  Token created successfully! Copy it now - you won't see it again.
-                </span>
-                <Button size="sm" variant="outline" onClick={copyLastCreatedToken}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Token
+              <h4 className="font-medium mb-2">WebDAV Server URL:</h4>
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                <code className="flex-1 text-sm">{webdavUrl}</code>
+                <Button size="sm" variant="outline" onClick={() => copyToClipboard(webdavUrl)}>
+                  <Copy className="h-4 w-4" />
                 </Button>
-              </AlertDescription>
-            </Alert>
+              </div>
+              {!webdavUrl.includes('.supabase.co') && !webdavUrl.includes('.lovableproject.com') && (
+                <div className="mt-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                  📌 Using custom domain URL - this should work with your domain setup
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Token Creation Form */}
+          <div className="border rounded-lg p-4 space-y-4">
+            <h4 className="font-medium">Create New Token</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="tokenName">Token Name</Label>
+                <Input
+                  id="tokenName"
+                  placeholder="e.g., My WebDAV Access"
+                  value={tokenName}
+                  onChange={(e) => setTokenName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="expiresInDays">Expires In</Label>
+                <Select value={expiresInDays} onValueChange={setExpiresInDays}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Never</SelectItem>
+                    <SelectItem value="7">7 days</SelectItem>
+                    <SelectItem value="30">30 days</SelectItem>
+                    <SelectItem value="90">90 days</SelectItem>
+                    <SelectItem value="365">1 year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button onClick={handleCreateToken} disabled={isCreating} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {isCreating ? "Creating..." : "Create Token"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* New Token Display */}
+          {newToken && (
+            <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-3">
+              <h4 className="font-medium text-green-800">✅ Token Created Successfully!</h4>
+              <p className="text-sm text-green-700">
+                Save this token securely - you won't be able to see it again.
+              </p>
+              <div className="flex items-center gap-2 p-3 bg-white rounded border">
+                <code className="flex-1 text-sm font-mono break-all">{newToken}</code>
+                <Button size="sm" variant="outline" onClick={() => copyToClipboard(newToken)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="text-sm text-green-700 space-y-1">
+                <p><strong>Username:</strong> <code>webdav</code> (any value works)</p>
+                <p><strong>Password:</strong> The token above</p>
+                <p><strong>URL:</strong> <code>{webdavUrl}</code></p>
+              </div>
+              <Button size="sm" onClick={() => setNewToken(null)} variant="outline">
+                Dismiss
+              </Button>
+            </div>
           )}
 
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-            <h5 className="font-medium text-blue-900 mb-1">Connection Instructions:</h5>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>Create a WebDAV token using the form above</li>
-              <li>Open your file manager (Finder, Windows Explorer, etc.)</li>
-              <li>Connect to: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
-              <li>Username: <code className="bg-blue-100 px-1 rounded">webdav</code> (or any value)</li>
-              <li>Password: Your WebDAV token from below</li>
-              <li>You'll see folders based on your access level</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Tokens</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-4">Loading tokens...</div>
-          ) : tokens.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No active WebDAV tokens. Create one above to get started.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {tokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{token.name}</span>
-                      {token.expires_at && new Date(token.expires_at) < new Date() && (
-                        <Badge variant="destructive">Expired</Badge>
-                      )}
-                      {token.last_used_at && (
-                        <Badge variant="secondary">Recently Used</Badge>
-                      )}
-                      {token.is_active && (
-                        <Badge variant="default">Active</Badge>
-                      )}
+          {/* Existing Tokens List */}
+          <div className="space-y-3">
+            <h4 className="font-medium">Active Tokens</h4>
+            {isLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading tokens...</div>
+            ) : tokens.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">No active tokens</div>
+            ) : (
+              <div className="space-y-2">
+                {tokens.map((token) => (
+                  <div key={token.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{token.name}</span>
+                        {token.expires_at ? (
+                          <Badge variant="outline">
+                            Expires {formatDate(token.expires_at)}
+                          </Badge>
+                        ) : (
+                          <Badge>Never expires</Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Created {formatDate(token.created_at)}
+                        {token.last_used_at && ` • Last used ${formatDate(token.last_used_at)}`}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Created: {new Date(token.created_at).toLocaleDateString()}
-                      {token.expires_at && (
-                        <span> • Expires: {new Date(token.expires_at).toLocaleDateString()}</span>
-                      )}
-                      {token.last_used_at && (
-                        <span> • Last used: {new Date(token.last_used_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
                       size="sm"
-                      onClick={() => revokeTokenMutation.mutate(token.id)}
-                      disabled={revokeTokenMutation.isPending}
+                      variant="destructive"
+                      onClick={() => deleteTokenMutation.mutate(token.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+            <h5 className="font-medium text-blue-900 mb-1">How to Connect:</h5>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Create a token using the form above</li>
+              <li>Open your file manager (Finder: Cmd+K, Windows: Map Network Drive)</li>
+              <li>Connect to: <code className="bg-blue-100 px-1 rounded">{webdavUrl}</code></li>
+              <li>Username: <code className="bg-blue-100 px-1 rounded">webdav</code> (any value works)</li>
+              <li>Password: Your WebDAV token</li>
+              <li>Browse your folders based on your access permissions</li>
+            </ol>
+          </div>
+
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => window.open("https://cyberduck.io/", "_blank")}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Try Cyberduck
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
