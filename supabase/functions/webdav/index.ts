@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -378,9 +377,14 @@ serve(async (req) => {
       }
     });
 
-    // Parse path with enhanced logging
+    // Parse path with enhanced logging and Mac Finder compatibility
     let path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
     if (!path.startsWith('/')) path = '/' + path;
+    
+    // Handle Mac Finder's weird path requests
+    if (path === '/webdav/' || path === '/webdav') {
+      path = '/';
+    }
     
     console.log(`[${requestId}] Processing ${req.method} for path: "${path}"`);
 
@@ -448,7 +452,7 @@ serve(async (req) => {
   }
 });
 
-// Enhanced PROPFIND with Mac-specific XML formatting
+// Enhanced PROPFIND with Mac-specific XML formatting and better root handling
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PROPFIND for path: "${path}"`);
 
@@ -456,7 +460,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   console.log(`[${requestId}] PROPFIND depth: ${depth}`);
   
   try {
-    if (path === '/' || path === '') {
+    if (path === '/' || path === '' || path === '/webdav/' || path === '/webdav') {
       // Root directory - show accessible folders with Mac-compatible XML
       console.log(`[${requestId}] Fetching accessible folders for user`);
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
