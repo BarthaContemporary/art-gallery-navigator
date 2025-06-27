@@ -77,24 +77,47 @@ export function WebDAVDebugPanel() {
         base64Length: base64Credentials.length
       });
 
+      // Use a longer timeout and more specific headers for the debug request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(webdavDebugUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${base64Credentials}`,
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+          'Accept': 'application/json',
+          'User-Agent': 'WebDAV-Debug-Panel/1.0'
+        },
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       let result;
-      try {
-        result = await response.json();
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          const textResponse = await response.text();
+          result = {
+            error: "Invalid JSON response",
+            details: textResponse,
+            responseText: textResponse,
+            contentType: contentType
+          };
+        }
+      } else {
         const textResponse = await response.text();
         result = {
-          error: "Invalid JSON response",
-          details: textResponse,
-          responseText: textResponse
+          error: "Non-JSON response received",
+          details: `Server returned: ${textResponse}`,
+          responseText: textResponse,
+          contentType: contentType,
+          status: response.status,
+          statusText: response.statusText
         };
       }
 
@@ -110,13 +133,33 @@ export function WebDAVDebugPanel() {
       } else {
         toast.error("Debug test failed - check results below");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Debug test error:", error);
+      
+      let errorDetails = error.message;
+      let errorType = error.name;
+      
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        errorDetails = "Request timed out after 30 seconds";
+        errorType = "Timeout";
+      } else if (error.message.includes('Failed to fetch')) {
+        errorDetails = "Cannot connect to WebDAV server. This could be due to CORS issues, network problems, or the server being unavailable.";
+        errorType = "Network Error";
+      }
+      
       setDebugResult({
-        error: "Network error",
-        details: error.message,
-        errorType: error.name,
-        timestamp: new Date().toISOString()
+        error: "Network/Connection error",
+        details: errorDetails,
+        errorType: errorType,
+        timestamp: new Date().toISOString(),
+        troubleshooting: [
+          "Check if you're connected to the internet",
+          "Verify the WebDAV server URL is correct",
+          "Try refreshing the page and testing again",
+          "Check if your browser is blocking the request",
+          "Try using a different browser or incognito mode"
+        ]
       });
       toast.error("Failed to connect to debug endpoint");
     } finally {
@@ -244,6 +287,16 @@ export function WebDAVDebugPanel() {
                 {debugResult.errorType && (
                   <p className="text-xs text-red-600 mt-1">Type: {debugResult.errorType}</p>
                 )}
+                {debugResult.troubleshooting && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-red-800">Troubleshooting steps:</p>
+                    <ul className="text-xs text-red-700 mt-1 list-disc list-inside">
+                      {debugResult.troubleshooting.map((step: string, index: number) => (
+                        <li key={index}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -261,14 +314,13 @@ export function WebDAVDebugPanel() {
         </div>
 
         <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-          <h5 className="font-medium text-yellow-900 mb-1">Troubleshooting Steps</h5>
-          <ol className="text-sm text-yellow-800 space-y-1 list-decimal list-inside">
-            <li>Test basic connectivity first (use "Test Connection" button)</li>
-            <li>Create a new WebDAV token if you don't have one</li>
-            <li>Ensure the token is exactly 64 characters long</li>
-            <li>Test the token with this debug panel</li>
-            <li>If successful here, try connecting with macOS Finder</li>
-          </ol>
+          <h5 className="font-medium text-yellow-900 mb-1">Common Network Issues</h5>
+          <ul className="text-sm text-yellow-800 space-y-1">
+            <li>• <strong>Failed to fetch:</strong> Check your internet connection</li>
+            <li>• <strong>CORS errors:</strong> Try refreshing the page or using incognito mode</li>
+            <li>• <strong>Timeout:</strong> The server might be slow or unavailable</li>
+            <li>• <strong>Browser blocking:</strong> Check if ad blockers are interfering</li>
+          </ul>
         </div>
       </CardContent>
     </Card>
