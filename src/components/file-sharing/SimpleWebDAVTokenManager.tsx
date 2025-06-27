@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Key, Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import { Copy, Key, Trash2, Plus, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ export function SimpleWebDAVTokenManager() {
   const queryClient = useQueryClient();
   const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
 
-  const { data: tokens = [], isLoading } = useQuery({
+  const { data: tokens = [], isLoading, refetch } = useQuery({
     queryKey: ["webdav-tokens"],
     queryFn: async (): Promise<WebDAVToken[]> => {
       const { data, error } = await supabase
@@ -58,7 +58,18 @@ export function SimpleWebDAVTokenManager() {
       queryClient.invalidateQueries({ queryKey: ["webdav-tokens"] });
       setNewToken(data.token);
       setTokenName("");
-      toast.success("Access token created successfully!");
+      
+      // Show validation test results if available
+      if (data.validation_test) {
+        console.log('Token validation test:', data.validation_test);
+        if (data.validation_test.is_valid) {
+          toast.success("Access token created and validated successfully!");
+        } else {
+          toast.error("Access token created but validation failed - please contact support");
+        }
+      } else {
+        toast.success("Access token created successfully!");
+      }
     },
     onError: (error) => {
       console.error("Error creating WebDAV token:", error);
@@ -119,9 +130,28 @@ export function SimpleWebDAVTokenManager() {
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
             File Server Access
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetch()}
+              className="ml-auto"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Important Notice */}
+          {hasActiveTokens && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="font-semibold text-amber-800 mb-2">⚠️ Important</h4>
+              <p className="text-sm text-amber-700">
+                Creating a new token will automatically deactivate all existing tokens to prevent conflicts. 
+                If you're having issues with an existing token, try creating a fresh one.
+              </p>
+            </div>
+          )}
+
           {/* Quick Setup */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">Create Access Token</h3>
@@ -181,6 +211,7 @@ export function SimpleWebDAVTokenManager() {
                   <p>• Use this token as your password in Mac Finder</p>
                   <p>• Username: <code className="bg-green-100 px-1 rounded text-xs">webdav</code></p>
                   <p>• Test with the debug panel above before trying Mac Finder</p>
+                  <p>• This token replaced any previous tokens to avoid conflicts</p>
                 </div>
               </div>
             </div>

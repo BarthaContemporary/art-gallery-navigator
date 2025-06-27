@@ -101,6 +101,14 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
+    // First, deactivate any existing tokens to ensure we don't have conflicts
+    console.log('Deactivating existing tokens for user:', user.id);
+    await serviceSupabase
+      .from('webdav_tokens')
+      .update({ is_active: false })
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
     const { data: tokenRecord, error: dbError } = await serviceSupabase
       .from('webdav_tokens')
       .insert({
@@ -133,13 +141,32 @@ serve(async (req) => {
       console.log('Hash verification successful: stored hash matches computed hash');
     }
 
+    // Test the token immediately after creation
+    console.log('Testing token validation immediately after creation...');
+    const { data: testValidation, error: testError } = await serviceSupabase
+      .rpc('validate_webdav_token', { token_text: tokenString });
+
+    if (testError) {
+      console.error('Immediate validation test failed:', testError);
+    } else if (testValidation && testValidation.length > 0) {
+      const validation = testValidation[0];
+      console.log('Immediate validation successful:', {
+        is_valid: validation.is_valid,
+        user_id: validation.user_id,
+        token_id: validation.token_id
+      });
+    } else {
+      console.error('Immediate validation returned no results');
+    }
+
     return new Response(JSON.stringify({
       token: tokenString,
       id: tokenRecord.id,
       name: tokenRecord.name,
       expires_at: tokenRecord.expires_at,
       is_active: tokenRecord.is_active,
-      created_at: tokenRecord.created_at
+      created_at: tokenRecord.created_at,
+      validation_test: testValidation?.[0] || null
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
