@@ -99,7 +99,7 @@ function parseCredentials(authHeader: string, requestId: string): { username: st
   return { username, token: cleanToken };
 }
 
-// Debug endpoint for comprehensive token testing
+// Enhanced debug endpoint with proper CORS
 async function handleDebugToken(req: Request, requestId: string) {
   console.log(`[${requestId}] === DEBUG TOKEN ENDPOINT ===`);
   
@@ -108,12 +108,18 @@ async function handleDebugToken(req: Request, requestId: string) {
     timestamp: new Date().toISOString(),
     requestId,
     authHeaderPresent: !!authHeader,
-    userAgent: req.headers.get('User-Agent') || 'unknown'
+    userAgent: req.headers.get('User-Agent') || 'unknown',
+    success: false
   };
 
   if (!authHeader) {
     result.error = 'No Authorization header provided';
     result.expectedFormat = 'Authorization: Basic <base64-encoded-credentials>';
+    result.instructions = {
+      username: 'webdav',
+      password: 'Your 64-character WebDAV token',
+      note: 'Make sure your token is exactly 64 hexadecimal characters'
+    };
     return new Response(JSON.stringify(result, null, 2), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -133,6 +139,12 @@ async function handleDebugToken(req: Request, requestId: string) {
   if (!credentials) {
     result.error = 'Failed to parse credentials';
     result.base64Sample = authHeader.slice(6).substring(0, 20) + '...';
+    result.troubleshooting = [
+      'Ensure your token is exactly 64 characters long',
+      'Verify your token contains only hexadecimal characters (0-9, a-f)',
+      'Make sure you are using "webdav" as the username',
+      'Try copying the token again from the interface'
+    ];
     return new Response(JSON.stringify(result, null, 2), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -158,8 +170,51 @@ async function handleDebugToken(req: Request, requestId: string) {
     computedHashSample: computedHash.substring(0, 16) + '...'
   };
 
+  // Test database connection
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      result.error = 'Server configuration error - missing environment variables';
+      return new Response(JSON.stringify(result, null, 2), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    const { data: tokenValidation, error: tokenError } = await supabase
+      .rpc('validate_webdav_token', { token_text: credentials.token });
+
+    if (tokenError) {
+      result.error = 'Token validation failed';
+      result.dbError = tokenError.message;
+    } else if (!tokenValidation || tokenValidation.length === 0) {
+      result.error = 'Token not found in database';
+      result.note = 'This token may have been deleted or never created';
+    } else {
+      const validation = tokenValidation[0];
+      result.tokenValid = validation.is_valid;
+      result.userId = validation.user_id;
+      result.tokenId = validation.token_id;
+      
+      if (validation.is_valid) {
+        result.message = 'Token is valid and authentication should work';
+      } else {
+        result.error = 'Token exists but is not valid (expired or deactivated)';
+      }
+    }
+  } catch (dbError) {
+    result.error = 'Database connection failed';
+    result.dbError = dbError.message;
+  }
+
   return new Response(JSON.stringify(result, null, 2), {
-    status: 200,
+    status: result.success && result.tokenValid ? 200 : 400,
     headers: { 'Content-Type': 'application/json', ...corsHeaders }
   });
 }
@@ -173,8 +228,15 @@ serve(async (req) => {
   console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
 
-  // Debug endpoint for token testing
+  // Handle debug endpoint FIRST - before any other processing
   if (url.pathname.includes('/debug-token')) {
+    console.log(`[${requestId}] Handling debug token endpoint`);
+    if (req.method === 'OPTIONS') {
+      return new Response('', { 
+        status: 200,
+        headers: corsHeaders
+      });
+    }
     return await handleDebugToken(req, requestId);
   }
 
