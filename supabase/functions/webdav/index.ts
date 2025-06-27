@@ -468,16 +468,10 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       // Root directory - show accessible folders with Mac-compatible XML
       console.log(`[${requestId}] Fetching accessible folders for user`);
       
-      // CRITICAL FIX: Use the service role client to set the user context
-      const { data: setContextResult, error: contextError } = await supabase.rpc('set_session_user', {
-        user_uuid: userInfo.user_id
+      // FIXED: Use the new function that accepts user_id parameter
+      const { data: folders, error } = await supabase.rpc('get_user_accessible_folders_for_user', {
+        user_id_param: userInfo.user_id
       });
-      
-      if (contextError) {
-        console.log(`[${requestId}] Context setting failed (continuing anyway):`, contextError);
-      }
-      
-      const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
 
       if (error) {
         console.error(`[${requestId}] Error fetching folders:`, error);
@@ -548,7 +542,9 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       const folderName = path.split('/').filter(p => p)[0];
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
       
-      const { data: folders } = await supabase.rpc('get_user_accessible_folders');
+      const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+        user_id_param: userInfo.user_id
+      });
       const folder = folders?.find((f: any) => f.folder_name === folderName);
       
       if (!folder) {

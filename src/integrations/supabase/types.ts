@@ -2022,6 +2022,18 @@ export type Database = {
           can_write: boolean
         }[]
       }
+      get_user_accessible_folders_for_user: {
+        Args: { user_id_param: string }
+        Returns: {
+          folder_id: string
+          folder_name: string
+          folder_path: string
+          artist_id: string
+          parent_folder_id: string
+          can_read: boolean
+          can_write: boolean
+        }[]
+      }
       get_user_projects: {
         Args: { user_uuid: string }
         Returns: string[]
