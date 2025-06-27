@@ -1947,6 +1947,22 @@ export type Database = {
           artist_linked_count: number
         }[]
       }
+      debug_webdav_folder_access: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          folder_id: string
+          folder_name: string
+          artist_id: string
+          created_by: string
+          parent_folder_id: string
+          current_user_id: string
+          is_admin: boolean
+          artist_user_id: string
+          matches_artist: boolean
+          matches_creator: boolean
+          should_be_accessible: boolean
+        }[]
+      }
       find_or_create_chat_room: {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
