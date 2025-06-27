@@ -377,14 +377,17 @@ serve(async (req) => {
       }
     });
 
-    // Parse path with enhanced logging and Mac Finder compatibility
+    // Enhanced path parsing with proper URL decoding and Mac Finder compatibility
     let path = decodeURIComponent(url.pathname.replace('/functions/v1/webdav', '') || '/');
     if (!path.startsWith('/')) path = '/' + path;
     
-    // Handle Mac Finder's weird path requests
+    // Clean up Mac Finder specific path issues
     if (path === '/webdav/' || path === '/webdav') {
       path = '/';
     }
+    
+    // Remove any double slashes and normalize
+    path = path.replace(/\/+/g, '/');
     
     console.log(`[${requestId}] Processing ${req.method} for path: "${path}"`);
 
@@ -456,7 +459,7 @@ serve(async (req) => {
   }
 });
 
-// Enhanced PROPFIND with Mac-specific XML formatting and better root handling
+// Enhanced PROPFIND with better folder and path handling
 async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PROPFIND for path: "${path}"`);
 
@@ -465,12 +468,8 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   
   try {
     if (path === '/' || path === '' || path === '/webdav/' || path === '/webdav') {
-      // Root directory - show accessible folders with Mac-compatible XML
+      // Root directory - show accessible folders
       console.log(`[${requestId}] Fetching accessible folders for user: ${userInfo.user_id}`);
-      console.log(`[${requestId}] User is admin: ${userInfo.is_admin}`);
-      
-      // FIXED: Use the new function that accepts user_id parameter with enhanced logging
-      console.log(`[${requestId}] Calling get_user_accessible_folders_for_user with user_id: ${userInfo.user_id}`);
       
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userInfo.user_id
@@ -491,21 +490,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       }
 
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
-      
-      // Log each folder for debugging
-      if (folders && folders.length > 0) {
-        folders.forEach((folder: any, index: number) => {
-          console.log(`[${requestId}] Folder ${index + 1}:`, {
-            id: folder.folder_id,
-            name: folder.folder_name,
-            artist_id: folder.artist_id,
-            can_read: folder.can_read,
-            can_write: folder.can_write
-          });
-        });
-      } else {
-        console.log(`[${requestId}] No folders returned from database function`);
-      }
 
       const folderItems = (folders || []).map((folder: any) => `
     <D:response>
@@ -553,9 +537,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   </D:response>${folderItems}
 </D:multistatus>`;
 
-      console.log(`[${requestId}] Returning XML response with ${folders?.length || 0} folders`);
-      console.log(`[${requestId}] XML response length: ${xmlResponse.length} characters`);
-
       return new Response(xmlResponse, {
         status: 207,
         headers: getWebDAVResponseHeaders({
@@ -564,13 +545,17 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         })
       });
     } else {
-      // Folder contents handling
-      const folderName = path.split('/').filter(p => p)[0];
+      // Folder contents handling - improved path parsing
+      const pathParts = path.split('/').filter(p => p);
+      const folderName = decodeURIComponent(pathParts[0] || '');
+      
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
+      console.log(`[${requestId}] Path parts:`, pathParts);
       
       const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userInfo.user_id
       });
+      
       const folder = folders?.find((f: any) => f.folder_name === folderName);
       
       if (!folder) {
@@ -581,10 +566,20 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
         });
       }
 
+      console.log(`[${requestId}] Found folder:`, folder);
       console.log(`[${requestId}] Fetching documents for folder ID: ${folder.folder_id}`);
-      const { data: documents } = await supabase.rpc('get_user_accessible_documents', { 
+      
+      const { data: documents, error: docsError } = await supabase.rpc('get_user_accessible_documents', { 
         folder_id_param: folder.folder_id 
       });
+
+      if (docsError) {
+        console.error(`[${requestId}] Error fetching documents:`, docsError);
+        return new Response('Error fetching folder contents', { 
+          status: 500, 
+          headers: getWebDAVResponseHeaders()
+        });
+      }
 
       console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
 
@@ -738,7 +733,7 @@ async function handleMkcol(supabase: any, userInfo: UserInfo, path: string, requ
 async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead: boolean = false) {
   console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
   
-  const pathParts = path.split('/').filter(p => p);
+  const pathParts = path.split('/').filter(p => p).map(p => decodeURIComponent(p));
   if (pathParts.length < 2) {
     return new Response('Invalid file path', {
       status: 400,
@@ -747,7 +742,9 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
   }
   
   const fileName = pathParts[pathParts.length - 1];
-  const folderPath = pathParts.slice(0, -1);
+  const folderName = pathParts[0];
+  
+  console.log(`[${requestId}] Looking for file "${fileName}" in folder "${folderName}"`);
   
   try {
     // Find target folder
@@ -755,10 +752,11 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
       user_id_param: userInfo.user_id
     });
     const targetFolder = folders?.find((f: any) => 
-      f.folder_name === folderPath[folderPath.length - 1] && f.can_read
+      f.folder_name === folderName && f.can_read
     );
     
     if (!targetFolder) {
+      console.log(`[${requestId}] Folder "${folderName}" not found or not accessible`);
       return new Response('Folder not found or not accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()
@@ -772,6 +770,7 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
     const document = documents?.find((doc: any) => doc.document_name === fileName);
     
     if (!document) {
+      console.log(`[${requestId}] File "${fileName}" not found in folder`);
       return new Response('File not found', {
         status: 404,
         headers: getWebDAVResponseHeaders()
@@ -794,6 +793,7 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
     // GET request - fetch and return file content
     const fileResponse = await fetch(document.file_url);
     if (!fileResponse.ok) {
+      console.log(`[${requestId}] Failed to fetch file from URL: ${document.file_url}`);
       return new Response('File not accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()
@@ -821,12 +821,13 @@ async function handleGet(supabase: any, userInfo: UserInfo, path: string, reques
   }
 }
 
-// Handle PUT (upload file)
+// Handle PUT (upload file) with enhanced folder detection
 async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PUT for path: "${path}"`);
   
-  const pathParts = path.split('/').filter(p => p);
+  const pathParts = path.split('/').filter(p => p).map(p => decodeURIComponent(p));
   if (pathParts.length < 2) {
+    console.log(`[${requestId}] Invalid file path - not enough path parts`);
     return new Response('Invalid file path', {
       status: 400,
       headers: getWebDAVResponseHeaders()
@@ -834,29 +835,34 @@ async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: R
   }
   
   const fileName = pathParts[pathParts.length - 1];
-  const folderPath = pathParts.slice(0, -1);
+  const folderName = pathParts[0];
+  
+  console.log(`[${requestId}] Uploading file "${fileName}" to folder "${folderName}"`);
   
   try {
     // Get file content
     const fileContent = await req.arrayBuffer();
     const fileSize = fileContent.byteLength;
     
-    console.log(`[${requestId}] Uploading file "${fileName}" (${fileSize} bytes)`);
+    console.log(`[${requestId}] File content size: ${fileSize} bytes`);
     
     // Find target folder
     const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
       user_id_param: userInfo.user_id
     });
     const targetFolder = folders?.find((f: any) => 
-      f.folder_name === folderPath[folderPath.length - 1] && f.can_write
+      f.folder_name === folderName && f.can_write
     );
     
     if (!targetFolder) {
+      console.log(`[${requestId}] Target folder "${folderName}" not found or not writable`);
       return new Response('Target folder not found or not writable', {
         status: 404,
         headers: getWebDAVResponseHeaders()
       });
     }
+    
+    console.log(`[${requestId}] Target folder found:`, targetFolder);
     
     // Upload to Supabase Storage
     const filePath = `webdav/${userInfo.user_id}/${crypto.randomUUID()}_${fileName}`;
@@ -874,6 +880,8 @@ async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: R
         headers: getWebDAVResponseHeaders()
       });
     }
+    
+    console.log(`[${requestId}] File uploaded to storage:`, uploadData);
     
     // Get public URL
     const { data: urlData } = supabase.storage
