@@ -669,7 +669,9 @@ async function handleMkcol(supabase: any, userInfo: UserInfo, path: string, requ
   
   try {
     // Get accessible folders to check permissions
-    const { data: folders } = await supabase.rpc('get_user_accessible_folders');
+    const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      user_id_param: userInfo.user_id
+    });
     
     let parentFolderId = null;
     let artistId = null;
@@ -732,6 +734,93 @@ async function handleMkcol(supabase: any, userInfo: UserInfo, path: string, requ
   }
 }
 
+// Handle GET and HEAD requests (download files)
+async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead: boolean = false) {
+  console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
+  
+  const pathParts = path.split('/').filter(p => p);
+  if (pathParts.length < 2) {
+    return new Response('Invalid file path', {
+      status: 400,
+      headers: getWebDAVResponseHeaders()
+    });
+  }
+  
+  const fileName = pathParts[pathParts.length - 1];
+  const folderPath = pathParts.slice(0, -1);
+  
+  try {
+    // Find target folder
+    const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      user_id_param: userInfo.user_id
+    });
+    const targetFolder = folders?.find((f: any) => 
+      f.folder_name === folderPath[folderPath.length - 1] && f.can_read
+    );
+    
+    if (!targetFolder) {
+      return new Response('Folder not found or not accessible', {
+        status: 404,
+        headers: getWebDAVResponseHeaders()
+      });
+    }
+    
+    // Find document
+    const { data: documents } = await supabase.rpc('get_user_accessible_documents', { 
+      folder_id_param: targetFolder.folder_id 
+    });
+    const document = documents?.find((doc: any) => doc.document_name === fileName);
+    
+    if (!document) {
+      return new Response('File not found', {
+        status: 404,
+        headers: getWebDAVResponseHeaders()
+      });
+    }
+    
+    if (isHead) {
+      // HEAD request - return headers only
+      return new Response('', {
+        status: 200,
+        headers: getWebDAVResponseHeaders({
+          'Content-Length': document.file_size?.toString() || '0',
+          'Content-Type': document.mime_type || 'application/octet-stream',
+          'ETag': `"${crypto.randomUUID()}"`,
+          'Last-Modified': new Date().toUTCString()
+        })
+      });
+    }
+    
+    // GET request - fetch and return file content
+    const fileResponse = await fetch(document.file_url);
+    if (!fileResponse.ok) {
+      return new Response('File not accessible', {
+        status: 404,
+        headers: getWebDAVResponseHeaders()
+      });
+    }
+    
+    const fileContent = await fileResponse.arrayBuffer();
+    
+    return new Response(fileContent, {
+      status: 200,
+      headers: getWebDAVResponseHeaders({
+        'Content-Length': fileContent.byteLength.toString(),
+        'Content-Type': document.mime_type || 'application/octet-stream',
+        'ETag': `"${crypto.randomUUID()}"`,
+        'Last-Modified': new Date().toUTCString()
+      })
+    });
+    
+  } catch (error) {
+    console.error(`[${requestId}] GET/HEAD error:`, error);
+    return new Response('Internal server error', {
+      status: 500,
+      headers: getWebDAVResponseHeaders()
+    });
+  }
+}
+
 // Handle PUT (upload file)
 async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PUT for path: "${path}"`);
@@ -755,7 +844,9 @@ async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: R
     console.log(`[${requestId}] Uploading file "${fileName}" (${fileSize} bytes)`);
     
     // Find target folder
-    const { data: folders } = await supabase.rpc('get_user_accessible_folders');
+    const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      user_id_param: userInfo.user_id
+    });
     const targetFolder = folders?.find((f: any) => 
       f.folder_name === folderPath[folderPath.length - 1] && f.can_write
     );
@@ -848,7 +939,9 @@ async function handleDelete(supabase: any, userInfo: UserInfo, path: string, req
   
   try {
     // Check if it's a folder
-    const { data: folders } = await supabase.rpc('get_user_accessible_folders');
+    const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      user_id_param: userInfo.user_id
+    });
     const folder = folders?.find((f: any) => f.folder_name === itemName && f.can_write);
     
     if (folder) {
@@ -933,6 +1026,61 @@ async function handleCopy(supabase: any, userInfo: UserInfo, path: string, req: 
   return new Response('Method not implemented', {
     status: 501,
     headers: getWebDAVResponseHeaders()
+  });
+}
+
+// Handle LOCK
+async function handleLock(path: string, requestId: string) {
+  console.log(`[${requestId}] LOCK for path: "${path}"`);
+  
+  // Basic lock response - WebDAV clients expect this
+  const lockToken = crypto.randomUUID();
+  const lockXml = `<?xml version="1.0" encoding="utf-8"?>
+<D:prop xmlns:D="DAV:">
+  <D:lockdiscovery>
+    <D:activelock>
+      <D:locktype><D:write/></D:locktype>
+      <D:lockscope><D:exclusive/></D:lockscope>
+      <D:depth>0</D:depth>
+      <D:owner>WebDAV User</D:owner>
+      <D:timeout>Second-3600</D:timeout>
+      <D:locktoken>
+        <D:href>urn:uuid:${lockToken}</D:href>
+      </D:locktoken>
+    </D:activelock>
+  </D:lockdiscovery>
+</D:prop>`;
+  
+  return new Response(lockXml, {
+    status: 200,
+    headers: getWebDAVResponseHeaders({
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Lock-Token': `<urn:uuid:${lockToken}>`,
+      'Timeout': 'Second-3600'
+    })
+  });
+}
+
+// Handle PROPPATCH
+async function handleProppatch(path: string, requestId: string) {
+  console.log(`[${requestId}] PROPPATCH for path: "${path}"`);
+  
+  // Basic PROPPATCH response
+  const proppatchXml = `<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>${path}</D:href>
+    <D:propstat>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+  
+  return new Response(proppatchXml, {
+    status: 207,
+    headers: getWebDAVResponseHeaders({
+      'Content-Type': 'application/xml; charset=utf-8'
+    })
   });
 }
 
