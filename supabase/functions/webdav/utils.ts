@@ -27,3 +27,31 @@ export function normalizePath(path: string): string {
   
   return normalizedPath;
 }
+
+export function parseWebDAVPath(path: string): { isRoot: boolean; folderName?: string; fileName?: string } {
+  // Remove the WebDAV prefix and normalize
+  const normalizedPath = normalizePath(path);
+  
+  // Handle root directory
+  if (normalizedPath === '/' || normalizedPath === '') {
+    return { isRoot: true };
+  }
+  
+  // Split path and filter out empty parts
+  const pathParts = normalizedPath.split('/').filter(p => p).map(p => decodeURIComponent(p));
+  
+  // Skip "webdav" if it appears as the first part (Mac Finder artifact)
+  const cleanParts = pathParts[0] === 'webdav' ? pathParts.slice(1) : pathParts;
+  
+  if (cleanParts.length === 0) {
+    return { isRoot: true };
+  } else if (cleanParts.length === 1) {
+    return { isRoot: false, folderName: cleanParts[0] };
+  } else {
+    return { 
+      isRoot: false, 
+      folderName: cleanParts[0], 
+      fileName: cleanParts[cleanParts.length - 1] 
+    };
+  }
+}

@@ -1,7 +1,7 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { escapeXml } from "../utils.ts";
+import { escapeXml, parseWebDAVPath } from "../utils.ts";
 
 export async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PROPFIND for path: "${path}"`);
@@ -10,7 +10,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
   console.log(`[${requestId}] PROPFIND depth: ${depth}`);
   
   try {
-    if (path === '/' || path === '' || path === '/webdav/' || path === '/webdav') {
+    const pathInfo = parseWebDAVPath(path);
+    console.log(`[${requestId}] Parsed path info:`, pathInfo);
+    
+    if (pathInfo.isRoot) {
       // Root directory - show accessible folders
       console.log(`[${requestId}] Fetching accessible folders for user: ${userInfo.user_id}`);
       
@@ -87,13 +90,11 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           'Content-Length': new TextEncoder().encode(xmlResponse).length.toString()
         })
       });
-    } else {
-      // Folder contents handling - improved path parsing
-      const pathParts = path.split('/').filter(p => p);
-      const folderName = decodeURIComponent(pathParts[0] || '');
+    } else if (pathInfo.folderName && !pathInfo.fileName) {
+      // Folder contents handling
+      const folderName = pathInfo.folderName;
       
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
-      console.log(`[${requestId}] Path parts:`, pathParts);
       
       const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userInfo.user_id
@@ -178,6 +179,71 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
           'Content-Length': new TextEncoder().encode(xmlResponse).length.toString()
+        })
+      });
+    } else {
+      // Individual file properties
+      const folderName = pathInfo.folderName!;
+      const fileName = pathInfo.fileName!;
+      
+      console.log(`[${requestId}] Getting properties for file "${fileName}" in folder "${folderName}"`);
+      
+      const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+        user_id_param: userInfo.user_id
+      });
+      
+      const folder = folders?.find((f: any) => f.folder_name === folderName);
+      
+      if (!folder) {
+        console.log(`[${requestId}] Folder not found: "${folderName}"`);
+        return new Response('Not Found', { 
+          status: 404, 
+          headers: getWebDAVResponseHeaders()
+        });
+      }
+      
+      const { data: documents } = await supabase.rpc('get_user_accessible_documents', { 
+        folder_id_param: folder.folder_id 
+      });
+      const document = documents?.find((doc: any) => doc.document_name === fileName);
+      
+      if (!document) {
+        console.log(`[${requestId}] File not found: "${fileName}"`);
+        return new Response('Not Found', { 
+          status: 404, 
+          headers: getWebDAVResponseHeaders()
+        });
+      }
+      
+      const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:displayname>${escapeXml(document.document_name)}</D:displayname>
+        <D:getcontentlength>${document.file_size || 0}</D:getcontentlength>
+        <D:getcontenttype>${document.mime_type || 'application/octet-stream'}</D:getcontenttype>
+        <D:creationdate>${new Date().toISOString()}</D:creationdate>
+        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:resourcetype/>
+        <D:getetag>"${crypto.randomUUID()}"</D:getetag>
+        <D:supportedlock>
+          <D:lockentry>
+            <D:lockscope><D:exclusive/></D:lockscope>
+            <D:locktype><D:write/></D:locktype>
+          </D:lockentry>
+        </D:supportedlock>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+
+      return new Response(xmlResponse, {
+        status: 207,
+        headers: getWebDAVResponseHeaders({
+          'Content-Type': 'application/xml; charset=utf-8'
         })
       });
     }

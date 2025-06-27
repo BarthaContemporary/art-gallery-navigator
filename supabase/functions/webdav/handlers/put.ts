@@ -1,21 +1,24 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
+import { parseWebDAVPath } from "../utils.ts";
 
 export async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PUT for path: "${path}"`);
   
-  const pathParts = path.split('/').filter(p => p).map(p => decodeURIComponent(p));
-  if (pathParts.length < 2) {
-    console.log(`[${requestId}] Invalid file path - not enough path parts`);
+  const pathInfo = parseWebDAVPath(path);
+  console.log(`[${requestId}] Parsed path info:`, pathInfo);
+  
+  if (!pathInfo.folderName || !pathInfo.fileName) {
+    console.log(`[${requestId}] Invalid file path - missing folder or file name`);
     return new Response('Invalid file path', {
       status: 400,
       headers: getWebDAVResponseHeaders()
     });
   }
   
-  const fileName = pathParts[pathParts.length - 1];
-  const folderName = pathParts[0];
+  const fileName = pathInfo.fileName;
+  const folderName = pathInfo.folderName;
   
   console.log(`[${requestId}] Uploading file "${fileName}" to folder "${folderName}"`);
   

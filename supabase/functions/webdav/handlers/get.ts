@@ -1,20 +1,23 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
+import { parseWebDAVPath } from "../utils.ts";
 
 export async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead: boolean = false) {
   console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
   
-  const pathParts = path.split('/').filter(p => p).map(p => decodeURIComponent(p));
-  if (pathParts.length < 2) {
+  const pathInfo = parseWebDAVPath(path);
+  console.log(`[${requestId}] Parsed path info:`, pathInfo);
+  
+  if (!pathInfo.folderName || !pathInfo.fileName) {
     return new Response('Invalid file path', {
       status: 400,
       headers: getWebDAVResponseHeaders()
     });
   }
   
-  const fileName = pathParts[pathParts.length - 1];
-  const folderName = pathParts[0];
+  const fileName = pathInfo.fileName;
+  const folderName = pathInfo.folderName;
   
   console.log(`[${requestId}] Looking for file "${fileName}" in folder "${folderName}"`);
   
