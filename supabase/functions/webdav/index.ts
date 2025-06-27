@@ -466,11 +466,20 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
   try {
     if (path === '/' || path === '' || path === '/webdav/' || path === '/webdav') {
       // Root directory - show accessible folders with Mac-compatible XML
-      console.log(`[${requestId}] Fetching accessible folders for user`);
+      console.log(`[${requestId}] Fetching accessible folders for user: ${userInfo.user_id}`);
+      console.log(`[${requestId}] User is admin: ${userInfo.is_admin}`);
       
-      // FIXED: Use the new function that accepts user_id parameter
+      // FIXED: Use the new function that accepts user_id parameter with enhanced logging
+      console.log(`[${requestId}] Calling get_user_accessible_folders_for_user with user_id: ${userInfo.user_id}`);
+      
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userInfo.user_id
+      });
+
+      console.log(`[${requestId}] RPC call result:`, { 
+        folders: folders, 
+        error: error,
+        foldersLength: folders?.length || 0
       });
 
       if (error) {
@@ -482,7 +491,21 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       }
 
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
-      console.log(`[${requestId}] Folders data:`, folders);
+      
+      // Log each folder for debugging
+      if (folders && folders.length > 0) {
+        folders.forEach((folder: any, index: number) => {
+          console.log(`[${requestId}] Folder ${index + 1}:`, {
+            id: folder.folder_id,
+            name: folder.folder_name,
+            artist_id: folder.artist_id,
+            can_read: folder.can_read,
+            can_write: folder.can_write
+          });
+        });
+      } else {
+        console.log(`[${requestId}] No folders returned from database function`);
+      }
 
       const folderItems = (folders || []).map((folder: any) => `
     <D:response>
@@ -529,6 +552,9 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     </D:propstat>
   </D:response>${folderItems}
 </D:multistatus>`;
+
+      console.log(`[${requestId}] Returning XML response with ${folders?.length || 0} folders`);
+      console.log(`[${requestId}] XML response length: ${xmlResponse.length} characters`);
 
       return new Response(xmlResponse, {
         status: 207,
