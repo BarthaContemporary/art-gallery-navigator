@@ -467,6 +467,16 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     if (path === '/' || path === '' || path === '/webdav/' || path === '/webdav') {
       // Root directory - show accessible folders with Mac-compatible XML
       console.log(`[${requestId}] Fetching accessible folders for user`);
+      
+      // CRITICAL FIX: Use the service role client to set the user context
+      const { data: setContextResult, error: contextError } = await supabase.rpc('set_session_user', {
+        user_uuid: userInfo.user_id
+      });
+      
+      if (contextError) {
+        console.log(`[${requestId}] Context setting failed (continuing anyway):`, contextError);
+      }
+      
       const { data: folders, error } = await supabase.rpc('get_user_accessible_folders');
 
       if (error) {
@@ -478,6 +488,7 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
       }
 
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
+      console.log(`[${requestId}] Folders data:`, folders);
 
       const folderItems = (folders || []).map((folder: any) => `
     <D:response>
@@ -612,64 +623,6 @@ async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, r
     }
   } catch (error) {
     console.error(`[${requestId}] PROPFIND error:`, error);
-    return new Response('Internal server error', { 
-      status: 500, 
-      headers: getWebDAVResponseHeaders()
-    });
-  }
-}
-
-async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead = false) {
-  console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
-
-  const pathParts = path.split('/').filter(p => p);
-  if (pathParts.length !== 2) {
-    console.log(`[${requestId}] Invalid path structure: expected 2 parts, got ${pathParts.length}`);
-    return new Response('Not Found', { 
-      status: 404, 
-      headers: getWebDAVResponseHeaders()
-    });
-  }
-
-  const [folderName, fileName] = pathParts;
-  console.log(`[${requestId}] Looking for file "${fileName}" in folder "${folderName}"`);
-
-  try {
-    const { data: documents } = await supabase.rpc('get_user_accessible_documents');
-    const document = documents?.find((doc: any) => 
-      doc.document_name === fileName && doc.can_read
-    );
-
-    if (!document) {
-      console.log(`[${requestId}] Document not found or not accessible: "${fileName}"`);
-      return new Response('Not Found', { 
-        status: 404, 
-        headers: getWebDAVResponseHeaders()
-      });
-    }
-
-    console.log(`[${requestId}] Found document, redirecting to: ${document.file_url}`);
-
-    if (isHead) {
-      return new Response(null, {
-        status: 200,
-        headers: getWebDAVResponseHeaders({
-          'Content-Length': document.file_size?.toString() || '0',
-          'Content-Type': document.mime_type || 'application/octet-stream',
-          'Last-Modified': new Date().toUTCString(),
-          'ETag': `"${crypto.randomUUID()}"`
-        })
-      });
-    }
-
-    return new Response(null, {
-      status: 302,
-      headers: getWebDAVResponseHeaders({
-        'Location': document.file_url
-      })
-    });
-  } catch (error) {
-    console.error(`[${requestId}] GET error:`, error);
     return new Response('Internal server error', { 
       status: 500, 
       headers: getWebDAVResponseHeaders()
