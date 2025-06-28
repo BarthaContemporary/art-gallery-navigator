@@ -127,7 +127,14 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
 
       console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
 
-      const documentItems = (documents || []).map((doc: any) => `
+      // Filter out system files from the response but still show them as existing
+      const visibleDocuments = (documents || []).filter((doc: any) => 
+        !doc.document_name.startsWith('._') && 
+        doc.document_name !== '.DS_Store' && 
+        !doc.document_name.startsWith('.')
+      );
+
+      const documentItems = visibleDocuments.map((doc: any) => `
     <D:response>
       <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
       <D:propstat>
@@ -138,7 +145,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           <D:creationdate>${new Date().toISOString()}</D:creationdate>
           <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
           <D:resourcetype/>
-          <D:getetag>"${crypto.randomUUID()}"</D:getetag>
+          <D:getetag>"${doc.document_id || crypto.randomUUID()}"</D:getetag>
           <D:supportedlock>
             <D:lockentry>
               <D:lockscope><D:exclusive/></D:lockscope>
@@ -186,6 +193,36 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
       const folderName = pathInfo.folderName!;
       const fileName = pathInfo.fileName!;
       
+      // Handle Mac system files
+      if (fileName.startsWith('._') || fileName === '.DS_Store' || fileName.startsWith('.')) {
+        console.log(`[${requestId}] Returning minimal response for system file: ${fileName}`);
+        const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:displayname>${escapeXml(fileName)}</D:displayname>
+        <D:getcontentlength>0</D:getcontentlength>
+        <D:getcontenttype>application/octet-stream</D:getcontenttype>
+        <D:creationdate>${new Date().toISOString()}</D:creationdate>
+        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:resourcetype/>
+        <D:getetag>"${crypto.randomUUID()}"</D:getetag>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+        
+        return new Response(xmlResponse, {
+          status: 207,
+          headers: getWebDAVResponseHeaders({
+            'Content-Type': 'application/xml; charset=utf-8'
+          })
+        });
+      }
+      
       console.log(`[${requestId}] Getting properties for file "${fileName}" in folder "${folderName}"`);
       
       const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
@@ -227,7 +264,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:creationdate>${new Date().toISOString()}</D:creationdate>
         <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
         <D:resourcetype/>
-        <D:getetag>"${crypto.randomUUID()}"</D:getetag>
+        <D:getetag>"${document.document_id || crypto.randomUUID()}"</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>

@@ -19,6 +19,18 @@ export async function handleGet(supabase: any, userInfo: UserInfo, path: string,
   const fileName = pathInfo.fileName;
   const folderName = pathInfo.folderName;
   
+  // Handle Mac system files
+  if (fileName.startsWith('._') || fileName === '.DS_Store' || fileName.startsWith('.')) {
+    console.log(`[${requestId}] Returning empty response for system file: ${fileName}`);
+    return new Response('', {
+      status: isHead ? 200 : 404,
+      headers: getWebDAVResponseHeaders({
+        'Content-Length': '0',
+        'Content-Type': 'application/octet-stream'
+      })
+    });
+  }
+  
   console.log(`[${requestId}] Looking for file "${fileName}" in folder "${folderName}"`);
   
   try {
@@ -59,33 +71,45 @@ export async function handleGet(supabase: any, userInfo: UserInfo, path: string,
         headers: getWebDAVResponseHeaders({
           'Content-Length': document.file_size?.toString() || '0',
           'Content-Type': document.mime_type || 'application/octet-stream',
-          'ETag': `"${crypto.randomUUID()}"`,
-          'Last-Modified': new Date().toUTCString()
+          'ETag': `"${document.document_id}"`,
+          'Last-Modified': new Date().toUTCString(),
+          'Accept-Ranges': 'bytes'
         })
       });
     }
     
     // GET request - fetch and return file content
-    const fileResponse = await fetch(document.file_url);
-    if (!fileResponse.ok) {
-      console.log(`[${requestId}] Failed to fetch file from URL: ${document.file_url}`);
-      return new Response('File not accessible', {
-        status: 404,
+    console.log(`[${requestId}] Fetching file from URL: ${document.file_url}`);
+    
+    try {
+      const fileResponse = await fetch(document.file_url);
+      if (!fileResponse.ok) {
+        console.log(`[${requestId}] Failed to fetch file from URL: ${document.file_url}, status: ${fileResponse.status}`);
+        return new Response('File not accessible', {
+          status: 404,
+          headers: getWebDAVResponseHeaders()
+        });
+      }
+      
+      const fileContent = await fileResponse.arrayBuffer();
+      
+      return new Response(fileContent, {
+        status: 200,
+        headers: getWebDAVResponseHeaders({
+          'Content-Length': fileContent.byteLength.toString(),
+          'Content-Type': document.mime_type || 'application/octet-stream',
+          'ETag': `"${document.document_id}"`,
+          'Last-Modified': new Date().toUTCString(),
+          'Accept-Ranges': 'bytes'
+        })
+      });
+    } catch (fetchError) {
+      console.error(`[${requestId}] Error fetching file content:`, fetchError);
+      return new Response('Error reading file', {
+        status: 500,
         headers: getWebDAVResponseHeaders()
       });
     }
-    
-    const fileContent = await fileResponse.arrayBuffer();
-    
-    return new Response(fileContent, {
-      status: 200,
-      headers: getWebDAVResponseHeaders({
-        'Content-Length': fileContent.byteLength.toString(),
-        'Content-Type': document.mime_type || 'application/octet-stream',
-        'ETag': `"${crypto.randomUUID()}"`,
-        'Last-Modified': new Date().toUTCString()
-      })
-    });
     
   } catch (error) {
     console.error(`[${requestId}] GET/HEAD error:`, error);
