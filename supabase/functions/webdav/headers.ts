@@ -12,7 +12,11 @@ const webdavHeaders = {
   'DAV': '1, 2, 3, extend, access-control',
   'MS-Author-Via': 'DAV',
   'Server': 'Supabase-WebDAV/1.0',
-  'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD'
+  'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD',
+  // Force Mac Finder to not cache aggressively
+  'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+  'Expires': '0'
 };
 
 export function getWebDAVResponseHeaders(additionalHeaders = {}) {

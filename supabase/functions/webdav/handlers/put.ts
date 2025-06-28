@@ -147,17 +147,23 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       console.log(`[${requestId}] Successfully uploaded new file: ${fileName}`);
     }
     
-    // Generate strong ETag based on document ID and timestamp
-    const etag = `"${documentId}-${Date.now()}"`;
+    // Generate strong ETag and timestamp for cache invalidation
+    const timestamp = Date.now();
+    const etag = `"${documentId}-${timestamp}"`;
     
     return new Response('', {
       status: existingDoc ? 200 : 201,
       headers: getWebDAVResponseHeaders({
         'ETag': etag,
         'Last-Modified': new Date().toUTCString(),
-        'Location': `/functions/v1/webdav${path}`,
+        'Location': `/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`,
         'Content-Length': '0',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        // Mac Finder specific headers to force refresh
+        'X-Content-Type-Options': 'nosniff',
+        'Vary': 'Accept-Encoding, User-Agent'
       })
     });
     
