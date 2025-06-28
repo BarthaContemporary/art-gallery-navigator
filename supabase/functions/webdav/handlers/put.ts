@@ -25,7 +25,10 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     console.log(`[${requestId}] Skipping system file: ${fileName}`);
     return new Response('', {
       status: 201,
-      headers: getWebDAVResponseHeaders()
+      headers: getWebDAVResponseHeaders({
+        'ETag': `"${crypto.randomUUID()}"`,
+        'Last-Modified': new Date().toUTCString()
+      })
     });
   }
   
@@ -86,6 +89,9 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       .from('shared-files')
       .getPublicUrl(filePath);
     
+    const currentTime = new Date().toISOString();
+    let documentId: string;
+    
     if (existingDoc) {
       // Update existing document
       const { error: updateError } = await supabase
@@ -94,7 +100,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
           file_url: urlData.publicUrl,
           file_size: fileSize,
           mime_type: req.headers.get('Content-Type') || 'application/octet-stream',
-          updated_at: new Date().toISOString()
+          updated_at: currentTime
         })
         .eq('id', existingDoc.document_id);
       
@@ -107,10 +113,11 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         });
       }
       
+      documentId = existingDoc.document_id;
       console.log(`[${requestId}] Successfully updated file: ${fileName}`);
     } else {
       // Create new document record
-      const { error: docError } = await supabase
+      const { data: newDoc, error: docError } = await supabase
         .from('documents')
         .insert({
           file_name: fileName,
@@ -120,8 +127,12 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
           folder_id: targetFolder.folder_id,
           artist_id: targetFolder.artist_id,
           type: 'webdav_upload',
-          description: `Uploaded via WebDAV`
-        });
+          description: `Uploaded via WebDAV`,
+          created_at: currentTime,
+          updated_at: currentTime
+        })
+        .select('id')
+        .single();
       
       if (docError) {
         console.error(`[${requestId}] Error creating document record:`, docError);
@@ -132,14 +143,21 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         });
       }
       
+      documentId = newDoc.id;
       console.log(`[${requestId}] Successfully uploaded new file: ${fileName}`);
     }
+    
+    // Generate strong ETag based on document ID and timestamp
+    const etag = `"${documentId}-${Date.now()}"`;
     
     return new Response('', {
       status: existingDoc ? 200 : 201,
       headers: getWebDAVResponseHeaders({
-        'ETag': `"${crypto.randomUUID()}"`,
-        'Location': `/functions/v1/webdav${path}`
+        'ETag': etag,
+        'Last-Modified': new Date().toUTCString(),
+        'Location': `/functions/v1/webdav${path}`,
+        'Content-Length': '0',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       })
     });
     

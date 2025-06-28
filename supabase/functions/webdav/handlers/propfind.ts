@@ -37,6 +37,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
 
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
 
+      const currentTime = new Date();
       const folderItems = (folders || []).map((folder: any) => `
     <D:response>
       <D:href>/functions/v1/webdav/${encodeURIComponent(folder.folder_name)}/</D:href>
@@ -45,9 +46,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
           <D:resourcetype><D:collection/></D:resourcetype>
           <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
-          <D:creationdate>${new Date().toISOString()}</D:creationdate>
-          <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+          <D:creationdate>${currentTime.toISOString()}</D:creationdate>
+          <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
           <D:getcontentlength>0</D:getcontentlength>
+          <D:getetag>"folder-${folder.folder_id}-${Date.now()}"</D:getetag>
           <D:supportedlock>
             <D:lockentry>
               <D:lockscope><D:exclusive/></D:lockscope>
@@ -68,9 +70,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:displayname>WebDAV Root</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
         <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${currentTime.toISOString()}</D:creationdate>
+        <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
+        <D:getetag>"root-${Date.now()}"</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -87,7 +90,9 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         status: 207,
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
-          'Content-Length': new TextEncoder().encode(xmlResponse).length.toString()
+          'Content-Length': new TextEncoder().encode(xmlResponse).length.toString(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'ETag': `"root-listing-${Date.now()}"`
         })
       });
     } else if (pathInfo.folderName && !pathInfo.fileName) {
@@ -134,6 +139,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         !doc.document_name.startsWith('.')
       );
 
+      const currentTime = new Date();
       const documentItems = visibleDocuments.map((doc: any) => `
     <D:response>
       <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
@@ -142,10 +148,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           <D:displayname>${escapeXml(doc.document_name)}</D:displayname>
           <D:getcontentlength>${doc.file_size || 0}</D:getcontentlength>
           <D:getcontenttype>${doc.mime_type || 'application/octet-stream'}</D:getcontenttype>
-          <D:creationdate>${new Date().toISOString()}</D:creationdate>
-          <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+          <D:creationdate>${currentTime.toISOString()}</D:creationdate>
+          <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
           <D:resourcetype/>
-          <D:getetag>"${doc.document_id || crypto.randomUUID()}"</D:getetag>
+          <D:getetag>"${doc.document_id || crypto.randomUUID()}-${Date.now()}"</D:getetag>
           <D:supportedlock>
             <D:lockentry>
               <D:lockscope><D:exclusive/></D:lockscope>
@@ -166,9 +172,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
         <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${currentTime.toISOString()}</D:creationdate>
+        <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
+        <D:getetag>"folder-${folder.folder_id}-${Date.now()}"</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -185,7 +192,9 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         status: 207,
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
-          'Content-Length': new TextEncoder().encode(xmlResponse).length.toString()
+          'Content-Length': new TextEncoder().encode(xmlResponse).length.toString(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'ETag': `"folder-${folder.folder_id}-${Date.now()}"`
         })
       });
     } else {
@@ -252,6 +261,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         });
       }
       
+      const currentTime = new Date();
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
   <D:response>
@@ -261,10 +271,10 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:displayname>${escapeXml(document.document_name)}</D:displayname>
         <D:getcontentlength>${document.file_size || 0}</D:getcontentlength>
         <D:getcontenttype>${document.mime_type || 'application/octet-stream'}</D:getcontenttype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${currentTime.toISOString()}</D:creationdate>
+        <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:resourcetype/>
-        <D:getetag>"${document.document_id || crypto.randomUUID()}"</D:getetag>
+        <D:getetag>"${document.document_id || crypto.randomUUID()}-${Date.now()}"</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -280,7 +290,9 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
       return new Response(xmlResponse, {
         status: 207,
         headers: getWebDAVResponseHeaders({
-          'Content-Type': 'application/xml; charset=utf-8'
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'ETag': `"file-${document.document_id}-${Date.now()}"`
         })
       });
     }
