@@ -65,8 +65,11 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     });
     const existingDoc = existingDocs?.find((doc: any) => doc.document_name === fileName);
     
-    // Upload to Supabase Storage
-    const filePath = `webdav/${userInfo.user_id}/${crypto.randomUUID()}_${fileName}`;
+    // Upload to Supabase Storage with unique path including timestamp
+    const timestamp = Date.now();
+    const randomId = crypto.randomUUID();
+    const filePath = `webdav/${userInfo.user_id}/${timestamp}_${randomId}_${fileName}`;
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('shared-files')
       .upload(filePath, fileContent, {
@@ -91,6 +94,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     
     const currentTime = new Date().toISOString();
     let documentId: string;
+    const isUpdate = !!existingDoc;
     
     if (existingDoc) {
       // Update existing document
@@ -147,23 +151,32 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       console.log(`[${requestId}] Successfully uploaded new file: ${fileName}`);
     }
     
-    // Generate strong ETag and timestamp for cache invalidation
-    const timestamp = Date.now();
-    const etag = `"${documentId}-${timestamp}"`;
+    // Generate ultra-strong ETag and timestamp for cache invalidation
+    const uniqueTimestamp = Date.now() + Math.random();
+    const strongEtag = `"${documentId}-${uniqueTimestamp}-${fileSize}"`;
     
     return new Response('', {
-      status: existingDoc ? 200 : 201,
+      status: isUpdate ? 200 : 201,
       headers: getWebDAVResponseHeaders({
-        'ETag': etag,
+        'ETag': strongEtag,
         'Last-Modified': new Date().toUTCString(),
         'Location': `/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`,
         'Content-Length': '0',
-        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        // Ultra-aggressive cache invalidation
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
         // Mac Finder specific headers to force refresh
         'X-Content-Type-Options': 'nosniff',
-        'Vary': 'Accept-Encoding, User-Agent'
+        'Vary': '*',
+        'X-WebDAV-No-Cache': 'true',
+        'X-Mac-Finder-Refresh': uniqueTimestamp.toString(),
+        'X-Upload-Complete': 'true',
+        'X-Document-Id': documentId,
+        'X-File-Version': uniqueTimestamp.toString(),
+        // Additional refresh signals
+        'X-Folder-Changed': folderName,
+        'X-Upload-Timestamp': timestamp.toString()
       })
     });
     

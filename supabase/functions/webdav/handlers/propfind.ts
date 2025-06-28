@@ -37,9 +37,14 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
 
       console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
 
+      // Generate unique timestamp for this exact moment to bust caches
       const currentTime = new Date();
-      const timestamp = Date.now();
-      const folderItems = (folders || []).map((folder: any) => `
+      const uniqueTimestamp = Date.now() + Math.random();
+      const strongEtag = `"root-${userInfo.user_id}-${uniqueTimestamp}"`;
+      
+      const folderItems = (folders || []).map((folder: any) => {
+        const folderEtag = `"folder-${folder.folder_id}-${uniqueTimestamp}"`;
+        return `
     <D:response>
       <D:href>/functions/v1/webdav/${encodeURIComponent(folder.folder_name)}/</D:href>
       <D:propstat>
@@ -50,7 +55,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           <D:creationdate>${currentTime.toISOString()}</D:creationdate>
           <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
           <D:getcontentlength>0</D:getcontentlength>
-          <D:getetag>"folder-${folder.folder_id}-${timestamp}"</D:getetag>
+          <D:getetag>${folderEtag}</D:getetag>
           <D:supportedlock>
             <D:lockentry>
               <D:lockscope><D:exclusive/></D:lockscope>
@@ -60,7 +65,8 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         </D:prop>
         <D:status>HTTP/1.1 200 OK</D:status>
       </D:propstat>
-    </D:response>`).join('');
+    </D:response>`;
+      }).join('');
 
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -74,7 +80,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:creationdate>${currentTime.toISOString()}</D:creationdate>
         <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
-        <D:getetag>"root-${timestamp}"</D:getetag>
+        <D:getetag>${strongEtag}</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -92,11 +98,18 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
           'Content-Length': new TextEncoder().encode(xmlResponse).length.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'ETag': strongEtag,
+          // Extremely aggressive cache busting for Mac Finder
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0',
-          'ETag': `"root-listing-${timestamp}"`,
-          'X-Content-Type-Options': 'nosniff'
+          'Last-Modified': currentTime.toUTCString(),
+          // Force Mac Finder to not cache this response
+          'X-Content-Type-Options': 'nosniff',
+          'Vary': '*',
+          // Additional Mac Finder specific headers
+          'X-WebDAV-No-Cache': 'true',
+          'X-Mac-Finder-Refresh': uniqueTimestamp.toString()
         })
       });
     } else if (pathInfo.folderName && !pathInfo.fileName) {
@@ -143,9 +156,14 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         !doc.document_name.startsWith('.')
       );
 
+      // Generate unique timestamp for cache busting
       const currentTime = new Date();
-      const timestamp = Date.now();
-      const documentItems = visibleDocuments.map((doc: any) => `
+      const uniqueTimestamp = Date.now() + Math.random();
+      const folderEtag = `"folder-${folder.folder_id}-${uniqueTimestamp}"`;
+      
+      const documentItems = visibleDocuments.map((doc: any) => {
+        const docEtag = `"doc-${doc.document_id || crypto.randomUUID()}-${uniqueTimestamp}"`;
+        return `
     <D:response>
       <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.document_name)}</D:href>
       <D:propstat>
@@ -156,7 +174,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           <D:creationdate>${currentTime.toISOString()}</D:creationdate>
           <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
           <D:resourcetype/>
-          <D:getetag>"${doc.document_id || crypto.randomUUID()}-${timestamp}"</D:getetag>
+          <D:getetag>${docEtag}</D:getetag>
           <D:supportedlock>
             <D:lockentry>
               <D:lockscope><D:exclusive/></D:lockscope>
@@ -166,7 +184,8 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         </D:prop>
         <D:status>HTTP/1.1 200 OK</D:status>
       </D:propstat>
-    </D:response>`).join('');
+    </D:response>`;
+      }).join('');
 
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -180,7 +199,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:creationdate>${currentTime.toISOString()}</D:creationdate>
         <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:getcontentlength>0</D:getcontentlength>
-        <D:getetag>"folder-${folder.folder_id}-${timestamp}"</D:getetag>
+        <D:getetag>${folderEtag}</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -198,11 +217,20 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
           'Content-Length': new TextEncoder().encode(xmlResponse).length.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'ETag': folderEtag,
+          // Extremely aggressive cache busting
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0',
-          'ETag': `"folder-${folder.folder_id}-${timestamp}"`,
-          'X-Content-Type-Options': 'nosniff'
+          'Last-Modified': currentTime.toUTCString(),
+          // Force Mac Finder to refresh
+          'X-Content-Type-Options': 'nosniff',
+          'Vary': '*',
+          'X-WebDAV-No-Cache': 'true',
+          'X-Mac-Finder-Refresh': uniqueTimestamp.toString(),
+          // Additional headers to force refresh
+          'X-Folder-Version': uniqueTimestamp.toString(),
+          'X-Document-Count': visibleDocuments.length.toString()
         })
       });
     } else {
@@ -270,7 +298,9 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
       }
       
       const currentTime = new Date();
-      const timestamp = Date.now();
+      const uniqueTimestamp = Date.now() + Math.random();
+      const fileEtag = `"file-${document.document_id}-${uniqueTimestamp}"`;
+      
       const xmlResponse = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
   <D:response>
@@ -283,7 +313,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         <D:creationdate>${currentTime.toISOString()}</D:creationdate>
         <D:getlastmodified>${currentTime.toUTCString()}</D:getlastmodified>
         <D:resourcetype/>
-        <D:getetag>"${document.document_id || crypto.randomUUID()}-${timestamp}"</D:getetag>
+        <D:getetag>${fileEtag}</D:getetag>
         <D:supportedlock>
           <D:lockentry>
             <D:lockscope><D:exclusive/></D:lockscope>
@@ -300,11 +330,13 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         status: 207,
         headers: getWebDAVResponseHeaders({
           'Content-Type': 'application/xml; charset=utf-8',
+          'ETag': fileEtag,
           'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          'ETag': `"file-${document.document_id}-${timestamp}"`,
-          'X-Content-Type-Options': 'nosniff'
+          'Last-Modified': currentTime.toUTCString(),
+          'X-Content-Type-Options': 'nosniff',
+          'X-File-Version': uniqueTimestamp.toString()
         })
       });
     }
