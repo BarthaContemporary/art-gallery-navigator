@@ -13,14 +13,14 @@ const webdavHeaders = {
   'MS-Author-Via': 'DAV',
   'Server': 'Supabase-WebDAV/1.0',
   'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD',
-  // Ultra-aggressive cache prevention for Mac Finder compatibility
+  // Finder-compatible cache headers
   'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate',
   'Pragma': 'no-cache',
   'Expires': '0',
   // Additional Mac Finder specific headers
   'X-Content-Type-Options': 'nosniff',
   'Vary': '*',
-  'X-WebDAV-No-Cache': 'true'
+  'Accept-Ranges': 'bytes'
 };
 
 export function getWebDAVResponseHeaders(additionalHeaders = {}) {

@@ -8,7 +8,7 @@ import { normalizePath } from "./utils.ts";
 import { handlePropfind } from "./handlers/propfind.ts";
 import { handleGet } from "./handlers/get.ts";
 import { handlePut } from "./handlers/put.ts";
-import { handleMkcol, handleDelete, handleLock, handleProppatch } from "./handlers/other.ts";
+import { handleMkcol, handleDelete, handleLock, handleUnlock, handleMove, handleCopy, handleProppatch } from "./handlers/other.ts";
 import { handleDebugToken } from "./debug.ts";
 
 serve(async (req) => {
@@ -19,6 +19,7 @@ serve(async (req) => {
   console.log(`[${requestId}] === NEW REQUEST ===`);
   console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
+  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
 
   // Handle debug endpoint FIRST - before any other processing
   if (url.pathname.includes('/debug-token')) {
@@ -34,12 +35,14 @@ serve(async (req) => {
 
   // Enhanced CORS preflight with Mac-specific headers
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] CORS preflight - responding with Mac-compatible headers`);
+    console.log(`[${requestId}] OPTIONS request - responding with comprehensive WebDAV capabilities`);
     return new Response('', { 
       status: 200,
       headers: {
         ...getWebDAVResponseHeaders(),
-        'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"'
+        'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
+        'Accept-Ranges': 'bytes',
+        'Content-Length': '0'
       }
     });
   }
@@ -63,14 +66,15 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
     
-    // Enhanced WebDAV authentication flow with Mac compatibility
+    // Enhanced WebDAV authentication flow with Mac Finder compatibility
     if (!authHeader) {
       console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
-      return new Response('WebDAV Server - Authentication Required\n\nThis server requires authentication.\nPlease use your WebDAV token as the password.', {
+      return new Response('', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain; charset=utf-8'
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Length': '0'
         })
       });
     }
@@ -79,11 +83,12 @@ serve(async (req) => {
     const userInfo = await authenticateUser(supabase, authHeader, requestId);
     if (!userInfo) {
       console.log(`[${requestId}] Authentication failed`);
-      return new Response('Invalid credentials format\n\nFor Mac Finder:\n1. Username: webdav\n2. Password: Your 64-character WebDAV token\n\nIf this continues to fail, try a third-party WebDAV client like Transmit or ForkLift.', {
+      return new Response('', {
         status: 401,
         headers: getWebDAVResponseHeaders({
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/plain; charset=utf-8'
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Length': '0'
         })
       });
     }
@@ -131,27 +136,16 @@ serve(async (req) => {
           response = await handleMkcol(supabase, userInfo, path, requestId);
           break;
         case 'MOVE':
-          console.log(`[${requestId}] MOVE not yet implemented for path: "${path}"`);
-          response = new Response('Method not implemented', {
-            status: 501,
-            headers: getWebDAVResponseHeaders()
-          });
+          response = await handleMove(supabase, userInfo, path, req, requestId);
           break;
         case 'COPY':
-          console.log(`[${requestId}] COPY not yet implemented for path: "${path}"`);
-          response = new Response('Method not implemented', {
-            status: 501,
-            headers: getWebDAVResponseHeaders()
-          });
+          response = await handleCopy(supabase, userInfo, path, req, requestId);
           break;
         case 'LOCK':
-          response = await handleLock(path, requestId);
+          response = await handleLock(supabase, userInfo, path, req, requestId);
           break;
         case 'UNLOCK':
-          response = new Response('', {
-            status: 204,
-            headers: getWebDAVResponseHeaders()
-          });
+          response = await handleUnlock(supabase, userInfo, path, req, requestId);
           break;
         case 'PROPPATCH':
           response = await handleProppatch(path, requestId);

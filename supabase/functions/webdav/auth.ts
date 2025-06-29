@@ -15,7 +15,6 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
   try {
     const base64Credentials = authHeader.slice(6); // Remove 'Basic '
     console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
-    console.log(`[${requestId}] Base64 sample: ${base64Credentials.substring(0, 20)}...`);
     
     // Enhanced decoding with multiple fallback attempts for Mac compatibility
     let decodedCredentials: string;
@@ -26,7 +25,8 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
       console.log(`[${requestId}] Primary decoding failed, trying alternative method`);
       try {
         // Alternative decoding method for Mac Finder edge cases
-        const uint8Array = Uint8Array.from(atob(base64Credentials.replace(/[^A-Za-z0-9+/]/g, '')), c => c.charCodeAt(0));
+        const cleanBase64 = base64Credentials.replace(/[^A-Za-z0-9+/]/g, '');
+        const uint8Array = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
         decodedCredentials = new TextDecoder('utf-8').decode(uint8Array);
         console.log(`[${requestId}] Alternative decoding successful`);
       } catch (altError) {
@@ -41,16 +41,15 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
       return null;
     }
 
-    const username = decodedCredentials.substring(0, colonIndex);
-    const token = decodedCredentials.substring(colonIndex + 1);
+    const username = decodedCredentials.substring(0, colonIndex).trim();
+    const token = decodedCredentials.substring(colonIndex + 1).trim();
     
     console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
-    console.log(`[${requestId}] Token sample: ${token.substring(0, 8)}...`);
 
-    // Validate username for Mac compatibility
-    if (username !== 'webdav' && username !== 'WebDAV' && username !== '') {
-      console.log(`[${requestId}] Invalid username for WebDAV: "${username}"`);
-      // Don't immediately fail - some Mac configurations use different usernames
+    // More lenient username validation for Mac Finder compatibility
+    const validUsernames = ['webdav', 'WebDAV', '', 'user', 'admin'];
+    if (!validUsernames.includes(username)) {
+      console.log(`[${requestId}] Username "${username}" not in allowed list, but continuing with token validation`);
     }
 
     if (!token || token.length < 32) {

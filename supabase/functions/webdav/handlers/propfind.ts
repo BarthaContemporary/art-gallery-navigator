@@ -40,6 +40,9 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
   
   console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
   
+  const currentTime = new Date().toISOString();
+  const currentTimeUTC = new Date().toUTCString();
+  
   let response = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
   <D:response>
@@ -48,8 +51,10 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
       <D:prop>
         <D:displayname>WebDAV Root</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${currentTime}</D:creationdate>
+        <D:getlastmodified>${currentTimeUTC}</D:getlastmodified>
+        <D:getetag>"root-${Date.now()}"</D:getetag>
+        <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -58,6 +63,9 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
   // Add folder entries
   for (const folder of (folders || [])) {
     const encodedName = encodeURIComponent(folder.folder_name);
+    const folderTime = new Date().toISOString();
+    const folderTimeUTC = new Date().toUTCString();
+    
     response += `
   <D:response>
     <D:href>/functions/v1/webdav/${encodedName}/</D:href>
@@ -65,8 +73,10 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
       <D:prop>
         <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${folderTime}</D:creationdate>
+        <D:getlastmodified>${folderTimeUTC}</D:getlastmodified>
+        <D:getetag>"folder-${folder.folder_id}-${Date.now()}"</D:getetag>
+        <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -80,7 +90,8 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
   return new Response(response, {
     status: 207,
     headers: getWebDAVResponseHeaders({
-      'Content-Type': 'application/xml; charset=utf-8'
+      'Content-Type': 'text/xml; charset=utf-8',
+      'Content-Length': response.length.toString()
     })
   });
 }
@@ -105,21 +116,13 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
   
   if (!targetFolder) {
     console.log(`[${requestId}] Folder "${pathInfo.folderName}" not found`);
-    return new Response('Folder not found', {
+    return new Response('Not Found', {
       status: 404,
       headers: getWebDAVResponseHeaders()
     });
   }
   
-  console.log(`[${requestId}] Found folder:`, {
-    id: targetFolder.folder_id,
-    name: targetFolder.folder_name,
-    artist_id: targetFolder.artist_id
-  });
-  
   // Get documents in this folder
-  console.log(`[${requestId}] Fetching documents for folder ID: ${targetFolder.folder_id}`);
-  
   const { data: documents, error: docsError } = await supabase.rpc('get_user_accessible_documents', {
     folder_id_param: targetFolder.folder_id
   });
@@ -127,9 +130,6 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
   if (docsError) {
     console.error(`[${requestId}] Error fetching documents:`, docsError);
   }
-  
-  console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
-  console.log(`[${requestId}] Document details:`, documents || []);
   
   // Filter out system files and deleted files
   const visibleDocs = (documents || []).filter((doc: any) => 
@@ -139,9 +139,9 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     !doc.is_deleted
   );
   
-  console.log(`[${requestId}] Visible documents after filtering: ${visibleDocs.length}`);
-  
   const encodedFolderName = encodeURIComponent(pathInfo.folderName);
+  const folderTime = new Date().toISOString();
+  const folderTimeUTC = new Date().toUTCString();
   
   let response = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -151,8 +151,10 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
       <D:prop>
         <D:displayname>${escapeXml(pathInfo.folderName)}</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
-        <D:creationdate>${new Date().toISOString()}</D:creationdate>
-        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+        <D:creationdate>${folderTime}</D:creationdate>
+        <D:getlastmodified>${folderTimeUTC}</D:getlastmodified>
+        <D:getetag>"folder-${targetFolder.folder_id}-${Date.now()}"</D:getetag>
+        <D:getcontenttype>httpd/unix-directory</D:getcontenttype>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -164,6 +166,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     const fileSize = doc.file_size || 0;
     const lastModified = doc.updated_at ? new Date(doc.updated_at).toUTCString() : new Date().toUTCString();
     const created = doc.created_at ? new Date(doc.created_at).toISOString() : new Date().toISOString();
+    const contentType = doc.mime_type || 'application/octet-stream';
     
     response += `
   <D:response>
@@ -172,7 +175,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
       <D:prop>
         <D:displayname>${escapeXml(doc.document_name)}</D:displayname>
         <D:getcontentlength>${fileSize}</D:getcontentlength>
-        <D:getcontenttype>${doc.mime_type || 'application/octet-stream'}</D:getcontenttype>
+        <D:getcontenttype>${contentType}</D:getcontenttype>
         <D:creationdate>${created}</D:creationdate>
         <D:getlastmodified>${lastModified}</D:getlastmodified>
         <D:getetag>"${doc.document_id}-${Date.now()}"</D:getetag>
@@ -190,7 +193,8 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
   return new Response(response, {
     status: 207,
     headers: getWebDAVResponseHeaders({
-      'Content-Type': 'application/xml; charset=utf-8'
+      'Content-Type': 'text/xml; charset=utf-8',
+      'Content-Length': response.length.toString()
     })
   });
 }
@@ -215,7 +219,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
   
   if (!targetFolder) {
     console.log(`[${requestId}] Folder not found: "${pathInfo.folderName}"`);
-    return new Response('Folder not found', {
+    return new Response('Not Found', {
       status: 404,
       headers: getWebDAVResponseHeaders()
     });
@@ -238,7 +242,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
   
   if (!document) {
     console.log(`[${requestId}] File not found: "${pathInfo.fileName}"`);
-    return new Response('File not found', {
+    return new Response('Not Found', {
       status: 404,
       headers: getWebDAVResponseHeaders()
     });
@@ -249,6 +253,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
   const fileSize = document.file_size || 0;
   const lastModified = document.updated_at ? new Date(document.updated_at).toUTCString() : new Date().toUTCString();
   const created = document.created_at ? new Date(document.created_at).toISOString() : new Date().toISOString();
+  const contentType = document.mime_type || 'application/octet-stream';
   
   const response = `<?xml version="1.0" encoding="utf-8"?>
 <D:multistatus xmlns:D="DAV:">
@@ -258,7 +263,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
       <D:prop>
         <D:displayname>${escapeXml(pathInfo.fileName)}</D:displayname>
         <D:getcontentlength>${fileSize}</D:getcontentlength>
-        <D:getcontenttype>${document.mime_type || 'application/octet-stream'}</D:getcontenttype>
+        <D:getcontenttype>${contentType}</D:getcontenttype>
         <D:creationdate>${created}</D:creationdate>
         <D:getlastmodified>${lastModified}</D:getlastmodified>
         <D:getetag>"${document.document_id}-${Date.now()}"</D:getetag>
@@ -274,7 +279,8 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
   return new Response(response, {
     status: 207,
     headers: getWebDAVResponseHeaders({
-      'Content-Type': 'application/xml; charset=utf-8'
+      'Content-Type': 'text/xml; charset=utf-8',
+      'Content-Length': response.length.toString()
     })
   });
 }
