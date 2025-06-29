@@ -7,9 +7,11 @@ import { Search } from "lucide-react";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { CreateFolderDialog } from "./CreateFolderDialog";
 import { FileListView } from "./FileListView";
+import { MobileFilesTabContent } from "./MobileFilesTabContent";
 import { EnhancedUploadDocumentDialog } from "@/components/documents/EnhancedUploadDocumentDialog";
 import { Folder, useFolderAccess } from "@/hooks/use-folders";
 import { EnhancedDocument } from "@/hooks/use-enhanced-documents";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FilesTabContentProps {
   currentFolder: Folder | null;
@@ -46,6 +48,29 @@ export function FilesTabContent({
   currentUserArtist,
   isAdmin
 }: FilesTabContentProps) {
+  const isMobile = useIsMobile();
+  
+  // Use mobile version on mobile devices
+  if (isMobile) {
+    return (
+      <MobileFilesTabContent
+        currentFolder={currentFolder}
+        allFolders={allFolders}
+        filteredFolders={filteredFolders}
+        filteredDocuments={filteredDocuments}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        onNavigate={onNavigate}
+        onFolderClick={onFolderClick}
+        onFileClick={onFileClick}
+        isLoading={isLoading}
+        foldersError={foldersError}
+        currentUserArtist={currentUserArtist}
+        isAdmin={isAdmin}
+      />
+    );
+  }
+
   // Check access to current folder
   const { data: folderAccess } = useFolderAccess(currentFolder?.id || null);
   

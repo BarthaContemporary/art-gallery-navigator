@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,62 +11,58 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FolderPlus } from "lucide-react";
 import { useCreateFolder } from "@/hooks/use-folders";
-import { useArtists } from "@/hooks/useArtists";
-import { useAuth } from "@/hooks/use-auth";
 
 interface CreateFolderDialogProps {
   parentFolderId?: string | null;
-  artistId?: string | null;
+  artistId?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(artistId || null);
-
-  const { isAdmin } = useAuth();
-  const { data: artists = [] } = useArtists();
+export function CreateFolderDialog({ 
+  parentFolderId, 
+  artistId,
+  open,
+  onOpenChange 
+}: CreateFolderDialogProps) {
+  const [folderName, setFolderName] = useState("");
+  const [internalOpen, setInternalOpen] = useState(false);
   const createFolder = useCreateFolder();
+
+  // Use external state if provided, otherwise use internal state
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = onOpenChange || setInternalOpen;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim()) return;
+    if (!folderName.trim()) return;
 
     try {
       await createFolder.mutateAsync({
-        name: name.trim(),
-        parentFolderId,
-        artistId: selectedArtistId === "none" ? null : selectedArtistId,
+        name: folderName.trim(),
+        parentFolderId: parentFolderId || null,
+        artistId: artistId || null,
       });
       
-      setOpen(false);
-      setName("");
-      setSelectedArtistId(artistId || null);
+      setFolderName("");
+      setIsOpen(false);
     } catch (error) {
-      console.error("Failed to create folder:", error);
+      console.error("Error creating folder:", error);
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <FolderPlus className="h-4 w-4 mr-2" />
-          New Folder
-        </Button>
-      </DialogTrigger>
+  const DialogComponent = (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Create New Folder</DialogTitle>
-          <DialogDescription>
-            Create a new folder to organize your files.
-          </DialogDescription>
-        </DialogHeader>
         <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new folder.
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
@@ -75,41 +70,83 @@ export function CreateFolderDialog({ parentFolderId, artistId }: CreateFolderDia
               </Label>
               <Input
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
                 className="col-span-3"
-                placeholder="Enter folder name"
-                required
+                placeholder="Folder name"
+                autoFocus
               />
             </div>
-            
-            {isAdmin && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="artist" className="text-right">
-                  Assign to Artist
-                </Label>
-                <Select value={selectedArtistId || "none"} onValueChange={setSelectedArtistId}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select an artist (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No artist assignment</SelectItem>
-                    {artists.map((artist) => (
-                      <SelectItem key={artist.id} value={artist.id}>
-                        {artist.full_name}
-                        {artist.user_id ? " (linked)" : " (not linked)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={createFolder.isPending}>
+            <Button 
+              type="submit" 
+              disabled={!folderName.trim() || createFolder.isPending}
+            >
+              {createFolder.isPending ? "Creating..." : "Create Folder"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // If external open/onOpenChange is provided, don't render trigger
+  if (open !== undefined) {
+    return DialogComponent;
+  }
+
+  // Otherwise render with trigger
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <FolderPlus className="h-4 w-4" />
+          New Folder
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new folder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
+                className="col-span-3"
+                placeholder="Folder name"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={!folderName.trim() || createFolder.isPending}
+            >
               {createFolder.isPending ? "Creating..." : "Create Folder"}
             </Button>
           </DialogFooter>
