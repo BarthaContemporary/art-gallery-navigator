@@ -118,9 +118,17 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
       
       console.log(`[${requestId}] Fetching contents for folder: "${folderName}"`);
       
-      const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      const { data: folders, error: foldersError } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userInfo.user_id
       });
+      
+      if (foldersError) {
+        console.error(`[${requestId}] Error fetching folders:`, foldersError);
+        return new Response('Error fetching folders', { 
+          status: 500, 
+          headers: getWebDAVResponseHeaders()
+        });
+      }
       
       const folder = folders?.find((f: any) => f.folder_name === folderName);
       
@@ -132,7 +140,12 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         });
       }
 
-      console.log(`[${requestId}] Found folder:`, folder);
+      console.log(`[${requestId}] Found folder:`, {
+        id: folder.folder_id,
+        name: folder.folder_name,
+        artist_id: folder.artist_id
+      });
+      
       console.log(`[${requestId}] Fetching documents for folder ID: ${folder.folder_id}`);
       
       const { data: documents, error: docsError } = await supabase.rpc('get_user_accessible_documents', { 
@@ -148,6 +161,12 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
       }
 
       console.log(`[${requestId}] Found ${documents?.length || 0} documents in folder`);
+      console.log(`[${requestId}] Document details:`, documents?.map((d: any) => ({
+        id: d.document_id,
+        name: d.document_name,
+        folder_id: d.folder_id,
+        file_size: d.file_size
+      })));
 
       // Filter out system files from the response but still show them as existing
       const visibleDocuments = (documents || []).filter((doc: any) => 
@@ -156,10 +175,12 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
         !doc.document_name.startsWith('.')
       );
 
+      console.log(`[${requestId}] Visible documents after filtering: ${visibleDocuments.length}`);
+
       // Generate unique timestamp for cache busting
       const currentTime = new Date();
       const uniqueTimestamp = Date.now() + Math.random();
-      const folderEtag = `"folder-${folder.folder_id}-${uniqueTimestamp}"`;
+      const folderEtag = `"folder-${folder.folder_id}-${uniqueTimestamp}-${visibleDocuments.length}"`;
       
       const documentItems = visibleDocuments.map((doc: any) => {
         const docEtag = `"doc-${doc.document_id || crypto.randomUUID()}-${uniqueTimestamp}"`;
@@ -212,6 +233,8 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
   </D:response>${documentItems}
 </D:multistatus>`;
 
+      console.log(`[${requestId}] Returning PROPFIND response with ${visibleDocuments.length} documents`);
+
       return new Response(xmlResponse, {
         status: 207,
         headers: getWebDAVResponseHeaders({
@@ -230,7 +253,8 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
           'X-Mac-Finder-Refresh': uniqueTimestamp.toString(),
           // Additional headers to force refresh
           'X-Folder-Version': uniqueTimestamp.toString(),
-          'X-Document-Count': visibleDocuments.length.toString()
+          'X-Document-Count': visibleDocuments.length.toString(),
+          'X-Folder-Id': folder.folder_id
         })
       });
     } else {
