@@ -127,7 +127,7 @@ export function FilesTabContent({
                 parentFolderId={currentFolder?.id || null} 
                 artistId={currentFolder?.artist_id || currentUserArtist?.id}
               />
-              <EnhancedUploadDocumentDialog />
+              <EnhancedUploadDocumentDialog folderId={currentFolder?.id || null} />
             </>
           )}
         </div>
@@ -168,7 +168,7 @@ export function FilesTabContent({
                 parentFolderId={currentFolder?.id || null}
                 artistId={currentFolder?.artist_id || currentUserArtist?.id}
               />
-              <EnhancedUploadDocumentDialog />
+              <EnhancedUploadDocumentDialog folderId={currentFolder?.id || null} />
             </div>
           )}
         </div>

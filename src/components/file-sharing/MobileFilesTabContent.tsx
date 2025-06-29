@@ -168,6 +168,7 @@ export function MobileFilesTabContent({
       <EnhancedUploadDocumentDialog 
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
+        folderId={currentFolder?.id || null}
       />
     </div>
   );

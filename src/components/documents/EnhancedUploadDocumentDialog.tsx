@@ -26,11 +26,13 @@ import { toast } from "sonner";
 interface EnhancedUploadDocumentDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  folderId?: string | null;
 }
 
 export function EnhancedUploadDocumentDialog({ 
   open, 
-  onOpenChange 
+  onOpenChange,
+  folderId 
 }: EnhancedUploadDocumentDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<string>("");
@@ -71,6 +73,7 @@ export function EnhancedUploadDocumentDialog({
         file,
         type: documentType,
         description: description.trim() || undefined,
+        folderId,
       });
       
       // Reset form
@@ -221,106 +224,7 @@ export function EnhancedUploadDocumentDialog({
           Upload File
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
-            <DialogDescription>
-              Upload a new document to the file management system.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="file-upload">File</Label>
-              {!file ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer flex flex-col items-center gap-2"
-                  >
-                    <Upload className="h-8 w-8 text-gray-400" />
-                    <span className="text-sm font-medium">Click to upload file</span>
-                    <span className="text-xs text-gray-500">
-                      PDF, DOC, TXT, or image files
-                    </span>
-                  </label>
-                </div>
-              ) : (
-                <div className="border rounded-lg p-3 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeFile}
-                    className="flex-shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="document-type">Document Type</Label>
-              <Select value={documentType} onValueChange={setDocumentType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="contract">Contract</SelectItem>
-                  <SelectItem value="invoice">Invoice</SelectItem>
-                  <SelectItem value="receipt">Receipt</SelectItem>
-                  <SelectItem value="certificate">Certificate</SelectItem>
-                  <SelectItem value="image">Image</SelectItem>
-                  <SelectItem value="document">Document</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add a description for this document..."
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={!file || !documentType || uploadDocument.isPending}
-            >
-              {uploadDocument.isPending ? "Uploading..." : "Upload Document"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+      {DialogComponent}
     </Dialog>
   );
 }
