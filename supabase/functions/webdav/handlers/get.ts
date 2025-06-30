@@ -62,6 +62,15 @@ async function handleDirectoryGet(supabase: any, userInfo: UserInfo, pathInfo: a
         
         <h4>📱 iOS Files App</h4>
         <p>In the Files app, tap "..." → "Connect to Server" and use the same URL and credentials.</p>
+        
+        <h4>🔧 Troubleshooting Error -36</h4>
+        <p>If you encounter error -36 (I/O error), try:</p>
+        <ul>
+            <li>Disconnecting and reconnecting to the WebDAV server</li>
+            <li>Checking your internet connection</li>
+            <li>Ensuring you have write permissions to the target folder</li>
+            <li>Trying with smaller files first</li>
+        </ul>
     </div>
     
     <p><small>WebDAV Server - Powered by Supabase</small></p>
@@ -88,7 +97,7 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
   
   if (folderError) {
     console.error(`[${requestId}] Error fetching folders:`, folderError);
-    return new Response('Internal server error', {
+    return new Response('Internal Server Error', {
       status: 500,
       headers: getWebDAVResponseHeaders()
     });
@@ -110,7 +119,7 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
   
   if (docsError) {
     console.error(`[${requestId}] Error fetching documents:`, docsError);
-    return new Response('Internal server error', {
+    return new Response('Internal Server Error', {
       status: 500,
       headers: getWebDAVResponseHeaders()
     });
@@ -136,7 +145,8 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
         'Last-Modified': formatDateForWebDAV(document.updated_at || new Date()),
         'ETag': generateETag(document.document_id, document.updated_at || new Date()),
         'Accept-Ranges': 'bytes',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(pathInfo.fileName)}"`
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(pathInfo.fileName)}"`,
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate'
       });
       
       return new Response(isHead ? null : new Uint8Array(0), {
@@ -145,14 +155,23 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
       });
     }
     
-    // Fetch actual file with retry logic
+    // Fetch actual file with enhanced error handling for Mac Finder
     let fileResponse: Response;
     let retries = 3;
     
     while (retries > 0) {
       try {
-        fileResponse = await fetch(document.file_url);
-        if (fileResponse.ok) break;
+        fileResponse = await fetch(document.file_url, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'WebDAV-Server/1.0'
+          }
+        });
+        
+        if (fileResponse.ok) {
+          console.log(`[${requestId}] File fetched successfully on attempt ${4 - retries}`);
+          break;
+        }
         
         console.warn(`[${requestId}] File fetch failed (${fileResponse.status}), retrying...`);
         retries--;
@@ -166,7 +185,7 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
     
     if (!fileResponse! || !fileResponse.ok) {
       console.error(`[${requestId}] File fetch failed after retries: ${fileResponse?.status || 'no response'}`);
-      return new Response('File not accessible', {
+      return new Response('File Not Accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()
       });
@@ -177,6 +196,7 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
     const lastModified = document.updated_at ? new Date(document.updated_at) : new Date();
     const etag = generateETag(document.document_id, lastModified);
     
+    // Enhanced headers for Mac Finder I/O compatibility
     const headers = getWebDAVResponseHeaders({
       'Content-Type': contentType,
       'Content-Length': fileSize.toString(),
@@ -184,21 +204,27 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
       'ETag': etag,
       'Accept-Ranges': 'bytes',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(pathInfo.fileName)}"`,
-      'Cache-Control': 'private, max-age=0'
+      'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+      'X-Content-Type-Options': 'nosniff',
+      'Connection': 'close' // Important for Mac Finder I/O stability
     });
     
     if (isHead) {
+      console.log(`[${requestId}] Returning HEAD response for file: ${pathInfo.fileName}`);
       return new Response(null, { status: 200, headers });
     } else {
+      console.log(`[${requestId}] Streaming file content: ${pathInfo.fileName} (${fileSize} bytes)`);
       const fileContent = await fileResponse.arrayBuffer();
       return new Response(fileContent, { status: 200, headers });
     }
     
   } catch (error) {
     console.error(`[${requestId}] Error serving file:`, error);
-    return new Response('Internal server error', {
+    return new Response('Internal Server Error', {
       status: 500,
-      headers: getWebDAVResponseHeaders()
+      headers: getWebDAVResponseHeaders({
+        'X-Error-Details': error.message?.substring(0, 100) || 'Unknown error'
+      })
     });
   }
 }

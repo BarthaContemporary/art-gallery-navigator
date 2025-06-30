@@ -11,7 +11,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
   
   if (!pathInfo.folderName || !pathInfo.fileName) {
     console.log(`[${requestId}] Invalid path - missing folder or file name`);
-    return new Response('Invalid file path', {
+    return new Response('Bad Request', {
       status: 400,
       headers: getWebDAVResponseHeaders()
     });
@@ -24,7 +24,8 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       status: 201,
       headers: getWebDAVResponseHeaders({
         'ETag': generateETag('system', new Date()),
-        'Last-Modified': formatDateForWebDAV(new Date())
+        'Last-Modified': formatDateForWebDAV(new Date()),
+        'Content-Length': '0'
       })
     });
   }
@@ -35,19 +36,32 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
   console.log(`[${requestId}] Processing upload: "${fileName}" to folder "${folderName}"`);
   
   try {
-    // Read file content with proper error handling
+    // Check Content-Length header for better Mac Finder compatibility
+    const contentLength = req.headers.get('Content-Length');
+    const expectedSize = contentLength ? parseInt(contentLength) : 0;
+    
+    console.log(`[${requestId}] Expected file size from Content-Length: ${expectedSize} bytes`);
+    
+    // Read file content with enhanced error handling for Mac Finder
     let fileContent: ArrayBuffer;
     try {
       fileContent = await req.arrayBuffer();
+      console.log(`[${requestId}] Successfully read ${fileContent.byteLength} bytes from request`);
     } catch (error) {
       console.error(`[${requestId}] Error reading request body:`, error);
-      return new Response('Error reading file content', {
+      return new Response('Bad Request: Cannot read file content', {
         status: 400,
         headers: getWebDAVResponseHeaders()
       });
     }
     
     const fileSize = fileContent.byteLength;
+    
+    // Validate file size matches Content-Length if provided
+    if (contentLength && fileSize !== expectedSize) {
+      console.warn(`[${requestId}] Size mismatch: expected ${expectedSize}, got ${fileSize}`);
+    }
+    
     const contentType = req.headers.get('Content-Type') || 'application/octet-stream';
     
     console.log(`[${requestId}] File size: ${fileSize} bytes, type: ${contentType}`);
@@ -59,7 +73,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     
     if (folderError) {
       console.error(`[${requestId}] Error fetching folders:`, folderError);
-      return new Response('Error accessing folders', {
+      return new Response('Internal Server Error', {
         status: 500,
         headers: getWebDAVResponseHeaders()
       });
@@ -73,9 +87,9 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     
     if (!targetFolder) {
       console.log(`[${requestId}] Target folder "${folderName}" not found or not writable`);
-      console.log(`[${requestId}] Available folders: ${folders?.map((f: any) => `"${f.folder_name}"`).join(', ')}`);
-      return new Response('Target folder not accessible', {
-        status: 404,
+      console.log(`[${requestId}] Available writable folders: ${folders?.filter((f: any) => f.can_write).map((f: any) => `"${f.folder_name}"`).join(', ')}`);
+      return new Response('Forbidden', {
+        status: 403,
         headers: getWebDAVResponseHeaders()
       });
     }
@@ -100,7 +114,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     let actualFileSize = fileSize;
     
     if (fileSize > 0) {
-      // Upload to Supabase Storage with better error handling
+      // Upload to Supabase Storage with enhanced error handling
       const timestamp = Date.now();
       const randomId = crypto.randomUUID().substring(0, 8);
       const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -112,13 +126,14 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         .from('shared-files')
         .upload(filePath, fileContent, {
           contentType,
-          upsert: true
+          upsert: true,
+          duplex: 'half' // Important for Mac Finder compatibility
         });
       
       if (uploadError) {
         console.error(`[${requestId}] Storage upload error:`, uploadError);
-        return new Response(`Upload failed: ${uploadError.message}`, {
-          status: 500,
+        return new Response('Upload Failed', {
+          status: 507, // Insufficient Storage
           headers: getWebDAVResponseHeaders()
         });
       }
@@ -129,7 +144,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         .getPublicUrl(filePath);
       
       fileUrl = urlData.publicUrl;
-      console.log(`[${requestId}] File stored at: ${fileUrl}`);
+      console.log(`[${requestId}] File stored successfully at: ${fileUrl}`);
     } else {
       // Zero-byte file placeholder
       fileUrl = `placeholder://webdav/${userInfo.user_id}/${fileName}`;
@@ -154,7 +169,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       
       if (updateError) {
         console.error(`[${requestId}] Error updating document:`, updateError);
-        return new Response(`Update failed: ${updateError.message}`, {
+        return new Response('Database Error', {
           status: 500,
           headers: getWebDAVResponseHeaders()
         });
@@ -186,7 +201,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       
       if (docError) {
         console.error(`[${requestId}] Error creating document:`, docError);
-        return new Response(`Document creation failed: ${docError.message}`, {
+        return new Response('Database Error', {
           status: 500,
           headers: getWebDAVResponseHeaders()
         });
@@ -196,12 +211,13 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       console.log(`[${requestId}] Document created successfully: ${documentId}`);
     }
     
-    // Generate strong ETag and proper response headers for Mac Finder
+    // Generate proper response headers for Mac Finder
     const etag = generateETag(documentId, currentTime);
     const lastModified = formatDateForWebDAV(new Date(currentTime));
     
-    console.log(`[${requestId}] Upload completed successfully - Document ID: ${documentId}`);
+    console.log(`[${requestId}] Upload completed successfully - Document ID: ${documentId}, Size: ${actualFileSize} bytes`);
     
+    // Enhanced response headers for Mac Finder I/O compatibility
     return new Response('', {
       status: isUpdate ? 200 : 201,
       headers: getWebDAVResponseHeaders({
@@ -211,15 +227,18 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         'Content-Length': '0',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-WebDAV-Status': 'upload-complete',
-        'X-Document-Id': documentId
+        'X-Document-Id': documentId,
+        'X-File-Size': actualFileSize.toString()
       })
     });
     
   } catch (error) {
     console.error(`[${requestId}] PUT operation failed:`, error);
-    return new Response(`Internal server error: ${error.message}`, {
+    return new Response('Internal Server Error', {
       status: 500,
-      headers: getWebDAVResponseHeaders()
+      headers: getWebDAVResponseHeaders({
+        'X-Error-Details': error.message?.substring(0, 100) || 'Unknown error'
+      })
     });
   }
 }
