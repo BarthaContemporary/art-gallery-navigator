@@ -1,4 +1,3 @@
-
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
 import { parseWebDAVPath, escapeXml, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, createMacCompatibleHref, matchesFolderName } from "../utils.ts";
@@ -16,18 +15,18 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
     return createSystemFileResponse(path, requestId);
   }
   
-  // CRITICAL FIX: Proper routing logic
+  // ENHANCED ROUTING: More robust path resolution
   if (pathInfo.isRoot) {
     console.log(`[${requestId}] Handling root PROPFIND`);
     return handleRootPropfind(supabase, userInfo, requestId);
   } else if (pathInfo.fileName && !pathInfo.isFolder) {
-    console.log(`[${requestId}] Handling file PROPFIND for: "${pathInfo.fileName}"`);
+    console.log(`[${requestId}] Handling file PROPFIND for: "${pathInfo.fileName}" in folder: "${pathInfo.folderName}"`);
     return handleFilePropfind(supabase, userInfo, pathInfo, requestId);
-  } else if (pathInfo.folderName && pathInfo.isFolder) {
+  } else if (pathInfo.folderName) {
     console.log(`[${requestId}] Handling folder PROPFIND for: "${pathInfo.folderName}"`);
     return handleFolderPropfind(supabase, userInfo, pathInfo, requestId);
   } else {
-    console.log(`[${requestId}] Ambiguous path, defaulting to root`);
+    console.log(`[${requestId}] Unclear path structure, defaulting to root`);
     return handleRootPropfind(supabase, userInfo, requestId);
   }
 }

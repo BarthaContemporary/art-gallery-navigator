@@ -1,4 +1,3 @@
-
 export function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -46,8 +45,8 @@ export function parseWebDAVPath(path: string): {
 } {
   const normalizedPath = normalizePath(path);
   
-  // Handle root directory
-  if (normalizedPath === '/' || normalizedPath === '') {
+  // Handle root directory - CRITICAL: More comprehensive root detection
+  if (normalizedPath === '/' || normalizedPath === '' || normalizedPath === '/webdav' || normalizedPath === '/webdav/') {
     return { isRoot: true, isFolder: true };
   }
   
@@ -64,15 +63,17 @@ export function parseWebDAVPath(path: string): {
     return { isRoot: true, isFolder: true };
   }
   
-  // CRITICAL FIX: Handle the webdav mount point properly
-  // If the first part is "webdav", treat it as part of the mount point, not a folder
+  // ENHANCED FIX: Better webdav mount point handling
   let actualPathParts = pathParts;
+  
+  // Remove 'webdav' from the beginning if it exists (mount point artifact)
   if (pathParts[0] === 'webdav') {
     actualPathParts = pathParts.slice(1);
-    // If after removing 'webdav' we have no parts, it's the root
-    if (actualPathParts.length === 0) {
-      return { isRoot: true, isFolder: true };
-    }
+  }
+  
+  // If after removing 'webdav' we have no parts, it's the root
+  if (actualPathParts.length === 0) {
+    return { isRoot: true, isFolder: true };
   }
   
   const lastPart = actualPathParts[actualPathParts.length - 1];
@@ -86,9 +87,17 @@ export function parseWebDAVPath(path: string): {
                       lastPart === '.localized' ||
                       lastPart === '.fseventsd';
   
-  // Determine if this is likely a folder or file
-  const hasFileExtension = lastPart.includes('.') && !lastPart.startsWith('.') && !isSystemFile;
-  const isLikelyFolder = !hasFileExtension || isSystemFile;
+  // CRITICAL FIX: Better file vs folder detection
+  const hasFileExtension = lastPart.includes('.') && 
+                          !lastPart.startsWith('.') && 
+                          !isSystemFile &&
+                          lastPart.lastIndexOf('.') > 0; // Ensure it's not just a dot at the start
+  
+  // For Mac Finder compatibility - if it ends with certain patterns, treat as folder
+  const folderIndicators = ['\'s Files', ' Files', 'Documents', 'Folder'];
+  const isFolderByName = folderIndicators.some(indicator => lastPart.includes(indicator));
+  
+  const isLikelyFolder = !hasFileExtension || isSystemFile || isFolderByName;
   
   if (actualPathParts.length === 1) {
     // Single part after removing webdav mount point
@@ -99,14 +108,25 @@ export function parseWebDAVPath(path: string): {
       isFolder: isLikelyFolder
     };
   } else {
-    // Multiple parts - first is folder, last is file
-    return { 
-      isRoot: false, 
-      folderName: actualPathParts[0], 
-      fileName: lastPart,
-      isSystemFile: isSystemFile,
-      isFolder: false
-    };
+    // Multiple parts - determine if last part is a file or folder
+    if (isLikelyFolder) {
+      // Treat as accessing a subfolder
+      return { 
+        isRoot: false, 
+        folderName: actualPathParts.join('/'), // Full path as folder name for nested folders
+        isSystemFile: isSystemFile,
+        isFolder: true
+      };
+    } else {
+      // Last part is a file, first part is the parent folder
+      return { 
+        isRoot: false, 
+        folderName: actualPathParts[0], 
+        fileName: lastPart,
+        isSystemFile: isSystemFile,
+        isFolder: false
+      };
+    }
   }
 }
 
