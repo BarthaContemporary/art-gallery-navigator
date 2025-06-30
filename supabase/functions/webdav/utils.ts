@@ -1,3 +1,4 @@
+
 export function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -63,7 +64,18 @@ export function parseWebDAVPath(path: string): {
     return { isRoot: true, isFolder: true };
   }
   
-  const lastPart = pathParts[pathParts.length - 1];
+  // CRITICAL FIX: Handle the webdav mount point properly
+  // If the first part is "webdav", treat it as part of the mount point, not a folder
+  let actualPathParts = pathParts;
+  if (pathParts[0] === 'webdav') {
+    actualPathParts = pathParts.slice(1);
+    // If after removing 'webdav' we have no parts, it's the root
+    if (actualPathParts.length === 0) {
+      return { isRoot: true, isFolder: true };
+    }
+  }
+  
+  const lastPart = actualPathParts[actualPathParts.length - 1];
   
   // Enhanced system file detection
   const isSystemFile = lastPart.startsWith('._') || 
@@ -78,17 +90,19 @@ export function parseWebDAVPath(path: string): {
   const hasFileExtension = lastPart.includes('.') && !lastPart.startsWith('.') && !isSystemFile;
   const isLikelyFolder = !hasFileExtension || isSystemFile;
   
-  if (pathParts.length === 1) {
+  if (actualPathParts.length === 1) {
+    // Single part after removing webdav mount point
     return { 
       isRoot: false, 
-      folderName: pathParts[0],
+      folderName: actualPathParts[0],
       isSystemFile: isSystemFile,
       isFolder: isLikelyFolder
     };
   } else {
+    // Multiple parts - first is folder, last is file
     return { 
       isRoot: false, 
-      folderName: pathParts[0], 
+      folderName: actualPathParts[0], 
       fileName: lastPart,
       isSystemFile: isSystemFile,
       isFolder: false

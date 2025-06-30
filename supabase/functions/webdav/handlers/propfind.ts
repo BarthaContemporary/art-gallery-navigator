@@ -16,12 +16,19 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
     return createSystemFileResponse(path, requestId);
   }
   
-  if (pathInfo.fileName && !pathInfo.isFolder) {
-    return handleFilePropfind(supabase, userInfo, pathInfo, requestId);
-  } else if (pathInfo.isRoot || !pathInfo.folderName) {
+  // CRITICAL FIX: Proper routing logic
+  if (pathInfo.isRoot) {
+    console.log(`[${requestId}] Handling root PROPFIND`);
     return handleRootPropfind(supabase, userInfo, requestId);
-  } else {
+  } else if (pathInfo.fileName && !pathInfo.isFolder) {
+    console.log(`[${requestId}] Handling file PROPFIND for: "${pathInfo.fileName}"`);
+    return handleFilePropfind(supabase, userInfo, pathInfo, requestId);
+  } else if (pathInfo.folderName && pathInfo.isFolder) {
+    console.log(`[${requestId}] Handling folder PROPFIND for: "${pathInfo.folderName}"`);
     return handleFolderPropfind(supabase, userInfo, pathInfo, requestId);
+  } else {
+    console.log(`[${requestId}] Ambiguous path, defaulting to root`);
+    return handleRootPropfind(supabase, userInfo, requestId);
   }
 }
 
@@ -63,6 +70,9 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
   }
   
   console.log(`[${requestId}] Found ${folders?.length || 0} accessible folders`);
+  folders?.forEach((f: any, i: number) => {
+    console.log(`[${requestId}] Folder ${i}: "${f.folder_name}" (${f.folder_id})`);
+  });
   
   const currentTime = new Date();
   const rootEtag = generateETag('root', currentTime);
@@ -152,7 +162,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
   
   console.log(`[${requestId}] Looking for folder "${pathInfo.folderName}" in ${folders?.length || 0} folders`);
   folders?.forEach((f: any, i: number) => {
-    console.log(`[${requestId}] Folder ${i}: "${f.folder_name}" (${f.folder_id})`);
+    console.log(`[${requestId}] Available folder ${i}: "${f.folder_name}" (ID: ${f.folder_id})`);
   });
   
   // Enhanced folder matching
@@ -160,7 +170,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
   
   if (!targetFolder) {
     console.log(`[${requestId}] Folder not found: "${pathInfo.folderName}"`);
-    console.log(`[${requestId}] Available folders: ${folders?.map((f: any) => f.folder_name).join(', ')}`);
+    console.log(`[${requestId}] Available folders: ${folders?.map((f: any) => `"${f.folder_name}"`).join(', ')}`);
     return new Response('Not Found', {
       status: 404,
       headers: getWebDAVResponseHeaders()
