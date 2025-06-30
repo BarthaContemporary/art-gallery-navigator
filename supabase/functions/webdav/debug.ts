@@ -8,6 +8,13 @@ export async function handleDebugToken(req: Request, requestId: string): Promise
   console.log(`[${requestId}] Debug - Auth header present: ${!!authHeader}`);
   
   let tokenInfo = null;
+  let debugDetails = {
+    hasAuthHeader: !!authHeader,
+    authHeaderLength: authHeader?.length || 0,
+    decoded: null as any,
+    hashComputed: null as string | null,
+    error: null as string | null
+  };
   
   if (authHeader && authHeader.startsWith('Basic ')) {
     try {
@@ -15,26 +22,40 @@ export async function handleDebugToken(req: Request, requestId: string): Promise
       const decodedCredentials = atob(base64Credentials);
       const colonIndex = decodedCredentials.indexOf(':');
       
+      debugDetails.decoded = {
+        length: decodedCredentials.length,
+        hasColon: colonIndex !== -1,
+        colonIndex
+      };
+      
       if (colonIndex !== -1) {
         const username = decodedCredentials.substring(0, colonIndex);
         const token = decodedCredentials.substring(colonIndex + 1);
         
         // Compute hash like the validation function does
-        const encoder = new TextEncoder();
-        const tokenBytes = encoder.encode(token);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
-        const hashArray = new Uint8Array(hashBuffer);
-        const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-        
-        tokenInfo = {
-          username,
-          tokenLength: token.length,
-          tokenPreview: token.substring(0, 8) + '...' + token.substring(token.length - 8),
-          computedHash: computedHash.substring(0, 16) + '...'
-        };
+        try {
+          const encoder = new TextEncoder();
+          const tokenBytes = encoder.encode(token);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
+          const hashArray = new Uint8Array(hashBuffer);
+          const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+          
+          debugDetails.hashComputed = computedHash.substring(0, 16) + '...';
+          
+          tokenInfo = {
+            username,
+            tokenLength: token.length,
+            tokenPreview: token.substring(0, 8) + '...' + token.substring(token.length - 8),
+            computedHashPreview: computedHash.substring(0, 16) + '...',
+            fullComputedHash: computedHash
+          };
+        } catch (hashError) {
+          debugDetails.error = `Hash computation failed: ${hashError.message}`;
+        }
       }
     } catch (error) {
       console.error(`[${requestId}] Error parsing auth header:`, error);
+      debugDetails.error = `Auth parsing failed: ${error.message}`;
     }
   }
   
@@ -48,13 +69,15 @@ export async function handleDebugToken(req: Request, requestId: string): Promise
     url: req.url,
     hasAuth: !!authHeader,
     tokenInfo,
+    debugDetails,
     userAgent,
     isMacFinder: userAgent?.includes('WebDAVFS') || userAgent?.includes('Darwin'),
     headers: Object.fromEntries(req.headers.entries()),
     instructions: {
       connection: 'Use URL: https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/',
       username: 'webdav',
-      password: 'Your 64-character WebDAV token'
+      password: 'Your 64-character WebDAV token',
+      note: 'Check the logs above for token validation details'
     }
   };
   

@@ -76,7 +76,57 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
       });
     }
 
-    // Now validate the specific token
+    // Compute hash manually first to debug
+    let computedHash: string;
+    try {
+      const encoder = new TextEncoder();
+      const tokenBytes = encoder.encode(token);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
+      const hashArray = new Uint8Array(hashBuffer);
+      computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+      console.log(`[${requestId}] Computed hash for token: ${computedHash.substring(0, 16)}...`);
+      
+      // Check if this hash exists in our tokens
+      const matchingToken = allTokens?.find(t => t.token_hash === computedHash);
+      if (matchingToken) {
+        console.log(`[${requestId}] Found matching token by manual hash: ${matchingToken.id}, user: ${matchingToken.user_id}`);
+        
+        // Check if token is expired
+        if (matchingToken.expires_at && new Date(matchingToken.expires_at) <= new Date()) {
+          console.log(`[${requestId}] Token is expired: ${matchingToken.expires_at}`);
+          return null;
+        }
+        
+        // Update last_used_at for the token
+        await supabase
+          .from('webdav_tokens')
+          .update({ last_used_at: new Date().toISOString() })
+          .eq('id', matchingToken.id);
+
+        console.log(`[${requestId}] Authentication successful for user: ${matchingToken.user_id}`);
+        return {
+          user_id: matchingToken.user_id,
+          token_id: matchingToken.id
+        };
+      } else {
+        console.log(`[${requestId}] No matching token found with computed hash`);
+        
+        // Debug: show what hashes we have vs what we computed
+        if (allTokens && allTokens.length > 0) {
+          console.log(`[${requestId}] Available token hashes:`);
+          allTokens.forEach((t, i) => {
+            console.log(`[${requestId}]   Token ${i+1}: ${t.token_hash?.substring(0, 16)}...`);
+          });
+          console.log(`[${requestId}] Computed hash: ${computedHash.substring(0, 16)}...`);
+        }
+      }
+    } catch (hashError) {
+      console.error(`[${requestId}] Manual hash computation failed:`, hashError);
+    }
+
+    // Fallback: Try the database function (but we've already done manual validation above)
+    console.log(`[${requestId}] Manual validation failed, trying database function...`);
+    
     const { data: tokenValidation, error: tokenError } = await supabase.rpc('validate_webdav_token', {
       token_text: token
     });
@@ -87,40 +137,19 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
     }
 
     if (!tokenValidation || tokenValidation.length === 0) {
-      console.log(`[${requestId}] No matching token found in database for provided token`);
-      
-      // Let's try to compute the hash manually for debugging
-      try {
-        const encoder = new TextEncoder();
-        const tokenBytes = encoder.encode(token);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes);
-        const hashArray = new Uint8Array(hashBuffer);
-        const computedHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-        console.log(`[${requestId}] Computed hash for token: ${computedHash.substring(0, 16)}...`);
-        
-        // Check if this hash exists in our tokens
-        const matchingToken = allTokens?.find(t => t.token_hash === computedHash);
-        if (matchingToken) {
-          console.log(`[${requestId}] Found matching token by manual hash: ${matchingToken.id}`);
-        } else {
-          console.log(`[${requestId}] No matching token found even with manual hash computation`);
-        }
-      } catch (hashError) {
-        console.error(`[${requestId}] Manual hash computation failed:`, hashError);
-      }
-      
+      console.log(`[${requestId}] No matching token found via database function`);
       return null;
     }
 
     const result = tokenValidation[0];
-    console.log(`[${requestId}] Token validation result:`, { 
+    console.log(`[${requestId}] Database function result:`, { 
       user_id: result.user_id, 
       token_id: result.token_id, 
       is_valid: result.is_valid 
     });
 
     if (!result.is_valid) {
-      console.log(`[${requestId}] Token marked as invalid or expired`);
+      console.log(`[${requestId}] Token marked as invalid or expired by database function`);
       return null;
     }
 
@@ -130,7 +159,7 @@ export async function authenticateUser(supabase: any, authHeader: string, reques
       .update({ last_used_at: new Date().toISOString() })
       .eq('id', result.token_id);
 
-    console.log(`[${requestId}] Authentication successful for user: ${result.user_id}`);
+    console.log(`[${requestId}] Authentication successful via database function for user: ${result.user_id}`);
     return {
       user_id: result.user_id,
       token_id: result.token_id

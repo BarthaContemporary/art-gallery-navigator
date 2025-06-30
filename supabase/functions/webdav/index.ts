@@ -11,6 +11,45 @@ import { handlePut } from "./handlers/put.ts";
 import { handleMkcol, handleDelete, handleLock, handleUnlock, handleMove, handleCopy, handleProppatch } from "./handlers/other.ts";
 import { handleDebugToken } from "./debug.ts";
 
+async function ensureStorageBucketExists(supabase: any, requestId: string) {
+  try {
+    // Check if shared-files bucket exists
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error(`[${requestId}] Error listing buckets:`, bucketsError);
+      return false;
+    }
+    
+    const sharedFilesBucket = buckets?.find((b: any) => b.id === 'shared-files');
+    
+    if (!sharedFilesBucket) {
+      console.log(`[${requestId}] Creating shared-files bucket...`);
+      
+      // Create the bucket
+      const { error: createError } = await supabase.storage.createBucket('shared-files', {
+        public: false,
+        allowedMimeTypes: null,
+        fileSizeLimit: null
+      });
+      
+      if (createError) {
+        console.error(`[${requestId}] Error creating shared-files bucket:`, createError);
+        return false;
+      }
+      
+      console.log(`[${requestId}] Successfully created shared-files bucket`);
+    } else {
+      console.log(`[${requestId}] shared-files bucket already exists`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`[${requestId}] Error ensuring storage bucket:`, error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID().substring(0, 8);
@@ -20,6 +59,7 @@ serve(async (req) => {
   console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
   console.log(`[${requestId}] Full URL: ${req.url}`);
+  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
   
   // Handle debug endpoint FIRST (before any auth)
   if (url.pathname.includes('/debug-token')) {
@@ -62,13 +102,17 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
+    // Ensure storage bucket exists (but don't block on failure)
+    await ensureStorageBucketExists(supabase, requestId);
+
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
+    console.log(`[${requestId}] Auth header value: ${authHeader ? 'Basic ' + authHeader.slice(6, 16) + '...' : 'none'}`);
     
     // Enhanced authentication challenge for Mac Finder
     if (!authHeader) {
       console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
-      return new Response('', {
+      return new Response('Unauthorized', {
         status: 401,
         headers: getAuthenticationChallengeHeaders()
       });
@@ -79,10 +123,13 @@ serve(async (req) => {
     const userInfo = await authenticateUser(supabase, authHeader, requestId);
     
     if (!userInfo) {
-      console.log(`[${requestId}] Authentication failed - sending challenge`);
-      return new Response('', {
+      console.log(`[${requestId}] Authentication failed - sending challenge with detailed error`);
+      return new Response('Authentication failed', {
         status: 401,
-        headers: getAuthenticationChallengeHeaders()
+        headers: {
+          ...getAuthenticationChallengeHeaders(),
+          'X-WebDAV-Error': 'Invalid token or credentials'
+        }
       });
     }
 
@@ -178,6 +225,7 @@ serve(async (req) => {
     // Add timing header for debugging
     const finalHeaders = new Headers(response.headers);
     finalHeaders.set('X-Response-Time', `${duration}ms`);
+    finalHeaders.set('X-Request-ID', requestId);
     
     return new Response(response.body, {
       status: response.status,
