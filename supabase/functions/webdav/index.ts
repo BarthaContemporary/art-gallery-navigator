@@ -3,8 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 import { authenticateUser, UserInfo } from "./auth.ts";
-import { getWebDAVResponseHeaders } from "./headers.ts";
-import { normalizePath } from "./utils.ts";
+import { getWebDAVResponseHeaders, getMacFinderHeaders } from "./headers.ts";
+import { normalizePath, parseWebDAVPath } from "./utils.ts";
 import { handlePropfind } from "./handlers/propfind.ts";
 import { handleGet } from "./handlers/get.ts";
 import { handlePut } from "./handlers/put.ts";
@@ -21,9 +21,9 @@ serve(async (req) => {
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
   console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
 
-  // Handle debug endpoint FIRST - before any other processing
+  // Handle debug endpoint FIRST
   if (url.pathname.includes('/debug-token')) {
-    console.log(`[${requestId}] Handling debug token endpoint`);
+    console.log(`[${requestId}] Debug endpoint requested`);
     if (req.method === 'OPTIONS') {
       return new Response('', { 
         status: 200,
@@ -33,15 +33,15 @@ serve(async (req) => {
     return await handleDebugToken(req, requestId);
   }
 
-  // Enhanced CORS preflight with Mac-specific headers
+  // Enhanced OPTIONS handling for Mac Finder compatibility
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] OPTIONS request - responding with comprehensive WebDAV capabilities`);
+    console.log(`[${requestId}] OPTIONS request - Mac Finder capability check`);
     return new Response('', { 
       status: 200,
       headers: {
         ...getWebDAVResponseHeaders(),
+        ...getMacFinderHeaders(),
         'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-        'Accept-Ranges': 'bytes',
         'Content-Length': '0'
       }
     });
@@ -52,7 +52,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error(`[${requestId}] Missing environment variables`);
+      console.error(`[${requestId}] Missing Supabase environment variables`);
       return new Response('Server configuration error', { 
         status: 500, 
         headers: getWebDAVResponseHeaders()
@@ -66,34 +66,38 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
     
-    // Enhanced WebDAV authentication flow with Mac Finder compatibility
+    // Enhanced authentication challenge for Mac Finder
     if (!authHeader) {
-      console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
+      console.log(`[${requestId}] No auth - sending Mac-compatible challenge`);
       return new Response('', {
         status: 401,
-        headers: getWebDAVResponseHeaders({
+        headers: {
+          ...getWebDAVResponseHeaders(),
+          ...getMacFinderHeaders(),
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
           'Content-Type': 'text/html; charset=utf-8',
           'Content-Length': '0'
-        })
+        }
       });
     }
 
     // Authenticate user
     const userInfo = await authenticateUser(supabase, authHeader, requestId);
     if (!userInfo) {
-      console.log(`[${requestId}] Authentication failed`);
+      console.log(`[${requestId}] Authentication failed - invalid credentials`);
       return new Response('', {
         status: 401,
-        headers: getWebDAVResponseHeaders({
+        headers: {
+          ...getWebDAVResponseHeaders(),
+          ...getMacFinderHeaders(),
           'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
           'Content-Type': 'text/html; charset=utf-8',
           'Content-Length': '0'
-        })
+        }
       });
     }
 
-    console.log(`[${requestId}] User authenticated successfully: ${userInfo.user_id}`);
+    console.log(`[${requestId}] User authenticated: ${userInfo.user_id}`);
 
     // Log access attempt (non-blocking)
     supabase.from('webdav_access_logs').insert({
@@ -106,15 +110,17 @@ serve(async (req) => {
       status_code: 200
     }).then(result => {
       if (result.error) {
-        console.log(`[${requestId}] Failed to log access (non-critical):`, result.error);
+        console.log(`[${requestId}] Access log failed (non-critical):`, result.error);
       }
     });
 
-    // Enhanced path parsing with proper URL decoding and Mac Finder compatibility
+    // Enhanced path processing for Mac Finder
     const path = normalizePath(url.pathname);
-    console.log(`[${requestId}] Processing ${req.method} for path: "${path}"`);
+    const pathInfo = parseWebDAVPath(path);
+    console.log(`[${requestId}] Processing ${req.method} for: "${path}"`);
+    console.log(`[${requestId}] Path info:`, pathInfo);
 
-    // Route to handlers with comprehensive error handling
+    // Route to appropriate handlers
     let response: Response;
     
     try {
@@ -151,7 +157,7 @@ serve(async (req) => {
           response = await handleProppatch(path, requestId);
           break;
         default:
-          console.log(`[${requestId}] Method not allowed: ${req.method}`);
+          console.log(`[${requestId}] Method not supported: ${req.method}`);
           response = new Response('Method not allowed', {
             status: 405,
             headers: getWebDAVResponseHeaders({
@@ -167,11 +173,11 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[${requestId}] Completed in ${Date.now() - startTime}ms with status ${response.status}`);
+    console.log(`[${requestId}] Request completed in ${Date.now() - startTime}ms with status ${response.status}`);
     return response;
 
   } catch (error) {
-    console.error(`[${requestId}] Unexpected error:`, error);
+    console.error(`[${requestId}] Unexpected server error:`, error);
     return new Response('Internal server error', {
       status: 500,
       headers: getWebDAVResponseHeaders()

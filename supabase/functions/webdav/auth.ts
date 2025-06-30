@@ -5,91 +5,93 @@ export interface UserInfo {
 }
 
 export async function authenticateUser(supabase: any, authHeader: string, requestId: string): Promise<UserInfo | null> {
-  console.log(`[${requestId}] Starting credential parsing...`);
+  console.log(`[${requestId}] Starting authentication...`);
   
   if (!authHeader || !authHeader.startsWith('Basic ')) {
-    console.log(`[${requestId}] Invalid auth header format`);
+    console.log(`[${requestId}] Missing or invalid auth header format`);
     return null;
   }
 
   try {
     const base64Credentials = authHeader.slice(6); // Remove 'Basic '
-    console.log(`[${requestId}] Base64 credentials length: ${base64Credentials.length}`);
+    console.log(`[${requestId}] Processing credentials...`);
     
-    // Enhanced decoding with multiple fallback attempts for Mac compatibility
     let decodedCredentials: string;
     try {
-      decodedCredentials = atob(base64Credentials);
-      console.log(`[${requestId}] Primary decoding successful, length: ${decodedCredentials.length}`);
-    } catch (primaryError) {
-      console.log(`[${requestId}] Primary decoding failed, trying alternative method`);
-      try {
-        // Alternative decoding method for Mac Finder edge cases
-        const cleanBase64 = base64Credentials.replace(/[^A-Za-z0-9+/]/g, '');
-        const uint8Array = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
-        decodedCredentials = new TextDecoder('utf-8').decode(uint8Array);
-        console.log(`[${requestId}] Alternative decoding successful`);
-      } catch (altError) {
-        console.log(`[${requestId}] All decoding methods failed:`, altError);
-        return null;
-      }
+      // Primary decoding with enhanced Mac compatibility
+      const cleanBase64 = base64Credentials.trim().replace(/[^A-Za-z0-9+/=]/g, '');
+      const padding = cleanBase64.length % 4;
+      const paddedBase64 = cleanBase64 + '='.repeat(padding ? 4 - padding : 0);
+      
+      decodedCredentials = atob(paddedBase64);
+      console.log(`[${requestId}] Credentials decoded successfully`);
+    } catch (decodeError) {
+      console.log(`[${requestId}] Decoding failed:`, decodeError);
+      return null;
     }
 
     const colonIndex = decodedCredentials.indexOf(':');
     if (colonIndex === -1) {
-      console.log(`[${requestId}] No colon separator found in credentials`);
+      console.log(`[${requestId}] No colon separator found`);
       return null;
     }
 
     const username = decodedCredentials.substring(0, colonIndex).trim();
     const token = decodedCredentials.substring(colonIndex + 1).trim();
     
-    console.log(`[${requestId}] Parsed username: "${username}", token length: ${token.length}`);
+    console.log(`[${requestId}] Username: "${username}", token length: ${token.length}`);
 
-    // More lenient username validation for Mac Finder compatibility
-    const validUsernames = ['webdav', 'WebDAV', '', 'user', 'admin'];
-    if (!validUsernames.includes(username)) {
-      console.log(`[${requestId}] Username "${username}" not in allowed list, but continuing with token validation`);
+    // Very permissive username validation for Mac Finder
+    const allowedUsernames = ['webdav', 'WebDAV', 'WEBDAV', '', 'user', 'admin', 'dav'];
+    const usernameValid = allowedUsernames.includes(username) || username.toLowerCase().includes('webdav');
+    
+    if (!usernameValid) {
+      console.log(`[${requestId}] Username "${username}" not recognized, but continuing...`);
     }
 
     if (!token || token.length < 32) {
-      console.log(`[${requestId}] Token too short or missing`);
+      console.log(`[${requestId}] Token validation failed: length ${token.length}`);
       return null;
     }
 
+    // Enhanced token validation with better error handling
     console.log(`[${requestId}] Validating token with database...`);
     
     const { data: tokenValidation, error: tokenError } = await supabase.rpc('validate_webdav_token', {
       token_text: token
     });
 
-    console.log(`[${requestId}] Token validation response:`, {
-      tokenValidation,
-      tokenError,
-      validationCount: tokenValidation?.length || 0
-    });
-
     if (tokenError) {
-      console.error(`[${requestId}] Token validation database error:`, tokenError);
+      console.error(`[${requestId}] Token validation error:`, tokenError);
       return null;
     }
 
     if (!tokenValidation || tokenValidation.length === 0) {
-      console.log(`[${requestId}] No token validation results returned`);
+      console.log(`[${requestId}] No matching token found in database`);
       return null;
     }
 
-    const validationResult = tokenValidation[0];
-    console.log(`[${requestId}] Validation result:`, validationResult);
+    const result = tokenValidation[0];
+    console.log(`[${requestId}] Token validation result:`, { 
+      user_id: result.user_id, 
+      token_id: result.token_id, 
+      is_valid: result.is_valid 
+    });
 
-    if (!validationResult.is_valid) {
-      console.log(`[${requestId}] Token marked as invalid`);
+    if (!result.is_valid) {
+      console.log(`[${requestId}] Token marked as invalid or expired`);
       return null;
     }
+
+    // Update last_used_at for the token
+    await supabase
+      .from('webdav_tokens')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('id', result.token_id);
 
     return {
-      user_id: validationResult.user_id,
-      token_id: validationResult.token_id
+      user_id: result.user_id,
+      token_id: result.token_id
     };
 
   } catch (error) {

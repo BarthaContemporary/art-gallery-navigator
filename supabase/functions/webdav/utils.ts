@@ -13,23 +13,34 @@ export function escapeXml(unsafe: string): string {
 }
 
 export function normalizePath(path: string): string {
-  // Enhanced path parsing with proper URL decoding and Mac Finder compatibility
+  // Enhanced path normalization for Mac Finder compatibility
   let normalizedPath = decodeURIComponent(path.replace('/functions/v1/webdav', '') || '/');
-  if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath;
   
-  // Clean up Mac Finder specific path issues
-  if (normalizedPath === '/webdav/' || normalizedPath === '/webdav') {
+  // Handle various Mac Finder path variations
+  if (normalizedPath === '/webdav/' || normalizedPath === '/webdav' || normalizedPath === '') {
     normalizedPath = '/';
   }
   
-  // Remove any double slashes and normalize
+  // Clean up path - remove double slashes, trailing slashes (except root)
   normalizedPath = normalizedPath.replace(/\/+/g, '/');
+  if (normalizedPath !== '/' && normalizedPath.endsWith('/')) {
+    normalizedPath = normalizedPath.slice(0, -1);
+  }
+  
+  // Ensure starts with /
+  if (!normalizedPath.startsWith('/')) {
+    normalizedPath = '/' + normalizedPath;
+  }
   
   return normalizedPath;
 }
 
-export function parseWebDAVPath(path: string): { isRoot: boolean; folderName?: string; fileName?: string } {
-  // Remove the WebDAV prefix and normalize
+export function parseWebDAVPath(path: string): { 
+  isRoot: boolean; 
+  folderName?: string; 
+  fileName?: string; 
+  isSystemFile?: boolean;
+} {
   const normalizedPath = normalizePath(path);
   
   // Handle root directory
@@ -37,21 +48,47 @@ export function parseWebDAVPath(path: string): { isRoot: boolean; folderName?: s
     return { isRoot: true };
   }
   
-  // Split path and filter out empty parts
+  // Split path and clean
   const pathParts = normalizedPath.split('/').filter(p => p).map(p => decodeURIComponent(p));
   
-  // Skip "webdav" if it appears as the first part (Mac Finder artifact)
-  const cleanParts = pathParts[0] === 'webdav' ? pathParts.slice(1) : pathParts;
-  
-  if (cleanParts.length === 0) {
+  if (pathParts.length === 0) {
     return { isRoot: true };
-  } else if (cleanParts.length === 1) {
-    return { isRoot: false, folderName: cleanParts[0] };
+  }
+  
+  // Check for system files that Mac Finder creates
+  const lastPart = pathParts[pathParts.length - 1];
+  const isSystemFile = lastPart.startsWith('._') || 
+                      lastPart === '.DS_Store' || 
+                      lastPart.startsWith('.') ||
+                      lastPart === 'desktop.ini' ||
+                      lastPart === 'Thumbs.db';
+  
+  if (pathParts.length === 1) {
+    return { 
+      isRoot: false, 
+      folderName: pathParts[0],
+      isSystemFile: isSystemFile && !pathParts[0].includes('.')
+    };
   } else {
     return { 
       isRoot: false, 
-      folderName: cleanParts[0], 
-      fileName: cleanParts[cleanParts.length - 1] 
+      folderName: pathParts[0], 
+      fileName: lastPart,
+      isSystemFile
     };
   }
+}
+
+export function generateETag(id: string, modified: string | Date): string {
+  const timestamp = typeof modified === 'string' ? modified : modified.toISOString();
+  return `"${id}-${Date.parse(timestamp)}"`;
+}
+
+export function formatDateForWebDAV(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toUTCString();
+}
+
+export function createWebDAVXmlResponse(content: string): string {
+  return `<?xml version="1.0" encoding="utf-8"?>\n${content}`;
 }

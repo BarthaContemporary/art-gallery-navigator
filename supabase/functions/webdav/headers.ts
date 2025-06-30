@@ -8,19 +8,22 @@ const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true'
 };
 
+// Enhanced WebDAV headers for maximum Mac Finder compatibility
 const webdavHeaders = {
   'DAV': '1, 2, 3, extend, access-control',
   'MS-Author-Via': 'DAV',
-  'Server': 'Supabase-WebDAV/1.0',
+  'Server': 'Supabase-WebDAV/2.0',
   'Allow': 'OPTIONS, PROPFIND, GET, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH, HEAD',
-  // Finder-compatible cache headers
-  'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate',
+  // Mac Finder specific headers
+  'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
   'Pragma': 'no-cache',
   'Expires': '0',
-  // Additional Mac Finder specific headers
   'X-Content-Type-Options': 'nosniff',
-  'Vary': '*',
-  'Accept-Ranges': 'bytes'
+  'Vary': 'Accept-Encoding, User-Agent',
+  'Accept-Ranges': 'bytes',
+  // Additional Mac compatibility headers
+  'X-WebDAV-Server': 'Supabase',
+  'X-Mac-Compatible': 'true'
 };
 
 export function getWebDAVResponseHeaders(additionalHeaders = {}) {
@@ -28,5 +31,17 @@ export function getWebDAVResponseHeaders(additionalHeaders = {}) {
     ...corsHeaders,
     ...webdavHeaders,
     ...additionalHeaders
+  };
+}
+
+export function getMacFinderHeaders() {
+  return {
+    'DAV': '1, 2, 3, extend, access-control',
+    'MS-Author-Via': 'DAV',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'X-Mac-Finder': 'compatible',
+    'Accept-Ranges': 'bytes'
   };
 }

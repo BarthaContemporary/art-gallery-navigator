@@ -1,45 +1,46 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { parseWebDAVPath } from "../utils.ts";
+import { parseWebDAVPath, generateETag, formatDateForWebDAV } from "../utils.ts";
 
 export async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PUT for path: "${path}"`);
   
   const pathInfo = parseWebDAVPath(path);
-  console.log(`[${requestId}] Parsed path info:`, pathInfo);
+  console.log(`[${requestId}] Parsed path:`, pathInfo);
   
   if (!pathInfo.folderName || !pathInfo.fileName) {
-    console.log(`[${requestId}] Invalid file path - missing folder or file name`);
+    console.log(`[${requestId}] Invalid path - missing folder or file name`);
     return new Response('Invalid file path', {
       status: 400,
       headers: getWebDAVResponseHeaders()
     });
   }
   
-  const fileName = pathInfo.fileName;
-  const folderName = pathInfo.folderName;
-  
-  // Skip Mac system files but return success to avoid errors
-  if (fileName.startsWith('._') || fileName === '.DS_Store' || fileName.startsWith('.')) {
-    console.log(`[${requestId}] Skipping system file: ${fileName}`);
+  // Handle system files by returning success without processing
+  if (pathInfo.isSystemFile) {
+    console.log(`[${requestId}] Ignoring system file: ${pathInfo.fileName}`);
     return new Response('', {
       status: 201,
       headers: getWebDAVResponseHeaders({
-        'ETag': `"system-${Date.now()}"`,
-        'Last-Modified': new Date().toUTCString()
+        'ETag': generateETag('system', new Date()),
+        'Last-Modified': formatDateForWebDAV(new Date())
       })
     });
   }
   
-  console.log(`[${requestId}] Uploading file "${fileName}" to folder "${folderName}"`);
+  const fileName = pathInfo.fileName;
+  const folderName = pathInfo.folderName;
+  
+  console.log(`[${requestId}] Processing upload: "${fileName}" to folder "${folderName}"`);
   
   try {
-    // Get file content - handle both regular uploads and Mac Finder's zero-byte placeholder files
+    // Read file content
     const fileContent = await req.arrayBuffer();
     const fileSize = fileContent.byteLength;
+    const contentType = req.headers.get('Content-Type') || 'application/octet-stream';
     
-    console.log(`[${requestId}] File content size: ${fileSize} bytes`);
+    console.log(`[${requestId}] File size: ${fileSize} bytes, type: ${contentType}`);
     
     // Find target folder
     const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
@@ -60,58 +61,51 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     
     if (!targetFolder) {
       console.log(`[${requestId}] Target folder "${folderName}" not found or not writable`);
-      return new Response('Target folder not found or not writable', {
+      return new Response('Target folder not accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()
       });
     }
     
-    console.log(`[${requestId}] Target folder found:`, {
-      id: targetFolder.folder_id,
-      name: targetFolder.folder_name,
-      artist_id: targetFolder.artist_id
-    });
-    
-    // Check if document already exists
+    // Check for existing document
     const { data: existingDocs, error: docsError } = await supabase.rpc('get_user_accessible_documents', { 
       folder_id_param: targetFolder.folder_id 
     });
     
     if (docsError) {
-      console.error(`[${requestId}] Error fetching existing documents:`, docsError);
+      console.error(`[${requestId}] Error checking existing documents:`, docsError);
     }
     
     const existingDoc = existingDocs?.find((doc: any) => doc.document_name === fileName);
-    console.log(`[${requestId}] Existing document check:`, existingDoc ? 'Found' : 'Not found');
+    const isUpdate = !!existingDoc;
     
-    // For zero-byte files (Mac Finder placeholders), don't upload to storage but create database record
+    console.log(`[${requestId}] ${isUpdate ? 'Updating existing' : 'Creating new'} document`);
+    
     let fileUrl = '';
     let actualFileSize = fileSize;
     
     if (fileSize > 0) {
-      // Upload actual file content to Supabase Storage
+      // Upload to Supabase Storage
       const timestamp = Date.now();
-      const randomId = crypto.randomUUID();
+      const randomId = crypto.randomUUID().substring(0, 8);
       const filePath = `webdav/${userInfo.user_id}/${timestamp}_${randomId}_${fileName}`;
       
-      console.log(`[${requestId}] Uploading to storage path: ${filePath}`);
+      console.log(`[${requestId}] Uploading to storage: ${filePath}`);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('shared-files')
         .upload(filePath, fileContent, {
-          contentType: req.headers.get('Content-Type') || 'application/octet-stream',
+          contentType,
           upsert: true
         });
       
       if (uploadError) {
         console.error(`[${requestId}] Storage upload error:`, uploadError);
-        return new Response(`Failed to upload file: ${uploadError.message}`, {
+        return new Response(`Upload failed: ${uploadError.message}`, {
           status: 500,
           headers: getWebDAVResponseHeaders()
         });
       }
-      
-      console.log(`[${requestId}] File uploaded to storage successfully:`, uploadData);
       
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -119,61 +113,53 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         .getPublicUrl(filePath);
       
       fileUrl = urlData.publicUrl;
-      console.log(`[${requestId}] Generated public URL:`, fileUrl);
+      console.log(`[${requestId}] File stored at: ${fileUrl}`);
     } else {
-      // For zero-byte files, create a placeholder URL
+      // Zero-byte file placeholder
       fileUrl = `placeholder://webdav/${userInfo.user_id}/${fileName}`;
-      console.log(`[${requestId}] Created placeholder URL for zero-byte file: ${fileUrl}`);
+      console.log(`[${requestId}] Created placeholder for zero-byte file`);
     }
     
     const currentTime = new Date().toISOString();
     let documentId: string;
-    const isUpdate = !!existingDoc;
     
-    if (existingDoc) {
+    if (isUpdate) {
       // Update existing document
-      console.log(`[${requestId}] Updating existing document: ${existingDoc.document_id}`);
-      
       const { error: updateError } = await supabase
         .from('documents')
         .update({
           file_url: fileUrl,
           file_size: actualFileSize,
-          mime_type: req.headers.get('Content-Type') || 'application/octet-stream',
+          mime_type: contentType,
           updated_at: currentTime,
           is_deleted: false
         })
         .eq('id', existingDoc.document_id);
       
       if (updateError) {
-        console.error(`[${requestId}] Error updating document record:`, updateError);
-        return new Response(`Failed to update document record: ${updateError.message}`, {
+        console.error(`[${requestId}] Error updating document:`, updateError);
+        return new Response(`Update failed: ${updateError.message}`, {
           status: 500,
           headers: getWebDAVResponseHeaders()
         });
       }
       
       documentId = existingDoc.document_id;
-      console.log(`[${requestId}] Successfully updated document: ${fileName}`);
     } else {
-      // Create new document record - now this should work with the fixed constraint
-      console.log(`[${requestId}] Creating new document record with folder_id: ${targetFolder.folder_id}`);
-      
+      // Create new document
       const documentData = {
         file_name: fileName,
         file_url: fileUrl,
         file_size: actualFileSize,
-        mime_type: req.headers.get('Content-Type') || 'application/octet-stream',
-        folder_id: targetFolder.folder_id, // Only link to folder - this is now allowed
+        mime_type: contentType,
+        folder_id: targetFolder.folder_id,
         type: 'webdav_upload',
-        description: `Uploaded via WebDAV to ${folderName}`,
+        description: `WebDAV upload to ${folderName}`,
         created_at: currentTime,
         updated_at: currentTime,
         is_deleted: false,
         version_number: 1
       };
-      
-      console.log(`[${requestId}] Document data to insert:`, documentData);
       
       const { data: newDoc, error: docError } = await supabase
         .from('documents')
@@ -182,52 +168,37 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         .single();
       
       if (docError) {
-        console.error(`[${requestId}] Error creating document record:`, docError);
-        return new Response(`Failed to create document record: ${docError.message}`, {
-          status: 500,
-          headers: getWebDAVResponseHeaders()
-        });
-      }
-      
-      if (!newDoc) {
-        console.error(`[${requestId}] No document returned after insert`);
-        return new Response('Failed to create document record - no data returned', {
+        console.error(`[${requestId}] Error creating document:`, docError);
+        return new Response(`Document creation failed: ${docError.message}`, {
           status: 500,
           headers: getWebDAVResponseHeaders()
         });
       }
       
       documentId = newDoc.id;
-      console.log(`[${requestId}] Successfully created new document: ${fileName} with ID: ${documentId}`);
     }
     
-    // Generate strong ETag and timestamp for Mac Finder compatibility
-    const uniqueTimestamp = Date.now() + Math.random();
-    const strongEtag = `"${documentId}-${uniqueTimestamp}-${actualFileSize}"`;
+    // Generate strong ETag for Mac Finder
+    const etag = generateETag(documentId, currentTime);
+    const lastModified = formatDateForWebDAV(new Date(currentTime));
     
-    console.log(`[${requestId}] Upload completed successfully. Document ID: ${documentId}, File: ${fileName}`);
+    console.log(`[${requestId}] Upload completed successfully - Document ID: ${documentId}`);
     
     return new Response('', {
       status: isUpdate ? 200 : 201,
       headers: getWebDAVResponseHeaders({
-        'ETag': strongEtag,
-        'Last-Modified': new Date().toUTCString(),
+        'ETag': etag,
+        'Last-Modified': lastModified,
         'Location': `/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`,
         'Content-Length': '0',
-        // Mac Finder specific headers
-        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Content-Type-Options': 'nosniff',
-        'Vary': '*',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-WebDAV-Status': 'upload-complete',
-        'X-Document-Id': documentId,
-        'X-File-Version': uniqueTimestamp.toString()
+        'X-Document-Id': documentId
       })
     });
     
   } catch (error) {
-    console.error(`[${requestId}] PUT error:`, error);
+    console.error(`[${requestId}] PUT operation failed:`, error);
     return new Response(`Internal server error: ${error.message}`, {
       status: 500,
       headers: getWebDAVResponseHeaders()
