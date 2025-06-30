@@ -12,19 +12,20 @@ const corsHeaders = {
 const webdavHeaders = {
   'DAV': '1, 2, 3, extend, access-control',
   'MS-Author-Via': 'DAV',
-  'Server': 'Supabase-WebDAV/2.0',
+  'Server': 'Supabase-WebDAV/2.1',
   'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH',
-  // Critical Mac Finder headers
+  // Critical Mac Finder headers for error -50 prevention
   'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
   'Pragma': 'no-cache',
   'Expires': '0',
   'X-Content-Type-Options': 'nosniff',
   'Vary': 'Accept-Encoding, User-Agent',
   'Accept-Ranges': 'bytes',
-  // Additional Mac compatibility headers
+  // Enhanced Mac compatibility headers
   'X-WebDAV-Server': 'Supabase-DAV',
   'X-Mac-Finder-Compatible': 'true',
-  'X-WebDAV-Version': '2.0'
+  'X-WebDAV-Version': '2.1',
+  'X-WebDAV-Status': 'ready'
 };
 
 export function getWebDAVResponseHeaders(additionalHeaders = {}) {
@@ -44,7 +45,8 @@ export function getMacFinderHeaders() {
     'Expires': '0',
     'X-Mac-Finder-Compatible': 'true',
     'Accept-Ranges': 'bytes',
-    'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
+    'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH',
+    'X-WebDAV-Status': 'ready'
   };
 }
 

@@ -1,7 +1,7 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { parseWebDAVPath, escapeXml, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, createMacCompatibleHref } from "../utils.ts";
+import { parseWebDAVPath, escapeXml, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, createMacCompatibleHref, matchesFolderName } from "../utils.ts";
 
 export async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   const depth = req.headers.get('Depth') || '1';
@@ -16,7 +16,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
     return createSystemFileResponse(path, requestId);
   }
   
-  if (pathInfo.fileName) {
+  if (pathInfo.fileName && !pathInfo.isFolder) {
     return handleFilePropfind(supabase, userInfo, pathInfo, requestId);
   } else if (pathInfo.isRoot || !pathInfo.folderName) {
     return handleRootPropfind(supabase, userInfo, requestId);
@@ -92,7 +92,7 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
     </D:propstat>
   </D:response>`;
   
-  // Add folder entries with full WebDAV properties for Mac Finder
+  // Add folder entries with enhanced Mac Finder compatibility
   for (const folder of (folders || [])) {
     const folderHref = createMacCompatibleHref(folder.folder_name);
     const folderEtag = generateETag(folder.folder_id, currentTime);
@@ -137,7 +137,7 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
 async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo: any, requestId: string) {
   console.log(`[${requestId}] Folder PROPFIND for: "${pathInfo.folderName}"`);
   
-  // Verify folder access
+  // Verify folder access with enhanced matching
   const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
     user_id_param: userInfo.user_id
   });
@@ -150,15 +150,24 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     });
   }
   
-  const targetFolder = folders?.find((f: any) => f.folder_name === pathInfo.folderName);
+  console.log(`[${requestId}] Looking for folder "${pathInfo.folderName}" in ${folders?.length || 0} folders`);
+  folders?.forEach((f: any, i: number) => {
+    console.log(`[${requestId}] Folder ${i}: "${f.folder_name}" (${f.folder_id})`);
+  });
+  
+  // Enhanced folder matching
+  const targetFolder = folders?.find((f: any) => matchesFolderName(pathInfo.folderName, f.folder_name));
   
   if (!targetFolder) {
     console.log(`[${requestId}] Folder not found: "${pathInfo.folderName}"`);
+    console.log(`[${requestId}] Available folders: ${folders?.map((f: any) => f.folder_name).join(', ')}`);
     return new Response('Not Found', {
       status: 404,
       headers: getWebDAVResponseHeaders()
     });
   }
+  
+  console.log(`[${requestId}] Found target folder: "${targetFolder.folder_name}" (${targetFolder.folder_id})`);
   
   // Get documents in folder
   const { data: documents, error: docsError } = await supabase.rpc('get_user_accessible_documents', {
@@ -174,8 +183,10 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     !doc.document_name.startsWith('._') && 
     !doc.document_name.startsWith('.') && 
     doc.document_name !== '.DS_Store' &&
-    !doc.is_deleted
+    (!doc.is_deleted || doc.is_deleted === false)
   );
+  
+  console.log(`[${requestId}] Found ${visibleDocs.length} visible documents in folder`);
   
   const currentTime = new Date();
   const folderEtag = generateETag(targetFolder.folder_id, currentTime);
@@ -187,7 +198,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     <D:href>${folderHref}</D:href>
     <D:propstat>
       <D:prop>
-        <D:displayname>${escapeXml(pathInfo.folderName)}</D:displayname>
+        <D:displayname>${escapeXml(targetFolder.folder_name)}</D:displayname>
         <D:resourcetype><D:collection/></D:resourcetype>
         <D:creationdate>${currentTime.toISOString()}</D:creationdate>
         <D:getlastmodified>${formatDateForWebDAV(currentTime)}</D:getlastmodified>
@@ -205,9 +216,9 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     </D:propstat>
   </D:response>`;
   
-  // Add document entries with full properties for Mac Finder
+  // Add document entries with enhanced Mac Finder properties
   for (const doc of visibleDocs) {
-    const fileHref = createMacCompatibleHref(pathInfo.folderName, doc.document_name);
+    const fileHref = createMacCompatibleHref(targetFolder.folder_name, doc.document_name);
     const fileSize = doc.file_size || 0;
     const lastModified = doc.updated_at ? new Date(doc.updated_at) : currentTime;
     const created = doc.created_at ? new Date(doc.created_at) : currentTime;
@@ -257,7 +268,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
 async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: any, requestId: string) {
   console.log(`[${requestId}] File PROPFIND for: "${pathInfo.fileName}" in "${pathInfo.folderName}"`);
   
-  // Find folder first
+  // Find folder first with enhanced matching
   const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
     user_id_param: userInfo.user_id
   });
@@ -270,7 +281,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
     });
   }
   
-  const targetFolder = folders?.find((f: any) => f.folder_name === pathInfo.folderName);
+  const targetFolder = folders?.find((f: any) => matchesFolderName(pathInfo.folderName, f.folder_name));
   
   if (!targetFolder) {
     console.log(`[${requestId}] Folder not found: "${pathInfo.folderName}"`);

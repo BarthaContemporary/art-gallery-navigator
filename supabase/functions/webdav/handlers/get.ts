@@ -1,7 +1,7 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { parseWebDAVPath, generateETag, formatDateForWebDAV } from "../utils.ts";
+import { parseWebDAVPath, generateETag, formatDateForWebDAV, matchesFolderName } from "../utils.ts";
 
 export async function handleGet(supabase: any, userInfo: UserInfo, path: string, requestId: string, isHead = false) {
   console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
@@ -18,7 +18,7 @@ export async function handleGet(supabase: any, userInfo: UserInfo, path: string,
     });
   }
   
-  if (pathInfo.isRoot || !pathInfo.fileName) {
+  if (pathInfo.isRoot || (!pathInfo.fileName && pathInfo.isFolder)) {
     return handleDirectoryGet(supabase, userInfo, pathInfo, requestId);
   }
   
@@ -40,12 +40,14 @@ async function handleDirectoryGet(supabase: any, userInfo: UserInfo, pathInfo: a
         .header { border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 30px; }
         .info { background: #f5f5f7; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .code { font-family: 'SF Mono', Monaco, monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        .success { color: #007AFF; font-weight: 600; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📁 WebDAV Directory</h1>
         <p>Path: <span class="code">${pathInfo.folderName || '/'}</span></p>
+        <p class="success">✅ Connection successful!</p>
     </div>
     
     <div class="info">
@@ -53,7 +55,7 @@ async function handleDirectoryGet(supabase: any, userInfo: UserInfo, pathInfo: a
         <p><strong>To connect with Mac Finder:</strong></p>
         <ol>
             <li>Open Finder and press <kbd>⌘K</kbd> (Command+K)</li>
-            <li>Enter this URL: <span class="code">https://your-supabase-url.supabase.co/functions/v1/webdav/</span></li>
+            <li>Enter this URL: <span class="code">https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/</span></li>
             <li>Use username: <span class="code">webdav</span></li>
             <li>Use your 64-character WebDAV token as password</li>
         </ol>
@@ -79,7 +81,7 @@ async function handleDirectoryGet(supabase: any, userInfo: UserInfo, pathInfo: a
 async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, requestId: string, isHead: boolean) {
   console.log(`[${requestId}] File ${isHead ? 'HEAD' : 'GET'} for: "${pathInfo.fileName}" in "${pathInfo.folderName}"`);
   
-  // Find folder
+  // Find folder with enhanced matching
   const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
     user_id_param: userInfo.user_id
   });
@@ -92,7 +94,7 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
     });
   }
   
-  const targetFolder = folders?.find((f: any) => f.folder_name === pathInfo.folderName);
+  const targetFolder = folders?.find((f: any) => matchesFolderName(pathInfo.folderName, f.folder_name));
   if (!targetFolder) {
     console.log(`[${requestId}] Folder not found: "${pathInfo.folderName}"`);
     return new Response('Not Found', {
@@ -143,10 +145,27 @@ async function handleFileGet(supabase: any, userInfo: UserInfo, pathInfo: any, r
       });
     }
     
-    // Fetch actual file
-    const fileResponse = await fetch(document.file_url);
-    if (!fileResponse.ok) {
-      console.error(`[${requestId}] File fetch failed: ${fileResponse.status}`);
+    // Fetch actual file with retry logic
+    let fileResponse: Response;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        fileResponse = await fetch(document.file_url);
+        if (fileResponse.ok) break;
+        
+        console.warn(`[${requestId}] File fetch failed (${fileResponse.status}), retrying...`);
+        retries--;
+        if (retries > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.warn(`[${requestId}] File fetch error:`, error);
+        retries--;
+        if (retries > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    if (!fileResponse! || !fileResponse.ok) {
+      console.error(`[${requestId}] File fetch failed after retries: ${fileResponse?.status || 'no response'}`);
       return new Response('File not accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()

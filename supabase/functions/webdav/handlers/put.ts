@@ -1,7 +1,7 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { parseWebDAVPath, generateETag, formatDateForWebDAV } from "../utils.ts";
+import { parseWebDAVPath, generateETag, formatDateForWebDAV, matchesFolderName } from "../utils.ts";
 
 export async function handlePut(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   console.log(`[${requestId}] PUT for path: "${path}"`);
@@ -35,14 +35,24 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
   console.log(`[${requestId}] Processing upload: "${fileName}" to folder "${folderName}"`);
   
   try {
-    // Read file content
-    const fileContent = await req.arrayBuffer();
+    // Read file content with proper error handling
+    let fileContent: ArrayBuffer;
+    try {
+      fileContent = await req.arrayBuffer();
+    } catch (error) {
+      console.error(`[${requestId}] Error reading request body:`, error);
+      return new Response('Error reading file content', {
+        status: 400,
+        headers: getWebDAVResponseHeaders()
+      });
+    }
+    
     const fileSize = fileContent.byteLength;
     const contentType = req.headers.get('Content-Type') || 'application/octet-stream';
     
     console.log(`[${requestId}] File size: ${fileSize} bytes, type: ${contentType}`);
     
-    // Find target folder
+    // Find target folder with enhanced matching
     const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
       user_id_param: userInfo.user_id
     });
@@ -55,17 +65,22 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       });
     }
     
+    console.log(`[${requestId}] Searching for folder "${folderName}" in ${folders?.length || 0} available folders`);
+    
     const targetFolder = folders?.find((f: any) => 
-      f.folder_name === folderName && f.can_write
+      matchesFolderName(folderName, f.folder_name) && f.can_write
     );
     
     if (!targetFolder) {
       console.log(`[${requestId}] Target folder "${folderName}" not found or not writable`);
+      console.log(`[${requestId}] Available folders: ${folders?.map((f: any) => `"${f.folder_name}"`).join(', ')}`);
       return new Response('Target folder not accessible', {
         status: 404,
         headers: getWebDAVResponseHeaders()
       });
     }
+    
+    console.log(`[${requestId}] Found target folder: "${targetFolder.folder_name}" (${targetFolder.folder_id})`);
     
     // Check for existing document
     const { data: existingDocs, error: docsError } = await supabase.rpc('get_user_accessible_documents', { 
@@ -85,10 +100,11 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
     let actualFileSize = fileSize;
     
     if (fileSize > 0) {
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage with better error handling
       const timestamp = Date.now();
       const randomId = crypto.randomUUID().substring(0, 8);
-      const filePath = `webdav/${userInfo.user_id}/${timestamp}_${randomId}_${fileName}`;
+      const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `webdav/${userInfo.user_id}/${timestamp}_${randomId}_${sanitizedFileName}`;
       
       console.log(`[${requestId}] Uploading to storage: ${filePath}`);
       
@@ -145,6 +161,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       }
       
       documentId = existingDoc.document_id;
+      console.log(`[${requestId}] Document updated successfully: ${documentId}`);
     } else {
       // Create new document
       const documentData = {
@@ -154,7 +171,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
         mime_type: contentType,
         folder_id: targetFolder.folder_id,
         type: 'webdav_upload',
-        description: `WebDAV upload to ${folderName}`,
+        description: `WebDAV upload to ${targetFolder.folder_name}`,
         created_at: currentTime,
         updated_at: currentTime,
         is_deleted: false,
@@ -176,9 +193,10 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       }
       
       documentId = newDoc.id;
+      console.log(`[${requestId}] Document created successfully: ${documentId}`);
     }
     
-    // Generate strong ETag for Mac Finder
+    // Generate strong ETag and proper response headers for Mac Finder
     const etag = generateETag(documentId, currentTime);
     const lastModified = formatDateForWebDAV(new Date(currentTime));
     
@@ -189,7 +207,7 @@ export async function handlePut(supabase: any, userInfo: UserInfo, path: string,
       headers: getWebDAVResponseHeaders({
         'ETag': etag,
         'Last-Modified': lastModified,
-        'Location': `/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`,
+        'Location': `/functions/v1/webdav/${encodeURIComponent(targetFolder.folder_name)}/${encodeURIComponent(fileName)}`,
         'Content-Length': '0',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-WebDAV-Status': 'upload-complete',

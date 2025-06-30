@@ -1,7 +1,7 @@
 
 import { getWebDAVResponseHeaders } from "../headers.ts";
 import { UserInfo } from "../auth.ts";
-import { parseWebDAVPath, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, escapeXml } from "../utils.ts";
+import { parseWebDAVPath, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, escapeXml, matchesFolderName } from "../utils.ts";
 
 // Enhanced in-memory lock storage with better Mac Finder compatibility
 const activeLocks = new Map<string, {
@@ -27,7 +27,7 @@ export async function handleMkcol(supabase: any, userInfo: UserInfo, path: strin
   }
   
   try {
-    // Check if folder already exists
+    // Check if folder already exists with enhanced matching
     const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
       user_id_param: userInfo.user_id
     });
@@ -40,7 +40,7 @@ export async function handleMkcol(supabase: any, userInfo: UserInfo, path: strin
       });
     }
     
-    const existingFolder = folders?.find((f: any) => f.folder_name === pathInfo.folderName);
+    const existingFolder = folders?.find((f: any) => matchesFolderName(pathInfo.folderName, f.folder_name));
     if (existingFolder) {
       console.log(`[${requestId}] Folder already exists: "${pathInfo.folderName}"`);
       return new Response('Method Not Allowed', {
@@ -120,7 +120,7 @@ export async function handleDelete(supabase: any, userInfo: UserInfo, path: stri
 
 async function handleFileDelete(supabase: any, userInfo: UserInfo, pathInfo: any, requestId: string): Promise<Response> {
   try {
-    // Find folder
+    // Find folder with enhanced matching
     const { data: folders, error: folderError } = await supabase.rpc('get_user_accessible_folders_for_user', {
       user_id_param: userInfo.user_id
     });
@@ -133,7 +133,7 @@ async function handleFileDelete(supabase: any, userInfo: UserInfo, pathInfo: any
       });
     }
     
-    const targetFolder = folders?.find((f: any) => f.folder_name === pathInfo.folderName);
+    const targetFolder = folders?.find((f: any) => matchesFolderName(pathInfo.folderName, f.folder_name));
     if (!targetFolder) {
       return new Response('Not Found', {
         status: 404,
@@ -301,13 +301,13 @@ export async function handleMove(supabase: any, userInfo: UserInfo, path: string
   }
   
   try {
-    // Find source folder and document
+    // Find source folder and document with enhanced matching
     const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
       user_id_param: userInfo.user_id
     });
     
-    const sourceFolder = folders?.find((f: any) => f.folder_name === sourcePath.folderName);
-    const destFolder = folders?.find((f: any) => f.folder_name === destPath.folderName);
+    const sourceFolder = folders?.find((f: any) => matchesFolderName(sourcePath.folderName, f.folder_name));
+    const destFolder = folders?.find((f: any) => matchesFolderName(destPath.folderName, f.folder_name));
     
     if (!sourceFolder || !destFolder) {
       return new Response('Not Found', {

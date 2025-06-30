@@ -1,4 +1,3 @@
-
 export function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, function (c) {
     switch (c) {
@@ -16,13 +15,15 @@ export function normalizePath(path: string): string {
   // Enhanced path normalization for Mac Finder compatibility
   let normalizedPath = decodeURIComponent(path.replace('/functions/v1/webdav', '') || '/');
   
-  // Handle various Mac Finder path variations
+  // Handle various Mac Finder path variations and edge cases
   if (normalizedPath === '/webdav/' || normalizedPath === '/webdav' || normalizedPath === '') {
     normalizedPath = '/';
   }
   
-  // Clean up path - remove double slashes, trailing slashes (except root)
+  // Clean up path - remove double slashes, handle trailing slashes properly
   normalizedPath = normalizedPath.replace(/\/+/g, '/');
+  
+  // For root, keep the trailing slash, for others remove it unless it's a folder request
   if (normalizedPath !== '/' && normalizedPath.endsWith('/')) {
     normalizedPath = normalizedPath.slice(0, -1);
   }
@@ -40,41 +41,57 @@ export function parseWebDAVPath(path: string): {
   folderName?: string; 
   fileName?: string; 
   isSystemFile?: boolean;
+  isFolder?: boolean;
 } {
   const normalizedPath = normalizePath(path);
   
   // Handle root directory
   if (normalizedPath === '/' || normalizedPath === '') {
-    return { isRoot: true };
+    return { isRoot: true, isFolder: true };
   }
   
-  // Split path and clean
-  const pathParts = normalizedPath.split('/').filter(p => p).map(p => decodeURIComponent(p));
+  // Split path and clean, handle URL encoding properly
+  const pathParts = normalizedPath.split('/').filter(p => p).map(p => {
+    try {
+      return decodeURIComponent(p);
+    } catch {
+      return p; // fallback if decode fails
+    }
+  });
   
   if (pathParts.length === 0) {
-    return { isRoot: true };
+    return { isRoot: true, isFolder: true };
   }
   
-  // Check for system files that Mac Finder creates
   const lastPart = pathParts[pathParts.length - 1];
+  
+  // Enhanced system file detection
   const isSystemFile = lastPart.startsWith('._') || 
                       lastPart === '.DS_Store' || 
                       lastPart.startsWith('.') ||
                       lastPart === 'desktop.ini' ||
-                      lastPart === 'Thumbs.db';
+                      lastPart === 'Thumbs.db' ||
+                      lastPart === '.localized' ||
+                      lastPart === '.fseventsd';
+  
+  // Determine if this is likely a folder or file
+  const hasFileExtension = lastPart.includes('.') && !lastPart.startsWith('.') && !isSystemFile;
+  const isLikelyFolder = !hasFileExtension || isSystemFile;
   
   if (pathParts.length === 1) {
     return { 
       isRoot: false, 
       folderName: pathParts[0],
-      isSystemFile: isSystemFile && !pathParts[0].includes('.')
+      isSystemFile: isSystemFile,
+      isFolder: isLikelyFolder
     };
   } else {
     return { 
       isRoot: false, 
       folderName: pathParts[0], 
       fileName: lastPart,
-      isSystemFile
+      isSystemFile: isSystemFile,
+      isFolder: false
     };
   }
 }
@@ -105,4 +122,29 @@ export function createMacCompatibleHref(folderName?: string, fileName?: string):
   }
   
   return `${baseUrl}/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
+}
+
+// Enhanced folder name matching for case-insensitive and encoding-aware comparison
+export function matchesFolderName(pathName: string, dbFolderName: string): boolean {
+  // Direct match
+  if (pathName === dbFolderName) return true;
+  
+  // Case-insensitive match
+  if (pathName.toLowerCase() === dbFolderName.toLowerCase()) return true;
+  
+  // Try URL decoding variations
+  try {
+    const decodedPath = decodeURIComponent(pathName);
+    if (decodedPath === dbFolderName || decodedPath.toLowerCase() === dbFolderName.toLowerCase()) {
+      return true;
+    }
+  } catch {
+    // Ignore decode errors
+  }
+  
+  // Handle apostrophe variations (smart quotes, etc.)
+  const normalizedPath = pathName.replace(/[''"]/g, "'");
+  const normalizedDb = dbFolderName.replace(/[''"]/g, "'");
+  
+  return normalizedPath.toLowerCase() === normalizedDb.toLowerCase();
 }
