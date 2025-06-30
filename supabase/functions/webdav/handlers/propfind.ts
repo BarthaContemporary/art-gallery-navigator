@@ -1,7 +1,7 @@
 
 import { UserInfo } from "../auth.ts";
 import { getWebDAVResponseHeaders } from "../headers.ts";
-import { parseWebDAVPath, escapeXml, generateETag, formatDateForWebDAV, createWebDAVXmlResponse } from "../utils.ts";
+import { parseWebDAVPath, escapeXml, generateETag, formatDateForWebDAV, createWebDAVXmlResponse, createMacCompatibleHref } from "../utils.ts";
 
 export async function handlePropfind(supabase: any, userInfo: UserInfo, path: string, req: Request, requestId: string) {
   const depth = req.headers.get('Depth') || '1';
@@ -10,7 +10,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
   const pathInfo = parseWebDAVPath(path);
   console.log(`[${requestId}] Parsed path:`, pathInfo);
   
-  // Handle system files with success response to avoid Mac Finder errors
+  // Handle system files with proper 404 response for Mac Finder
   if (pathInfo.isSystemFile) {
     console.log(`[${requestId}] System file request: ${pathInfo.fileName || pathInfo.folderName}`);
     return createSystemFileResponse(path, requestId);
@@ -26,7 +26,7 @@ export async function handlePropfind(supabase: any, userInfo: UserInfo, path: st
 }
 
 function createSystemFileResponse(path: string, requestId: string): Response {
-  console.log(`[${requestId}] Creating system file response for: ${path}`);
+  console.log(`[${requestId}] Creating 404 response for system file: ${path}`);
   
   const response = createWebDAVXmlResponse(`
 <D:multistatus xmlns:D="DAV:">
@@ -48,7 +48,7 @@ function createSystemFileResponse(path: string, requestId: string): Response {
 }
 
 async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: string) {
-  console.log(`[${requestId}] Root PROPFIND - fetching folders`);
+  console.log(`[${requestId}] Root PROPFIND - fetching folders for user: ${userInfo.user_id}`);
   
   const { data: folders, error } = await supabase.rpc('get_user_accessible_folders_for_user', {
     user_id_param: userInfo.user_id
@@ -66,11 +66,12 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
   
   const currentTime = new Date();
   const rootEtag = generateETag('root', currentTime);
+  const rootHref = createMacCompatibleHref();
   
   let xmlContent = `
 <D:multistatus xmlns:D="DAV:">
   <D:response>
-    <D:href>/functions/v1/webdav/</D:href>
+    <D:href>${rootHref}</D:href>
     <D:propstat>
       <D:prop>
         <D:displayname>WebDAV Root</D:displayname>
@@ -85,19 +86,20 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
             <D:locktype><D:write/></D:locktype>
           </D:lockentry>
         </D:supportedlock>
+        <D:lockdiscovery/>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
   </D:response>`;
   
-  // Add folder entries with full WebDAV properties
+  // Add folder entries with full WebDAV properties for Mac Finder
   for (const folder of (folders || [])) {
-    const encodedName = encodeURIComponent(folder.folder_name);
+    const folderHref = createMacCompatibleHref(folder.folder_name);
     const folderEtag = generateETag(folder.folder_id, currentTime);
     
     xmlContent += `
   <D:response>
-    <D:href>/functions/v1/webdav/${encodedName}/</D:href>
+    <D:href>${folderHref}</D:href>
     <D:propstat>
       <D:prop>
         <D:displayname>${escapeXml(folder.folder_name)}</D:displayname>
@@ -112,6 +114,7 @@ async function handleRootPropfind(supabase: any, userInfo: UserInfo, requestId: 
             <D:locktype><D:write/></D:locktype>
           </D:lockentry>
         </D:supportedlock>
+        <D:lockdiscovery/>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -166,7 +169,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     console.error(`[${requestId}] Error fetching documents:`, docsError);
   }
   
-  // Filter visible documents (exclude system files)
+  // Filter visible documents (exclude system files and deleted)
   const visibleDocs = (documents || []).filter((doc: any) => 
     !doc.document_name.startsWith('._') && 
     !doc.document_name.startsWith('.') && 
@@ -174,14 +177,14 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     !doc.is_deleted
   );
   
-  const encodedFolderName = encodeURIComponent(pathInfo.folderName);
   const currentTime = new Date();
   const folderEtag = generateETag(targetFolder.folder_id, currentTime);
+  const folderHref = createMacCompatibleHref(pathInfo.folderName);
   
   let xmlContent = `
 <D:multistatus xmlns:D="DAV:">
   <D:response>
-    <D:href>/functions/v1/webdav/${encodedFolderName}/</D:href>
+    <D:href>${folderHref}</D:href>
     <D:propstat>
       <D:prop>
         <D:displayname>${escapeXml(pathInfo.folderName)}</D:displayname>
@@ -196,14 +199,15 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
             <D:locktype><D:write/></D:locktype>
           </D:lockentry>
         </D:supportedlock>
+        <D:lockdiscovery/>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
   </D:response>`;
   
-  // Add document entries with full properties
+  // Add document entries with full properties for Mac Finder
   for (const doc of visibleDocs) {
-    const encodedFileName = encodeURIComponent(doc.document_name);
+    const fileHref = createMacCompatibleHref(pathInfo.folderName, doc.document_name);
     const fileSize = doc.file_size || 0;
     const lastModified = doc.updated_at ? new Date(doc.updated_at) : currentTime;
     const created = doc.created_at ? new Date(doc.created_at) : currentTime;
@@ -212,7 +216,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
     
     xmlContent += `
   <D:response>
-    <D:href>/functions/v1/webdav/${encodedFolderName}/${encodedFileName}</D:href>
+    <D:href>${fileHref}</D:href>
     <D:propstat>
       <D:prop>
         <D:displayname>${escapeXml(doc.document_name)}</D:displayname>
@@ -228,6 +232,7 @@ async function handleFolderPropfind(supabase: any, userInfo: UserInfo, pathInfo:
             <D:locktype><D:write/></D:locktype>
           </D:lockentry>
         </D:supportedlock>
+        <D:lockdiscovery/>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -298,8 +303,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
     });
   }
   
-  const encodedFolderName = encodeURIComponent(pathInfo.folderName);
-  const encodedFileName = encodeURIComponent(pathInfo.fileName);
+  const fileHref = createMacCompatibleHref(pathInfo.folderName, pathInfo.fileName);
   const fileSize = document.file_size || 0;
   const lastModified = document.updated_at ? new Date(document.updated_at) : new Date();
   const created = document.created_at ? new Date(document.created_at) : new Date();
@@ -309,7 +313,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
   const xmlContent = `
 <D:multistatus xmlns:D="DAV:">
   <D:response>
-    <D:href>/functions/v1/webdav/${encodedFolderName}/${encodedFileName}</D:href>
+    <D:href>${fileHref}</D:href>
     <D:propstat>
       <D:prop>
         <D:displayname>${escapeXml(pathInfo.fileName)}</D:displayname>
@@ -325,6 +329,7 @@ async function handleFilePropfind(supabase: any, userInfo: UserInfo, pathInfo: a
             <D:locktype><D:write/></D:locktype>
           </D:lockentry>
         </D:supportedlock>
+        <D:lockdiscovery/>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>

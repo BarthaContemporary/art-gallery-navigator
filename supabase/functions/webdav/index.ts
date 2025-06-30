@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 import { authenticateUser, UserInfo } from "./auth.ts";
-import { getWebDAVResponseHeaders, getMacFinderHeaders } from "./headers.ts";
+import { getWebDAVResponseHeaders, getMacFinderHeaders, getAuthenticationChallengeHeaders } from "./headers.ts";
 import { normalizePath, parseWebDAVPath } from "./utils.ts";
 import { handlePropfind } from "./handlers/propfind.ts";
 import { handleGet } from "./handlers/get.ts";
@@ -19,9 +19,9 @@ serve(async (req) => {
   console.log(`[${requestId}] === NEW REQUEST ===`);
   console.log(`[${requestId}] ${req.method} ${url.pathname}`);
   console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
-  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
-
-  // Handle debug endpoint FIRST
+  console.log(`[${requestId}] Full URL: ${req.url}`);
+  
+  // Handle debug endpoint FIRST (before any auth)
   if (url.pathname.includes('/debug-token')) {
     console.log(`[${requestId}] Debug endpoint requested`);
     if (req.method === 'OPTIONS') {
@@ -35,13 +35,12 @@ serve(async (req) => {
 
   // Enhanced OPTIONS handling for Mac Finder compatibility
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] OPTIONS request - Mac Finder capability check`);
+    console.log(`[${requestId}] OPTIONS request - Mac Finder capability discovery`);
     return new Response('', { 
       status: 200,
       headers: {
         ...getWebDAVResponseHeaders(),
         ...getMacFinderHeaders(),
-        'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
         'Content-Length': '0'
       }
     });
@@ -68,38 +67,28 @@ serve(async (req) => {
     
     // Enhanced authentication challenge for Mac Finder
     if (!authHeader) {
-      console.log(`[${requestId}] No auth - sending Mac-compatible challenge`);
+      console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
       return new Response('', {
         status: 401,
-        headers: {
-          ...getWebDAVResponseHeaders(),
-          ...getMacFinderHeaders(),
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/html; charset=utf-8',
-          'Content-Length': '0'
-        }
+        headers: getAuthenticationChallengeHeaders()
       });
     }
 
-    // Authenticate user
+    // Authenticate user with enhanced debugging
+    console.log(`[${requestId}] Starting authentication process...`);
     const userInfo = await authenticateUser(supabase, authHeader, requestId);
+    
     if (!userInfo) {
-      console.log(`[${requestId}] Authentication failed - invalid credentials`);
+      console.log(`[${requestId}] Authentication failed - sending challenge`);
       return new Response('', {
         status: 401,
-        headers: {
-          ...getWebDAVResponseHeaders(),
-          ...getMacFinderHeaders(),
-          'WWW-Authenticate': 'Basic realm="WebDAV Server", charset="UTF-8"',
-          'Content-Type': 'text/html; charset=utf-8',
-          'Content-Length': '0'
-        }
+        headers: getAuthenticationChallengeHeaders()
       });
     }
 
-    console.log(`[${requestId}] User authenticated: ${userInfo.user_id}`);
+    console.log(`[${requestId}] Authentication successful for user: ${userInfo.user_id}`);
 
-    // Log access attempt (non-blocking)
+    // Log access attempt (non-blocking for performance)
     supabase.from('webdav_access_logs').insert({
       user_id: userInfo.user_id,
       token_id: userInfo.token_id,
@@ -117,43 +106,53 @@ serve(async (req) => {
     // Enhanced path processing for Mac Finder
     const path = normalizePath(url.pathname);
     const pathInfo = parseWebDAVPath(path);
-    console.log(`[${requestId}] Processing ${req.method} for: "${path}"`);
+    console.log(`[${requestId}] Processing ${req.method} for normalized path: "${path}"`);
     console.log(`[${requestId}] Path info:`, pathInfo);
 
-    // Route to appropriate handlers
+    // Route to appropriate handlers with enhanced error handling
     let response: Response;
     
     try {
       switch (req.method) {
         case 'PROPFIND':
+          console.log(`[${requestId}] Handling PROPFIND request`);
           response = await handlePropfind(supabase, userInfo, path, req, requestId);
           break;
         case 'GET':
         case 'HEAD':
+          console.log(`[${requestId}] Handling ${req.method} request`);
           response = await handleGet(supabase, userInfo, path, requestId, req.method === 'HEAD');
           break;
         case 'PUT':
+          console.log(`[${requestId}] Handling PUT request`);
           response = await handlePut(supabase, userInfo, path, req, requestId);
           break;
         case 'DELETE':
+          console.log(`[${requestId}] Handling DELETE request`);
           response = await handleDelete(supabase, userInfo, path, requestId);
           break;
         case 'MKCOL':
+          console.log(`[${requestId}] Handling MKCOL request`);
           response = await handleMkcol(supabase, userInfo, path, requestId);
           break;
         case 'MOVE':
+          console.log(`[${requestId}] Handling MOVE request`);
           response = await handleMove(supabase, userInfo, path, req, requestId);
           break;
         case 'COPY':
+          console.log(`[${requestId}] Handling COPY request`);
           response = await handleCopy(supabase, userInfo, path, req, requestId);
           break;
         case 'LOCK':
+          console.log(`[${requestId}] Handling LOCK request`);
           response = await handleLock(supabase, userInfo, path, req, requestId);
           break;
         case 'UNLOCK':
+          console.log(`[${requestId}] Handling UNLOCK request`);
           response = await handleUnlock(supabase, userInfo, path, req, requestId);
           break;
         case 'PROPPATCH':
+          console.log(`[${requestId}] Handling PROPPATCH request`);
           response = await handleProppatch(path, requestId);
           break;
         default:
@@ -173,8 +172,17 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[${requestId}] Request completed in ${Date.now() - startTime}ms with status ${response.status}`);
-    return response;
+    const duration = Date.now() - startTime;
+    console.log(`[${requestId}] Request completed in ${duration}ms with status ${response.status}`);
+    
+    // Add timing header for debugging
+    const finalHeaders = new Headers(response.headers);
+    finalHeaders.set('X-Response-Time', `${duration}ms`);
+    
+    return new Response(response.body, {
+      status: response.status,
+      headers: finalHeaders
+    });
 
   } catch (error) {
     console.error(`[${requestId}] Unexpected server error:`, error);

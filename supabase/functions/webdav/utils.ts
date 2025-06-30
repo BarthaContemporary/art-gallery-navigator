@@ -92,3 +92,17 @@ export function formatDateForWebDAV(date: Date | string): string {
 export function createWebDAVXmlResponse(content: string): string {
   return `<?xml version="1.0" encoding="utf-8"?>\n${content}`;
 }
+
+export function createMacCompatibleHref(folderName?: string, fileName?: string): string {
+  const baseUrl = '/functions/v1/webdav';
+  
+  if (!folderName) {
+    return `${baseUrl}/`;
+  }
+  
+  if (!fileName) {
+    return `${baseUrl}/${encodeURIComponent(folderName)}/`;
+  }
+  
+  return `${baseUrl}/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
+}
