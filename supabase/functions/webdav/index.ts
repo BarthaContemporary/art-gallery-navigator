@@ -66,10 +66,16 @@ serve(async (req) => {
         });
       }
       
-      return new Response('Unauthorized', {
+      return new Response(JSON.stringify({
+        error: 'Authentication failed',
+        details: authResult.error || 'Invalid credentials',
+        timestamp: new Date().toISOString(),
+        requestId
+      }, null, 2), {
         status: 401,
         headers: {
           ...corsHeaders,
+          'Content-Type': 'application/json',
           'WWW-Authenticate': 'Basic realm="WebDAV Server"',
         }
       });
