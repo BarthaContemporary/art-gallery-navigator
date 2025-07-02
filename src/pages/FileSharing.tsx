@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Folder, Users, Key } from "lucide-react";
+import { FileText, Folder, Users, Key, TestTube } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useFolders } from "@/hooks/use-folders";
 import { useEnhancedDocuments } from "@/hooks/use-enhanced-documents";
@@ -13,6 +13,7 @@ import { FilesTabContent } from "@/components/file-sharing/FilesTabContent";
 import { DocumentsTabContent } from "@/components/file-sharing/DocumentsTabContent";
 import { ArtistFolderManagement } from "@/components/file-sharing/ArtistFolderManagement";
 import { SimpleWebDAVTokenManager } from "@/components/file-sharing/SimpleWebDAVTokenManager";
+import { WebDAVConnectionGuide } from "@/components/file-sharing/WebDAVConnectionGuide";
 
 export default function FileSharing() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -147,7 +148,7 @@ export default function FileSharing() {
         </TabsContent>
 
         <TabsContent value="webdav" className="space-y-4">
-          <SimpleWebDAVTokenManager />
+          <WebDAVConnectionGuide />
         </TabsContent>
 
         {isAdmin && (

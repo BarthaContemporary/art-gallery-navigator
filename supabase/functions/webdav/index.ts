@@ -5,8 +5,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 // Apple/Mac-optimized CORS headers for WebDAV
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, range, if-match, if-none-match',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite, range, if-match, if-none-match, user-agent',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK',
+  'Access-Control-Expose-Headers': 'DAV, MS-Author-Via, Accept-Ranges, Content-Range, ETag, Last-Modified',
   'DAV': '1, 2, 3',
   'MS-Author-Via': 'DAV',
   'Allow': 'OPTIONS, PROPFIND, PROPPATCH, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, LOCK, UNLOCK',
@@ -62,6 +63,11 @@ serve(async (req) => {
     // Route to handlers with user context
     const userContext = { userId, isAdmin, supabase, requestId };
     
+    // Handle debug endpoint for testing
+    if (path === '/debug-token' && req.method === 'GET') {
+      return await handleDebugToken(authResult, userContext);
+    }
+    
     if (req.method === 'PROPFIND') {
       return await handlePropfind(path, req, userContext);
     } else if (req.method === 'GET' || req.method === 'HEAD') {
@@ -91,6 +97,57 @@ serve(async (req) => {
     });
   }
 });
+
+// Debug endpoint for token testing
+async function handleDebugToken(authResult: any, userContext: any) {
+  const { userId, isAdmin, supabase, requestId } = userContext;
+  
+  const debugInfo = {
+    timestamp: new Date().toISOString(),
+    requestId,
+    authentication: {
+      success: authResult.success,
+      userId: userId || null,
+      isAdmin: isAdmin || false,
+    },
+    webdav_url: "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/",
+    user_permissions: {
+      can_access_all_folders: isAdmin,
+      user_specific_access: !isAdmin
+    }
+  };
+
+  if (authResult.success) {
+    // Get user's accessible folders
+    try {
+      const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+        user_id_param: userId
+      });
+      
+      debugInfo.folders = {
+        count: folders?.length || 0,
+        accessible_folders: folders?.map((f: any) => ({
+          name: f.folder_name,
+          can_read: f.can_read,
+          can_write: f.can_write,
+          artist_id: f.artist_id
+        })) || []
+      };
+    } catch (error) {
+      debugInfo.folders = {
+        error: error.message || 'Failed to fetch folders'
+      };
+    }
+  }
+
+  return new Response(JSON.stringify(debugInfo, null, 2), {
+    status: authResult.success ? 200 : 401,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    }
+  });
+}
 
 // Authentication function using WebDAV tokens
 async function authenticateUser(req: Request, supabase: any, requestId: string) {
