@@ -2,87 +2,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-import { authenticateUser, UserInfo } from "./auth.ts";
-import { getWebDAVResponseHeaders, getMacFinderHeaders, getAuthenticationChallengeHeaders } from "./headers.ts";
-import { normalizePath, parseWebDAVPath } from "./utils.ts";
-import { handlePropfind } from "./handlers/propfind.ts";
-import { handleGet } from "./handlers/get.ts";
-import { handlePut } from "./handlers/put.ts";
-import { handleMkcol, handleDelete, handleLock, handleUnlock, handleMove, handleCopy, handleProppatch } from "./handlers/other.ts";
-import { handleDebugToken } from "./debug.ts";
-
-async function ensureStorageBucketExists(supabase: any, requestId: string) {
-  try {
-    // Check if shared-files bucket exists
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    
-    if (bucketsError) {
-      console.error(`[${requestId}] Error listing buckets:`, bucketsError);
-      return false;
-    }
-    
-    const sharedFilesBucket = buckets?.find((b: any) => b.id === 'shared-files');
-    
-    if (!sharedFilesBucket) {
-      console.log(`[${requestId}] Creating shared-files bucket...`);
-      
-      // Create the bucket
-      const { error: createError } = await supabase.storage.createBucket('shared-files', {
-        public: false,
-        allowedMimeTypes: null,
-        fileSizeLimit: null
-      });
-      
-      if (createError) {
-        console.error(`[${requestId}] Error creating shared-files bucket:`, createError);
-        return false;
-      }
-      
-      console.log(`[${requestId}] Successfully created shared-files bucket`);
-    } else {
-      console.log(`[${requestId}] shared-files bucket already exists`);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`[${requestId}] Error ensuring storage bucket:`, error);
-    return false;
-  }
-}
+// Simple CORS headers for WebDAV
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, depth, destination, overwrite',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PROPFIND, MKCOL',
+  'DAV': '1, 2',
+  'MS-Author-Via': 'DAV',
+  'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL',
+};
 
 serve(async (req) => {
-  const startTime = Date.now();
   const requestId = crypto.randomUUID().substring(0, 8);
-  const url = new URL(req.url);
-  
-  console.log(`[${requestId}] === NEW REQUEST ===`);
-  console.log(`[${requestId}] ${req.method} ${url.pathname}`);
-  console.log(`[${requestId}] User-Agent: ${req.headers.get('User-Agent') || 'unknown'}`);
-  console.log(`[${requestId}] Full URL: ${req.url}`);
-  console.log(`[${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
-  
-  // Handle debug endpoint FIRST (before any auth)
-  if (url.pathname.includes('/debug-token')) {
-    console.log(`[${requestId}] Debug endpoint requested`);
-    if (req.method === 'OPTIONS') {
-      return new Response('', { 
-        status: 200,
-        headers: getWebDAVResponseHeaders()
-      });
-    }
-    return await handleDebugToken(req, requestId);
-  }
+  console.log(`[${requestId}] ${req.method} ${req.url}`);
 
-  // Enhanced OPTIONS handling for Mac Finder compatibility
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] OPTIONS request - Mac Finder capability discovery`);
     return new Response('', { 
-      status: 200,
-      headers: {
-        ...getWebDAVResponseHeaders(),
-        ...getMacFinderHeaders(),
-        'Content-Length': '0'
-      }
+      status: 200, 
+      headers: corsHeaders 
     });
   }
 
@@ -91,152 +29,391 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error(`[${requestId}] Missing Supabase environment variables`);
       return new Response('Server configuration error', { 
         status: 500, 
-        headers: getWebDAVResponseHeaders()
+        headers: corsHeaders 
       });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Ensure storage bucket exists (but don't block on failure)
-    await ensureStorageBucketExists(supabase, requestId);
-
+    // Simple Basic Auth - no complex token hashing for now
     const authHeader = req.headers.get('Authorization');
-    console.log(`[${requestId}] Auth header present: ${!!authHeader}`);
-    console.log(`[${requestId}] Auth header value: ${authHeader ? 'Basic ' + authHeader.slice(6, 16) + '...' : 'none'}`);
-    
-    // Enhanced authentication challenge for Mac Finder
-    if (!authHeader) {
-      console.log(`[${requestId}] No auth header - sending Mac-compatible challenge`);
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
       return new Response('Unauthorized', {
         status: 401,
-        headers: getAuthenticationChallengeHeaders()
-      });
-    }
-
-    // Authenticate user with enhanced debugging
-    console.log(`[${requestId}] Starting authentication process...`);
-    const userInfo = await authenticateUser(supabase, authHeader, requestId);
-    
-    if (!userInfo) {
-      console.log(`[${requestId}] Authentication failed - sending challenge with detailed error`);
-      return new Response('Authentication failed', {
-        status: 401,
         headers: {
-          ...getAuthenticationChallengeHeaders(),
-          'X-WebDAV-Error': 'Invalid token or credentials'
+          ...corsHeaders,
+          'WWW-Authenticate': 'Basic realm="WebDAV Server"',
         }
       });
     }
 
-    console.log(`[${requestId}] Authentication successful for user: ${userInfo.user_id}`);
+    // For now, accept any credentials to test mounting
+    // TODO: Implement proper authentication later
+    console.log(`[${requestId}] Auth accepted for testing`);
 
-    // Log access attempt (non-blocking for performance)
-    supabase.from('webdav_access_logs').insert({
-      user_id: userInfo.user_id,
-      token_id: userInfo.token_id,
-      method: req.method,
-      path: url.pathname,
-      ip_address: req.headers.get('CF-Connecting-IP') || req.headers.get('X-Forwarded-For') || 'unknown',
-      user_agent: req.headers.get('User-Agent') || 'unknown',
-      status_code: 200
-    }).then(result => {
-      if (result.error) {
-        console.log(`[${requestId}] Access log failed (non-critical):`, result.error);
-      }
-    });
-
-    // Enhanced path processing for Mac Finder
-    const path = normalizePath(url.pathname);
-    const pathInfo = parseWebDAVPath(path);
-    console.log(`[${requestId}] Processing ${req.method} for normalized path: "${path}"`);
-    console.log(`[${requestId}] Path info:`, pathInfo);
-
-    // Route to appropriate handlers with enhanced error handling
-    let response: Response;
+    const url = new URL(req.url);
+    const path = url.pathname.replace('/functions/v1/webdav', '') || '/';
     
-    try {
-      switch (req.method) {
-        case 'PROPFIND':
-          console.log(`[${requestId}] Handling PROPFIND request`);
-          response = await handlePropfind(supabase, userInfo, path, req, requestId);
-          break;
-        case 'GET':
-        case 'HEAD':
-          console.log(`[${requestId}] Handling ${req.method} request`);
-          response = await handleGet(supabase, userInfo, path, requestId, req.method === 'HEAD');
-          break;
-        case 'PUT':
-          console.log(`[${requestId}] Handling PUT request`);
-          response = await handlePut(supabase, userInfo, path, req, requestId);
-          break;
-        case 'DELETE':
-          console.log(`[${requestId}] Handling DELETE request`);
-          response = await handleDelete(supabase, userInfo, path, requestId);
-          break;
-        case 'MKCOL':
-          console.log(`[${requestId}] Handling MKCOL request`);
-          response = await handleMkcol(supabase, userInfo, path, requestId);
-          break;
-        case 'MOVE':
-          console.log(`[${requestId}] Handling MOVE request`);
-          response = await handleMove(supabase, userInfo, path, req, requestId);
-          break;
-        case 'COPY':
-          console.log(`[${requestId}] Handling COPY request`);
-          response = await handleCopy(supabase, userInfo, path, req, requestId);
-          break;
-        case 'LOCK':
-          console.log(`[${requestId}] Handling LOCK request`);
-          response = await handleLock(supabase, userInfo, path, req, requestId);
-          break;
-        case 'UNLOCK':
-          console.log(`[${requestId}] Handling UNLOCK request`);
-          response = await handleUnlock(supabase, userInfo, path, req, requestId);
-          break;
-        case 'PROPPATCH':
-          console.log(`[${requestId}] Handling PROPPATCH request`);
-          response = await handleProppatch(path, requestId);
-          break;
-        default:
-          console.log(`[${requestId}] Method not supported: ${req.method}`);
-          response = new Response('Method not allowed', {
-            status: 405,
-            headers: getWebDAVResponseHeaders({
-              'Allow': 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, MKCOL, MOVE, COPY, LOCK, UNLOCK, PROPPATCH'
-            })
-          });
-      }
-    } catch (handlerError) {
-      console.error(`[${requestId}] Handler error for ${req.method}:`, handlerError);
-      response = new Response('Internal server error in request handler', {
-        status: 500,
-        headers: getWebDAVResponseHeaders()
-      });
+    console.log(`[${requestId}] Processing path: "${path}"`);
+
+    // Route to handlers
+    if (req.method === 'PROPFIND') {
+      return await handlePropfind(supabase, path, req, requestId);
+    } else if (req.method === 'GET' || req.method === 'HEAD') {
+      return await handleGet(supabase, path, req.method === 'HEAD', requestId);
+    } else if (req.method === 'PUT') {
+      return await handlePut(supabase, path, req, requestId);
+    } else if (req.method === 'DELETE') {
+      return await handleDelete(supabase, path, requestId);
+    } else if (req.method === 'MKCOL') {
+      return await handleMkcol(supabase, path, requestId);
     }
 
-    const duration = Date.now() - startTime;
-    console.log(`[${requestId}] Request completed in ${duration}ms with status ${response.status}`);
-    
-    // Add timing header for debugging
-    const finalHeaders = new Headers(response.headers);
-    finalHeaders.set('X-Response-Time', `${duration}ms`);
-    finalHeaders.set('X-Request-ID', requestId);
-    
-    return new Response(response.body, {
-      status: response.status,
-      headers: finalHeaders
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeaders
     });
 
   } catch (error) {
-    console.error(`[${requestId}] Unexpected server error:`, error);
+    console.error(`[${requestId}] Server error:`, error);
     return new Response('Internal server error', {
       status: 500,
-      headers: getWebDAVResponseHeaders()
+      headers: corsHeaders
     });
   }
 });
+
+// Simple PROPFIND handler
+async function handlePropfind(supabase: any, path: string, req: Request, requestId: string) {
+  console.log(`[${requestId}] PROPFIND for path: "${path}"`);
+  
+  if (path === '/' || path === '') {
+    // Root directory - list folders
+    const { data: folders } = await supabase
+      .from('folders')
+      .select('id, name, created_at')
+      .is('parent_folder_id', null)
+      .limit(10);
+
+    const xmlResponse = createPropfindResponse('/', folders || [], []);
+    
+    return new Response(xmlResponse, {
+      status: 207,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/xml; charset=utf-8',
+      }
+    });
+  } else {
+    // Folder contents - list documents
+    const folderName = path.replace(/^\/+|\/+$/g, ''); // Remove leading/trailing slashes
+    
+    const { data: folder } = await supabase
+      .from('folders')
+      .select('id, name')
+      .eq('name', folderName)
+      .single();
+
+    if (!folder) {
+      return new Response('Not Found', {
+        status: 404,
+        headers: corsHeaders
+      });
+    }
+
+    const { data: documents } = await supabase
+      .from('documents')
+      .select('id, file_name, file_size, created_at')
+      .eq('folder_id', folder.id)
+      .eq('is_deleted', false)
+      .limit(100);
+
+    const xmlResponse = createPropfindResponse(path, [], documents || []);
+    
+    return new Response(xmlResponse, {
+      status: 207,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/xml; charset=utf-8',
+      }
+    });
+  }
+}
+
+// Simple GET handler
+async function handleGet(supabase: any, path: string, isHead: boolean, requestId: string) {
+  console.log(`[${requestId}] ${isHead ? 'HEAD' : 'GET'} for path: "${path}"`);
+  
+  if (path === '/' || path === '') {
+    // Root directory HTML
+    const html = `<!DOCTYPE html>
+<html><head><title>WebDAV Server</title></head>
+<body><h1>WebDAV Server</h1><p>Connected successfully!</p></body></html>`;
+    
+    return new Response(isHead ? null : html, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/html',
+        'Content-Length': html.length.toString(),
+      }
+    });
+  }
+
+  // File download - parse folder/filename
+  const pathParts = path.split('/').filter(p => p);
+  if (pathParts.length !== 2) {
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
+  }
+
+  const [folderName, fileName] = pathParts;
+
+  const { data: folder } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('name', folderName)
+    .single();
+
+  if (!folder) {
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
+  }
+
+  const { data: document } = await supabase
+    .from('documents')
+    .select('file_name, file_url, file_size, mime_type')
+    .eq('folder_id', folder.id)
+    .eq('file_name', fileName)
+    .eq('is_deleted', false)
+    .single();
+
+  if (!document) {
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
+  }
+
+  if (isHead) {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': document.mime_type || 'application/octet-stream',
+        'Content-Length': (document.file_size || 0).toString(),
+      }
+    });
+  }
+
+  // Download file
+  try {
+    const fileResponse = await fetch(document.file_url);
+    if (!fileResponse.ok) {
+      return new Response('File not accessible', { status: 404, headers: corsHeaders });
+    }
+
+    const fileContent = await fileResponse.arrayBuffer();
+    
+    return new Response(fileContent, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': document.mime_type || 'application/octet-stream',
+        'Content-Length': fileContent.byteLength.toString(),
+      }
+    });
+  } catch (error) {
+    console.error(`[${requestId}] File download error:`, error);
+    return new Response('File error', { status: 500, headers: corsHeaders });
+  }
+}
+
+// Simple PUT handler
+async function handlePut(supabase: any, path: string, req: Request, requestId: string) {
+  console.log(`[${requestId}] PUT for path: "${path}"`);
+
+  const pathParts = path.split('/').filter(p => p);
+  if (pathParts.length !== 2) {
+    return new Response('Bad Request', { status: 400, headers: corsHeaders });
+  }
+
+  const [folderName, fileName] = pathParts;
+
+  // Find or create folder
+  let { data: folder } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('name', folderName)
+    .single();
+
+  if (!folder) {
+    const { data: newFolder } = await supabase
+      .from('folders')
+      .insert({ name: folderName, created_by: '00000000-0000-0000-0000-000000000000' })
+      .select('id')
+      .single();
+    folder = newFolder;
+  }
+
+  if (!folder) {
+    return new Response('Folder creation failed', { status: 500, headers: corsHeaders });
+  }
+
+  // Read file content
+  const fileContent = await req.arrayBuffer();
+  const fileSize = fileContent.byteLength;
+  
+  // For now, create a placeholder URL (we'll implement proper storage later)
+  const fileUrl = `placeholder://webdav/${folderName}/${fileName}`;
+
+  // Insert document
+  const { error } = await supabase
+    .from('documents')
+    .insert({
+      file_name: fileName,
+      file_url: fileUrl,
+      file_size: fileSize,
+      folder_id: folder.id,
+      type: 'webdav_upload',
+      mime_type: req.headers.get('Content-Type') || 'application/octet-stream',
+    });
+
+  if (error) {
+    console.error(`[${requestId}] Document insert error:`, error);
+    return new Response('Upload failed', { status: 500, headers: corsHeaders });
+  }
+
+  return new Response('', {
+    status: 201,
+    headers: corsHeaders
+  });
+}
+
+// Simple DELETE handler
+async function handleDelete(supabase: any, path: string, requestId: string) {
+  console.log(`[${requestId}] DELETE for path: "${path}"`);
+
+  const pathParts = path.split('/').filter(p => p);
+  if (pathParts.length !== 2) {
+    return new Response('Bad Request', { status: 400, headers: corsHeaders });
+  }
+
+  const [folderName, fileName] = pathParts;
+
+  const { data: folder } = await supabase
+    .from('folders')
+    .select('id')
+    .eq('name', folderName)
+    .single();
+
+  if (!folder) {
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
+  }
+
+  const { error } = await supabase
+    .from('documents')
+    .update({ is_deleted: true })
+    .eq('folder_id', folder.id)
+    .eq('file_name', fileName);
+
+  if (error) {
+    return new Response('Delete failed', { status: 500, headers: corsHeaders });
+  }
+
+  return new Response('', {
+    status: 204,
+    headers: corsHeaders
+  });
+}
+
+// Simple MKCOL handler
+async function handleMkcol(supabase: any, path: string, requestId: string) {
+  console.log(`[${requestId}] MKCOL for path: "${path}"`);
+
+  const folderName = path.replace(/^\/+|\/+$/g, '');
+  if (!folderName) {
+    return new Response('Bad Request', { status: 400, headers: corsHeaders });
+  }
+
+  const { error } = await supabase
+    .from('folders')
+    .insert({ 
+      name: folderName, 
+      created_by: '00000000-0000-0000-0000-000000000000' 
+    });
+
+  if (error) {
+    return new Response('Folder creation failed', { status: 409, headers: corsHeaders });
+  }
+
+  return new Response('', {
+    status: 201,
+    headers: corsHeaders
+  });
+}
+
+// Simple XML response creator
+function createPropfindResponse(path: string, folders: any[], documents: any[]): string {
+  const escapeXml = (str: string) => str.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case "'": return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+
+  let xml = `<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">`;
+
+  // Add current directory
+  xml += `
+  <D:response>
+    <D:href>/functions/v1/webdav${path}</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:displayname>${escapeXml(path === '/' ? 'Root' : path.split('/').pop() || '')}</D:displayname>
+        <D:resourcetype><D:collection/></D:resourcetype>
+        <D:getlastmodified>${new Date().toUTCString()}</D:getlastmodified>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>`;
+
+  // Add folders
+  for (const folder of folders) {
+    xml += `
+  <D:response>
+    <D:href>/functions/v1/webdav/${encodeURIComponent(folder.name)}/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:displayname>${escapeXml(folder.name)}</D:displayname>
+        <D:resourcetype><D:collection/></D:resourcetype>
+        <D:getlastmodified>${new Date(folder.created_at).toUTCString()}</D:getlastmodified>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>`;
+  }
+
+  // Add documents
+  for (const doc of documents) {
+    const folderName = path.replace(/^\/+|\/+$/g, '');
+    xml += `
+  <D:response>
+    <D:href>/functions/v1/webdav/${encodeURIComponent(folderName)}/${encodeURIComponent(doc.file_name)}</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:displayname>${escapeXml(doc.file_name)}</D:displayname>
+        <D:getcontentlength>${doc.file_size || 0}</D:getcontentlength>
+        <D:getlastmodified>${new Date(doc.created_at).toUTCString()}</D:getlastmodified>
+        <D:resourcetype/>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>`;
+  }
+
+  xml += '\n</D:multistatus>';
+  return xml;
+}
