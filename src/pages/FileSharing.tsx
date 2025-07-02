@@ -148,6 +148,7 @@ export default function FileSharing() {
         </TabsContent>
 
         <TabsContent value="webdav" className="space-y-4">
+          <SimpleWebDAVTokenManager />
           <WebDAVConnectionGuide />
         </TabsContent>
 
