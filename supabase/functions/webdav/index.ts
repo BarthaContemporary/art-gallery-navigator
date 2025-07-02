@@ -188,7 +188,7 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     console.log(`[${requestId}] Missing or invalid auth header`);
-    return { success: false, error: 'Missing Authorization header' };
+    return { success: false, error: 'Missing or invalid Authorization header' };
   }
 
   try {
@@ -199,22 +199,39 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
 
     if (!password || password.length === 0) {
       console.log(`[${requestId}] Empty password/token`);
-      return { success: false, error: 'Empty token' };
+      return { success: false, error: 'Empty or missing token' };
     }
 
-    // Validate WebDAV token
+    console.log(`[${requestId}] Calling validate_webdav_token with token...`);
+
+    // Validate WebDAV token with better error handling
     const { data: tokenData, error: tokenError } = await supabase.rpc('validate_webdav_token', { 
       token_text: password 
     });
 
+    console.log(`[${requestId}] RPC response - data:`, tokenData, 'error:', tokenError);
+
     if (tokenError) {
-      console.error(`[${requestId}] Token validation error:`, tokenError);
-      return { success: false, error: 'Token validation failed', details: tokenError };
+      console.error(`[${requestId}] Token validation RPC error:`, tokenError);
+      return { 
+        success: false, 
+        error: 'Database error during token validation', 
+        details: tokenError.message || 'Unknown database error'
+      };
     }
 
-    if (!tokenData || !tokenData.is_valid) {
-      console.log(`[${requestId}] Invalid token for user: ${username}, token data:`, tokenData);
-      return { success: false, error: 'Invalid token', tokenData };
+    if (!tokenData) {
+      console.log(`[${requestId}] No token data returned from RPC`);
+      return { success: false, error: 'Token validation returned no data' };
+    }
+
+    if (!tokenData.is_valid) {
+      console.log(`[${requestId}] Token marked as invalid. User: ${username}, token data:`, tokenData);
+      return { 
+        success: false, 
+        error: 'Invalid or expired token',
+        details: `Token validation failed for user: ${username}`
+      };
     }
 
     console.log(`[${requestId}] Token validation successful for user ID: ${tokenData.user_id}`);
@@ -227,7 +244,11 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
 
     if (adminError) {
       console.error(`[${requestId}] Admin check error:`, adminError);
-      return { success: false, error: 'Admin check failed', details: adminError };
+      return { 
+        success: false, 
+        error: 'Failed to check user permissions', 
+        details: adminError.message || 'Unknown admin check error'
+      };
     }
 
     return {
@@ -238,7 +259,11 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
     };
   } catch (error) {
     console.error(`[${requestId}] Auth exception:`, error);
-    return { success: false, error: 'Authentication exception', details: error.message };
+    return { 
+      success: false, 
+      error: 'Authentication system error', 
+      details: error.message || 'Unknown authentication error'
+    };
   }
 }
 
