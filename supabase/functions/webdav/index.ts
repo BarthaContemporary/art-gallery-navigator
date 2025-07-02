@@ -40,9 +40,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const url = new URL(req.url);
+    const path = url.pathname.replace('/functions/v1/webdav', '') || '/';
+    
+    console.log(`[${requestId}] Processing path: "${path}"`);
+
     // Authenticate user and get permissions
     const authResult = await authenticateUser(req, supabase, requestId);
     if (!authResult.success) {
+      console.log(`[${requestId}] Authentication failed:`, authResult.error);
+      
+      // Return JSON for debug endpoint, HTML for regular WebDAV
+      if (path === '/debug-token') {
+        return new Response(JSON.stringify({
+          error: 'Authentication failed',
+          details: authResult.error || 'Invalid credentials',
+          timestamp: new Date().toISOString(),
+          requestId
+        }, null, 2), {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          }
+        });
+      }
+      
       return new Response('Unauthorized', {
         status: 401,
         headers: {
@@ -54,11 +77,6 @@ serve(async (req) => {
 
     const { userId, isAdmin } = authResult;
     console.log(`[${requestId}] Auth successful for user: ${userId}, admin: ${isAdmin}`);
-
-    const url = new URL(req.url);
-    const path = url.pathname.replace('/functions/v1/webdav', '') || '/';
-    
-    console.log(`[${requestId}] Processing path: "${path}"`);
 
     // Route to handlers with user context
     const userContext = { userId, isAdmin, supabase, requestId };
@@ -109,33 +127,43 @@ async function handleDebugToken(authResult: any, userContext: any) {
       success: authResult.success,
       userId: userId || null,
       isAdmin: isAdmin || false,
+      error: authResult.error || null,
+      tokenId: authResult.tokenId || null
     },
     webdav_url: "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/",
     user_permissions: {
-      can_access_all_folders: isAdmin,
+      can_access_all_folders: isAdmin || false,
       user_specific_access: !isAdmin
     }
   };
 
-  if (authResult.success) {
+  if (authResult.success && userId) {
     // Get user's accessible folders
     try {
-      const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
+      const { data: folders, error: foldersError } = await supabase.rpc('get_user_accessible_folders_for_user', {
         user_id_param: userId
       });
       
-      debugInfo.folders = {
-        count: folders?.length || 0,
-        accessible_folders: folders?.map((f: any) => ({
-          name: f.folder_name,
-          can_read: f.can_read,
-          can_write: f.can_write,
-          artist_id: f.artist_id
-        })) || []
-      };
+      if (foldersError) {
+        debugInfo.folders = {
+          error: foldersError.message || 'Failed to fetch folders',
+          details: foldersError
+        };
+      } else {
+        debugInfo.folders = {
+          count: folders?.length || 0,
+          accessible_folders: folders?.map((f: any) => ({
+            name: f.folder_name,
+            can_read: f.can_read,
+            can_write: f.can_write,
+            artist_id: f.artist_id
+          })) || []
+        };
+      }
     } catch (error) {
       debugInfo.folders = {
-        error: error.message || 'Failed to fetch folders'
+        error: error.message || 'Exception fetching folders',
+        details: error
       };
     }
   }
@@ -154,39 +182,57 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     console.log(`[${requestId}] Missing or invalid auth header`);
-    return { success: false };
+    return { success: false, error: 'Missing Authorization header' };
   }
 
   try {
     const credentials = atob(authHeader.substring(6));
     const [username, password] = credentials.split(':');
     
-    console.log(`[${requestId}] Authenticating user: ${username}`);
+    console.log(`[${requestId}] Authenticating user: ${username}, token length: ${password?.length || 0}`);
+
+    if (!password || password.length === 0) {
+      console.log(`[${requestId}] Empty password/token`);
+      return { success: false, error: 'Empty token' };
+    }
 
     // Validate WebDAV token
-    const { data: tokenData } = await supabase.rpc('validate_webdav_token', { 
+    const { data: tokenData, error: tokenError } = await supabase.rpc('validate_webdav_token', { 
       token_text: password 
     });
 
-    if (!tokenData || !tokenData.is_valid) {
-      console.log(`[${requestId}] Invalid token for user: ${username}`);
-      return { success: false };
+    if (tokenError) {
+      console.error(`[${requestId}] Token validation error:`, tokenError);
+      return { success: false, error: 'Token validation failed', details: tokenError };
     }
 
+    if (!tokenData || !tokenData.is_valid) {
+      console.log(`[${requestId}] Invalid token for user: ${username}, token data:`, tokenData);
+      return { success: false, error: 'Invalid token', tokenData };
+    }
+
+    console.log(`[${requestId}] Token validation successful for user ID: ${tokenData.user_id}`);
+
     // Check if user is admin
-    const { data: adminCheck } = await supabase.rpc('has_role', {
+    const { data: adminCheck, error: adminError } = await supabase.rpc('has_role', {
       _user_id: tokenData.user_id,
       _role: 'gallery_admin'
     });
 
+    if (adminError) {
+      console.error(`[${requestId}] Admin check error:`, adminError);
+      return { success: false, error: 'Admin check failed', details: adminError };
+    }
+
     return {
       success: true,
       userId: tokenData.user_id,
-      isAdmin: !!adminCheck
+      isAdmin: !!adminCheck,
+      tokenId: tokenData.token_id
     };
   } catch (error) {
-    console.error(`[${requestId}] Auth error:`, error);
-    return { success: false };
+    console.error(`[${requestId}] Auth exception:`, error);
+    return { success: false, error: 'Authentication exception', details: error.message };
   }
 }
 
