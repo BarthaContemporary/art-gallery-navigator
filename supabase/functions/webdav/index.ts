@@ -43,7 +43,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname.replace('/functions/v1/webdav', '') || '/';
     
-    console.log(`[${requestId}] Processing path: "${path}"`);
+    console.log(`[${requestId}] Processing path: "${path}"`, 'Full pathname:', url.pathname, 'Full URL:', req.url);
 
     // Authenticate user and get permissions
     const authResult = await authenticateUser(req, supabase, requestId);
