@@ -69,19 +69,33 @@ export function WebDAVAccessPanel() {
     setIsLoading(true);
     setTestResult(null);
 
-  try {
-    const credentials = btoa(`webdav:${testToken.trim()}`);
-    
-    // First test with PROPFIND on root directory (what WebDAV clients typically do)
-    console.log("Testing PROPFIND on root directory...");
-    const response = await fetch(webdavUrl, {
-      method: 'PROPFIND',
-      headers: {
-        'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/xml',
-        'Depth': '1',
-      },
-      body: `<?xml version="1.0" encoding="utf-8"?>
+    try {
+      const credentials = btoa(`webdav:${testToken.trim()}`);
+      
+      // Test 1: Debug endpoint first
+      console.log("Testing debug endpoint...");
+      const debugResponse = await fetch(`${webdavUrl}debug-token`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (debugResponse.ok) {
+        const debugData = await debugResponse.json();
+        console.log("Debug response:", debugData);
+        
+        // Test 2: PROPFIND on root directory
+        console.log("Testing PROPFIND on root directory...");
+        const response = await fetch(webdavUrl, {
+          method: 'PROPFIND',
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/xml',
+            'Depth': '1',
+          },
+          body: `<?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:">
   <D:prop>
     <D:displayname/>
@@ -90,35 +104,51 @@ export function WebDAVAccessPanel() {
     <D:getcontentlength/>
   </D:prop>
 </D:propfind>`
-    });
-
-      if (response.ok) {
-        const responseText = await response.text();
-        setTestResult({
-          success: true,
-          status: response.status,
-          message: "✅ Connection successful! You can now mount this in your file manager.",
-          details: {
-            status: response.status,
-            contentType: response.headers.get('content-type'),
-            responseLength: responseText.length,
-            hasXMLResponse: responseText.includes('<?xml')
-          }
         });
-        toast.success("WebDAV connection test passed!");
+
+        if (response.ok) {
+          const responseText = await response.text();
+          setTestResult({
+            success: true,
+            status: response.status,
+            message: "✅ Connection successful! You can now mount this in your file manager.",
+            details: {
+              status: response.status,
+              contentType: response.headers.get('content-type'),
+              responseLength: responseText.length,
+              hasXMLResponse: responseText.includes('<?xml'),
+              debugInfo: debugData,
+              responsePreview: responseText.substring(0, 500)
+            }
+          });
+          toast.success("WebDAV connection test passed!");
+        } else {
+          const errorText = await response.text();
+          setTestResult({
+            success: false,
+            status: response.status,
+            message: `❌ PROPFIND failed: ${response.status} ${response.statusText}`,
+            details: {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText,
+              debugInfo: debugData,
+              contentType: response.headers.get('content-type')
+            }
+          });
+          toast.error("WebDAV PROPFIND test failed");
+        }
       } else {
-        const errorText = await response.text();
+        const debugError = await debugResponse.text();
         setTestResult({
           success: false,
-          status: response.status,
-          message: `❌ Connection failed: ${response.status} ${response.statusText}`,
+          status: debugResponse.status,
+          message: `❌ Debug endpoint failed: ${debugResponse.status}`,
           details: {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText
+            debugError,
+            debugStatus: debugResponse.status
           }
         });
-        toast.error("WebDAV connection test failed");
       }
     } catch (error: any) {
       setTestResult({

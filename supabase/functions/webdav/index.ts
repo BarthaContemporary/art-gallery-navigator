@@ -41,9 +41,23 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const url = new URL(req.url);
-    const path = url.pathname.replace('/functions/v1/webdav', '') || '/';
+    // Properly handle path extraction - remove the webdav prefix and normalize
+    let path = url.pathname;
+    console.log(`[${requestId}] Original pathname: "${path}"`);
     
-    console.log(`[${requestId}] Processing path: "${path}"`, 'Full pathname:', url.pathname, 'Full URL:', req.url);
+    // Remove the webdav function path prefix
+    if (path.includes('/functions/v1/webdav')) {
+      path = path.substring(path.indexOf('/functions/v1/webdav') + '/functions/v1/webdav'.length);
+    }
+    
+    // Normalize path - ensure it starts with / and handle empty paths
+    if (!path || path === '') {
+      path = '/';
+    } else if (!path.startsWith('/')) {
+      path = '/' + path;
+    }
+    
+    console.log(`[${requestId}] Processing path: "${path}" from full URL: ${req.url}`);
 
     // Authenticate user and get permissions
     const authResult = await authenticateUser(req, supabase, requestId);
@@ -108,9 +122,13 @@ serve(async (req) => {
       return await handleCopyMove(path, req, userContext);
     }
 
+    console.log(`[${requestId}] Unhandled method: ${req.method} for path: ${path}`);
     return new Response('Method not allowed', {
       status: 405,
-      headers: corsHeaders
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/plain',
+      }
     });
 
   } catch (error) {
@@ -302,9 +320,18 @@ async function handlePropfind(path: string, req: Request, userContext: any) {
     
     const folder = folders?.find((f: any) => f.folder_name === folderName);
     if (!folder || !folder.can_read) {
-      return new Response('Not Found', {
+      console.log(`[${requestId}] Folder "${folderName}" not found or no access`);
+      // Return proper WebDAV 404 response
+      const notFoundXml = `<?xml version="1.0" encoding="utf-8"?>
+<D:error xmlns:D="DAV:">
+  <D:status>HTTP/1.1 404 Not Found</D:status>
+</D:error>`;
+      return new Response(notFoundXml, {
         status: 404,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/xml; charset=utf-8',
+        }
       });
     }
 
