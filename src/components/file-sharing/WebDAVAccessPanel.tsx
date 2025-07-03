@@ -69,17 +69,28 @@ export function WebDAVAccessPanel() {
     setIsLoading(true);
     setTestResult(null);
 
-    try {
-      const credentials = btoa(`webdav:${testToken.trim()}`);
-      
-      const response = await fetch(webdavUrl, {
-        method: 'PROPFIND',
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/xml',
-          'Depth': '1',
-        },
-      });
+  try {
+    const credentials = btoa(`webdav:${testToken.trim()}`);
+    
+    // First test with PROPFIND on root directory (what WebDAV clients typically do)
+    console.log("Testing PROPFIND on root directory...");
+    const response = await fetch(webdavUrl, {
+      method: 'PROPFIND',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/xml',
+        'Depth': '1',
+      },
+      body: `<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:displayname/>
+    <D:resourcetype/>
+    <D:getlastmodified/>
+    <D:getcontentlength/>
+  </D:prop>
+</D:propfind>`
+    });
 
       if (response.ok) {
         const responseText = await response.text();
