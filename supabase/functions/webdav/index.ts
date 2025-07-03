@@ -20,6 +20,7 @@ serve(async (req) => {
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    console.log(`[${requestId}] Handling OPTIONS (CORS preflight)`);
     return new Response('', { 
       status: 200, 
       headers: corsHeaders 
@@ -31,6 +32,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
+      console.error(`[${requestId}] Missing environment variables`);
       return new Response('Server configuration error', { 
         status: 500, 
         headers: corsHeaders 
@@ -40,7 +42,6 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const url = new URL(req.url);
-    // Properly handle path extraction - remove the webdav prefix and normalize
     let path = url.pathname;
     console.log(`[${requestId}] Original pathname: "${path}"`);
     
@@ -56,28 +57,32 @@ serve(async (req) => {
       path = '/' + path;
     }
     
-    console.log(`[${requestId}] Processing path: "${path}" from full URL: ${req.url}`);
+    console.log(`[${requestId}] Processing path: "${path}"`);
+
+    // Handle debug endpoint for testing
+    if (path === '/debug-token' && req.method === 'GET') {
+      console.log(`[${requestId}] Debug endpoint accessed`);
+      return new Response(JSON.stringify({
+        status: 'success',
+        message: 'WebDAV function is running',
+        timestamp: new Date().toISOString(),
+        requestId,
+        path,
+        method: req.method,
+        headers: Object.fromEntries(req.headers.entries())
+      }, null, 2), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        }
+      });
+    }
 
     // Authenticate user and get permissions
     const authResult = await authenticateUser(req, supabase, requestId);
     if (!authResult.success) {
       console.log(`[${requestId}] Authentication failed:`, authResult.error);
-      
-      // Return JSON for debug endpoint, HTML for regular WebDAV
-      if (path === '/debug-token') {
-        return new Response(JSON.stringify({
-          error: 'Authentication failed',
-          details: authResult.error || 'Invalid credentials',
-          timestamp: new Date().toISOString(),
-          requestId
-        }, null, 2), {
-          status: 401,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          }
-        });
-      }
       
       return new Response(JSON.stringify({
         error: 'Authentication failed',
@@ -99,11 +104,6 @@ serve(async (req) => {
 
     // Route to handlers with user context
     const userContext = { userId, isAdmin, supabase, requestId };
-    
-    // Handle debug endpoint for testing
-    if (path === '/debug-token' && req.method === 'GET') {
-      return await handleDebugToken(authResult, userContext);
-    }
     
     if (req.method === 'PROPFIND') {
       return await handlePropfind(path, req, userContext);
@@ -138,67 +138,6 @@ serve(async (req) => {
     });
   }
 });
-
-// Debug endpoint for token testing
-async function handleDebugToken(authResult: any, userContext: any) {
-  const { userId, isAdmin, supabase, requestId } = userContext;
-  
-  const debugInfo = {
-    timestamp: new Date().toISOString(),
-    requestId,
-    authentication: {
-      success: authResult.success,
-      userId: userId || null,
-      isAdmin: isAdmin || false,
-      error: authResult.error || null,
-      tokenId: authResult.tokenId || null
-    },
-    webdav_url: "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/",
-    user_permissions: {
-      can_access_all_folders: isAdmin || false,
-      user_specific_access: !isAdmin
-    }
-  };
-
-  if (authResult.success && userId) {
-    // Get user's accessible folders
-    try {
-      const { data: folders, error: foldersError } = await supabase.rpc('get_user_accessible_folders_for_user', {
-        user_id_param: userId
-      });
-      
-      if (foldersError) {
-        debugInfo.folders = {
-          error: foldersError.message || 'Failed to fetch folders',
-          details: foldersError
-        };
-      } else {
-        debugInfo.folders = {
-          count: folders?.length || 0,
-          accessible_folders: folders?.map((f: any) => ({
-            name: f.folder_name,
-            can_read: f.can_read,
-            can_write: f.can_write,
-            artist_id: f.artist_id
-          })) || []
-        };
-      }
-    } catch (error) {
-      debugInfo.folders = {
-        error: error.message || 'Exception fetching folders',
-        details: error
-      };
-    }
-  }
-
-  return new Response(JSON.stringify(debugInfo, null, 2), {
-    status: authResult.success ? 200 : 401,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    }
-  });
-}
 
 // Authentication function using WebDAV tokens
 async function authenticateUser(req: Request, supabase: any, requestId: string) {
@@ -417,9 +356,6 @@ async function handleGet(path: string, isHead: boolean, userContext: any) {
     });
   }
 
-  // Handle range requests for Apple compatibility
-  const rangeHeader = req.headers.get('Range');
-  
   try {
     if (document.file_url.startsWith('placeholder://')) {
       return new Response('File not yet uploaded to storage', { 
@@ -435,27 +371,6 @@ async function handleGet(path: string, isHead: boolean, userContext: any) {
 
     const fileContent = await fileResponse.arrayBuffer();
     const fileSize = fileContent.byteLength;
-    
-    // Handle range requests
-    if (rangeHeader) {
-      const ranges = parseRangeHeader(rangeHeader, fileSize);
-      if (ranges.length === 1) {
-        const [start, end] = ranges[0];
-        const chunk = fileContent.slice(start, end + 1);
-        
-        return new Response(chunk, {
-          status: 206,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': document.mime_type || 'application/octet-stream',
-            'Content-Length': chunk.byteLength.toString(),
-            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-            'Last-Modified': lastModified,
-            'ETag': etag,
-          }
-        });
-      }
-    }
     
     return new Response(fileContent, {
       status: 200,
@@ -473,210 +388,25 @@ async function handleGet(path: string, isHead: boolean, userContext: any) {
   }
 }
 
-// Enhanced PUT handler with proper storage and access control
+// Basic PUT handler placeholder
 async function handlePut(path: string, req: Request, userContext: any) {
-  const { userId, isAdmin, supabase, requestId } = userContext;
-  console.log(`[${requestId}] PUT for path: "${path}"`);
-
-  const pathParts = path.split('/').filter(p => p);
-  if (pathParts.length !== 2) {
-    return new Response('Bad Request', { status: 400, headers: corsHeaders });
-  }
-
-  const [folderName, fileName] = pathParts;
-
-  // Check folder access
-  const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
-    user_id_param: userId
-  });
-  
-  let folder = folders?.find((f: any) => f.folder_name === folderName);
-  
-  if (!folder && isAdmin) {
-    // Admin can create new folders
-    const { data: newFolder } = await supabase
-      .from('folders')
-      .insert({ 
-        name: folderName, 
-        created_by: userId 
-      })
-      .select('id, name')
-      .single();
-    
-    if (newFolder) {
-      folder = { 
-        folder_id: newFolder.id, 
-        folder_name: newFolder.name, 
-        can_write: true 
-      };
-    }
-  }
-
-  if (!folder || !folder.can_write) {
-    return new Response('Forbidden', { status: 403, headers: corsHeaders });
-  }
-
-  try {
-    // Read file content
-    const fileContent = await req.arrayBuffer();
-    const fileSize = fileContent.byteLength;
-    
-    // Store file in Supabase Storage
-    const fileName_sanitized = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const storagePath = `${folderName}/${fileName_sanitized}`;
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('shared-files')
-      .upload(storagePath, fileContent, {
-        contentType: req.headers.get('Content-Type') || 'application/octet-stream',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error(`[${requestId}] Storage upload error:`, uploadError);
-      return new Response('Upload failed', { status: 500, headers: corsHeaders });
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('shared-files')
-      .getPublicUrl(storagePath);
-
-    // Insert or update document
-    const { error } = await supabase
-      .from('documents')
-      .upsert({
-        file_name: fileName,
-        file_url: urlData.publicUrl,
-        file_size: fileSize,
-        folder_id: folder.folder_id,
-        type: 'webdav_upload',
-        mime_type: req.headers.get('Content-Type') || 'application/octet-stream',
-        is_deleted: false,
-      }, {
-        onConflict: 'folder_id,file_name'
-      });
-
-    if (error) {
-      console.error(`[${requestId}] Document insert error:`, error);
-      return new Response('Database update failed', { status: 500, headers: corsHeaders });
-    }
-
-    return new Response('', {
-      status: 201,
-      headers: {
-        ...corsHeaders,
-        'ETag': '"' + btoa(storagePath).substring(0, 12) + '"',
-      }
-    });
-  } catch (error) {
-    console.error(`[${requestId}] PUT error:`, error);
-    return new Response('Upload failed', { status: 500, headers: corsHeaders });
-  }
+  const { requestId } = userContext;
+  console.log(`[${requestId}] PUT not implemented yet for path: "${path}"`);
+  return new Response('Not Implemented', { status: 501, headers: corsHeaders });
 }
 
-// Enhanced DELETE handler with access control
+// Basic DELETE handler placeholder
 async function handleDelete(path: string, userContext: any) {
-  const { userId, isAdmin, supabase, requestId } = userContext;
-  console.log(`[${requestId}] DELETE for path: "${path}"`);
-
-  const pathParts = path.split('/').filter(p => p);
-  if (pathParts.length !== 2) {
-    return new Response('Bad Request', { status: 400, headers: corsHeaders });
-  }
-
-  const [folderName, fileName] = pathParts;
-
-  // Check folder access
-  const { data: folders } = await supabase.rpc('get_user_accessible_folders_for_user', {
-    user_id_param: userId
-  });
-  
-  const folder = folders?.find((f: any) => f.folder_name === folderName);
-  if (!folder || !folder.can_write) {
-    return new Response('Forbidden', { status: 403, headers: corsHeaders });
-  }
-
-  try {
-    // Get document to find storage path
-    const { data: documents } = await supabase.rpc('get_user_accessible_documents', {
-      folder_id_param: folder.folder_id
-    });
-
-    const document = documents?.find((d: any) => d.document_name === fileName);
-    if (!document) {
-      return new Response('Not Found', { status: 404, headers: corsHeaders });
-    }
-
-    // Delete from storage if it exists
-    if (!document.file_url.startsWith('placeholder://')) {
-      const storagePath = `${folderName}/${fileName}`;
-      await supabase.storage
-        .from('shared-files')
-        .remove([storagePath]);
-    }
-
-    // Mark as deleted in database
-    const { error } = await supabase
-      .from('documents')
-      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-      .eq('id', document.document_id);
-
-    if (error) {
-      console.error(`[${requestId}] Delete error:`, error);
-      return new Response('Delete failed', { status: 500, headers: corsHeaders });
-    }
-
-    return new Response('', {
-      status: 204,
-      headers: corsHeaders
-    });
-  } catch (error) {
-    console.error(`[${requestId}] DELETE error:`, error);
-    return new Response('Delete failed', { status: 500, headers: corsHeaders });
-  }
+  const { requestId } = userContext;
+  console.log(`[${requestId}] DELETE not implemented yet for path: "${path}"`);
+  return new Response('Not Implemented', { status: 501, headers: corsHeaders });
 }
 
-// Enhanced MKCOL handler with access control
+// Basic MKCOL handler placeholder
 async function handleMkcol(path: string, userContext: any) {
-  const { userId, isAdmin, supabase, requestId } = userContext;
-  console.log(`[${requestId}] MKCOL for path: "${path}"`);
-
-  const folderName = path.replace(/^\/+|\/+$/g, '');
-  if (!folderName) {
-    return new Response('Bad Request', { status: 400, headers: corsHeaders });
-  }
-
-  // Only admins can create folders
-  if (!isAdmin) {
-    return new Response('Forbidden', { status: 403, headers: corsHeaders });
-  }
-
-  try {
-    const { error } = await supabase
-      .from('folders')
-      .insert({ 
-        name: folderName, 
-        created_by: userId,
-        assignment_method: 'webdav_manual'
-      });
-
-    if (error) {
-      console.error(`[${requestId}] MKCOL error:`, error);
-      if (error.code === '23505') { // Unique constraint violation
-        return new Response('Folder already exists', { status: 409, headers: corsHeaders });
-      }
-      return new Response('Folder creation failed', { status: 500, headers: corsHeaders });
-    }
-
-    return new Response('', {
-      status: 201,
-      headers: corsHeaders
-    });
-  } catch (error) {
-    console.error(`[${requestId}] MKCOL error:`, error);
-    return new Response('Folder creation failed', { status: 500, headers: corsHeaders });
-  }
+  const { requestId } = userContext;
+  console.log(`[${requestId}] MKCOL not implemented yet for path: "${path}"`);
+  return new Response('Not Implemented', { status: 501, headers: corsHeaders });
 }
 
 // PROPPATCH handler for property updates
@@ -703,24 +433,6 @@ async function handleCopyMove(path: string, req: Request, userContext: any) {
     status: 501,
     headers: corsHeaders
   });
-}
-
-// Utility function to parse range headers
-function parseRangeHeader(rangeHeader: string, fileSize: number): [number, number][] {
-  const ranges: [number, number][] = [];
-  const rangeRegex = /bytes=(\d+)-(\d*)/g;
-  let match;
-  
-  while ((match = rangeRegex.exec(rangeHeader)) !== null) {
-    const start = parseInt(match[1]);
-    const end = match[2] ? parseInt(match[2]) : fileSize - 1;
-    
-    if (start >= 0 && end < fileSize && start <= end) {
-      ranges.push([start, end]);
-    }
-  }
-  
-  return ranges;
 }
 
 // Apple-optimized XML response creator with full WebDAV properties
