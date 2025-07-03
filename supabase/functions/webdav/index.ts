@@ -220,13 +220,15 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
       };
     }
 
-    if (!tokenData) {
+    if (!tokenData || tokenData.length === 0) {
       console.log(`[${requestId}] No token data returned from RPC`);
       return { success: false, error: 'Token validation returned no data' };
     }
 
-    if (!tokenData.is_valid) {
-      console.log(`[${requestId}] Token marked as invalid. User: ${username}, token data:`, tokenData);
+    // Get first result from array
+    const validation = tokenData[0];
+    if (!validation.is_valid) {
+      console.log(`[${requestId}] Token marked as invalid. User: ${username}, token data:`, validation);
       return { 
         success: false, 
         error: 'Invalid or expired token',
@@ -234,11 +236,11 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
       };
     }
 
-    console.log(`[${requestId}] Token validation successful for user ID: ${tokenData.user_id}`);
+    console.log(`[${requestId}] Token validation successful for user ID: ${validation.user_id}`);
 
     // Check if user is admin
     const { data: adminCheck, error: adminError } = await supabase.rpc('has_role', {
-      _user_id: tokenData.user_id,
+      _user_id: validation.user_id,
       _role: 'gallery_admin'
     });
 
@@ -253,9 +255,9 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
 
     return {
       success: true,
-      userId: tokenData.user_id,
+      userId: validation.user_id,
       isAdmin: !!adminCheck,
-      tokenId: tokenData.token_id
+      tokenId: validation.token_id
     };
   } catch (error) {
     console.error(`[${requestId}] Auth exception:`, error);
