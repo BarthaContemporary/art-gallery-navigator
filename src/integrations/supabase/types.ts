@@ -1825,6 +1825,45 @@ export type Database = {
           },
         ]
       }
+      shared_storage_credentials: {
+        Row: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          access_key: string
+          bucket_name: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          region?: string
+          secret_key: string
+          updated_at?: string
+        }
+        Update: {
+          access_key?: string
+          bucket_name?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          region?: string
+          secret_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       uploads: {
         Row: {
           created_at: string
