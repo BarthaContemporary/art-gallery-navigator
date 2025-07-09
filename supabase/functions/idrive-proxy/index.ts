@@ -55,61 +55,111 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
   }
 }
 
+// Extract region from endpoint URL
+function extractRegionFromEndpoint(endpointUrl: string): string {
+  try {
+    const url = new URL(endpointUrl)
+    // For iDrive e2, the region is often embedded in the hostname
+    // e.g., e0a7.ldn203.idrivee2-99.com -> use 'us-east-1' as default for S3 compatibility
+    return 'us-east-1'
+  } catch {
+    return 'us-east-1'
+  }
+}
+
 async function createSignedHeaders(
   method: string,
   url: string,
   credentials: StorageCredentials,
   contentType?: string
 ) {
-  const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '')
-  const datestamp = timestamp.substr(0, 8)
+  console.log('Creating signed headers for:', { method, url, contentType })
   
-  const headers: Record<string, string> = {
-    'Host': new URL(credentials.endpoint_url).host,
-    'X-Amz-Date': timestamp,
+  const urlObj = new URL(url)
+  const host = urlObj.hostname
+  const region = extractRegionFromEndpoint(credentials.endpoint_url)
+  
+  // Create timestamp in UTC
+  const now = new Date()
+  const amzDate = now.toISOString().replace(/[:\-]|\.\d{3}/g, '')
+  const dateStamp = amzDate.substring(0, 8)
+  
+  console.log('Timestamp info:', { amzDate, dateStamp, region })
+  
+  // Normalize the path - ensure it starts with / and handle encoding
+  let canonicalUri = urlObj.pathname
+  if (!canonicalUri.startsWith('/')) {
+    canonicalUri = '/' + canonicalUri
   }
-
-  if (contentType) {
-    headers['Content-Type'] = contentType
+  // Don't double-encode if already encoded
+  if (!canonicalUri.includes('%')) {
+    canonicalUri = encodeURI(canonicalUri).replace(/[!'()*]/g, function(c) {
+      return '%' + c.charCodeAt(0).toString(16).toUpperCase()
+    })
   }
-
-  // Create canonical headers
-  const canonicalHeaders = Object.keys(headers)
-    .sort()
-    .map(key => `${key.toLowerCase()}:${headers[key]}`)
-    .join('\n') + '\n'
-
-  const signedHeaders = Object.keys(headers)
-    .sort()
-    .map(key => key.toLowerCase())
-    .join(';')
-
+  
+  // Sort query parameters for canonical query string
+  const searchParams = new URLSearchParams(urlObj.search)
+  const sortedParams = Array.from(searchParams.entries()).sort()
+  const canonicalQuerystring = sortedParams
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&')
+  
+  console.log('Canonical components:', { canonicalUri, canonicalQuerystring })
+  
+  // Create canonical headers (must be sorted)
+  const canonicalHeaders = `host:${host}\nx-amz-date:${amzDate}\n`
+  const signedHeaders = 'host;x-amz-date'
+  
+  // Create payload hash (empty for GET requests)
+  const payloadHash = await sha256('')
+  
   // Create canonical request
   const canonicalRequest = [
     method,
-    new URL(url).pathname,
-    new URL(url).search.slice(1),
+    canonicalUri,
+    canonicalQuerystring,
     canonicalHeaders,
     signedHeaders,
-    'UNSIGNED-PAYLOAD'
+    payloadHash
   ].join('\n')
-
+  
+  console.log('Canonical request:', canonicalRequest)
+  
   // Create string to sign
   const algorithm = 'AWS4-HMAC-SHA256'
-  const credentialScope = `${datestamp}/us-east-1/s3/aws4_request`
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`
+  const canonicalRequestHash = await sha256(canonicalRequest)
+  
   const stringToSign = [
     algorithm,
-    timestamp,
+    amzDate,
     credentialScope,
-    await sha256(canonicalRequest)
+    canonicalRequestHash
   ].join('\n')
-
+  
+  console.log('String to sign:', stringToSign)
+  
   // Calculate signature
-  const signingKey = await getSignatureKey(credentials.secret_key, datestamp, 'us-east-1', 's3')
+  const signingKey = await getSignatureKey(credentials.secret_key, dateStamp, region, 's3')
   const signature = await hmacSha256(signingKey, stringToSign)
-
-  headers['Authorization'] = `${algorithm} Credential=${credentials.access_key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-
+  
+  console.log('Generated signature:', signature)
+  
+  // Create authorization header
+  const authorizationHeader = `${algorithm} Credential=${credentials.access_key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+  
+  const headers: Record<string, string> = {
+    'Host': host,
+    'X-Amz-Date': amzDate,
+    'Authorization': authorizationHeader
+  }
+  
+  if (contentType) {
+    headers['Content-Type'] = contentType
+  }
+  
+  console.log('Final headers:', headers)
   return headers
 }
 
@@ -164,26 +214,55 @@ serve(async (req) => {
     const path = pathParts[1] || ''
     const bucketName = url.searchParams.get('bucket')
 
+    console.log('Request details:', { 
+      method: req.method, 
+      path, 
+      bucketName, 
+      fullUrl: req.url 
+    })
+
     if (!bucketName) {
+      console.error('Missing bucket parameter')
       return new Response('Bucket name is required', { status: 400, headers: corsHeaders })
     }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase environment variables')
+      return new Response('Server configuration error', { status: 500, headers: corsHeaders })
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Get storage credentials
     const credentials = await getStorageCredentials(supabase, bucketName)
     if (!credentials) {
+      console.error('Storage credentials not found for bucket:', bucketName)
       return new Response('Storage credentials not found', { status: 404, headers: corsHeaders })
     }
+
+    console.log('Found credentials for bucket:', { 
+      bucket: credentials.bucket_name, 
+      endpoint: credentials.endpoint_url 
+    })
 
     // Build the target URL - for listing bucket contents, use empty path
     const targetUrl = path ? `${credentials.endpoint_url}/${bucketName}/${path}` : `${credentials.endpoint_url}/${bucketName}`
     console.log('Target URL:', targetUrl)
 
+    // Validate target URL
+    try {
+      new URL(targetUrl)
+    } catch (urlError) {
+      console.error('Invalid target URL:', targetUrl, urlError)
+      return new Response('Invalid storage endpoint configuration', { status: 500, headers: corsHeaders })
+    }
+
     // Create signed headers
+    console.log('Creating signed request...')
     const signedHeaders = await createSignedHeaders(
       req.method,
       targetUrl,
@@ -197,11 +276,28 @@ serve(async (req) => {
       body = await req.arrayBuffer()
     }
 
+    console.log('Making request to iDrive e2...')
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: signedHeaders,
       body: body,
     })
+
+    console.log('iDrive e2 response:', { 
+      status: response.status, 
+      statusText: response.statusText 
+    })
+
+    // If there's an error response, log the body for debugging
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('iDrive e2 error response:', errorText)
+      return new Response(errorText, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      })
+    }
 
     // Return the response with CORS headers
     const responseHeaders = { ...corsHeaders }
@@ -218,8 +314,13 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error('Error in idrive-proxy:', error)
+    console.error('Error stack:', error.stack)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        type: error.constructor.name,
+        details: 'Check function logs for more information'
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
