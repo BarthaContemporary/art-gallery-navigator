@@ -6,6 +6,8 @@ import type { BucketInfo, StorageCredentials } from '@/types/storage';
 export function useStorageInitialization() {
   const initializeStorage = useCallback(async (): Promise<BucketInfo[]> => {
     try {
+      console.log('Initializing storage...');
+      
       // Get current user's artist ID and admin status
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -16,6 +18,7 @@ export function useStorageInitialization() {
         .eq('user_id', user.id);
 
       const isAdmin = userRoles?.some(role => role.role === 'gallery_admin');
+      console.log('User is admin:', isAdmin);
 
       const buckets: BucketInfo[] = [];
 
@@ -27,10 +30,13 @@ export function useStorageInitialization() {
           .eq('is_active', true)
           .single();
 
+        console.log('Shared storage credentials query result:', { sharedCreds, sharedError });
+
         // Only add shared bucket if query succeeded and returned valid data
         if (!sharedError && sharedCreds && typeof sharedCreds === 'object') {
           const creds = sharedCreds as any;
           if (creds.bucket_name && creds.access_key && creds.secret_key && creds.endpoint_url) {
+            console.log('Adding shared bucket:', creds.bucket_name);
             buckets.push({
               name: 'Shared Gallery Storage',
               type: 'shared',
@@ -92,6 +98,7 @@ export function useStorageInitialization() {
         }
       }
 
+      console.log('Initialized storage with buckets:', buckets);
       return buckets;
     } catch (error) {
       console.error('Failed to initialize storage:', error);

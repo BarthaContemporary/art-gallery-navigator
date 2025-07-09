@@ -5,13 +5,24 @@ import type { BucketInfo, StorageItem } from '@/types/storage';
 
 export function useStorageOperations() {
   const listFiles = useCallback(async (prefix = '', bucket?: BucketInfo): Promise<StorageItem[]> => {
-    if (!bucket) throw new Error('No bucket selected');
+    if (!bucket) {
+      console.error('No bucket selected for listing files');
+      throw new Error('No bucket selected');
+    }
+
+    console.log('Listing files for bucket:', bucket.name, 'prefix:', prefix);
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
+    if (!session) {
+      console.error('User not authenticated');
+      throw new Error('Not authenticated');
+    }
 
     // Call proxy function with bucket context
-    const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${prefix}?bucket=${bucket.credentials.bucket_name}`, {
+    const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${prefix}?bucket=${bucket.credentials.bucket_name}`;
+    console.log('Fetching from URL:', url);
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -20,7 +31,9 @@ export function useStorageOperations() {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to list files: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Failed to list files:', response.status, response.statusText, errorText);
+      throw new Error(`Failed to list files: ${response.statusText} - ${errorText}`);
     }
 
     // Parse S3 XML response
