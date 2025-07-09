@@ -16,12 +16,14 @@ interface StorageCredentials {
 async function getStorageCredentials(supabase: any, bucketName: string): Promise<StorageCredentials | null> {
   try {
     // First try shared storage credentials
-    const { data: sharedCreds } = await supabase
+    const { data: sharedCredsArray } = await supabase
       .from('shared_storage_credentials')
       .select('*')
       .eq('bucket_name', bucketName)
       .eq('is_active', true)
-      .single()
+      .limit(1)
+
+    const sharedCreds = sharedCredsArray?.[0] || null
 
     if (sharedCreds) {
       return {
@@ -33,11 +35,13 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
     }
 
     // Then try artist storage credentials
-    const { data: artistCreds } = await supabase
+    const { data: artistCredsArray } = await supabase
       .from('artist_storage_credentials')
       .select('*')
       .eq('bucket_name', bucketName)
-      .single()
+      .limit(1)
+
+    const artistCreds = artistCredsArray?.[0] || null
 
     if (artistCreds) {
       return {
