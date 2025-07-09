@@ -100,14 +100,30 @@ export function StorageCredentialsManagement() {
       if (artistError) throw artistError;
       setArtistCredentials(artistCreds || []);
 
-      // Load shared credentials
-      const { data: sharedCreds, error: sharedError } = await supabase
-        .from('shared_storage_credentials' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Load shared credentials (optional - table might not exist yet)
+      try {
+        const { data: sharedCreds, error: sharedError } = await supabase
+          .from('shared_storage_credentials' as any)
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (sharedError) throw sharedError;
-      setSharedCredentials(sharedCreds as SharedStorageCredentials[] || []);
+        // Only set valid credentials if query succeeded and returned valid data
+        if (!sharedError && Array.isArray(sharedCreds)) {
+          const validCredentials = sharedCreds.filter((item: any) => 
+            item && 
+            typeof item === 'object' && 
+            typeof item.id === 'string' &&
+            typeof item.name === 'string' &&
+            typeof item.bucket_name === 'string'
+          ) as unknown as SharedStorageCredentials[];
+          setSharedCredentials(validCredentials);
+        } else {
+          setSharedCredentials([]);
+        }
+      } catch (error) {
+        console.error('Shared credentials table not available:', error);
+        setSharedCredentials([]);
+      }
 
       // Load artists without credentials
       const { data: allArtists, error: artistsError } = await supabase

@@ -46,19 +46,45 @@ export function useEnhancedIDriveStorage() {
 
       const buckets: BucketInfo[] = [];
 
-      // Get shared bucket credentials (available to all authenticated users)
-      const { data: sharedCreds, error: sharedError } = await supabase
-        .from('shared_storage_credentials' as any)
-        .select('*')
-        .eq('is_active', true)
-        .single();
+      // Get shared bucket credentials (optional - table might not exist yet)
+      try {
+        const { data: sharedCreds, error: sharedError } = await supabase
+          .from('shared_storage_credentials' as any)
+          .select('*')
+          .eq('is_active', true)
+          .single();
 
-      if (!sharedError && sharedCreds) {
-        buckets.push({
-          name: 'Shared Gallery Storage',
-          type: 'shared',
-          credentials: sharedCreds as StorageCredentials,
-        });
+        // Only add shared bucket if query succeeded and returned valid data
+        if (!sharedError && 
+            sharedCreds && 
+            typeof sharedCreds === 'object' && 
+            sharedCreds !== null &&
+            'bucket_name' in sharedCreds &&
+            'access_key' in sharedCreds &&
+            'secret_key' in sharedCreds &&
+            'endpoint_url' in sharedCreds) {
+          // Cast to any to avoid TypeScript issues with dynamic table access
+          const creds = sharedCreds as any;
+          const bucketName = creds.bucket_name;
+          const accessKey = creds.access_key;
+          const secretKey = creds.secret_key;
+          const endpointUrl = creds.endpoint_url;
+          
+          if (bucketName && accessKey && secretKey && endpointUrl) {
+            buckets.push({
+              name: 'Shared Gallery Storage',
+              type: 'shared',
+              credentials: {
+                bucket_name: String(bucketName),
+                access_key: String(accessKey),
+                secret_key: String(secretKey),
+                endpoint_url: String(endpointUrl),
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Shared storage credentials not available:', error);
       }
 
       // Get individual artist bucket if user is an artist
