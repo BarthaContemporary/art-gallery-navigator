@@ -24,11 +24,13 @@ export function useStorageInitialization() {
 
       // Get shared bucket credentials (optional - table might not exist yet)
       try {
-        const { data: sharedCreds, error: sharedError } = await supabase
+        const { data: sharedCredsArray, error: sharedError } = await supabase
           .from('shared_storage_credentials' as any)
           .select('*')
           .eq('is_active', true)
-          .single();
+          .limit(1);
+
+        const sharedCreds = sharedCredsArray?.[0] || null;
 
         console.log('Shared storage credentials query result:', { sharedCreds, sharedError });
 
