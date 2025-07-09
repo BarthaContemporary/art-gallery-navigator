@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Folder, Users, Key, TestTube } from "lucide-react";
+import { FileText, Folder, Users, Key, Cloud } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useFolders } from "@/hooks/use-folders";
 import { useEnhancedDocuments } from "@/hooks/use-enhanced-documents";
@@ -13,6 +13,7 @@ import { FilesTabContent } from "@/components/file-sharing/FilesTabContent";
 import { DocumentsTabContent } from "@/components/file-sharing/DocumentsTabContent";
 import { ArtistFolderManagement } from "@/components/file-sharing/ArtistFolderManagement";
 import { WebDAVAccessPanel } from "@/components/file-sharing/WebDAVAccessPanel";
+import { IDriveFileManager } from "@/components/file-sharing/IDriveFileManager";
 
 export default function FileSharing() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function FileSharing() {
       )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'} mb-6`}>
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} mb-6`}>
           <TabsTrigger value="files" className="flex items-center gap-2">
             <Folder className="h-4 w-4" />
             Folder View
@@ -103,6 +104,10 @@ export default function FileSharing() {
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             All Documents
+          </TabsTrigger>
+          <TabsTrigger value="idrive" className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" />
+            My Storage
           </TabsTrigger>
           <TabsTrigger value="webdav" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
@@ -144,6 +149,10 @@ export default function FileSharing() {
             typeFilter={typeFilter}
             onTypeFilterChange={setTypeFilter}
           />
+        </TabsContent>
+
+        <TabsContent value="idrive" className="space-y-4">
+          <IDriveFileManager />
         </TabsContent>
 
         <TabsContent value="webdav" className="space-y-4">
