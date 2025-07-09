@@ -160,7 +160,8 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const path = url.pathname.replace('/functions/v1/idrive-proxy/', '')
+    const pathParts = url.pathname.split('/functions/v1/idrive-proxy/')
+    const path = pathParts[1] || ''
     const bucketName = url.searchParams.get('bucket')
 
     if (!bucketName) {
@@ -178,8 +179,8 @@ serve(async (req) => {
       return new Response('Storage credentials not found', { status: 404, headers: corsHeaders })
     }
 
-    // Build the target URL
-    const targetUrl = `${credentials.endpoint_url}/${bucketName}${path ? '/' + path : ''}`
+    // Build the target URL - for listing bucket contents, use empty path
+    const targetUrl = path ? `${credentials.endpoint_url}/${bucketName}/${path}` : `${credentials.endpoint_url}/${bucketName}`
     console.log('Target URL:', targetUrl)
 
     // Create signed headers
