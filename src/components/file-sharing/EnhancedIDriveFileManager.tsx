@@ -190,15 +190,6 @@ export function EnhancedIDriveFileManager() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Folder className="h-5 w-5" />
-              {currentBucket?.name || 'File Manager'}
-              {currentBucket && (
-                <Badge variant={getBucketVariant(currentBucket.type)}>
-                  {currentBucket.credentials.bucket_name}
-                </Badge>
-              )}
-            </CardTitle>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
