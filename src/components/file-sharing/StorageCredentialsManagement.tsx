@@ -271,6 +271,27 @@ export function StorageCredentialsManagement() {
     }
   };
 
+  const handleDeleteSharedCredentials = async (id: string) => {
+    if (!confirm('Are you sure you want to delete these shared credentials?')) return;
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('shared_storage_credentials' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Shared credentials deleted successfully');
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete shared credentials:', error);
+      toast.error('Failed to delete shared credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       artist_id: '',
@@ -680,13 +701,22 @@ export function StorageCredentialsManagement() {
                     </TableCell>
                     <TableCell>{new Date(creds.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openSharedDialog(creds)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openSharedDialog(creds)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSharedCredentials(creds.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
