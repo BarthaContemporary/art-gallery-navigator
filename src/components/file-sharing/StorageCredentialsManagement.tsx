@@ -14,9 +14,7 @@ import {
   Cloud,
   Users,
   Key,
-  AlertCircle,
-  Upload,
-  FileText
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -56,16 +54,9 @@ export function StorageCredentialsManagement() {
   const [artists, setArtists] = useState<Array<{ id: string; full_name: string; }>>([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [sharedDialogOpen, setSharedDialogOpen] = useState(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedCredentials, setSelectedCredentials] = useState<ArtistStorageCredentials | null>(null);
   const [selectedSharedCredentials, setSelectedSharedCredentials] = useState<SharedStorageCredentials | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploadResults, setUploadResults] = useState<{
-    processed: number;
-    succeeded: number;
-    failed: number;
-    errors: string[];
-  } | null>(null);
   const { isAdmin } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -361,134 +352,6 @@ export function StorageCredentialsManagement() {
     setSharedDialogOpen(true);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setLoading(true);
-      setUploadResults(null);
-
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      let processed = 0;
-      let succeeded = 0;
-      let failed = 0;
-      const errors: string[] = [];
-
-      // Handle different file formats
-      if (data.buckets && Array.isArray(data.buckets)) {
-        // Multiple buckets file (all credentials format)
-        for (const bucket of data.buckets) {
-          processed++;
-          try {
-            if (bucket.type === 'shared') {
-              await createSharedCredentials({
-                name: bucket.name,
-                bucket_name: bucket.credentials.bucketName,
-                access_key: bucket.credentials.accessKey,
-                secret_key: bucket.credentials.secretKey,
-                endpoint_url: bucket.credentials.endpoint,
-                region: bucket.credentials.region || 'us-east-1',
-                is_active: true,
-              });
-            } else if (bucket.type === 'individual') {
-              // For artist buckets, we need to find or create the artist
-              const artist = artists.find(a => a.full_name.toLowerCase().includes(bucket.name.toLowerCase()));
-              if (artist) {
-                await createArtistCredentials({
-                  artist_id: artist.id,
-                  bucket_name: bucket.credentials.bucketName,
-                  access_key: bucket.credentials.accessKey,
-                  secret_key: bucket.credentials.secretKey,
-                  endpoint_url: bucket.credentials.endpoint,
-                  region: bucket.credentials.region || 'us-east-1',
-                });
-              } else {
-                errors.push(`Artist not found for bucket: ${bucket.name}`);
-                failed++;
-                continue;
-              }
-            }
-            succeeded++;
-          } catch (error) {
-            failed++;
-            errors.push(`Failed to import ${bucket.name}: ${error}`);
-          }
-        }
-      } else if (data.bucketName || data.bucket_name) {
-        // Single bucket file
-        processed = 1;
-        try {
-          if (data.accessKey || data.access_key) {
-            // Determine if it's shared or individual based on file content
-            const bucketName = data.bucketName || data.bucket_name;
-            const accessKey = data.accessKey || data.access_key;
-            const secretKey = data.secretKey || data.secret_key;
-            const endpoint = data.endpoint || data.endpoint_url || 'https://s3.idrivee2.com';
-            
-            // Try to create as shared first (admin can decide)
-            await createSharedCredentials({
-              name: `Imported: ${bucketName}`,
-              bucket_name: bucketName,
-              access_key: accessKey,
-              secret_key: secretKey,
-              endpoint_url: endpoint,
-              region: data.region || 'us-east-1',
-              is_active: true,
-            });
-            succeeded = 1;
-          } else {
-            throw new Error('Missing required credentials in file');
-          }
-        } catch (error) {
-          failed = 1;
-          errors.push(`Failed to import credentials: ${error}`);
-        }
-      } else {
-        throw new Error('Invalid credentials file format');
-      }
-
-      setUploadResults({ processed, succeeded, failed, errors });
-      
-      if (succeeded > 0) {
-        toast.success(`Successfully imported ${succeeded} of ${processed} credentials`);
-        loadData();
-      } else {
-        toast.error('Failed to import any credentials');
-      }
-
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to parse credentials file');
-      setUploadResults({
-        processed: 0,
-        succeeded: 0,
-        failed: 1,
-        errors: [`File parsing error: ${error}`]
-      });
-    } finally {
-      setLoading(false);
-      // Reset file input
-      event.target.value = '';
-    }
-  };
-
-  const createSharedCredentials = async (credentials: any) => {
-    const { error } = await supabase
-      .from('shared_storage_credentials' as any)
-      .insert(credentials);
-    if (error) throw error;
-  };
-
-  const createArtistCredentials = async (credentials: any) => {
-    const { error } = await supabase
-      .from('artist_storage_credentials')
-      .insert(credentials);
-    if (error) throw error;
-  };
-
   if (!isAdmin) {
     return (
       <Card>
@@ -504,103 +367,75 @@ export function StorageCredentialsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Upload Credentials Section */}
+      {/* Admin Storage Credentials */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import Storage Credentials
+            <Key className="h-5 w-5" />
+            Admin Storage Credentials
+            <Button
+              onClick={() => openSharedDialog()}
+              size="sm"
+              className="ml-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Admin Credentials
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label htmlFor="credentials-upload" className="text-sm font-medium">
-                  Upload Credentials File
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Upload JSON files downloaded from this system or compatible credential files
-                </p>
-                <Input
-                  id="credentials-upload"
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  disabled={loading}
-                />
-              </div>
-              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    View Results
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Upload Results</DialogTitle>
-                  </DialogHeader>
-                  {uploadResults && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">{uploadResults.processed}</div>
-                          <div className="text-sm text-muted-foreground">Processed</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">{uploadResults.succeeded}</div>
-                          <div className="text-sm text-muted-foreground">Succeeded</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-red-600">{uploadResults.failed}</div>
-                          <div className="text-sm text-muted-foreground">Failed</div>
-                        </div>
+          {sharedCredentials.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">
+              No admin storage credentials configured
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Bucket</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sharedCredentials.map((creds) => (
+                  <TableRow key={creds.id}>
+                    <TableCell className="font-medium">{creds.name}</TableCell>
+                    <TableCell>{creds.bucket_name}</TableCell>
+                    <TableCell>
+                      <Badge variant={creds.is_active ? 'default' : 'secondary'}>
+                        {creds.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(creds.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openSharedDialog(creds)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSharedCredentials(creds.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      {uploadResults.errors.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Errors:</h4>
-                          <div className="space-y-1">
-                            {uploadResults.errors.map((error, index) => (
-                              <p key={index} className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                                {error}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!uploadResults && (
-                    <p className="text-muted-foreground">No upload results available</p>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </div>
-            
-            {uploadResults && (
-              <div className="bg-muted p-3 rounded-lg">
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="h-4 w-4" />
-                  <span>
-                    Last upload: {uploadResults.succeeded} succeeded, {uploadResults.failed} failed
-                  </span>
-                  {uploadResults.failed > 0 && (
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      onClick={() => setUploadDialogOpen(true)}
-                      className="p-0 h-auto"
-                    >
-                      View details
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
       {/* Shared Storage Management */}
       <Card>
         <CardHeader>
