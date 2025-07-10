@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Cloud,
   Users,
-  User
+  User,
+  Settings
 } from 'lucide-react';
 import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
 import { useAuth } from '@/hooks/use-auth';
@@ -51,7 +52,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
   const filteredBuckets = mode === 'shared' 
     ? availableBuckets.filter(bucket => bucket.type === 'shared')
     : isAdmin 
-      ? availableBuckets // Admin sees all buckets in personal mode
+      ? availableBuckets.filter(bucket => bucket.type === 'individual' || bucket.type === 'admin') // Admin sees individual and admin buckets in personal mode
       : availableBuckets.filter(bucket => bucket.type === 'individual'); // Artists see only their bucket
 
   useEffect(() => {
@@ -160,12 +161,26 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const getBucketIcon = (type: 'individual' | 'shared') => {
-    return type === 'shared' ? <Users className="h-4 w-4" /> : <User className="h-4 w-4" />;
+  const getBucketIcon = (type: 'individual' | 'shared' | 'admin') => {
+    switch (type) {
+      case 'shared':
+        return <Users className="h-4 w-4" />;
+      case 'admin':
+        return <Settings className="h-4 w-4" />;
+      default:
+        return <User className="h-4 w-4" />;
+    }
   };
 
-  const getBucketVariant = (type: 'individual' | 'shared') => {
-    return type === 'shared' ? 'default' : 'secondary';
+  const getBucketVariant = (type: 'individual' | 'shared' | 'admin') => {
+    switch (type) {
+      case 'shared':
+        return 'default' as const;
+      case 'admin':
+        return 'destructive' as const;
+      default:
+        return 'secondary' as const;
+    }
   };
 
   if (availableBuckets.length === 0) {

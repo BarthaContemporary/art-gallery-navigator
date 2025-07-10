@@ -55,6 +55,33 @@ export function useStorageInitialization() {
         console.error('Shared storage credentials not available:', error);
       }
 
+      // If admin, get admin storage credentials
+      if (isAdmin) {
+        const { data: adminCreds, error: adminError } = await supabase
+          .from('admin_storage_credentials')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+
+        if (!adminError && adminCreds) {
+          adminCreds.forEach(cred => {
+            // Avoid duplicates by checking bucket name
+            if (!buckets.find(b => b.credentials.bucket_name === cred.bucket_name)) {
+              buckets.push({
+                name: cred.name,
+                type: 'admin',
+                credentials: {
+                  bucket_name: cred.bucket_name,
+                  access_key: cred.access_key,
+                  secret_key: cred.secret_key,
+                  endpoint_url: cred.endpoint_url,
+                },
+              });
+            }
+          });
+        }
+      }
+
       // Get individual artist bucket if user is an artist
       const { data: artist } = await supabase
         .from('artists')

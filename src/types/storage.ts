@@ -15,6 +15,6 @@ export interface StorageCredentials {
 
 export interface BucketInfo {
   name: string;
-  type: 'individual' | 'shared';
+  type: 'individual' | 'shared' | 'admin';
   credentials: StorageCredentials;
 }
