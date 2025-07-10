@@ -20,7 +20,6 @@ import {
 import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
-import { StorageCredentialDownload } from './ArtistCredentialDownload';
 
 interface EnhancedIDriveFileManagerProps {
   mode?: 'shared' | 'personal';
@@ -100,9 +99,6 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
   // - In personal mode AND admin with multiple buckets, OR
   // - In shared mode (shouldn't happen, but as fallback)
   const showBucketSelector = mode === 'personal' && isAdmin && filteredBuckets.length > 1;
-  
-  // Show credential download for artists in personal mode or admins
-  const showCredentialDownload = mode === 'personal';
 
   const handleFolderClick = async (folderKey: string) => {
     setCurrentPath(folderKey);
@@ -191,10 +187,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
   }
 
   return (
-    <div className="space-y-4">
-      {/* Credential Download for Artists */}
-      {showCredentialDownload && <StorageCredentialDownload currentBucket={currentBucket} />}
-      
+    <div className="space-y-4">      
       {/* Bucket Selector - Only show for admins in personal mode with multiple buckets */}
       {showBucketSelector && (
         <Card>

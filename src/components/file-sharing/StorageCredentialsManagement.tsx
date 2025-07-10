@@ -14,11 +14,14 @@ import {
   Cloud,
   Users,
   Key,
-  AlertCircle
+  AlertCircle,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
+import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
 
 interface AdminStorageCredentials {
   id: string;
@@ -75,6 +78,7 @@ export function StorageCredentialsManagement() {
   const [selectedSharedCredentials, setSelectedSharedCredentials] = useState<SharedStorageCredentials | null>(null);
   const [loading, setLoading] = useState(false);
   const { isAdmin } = useAuth();
+  const { availableBuckets } = useEnhancedIDriveStorage();
 
   const [adminFormData, setAdminFormData] = useState({
     name: '',
@@ -441,6 +445,57 @@ export function StorageCredentialsManagement() {
     setSelectedSharedCredentials(null);
   };
 
+  // Download functionality
+  const handleDownloadAllCredentials = () => {
+    if (!isAdmin || availableBuckets.length === 0) {
+      toast.error('No buckets available for download');
+      return;
+    }
+
+    const allCredentials = {
+      description: "Complete cloud storage credentials for all accessible buckets",
+      buckets: availableBuckets.map(bucket => ({
+        name: bucket.name,
+        type: bucket.type,
+        credentials: {
+          endpoint: bucket.credentials.endpoint_url,
+          accessKey: bucket.credentials.access_key,
+          secretKey: bucket.credentials.secret_key,
+          bucketName: bucket.credentials.bucket_name,
+          region: 'us-east-1'
+        }
+      })),
+      setup_instructions: {
+        cloud_mounter_app: "https://apps.apple.com/gb/app/cloudmounter-cloud-manager/id1130254674?mt=12",
+        instructions: [
+          "1. Download and install CloudMounter from the App Store link above",
+          "2. You can set up multiple connections for each bucket:",
+          "3. For each bucket, create a new connection:",
+          "   - Open CloudMounter and click 'Add Connection'",
+          "   - Select 'Amazon S3' as the connection type",
+          "   - Use the credentials for each specific bucket from this file",
+          "4. Each bucket will appear as a separate mounted drive"
+        ]
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(allCredentials, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all-storage-credentials-admin-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('All credentials downloaded successfully');
+  };
+
+  const openCloudMounter = () => {
+    window.open('https://apps.apple.com/gb/app/cloudmounter-cloud-manager/id1130254674?mt=12', '_blank');
+  };
+
   const openEditDialog = (credentials?: ArtistStorageCredentials) => {
     if (credentials) {
       setSelectedCredentials(credentials);
@@ -509,6 +564,44 @@ export function StorageCredentialsManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Download Storage Credentials Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Download Storage Credentials
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Download cloud storage credentials to access files using desktop applications like CloudMounter.
+          </p>
+          
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button 
+                onClick={handleDownloadAllCredentials} 
+                className="flex items-center gap-2"
+                disabled={availableBuckets.length === 0}
+              >
+                <Download className="h-4 w-4" />
+                Download All Bucket Credentials
+              </Button>
+              
+              <Button variant="outline" onClick={openCloudMounter} className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Get CloudMounter for Mac
+              </Button>
+            </div>
+          </div>
+          
+          <div className="text-xs text-muted-foreground">
+            <p className="font-medium mb-1">CloudMounter Setup:</p>
+            <p>Use the downloaded credentials file to configure CloudMounter and mount your cloud storage as a local drive.</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Admin Storage Credentials */}
       <Card>
         <CardHeader>
