@@ -60,17 +60,19 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       try {
         const buckets = await initializeStorage();
         
-        // Auto-select bucket based on mode
-        if (mode === 'shared') {
-          const sharedBucket = buckets.find(b => b.type === 'shared');
-          if (sharedBucket && sharedBucket !== currentBucket) {
-            switchBucket(sharedBucket);
-          }
-        } else if (!isAdmin) {
-          // Artists automatically get their individual bucket
-          const individualBucket = buckets.find(b => b.type === 'individual');
-          if (individualBucket && individualBucket !== currentBucket) {
-            switchBucket(individualBucket);
+        // Auto-select bucket based on mode - only if no bucket is currently selected
+        if (!currentBucket) {
+          if (mode === 'shared') {
+            const sharedBucket = buckets.find(b => b.type === 'shared');
+            if (sharedBucket) {
+              switchBucket(sharedBucket);
+            }
+          } else if (!isAdmin) {
+            // Artists automatically get their individual bucket
+            const individualBucket = buckets.find(b => b.type === 'individual');
+            if (individualBucket) {
+              switchBucket(individualBucket);
+            }
           }
         }
       } catch (error) {
@@ -78,7 +80,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       }
     };
     init();
-  }, [initializeStorage, mode, isAdmin, switchBucket, currentBucket]);
+  }, [initializeStorage, mode, isAdmin, switchBucket]); // Removed currentBucket from dependencies
 
   useEffect(() => {
     if (currentBucket) {
