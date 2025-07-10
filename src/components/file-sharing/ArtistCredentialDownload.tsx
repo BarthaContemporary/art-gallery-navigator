@@ -29,6 +29,57 @@ export function StorageCredentialDownload({ currentBucket }: StorageCredentialDo
       return;
     }
 
+    downloadSingleBucketCredentials(targetBucket);
+  };
+
+  const handleDownloadAllCredentials = () => {
+    if (!isAdmin || availableBuckets.length === 0) {
+      toast.error('No buckets available for download');
+      return;
+    }
+
+    const allCredentials = {
+      description: "Complete cloud storage credentials for all accessible buckets",
+      buckets: availableBuckets.map(bucket => ({
+        name: bucket.name,
+        type: bucket.type,
+        credentials: {
+          endpoint: bucket.credentials.endpoint_url,
+          accessKey: bucket.credentials.access_key,
+          secretKey: bucket.credentials.secret_key,
+          bucketName: bucket.credentials.bucket_name,
+          region: 'us-east-1'
+        }
+      })),
+      setup_instructions: {
+        cloud_mounter_app: "https://apps.apple.com/gb/app/cloudmounter-cloud-manager/id1130254674?mt=12",
+        instructions: [
+          "1. Download and install CloudMounter from the App Store link above",
+          "2. You can set up multiple connections for each bucket:",
+          "3. For each bucket, create a new connection:",
+          "   - Open CloudMounter and click 'Add Connection'",
+          "   - Select 'Amazon S3' as the connection type",
+          "   - Use the credentials for each specific bucket from this file",
+          "4. Each bucket will appear as a separate mounted drive"
+        ]
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(allCredentials, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all-storage-credentials-admin-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('All credentials downloaded successfully');
+  };
+
+  const downloadSingleBucketCredentials = (targetBucket: any) => {
+
     const credentials = {
       endpoint: targetBucket.credentials.endpoint_url,
       accessKey: targetBucket.credentials.access_key,
@@ -88,16 +139,32 @@ export function StorageCredentialDownload({ currentBucket }: StorageCredentialDo
           }
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={handleDownloadCredentials} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download Credentials
-          </Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleDownloadCredentials} className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              {isAdmin && currentBucket 
+                ? `Download ${currentBucket.name} Credentials`
+                : "Download Credentials"
+              }
+            </Button>
+            
+            <Button variant="outline" onClick={openCloudMounter} className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4" />
+              Get CloudMounter for Mac
+            </Button>
+          </div>
           
-          <Button variant="outline" onClick={openCloudMounter} className="flex items-center gap-2">
-            <ExternalLink className="h-4 w-4" />
-            Get CloudMounter for Mac
-          </Button>
+          {isAdmin && availableBuckets.length > 1 && (
+            <Button 
+              onClick={handleDownloadAllCredentials} 
+              variant="secondary" 
+              className="flex items-center gap-2 w-full sm:w-auto"
+            >
+              <Download className="h-4 w-4" />
+              Download All Bucket Credentials
+            </Button>
+          )}
         </div>
         
         <div className="text-xs text-muted-foreground">
