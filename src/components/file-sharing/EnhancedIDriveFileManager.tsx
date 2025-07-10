@@ -21,6 +21,7 @@ import {
 import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import type { StorageItem } from '@/types/storage';
 
 interface EnhancedIDriveFileManagerProps {
   mode?: 'shared' | 'personal';
@@ -55,6 +56,18 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       ? availableBuckets.filter(bucket => bucket.type === 'individual' || bucket.type === 'admin') // Admin sees individual and admin buckets in personal mode
       : availableBuckets.filter(bucket => bucket.type === 'individual'); // Artists see only their bucket
 
+  // For admin users in "My Storage", create virtual folders for each bucket
+  const adminBucketFolders = isAdmin && mode === 'personal' 
+    ? filteredBuckets.map(bucket => ({
+        name: bucket.name,
+        key: `bucket:${bucket.credentials.bucket_name}`,
+        isFolder: true,
+        bucket: bucket,
+        size: 0,
+        lastModified: '',
+      }))
+    : [];
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -67,6 +80,9 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
             if (sharedBucket) {
               switchBucket(sharedBucket);
             }
+          } else if (mode === 'personal' && isAdmin) {
+            // For admin in personal mode, don't auto-select a bucket, show bucket folders instead
+            switchBucket(null);
           } else if (!isAdmin) {
             // Artists automatically get their individual bucket
             const individualBucket = buckets.find(b => b.type === 'individual');
@@ -80,13 +96,16 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       }
     };
     init();
-  }, [initializeStorage, mode, isAdmin, switchBucket]); // Removed currentBucket from dependencies
+  }, [initializeStorage, mode, isAdmin, switchBucket]);
 
   useEffect(() => {
     if (currentBucket) {
       listFiles(currentPath);
+    } else if (isAdmin && mode === 'personal') {
+      // For admin in personal mode without a bucket, show bucket folders
+      // This will be handled in the render section
     }
-  }, [currentBucket, listFiles, currentPath]);
+  }, [currentBucket, listFiles, currentPath, isAdmin, mode]);
 
   const handleBucketChange = (bucketName: string) => {
     const bucket = filteredBuckets.find(b => b.credentials.bucket_name === bucketName);
@@ -96,20 +115,36 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
     }
   };
 
-  // Show bucket selector only if:
-  // - In personal mode AND admin with multiple buckets, OR
-  // - In shared mode (shouldn't happen, but as fallback)
-  const showBucketSelector = mode === 'personal' && isAdmin && filteredBuckets.length > 1;
+  // Show bucket selector only for non-admin users or shared mode
+  const showBucketSelector = (mode === 'shared') || (mode === 'personal' && !isAdmin && filteredBuckets.length > 1);
 
-  const handleFolderClick = async (folderKey: string) => {
-    setCurrentPath(folderKey);
-    await listFiles(folderKey);
+  const handleFolderClick = async (item: StorageItem) => {
+    if (item.key.startsWith('bucket:')) {
+      // Handle bucket folder click for admin users
+      const bucketName = item.key.replace('bucket:', '');
+      const bucket = availableBuckets.find(b => b.credentials.bucket_name === bucketName);
+      if (bucket) {
+        switchBucket(bucket);
+        setCurrentPath('');
+        await listFiles('');
+      }
+    } else {
+      // Handle regular folder navigation
+      setCurrentPath(item.key);
+      await listFiles(item.key);
+    }
   };
 
   const handleBackClick = async () => {
-    const parentPath = currentPath.split('/').slice(0, -1).join('/');
-    setCurrentPath(parentPath);
-    await listFiles(parentPath);
+    if (currentPath) {
+      const parentPath = currentPath.split('/').slice(0, -1).join('/');
+      setCurrentPath(parentPath);
+      await listFiles(parentPath);
+    } else if (currentBucket && isAdmin && mode === 'personal') {
+      // Go back to bucket folder view for admin users
+      switchBucket(null);
+      setCurrentPath('');
+    }
   };
 
   const handleFileUpload = async () => {
@@ -183,7 +218,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
     }
   };
 
-  if (availableBuckets.length === 0) {
+  if (availableBuckets.length === 0 || (mode === 'personal' && !isAdmin && !currentBucket)) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -317,7 +352,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
               </Dialog>
             </div>
           </div>
-          {currentPath && (
+          {(currentPath || (currentBucket && isAdmin && mode === 'personal')) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Button
                 variant="ghost"
@@ -327,12 +362,27 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <span>/{currentPath}</span>
+              <span>
+                {currentBucket ? (
+                  <>
+                    <Cloud className="inline h-4 w-4 mr-1" />
+                    {currentBucket.name}
+                    {currentPath && ` / ${currentPath}`}
+                  </>
+                ) : isAdmin && mode === 'personal' ? (
+                  <>
+                    <Folder className="inline h-4 w-4 mr-1" />
+                    My Storage
+                  </>
+                ) : (
+                  `/${currentPath}`
+                )}
+              </span>
             </div>
           )}
         </CardHeader>
         <CardContent>
-          {!currentBucket ? (
+          {!currentBucket && !(isAdmin && mode === 'personal') ? (
             <div className="text-center py-8">
               <Cloud className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">Please select a storage bucket to continue</p>
@@ -341,6 +391,35 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
             <div className="text-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p className="text-muted-foreground">Loading files...</p>
+            </div>
+          ) : (!currentBucket && isAdmin && mode === 'personal') ? (
+            // Show bucket folders for admin users
+            <div className="space-y-2">
+              {adminBucketFolders.map((item) => (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {getBucketIcon(item.bucket?.type || 'individual')}
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Storage bucket
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFolderClick(item)}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-8">
@@ -379,7 +458,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleFolderClick(item.key)}
+                        onClick={() => handleFolderClick(item)}
                       >
                         Open
                       </Button>

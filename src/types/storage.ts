@@ -4,6 +4,7 @@ export interface StorageItem {
   lastModified?: string;
   isFolder: boolean;
   key: string;
+  bucket?: BucketInfo; // For bucket folder items
 }
 
 export interface StorageCredentials {

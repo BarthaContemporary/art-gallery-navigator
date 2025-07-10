@@ -35,7 +35,7 @@ export function useEnhancedIDriveStorage() {
     }
   }, [initStorage]);
 
-  const switchBucket = useCallback((bucket: BucketInfo) => {
+  const switchBucket = useCallback((bucket: BucketInfo | null) => {
     setCurrentBucket(bucket);
     setItems([]);
   }, []);
