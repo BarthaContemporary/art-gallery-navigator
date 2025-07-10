@@ -5,23 +5,35 @@ import { useAuth } from '@/hooks/use-auth';
 import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
 import { toast } from 'sonner';
 
-export function ArtistCredentialDownload() {
-  const { user } = useAuth();
+interface StorageCredentialDownloadProps {
+  currentBucket?: any; // For admin users to download specific bucket credentials
+}
+
+export function StorageCredentialDownload({ currentBucket }: StorageCredentialDownloadProps) {
+  const { user, isAdmin } = useAuth();
   const { availableBuckets } = useEnhancedIDriveStorage();
 
   const handleDownloadCredentials = () => {
-    const artistBucket = availableBuckets.find(bucket => bucket.type === 'individual');
+    let targetBucket;
     
-    if (!artistBucket) {
-      toast.error('No personal storage credentials found');
+    if (isAdmin && currentBucket) {
+      // Admin downloading credentials for currently selected bucket
+      targetBucket = currentBucket;
+    } else {
+      // Artist downloading their individual bucket credentials
+      targetBucket = availableBuckets.find(bucket => bucket.type === 'individual');
+    }
+    
+    if (!targetBucket) {
+      toast.error('No storage credentials found');
       return;
     }
 
     const credentials = {
-      endpoint: artistBucket.credentials.endpoint_url,
-      accessKey: artistBucket.credentials.access_key,
-      secretKey: artistBucket.credentials.secret_key,
-      bucketName: artistBucket.credentials.bucket_name,
+      endpoint: targetBucket.credentials.endpoint_url,
+      accessKey: targetBucket.credentials.access_key,
+      secretKey: targetBucket.credentials.secret_key,
+      bucketName: targetBucket.credentials.bucket_name,
       region: 'us-east-1', // Default region for iDrive
       setup_instructions: {
         cloud_mounter_app: "https://apps.apple.com/gb/app/cloudmounter-cloud-manager/id1130254674?mt=12",
@@ -29,10 +41,10 @@ export function ArtistCredentialDownload() {
           "1. Download and install CloudMounter from the App Store link above",
           "2. Open CloudMounter and select 'Amazon S3' as the connection type",
           "3. Enter the following credentials:",
-          `   - Server: ${artistBucket.credentials.endpoint_url}`,
-          `   - Access Key: ${artistBucket.credentials.access_key}`,
-          `   - Secret Key: ${artistBucket.credentials.secret_key}`,
-          `   - Bucket: ${artistBucket.credentials.bucket_name}`,
+          `   - Server: ${targetBucket.credentials.endpoint_url}`,
+          `   - Access Key: ${targetBucket.credentials.access_key}`,
+          `   - Secret Key: ${targetBucket.credentials.secret_key}`,
+          `   - Bucket: ${targetBucket.credentials.bucket_name}`,
           `   - Region: us-east-1`,
           "4. Click 'Mount' to connect your storage",
           "5. Your cloud storage will appear as a local drive on your Mac"
@@ -40,11 +52,14 @@ export function ArtistCredentialDownload() {
       }
     };
 
+    const bucketType = isAdmin ? targetBucket.type : 'artist';
+    const fileName = `cloud-storage-credentials-${bucketType}-${targetBucket.credentials.bucket_name}.json`;
+
     const blob = new Blob([JSON.stringify(credentials, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cloud-storage-credentials-${user?.email || 'artist'}.json`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -67,7 +82,10 @@ export function ArtistCredentialDownload() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Download your cloud storage credentials to access your files using desktop applications like CloudMounter.
+          {isAdmin && currentBucket 
+            ? `Download credentials for the ${currentBucket.name} bucket to access files using desktop applications like CloudMounter.`
+            : "Download your cloud storage credentials to access your files using desktop applications like CloudMounter."
+          }
         </p>
         
         <div className="flex flex-col sm:flex-row gap-2">
