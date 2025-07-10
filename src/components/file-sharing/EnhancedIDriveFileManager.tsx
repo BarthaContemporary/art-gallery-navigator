@@ -115,8 +115,8 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
     }
   };
 
-  // Show bucket selector only for non-admin users or shared mode
-  const showBucketSelector = (mode === 'shared') || (mode === 'personal' && !isAdmin && filteredBuckets.length > 1);
+  // Show bucket selector only for non-admin users in personal mode with multiple buckets
+  const showBucketSelector = (mode === 'personal' && !isAdmin && filteredBuckets.length > 1);
 
   const handleFolderClick = async (item: StorageItem) => {
     if (item.key.startsWith('bucket:')) {
