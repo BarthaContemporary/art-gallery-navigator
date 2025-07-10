@@ -18,14 +18,22 @@ import {
   User
 } from 'lucide-react';
 import { useEnhancedIDriveStorage } from '@/hooks/use-enhanced-idrive-storage';
+import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { ArtistCredentialDownload } from './ArtistCredentialDownload';
 
-export function EnhancedIDriveFileManager() {
+interface EnhancedIDriveFileManagerProps {
+  mode?: 'shared' | 'personal';
+}
+
+export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveFileManagerProps) {
   const [currentPath, setCurrentPath] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  
+  const { isAdmin } = useAuth();
   
   const {
     loading,
@@ -40,16 +48,37 @@ export function EnhancedIDriveFileManager() {
     downloadFile,
   } = useEnhancedIDriveStorage();
 
+  // Filter buckets based on mode
+  const filteredBuckets = mode === 'shared' 
+    ? availableBuckets.filter(bucket => bucket.type === 'shared')
+    : isAdmin 
+      ? availableBuckets // Admin sees all buckets in personal mode
+      : availableBuckets.filter(bucket => bucket.type === 'individual'); // Artists see only their bucket
+
   useEffect(() => {
     const init = async () => {
       try {
-        await initializeStorage();
+        const buckets = await initializeStorage();
+        
+        // Auto-select bucket based on mode
+        if (mode === 'shared') {
+          const sharedBucket = buckets.find(b => b.type === 'shared');
+          if (sharedBucket && sharedBucket !== currentBucket) {
+            switchBucket(sharedBucket);
+          }
+        } else if (!isAdmin) {
+          // Artists automatically get their individual bucket
+          const individualBucket = buckets.find(b => b.type === 'individual');
+          if (individualBucket && individualBucket !== currentBucket) {
+            switchBucket(individualBucket);
+          }
+        }
       } catch (error) {
         console.error('Failed to initialize:', error);
       }
     };
     init();
-  }, [initializeStorage]);
+  }, [initializeStorage, mode, isAdmin, switchBucket, currentBucket]);
 
   useEffect(() => {
     if (currentBucket) {
@@ -58,12 +87,20 @@ export function EnhancedIDriveFileManager() {
   }, [currentBucket, listFiles, currentPath]);
 
   const handleBucketChange = (bucketName: string) => {
-    const bucket = availableBuckets.find(b => b.credentials.bucket_name === bucketName);
+    const bucket = filteredBuckets.find(b => b.credentials.bucket_name === bucketName);
     if (bucket) {
       switchBucket(bucket);
       setCurrentPath('');
     }
   };
+
+  // Show bucket selector only if:
+  // - In personal mode AND admin with multiple buckets, OR
+  // - In shared mode (shouldn't happen, but as fallback)
+  const showBucketSelector = mode === 'personal' && isAdmin && filteredBuckets.length > 1;
+  
+  // Show credential download for artists in personal mode
+  const showCredentialDownload = mode === 'personal' && !isAdmin;
 
   const handleFolderClick = async (folderKey: string) => {
     setCurrentPath(folderKey);
@@ -153,38 +190,43 @@ export function EnhancedIDriveFileManager() {
 
   return (
     <div className="space-y-4">
-      {/* Bucket Selector */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Cloud className="h-5 w-5" />
-              <span className="font-medium">Storage Bucket:</span>
+      {/* Credential Download for Artists */}
+      {showCredentialDownload && <ArtistCredentialDownload />}
+      
+      {/* Bucket Selector - Only show for admins in personal mode with multiple buckets */}
+      {showBucketSelector && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Cloud className="h-5 w-5" />
+                <span className="font-medium">Storage Bucket:</span>
+              </div>
+              <Select 
+                value={currentBucket?.credentials.bucket_name || ''} 
+                onValueChange={handleBucketChange}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select a storage bucket" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredBuckets.map((bucket) => (
+                    <SelectItem key={bucket.credentials.bucket_name} value={bucket.credentials.bucket_name}>
+                      <div className="flex items-center gap-2">
+                        {getBucketIcon(bucket.type)}
+                        <span>{bucket.name}</span>
+                        <Badge variant={getBucketVariant(bucket.type)} className="ml-2">
+                          {bucket.type}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select 
-              value={currentBucket?.credentials.bucket_name || ''} 
-              onValueChange={handleBucketChange}
-            >
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Select a storage bucket" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableBuckets.map((bucket) => (
-                  <SelectItem key={bucket.credentials.bucket_name} value={bucket.credentials.bucket_name}>
-                    <div className="flex items-center gap-2">
-                      {getBucketIcon(bucket.type)}
-                      <span>{bucket.name}</span>
-                      <Badge variant={getBucketVariant(bucket.type)} className="ml-2">
-                        {bucket.type}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* File Manager */}
       <Card>

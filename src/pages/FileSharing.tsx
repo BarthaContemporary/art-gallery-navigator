@@ -1,46 +1,52 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Key, Cloud } from "lucide-react";
+import { Key, Cloud, FolderOpen, Share } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/hooks/use-auth";
 import { EnhancedIDriveFileManager } from "@/components/file-sharing/EnhancedIDriveFileManager";
 import { StorageCredentialsManagement } from "@/components/file-sharing/StorageCredentialsManagement";
 
 export default function FileSharing() {
-  const [activeTab, setActiveTab] = useState("storage");
+  const [activeTab, setActiveTab] = useState("shared-documents");
   const { isAdmin } = useAuth();
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <PageHeader title="FILE MANAGEMENT" />
       
-      {isAdmin ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="storage" className="flex items-center gap-2">
-              <Cloud className="h-4 w-4" />
-              Cloud Storage
-            </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
+          <TabsTrigger value="shared-documents" className="flex items-center gap-2">
+            <Share className="h-4 w-4" />
+            Shared Documents
+          </TabsTrigger>
+          <TabsTrigger value="my-storage" className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4" />
+            My Storage
+          </TabsTrigger>
+          {isAdmin && (
             <TabsTrigger value="storage-management" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
               Storage Management
             </TabsTrigger>
-          </TabsList>
+          )}
+        </TabsList>
 
-          <TabsContent value="storage" className="space-y-4">
-            <EnhancedIDriveFileManager />
-          </TabsContent>
+        <TabsContent value="shared-documents" className="space-y-4">
+          <EnhancedIDriveFileManager mode="shared" />
+        </TabsContent>
 
+        <TabsContent value="my-storage" className="space-y-4">
+          <EnhancedIDriveFileManager mode="personal" />
+        </TabsContent>
+
+        {isAdmin && (
           <TabsContent value="storage-management" className="space-y-4">
             <StorageCredentialsManagement />
           </TabsContent>
-        </Tabs>
-      ) : (
-        <div className="space-y-4">
-          <EnhancedIDriveFileManager />
-        </div>
-      )}
+        )}
+      </Tabs>
     </div>
   );
 }
