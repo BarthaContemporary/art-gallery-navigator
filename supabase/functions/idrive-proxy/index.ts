@@ -34,7 +34,26 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
       }
     }
 
-    // Then try artist storage credentials
+    // Then try admin storage credentials
+    const { data: adminCredsArray } = await supabase
+      .from('admin_storage_credentials')
+      .select('*')
+      .eq('bucket_name', bucketName)
+      .eq('is_active', true)
+      .limit(1)
+
+    const adminCreds = adminCredsArray?.[0] || null
+
+    if (adminCreds) {
+      return {
+        access_key: adminCreds.access_key,
+        secret_key: adminCreds.secret_key,
+        endpoint_url: adminCreds.endpoint_url,
+        bucket_name: adminCreds.bucket_name,
+      }
+    }
+
+    // Finally try artist storage credentials
     const { data: artistCredsArray } = await supabase
       .from('artist_storage_credentials')
       .select('*')
