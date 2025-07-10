@@ -272,14 +272,23 @@ export function StorageCredentialsManagement() {
   };
 
   const handleDeleteSharedCredentials = async (id: string) => {
-    if (!confirm('Are you sure you want to delete these shared credentials?')) return;
+    console.log('Delete shared credentials called with id:', id);
+    
+    if (!confirm('Are you sure you want to delete these shared credentials?')) {
+      console.log('Delete cancelled by user');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('Attempting to delete shared credentials with id:', id);
+      
       const { error } = await supabase
         .from('shared_storage_credentials' as any)
         .delete()
         .eq('id', id);
+
+      console.log('Delete operation result:', { error });
 
       if (error) throw error;
       toast.success('Shared credentials deleted successfully');
