@@ -20,6 +20,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
 
+interface AdminStorageCredentials {
+  id: string;
+  user_id: string;
+  name: string;
+  bucket_name: string;
+  access_key: string;
+  secret_key: string;
+  endpoint_url: string;
+  region: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ArtistStorageCredentials {
   id: string;
   artist_id: string;
@@ -49,15 +63,28 @@ interface SharedStorageCredentials {
 }
 
 export function StorageCredentialsManagement() {
+  const [adminCredentials, setAdminCredentials] = useState<AdminStorageCredentials[]>([]);
   const [artistCredentials, setArtistCredentials] = useState<ArtistStorageCredentials[]>([]);
   const [sharedCredentials, setSharedCredentials] = useState<SharedStorageCredentials[]>([]);
   const [artists, setArtists] = useState<Array<{ id: string; full_name: string; }>>([]);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [sharedDialogOpen, setSharedDialogOpen] = useState(false);
+  const [selectedAdminCredentials, setSelectedAdminCredentials] = useState<AdminStorageCredentials | null>(null);
   const [selectedCredentials, setSelectedCredentials] = useState<ArtistStorageCredentials | null>(null);
   const [selectedSharedCredentials, setSelectedSharedCredentials] = useState<SharedStorageCredentials | null>(null);
   const [loading, setLoading] = useState(false);
   const { isAdmin } = useAuth();
+
+  const [adminFormData, setAdminFormData] = useState({
+    name: '',
+    bucket_name: '',
+    access_key: '',
+    secret_key: '',
+    endpoint_url: 'https://s3.idrivee2.com',
+    region: 'us-east-1',
+    is_active: true,
+  });
 
   const [formData, setFormData] = useState({
     artist_id: '',
@@ -87,6 +114,15 @@ export function StorageCredentialsManagement() {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Load admin credentials
+      const { data: adminCreds, error: adminError } = await supabase
+        .from('admin_storage_credentials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (adminError) throw adminError;
+      setAdminCredentials(adminCreds || []);
 
       // Load artist credentials
       const { data: artistCreds, error: artistError } = await supabase
@@ -190,6 +226,60 @@ export function StorageCredentialsManagement() {
     }
   };
 
+  const handleSaveAdminCredentials = async () => {
+    try {
+      setLoading(true);
+
+      if (selectedAdminCredentials) {
+        // Update existing
+        const { error } = await supabase
+          .from('admin_storage_credentials')
+          .update({
+            name: adminFormData.name,
+            bucket_name: adminFormData.bucket_name,
+            access_key: adminFormData.access_key,
+            secret_key: adminFormData.secret_key,
+            endpoint_url: adminFormData.endpoint_url,
+            region: adminFormData.region,
+            is_active: adminFormData.is_active,
+          })
+          .eq('id', selectedAdminCredentials.id);
+
+        if (error) throw error;
+        toast.success('Admin credentials updated successfully');
+      } else {
+        // Create new
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const { error } = await supabase
+          .from('admin_storage_credentials')
+          .insert({
+            user_id: user.id,
+            name: adminFormData.name,
+            bucket_name: adminFormData.bucket_name,
+            access_key: adminFormData.access_key,
+            secret_key: adminFormData.secret_key,
+            endpoint_url: adminFormData.endpoint_url,
+            region: adminFormData.region,
+            is_active: adminFormData.is_active,
+          });
+
+        if (error) throw error;
+        toast.success('Admin credentials created successfully');
+      }
+
+      setAdminDialogOpen(false);
+      resetAdminForm();
+      loadData();
+    } catch (error) {
+      console.error('Failed to save admin credentials:', error);
+      toast.error('Failed to save admin credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveSharedCredentials = async () => {
     try {
       setLoading(true);
@@ -262,6 +352,27 @@ export function StorageCredentialsManagement() {
     }
   };
 
+  const handleDeleteAdminCredentials = async (id: string) => {
+    if (!confirm('Are you sure you want to delete these admin credentials?')) return;
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('admin_storage_credentials')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Admin credentials deleted successfully');
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete admin credentials:', error);
+      toast.error('Failed to delete admin credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteSharedCredentials = async (id: string) => {
     console.log('Delete shared credentials called with id:', id);
     
@@ -304,6 +415,19 @@ export function StorageCredentialsManagement() {
     setSelectedCredentials(null);
   };
 
+  const resetAdminForm = () => {
+    setAdminFormData({
+      name: '',
+      bucket_name: '',
+      access_key: '',
+      secret_key: '',
+      endpoint_url: 'https://s3.idrivee2.com',
+      region: 'us-east-1',
+      is_active: true,
+    });
+    setSelectedAdminCredentials(null);
+  };
+
   const resetSharedForm = () => {
     setSharedFormData({
       name: 'Gallery Shared Storage',
@@ -332,6 +456,24 @@ export function StorageCredentialsManagement() {
       resetForm();
     }
     setEditDialogOpen(true);
+  };
+
+  const openAdminDialog = (credentials?: AdminStorageCredentials) => {
+    if (credentials) {
+      setSelectedAdminCredentials(credentials);
+      setAdminFormData({
+        name: credentials.name,
+        bucket_name: credentials.bucket_name,
+        access_key: credentials.access_key,
+        secret_key: credentials.secret_key,
+        endpoint_url: credentials.endpoint_url,
+        region: credentials.region,
+        is_active: credentials.is_active,
+      });
+    } else {
+      resetAdminForm();
+    }
+    setAdminDialogOpen(true);
   };
 
   const openSharedDialog = (credentials?: SharedStorageCredentials) => {
@@ -374,7 +516,7 @@ export function StorageCredentialsManagement() {
             <Key className="h-5 w-5" />
             Admin Storage Credentials
             <Button
-              onClick={() => openSharedDialog()}
+              onClick={() => openAdminDialog()}
               size="sm"
               className="ml-auto"
             >
@@ -384,7 +526,7 @@ export function StorageCredentialsManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {sharedCredentials.length === 0 ? (
+          {adminCredentials.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">
               No admin storage credentials configured
             </p>
@@ -400,7 +542,7 @@ export function StorageCredentialsManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sharedCredentials.map((creds) => (
+                {adminCredentials.map((creds) => (
                   <TableRow key={creds.id}>
                     <TableCell className="font-medium">{creds.name}</TableCell>
                     <TableCell>{creds.bucket_name}</TableCell>
@@ -415,14 +557,14 @@ export function StorageCredentialsManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openSharedDialog(creds)}
+                          onClick={() => openAdminDialog(creds)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteSharedCredentials(creds.id)}
+                          onClick={() => handleDeleteAdminCredentials(creds.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -435,6 +577,73 @@ export function StorageCredentialsManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Admin Dialog */}
+      <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedAdminCredentials ? 'Edit' : 'Add'} Admin Storage Credentials
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="admin-name">Display Name</Label>
+              <Input
+                id="admin-name"
+                value={adminFormData.name}
+                onChange={(e) => setAdminFormData({...adminFormData, name: e.target.value})}
+                placeholder="My Admin Storage"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-bucket">Bucket Name</Label>
+              <Input
+                id="admin-bucket"
+                value={adminFormData.bucket_name}
+                onChange={(e) => setAdminFormData({...adminFormData, bucket_name: e.target.value})}
+                placeholder="my-admin-bucket"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-access-key">Access Key</Label>
+              <Input
+                id="admin-access-key"
+                value={adminFormData.access_key}
+                onChange={(e) => setAdminFormData({...adminFormData, access_key: e.target.value})}
+                placeholder="Access Key"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-secret-key">Secret Key</Label>
+              <Input
+                id="admin-secret-key"
+                type="password"
+                value={adminFormData.secret_key}
+                onChange={(e) => setAdminFormData({...adminFormData, secret_key: e.target.value})}
+                placeholder="Secret Key"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-endpoint">Endpoint URL</Label>
+              <Input
+                id="admin-endpoint"
+                value={adminFormData.endpoint_url}
+                onChange={(e) => setAdminFormData({...adminFormData, endpoint_url: e.target.value})}
+                placeholder="https://s3.idrivee2.com"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAdminDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveAdminCredentials} disabled={loading}>
+                {selectedAdminCredentials ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Shared Storage Management */}
       <Card>

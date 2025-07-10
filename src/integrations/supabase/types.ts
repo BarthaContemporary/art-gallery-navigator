@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_storage_credentials: {
+        Row: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_key: string
+          bucket_name: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          region?: string
+          secret_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_key?: string
+          bucket_name?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          region?: string
+          secret_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointment_slots: {
         Row: {
           appointment_type_id: string | null
