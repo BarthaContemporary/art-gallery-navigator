@@ -433,49 +433,53 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
           ) : (
             <div className="space-y-2">
               {items.map((item) => (
-                <div
-                  key={item.key}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {item.isFolder ? (
-                      <Folder className="h-5 w-5 text-blue-500" />
-                    ) : (
-                      <File className="h-5 w-5 text-gray-500" />
-                    )}
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      {!item.isFolder && (
-                        <p className="text-sm text-muted-foreground">
-                          {formatFileSize(item.size)}
-                          {item.lastModified && (
-                            <span className="ml-2">
-                              {new Date(item.lastModified).toLocaleDateString()}
-                            </span>
-                          )}
-                        </p>
-                      )}
+                <div key={item.key}>
+                  {item.isFolder ? (
+                    <button
+                      onClick={() => handleFolderClick(item)}
+                      className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Folder className="h-5 w-5 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                        <div>
+                          <p className="font-medium group-hover:text-primary transition-colors">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Folder • Click to open
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center text-muted-foreground group-hover:text-primary transition-colors">
+                        <span className="text-sm mr-1">Open</span>
+                        <ArrowLeft className="h-4 w-4 rotate-180" />
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <File className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatFileSize(item.size)}
+                            {item.lastModified && (
+                              <span className="ml-2">
+                                {new Date(item.lastModified).toLocaleDateString()}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(item.key)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.isFolder ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleFolderClick(item)}
-                      >
-                        Open
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(item.key)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
