@@ -130,15 +130,17 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
         await listFiles('', bucket);
       }
     } else {
-      // Handle regular folder navigation
-      setCurrentPath(item.key);
-      await listFiles(item.key);
+      // Handle regular folder navigation - remove trailing slash for display but keep for API
+      const folderPath = item.key.endsWith('/') ? item.key.slice(0, -1) : item.key;
+      setCurrentPath(folderPath);
+      await listFiles(folderPath);
     }
   };
 
   const handleBackClick = async () => {
     if (currentPath) {
-      const parentPath = currentPath.split('/').slice(0, -1).join('/');
+      const pathParts = currentPath.split('/');
+      const parentPath = pathParts.slice(0, -1).join('/');
       setCurrentPath(parentPath);
       await listFiles(parentPath);
     } else if (currentBucket && isAdmin && mode === 'personal') {

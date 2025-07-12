@@ -18,8 +18,9 @@ export function useStorageOperations() {
       throw new Error('Not authenticated');
     }
 
-    // Call proxy function with bucket context
-    const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${prefix}?bucket=${bucket.credentials.bucket_name}`;
+    // Call proxy function with bucket context - format prefix correctly for folders
+    const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
+    const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${bucket.credentials.bucket_name}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
     console.log('Fetching from URL:', url);
 
     const response = await fetch(url, {

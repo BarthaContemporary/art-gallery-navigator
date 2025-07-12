@@ -233,13 +233,12 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const pathParts = url.pathname.split('/functions/v1/idrive-proxy/')
-    const path = pathParts[1] || ''
     const bucketName = url.searchParams.get('bucket')
+    const prefix = url.searchParams.get('prefix') || ''
 
     console.log('Request details:', { 
       method: req.method, 
-      path, 
+      prefix, 
       bucketName, 
       fullUrl: req.url 
     })
@@ -272,17 +271,18 @@ serve(async (req) => {
       endpoint: credentials.endpoint_url 
     })
 
-    // Build the target URL - for listing bucket contents, use empty path
+    // Build the target URL for S3 API
     let targetUrl = `${credentials.endpoint_url}/${bucketName}`
     
     // Add query parameters for proper S3 directory listing
     const queryParams = new URLSearchParams()
     
-    if (path) {
-      queryParams.set('prefix', path)
+    if (prefix) {
+      queryParams.set('prefix', prefix)
+      console.log('Using prefix:', prefix)
     }
     
-    // Add delimiter to get folder structure
+    // Add delimiter to get folder structure (essential for folder separation)
     queryParams.set('delimiter', '/')
     
     if (queryParams.toString()) {
