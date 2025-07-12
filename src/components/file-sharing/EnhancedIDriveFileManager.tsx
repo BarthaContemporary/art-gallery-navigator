@@ -396,29 +396,30 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
             // Show bucket folders for admin users
             <div className="space-y-2">
               {adminBucketFolders.map((item) => (
-                <div
+                <button
                   key={item.key}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  onClick={() => handleFolderClick(item)}
+                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group text-left"
                 >
                   <div className="flex items-center gap-3">
                     {getBucketIcon(item.bucket?.type || 'individual')}
                     <div>
-                      <p className="font-medium">{item.name}</p>
+                      <p className="font-medium group-hover:text-primary transition-colors">{item.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        Storage bucket
+                        Storage bucket • Click to open
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleFolderClick(item)}
-                    >
-                      Open
-                    </Button>
+                    <Badge variant={getBucketVariant(item.bucket?.type || 'individual')}>
+                      {item.bucket?.type || 'individual'}
+                    </Badge>
+                    <div className="flex items-center text-muted-foreground group-hover:text-primary transition-colors">
+                      <span className="text-sm mr-1">Open</span>
+                      <ArrowLeft className="h-4 w-4 rotate-180" />
+                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : items.length === 0 ? (
