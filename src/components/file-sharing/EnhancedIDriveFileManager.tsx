@@ -126,7 +126,8 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       if (bucket) {
         switchBucket(bucket);
         setCurrentPath('');
-        await listFiles('');
+        // Pass the bucket explicitly to avoid state timing issues
+        await listFiles('', bucket);
       }
     } else {
       // Handle regular folder navigation
