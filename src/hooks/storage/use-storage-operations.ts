@@ -38,25 +38,54 @@ export function useStorageOperations() {
 
     // Parse S3 XML response
     const xmlText = await response.text();
+    console.log('Raw XML response:', xmlText);
+    
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlText, 'text/xml');
+    
+    // Check for parsing errors
+    const parseError = doc.querySelector('parsererror');
+    if (parseError) {
+      console.error('XML parsing error:', parseError.textContent);
+      throw new Error('Failed to parse XML response');
+    }
     
     const contents = doc.querySelectorAll('Contents');
     const folders = doc.querySelectorAll('CommonPrefixes');
     
-    const fileItems: StorageItem[] = Array.from(contents).map(content => ({
-      name: content.querySelector('Key')?.textContent?.split('/').pop() || '',
-      key: content.querySelector('Key')?.textContent || '',
-      size: parseInt(content.querySelector('Size')?.textContent || '0'),
-      lastModified: content.querySelector('LastModified')?.textContent || '',
-      isFolder: false,
-    }));
+    console.log('Found contents:', contents.length, 'folders:', folders.length);
+    
+    const fileItems: StorageItem[] = Array.from(contents)
+      .filter(content => {
+        const key = content.querySelector('Key')?.textContent || '';
+        // Filter out files that should be treated as folders (ending with /)
+        return !key.endsWith('/');
+      })
+      .map(content => {
+        const key = content.querySelector('Key')?.textContent || '';
+        const name = key.split('/').pop() || '';
+        return {
+          name,
+          key,
+          size: parseInt(content.querySelector('Size')?.textContent || '0'),
+          lastModified: content.querySelector('LastModified')?.textContent || '',
+          isFolder: false,
+        };
+      });
 
-    const folderItems: StorageItem[] = Array.from(folders).map(folder => ({
-      name: folder.querySelector('Prefix')?.textContent?.split('/').filter(Boolean).pop() || '',
-      key: folder.querySelector('Prefix')?.textContent || '',
-      isFolder: true,
-    }));
+    const folderItems: StorageItem[] = Array.from(folders).map(folder => {
+      const prefix = folder.querySelector('Prefix')?.textContent || '';
+      const name = prefix.split('/').filter(Boolean).pop() || '';
+      return {
+        name,
+        key: prefix,
+        isFolder: true,
+      };
+    });
+
+    console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
+    console.log('Folder items:', folderItems);
+    console.log('File items:', fileItems);
 
     return [...folderItems, ...fileItems];
   }, []);

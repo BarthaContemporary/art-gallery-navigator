@@ -273,8 +273,23 @@ serve(async (req) => {
     })
 
     // Build the target URL - for listing bucket contents, use empty path
-    const targetUrl = path ? `${credentials.endpoint_url}/${bucketName}/${path}` : `${credentials.endpoint_url}/${bucketName}`
-    console.log('Target URL:', targetUrl)
+    let targetUrl = `${credentials.endpoint_url}/${bucketName}`
+    
+    // Add query parameters for proper S3 directory listing
+    const queryParams = new URLSearchParams()
+    
+    if (path) {
+      queryParams.set('prefix', path)
+    }
+    
+    // Add delimiter to get folder structure
+    queryParams.set('delimiter', '/')
+    
+    if (queryParams.toString()) {
+      targetUrl += '?' + queryParams.toString()
+    }
+    
+    console.log('Target URL with params:', targetUrl)
 
     // Validate target URL
     try {
