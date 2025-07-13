@@ -80,20 +80,30 @@ export function useArtworksPageLogic() {
       : artistName.charAt(0).toUpperCase();
   }))).sort(), [filteredArtworks, artists]);
 
+  // Enhanced prefetching for faster loading
   useEffect(() => {
-    if (filteredArtworks.length > 0 && viewMode === 'grid') {
-      const imagesToPrefetch = filteredArtworks.slice(0, 20).map((artwork, index) => ({
+    if (filteredArtworks.length > 0) {
+      // Prefetch more images for grid view, fewer for list view
+      const prefetchCount = viewMode === 'grid' ? 30 : 15;
+      const imagesToPrefetch = filteredArtworks.slice(0, prefetchCount).map((artwork, index) => ({
         imageUrl: artwork.image_url,
-        priority: index < 10 ? 10 - index : 1
+        priority: index < 12 ? 12 - index : 1
       }));
       
-      const defaultSizes = {
-        thumbnail: { width: 400, height: 300, quality: 80 },
-        medium: { width: 1200, height: 1200, quality: 100 },
-        full: { width: 2400, height: 2400, quality: 100 }
+      const optimizedSizes = {
+        thumbnail: { width: 300, height: 225, quality: 75 },
+        medium: { width: 800, height: 800, quality: 85 },
+        full: { width: 1600, height: 1600, quality: 90 }
       };
       
-      prefetchArtworkImages(imagesToPrefetch, defaultSizes);
+      // Use requestIdleCallback for better performance
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          prefetchArtworkImages(imagesToPrefetch, optimizedSizes);
+        });
+      } else {
+        prefetchArtworkImages(imagesToPrefetch, optimizedSizes);
+      }
     }
   }, [filteredArtworks, viewMode, prefetchArtworkImages]);
 

@@ -67,7 +67,7 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
             if (!isCancelled && mountedRef.current) {
               upgradeToTier('medium');
             }
-          }, 50);
+          }, 10);
         }
       } catch (error) {
         if (!isCancelled) {
