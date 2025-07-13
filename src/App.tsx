@@ -12,6 +12,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { AuthProvider } from "@/providers/auth-provider";
 import { LoadingProvider } from "@/contexts/loading-context";
+import { SecurityProvider } from "@/components/security/SecurityProvider";
 import Dashboard from "@/pages/Dashboard";
 import Artists from "@/pages/Artists";
 import Artworks from "@/pages/Artworks";
@@ -39,35 +40,37 @@ function App() {
       <LoadingProvider>
         <BrowserRouter>
           <AuthProvider>
-            <Toaster />
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/book-appointment" element={<BookAppointment />} />
-              <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
-              <Route path="/" element={
-                <RequireAuth>
-                  <MainLayout />
-                </RequireAuth>
-              }>
-                <Route index element={<Dashboard />} />
-                <Route path="artists" element={<Artists />} />
-                <Route path="artworks" element={<Artworks />} />
-                <Route path="collections" element={<Collections />} />
-                <Route path="documents" element={<Navigate to="/file-sharing" replace />} />
-                <Route path="file-sharing" element={<FileSharing />} />
-                <Route path="projects" element={<Projects />} />
-                <Route path="locations" element={<Locations />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="appointments" element={<Appointments />} />
-                <Route path="crm" element={<CRM />} />
-                <Route path="chat" element={<Chat />} />
-                <Route path="admin" element={<UserSignup />} />
-                <Route path="settings" element={<UserSignup />} />
-                <Route path="manage-websites" element={<ManageWebsites />} />
-                <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <SecurityProvider>
+              <Toaster />
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/book-appointment" element={<BookAppointment />} />
+                <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
+                <Route path="/" element={
+                  <RequireAuth>
+                    <MainLayout />
+                  </RequireAuth>
+                }>
+                  <Route index element={<Dashboard />} />
+                  <Route path="artists" element={<Artists />} />
+                  <Route path="artworks" element={<Artworks />} />
+                  <Route path="collections" element={<Collections />} />
+                  <Route path="documents" element={<Navigate to="/file-sharing" replace />} />
+                  <Route path="file-sharing" element={<FileSharing />} />
+                  <Route path="projects" element={<Projects />} />
+                  <Route path="locations" element={<Locations />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="appointments" element={<Appointments />} />
+                  <Route path="crm" element={<CRM />} />
+                  <Route path="chat" element={<Chat />} />
+                  <Route path="admin" element={<UserSignup />} />
+                  <Route path="settings" element={<UserSignup />} />
+                  <Route path="manage-websites" element={<ManageWebsites />} />
+                  <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </SecurityProvider>
           </AuthProvider>
         </BrowserRouter>
       </LoadingProvider>
