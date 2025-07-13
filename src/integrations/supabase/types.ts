@@ -2093,6 +2093,16 @@ export type Database = {
           should_be_accessible: boolean
         }[]
       }
+      enhanced_log_security_event: {
+        Args: {
+          _event_type: string
+          _severity?: string
+          _ip_address?: unknown
+          _user_agent?: string
+          _details?: Json
+        }
+        Returns: string
+      }
       find_or_create_chat_room: {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string

@@ -67,7 +67,7 @@ class CollectionPasswordSecurity {
         // Log security event
         enhancedSecurityMonitor.logSecurityEvent({
           type: 'suspicious_activity',
-          severity: 'high',
+          severity: 'critical',
           details: {
             action: 'collection_password_brute_force',
             identifier,
@@ -137,7 +137,7 @@ class CollectionPasswordSecurity {
       // Log error
       enhancedSecurityMonitor.logSecurityEvent({
         type: 'authentication',
-        severity: 'medium',
+        severity: 'warning',
         details: {
           action: 'password_verification_error',
           collection: slug,

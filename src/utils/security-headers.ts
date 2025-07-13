@@ -122,4 +122,4 @@ export const SECURITY_EVENT_TYPES = {
 } as const;
 
 export type SecurityEventType = typeof SECURITY_EVENT_TYPES[keyof typeof SECURITY_EVENT_TYPES];
-export type SecuritySeverity = 'info' | 'warning' | 'critical' | 'low' | 'medium' | 'high';
+export type SecuritySeverity = 'info' | 'warning' | 'critical';

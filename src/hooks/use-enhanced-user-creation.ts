@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { logger } from "@/lib/logger";
 import { SecurityMonitor, logAuthEvent } from "@/utils/security-monitoring";
+import { SECURITY_EVENT_TYPES } from "@/utils/security-headers";
 
 interface CreateUserParams {
   email: string;
@@ -29,8 +30,8 @@ export function useEnhancedUserCreation() {
     try {
       // Log attempt
       securityMonitor.logSecurityEvent({
-        type: 'authentication',
-        severity: 'low',
+        type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
+        severity: 'info',
         details: {
           action: 'user_creation_attempt',
           email: params.email,
@@ -51,8 +52,8 @@ export function useEnhancedUserCreation() {
       if (error) {
         // Log failed attempt
         securityMonitor.logSecurityEvent({
-          type: 'authentication',
-          severity: 'medium',
+          type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
+          severity: 'warning',
           details: {
             action: 'user_creation_failed',
             error: error.message,
@@ -73,8 +74,8 @@ export function useEnhancedUserCreation() {
         
         if (roleError) {
           securityMonitor.logSecurityEvent({
-            type: 'authorization',
-            severity: 'high',
+            type: SECURITY_EVENT_TYPES.PERMISSION_DENIED,
+            severity: 'critical',
             details: {
               action: 'role_assignment_failed',
               userId,
@@ -87,8 +88,8 @@ export function useEnhancedUserCreation() {
 
         // Log successful creation
         securityMonitor.logSecurityEvent({
-          type: 'authentication',
-          severity: 'low',
+          type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
+          severity: 'info',
           details: {
             action: 'user_creation_success',
             userId,
@@ -128,8 +129,8 @@ export function useEnhancedUserCreation() {
     setRetryCount(newRetryCount);
     
     securityMonitor.logSecurityEvent({
-      type: 'authentication',
-      severity: 'medium',
+      type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
+      severity: 'warning',
       details: {
         action: 'user_creation_retry',
         email: params.email,
@@ -147,8 +148,8 @@ export function useEnhancedUserCreation() {
   const sendManualActivation = async (userEmail: string): Promise<boolean> => {
     try {
       securityMonitor.logSecurityEvent({
-        type: 'authentication',
-        severity: 'low',
+        type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
+        severity: 'info',
         details: {
           action: 'manual_activation_attempt',
           email: userEmail
@@ -165,8 +166,8 @@ export function useEnhancedUserCreation() {
 
       if (error) {
         securityMonitor.logSecurityEvent({
-          type: 'authentication',
-          severity: 'medium',
+          type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
+          severity: 'warning',
           details: {
             action: 'manual_activation_failed',
             email: userEmail,
@@ -177,8 +178,8 @@ export function useEnhancedUserCreation() {
       }
       
       securityMonitor.logSecurityEvent({
-        type: 'authentication',
-        severity: 'low',
+        type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
+        severity: 'info',
         details: {
           action: 'manual_activation_success',
           email: userEmail

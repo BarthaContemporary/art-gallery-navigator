@@ -1,4 +1,3 @@
-
 import { SECURITY_EVENT_TYPES, SecurityEventType, SecuritySeverity, RateLimiter } from './security-headers';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -58,13 +57,13 @@ export class SecurityMonitor {
 
     // Check for rapid authentication failures
     const authFailures = recentEvents.filter(
-      event => event.type === SECURITY_EVENT_TYPES.AUTHENTICATION && event.details.success === false
+      event => event.type === SECURITY_EVENT_TYPES.LOGIN_FAILURE && event.details.success === false
     );
 
     if (authFailures.length > 5) {
       this.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
-        severity: 'high',
+        severity: 'critical',
         details: {
           pattern: 'rapid_auth_failures',
           count: authFailures.length,
@@ -75,14 +74,14 @@ export class SecurityMonitor {
 
     // Check for unusual data access patterns
     const dataAccessEvents = recentEvents.filter(
-      event => event.type === SECURITY_EVENT_TYPES.DATA_ACCESS
+      event => event.type === SECURITY_EVENT_TYPES.SENSITIVE_DATA_ACCESS
     );
 
     const uniqueUsers = new Set(dataAccessEvents.map(event => event.userId));
     if (uniqueUsers.size === 1 && dataAccessEvents.length > 20) {
       this.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
-        severity: 'medium',
+        severity: 'warning',
         details: {
           pattern: 'excessive_data_access',
           userId: Array.from(uniqueUsers)[0],
@@ -94,9 +93,10 @@ export class SecurityMonitor {
 
   private async sendToMonitoringService(event: SecurityEvent): Promise<void> {
     try {
-      // Log to Supabase security events table
-      const { error } = await supabase.rpc('log_security_event', {
+      // Enhanced logging to Supabase with severity levels
+      const { error } = await supabase.rpc('enhanced_log_security_event', {
         _event_type: event.type,
+        _severity: event.severity,
         _ip_address: event.ipAddress || null,
         _user_agent: event.userAgent || null,
         _details: event.details || null
@@ -139,7 +139,7 @@ export class SecurityMonitor {
     const maxAttempts = 10;
 
     const recentAuthFailures = this.events.filter(event => 
-      event.type === SECURITY_EVENT_TYPES.AUTHENTICATION &&
+      event.type === SECURITY_EVENT_TYPES.LOGIN_FAILURE &&
       event.details.success === false &&
       Date.now() - event.timestamp < timeWindow &&
       (!userId || event.userId === userId)
