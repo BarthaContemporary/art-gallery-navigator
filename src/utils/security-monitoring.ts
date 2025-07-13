@@ -63,7 +63,7 @@ export class SecurityMonitor {
     if (authFailures.length > 5) {
       this.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
-        severity: 'critical',
+        severity: 'high',
         details: {
           pattern: 'rapid_auth_failures',
           count: authFailures.length,
@@ -81,7 +81,7 @@ export class SecurityMonitor {
     if (uniqueUsers.size === 1 && dataAccessEvents.length > 20) {
       this.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
-        severity: 'warning',
+        severity: 'medium',
         details: {
           pattern: 'excessive_data_access',
           userId: Array.from(uniqueUsers)[0],
@@ -93,7 +93,7 @@ export class SecurityMonitor {
 
   private async sendToMonitoringService(event: SecurityEvent): Promise<void> {
     try {
-      // Enhanced logging to Supabase with severity levels
+      // Use the enhanced security event logging function
       const { error } = await supabase.rpc('enhanced_log_security_event', {
         _event_type: event.type,
         _severity: event.severity,
@@ -182,7 +182,7 @@ export const logAuthEvent = (success: boolean, userId?: string, details?: Record
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
     type: success ? SECURITY_EVENT_TYPES.LOGIN_SUCCESS : SECURITY_EVENT_TYPES.LOGIN_FAILURE,
-    severity: success ? 'info' : 'warning',
+    severity: success ? 'low' : 'medium',
     userId,
     details: {
       success,
@@ -196,7 +196,7 @@ export const logDataAccessEvent = (userId: string, resource: string, action: str
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
     type: SECURITY_EVENT_TYPES.SENSITIVE_DATA_ACCESS,
-    severity: 'info',
+    severity: 'low',
     userId,
     details: {
       resource,
@@ -210,7 +210,7 @@ export const logUnauthorizedAccess = (userId?: string, resource?: string, detail
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
     type: SECURITY_EVENT_TYPES.UNAUTHORIZED_ACCESS,
-    severity: 'warning',
+    severity: 'medium',
     userId,
     details: {
       resource,
@@ -224,7 +224,7 @@ export const logRateLimitExceeded = (identifier: string, details?: Record<string
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
     type: SECURITY_EVENT_TYPES.RATE_LIMIT_EXCEEDED,
-    severity: 'warning',
+    severity: 'medium',
     details: {
       identifier,
       ...details
@@ -237,7 +237,7 @@ export const logFileUploadEvent = (userId: string, fileName: string, fileSize: n
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
     type: success ? SECURITY_EVENT_TYPES.SENSITIVE_DATA_ACCESS : SECURITY_EVENT_TYPES.MALFORMED_REQUEST,
-    severity: success ? 'info' : 'warning',
+    severity: success ? 'low' : 'medium',
     userId,
     details: {
       fileName,

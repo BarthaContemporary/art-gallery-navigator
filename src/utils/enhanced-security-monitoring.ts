@@ -11,7 +11,7 @@ interface BruteForceAttempt {
 
 interface SuspiciousActivity {
   type: string;
-  severity: 'info' | 'warning' | 'critical';
+  severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
   userId?: string;
   data: any;
@@ -99,7 +99,7 @@ export class EnhancedSecurityMonitor extends SecurityMonitor {
     if (loginEvents.length > 10) {
       suspicious.push({
         type: 'rapid_logins',
-        severity: 'warning',
+        severity: 'medium',
         description: `User performed ${loginEvents.length} logins in the last hour`,
         userId,
         data: { count: loginEvents.length }
@@ -127,7 +127,7 @@ export class EnhancedSecurityMonitor extends SecurityMonitor {
     if (authFailures.length > 5) {
       suspicious.push({
         type: 'authorization_failures',
-        severity: 'critical',
+        severity: 'high',
         description: `User had ${authFailures.length} authorization failures in the last hour`,
         userId,
         data: { count: authFailures.length }
@@ -183,7 +183,7 @@ export const enhancedSecurityMonitor = new EnhancedSecurityMonitor();
 export const logPasswordVerificationAttempt = (success: boolean, identifier: string, details?: any) => {
   enhancedSecurityMonitor.logSecurityEvent({
     type: 'authentication',
-    severity: success ? 'info' : 'warning',
+    severity: success ? 'low' : 'medium',
     details: {
       action: 'password_verification',
       success,
@@ -200,7 +200,7 @@ export const logPasswordVerificationAttempt = (success: boolean, identifier: str
 export const logFileUploadAttempt = (success: boolean, userId: string, fileName: string, fileSize: number) => {
   enhancedSecurityMonitor.logSecurityEvent({
     type: 'file_upload',
-    severity: success ? 'info' : 'warning',
+    severity: success ? 'low' : 'medium',
     userId,
     details: {
       success,
@@ -214,7 +214,7 @@ export const logFileUploadAttempt = (success: boolean, userId: string, fileName:
 export const logDataAccessAttempt = (userId: string, resource: string, action: string, success: boolean = true) => {
   enhancedSecurityMonitor.logSecurityEvent({
     type: 'data_access',
-    severity: 'info',
+    severity: 'low',
     userId,
     details: {
       resource,

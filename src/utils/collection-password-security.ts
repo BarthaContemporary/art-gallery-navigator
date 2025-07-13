@@ -137,7 +137,7 @@ class CollectionPasswordSecurity {
       // Log error
       enhancedSecurityMonitor.logSecurityEvent({
         type: 'authentication',
-        severity: 'warning',
+        severity: 'medium',
         details: {
           action: 'password_verification_error',
           collection: slug,

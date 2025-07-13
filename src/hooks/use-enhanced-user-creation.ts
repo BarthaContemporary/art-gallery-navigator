@@ -31,7 +31,7 @@ export function useEnhancedUserCreation() {
       // Log attempt
       securityMonitor.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
-        severity: 'info',
+        severity: 'low',
         details: {
           action: 'user_creation_attempt',
           email: params.email,
@@ -53,7 +53,7 @@ export function useEnhancedUserCreation() {
         // Log failed attempt
         securityMonitor.logSecurityEvent({
           type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
-          severity: 'warning',
+          severity: 'medium',
           details: {
             action: 'user_creation_failed',
             error: error.message,
@@ -89,7 +89,7 @@ export function useEnhancedUserCreation() {
         // Log successful creation
         securityMonitor.logSecurityEvent({
           type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
-          severity: 'info',
+          severity: 'low',
           details: {
             action: 'user_creation_success',
             userId,
@@ -130,7 +130,7 @@ export function useEnhancedUserCreation() {
     
     securityMonitor.logSecurityEvent({
       type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
-      severity: 'warning',
+      severity: 'medium',
       details: {
         action: 'user_creation_retry',
         email: params.email,
@@ -149,7 +149,7 @@ export function useEnhancedUserCreation() {
     try {
       securityMonitor.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
-        severity: 'info',
+        severity: 'low',
         details: {
           action: 'manual_activation_attempt',
           email: userEmail
@@ -167,7 +167,7 @@ export function useEnhancedUserCreation() {
       if (error) {
         securityMonitor.logSecurityEvent({
           type: SECURITY_EVENT_TYPES.LOGIN_FAILURE,
-          severity: 'warning',
+          severity: 'medium',
           details: {
             action: 'manual_activation_failed',
             email: userEmail,
@@ -179,7 +179,7 @@ export function useEnhancedUserCreation() {
       
       securityMonitor.logSecurityEvent({
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
-        severity: 'info',
+        severity: 'low',
         details: {
           action: 'manual_activation_success',
           email: userEmail
