@@ -1,7 +1,10 @@
 
+import { SECURITY_EVENT_TYPES, SecurityEventType, SecuritySeverity, RateLimiter } from './security-headers';
+import { supabase } from '@/integrations/supabase/client';
+
 export interface SecurityEvent {
-  type: 'authentication' | 'authorization' | 'data_access' | 'file_upload' | 'suspicious_activity';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: SecurityEventType;
+  severity: SecuritySeverity;
   userId?: string;
   details: Record<string, any>;
   timestamp: number;
@@ -13,6 +16,7 @@ export class SecurityMonitor {
   private static instance: SecurityMonitor;
   private events: SecurityEvent[] = [];
   private readonly MAX_EVENTS = 1000;
+  private rateLimiter = new RateLimiter(10, 5 * 60 * 1000); // 10 attempts per 5 minutes
 
   static getInstance(): SecurityMonitor {
     if (!SecurityMonitor.instance) {
@@ -90,17 +94,31 @@ export class SecurityMonitor {
 
   private async sendToMonitoringService(event: SecurityEvent): Promise<void> {
     try {
-      // In production, send to your monitoring service
-      await fetch('/api/security/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(event),
+      // Enhanced logging to Supabase with severity levels
+      const { error } = await supabase.rpc('enhanced_log_security_event', {
+        _event_type: event.type,
+        _severity: event.severity,
+        _ip_address: event.ipAddress || null,
+        _user_agent: event.userAgent || null,
+        _details: event.details || null
       });
+
+      if (error) {
+        console.error('Failed to log security event to database:', error);
+      }
     } catch (error) {
       console.error('Failed to send security event to monitoring service:', error);
     }
+  }
+
+  // Enhanced method to check rate limiting
+  checkRateLimit(identifier: string): boolean {
+    return this.rateLimiter.isRateLimited(identifier);
+  }
+
+  // Reset rate limit for identifier
+  resetRateLimit(identifier: string): void {
+    this.rateLimiter.reset(identifier);
   }
 
   getRecentEvents(timeWindowMs: number = 60 * 60 * 1000): SecurityEvent[] {
@@ -160,12 +178,12 @@ export class SecurityMonitor {
   }
 }
 
-// Helper function to log authentication events
+// Enhanced helper functions using new security event types
 export const logAuthEvent = (success: boolean, userId?: string, details?: Record<string, any>) => {
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
-    type: 'authentication',
-    severity: success ? 'low' : 'medium',
+    type: success ? SECURITY_EVENT_TYPES.LOGIN_SUCCESS : SECURITY_EVENT_TYPES.LOGIN_FAILURE,
+    severity: success ? 'info' : 'warning',
     userId,
     details: {
       success,
@@ -178,8 +196,8 @@ export const logAuthEvent = (success: boolean, userId?: string, details?: Record
 export const logDataAccessEvent = (userId: string, resource: string, action: string) => {
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
-    type: 'data_access',
-    severity: 'low',
+    type: SECURITY_EVENT_TYPES.SENSITIVE_DATA_ACCESS,
+    severity: 'info',
     userId,
     details: {
       resource,
@@ -188,17 +206,45 @@ export const logDataAccessEvent = (userId: string, resource: string, action: str
   });
 };
 
-// Helper function to log file upload events
+// Helper function to log unauthorized access attempts
+export const logUnauthorizedAccess = (userId?: string, resource?: string, details?: Record<string, any>) => {
+  const monitor = SecurityMonitor.getInstance();
+  monitor.logSecurityEvent({
+    type: SECURITY_EVENT_TYPES.UNAUTHORIZED_ACCESS,
+    severity: 'warning',
+    userId,
+    details: {
+      resource,
+      ...details
+    }
+  });
+};
+
+// Helper function to log rate limit violations
+export const logRateLimitExceeded = (identifier: string, details?: Record<string, any>) => {
+  const monitor = SecurityMonitor.getInstance();
+  monitor.logSecurityEvent({
+    type: SECURITY_EVENT_TYPES.RATE_LIMIT_EXCEEDED,
+    severity: 'warning',
+    details: {
+      identifier,
+      ...details
+    }
+  });
+};
+
+// Helper function to log file upload events  
 export const logFileUploadEvent = (userId: string, fileName: string, fileSize: number, success: boolean) => {
   const monitor = SecurityMonitor.getInstance();
   monitor.logSecurityEvent({
-    type: 'file_upload',
-    severity: success ? 'low' : 'medium',
+    type: success ? SECURITY_EVENT_TYPES.SENSITIVE_DATA_ACCESS : SECURITY_EVENT_TYPES.MALFORMED_REQUEST,
+    severity: success ? 'info' : 'warning',
     userId,
     details: {
       fileName,
       fileSize,
-      success
+      success,
+      action: 'file_upload'
     }
   });
 };
