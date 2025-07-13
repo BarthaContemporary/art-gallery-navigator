@@ -58,12 +58,12 @@ export class SecurityMonitor {
 
     // Check for rapid authentication failures
     const authFailures = recentEvents.filter(
-      event => event.type === 'authentication' && event.details.success === false
+      event => event.type === SECURITY_EVENT_TYPES.AUTHENTICATION && event.details.success === false
     );
 
     if (authFailures.length > 5) {
       this.logSecurityEvent({
-        type: 'suspicious_activity',
+        type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
         severity: 'high',
         details: {
           pattern: 'rapid_auth_failures',
@@ -75,13 +75,13 @@ export class SecurityMonitor {
 
     // Check for unusual data access patterns
     const dataAccessEvents = recentEvents.filter(
-      event => event.type === 'data_access'
+      event => event.type === SECURITY_EVENT_TYPES.DATA_ACCESS
     );
 
     const uniqueUsers = new Set(dataAccessEvents.map(event => event.userId));
     if (uniqueUsers.size === 1 && dataAccessEvents.length > 20) {
       this.logSecurityEvent({
-        type: 'suspicious_activity',
+        type: SECURITY_EVENT_TYPES.SUSPICIOUS_ACTIVITY,
         severity: 'medium',
         details: {
           pattern: 'excessive_data_access',
@@ -94,10 +94,9 @@ export class SecurityMonitor {
 
   private async sendToMonitoringService(event: SecurityEvent): Promise<void> {
     try {
-      // Enhanced logging to Supabase with severity levels
-      const { error } = await supabase.rpc('enhanced_log_security_event', {
+      // Log to Supabase security events table
+      const { error } = await supabase.rpc('log_security_event', {
         _event_type: event.type,
-        _severity: event.severity,
         _ip_address: event.ipAddress || null,
         _user_agent: event.userAgent || null,
         _details: event.details || null
@@ -140,7 +139,7 @@ export class SecurityMonitor {
     const maxAttempts = 10;
 
     const recentAuthFailures = this.events.filter(event => 
-      event.type === 'authentication' &&
+      event.type === SECURITY_EVENT_TYPES.AUTHENTICATION &&
       event.details.success === false &&
       Date.now() - event.timestamp < timeWindow &&
       (!userId || event.userId === userId)

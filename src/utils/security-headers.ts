@@ -98,16 +98,22 @@ export const SECURITY_EVENT_TYPES = {
   LOGIN_FAILURE: 'login_failure',
   LOGOUT: 'logout',
   PASSWORD_RESET: 'password_reset',
+  AUTHENTICATION: 'authentication',
   
   // Authorization events
   UNAUTHORIZED_ACCESS: 'unauthorized_access',
   PERMISSION_DENIED: 'permission_denied',
   ROLE_ESCALATION_ATTEMPT: 'role_escalation_attempt',
+  AUTHORIZATION: 'authorization',
   
   // Data access events
   SENSITIVE_DATA_ACCESS: 'sensitive_data_access',
   BULK_DATA_EXPORT: 'bulk_data_export',
   ADMIN_FUNCTION_USED: 'admin_function_used',
+  DATA_ACCESS: 'data_access',
+  
+  // File operations
+  FILE_UPLOAD: 'file_upload',
   
   // Security violations
   RATE_LIMIT_EXCEEDED: 'rate_limit_exceeded',
@@ -116,4 +122,4 @@ export const SECURITY_EVENT_TYPES = {
 } as const;
 
 export type SecurityEventType = typeof SECURITY_EVENT_TYPES[keyof typeof SECURITY_EVENT_TYPES];
-export type SecuritySeverity = 'info' | 'warning' | 'critical';
+export type SecuritySeverity = 'info' | 'warning' | 'critical' | 'low' | 'medium' | 'high';
