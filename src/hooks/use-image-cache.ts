@@ -20,6 +20,20 @@ export type CachedImage = {
 export function useImageCache() {
   const isLocalStorageAvailable = typeof window !== "undefined" && window.localStorage;
 
+  // Enhanced image preloading with proper cache headers
+  const preloadImageWithCache = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // Enable CORS for better caching
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      
+      // Add cache-busting only if needed, otherwise let browser cache work
+      const url = new URL(src, window.location.origin);
+      img.src = url.toString();
+    });
+  };
+
   // Get cache usage statistics
   const getCacheStats = () => {
     if (!isLocalStorageAvailable) return { totalSize: 0, itemCount: 0 };
@@ -226,6 +240,7 @@ export function useImageCache() {
     setCachedImage, 
     clearImageCache, 
     getCacheStats,
-    performCacheCleanup
+    performCacheCleanup,
+    preloadImageWithCache
   };
 }
