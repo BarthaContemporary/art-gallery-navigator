@@ -15,17 +15,22 @@ interface StorageCredentials {
 
 async function getStorageCredentials(supabase: any, bucketName: string): Promise<StorageCredentials | null> {
   try {
+    console.log('Looking for credentials for bucket:', bucketName)
+    
     // First try shared storage credentials
-    const { data: sharedCredsArray } = await supabase
+    const { data: sharedCredsArray, error: sharedError } = await supabase
       .from('shared_storage_credentials')
       .select('*')
       .eq('bucket_name', bucketName)
       .eq('is_active', true)
       .limit(1)
 
+    console.log('Shared storage query result:', { sharedCredsArray, sharedError })
+
     const sharedCreds = sharedCredsArray?.[0] || null
 
     if (sharedCreds) {
+      console.log('Using shared storage credentials')
       return {
         access_key: sharedCreds.access_key,
         secret_key: sharedCreds.secret_key,
@@ -35,16 +40,19 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
     }
 
     // Then try admin storage credentials
-    const { data: adminCredsArray } = await supabase
+    const { data: adminCredsArray, error: adminError } = await supabase
       .from('admin_storage_credentials')
       .select('*')
       .eq('bucket_name', bucketName)
       .eq('is_active', true)
       .limit(1)
 
+    console.log('Admin storage query result:', { adminCredsArray, adminError })
+
     const adminCreds = adminCredsArray?.[0] || null
 
     if (adminCreds) {
+      console.log('Using admin storage credentials')
       return {
         access_key: adminCreds.access_key,
         secret_key: adminCreds.secret_key,
@@ -54,15 +62,18 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
     }
 
     // Finally try artist storage credentials
-    const { data: artistCredsArray } = await supabase
+    const { data: artistCredsArray, error: artistError } = await supabase
       .from('artist_storage_credentials')
       .select('*')
       .eq('bucket_name', bucketName)
       .limit(1)
 
+    console.log('Artist storage query result:', { artistCredsArray, artistError })
+
     const artistCreds = artistCredsArray?.[0] || null
 
     if (artistCreds) {
+      console.log('Using artist storage credentials')
       return {
         access_key: artistCreds.access_key,
         secret_key: artistCreds.secret_key,
@@ -71,6 +82,7 @@ async function getStorageCredentials(supabase: any, bucketName: string): Promise
       }
     }
 
+    console.log('No storage credentials found for bucket:', bucketName)
     return null
   } catch (error) {
     console.error('Error fetching storage credentials:', error)
