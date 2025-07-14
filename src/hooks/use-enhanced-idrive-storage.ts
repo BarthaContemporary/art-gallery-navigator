@@ -19,11 +19,8 @@ export function useEnhancedIDriveStorage() {
       const buckets = await initStorage();
       setAvailableBuckets(buckets);
       
-      // Set default bucket (prefer individual, fallback to shared)
-      const defaultBucket = buckets.find(b => b.type === 'individual') || buckets[0];
-      if (defaultBucket) {
-        setCurrentBucket(defaultBucket);
-      }
+      // Don't auto-select bucket here - let the component handle it based on mode
+      console.log('Storage initialized with buckets:', buckets.map(b => ({ name: b.name, type: b.type })));
 
       return buckets;
     } catch (error) {

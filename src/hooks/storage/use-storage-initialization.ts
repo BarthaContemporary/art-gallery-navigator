@@ -22,10 +22,10 @@ export function useStorageInitialization() {
 
       const buckets: BucketInfo[] = [];
 
-      // Get shared bucket credentials (optional - table might not exist yet)
+      // Get shared bucket credentials - always try to add shared storage
       try {
         const { data: sharedCredsArray, error: sharedError } = await supabase
-          .from('shared_storage_credentials' as any)
+          .from('shared_storage_credentials')
           .select('*')
           .eq('is_active', true)
           .limit(1);
@@ -34,7 +34,7 @@ export function useStorageInitialization() {
 
         console.log('Shared storage credentials query result:', { sharedCreds, sharedError });
 
-        // Only add shared bucket if query succeeded and returned valid data
+        // Add shared bucket if available
         if (!sharedError && sharedCreds && typeof sharedCreds === 'object') {
           const creds = sharedCreds as any;
           if (creds.bucket_name && creds.access_key && creds.secret_key && creds.endpoint_url) {
@@ -57,77 +57,97 @@ export function useStorageInitialization() {
 
       // If admin, get admin storage credentials
       if (isAdmin) {
-        const { data: adminCreds, error: adminError } = await supabase
-          .from('admin_storage_credentials')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+        try {
+          const { data: adminCreds, error: adminError } = await supabase
+            .from('admin_storage_credentials')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true);
 
-        if (!adminError && adminCreds) {
-          adminCreds.forEach(cred => {
-            // Avoid duplicates by checking bucket name
-            if (!buckets.find(b => b.credentials.bucket_name === cred.bucket_name)) {
-              buckets.push({
-                name: cred.name,
-                type: 'admin',
-                credentials: {
-                  bucket_name: cred.bucket_name,
-                  access_key: cred.access_key,
-                  secret_key: cred.secret_key,
-                  endpoint_url: cred.endpoint_url,
-                },
-              });
-            }
-          });
+          if (!adminError && adminCreds) {
+            adminCreds.forEach(cred => {
+              // Avoid duplicates by checking bucket name
+              if (!buckets.find(b => b.credentials.bucket_name === cred.bucket_name)) {
+                buckets.push({
+                  name: cred.name,
+                  type: 'admin',
+                  credentials: {
+                    bucket_name: cred.bucket_name,
+                    access_key: cred.access_key,
+                    secret_key: cred.secret_key,
+                    endpoint_url: cred.endpoint_url,
+                  },
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Admin storage credentials not available:', error);
         }
       }
 
       // Get individual artist bucket if user is an artist
-      const { data: artist } = await supabase
-        .from('artists')
-        .select('id, full_name')
-        .eq('user_id', user.id)
-        .single();
+      try {
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('id, full_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (artist) {
-        const { data: artistCreds, error: artistError } = await supabase
-          .from('artist_storage_credentials')
-          .select('*')
-          .eq('artist_id', artist.id)
-          .single();
+        if (artist) {
+          const { data: artistCreds, error: artistError } = await supabase
+            .from('artist_storage_credentials')
+            .select('*')
+            .eq('artist_id', artist.id)
+            .maybeSingle();
 
-        if (!artistError && artistCreds) {
-          buckets.push({
-            name: `${artist.full_name}'s Storage`,
-            type: 'individual',
-            credentials: artistCreds,
-          });
+          if (!artistError && artistCreds) {
+            buckets.push({
+              name: `${artist.full_name}'s Storage`,
+              type: 'individual',
+              credentials: artistCreds,
+            });
+          }
         }
+      } catch (error) {
+        console.error('Artist storage credentials not available:', error);
       }
 
-      // If admin, get all artist buckets for management
+      // If admin, get all artist buckets for management (optional)
       if (isAdmin) {
-        const { data: allCreds } = await supabase
-          .from('artist_storage_credentials')
-          .select(`
-            *,
-            artists!inner(full_name)
-          `);
+        try {
+          const { data: allCreds } = await supabase
+            .from('artist_storage_credentials')
+            .select(`
+              *,
+              artists!inner(full_name)
+            `);
 
-        if (allCreds) {
-          allCreds.forEach(cred => {
-            if (!buckets.find(b => b.credentials.bucket_name === cred.bucket_name)) {
-              buckets.push({
-                name: `${(cred as any).artists.full_name}'s Storage`,
-                type: 'individual',
-                credentials: cred,
-              });
-            }
-          });
+          if (allCreds) {
+            allCreds.forEach(cred => {
+              if (!buckets.find(b => b.credentials.bucket_name === cred.bucket_name)) {
+                buckets.push({
+                  name: `${(cred as any).artists.full_name}'s Storage`,
+                  type: 'individual',
+                  credentials: cred,
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.error('All artist storage credentials not available:', error);
         }
       }
 
       console.log('Initialized storage with buckets:', buckets);
+      
+      // Ensure we have at least one bucket available
+      if (buckets.length === 0) {
+        console.error('No storage buckets available');
+        toast.error('No storage buckets configured. Please contact administrator.');
+        throw new Error('No storage buckets available');
+      }
+
       return buckets;
     } catch (error) {
       console.error('Failed to initialize storage:', error);

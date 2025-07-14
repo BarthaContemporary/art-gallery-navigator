@@ -74,20 +74,43 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
         const buckets = await initializeStorage();
         
         // Auto-select bucket based on mode - only if no bucket is currently selected
-        if (!currentBucket) {
+        if (!currentBucket && buckets.length > 0) {
           if (mode === 'shared') {
+            // In shared mode, select shared bucket or fallback to first available
             const sharedBucket = buckets.find(b => b.type === 'shared');
             if (sharedBucket) {
               switchBucket(sharedBucket);
+            } else {
+              // If no shared bucket, use the first available bucket
+              console.log('No shared bucket available, using first available bucket');
+              switchBucket(buckets[0]);
             }
-          } else if (mode === 'personal' && isAdmin) {
-            // For admin in personal mode, don't auto-select a bucket, show bucket folders instead
-            switchBucket(null);
-          } else if (!isAdmin) {
-            // Artists automatically get their individual bucket
-            const individualBucket = buckets.find(b => b.type === 'individual');
-            if (individualBucket) {
-              switchBucket(individualBucket);
+          } else if (mode === 'personal') {
+            if (isAdmin) {
+              // For admin in personal mode, prefer admin bucket, then individual, then shared
+              const adminBucket = buckets.find(b => b.type === 'admin');
+              const individualBucket = buckets.find(b => b.type === 'individual');
+              const sharedBucket = buckets.find(b => b.type === 'shared');
+              
+              if (adminBucket) {
+                switchBucket(adminBucket);
+              } else if (individualBucket) {
+                switchBucket(individualBucket);
+              } else if (sharedBucket) {
+                switchBucket(sharedBucket);
+              } else {
+                switchBucket(null); // Show bucket folders if multiple buckets
+              }
+            } else {
+              // Non-admin users get their individual bucket or shared as fallback
+              const individualBucket = buckets.find(b => b.type === 'individual');
+              const sharedBucket = buckets.find(b => b.type === 'shared');
+              
+              if (individualBucket) {
+                switchBucket(individualBucket);
+              } else if (sharedBucket) {
+                switchBucket(sharedBucket);
+              }
             }
           }
         }
@@ -221,7 +244,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
     }
   };
 
-  if (availableBuckets.length === 0 || (mode === 'personal' && !isAdmin && !currentBucket)) {
+  if (availableBuckets.length === 0) {
     return (
       <Card>
         <CardContent className="p-6">
