@@ -1,17 +1,30 @@
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
 };
 
-console.log('✅ IDrive proxy function initialized');
-
-function buildXMLResponse(bucketName: string, prefix: string, hasContent: boolean) {
-  const nameElement = 'Name';
-  const prefixElement = 'Prefix';
+Deno.serve(async (req: Request): Promise<Response> => {
+  console.log('📥 IDrive proxy request:', req.method, req.url);
   
-  let contentXML = '';
-  if (hasContent) {
-    contentXML = `
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const bucketName = url.searchParams.get('bucket') || 'default';
+    const prefix = url.searchParams.get('prefix') || '';
+    
+    console.log('🪣 Processing bucket:', bucketName, 'prefix:', prefix);
+    
+    // Return mock data for shared/gallery buckets, empty for others
+    const isSharedBucket = bucketName.includes('shared') || bucketName.includes('gallery');
+    
+    let xmlContent = '';
+    if (isSharedBucket) {
+      xmlContent = `
   <Contents>
     <Key>documents/sample.pdf</Key>
     <Size>1024000</Size>
@@ -23,45 +36,25 @@ function buildXMLResponse(bucketName: string, prefix: string, hasContent: boolea
     <LastModified>2024-01-15T12:30:00.000Z</LastModified>
   </Contents>
   <CommonPrefixes>
-    <${prefixElement}>documents/</${prefixElement}>
+    <Prefix>documents/</Prefix>
   </CommonPrefixes>
   <CommonPrefixes>
-    <${prefixElement}>images/</${prefixElement}>
+    <Prefix>images/</Prefix>
   </CommonPrefixes>`;
-  }
+    }
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+    const response = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-  <${nameElement}>${bucketName}</${nameElement}>
-  <${prefixElement}>${prefix}</${prefixElement}>
+  <Name>${bucketName}</Name>
+  <Prefix>${prefix}</Prefix>
   <Marker></Marker>
   <MaxKeys>1000</MaxKeys>
-  <IsTruncated>false</IsTruncated>${contentXML}
+  <IsTruncated>false</IsTruncated>${xmlContent}
 </ListBucketResult>`;
-}
 
-Deno.serve(async (req: Request): Promise<Response> => {
-  console.log('📥 Request:', req.method, req.url);
-  
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+    console.log('✅ Returning XML response');
 
-  try {
-    const url = new URL(req.url);
-    const bucketName = url.searchParams.get('bucket') || 'test';
-    const prefix = url.searchParams.get('prefix') || '';
-    
-    console.log('🪣 Processing:', bucketName, 'prefix:', prefix);
-    
-    // Check if this is a shared/gallery bucket that should have sample content
-    const shouldHaveContent = bucketName.includes('shared') || bucketName.includes('gallery');
-    
-    const xmlResponse = buildXMLResponse(bucketName, prefix, shouldHaveContent);
-
-    console.log('✅ XML response generated');
-
-    return new Response(xmlResponse, {
+    return new Response(response, {
       status: 200,
       headers: {
         ...corsHeaders,
@@ -70,10 +63,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
     
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error in idrive-proxy:', error);
     
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: 'Internal server error',
       success: false 
     }), {
       status: 500,

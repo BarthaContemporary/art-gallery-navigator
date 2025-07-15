@@ -7,84 +7,90 @@ export function useStorageOperations() {
   const listFiles = useCallback(async (prefix = '', bucket?: BucketInfo): Promise<StorageItem[]> => {
     if (!bucket) {
       console.error('No bucket selected for listing files');
-      throw new Error('No bucket selected');
+      return [];
     }
 
     console.log('Listing files for bucket:', bucket.name, 'prefix:', prefix);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('User not authenticated');
-      throw new Error('Not authenticated');
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('User not authenticated');
+        return [];
+      }
 
-    // Call proxy function with bucket context - format prefix correctly for folders
-    const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
-    const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${bucket.credentials.bucket_name}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
-    console.log('Fetching from URL:', url);
+      // Use bucket name directly for URL
+      const bucketName = bucket.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
+      const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${bucketName}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
+      console.log('Fetching from URL:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to list files:', response.status, response.statusText, errorText);
-      throw new Error(`Failed to list files: ${response.statusText} - ${errorText}`);
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to list files:', response.status, response.statusText, errorText);
+        return [];
+      }
 
-    // Parse S3 XML response
-    const xmlText = await response.text();
-    console.log('Raw XML response:', xmlText);
-    
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlText, 'text/xml');
-    
-    // Check for parsing errors
-    const parseError = doc.querySelector('parsererror');
-    if (parseError) {
-      console.error('XML parsing error:', parseError.textContent);
-      throw new Error('Failed to parse XML response');
-    }
-    
-    const contents = doc.querySelectorAll('Contents');
-    const folders = doc.querySelectorAll('CommonPrefixes');
-    
-    console.log('Found contents:', contents.length, 'folders:', folders.length);
-    
-    const fileItems: StorageItem[] = Array.from(contents)
-      .filter(content => {
-        const key = content.querySelector('Key')?.textContent || '';
-        return !key.endsWith('/');
-      })
-      .map(content => {
-        const key = content.querySelector('Key')?.textContent || '';
-        const name = key.split('/').pop() || '';
+      // Parse S3 XML response
+      const xmlText = await response.text();
+      console.log('Raw XML response:', xmlText);
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlText, 'text/xml');
+      
+      // Check for parsing errors
+      const parseError = doc.querySelector('parsererror');
+      if (parseError) {
+        console.error('XML parsing error:', parseError.textContent);
+        return [];
+      }
+      
+      const contents = doc.querySelectorAll('Contents');
+      const folders = doc.querySelectorAll('CommonPrefixes');
+      
+      console.log('Found contents:', contents.length, 'folders:', folders.length);
+      
+      const fileItems: StorageItem[] = Array.from(contents)
+        .filter(content => {
+          const key = content.querySelector('Key')?.textContent || '';
+          return !key.endsWith('/');
+        })
+        .map(content => {
+          const key = content.querySelector('Key')?.textContent || '';
+          const name = key.split('/').pop() || '';
+          return {
+            name,
+            key,
+            size: parseInt(content.querySelector('Size')?.textContent || '0'),
+            lastModified: content.querySelector('LastModified')?.textContent || '',
+            isFolder: false,
+          };
+        });
+
+      const folderItems: StorageItem[] = Array.from(folders).map(folder => {
+        const prefix = folder.querySelector('Prefix')?.textContent || '';
+        const name = prefix.split('/').filter(Boolean).pop() || '';
         return {
           name,
-          key,
-          size: parseInt(content.querySelector('Size')?.textContent || '0'),
-          lastModified: content.querySelector('LastModified')?.textContent || '',
-          isFolder: false,
+          key: prefix,
+          isFolder: true,
         };
       });
 
-    const folderItems: StorageItem[] = Array.from(folders).map(folder => {
-      const prefix = folder.querySelector('Prefix')?.textContent || '';
-      const name = prefix.split('/').filter(Boolean).pop() || '';
-      return {
-        name,
-        key: prefix,
-        isFolder: true,
-      };
-    });
-
-    console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
-    return [...folderItems, ...fileItems];
+      console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
+      return [...folderItems, ...fileItems];
+    } catch (error) {
+      console.error('Error listing files:', error);
+      return [];
+    }
   }, []);
 
   const uploadFile = useCallback(async (file: File, path = '', bucket?: BucketInfo): Promise<boolean> => {
