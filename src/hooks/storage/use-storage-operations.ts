@@ -101,21 +101,37 @@ export function useStorageOperations() {
           };
         });
 
-      // Create folders from file paths
+      // Create folders from file paths - improved logic
       const folderSet = new Set<string>();
       const currentPrefix = formattedPrefix || '';
       
       Array.from(contents).forEach(content => {
         const key = content.querySelector('Key')?.textContent || '';
-        if (key.startsWith(currentPrefix)) {
-          const relativePath = key.slice(currentPrefix.length);
-          const pathParts = relativePath.split('/');
-          if (pathParts.length > 1) {
-            // This file is in a subfolder
-            const folderName = pathParts[0];
-            const folderPath = currentPrefix + folderName + '/';
-            folderSet.add(folderPath);
+        
+        // Skip the key if it doesn't start with current prefix
+        if (currentPrefix && !key.startsWith(currentPrefix)) {
+          return;
+        }
+        
+        // Get the relative path from current location
+        const relativePath = currentPrefix ? key.slice(currentPrefix.length) : key;
+        
+        // Skip if this is just a folder marker (ends with /)
+        if (relativePath.endsWith('/') && relativePath.split('/').length === 2) {
+          const folderName = relativePath.replace('/', '');
+          if (folderName) {
+            folderSet.add(currentPrefix + relativePath);
           }
+          return;
+        }
+        
+        // For files, extract the immediate parent folder
+        const pathParts = relativePath.split('/').filter(Boolean);
+        if (pathParts.length > 1) {
+          // This file is in a subfolder at the current level
+          const folderName = pathParts[0];
+          const folderPath = currentPrefix + folderName + '/';
+          folderSet.add(folderPath);
         }
       });
 
