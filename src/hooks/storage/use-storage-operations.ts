@@ -117,10 +117,12 @@ export function useStorageOperations() {
         const relativePath = currentPrefix ? key.slice(currentPrefix.length) : key;
         
         // Skip if this is just a folder marker (ends with /)
-        if (relativePath.endsWith('/') && relativePath.split('/').length === 2) {
-          const folderName = relativePath.replace('/', '');
-          if (folderName) {
-            folderSet.add(currentPrefix + relativePath);
+        if (relativePath.endsWith('/')) {
+          const pathParts = relativePath.split('/').filter(Boolean);
+          if (pathParts.length === 1) {
+            // This is a direct subfolder
+            const folderName = pathParts[0];
+            folderSet.add(currentPrefix + folderName + '/');
           }
           return;
         }
