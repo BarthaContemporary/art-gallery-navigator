@@ -240,6 +240,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const xmlResponse = await storageResponse.text();
     console.log('Storage provider response length:', xmlResponse.length);
     console.log('Storage provider response preview:', xmlResponse.substring(0, 1000));
+    
+    // Log raw XML structure for debugging
+    console.log('=== XML STRUCTURE ANALYSIS ===');
+    console.log('Looking for <Contents> elements:', xmlResponse.includes('<Contents>'));
+    console.log('Looking for <CommonPrefixes> elements:', xmlResponse.includes('<CommonPrefixes>'));
+    console.log('Looking for <Key> elements:', xmlResponse.includes('<Key>'));
+    console.log('Looking for <Prefix> elements:', xmlResponse.includes('<Prefix>'));
+    
+    // Extract some key information using regex for debugging
+    const keyMatches = xmlResponse.match(/<Key>(.*?)<\/Key>/g);
+    const prefixMatches = xmlResponse.match(/<Prefix>(.*?)<\/Prefix>/g);
+    
+    console.log('Key matches found:', keyMatches?.length || 0);
+    console.log('Prefix matches found:', prefixMatches?.length || 0);
+    
+    if (keyMatches) {
+      console.log('First few keys:', keyMatches.slice(0, 5).map(m => m.replace(/<\/?Key>/g, '')));
+    }
+    
+    if (prefixMatches) {
+      console.log('First few prefixes:', prefixMatches.slice(0, 5).map(m => m.replace(/<\/?Prefix>/g, '')));
+    }
 
     return new Response(xmlResponse, {
       status: 200,
