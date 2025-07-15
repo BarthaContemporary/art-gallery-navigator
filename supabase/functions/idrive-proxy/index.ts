@@ -55,6 +55,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     
     console.log('Processing bucket:', bucketName, 'prefix:', prefix);
+    console.log('Prefix type:', typeof prefix, 'Length:', prefix?.length);
+    console.log('Is prefix empty?', !prefix || prefix === '');
+    console.log('Prefix details:', JSON.stringify(prefix));
 
     // Get storage credentials from database
     let credentials = null;
