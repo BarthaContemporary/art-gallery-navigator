@@ -4,8 +4,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
 };
 
-console.log('🚀 IDrive proxy function starting...');
-
 Deno.serve(async (req: Request): Promise<Response> => {
   console.log('📥 Request received:', req.method, req.url);
   
