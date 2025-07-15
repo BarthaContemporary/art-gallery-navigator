@@ -34,14 +34,24 @@ export function useStorageOperations() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to list files:', response.status, response.statusText, errorText);
+        console.error('Failed to list files:', response.status, response.statusText);
+        return [];
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('xml')) {
+        console.error('Expected XML response, got:', contentType);
         return [];
       }
 
       // Parse S3 XML response
       const xmlText = await response.text();
-      console.log('Raw XML response:', xmlText);
+      console.log('Raw XML response length:', xmlText.length);
+      
+      if (!xmlText) {
+        console.error('Empty XML response');
+        return [];
+      }
       
       const parser = new DOMParser();
       const doc = parser.parseFromString(xmlText, 'text/xml');
@@ -85,8 +95,9 @@ export function useStorageOperations() {
         };
       });
 
+      const items = [...folderItems, ...fileItems];
       console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
-      return [...folderItems, ...fileItems];
+      return items;
     } catch (error) {
       console.error('Error listing files:', error);
       return [];
