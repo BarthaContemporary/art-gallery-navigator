@@ -39,9 +39,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     console.log('Authenticated user:', user.id)
 
-    const url = new URL(req.url);
-    const bucketName = url.searchParams.get('bucket') || 'default';
-    const prefix = url.searchParams.get('prefix') || '';
+    let bucketName = 'default';
+    let prefix = '';
+
+    if (req.method === 'POST') {
+      // Handle POST request with body data from supabase.functions.invoke
+      const body = await req.json();
+      bucketName = body.bucket || 'default';
+      prefix = body.prefix || '';
+    } else {
+      // Handle GET request with query parameters (fallback)
+      const url = new URL(req.url);
+      bucketName = url.searchParams.get('bucket') || 'default';
+      prefix = url.searchParams.get('prefix') || '';
+    }
     
     console.log('Processing bucket:', bucketName, 'prefix:', prefix);
     

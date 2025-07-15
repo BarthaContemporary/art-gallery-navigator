@@ -24,36 +24,26 @@ export function useStorageOperations() {
       // Use the actual bucket name from credentials
       const actualBucketName = bucket.credentials.bucket_name;
       const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
-      const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${actualBucketName}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
-      
-      console.log('🌐 Making request to URL:', url);
+      console.log('🌐 Calling edge function with supabase client...');
       console.log('📦 Using bucket name:', actualBucketName);
       console.log('📁 Using prefix:', formattedPrefix);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
+      const { data, error } = await supabase.functions.invoke('idrive-proxy', {
+        body: {
+          bucket: actualBucketName,
+          prefix: formattedPrefix
+        }
       });
 
-      console.log('📡 Response received:', response.status, response.statusText);
-      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('📡 Edge function response:', { data, error });
 
-      if (!response.ok) {
-        console.error('Failed to list files:', response.status, response.statusText);
+      if (error) {
+        console.error('Edge function error:', error);
         return [];
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('xml')) {
-        console.error('Expected XML response, got:', contentType);
-        return [];
-      }
-
-      // Parse S3 XML response
-      const xmlText = await response.text();
+      // The response should be XML text
+      const xmlText = data;
       console.log('📄 Raw XML response length:', xmlText.length);
       console.log('📄 Raw XML response:', xmlText);
       
