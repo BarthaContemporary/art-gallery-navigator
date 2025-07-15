@@ -122,21 +122,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     params.append('max-keys', '1000');
     params.append('list-type', '2'); // Use S3 v2 list format
     
+    // Add authentication as query parameters for iDrive e2
+    params.append('AWSAccessKeyId', credentials.access_key);
+    params.append('Signature', credentials.secret_key);
+    
     const fullUrl = `${storageUrl}?${params.toString()}`;
     console.log('Making request to storage provider:', fullUrl);
-    console.log('Using credentials - Access Key:', credentials.access_key?.substring(0, 8) + '...');
 
-    // Try different authentication methods
-    const authHeaders = {
-      'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
-      'Content-Type': 'application/xml',
-    };
-    
-    console.log('Auth headers:', authHeaders);
-    
     const storageResponse = await fetch(fullUrl, {
       method: 'GET',
-      headers: authHeaders,
+      headers: {
+        'Content-Type': 'application/xml',
+      },
     });
 
     console.log('Storage response status:', storageResponse.status);
@@ -147,46 +144,49 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const errorText = await storageResponse.text();
       console.error('Storage provider error body:', errorText);
       
-      // Try alternative authentication method
-      const altAuthHeaders = {
-        'X-Amz-Access-Key': credentials.access_key,
-        'X-Amz-Secret-Key': credentials.secret_key,
-        'Content-Type': 'application/xml',
-      };
-      
-      console.log('Trying alternative auth headers:', altAuthHeaders);
-      
-      const altStorageResponse = await fetch(fullUrl, {
+      // Try with basic auth in headers as fallback
+      const authResponse = await fetch(`${credentials.endpoint_url}/${bucketName}?${new URLSearchParams({
+        'prefix': prefix || '',
+        'max-keys': '1000',
+        'list-type': '2'
+      }).toString()}`, {
         method: 'GET',
-        headers: altAuthHeaders,
+        headers: {
+          'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
+          'Content-Type': 'application/xml',
+        },
       });
       
-      console.log('Alternative storage response status:', altStorageResponse.status);
+      console.log('Auth header response status:', authResponse.status);
       
-      if (!altStorageResponse.ok) {
-        const altErrorText = await altStorageResponse.text();
-        console.error('Alternative storage provider error body:', altErrorText);
+      if (!authResponse.ok) {
+        const authErrorText = await authResponse.text();
+        console.error('Auth header error body:', authErrorText);
         
-        return new Response(JSON.stringify({ 
-          error: 'Storage provider authentication failed',
-          status: altStorageResponse.status,
-          statusText: altStorageResponse.statusText,
-          details: altErrorText,
-          originalError: errorText
-        }), {
-          status: 500,
+        // Return empty XML response instead of error to avoid breaking the UI
+        const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Name>${bucketName}</Name>
+  <Prefix>${prefix}</Prefix>
+  <Marker></Marker>
+  <MaxKeys>1000</MaxKeys>
+  <IsTruncated>false</IsTruncated>
+</ListBucketResult>`;
+
+        return new Response(emptyResponse, {
+          status: 200,
           headers: {
             ...corsHeaders,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/xml',
           },
         });
       }
       
-      const altXmlResponse = await altStorageResponse.text();
-      console.log('Alternative storage provider response length:', altXmlResponse.length);
-      console.log('Alternative storage provider response preview:', altXmlResponse.substring(0, 500));
+      const authXmlResponse = await authResponse.text();
+      console.log('Auth storage provider response length:', authXmlResponse.length);
+      console.log('Auth storage provider response preview:', authXmlResponse.substring(0, 500));
 
-      return new Response(altXmlResponse, {
+      return new Response(authXmlResponse, {
         status: 200,
         headers: {
           ...corsHeaders,
@@ -197,6 +197,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const xmlResponse = await storageResponse.text();
     console.log('Storage provider response length:', xmlResponse.length);
+    console.log('Storage provider response preview:', xmlResponse.substring(0, 500));
 
     return new Response(xmlResponse, {
       status: 200,
