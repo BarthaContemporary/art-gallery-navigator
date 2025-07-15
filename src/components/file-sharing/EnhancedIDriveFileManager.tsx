@@ -268,8 +268,8 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       {showBucketSelector && (
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2 whitespace-nowrap">
                 <Cloud className="h-5 w-5" />
                 <span className="font-medium">Storage Bucket:</span>
               </div>
@@ -277,7 +277,7 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                 value={currentBucket?.credentials.bucket_name || ''} 
                 onValueChange={handleBucketChange}
               >
-                <SelectTrigger className="w-64">
+                <SelectTrigger className="w-full sm:w-64">
                   <SelectValue placeholder="Select a storage bucket" />
                 </SelectTrigger>
                 <SelectContent>
@@ -302,8 +302,8 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
       {/* File Manager */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -311,12 +311,14 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                 disabled={loading || !currentBucket}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="sr-only sm:not-sr-only sm:ml-2">Refresh</span>
               </Button>
               <Dialog open={createFolderDialogOpen} onOpenChange={setCreateFolderDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" disabled={!currentBucket}>
                     <FolderPlus className="h-4 w-4 mr-2" />
-                    New Folder
+                    <span className="hidden sm:inline">New Folder</span>
+                    <span className="sm:hidden">New</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -346,7 +348,8 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                 <DialogTrigger asChild>
                   <Button size="sm" disabled={!currentBucket}>
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload
+                    <span className="hidden sm:inline">Upload</span>
+                    <span className="sm:hidden">Upload</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -379,16 +382,17 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
             </div>
           </div>
           {(currentPath || (currentBucket && isAdmin && mode === 'personal')) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-muted-foreground">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleBackClick}
+                className="self-start"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <span>
+              <span className="break-all">
                 {currentBucket ? (
                   <>
                     <Cloud className="inline h-4 w-4 mr-1" />
@@ -460,28 +464,28 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                   {item.isFolder ? (
                     <button
                       onClick={() => handleFolderClick(item)}
-                      className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group text-left"
+                      className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group text-left gap-2"
                     >
-                      <div className="flex items-center gap-3">
-                        <Folder className="h-5 w-5 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                        <div>
-                          <p className="font-medium group-hover:text-primary transition-colors">{item.name}</p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Folder className="h-5 w-5 text-blue-500 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium group-hover:text-primary transition-colors truncate">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
                             Folder • Click to open
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center text-muted-foreground group-hover:text-primary transition-colors">
-                        <span className="text-sm mr-1">Open</span>
+                      <div className="flex items-center text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0">
+                        <span className="text-sm mr-1 hidden sm:inline">Open</span>
                         <ArrowLeft className="h-4 w-4 rotate-180" />
                       </div>
                     </button>
                   ) : (
-                    <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <File className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium">{item.name}</p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors gap-2">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <File className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {formatFileSize(item.size)}
                             {item.lastModified && (
@@ -492,13 +496,14 @@ export function EnhancedIDriveFileManager({ mode = 'personal' }: EnhancedIDriveF
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDownload(item.key)}
                         >
                           <Download className="h-4 w-4" />
+                          <span className="sr-only">Download</span>
                         </Button>
                       </div>
                     </div>

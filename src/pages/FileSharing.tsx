@@ -17,18 +17,21 @@ export default function FileSharing() {
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
-          <TabsTrigger value="shared-documents" className="flex items-center gap-2">
+          <TabsTrigger value="shared-documents" className="flex items-center gap-2 text-xs sm:text-sm">
             <Share className="h-4 w-4" />
-            Shared Documents
+            <span className="hidden sm:inline">Shared Documents</span>
+            <span className="sm:hidden">Shared</span>
           </TabsTrigger>
-          <TabsTrigger value="my-storage" className="flex items-center gap-2">
+          <TabsTrigger value="my-storage" className="flex items-center gap-2 text-xs sm:text-sm">
             <FolderOpen className="h-4 w-4" />
-            My Storage
+            <span className="hidden sm:inline">My Storage</span>
+            <span className="sm:hidden">Storage</span>
           </TabsTrigger>
           {isAdmin && (
-            <TabsTrigger value="storage-management" className="flex items-center gap-2">
+            <TabsTrigger value="storage-management" className="flex items-center gap-2 text-xs sm:text-sm">
               <Key className="h-4 w-4" />
-              Storage Management
+              <span className="hidden sm:inline">Storage Management</span>
+              <span className="sm:hidden">Manage</span>
             </TabsTrigger>
           )}
         </TabsList>
