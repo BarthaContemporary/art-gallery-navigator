@@ -120,20 +120,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const params = new URLSearchParams();
     if (prefix) params.append('prefix', prefix);
     params.append('max-keys', '1000');
+    params.append('list-type', '2'); // Use S3 v2 list format
     
     const fullUrl = `${storageUrl}?${params.toString()}`;
     console.log('Making request to storage provider:', fullUrl);
 
+    // Create proper authentication headers for S3-compatible service
+    const authHeader = `AWS ${credentials.access_key}:${credentials.secret_key}`;
+    
     const storageResponse = await fetch(fullUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/xml',
+        'x-amz-request-payer': 'BucketOwner'
       },
     });
 
+    console.log('Storage response status:', storageResponse.status);
+    console.log('Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
+
     if (!storageResponse.ok) {
       console.error('Storage provider error:', storageResponse.status, storageResponse.statusText);
+      const errorText = await storageResponse.text();
+      console.error('Storage provider error body:', errorText);
+      
       // Return empty XML response instead of error to avoid breaking the UI
       const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
