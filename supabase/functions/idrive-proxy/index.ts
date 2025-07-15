@@ -145,21 +145,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const errorText = await storageResponse.text();
       console.error('Storage provider error body:', errorText);
       
-      // Return empty XML response instead of error to avoid breaking the UI
-      const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-  <Name>${bucketName}</Name>
-  <Prefix>${prefix}</Prefix>
-  <Marker></Marker>
-  <MaxKeys>1000</MaxKeys>
-  <IsTruncated>false</IsTruncated>
-</ListBucketResult>`;
-
-      return new Response(emptyResponse, {
-        status: 200,
+      return new Response(JSON.stringify({ 
+        error: 'Storage provider error',
+        status: storageResponse.status,
+        statusText: storageResponse.statusText,
+        details: errorText
+      }), {
+        status: 500,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/xml',
+          'Content-Type': 'application/json',
         },
       });
     }
