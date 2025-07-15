@@ -173,8 +173,19 @@ export function useStorageOperations() {
 
       // Filter files to only show those at the current level
       const currentLevelFiles = fileItems.filter(file => {
-        const relativePath = file.key.slice(currentPrefix.length);
-        return !relativePath.includes('/');
+        // If no prefix, show all files without subfolders
+        if (!formattedPrefix) {
+          return !file.key.includes('/');
+        }
+        
+        // If file starts with current prefix, check if it's directly in this folder
+        if (file.key.startsWith(formattedPrefix)) {
+          const relativePath = file.key.slice(formattedPrefix.length);
+          // Show files that don't have any more folder separators
+          return !relativePath.includes('/');
+        }
+        
+        return false;
       });
 
       const items = [...uniqueFolders, ...currentLevelFiles];
