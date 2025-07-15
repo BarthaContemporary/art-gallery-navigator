@@ -18,7 +18,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -55,77 +55,108 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     
     console.log('Processing bucket:', bucketName, 'prefix:', prefix);
+
+    // Get storage credentials from database
+    let credentials = null;
     
-    // Determine bucket type and return appropriate mock data
-    const isSharedBucket = bucketName === 'gallerysharedbucket';
-    const isAdminBucket = bucketName === 'bclondon';
-    
-    let xmlContent = '';
-    if (isSharedBucket) {
-      xmlContent = `
-  <Contents>
-    <Key>shared-document.pdf</Key>
-    <Size>1024000</Size>
-    <LastModified>2024-01-15T12:00:00.000Z</LastModified>
-  </Contents>
-  <Contents>
-    <Key>shared-image.jpg</Key>
-    <Size>2048000</Size>
-    <LastModified>2024-01-15T12:30:00.000Z</LastModified>
-  </Contents>
-  <CommonPrefixes>
-    <Prefix>documents/</Prefix>
-  </CommonPrefixes>
-  <CommonPrefixes>
-    <Prefix>images/</Prefix>
-  </CommonPrefixes>`;
-    } else if (isAdminBucket) {
-      xmlContent = `
-  <Contents>
-    <Key>admin-report.pdf</Key>
-    <Size>512000</Size>
-    <LastModified>2024-01-15T14:00:00.000Z</LastModified>
-  </Contents>
-  <Contents>
-    <Key>admin-data.xlsx</Key>
-    <Size>256000</Size>
-    <LastModified>2024-01-15T14:30:00.000Z</LastModified>
-  </Contents>
-  <CommonPrefixes>
-    <Prefix>reports/</Prefix>
-  </CommonPrefixes>`;
+    if (bucketName === 'gallerysharedbucket') {
+      // Get shared storage credentials
+      const { data, error } = await supabaseClient
+        .from('shared_storage_credentials')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (error) {
+        console.error('Error fetching shared credentials:', error);
+        return new Response(JSON.stringify({ error: 'Failed to fetch credentials' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      credentials = data?.[0];
     } else {
-      xmlContent = `
-  <Contents>
-    <Key>artwork-1.jpg</Key>
-    <Size>3072000</Size>
-    <LastModified>2024-01-15T16:00:00.000Z</LastModified>
-  </Contents>
-  <Contents>
-    <Key>portfolio.pdf</Key>
-    <Size>8192000</Size>
-    <LastModified>2024-01-15T16:30:00.000Z</LastModified>
-  </Contents>
-  <CommonPrefixes>
-    <Prefix>artworks/</Prefix>
-  </CommonPrefixes>
-  <CommonPrefixes>
-    <Prefix>documents/</Prefix>
-  </CommonPrefixes>`;
+      // Check if it's an admin bucket
+      const { data: adminData, error: adminError } = await supabaseClient
+        .from('admin_storage_credentials')
+        .select('*')
+        .eq('bucket_name', bucketName)
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (adminError) {
+        console.error('Error fetching admin credentials:', adminError);
+      } else if (adminData?.[0]) {
+        credentials = adminData[0];
+      } else {
+        // Check if it's an artist bucket
+        const { data: artistData, error: artistError } = await supabaseClient
+          .from('artist_storage_credentials')
+          .select('*')
+          .eq('bucket_name', bucketName)
+          .limit(1);
+        
+        if (artistError) {
+          console.error('Error fetching artist credentials:', artistError);
+        } else {
+          credentials = artistData?.[0];
+        }
+      }
     }
 
-    const response = `<?xml version="1.0" encoding="UTF-8"?>
+    if (!credentials) {
+      console.error('No credentials found for bucket:', bucketName);
+      return new Response(JSON.stringify({ error: 'No credentials found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Found credentials for bucket:', bucketName);
+
+    // Make request to actual storage provider
+    const storageUrl = `${credentials.endpoint_url}/${bucketName}`;
+    const params = new URLSearchParams();
+    if (prefix) params.append('prefix', prefix);
+    params.append('max-keys', '1000');
+    
+    const fullUrl = `${storageUrl}?${params.toString()}`;
+    console.log('Making request to storage provider:', fullUrl);
+
+    const storageResponse = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
+        'Content-Type': 'application/xml',
+      },
+    });
+
+    if (!storageResponse.ok) {
+      console.error('Storage provider error:', storageResponse.status, storageResponse.statusText);
+      // Return empty XML response instead of error to avoid breaking the UI
+      const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Name>${bucketName}</Name>
   <Prefix>${prefix}</Prefix>
   <Marker></Marker>
   <MaxKeys>1000</MaxKeys>
-  <IsTruncated>false</IsTruncated>${xmlContent}
+  <IsTruncated>false</IsTruncated>
 </ListBucketResult>`;
 
-    console.log('Returning response for bucket:', bucketName);
+      return new Response(emptyResponse, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/xml',
+        },
+      });
+    }
 
-    return new Response(response, {
+    const xmlResponse = await storageResponse.text();
+    console.log('Storage provider response length:', xmlResponse.length);
+
+    return new Response(xmlResponse, {
       status: 200,
       headers: {
         ...corsHeaders,
