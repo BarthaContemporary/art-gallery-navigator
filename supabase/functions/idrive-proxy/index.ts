@@ -129,6 +129,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const queryString = new URLSearchParams({
       'list-type': '2',
       'max-keys': '1000',
+      'delimiter': '/',
       ...(prefix && { 'prefix': prefix })
     }).toString();
     

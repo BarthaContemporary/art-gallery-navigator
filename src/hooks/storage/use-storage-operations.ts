@@ -102,11 +102,21 @@ export function useStorageOperations() {
         });
 
       const folderItems: StorageItem[] = Array.from(folders).map(folder => {
-        const prefix = folder.querySelector('Prefix')?.textContent || '';
-        const name = prefix.split('/').filter(Boolean).pop() || '';
+        const prefixText = folder.querySelector('Prefix')?.textContent || '';
+        console.log('🔍 Processing folder prefix:', prefixText);
+        
+        // Remove the current prefix from the folder prefix to get just the folder name
+        const currentPrefix = formattedPrefix || '';
+        const folderPath = prefixText.startsWith(currentPrefix) 
+          ? prefixText.slice(currentPrefix.length)
+          : prefixText;
+        
+        const name = folderPath.replace(/\/$/, '').split('/')[0] || '';
+        console.log('📁 Extracted folder name:', name, 'from prefix:', prefixText);
+        
         return {
           name,
-          key: prefix,
+          key: prefixText,
           isFolder: true,
         };
       });
