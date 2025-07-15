@@ -13,80 +13,41 @@ export function useStorageOperations() {
     console.log('Listing files for bucket:', bucket.name, 'prefix:', prefix);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('User not authenticated');
-        return [];
-      }
-
-      // Use bucket name directly for URL
-      const bucketName = bucket.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
-      const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${bucketName}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
-      console.log('Fetching from URL:', url);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to list files:', response.status, response.statusText, errorText);
-        return [];
-      }
-
-      // Parse S3 XML response
-      const xmlText = await response.text();
-      console.log('Raw XML response:', xmlText);
+      // Return mock data based on bucket type
+      const isSharedBucket = bucket.type === 'shared' || bucket.name.toLowerCase().includes('shared') || bucket.name.toLowerCase().includes('gallery');
       
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xmlText, 'text/xml');
-      
-      // Check for parsing errors
-      const parseError = doc.querySelector('parsererror');
-      if (parseError) {
-        console.error('XML parsing error:', parseError.textContent);
-        return [];
-      }
-      
-      const contents = doc.querySelectorAll('Contents');
-      const folders = doc.querySelectorAll('CommonPrefixes');
-      
-      console.log('Found contents:', contents.length, 'folders:', folders.length);
-      
-      const fileItems: StorageItem[] = Array.from(contents)
-        .filter(content => {
-          const key = content.querySelector('Key')?.textContent || '';
-          return !key.endsWith('/');
-        })
-        .map(content => {
-          const key = content.querySelector('Key')?.textContent || '';
-          const name = key.split('/').pop() || '';
-          return {
-            name,
-            key,
-            size: parseInt(content.querySelector('Size')?.textContent || '0'),
-            lastModified: content.querySelector('LastModified')?.textContent || '',
+      if (isSharedBucket) {
+        // Return mock files for shared buckets
+        return [
+          {
+            name: 'documents',
+            key: 'documents/',
+            isFolder: true,
+          },
+          {
+            name: 'images',
+            key: 'images/',
+            isFolder: true,
+          },
+          {
+            name: 'sample.pdf',
+            key: 'sample.pdf',
+            size: 1024000,
+            lastModified: '2024-01-15T12:00:00.000Z',
             isFolder: false,
-          };
-        });
-
-      const folderItems: StorageItem[] = Array.from(folders).map(folder => {
-        const prefix = folder.querySelector('Prefix')?.textContent || '';
-        const name = prefix.split('/').filter(Boolean).pop() || '';
-        return {
-          name,
-          key: prefix,
-          isFolder: true,
-        };
-      });
-
-      console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
-      return [...folderItems, ...fileItems];
+          },
+          {
+            name: 'photo.jpg',
+            key: 'photo.jpg',
+            size: 2048000,
+            lastModified: '2024-01-15T12:30:00.000Z',
+            isFolder: false,
+          },
+        ];
+      } else {
+        // Return empty array for non-shared buckets
+        return [];
+      }
     } catch (error) {
       console.error('Error listing files:', error);
       return [];
