@@ -4,34 +4,27 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
 };
 
-console.log('🚀 IDrive proxy function starting...');
-
 Deno.serve(async (req: Request): Promise<Response> => {
-  console.log('📥 Request received:', req.method, req.url);
+  console.log('Request received:', req.method, req.url);
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log('✅ CORS preflight handled');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('🔍 Parsing request URL...');
     const url = new URL(req.url);
     const bucketName = url.searchParams.get('bucket') || 'default';
     const prefix = url.searchParams.get('prefix') || '';
     
-    console.log('🪣 Processing bucket:', bucketName, 'prefix:', prefix);
+    console.log('Processing bucket:', bucketName, 'prefix:', prefix);
     
     // Determine bucket type and return appropriate mock data
     const isSharedBucket = bucketName === 'gallerysharedbucket';
     const isAdminBucket = bucketName === 'bclondon';
     
-    console.log('🏷️ Bucket type - isShared:', isSharedBucket, 'isAdmin:', isAdminBucket);
-    
     let xmlContent = '';
     if (isSharedBucket) {
-      console.log('📁 Generating shared bucket content...');
       xmlContent = `
   <Contents>
     <Key>shared-document.pdf</Key>
@@ -50,7 +43,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     <Prefix>images/</Prefix>
   </CommonPrefixes>`;
     } else if (isAdminBucket) {
-      console.log('👑 Generating admin bucket content...');
       xmlContent = `
   <Contents>
     <Key>admin-report.pdf</Key>
@@ -66,7 +58,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     <Prefix>reports/</Prefix>
   </CommonPrefixes>`;
     } else {
-      console.log('🎨 Generating artist bucket content...');
       xmlContent = `
   <Contents>
     <Key>artwork-1.jpg</Key>
@@ -86,7 +77,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   </CommonPrefixes>`;
     }
 
-    console.log('📄 Building XML response...');
     const response = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Name>${bucketName}</Name>
@@ -96,8 +86,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   <IsTruncated>false</IsTruncated>${xmlContent}
 </ListBucketResult>`;
 
-    console.log('✅ Returning XML response for bucket:', bucketName);
-    console.log('📏 Response length:', response.length);
+    console.log('Returning response for bucket:', bucketName);
 
     return new Response(response, {
       status: 200,
@@ -108,20 +97,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
     
   } catch (error) {
-    console.error('❌ Error in idrive-proxy:', error);
-    console.error('❌ Error details:', error.message);
-    console.error('❌ Error stack:', error.stack);
+    console.error('Error in idrive-proxy:', error);
     
-    const errorResponse = {
+    return new Response(JSON.stringify({ 
       error: 'Internal server error',
       success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('🔥 Returning error response:', errorResponse);
-    
-    return new Response(JSON.stringify(errorResponse), {
+      message: error.message
+    }), {
       status: 500,
       headers: {
         ...corsHeaders,
