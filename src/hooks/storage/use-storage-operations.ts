@@ -54,7 +54,8 @@ export function useStorageOperations() {
 
       // Parse S3 XML response
       const xmlText = await response.text();
-      console.log('Raw XML response length:', xmlText.length);
+      console.log('📄 Raw XML response length:', xmlText.length);
+      console.log('📄 Raw XML response:', xmlText);
       
       if (!xmlText) {
         console.error('Empty XML response');
@@ -71,10 +72,27 @@ export function useStorageOperations() {
         return [];
       }
       
+      console.log('📋 Parsed XML document:', doc);
+      console.log('📋 Document root element:', doc.documentElement);
+      
       const contents = doc.querySelectorAll('Contents');
       const folders = doc.querySelectorAll('CommonPrefixes');
       
-      console.log('Found contents:', contents.length, 'folders:', folders.length);
+      console.log('🔍 Found contents:', contents.length, 'folders:', folders.length);
+      
+      // Debug each content element
+      contents.forEach((content, index) => {
+        const key = content.querySelector('Key')?.textContent || '';
+        const size = content.querySelector('Size')?.textContent || '';
+        const lastModified = content.querySelector('LastModified')?.textContent || '';
+        console.log(`📁 Content ${index}:`, { key, size, lastModified });
+      });
+      
+      // Debug each folder element
+      folders.forEach((folder, index) => {
+        const prefix = folder.querySelector('Prefix')?.textContent || '';
+        console.log(`📂 Folder ${index}:`, { prefix });
+      });
       
       const fileItems: StorageItem[] = Array.from(contents)
         .filter(content => {
@@ -104,7 +122,8 @@ export function useStorageOperations() {
       });
 
       const items = [...folderItems, ...fileItems];
-      console.log('Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
+      console.log('✅ Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
+      console.log('✅ Final items:', items);
       return items;
     } catch (error) {
       console.error('Error listing files:', error);
