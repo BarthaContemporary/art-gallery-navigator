@@ -115,111 +115,111 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     console.log('Found credentials for bucket:', bucketName);
 
-    // Make request to actual storage provider
-    console.log('=== STORAGE REQUEST DEBUG ===');
-    console.log('Endpoint URL:', credentials.endpoint_url);
-    console.log('Bucket Name:', bucketName);
-    console.log('Access Key:', credentials.access_key ? credentials.access_key.substring(0, 8) + '...' : 'MISSING');
-    console.log('Secret Key:', credentials.secret_key ? 'PROVIDED' : 'MISSING');
+    // Create proper S3 signature for iDrive e2
+    const now = new Date();
+    const dateString = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const timeString = now.toISOString().slice(0, 19).replace(/[-:]/g, '') + 'Z';
     
-    // Try direct URL without additional parameters first
-    const directUrl = `${credentials.endpoint_url}/${bucketName}`;
-    console.log('Direct URL:', directUrl);
+    const host = credentials.endpoint_url.replace('https://', '');
+    const region = credentials.region || 'us-east-1';
     
-    // Try with no authentication first to see if bucket is public
-    const publicResponse = await fetch(directUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/xml',
-      },
-    });
-    
-    console.log('Public response status:', publicResponse.status);
-    
-    if (publicResponse.ok) {
-      const publicXml = await publicResponse.text();
-      console.log('Public response length:', publicXml.length);
-      console.log('Public response preview:', publicXml.substring(0, 500));
-      
-      return new Response(publicXml, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/xml',
-        },
-      });
-    }
-    
-    // Try with query parameters for iDrive e2
-    const queryParams = new URLSearchParams({
+    // Create the canonical request
+    const method = 'GET';
+    const uri = `/${bucketName}`;
+    const queryString = new URLSearchParams({
       'list-type': '2',
       'max-keys': '1000',
-      'prefix': prefix || '',
-      'AWSAccessKeyId': credentials.access_key,
-      'Expires': String(Math.floor(Date.now() / 1000) + 3600),
-      'SignatureVersion': '2',
-      'SignatureMethod': 'HmacSHA256'
-    });
+      ...(prefix && { 'prefix': prefix })
+    }).toString();
     
-    const queryUrl = `${directUrl}?${queryParams.toString()}`;
-    console.log('Query URL (without signature):', queryUrl.replace(/AWSAccessKeyId=[^&]*/, 'AWSAccessKeyId=***'));
+    const canonicalHeaders = [
+      `host:${host}`,
+      `x-amz-content-sha256:UNSIGNED-PAYLOAD`,
+      `x-amz-date:${timeString}`
+    ].join('\n') + '\n';
     
-    const queryResponse = await fetch(queryUrl, {
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    
+    const canonicalRequest = [
+      method,
+      uri,
+      queryString,
+      canonicalHeaders,
+      signedHeaders,
+      'UNSIGNED-PAYLOAD'
+    ].join('\n');
+    
+    console.log('Canonical request:', canonicalRequest);
+    
+    // Create string to sign
+    const algorithm = 'AWS4-HMAC-SHA256';
+    const credentialScope = `${dateString}/${region}/s3/aws4_request`;
+    const stringToSign = [
+      algorithm,
+      timeString,
+      credentialScope,
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalRequest))
+        .then(hash => Array.from(new Uint8Array(hash))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join(''))
+    ].join('\n');
+    
+    console.log('String to sign:', stringToSign);
+    
+    // Create signing key
+    const kSecret = new TextEncoder().encode(`AWS4${credentials.secret_key}`);
+    const kDate = await crypto.subtle.importKey(
+      'raw', kSecret, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(dateString)));
+    
+    const kRegion = await crypto.subtle.importKey(
+      'raw', kDate, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(region)));
+    
+    const kService = await crypto.subtle.importKey(
+      'raw', kRegion, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode('s3')));
+    
+    const kSigning = await crypto.subtle.importKey(
+      'raw', kService, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode('aws4_request')));
+    
+    const signature = await crypto.subtle.importKey(
+      'raw', kSigning, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(stringToSign)))
+      .then(sig => Array.from(new Uint8Array(sig))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(''));
+    
+    const authorization = `${algorithm} Credential=${credentials.access_key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    
+    console.log('Authorization header:', authorization);
+    
+    // Make the authenticated request
+    const storageUrl = `${credentials.endpoint_url}${uri}?${queryString}`;
+    console.log('Final request URL:', storageUrl);
+    
+    const storageResponse = await fetch(storageUrl, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/xml',
-      },
+        'Host': host,
+        'Authorization': authorization,
+        'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
+        'X-Amz-Date': timeString,
+        'Content-Type': 'application/xml'
+      }
     });
-    
-    console.log('Query response status:', queryResponse.status);
-    
-    if (queryResponse.ok) {
-      const queryXml = await queryResponse.text();
-      console.log('Query response length:', queryXml.length);
-      console.log('Query response preview:', queryXml.substring(0, 500));
+
+    console.log('Storage response status:', storageResponse.status);
+    console.log('Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
+
+    if (!storageResponse.ok) {
+      console.error('Storage provider error:', storageResponse.status, storageResponse.statusText);
+      const errorText = await storageResponse.text();
+      console.error('Storage provider error body:', errorText);
       
-      return new Response(queryXml, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/xml',
-        },
-      });
-    }
-    
-    // Try with basic authorization header
-    const basicAuth = btoa(`${credentials.access_key}:${credentials.secret_key}`);
-    const basicResponse = await fetch(directUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${basicAuth}`,
-        'Content-Type': 'application/xml',
-      },
-    });
-    
-    console.log('Basic auth response status:', basicResponse.status);
-    
-    if (basicResponse.ok) {
-      const basicXml = await basicResponse.text();
-      console.log('Basic auth response length:', basicXml.length);
-      console.log('Basic auth response preview:', basicXml.substring(0, 500));
-      
-      return new Response(basicXml, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/xml',
-        },
-      });
-    }
-    
-    // Final fallback - return empty but valid XML
-    console.log('=== ALL METHODS FAILED ===');
-    console.log('Public response:', publicResponse.status, await publicResponse.text().then(t => t.substring(0, 200)));
-    console.log('Query response:', queryResponse.status, await queryResponse.text().then(t => t.substring(0, 200)));
-    console.log('Basic response:', basicResponse.status, await basicResponse.text().then(t => t.substring(0, 200)));
-    
-    const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
+      // Return empty XML response instead of error to avoid breaking the UI
+      const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Name>${bucketName}</Name>
   <Prefix>${prefix}</Prefix>
@@ -228,7 +228,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   <IsTruncated>false</IsTruncated>
 </ListBucketResult>`;
 
-    return new Response(emptyResponse, {
+      return new Response(emptyResponse, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/xml',
+        },
+      });
+    }
+
+    const xmlResponse = await storageResponse.text();
+    console.log('Storage provider response length:', xmlResponse.length);
+    console.log('Storage provider response preview:', xmlResponse.substring(0, 1000));
+
+    return new Response(xmlResponse, {
       status: 200,
       headers: {
         ...corsHeaders,
