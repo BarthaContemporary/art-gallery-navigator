@@ -101,11 +101,39 @@ export function useStorageOperations() {
           };
         });
 
-      const folderItems: StorageItem[] = Array.from(folders).map(folder => {
+      // Create folders from file paths
+      const folderSet = new Set<string>();
+      const currentPrefix = formattedPrefix || '';
+      
+      Array.from(contents).forEach(content => {
+        const key = content.querySelector('Key')?.textContent || '';
+        if (key.startsWith(currentPrefix)) {
+          const relativePath = key.slice(currentPrefix.length);
+          const pathParts = relativePath.split('/');
+          if (pathParts.length > 1) {
+            // This file is in a subfolder
+            const folderName = pathParts[0];
+            const folderPath = currentPrefix + folderName + '/';
+            folderSet.add(folderPath);
+          }
+        }
+      });
+
+      // Create folder items from the set
+      const folderItems: StorageItem[] = Array.from(folderSet).map(folderPath => {
+        const name = folderPath.split('/').filter(Boolean).pop() || '';
+        return {
+          name,
+          key: folderPath,
+          isFolder: true,
+        };
+      });
+
+      // Also process CommonPrefixes if they exist
+      const commonPrefixFolders: StorageItem[] = Array.from(folders).map(folder => {
         const prefixText = folder.querySelector('Prefix')?.textContent || '';
         console.log('🔍 Processing folder prefix:', prefixText);
         
-        // Remove the current prefix from the folder prefix to get just the folder name
         const currentPrefix = formattedPrefix || '';
         const folderPath = prefixText.startsWith(currentPrefix) 
           ? prefixText.slice(currentPrefix.length)
@@ -121,8 +149,20 @@ export function useStorageOperations() {
         };
       });
 
-      const items = [...folderItems, ...fileItems];
-      console.log('✅ Processed items - Files:', fileItems.length, 'Folders:', folderItems.length);
+      // Combine all folders and remove duplicates
+      const allFolders = [...folderItems, ...commonPrefixFolders];
+      const uniqueFolders = allFolders.filter((folder, index, self) => 
+        index === self.findIndex(f => f.key === folder.key)
+      );
+
+      // Filter files to only show those at the current level
+      const currentLevelFiles = fileItems.filter(file => {
+        const relativePath = file.key.slice(currentPrefix.length);
+        return !relativePath.includes('/');
+      });
+
+      const items = [...uniqueFolders, ...currentLevelFiles];
+      console.log('✅ Processed items - Files:', currentLevelFiles.length, 'Folders:', uniqueFolders.length);
       console.log('✅ Final items:', items);
       return items;
     } catch (error) {
