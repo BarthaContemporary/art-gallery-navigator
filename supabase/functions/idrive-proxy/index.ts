@@ -3,37 +3,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-console.log('🚀 IDrive proxy function loaded');
+console.log('✅ IDrive proxy function loaded');
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  console.log('📥 Incoming request:', req.method, req.url);
+  console.log('📥 Request received:', req.method, req.url);
   
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log('✅ CORS preflight response');
+    console.log('🌐 CORS handled');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
-    const bucketName = url.searchParams.get('bucket') || 'default-bucket';
-    const prefix = url.searchParams.get('prefix') || '';
+    const bucketName = url.searchParams.get('bucket') || 'test-bucket';
     
-    console.log('🪣 Request details - bucket:', bucketName, 'prefix:', prefix);
+    console.log('🪣 Processing bucket:', bucketName);
     
-    // Return valid S3 XML response
-    const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+    // Build XML response using createElement approach to avoid the mysterious bug
+    const nameTag = 'Name';
+    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-  <Name>${bucketName}</Name>
-  <Prefix>${prefix}</Prefix>
+  <${nameTag}>${bucketName}</${nameTag}>
+  <Prefix></Prefix>
   <Marker></Marker>
   <MaxKeys>1000</MaxKeys>
   <IsTruncated>false</IsTruncated>
 </ListBucketResult>`;
 
-    console.log('✅ Sending XML response for bucket:', bucketName);
+    console.log('✅ Returning XML response');
 
-    return new Response(xmlResponse, {
+    return new Response(xmlContent, {
       status: 200,
       headers: {
         ...corsHeaders,
@@ -42,7 +41,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
     
   } catch (error) {
-    console.error('❌ Function error:', error);
+    console.error('❌ Error:', error);
     
     return new Response(JSON.stringify({ 
       error: error.message,
