@@ -13,17 +13,22 @@ export function useStorageOperations() {
     console.log('Listing files for bucket:', bucket.name, 'prefix:', prefix);
 
     try {
+      console.log('🔐 Getting user session...');
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error('User not authenticated');
+        console.error('❌ User not authenticated');
         return [];
       }
+      console.log('✅ User session obtained');
 
       // Use the actual bucket name from credentials
       const actualBucketName = bucket.credentials.bucket_name;
       const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
       const url = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/?bucket=${actualBucketName}${formattedPrefix ? `&prefix=${encodeURIComponent(formattedPrefix)}` : ''}`;
-      console.log('Fetching from URL:', url);
+      
+      console.log('🌐 Making request to URL:', url);
+      console.log('📦 Using bucket name:', actualBucketName);
+      console.log('📁 Using prefix:', formattedPrefix);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -32,6 +37,9 @@ export function useStorageOperations() {
           'Content-Type': 'application/json',
         },
       });
+
+      console.log('📡 Response received:', response.status, response.statusText);
+      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         console.error('Failed to list files:', response.status, response.statusText);
