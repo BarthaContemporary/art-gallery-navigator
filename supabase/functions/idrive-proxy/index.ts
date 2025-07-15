@@ -124,17 +124,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     
     const fullUrl = `${storageUrl}?${params.toString()}`;
     console.log('Making request to storage provider:', fullUrl);
+    console.log('Using credentials - Access Key:', credentials.access_key?.substring(0, 8) + '...');
 
-    // Create proper authentication headers for S3-compatible service
-    const authHeader = `AWS ${credentials.access_key}:${credentials.secret_key}`;
+    // Try different authentication methods
+    const authHeaders = {
+      'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
+      'Content-Type': 'application/xml',
+    };
+    
+    console.log('Auth headers:', authHeaders);
     
     const storageResponse = await fetch(fullUrl, {
       method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/xml',
-        'x-amz-request-payer': 'BucketOwner'
-      },
+      headers: authHeaders,
     });
 
     console.log('Storage response status:', storageResponse.status);
@@ -145,16 +147,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const errorText = await storageResponse.text();
       console.error('Storage provider error body:', errorText);
       
-      return new Response(JSON.stringify({ 
-        error: 'Storage provider error',
-        status: storageResponse.status,
-        statusText: storageResponse.statusText,
-        details: errorText
-      }), {
-        status: 500,
+      // Try alternative authentication method
+      const altAuthHeaders = {
+        'X-Amz-Access-Key': credentials.access_key,
+        'X-Amz-Secret-Key': credentials.secret_key,
+        'Content-Type': 'application/xml',
+      };
+      
+      console.log('Trying alternative auth headers:', altAuthHeaders);
+      
+      const altStorageResponse = await fetch(fullUrl, {
+        method: 'GET',
+        headers: altAuthHeaders,
+      });
+      
+      console.log('Alternative storage response status:', altStorageResponse.status);
+      
+      if (!altStorageResponse.ok) {
+        const altErrorText = await altStorageResponse.text();
+        console.error('Alternative storage provider error body:', altErrorText);
+        
+        return new Response(JSON.stringify({ 
+          error: 'Storage provider authentication failed',
+          status: altStorageResponse.status,
+          statusText: altStorageResponse.statusText,
+          details: altErrorText,
+          originalError: errorText
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
+      const altXmlResponse = await altStorageResponse.text();
+      console.log('Alternative storage provider response length:', altXmlResponse.length);
+      console.log('Alternative storage provider response preview:', altXmlResponse.substring(0, 500));
+
+      return new Response(altXmlResponse, {
+        status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/xml',
         },
       });
     }
