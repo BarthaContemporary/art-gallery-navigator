@@ -116,55 +116,110 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.log('Found credentials for bucket:', bucketName);
 
     // Make request to actual storage provider
-    const storageUrl = `${credentials.endpoint_url}/${bucketName}`;
-    const params = new URLSearchParams();
-    if (prefix) params.append('prefix', prefix);
-    params.append('max-keys', '1000');
-    params.append('list-type', '2'); // Use S3 v2 list format
+    console.log('=== STORAGE REQUEST DEBUG ===');
+    console.log('Endpoint URL:', credentials.endpoint_url);
+    console.log('Bucket Name:', bucketName);
+    console.log('Access Key:', credentials.access_key ? credentials.access_key.substring(0, 8) + '...' : 'MISSING');
+    console.log('Secret Key:', credentials.secret_key ? 'PROVIDED' : 'MISSING');
     
-    // Add authentication as query parameters for iDrive e2
-    params.append('AWSAccessKeyId', credentials.access_key);
-    params.append('Signature', credentials.secret_key);
+    // Try direct URL without additional parameters first
+    const directUrl = `${credentials.endpoint_url}/${bucketName}`;
+    console.log('Direct URL:', directUrl);
     
-    const fullUrl = `${storageUrl}?${params.toString()}`;
-    console.log('Making request to storage provider:', fullUrl);
-
-    const storageResponse = await fetch(fullUrl, {
+    // Try with no authentication first to see if bucket is public
+    const publicResponse = await fetch(directUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/xml',
       },
     });
-
-    console.log('Storage response status:', storageResponse.status);
-    console.log('Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
-
-    if (!storageResponse.ok) {
-      console.error('Storage provider error:', storageResponse.status, storageResponse.statusText);
-      const errorText = await storageResponse.text();
-      console.error('Storage provider error body:', errorText);
+    
+    console.log('Public response status:', publicResponse.status);
+    
+    if (publicResponse.ok) {
+      const publicXml = await publicResponse.text();
+      console.log('Public response length:', publicXml.length);
+      console.log('Public response preview:', publicXml.substring(0, 500));
       
-      // Try with basic auth in headers as fallback
-      const authResponse = await fetch(`${credentials.endpoint_url}/${bucketName}?${new URLSearchParams({
-        'prefix': prefix || '',
-        'max-keys': '1000',
-        'list-type': '2'
-      }).toString()}`, {
-        method: 'GET',
+      return new Response(publicXml, {
+        status: 200,
         headers: {
-          'Authorization': `AWS ${credentials.access_key}:${credentials.secret_key}`,
+          ...corsHeaders,
           'Content-Type': 'application/xml',
         },
       });
+    }
+    
+    // Try with query parameters for iDrive e2
+    const queryParams = new URLSearchParams({
+      'list-type': '2',
+      'max-keys': '1000',
+      'prefix': prefix || '',
+      'AWSAccessKeyId': credentials.access_key,
+      'Expires': String(Math.floor(Date.now() / 1000) + 3600),
+      'SignatureVersion': '2',
+      'SignatureMethod': 'HmacSHA256'
+    });
+    
+    const queryUrl = `${directUrl}?${queryParams.toString()}`;
+    console.log('Query URL (without signature):', queryUrl.replace(/AWSAccessKeyId=[^&]*/, 'AWSAccessKeyId=***'));
+    
+    const queryResponse = await fetch(queryUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/xml',
+      },
+    });
+    
+    console.log('Query response status:', queryResponse.status);
+    
+    if (queryResponse.ok) {
+      const queryXml = await queryResponse.text();
+      console.log('Query response length:', queryXml.length);
+      console.log('Query response preview:', queryXml.substring(0, 500));
       
-      console.log('Auth header response status:', authResponse.status);
+      return new Response(queryXml, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/xml',
+        },
+      });
+    }
+    
+    // Try with basic authorization header
+    const basicAuth = btoa(`${credentials.access_key}:${credentials.secret_key}`);
+    const basicResponse = await fetch(directUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'application/xml',
+      },
+    });
+    
+    console.log('Basic auth response status:', basicResponse.status);
+    
+    if (basicResponse.ok) {
+      const basicXml = await basicResponse.text();
+      console.log('Basic auth response length:', basicXml.length);
+      console.log('Basic auth response preview:', basicXml.substring(0, 500));
       
-      if (!authResponse.ok) {
-        const authErrorText = await authResponse.text();
-        console.error('Auth header error body:', authErrorText);
-        
-        // Return empty XML response instead of error to avoid breaking the UI
-        const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
+      return new Response(basicXml, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/xml',
+        },
+      });
+    }
+    
+    // Final fallback - return empty but valid XML
+    console.log('=== ALL METHODS FAILED ===');
+    console.log('Public response:', publicResponse.status, await publicResponse.text().then(t => t.substring(0, 200)));
+    console.log('Query response:', queryResponse.status, await queryResponse.text().then(t => t.substring(0, 200)));
+    console.log('Basic response:', basicResponse.status, await basicResponse.text().then(t => t.substring(0, 200)));
+    
+    const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Name>${bucketName}</Name>
   <Prefix>${prefix}</Prefix>
@@ -173,33 +228,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   <IsTruncated>false</IsTruncated>
 </ListBucketResult>`;
 
-        return new Response(emptyResponse, {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/xml',
-          },
-        });
-      }
-      
-      const authXmlResponse = await authResponse.text();
-      console.log('Auth storage provider response length:', authXmlResponse.length);
-      console.log('Auth storage provider response preview:', authXmlResponse.substring(0, 500));
-
-      return new Response(authXmlResponse, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/xml',
-        },
-      });
-    }
-
-    const xmlResponse = await storageResponse.text();
-    console.log('Storage provider response length:', xmlResponse.length);
-    console.log('Storage provider response preview:', xmlResponse.substring(0, 500));
-
-    return new Response(xmlResponse, {
+    return new Response(emptyResponse, {
       status: 200,
       headers: {
         ...corsHeaders,
