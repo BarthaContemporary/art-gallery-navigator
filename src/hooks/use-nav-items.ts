@@ -1,5 +1,5 @@
 
-import { Calendar, Users, Home, PaintBucket, FileText, MapPin, FolderOpen, Building2, UserCheck, Settings } from "lucide-react";
+import { Calendar, Users, Home, PaintBucket, Share2, MapPin, FolderOpen, Building2, UserCheck, Settings } from "lucide-react";
 import { useAuth } from "./use-auth";
 
 export const useNavItems = () => {
@@ -8,19 +8,20 @@ export const useNavItems = () => {
   const baseItems = [
     // Dashboard - only for admin users
     ...(isAdmin ? [{ title: "Dashboard", href: "/", icon: Home }] : []),
-    // CRM - only for admin users
-    ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
     // Artists - only for admin users
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
+    { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
-    // Projects - only for admin users
-    ...(isAdmin ? [{ title: "Projects", href: "/projects", icon: Building2 }] : []),
-    { title: "Documents", href: "/documents", icon: FileText },
-    { title: "Locations", href: "/locations", icon: MapPin },
     // Appointments - only for admin users
     ...(isAdmin ? [{ title: "Appointments", href: "/appointments", icon: Calendar }] : []),
-    ...(isAdmin ? [{ title: "Settings", href: "/settings", icon: Settings }] : [])
+    { title: "Locations", href: "/locations", icon: MapPin },
+    // CRM - only for admin users
+    ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),
+    // Projects - only for admin users
+    ...(isAdmin ? [{ title: "Projects", href: "/projects", icon: Building2 }] : []),
+    // Admin settings - only for admin users
+    ...(isAdmin ? [{ title: "Admin", href: "/admin", icon: Settings }] : [])
   ];
 
   return baseItems;
