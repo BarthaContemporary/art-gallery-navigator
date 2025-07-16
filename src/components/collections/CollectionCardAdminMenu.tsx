@@ -32,35 +32,35 @@ export function CollectionCardAdminMenu({ collection }: CollectionCardAdminMenuP
 
   return (
     <>
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-8 w-8 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
               onClick={preventPropagation}
             >
               <Edit className="h-4 w-4" />
               <span className="sr-only">Actions for {collection.name}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={preventPropagation}>
-            <DropdownMenuItem onClick={handleManageWebsitesClick}>
-              <LinkIcon className="h-4 w-4 mr-2" />
+          <DropdownMenuContent align="end" onClick={preventPropagation} className="w-48">
+            <DropdownMenuItem onClick={handleManageWebsitesClick} className="gap-2">
+              <LinkIcon className="h-4 w-4" />
               Shareable Websites
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleEditClick}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
+            <DropdownMenuItem onClick={handleEditClick} className="gap-2">
+              <Edit className="h-4 w-4" />
+              Edit Collection
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleDeleteClick}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              <Trash2 className="h-4 w-4" />
+              Delete Collection
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

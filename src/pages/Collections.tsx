@@ -15,20 +15,39 @@ export default function Collections() {
   };
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-        <CollectionDialog />
-        {isAdmin && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleManageAllWebsites}
-          >
-            <Globe className="h-4 w-4" />
-          </Button>
-        )}
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="space-y-8">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground">Collections</h1>
+              <p className="text-muted-foreground">
+                Organize and share your artwork collections with others.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleManageAllWebsites}
+                  className="whitespace-nowrap"
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  Manage Websites
+                </Button>
+              )}
+              <CollectionDialog />
+            </div>
+          </div>
+
+          {/* Collections Grid */}
+          <div className="animate-fade-in">
+            <CollectionGrid />
+          </div>
+        </div>
       </div>
-      <CollectionGrid />
     </div>
   );
 }

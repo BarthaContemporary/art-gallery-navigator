@@ -7,16 +7,32 @@ interface CollectionCardContentProps {
 }
 
 export function CollectionCardContent({ collection }: CollectionCardContentProps) {
+  const artworkCount = collection.artworks?.length || 0;
+  
   return (
-    <CardContent className="p-4">
-      <h2 className="font-semibold text-lg truncate pr-10">{collection.name}</h2>
-      {collection.description && (
-        <p className="text-sm text-muted-foreground mt-1 truncate">{collection.description}</p>
-      )}
-      <div className="mt-3 flex items-center justify-between">
-        <div className="text-sm">
-          <span className="font-medium">{collection.artworks?.length || 0}</span>{' '}
-          {(collection.artworks?.length || 0) === 1 ? 'artwork' : 'artworks'}
+    <CardContent className="p-6">
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <h3 className="font-semibold text-lg text-foreground pr-10 group-hover:text-primary transition-colors truncate">
+            {collection.name}
+          </h3>
+          {collection.description && (
+            <p className="text-sm text-muted-foreground leading-relaxed truncate">
+              {collection.description}
+            </p>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{artworkCount}</span>{' '}
+              {artworkCount === 1 ? 'artwork' : 'artworks'}
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {new Date(collection.updated_at).toLocaleDateString()}
+          </div>
         </div>
       </div>
     </CardContent>

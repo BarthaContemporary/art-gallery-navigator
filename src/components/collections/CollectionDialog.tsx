@@ -54,7 +54,7 @@ export function CollectionDialog({ afterCreate }: { afterCreate?: () => void }) 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogTrigger asChild>
-        <Button size="sm" className="flex gap-2">
+        <Button size="sm" className="flex items-center gap-2 font-medium">
           <PlusCircle className="h-4 w-4" />
           Add Collection
         </Button>

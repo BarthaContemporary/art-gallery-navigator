@@ -18,7 +18,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   return (
     <>
       <Card 
-        className="cursor-pointer border-gray-200 hover:border-gray-300 transition-colors group relative pt-4" // Removed hover:shadow-md
+        className="cursor-pointer border rounded-lg bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden animate-fade-in"
         onClick={() => setShowDetailsDialog(true)}
         role="button"
         tabIndex={0}
