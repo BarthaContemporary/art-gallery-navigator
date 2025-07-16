@@ -16,13 +16,8 @@ interface ArtworkCardProps {
 function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Fetch artists map for fast lookup
-  const { data: artists } = useArtists();
-  let artistName = "Unknown Artist";
-  if (artwork.artist_id && artists) {
-    const artist = artists.find(a => a.id === artwork.artist_id);
-    if (artist) artistName = artist.full_name;
-  }
+  // Use artist name from the artwork data (already included in query)
+  const artistName = artwork.artist_name || "Unknown Artist";
 
   // Status: Available if "available" (case-insensitive), else not. Use icon.
   const available = (artwork.status || "available").toLowerCase() === "available";

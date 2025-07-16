@@ -30,8 +30,8 @@ const Artworks = () => {
     handleRefresh,
   } = useArtworksPageLogic();
 
-  // Enable background image processing
-  useBackgroundImageProcessing(true);
+  // Disable background image processing for faster initial load
+  useBackgroundImageProcessing(false);
 
   if (artworksLoading || artistsLoading) {
     return (

@@ -63,6 +63,7 @@ export interface Artwork {
   };
 }
 
+// Lightweight artworks query for grid view
 export function useArtworks() {
   return useQuery({
     queryKey: ["artworks"],
@@ -70,14 +71,26 @@ export function useArtworks() {
       const { data, error } = await supabase
         .from("artworks")
         .select(`
-          *,
-          artwork_images(*),
+          id,
+          title,
+          artist_id,
+          year,
+          medium_type,
+          materials,
+          classification,
+          price,
+          currency,
+          status,
+          image_url,
+          created_at,
+          updated_at,
+          artwork_images(id, image_url, is_primary, display_order, thumbnail_url, medium_url, thumbnail_storage_path, medium_storage_path, processed),
           artists(full_name)
         `)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching artworks with images and artists:", error);
+        console.error("Error fetching artworks:", error);
         throw error;
       }
       
@@ -87,14 +100,10 @@ export function useArtworks() {
         artist_name: artwork.artists?.full_name || null
       })) || [];
       
-      console.log("Fetched artworks with images and artists:", artworksWithArtistNames.map(a => ({ 
-        title: a.title, 
-        artist_name: a.artist_name, 
-        images: a.artwork_images?.length || 0 
-      })));
-      
       return artworksWithArtistNames as unknown as Artwork[];
     },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }
 
