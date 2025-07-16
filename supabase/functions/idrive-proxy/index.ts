@@ -126,14 +126,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const host = credentials.endpoint_url.replace('https://', '');
     const region = credentials.region || 'us-east-1';
     
-    // Create the canonical request
+    // Create the canonical request with proper URL encoding
     const method = 'GET';
     const uri = `/${bucketName}`;
-    const queryString = new URLSearchParams({
-      'list-type': '2',
-      'max-keys': '1000',
-      ...(prefix && { 'prefix': prefix })
-    }).toString();
+    
+    // Build query parameters manually to ensure consistent encoding
+    const queryParams = new URLSearchParams();
+    queryParams.set('list-type', '2');
+    queryParams.set('max-keys', '1000');
+    if (prefix) {
+      queryParams.set('prefix', prefix);
+    }
+    
+    // Sort query parameters alphabetically for canonical request (AWS requirement)
+    const sortedParams = new URLSearchParams();
+    Array.from(queryParams.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([key, value]) => sortedParams.append(key, value));
+    
+    // Get the query string and ensure consistent encoding for canonical request
+    const queryString = sortedParams.toString();
     
     const canonicalHeaders = [
       `host:${host}`,
