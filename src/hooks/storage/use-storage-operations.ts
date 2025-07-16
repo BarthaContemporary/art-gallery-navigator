@@ -23,9 +23,8 @@ export function useStorageOperations() {
 
       // Use the actual bucket name from credentials
       const actualBucketName = bucket.credentials.bucket_name;
-      // Normalize Unicode characters consistently and format prefix
-      const normalizedPrefix = prefix ? prefix.normalize('NFC') : '';
-      const formattedPrefix = normalizedPrefix && !normalizedPrefix.endsWith('/') ? `${normalizedPrefix}/` : normalizedPrefix;
+      // Don't normalize Unicode - use exact encoding from navigation
+      const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
       console.log('🌐 Calling edge function with supabase client...');
       console.log('📦 Using bucket name:', actualBucketName);
       console.log('📁 Using prefix:', formattedPrefix);

@@ -54,16 +54,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       prefix = url.searchParams.get('prefix') || '';
     }
     
-    // Normalize Unicode characters consistently (important for AWS signature)
-    if (prefix) {
-      prefix = prefix.normalize('NFC');
-    }
+    // Don't normalize Unicode - use exact encoding from client
+    // Unicode normalization might cause mismatches with stored file names
     
     console.log('Processing bucket:', bucketName, 'prefix:', prefix);
     console.log('Prefix type:', typeof prefix, 'Length:', prefix?.length);
     console.log('Is prefix empty?', !prefix || prefix === '');
     console.log('Prefix details:', JSON.stringify(prefix));
     console.log('Prefix UTF-8 bytes:', new TextEncoder().encode(prefix || ''));
+    
+     // Debug: Check if this is a potentially problematic Unicode folder
+    if (prefix && prefix.includes('Künstler')) {
+      console.log('=== DEBUGGING KÜNSTLER PREFIX ===');
+      console.log('Prefix char codes:', Array.from(prefix).map(c => c.charCodeAt(0)));
+      console.log('Raw prefix bytes:', new TextEncoder().encode(prefix));
+    }
 
     // Get storage credentials from database
     let credentials = null;
