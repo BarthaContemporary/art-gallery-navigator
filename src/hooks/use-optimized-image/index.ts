@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useImageCache } from "@/hooks/use-image-cache";
+import { useEnhancedImageCache } from "@/hooks/use-enhanced-image-cache";
 import { logger } from "@/lib/logger";
 import { OptimizedImageConfig, ImageTierType } from "./types";
 import { generateImageUrl } from "./url-generator";
@@ -11,7 +11,7 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
   const [loadedTiers, setLoadedTiers] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [blurDataUrl, setBlurDataUrl] = useState<string | null>(null);
-  const { getCachedImage } = useImageCache();
+  const { getCachedImage, warmUpCache, preloadAndCache } = useEnhancedImageCache();
   const mountedRef = useRef(true);
   const { loadTier } = useImageLoader(config);
 
@@ -62,12 +62,19 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
         if (!isCancelled) {
           setIsLoading(false);
           
-          // Aggressively preload medium tier
+          // Preload medium tier in background
+          setTimeout(() => {
+            if (!isCancelled && mountedRef.current) {
+              preloadAndCache(generateImageUrl(config, 'medium'), 'medium');
+            }
+          }, 100);
+          
+          // Upgrade to medium tier after short delay
           setTimeout(() => {
             if (!isCancelled && mountedRef.current) {
               upgradeToTier('medium');
             }
-          }, 10);
+          }, 300);
         }
       } catch (error) {
         if (!isCancelled) {

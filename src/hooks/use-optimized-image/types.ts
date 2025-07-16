@@ -8,8 +8,9 @@ export interface ImageTier {
 
 export interface OptimizedImageConfig {
   originalUrl: string;
+  title?: string;
   alt?: string; // Made optional since it's not always needed for URL generation
-  sizes: {
+  sizes?: {
     thumbnail: { width: number; height: number; quality: number };
     medium: { width: number; height: number; quality: number };
     full: { width: number; height: number; quality: number };

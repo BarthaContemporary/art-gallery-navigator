@@ -1,12 +1,12 @@
 
-import { useImageCache } from "@/hooks/use-image-cache";
+import { useEnhancedImageCache } from "@/hooks/use-enhanced-image-cache";
 import { logger } from "@/lib/logger";
 import { OptimizedImageConfig, ImageTierType } from "./types";
 import { generateImageUrl } from "./url-generator";
 import { createBlurPlaceholder } from "./blur-placeholder";
 
 export const useImageLoader = (config: OptimizedImageConfig) => {
-  const { getCachedImage, setCachedImage, preloadImageWithCache } = useImageCache();
+  const { getCachedImage, setCachedImage, preloadImageWithCache } = useEnhancedImageCache();
 
   const loadTier = async (
     tier: ImageTierType,
@@ -25,7 +25,7 @@ export const useImageLoader = (config: OptimizedImageConfig) => {
       logger.debug(`Using cached ${tier} image: ${config.originalUrl}`);
       setLoadedTiers(prev => new Set(prev).add(tier));
       if (tier === 'thumbnail' && !blurDataUrl) {
-        setBlurDataUrl(cached.dataUrl);
+        setBlurDataUrl(cached);
       }
       return imageUrl;
     }
