@@ -23,11 +23,24 @@ export function FastArtworkImage({
 
   // Get the best available URL without complex validation
   const getBestImageUrl = useCallback((): string => {
-    if (!imageRecord) return '/placeholder.svg';
+    if (!imageRecord) {
+      console.log('[FastArtworkImage] No imageRecord provided');
+      return '/placeholder.svg';
+    }
+
+    console.log('[FastArtworkImage] Processing imageRecord:', {
+      id: imageRecord.id,
+      image_url: imageRecord.image_url,
+      thumbnail_url: imageRecord.thumbnail_url,
+      medium_url: imageRecord.medium_url,
+      processed: imageRecord.processed
+    });
 
     // Skip URLs that contain "processing" as they're invalid
     const isValidUrl = (url: string | null | undefined): boolean => {
-      return url && url !== '/placeholder.svg' && !url.includes('processing');
+      const valid = url && url !== '/placeholder.svg' && !url.includes('processing');
+      console.log('[FastArtworkImage] URL validation:', { url, valid });
+      return valid;
     };
 
     // Priority order based on tier
