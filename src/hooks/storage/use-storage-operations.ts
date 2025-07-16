@@ -23,10 +23,13 @@ export function useStorageOperations() {
 
       // Use the actual bucket name from credentials
       const actualBucketName = bucket.credentials.bucket_name;
-      const formattedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
+      // Normalize Unicode characters consistently and format prefix
+      const normalizedPrefix = prefix ? prefix.normalize('NFC') : '';
+      const formattedPrefix = normalizedPrefix && !normalizedPrefix.endsWith('/') ? `${normalizedPrefix}/` : normalizedPrefix;
       console.log('🌐 Calling edge function with supabase client...');
       console.log('📦 Using bucket name:', actualBucketName);
       console.log('📁 Using prefix:', formattedPrefix);
+      console.log('📁 Normalized prefix bytes:', new TextEncoder().encode(formattedPrefix));
 
       const { data, error } = await supabase.functions.invoke('idrive-proxy', {
         body: {

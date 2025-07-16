@@ -54,10 +54,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       prefix = url.searchParams.get('prefix') || '';
     }
     
+    // Normalize Unicode characters consistently (important for AWS signature)
+    if (prefix) {
+      prefix = prefix.normalize('NFC');
+    }
+    
     console.log('Processing bucket:', bucketName, 'prefix:', prefix);
     console.log('Prefix type:', typeof prefix, 'Length:', prefix?.length);
     console.log('Is prefix empty?', !prefix || prefix === '');
     console.log('Prefix details:', JSON.stringify(prefix));
+    console.log('Prefix UTF-8 bytes:', new TextEncoder().encode(prefix || ''));
 
     // Get storage credentials from database
     let credentials = null;
@@ -130,22 +136,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const method = 'GET';
     const uri = `/${bucketName}`;
     
-    // Build query parameters manually to ensure consistent encoding
-    const queryParams = new URLSearchParams();
-    queryParams.set('list-type', '2');
-    queryParams.set('max-keys', '1000');
+    // Build query parameters manually with proper encoding
+    const queryParts: string[] = [];
+    queryParts.push('list-type=2');
+    queryParts.push('max-keys=1000');
+    
     if (prefix) {
-      queryParams.set('prefix', prefix);
+      // URL encode the prefix properly for AWS canonical request
+      // AWS requires percent-encoding for the canonical request
+      const encodedPrefix = encodeURIComponent(prefix)
+        .replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+      queryParts.push(`prefix=${encodedPrefix}`);
+      console.log('Original prefix:', prefix);
+      console.log('Encoded prefix for canonical request:', encodedPrefix);
     }
     
-    // Sort query parameters alphabetically for canonical request (AWS requirement)
-    const sortedParams = new URLSearchParams();
-    Array.from(queryParams.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([key, value]) => sortedParams.append(key, value));
-    
-    // Get the query string and ensure consistent encoding for canonical request
-    const queryString = sortedParams.toString();
+    // Sort alphabetically for AWS canonical request requirement
+    queryParts.sort();
+    const queryString = queryParts.join('&');
     
     const canonicalHeaders = [
       `host:${host}`,
