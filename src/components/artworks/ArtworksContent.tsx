@@ -1,11 +1,9 @@
 
 import React, { useState, useMemo } from "react";
 import { useArtworks } from "@/hooks/use-artworks";
-import { FastArtworkGrid } from "./FastArtworkGrid";
+import { SimpleArtworkGrid } from "./SimpleArtworkGrid";
 import { ArtworkListView } from "./ArtworkListView";
 import { ArtworksFilters } from "./ArtworksFilters";
-import { SearchBar } from "./SearchBar";
-import { VirtualizedArtworkGrid } from "./VirtualizedArtworkGrid";
 import { ViewMode } from "./ArtworkViewToggle";
 import { useStorageBucketChecker } from "@/hooks/use-storage-bucket-checker";
 
@@ -74,7 +72,7 @@ export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentP
       />
       
       {viewMode === "grid" && (
-        <FastArtworkGrid artworks={filteredArtworks} />
+        <SimpleArtworkGrid artworks={filteredArtworks} />
       )}
       {viewMode === "list" && (
         <ArtworkListView artworks={filteredArtworks} />
