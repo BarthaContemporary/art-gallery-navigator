@@ -1,7 +1,7 @@
 import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
 import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
 import { ArtworksStats } from "@/components/artworks/ArtworksStats";
-import { ArtworksContent } from "@/components/artworks/ArtworksContent";
+import { ModernArtworkGrid } from "@/components/artworks/modern/ModernArtworkGrid";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
@@ -68,10 +68,7 @@ const Artworks = () => {
         useVirtualization={useVirtualization}
       />
 
-      <ArtworksContent
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        artworks={filteredArtworks}
+      <ArtworksFilters
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         statusFilter={statusFilter}
@@ -86,6 +83,12 @@ const Artworks = () => {
           setTypeFilter(null);
           setArtistFilter(null);
         }}
+      />
+
+      <ModernArtworkGrid 
+        artworks={filteredArtworks}
+        loading={artworksLoading || artistsLoading}
+        showActions={true}
       />
     </div>
   );
