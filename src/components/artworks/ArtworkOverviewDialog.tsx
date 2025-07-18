@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { ArtworkOverviewDialog as NewArtworkOverviewDialog } from "./overview/ArtworkOverviewDialog";
+import { EnhancedArtworkOverviewDialog } from "./enhanced/EnhancedArtworkOverviewDialog";
 
 interface ArtworkOverviewDialogProps {
   artwork: Artwork;
@@ -15,7 +15,7 @@ export function ArtworkOverviewDialog({
   onOpenChange,
 }: ArtworkOverviewDialogProps) {
   return (
-    <NewArtworkOverviewDialog
+    <EnhancedArtworkOverviewDialog
       artwork={artwork}
       open={open}
       onOpenChange={onOpenChange}

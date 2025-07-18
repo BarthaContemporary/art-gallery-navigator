@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useArtworks } from "@/hooks/use-artworks";
-import { ArtworkGrid } from "./ArtworkGrid";
+import { FastArtworkGrid } from "./FastArtworkGrid";
 import { ArtworkListView } from "./ArtworkListView";
 import { ArtworksFilters } from "./ArtworksFilters";
 import { SearchBar } from "./SearchBar";
@@ -74,7 +74,7 @@ export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentP
       />
       
       {viewMode === "grid" && (
-        <ArtworkGrid artworks={filteredArtworks} />
+        <FastArtworkGrid artworks={filteredArtworks} />
       )}
       {viewMode === "list" && (
         <ArtworkListView artworks={filteredArtworks} />

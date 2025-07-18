@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { OptimizedArtworkImage } from "./OptimizedArtworkImage";
+import { ArtworkImageRenderer } from "./ArtworkImageRenderer";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { cn } from "@/lib/utils";
 import type { ImageRecord } from "@/utils/image-url-resolver";
@@ -50,11 +50,12 @@ export function ArtworkCardImage({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <OptimizedArtworkImage
+      <ArtworkImageRenderer
         imageRecord={imageRecord}
         title={title}
-        className="w-full h-full object-cover transition-transform duration-300 cursor-pointer hover:scale-105"
-        tier="thumbnail" // Use thumbnail for grid view for faster loading
+        className="w-full h-full cursor-pointer"
+        tier="thumbnail"
+        priority={false}
       />
       
       {/* Overlay with actions */}
