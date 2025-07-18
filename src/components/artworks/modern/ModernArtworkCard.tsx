@@ -7,7 +7,7 @@
 
 import React, { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { ReliableArtworkImage } from "./ReliableArtworkImage";
+import { SmartArtworkImage } from "./SmartArtworkImage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Edit, Copy, Download, Trash2, Heart, Share2 } from "lucide-react";
@@ -90,10 +90,12 @@ export function ModernArtworkCard({
         "relative overflow-hidden",
         compact ? "aspect-square" : "aspect-[4/3]"
       )}>
-        <ReliableArtworkImage 
-          artwork={artwork} 
-          tier="medium"
+        <SmartArtworkImage
+          artwork={artwork}
+          finalTier="medium"
           className="group-hover:scale-105 transition-transform duration-500"
+          alt={artwork.title}
+          showHealthIndicator={process.env.NODE_ENV === 'development'}
         />
         
         {/* Gradient overlay */}

@@ -128,10 +128,11 @@ export function useCloudinaryHealth(): UseCloudinaryHealthReturn {
     return () => clearInterval(intervalId);
   }, [health.isConfigured, checkHealth]);
 
-  // Determine if we should use Cloudinary
+  // Determine if we should use Cloudinary with enhanced logic
   const shouldUseCloudinary = health.isConfigured && 
                               health.isHealthy && 
-                              health.consecutiveErrors < MAX_CONSECUTIVE_ERRORS;
+                              health.consecutiveErrors < MAX_CONSECUTIVE_ERRORS &&
+                              (health.responseTime === null || health.responseTime < 5000);
 
   return {
     health,

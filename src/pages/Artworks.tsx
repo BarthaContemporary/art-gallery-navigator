@@ -6,6 +6,8 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
 import { useBackgroundImageProcessing } from "@/hooks/use-background-image-processing";
+import { useImagePerformanceMonitor } from "@/hooks/use-image-performance-monitor";
+import { useCloudinaryHealth } from "@/hooks/use-cloudinary-health";
 
 const Artworks = () => {
   const {
@@ -32,6 +34,10 @@ const Artworks = () => {
 
   // Disable background image processing for faster initial load
   useBackgroundImageProcessing(false);
+  
+  // Performance and health monitoring
+  const { health } = useCloudinaryHealth();
+  const performanceMonitor = useImagePerformanceMonitor();
 
   if (artworksLoading || artistsLoading) {
     return (
@@ -55,6 +61,44 @@ const Artworks = () => {
 
   const content = (
     <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
+      {/* Development: Performance & Health Status */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-6 p-4 bg-muted/20 rounded-lg text-sm">
+          <div className="font-semibold mb-3">Phase 3 & 4: Performance Monitor</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+            <div>
+              <div className="font-medium">Health Status</div>
+              <div className={health.isHealthy ? 'text-green-600' : 'text-amber-600'}>
+                {health.isHealthy ? '✓ Healthy' : '⚠ Degraded'}
+              </div>
+              <div className="text-muted-foreground">
+                {health.consecutiveErrors} errors
+              </div>
+            </div>
+            <div>
+              <div className="font-medium">Images Loaded</div>
+              <div>{performanceMonitor.metrics.totalLoads}</div>
+            </div>
+            <div>
+              <div className="font-medium">Avg Load Time</div>
+              <div>{performanceMonitor.metrics.averageLoadTime.toFixed(0)}ms</div>
+            </div>
+            <div>
+              <div className="font-medium">Error Rate</div>
+              <div className={performanceMonitor.metrics.errorRate > 0.1 ? 'text-amber-600' : 'text-green-600'}>
+                {(performanceMonitor.metrics.errorRate * 100).toFixed(1)}%
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Sources: S{performanceMonitor.metrics.sourceBreakdown.supabase} | 
+            C{performanceMonitor.metrics.sourceBreakdown.cloudinary} | 
+            F{performanceMonitor.metrics.sourceBreakdown.fallback} | 
+            P{performanceMonitor.metrics.sourceBreakdown.placeholder}
+          </div>
+        </div>
+      )}
+      
       <ArtworksHeader
         artworks={artworks}
         filteredArtworks={filteredArtworks}
