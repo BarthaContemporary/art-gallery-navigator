@@ -71,6 +71,21 @@ const Artworks = () => {
       <ArtworksContent
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        artworks={filteredArtworks}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        artistFilter={artistFilter}
+        onArtistFilterChange={setArtistFilter}
+        onShowAll={() => {
+          setSearchTerm("");
+          setStatusFilter(null);
+          setTypeFilter(null);
+          setArtistFilter(null);
+        }}
       />
     </div>
   );

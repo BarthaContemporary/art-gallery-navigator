@@ -1,81 +1,59 @@
 
-import React, { useState, useMemo } from "react";
-import { useArtworks } from "@/hooks/use-artworks";
+import React from "react";
+import { Artwork } from "@/hooks/use-artworks";
 import { SimpleArtworkGrid } from "./SimpleArtworkGrid";
 import { ArtworkListView } from "./ArtworkListView";
 import { ArtworksFilters } from "./ArtworksFilters";
 import { ViewMode } from "./ArtworkViewToggle";
-import { useStorageBucketChecker } from "@/hooks/use-storage-bucket-checker";
 
 interface ArtworksContentProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  artworks: Artwork[];
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  statusFilter: string | null;
+  onStatusFilterChange: (status: string | null) => void;
+  typeFilter: string | null;
+  onTypeFilterChange: (type: string | null) => void;
+  artistFilter: string | null;
+  onArtistFilterChange: (artist: string | null) => void;
+  onShowAll: () => void;
 }
 
-export function ArtworksContent({ viewMode, onViewModeChange }: ArtworksContentProps) {
-  const { data: artworks = [], isLoading, error } = useArtworks();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [artistFilter, setArtistFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  
-  // Check storage bucket configuration on mount
-  useStorageBucketChecker();
-
-  const filteredArtworks = useMemo(() => {
-    return artworks.filter((artwork) => {
-      const matchesSearch = artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artwork.artist_name?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesArtist = !artistFilter || artwork.artist_id === artistFilter;
-      const matchesStatus = !statusFilter || artwork.status?.toLowerCase() === statusFilter.toLowerCase();
-      const matchesType = !typeFilter || artwork.medium_type?.toLowerCase() === typeFilter.toLowerCase();
-      
-      return matchesSearch && matchesArtist && matchesStatus && matchesType;
-    });
-  }, [artworks, searchTerm, artistFilter, statusFilter, typeFilter]);
-
-  const handleShowAll = () => {
-    setSearchTerm("");
-    setArtistFilter(null);
-    setStatusFilter(null);
-    setTypeFilter(null);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading artworks...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-red-500">Error loading artworks: {error.message}</div>
-      </div>
-    );
-  }
-
+export function ArtworksContent({ 
+  viewMode, 
+  onViewModeChange, 
+  artworks,
+  searchTerm,
+  onSearchChange,
+  statusFilter,
+  onStatusFilterChange,
+  typeFilter,
+  onTypeFilterChange,
+  artistFilter,
+  onArtistFilterChange,
+  onShowAll
+}: ArtworksContentProps) {
   return (
     <div className="space-y-6">
       <ArtworksFilters
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={onSearchChange}
         statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
+        onStatusFilterChange={onStatusFilterChange}
         typeFilter={typeFilter}
-        onTypeFilterChange={setTypeFilter}
+        onTypeFilterChange={onTypeFilterChange}
         artistFilter={artistFilter}
-        onArtistFilterChange={setArtistFilter}
-        onShowAll={handleShowAll}
+        onArtistFilterChange={onArtistFilterChange}
+        onShowAll={onShowAll}
       />
       
       {viewMode === "grid" && (
-        <SimpleArtworkGrid artworks={filteredArtworks} />
+        <SimpleArtworkGrid artworks={artworks} />
       )}
       {viewMode === "list" && (
-        <ArtworkListView artworks={filteredArtworks} />
+        <ArtworkListView artworks={artworks} />
       )}
     </div>
   );
