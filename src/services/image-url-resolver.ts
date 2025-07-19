@@ -33,6 +33,11 @@ export class ImageUrlResolver {
   ): Promise<ResolvedImageUrl> {
     const cacheKey = `${artwork.id}-${tier}-${preferCloudinary}`;
     
+    // Clear cache in development to ensure fresh URLs
+    if (process.env.NODE_ENV === 'development') {
+      this.cache.delete(cacheKey);
+    }
+    
     // Check cache first
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
@@ -153,9 +158,13 @@ export class ImageUrlResolver {
       return null;
     }
 
-    // For Supabase storage, use the processed storage path directly
-    // The bucket is already public, so we just need the relative path
-    return storagePath;
+    // For Supabase storage, we need to construct the full URL
+    // Use the artwork-images bucket with the storage path
+    const { data } = supabase.storage
+      .from('artwork-images')
+      .getPublicUrl(storagePath);
+
+    return data.publicUrl;
   }
 
   private static getFallbackUrl(artwork: Artwork, primaryImage?: ArtworkImage): string | null {
