@@ -40,6 +40,17 @@ export class ImageUrlResolver {
 
     const resolved = await this._resolveImageUrl(artwork, tier, preferCloudinary);
     
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[ImageResolver] Artwork ${artwork.id} (${artwork.title}):`, {
+        tier,
+        preferCloudinary,
+        resolved,
+        primaryImage: artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0],
+        artworkImageUrl: artwork.image_url
+      });
+    }
+    
     // Cache the result
     this.cache.set(cacheKey, resolved);
     
@@ -168,9 +179,14 @@ export class ImageUrlResolver {
         return true;
       }
 
+      // For relative URLs (storage paths), assume they're accessible
+      if (!url.startsWith('http')) {
+        return true;
+      }
+
       // Quick HEAD request to check if image exists with AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
       
       const response = await fetch(url, { 
         method: 'HEAD',
@@ -180,6 +196,10 @@ export class ImageUrlResolver {
       clearTimeout(timeoutId);
       return response.ok;
     } catch (error) {
+      // For relative URLs, assume they work even if fetch fails
+      if (!url.startsWith('http')) {
+        return true;
+      }
       logger.debug(`Image accessibility check failed for ${url}:`, error);
       return false;
     }
