@@ -142,12 +142,9 @@ export class ImageUrlResolver {
       return null;
     }
 
-    // Generate public URL from storage path
-    const { data } = supabase.storage
-      .from('artwork-images')
-      .getPublicUrl(storagePath);
-
-    return data.publicUrl;
+    // For Supabase storage, use the processed storage path directly
+    // The bucket is already public, so we just need the relative path
+    return storagePath;
   }
 
   private static getFallbackUrl(artwork: Artwork, primaryImage?: ArtworkImage): string | null {
