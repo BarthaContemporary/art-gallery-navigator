@@ -22,7 +22,7 @@ export const getArtworkInitialValues = (
     title: initialData?.title || "",
     artist_id: defaultArtistId,
     year: initialData?.year || null,
-    medium_type: initialData?.medium_type || "Painting",
+    medium_type: (initialData?.medium_type as any) || "Painting",
     materials: initialData?.materials || "",
     classification: validatedClassification, // Use validated classification
     edition_size: initialData?.edition_size || null,
@@ -33,12 +33,12 @@ export const getArtworkInitialValues = (
     width: initialData?.width || null,
     depth: initialData?.depth || null,
     price: initialData?.price || null,
-    currency: initialData?.currency || "USD",
+    currency: (initialData?.currency as any) || "USD",
     status: initialData?.status || "available",
     image_url: initialData?.image_url || "", // This is for the uploader, not a direct field
     location_id: initialData?.location_id || null,
     inventory_quantity: initialData?.inventory_quantity || null,
-    signature_type: initialData?.signature_type || null,
+    signature_type: (initialData?.signature_type as any) || null,
     condition: initialData?.condition || "",
     signature_details: initialData?.signature_details || "",
     provenance: initialData?.provenance || "",

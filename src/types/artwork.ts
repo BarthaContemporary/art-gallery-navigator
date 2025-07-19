@@ -11,6 +11,10 @@ export interface Artwork {
   medium_type: string;
   materials?: string;
   classification: string;
+  edition_size?: number;
+  inventory_quantity?: number;
+  available_works?: string;
+  artist_proofs?: number;
   price?: number;
   currency: string;
   status: string;
@@ -24,6 +28,17 @@ export interface Artwork {
   exhibition_history?: string;
   provenance?: string;
   location_id?: string;
+  signature_type?: string;
+  signature_details?: string;
+  is_framed?: boolean;
+  frame_height?: number;
+  frame_width?: number;
+  frame_depth?: number;
+  weight?: number;
+  has_crate?: boolean;
+  crate_height?: number;
+  crate_width?: number;
+  crate_depth?: number;
   created_at: string;
   updated_at: string;
   
@@ -49,8 +64,8 @@ export interface ArtworkImage {
   large_storage_path?: string;
   processed: boolean;
   processing_status?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Artist {
@@ -67,8 +82,8 @@ export interface Artist {
   place_of_birth?: string;
   place_of_death?: string;
   image_url?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ArtworkFilters {

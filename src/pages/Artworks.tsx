@@ -143,7 +143,13 @@ export default function Artworks() {
       {/* Filters */}
       <ArtworkFilters
         filters={filters}
-        filterOptions={filterOptions}
+        filterOptions={{
+          statuses: filterOptions.statuses,
+          mediumTypes: filterOptions.mediumTypes,
+          artists: filterOptions.artists,
+          yearRange: filterOptions.yearRange,
+          priceRange: filterOptions.priceRange,
+        }}
         onUpdateFilter={updateFilter}
         onClearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
@@ -153,12 +159,6 @@ export default function Artworks() {
       {/* Grid */}
       <ArtworkGrid
         artworks={filteredArtworks}
-        onEdit={handleEdit}
-        onDuplicate={handleDuplicate}
-        onExport={handleExport}
-        onDelete={handleDelete}
-        onFavorite={handleFavorite}
-        onShare={handleShare}
         loading={isLoading}
       />
     </div>
