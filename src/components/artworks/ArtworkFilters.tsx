@@ -67,14 +67,14 @@ export function ArtworkFilters({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Artist Filter */}
         <Select
-          value={filters.artist || ""}
-          onValueChange={(value) => onUpdateFilter('artist', value || null)}
+          value={filters.artist || "__all__"}
+          onValueChange={(value) => onUpdateFilter('artist', value === "__all__" ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Artists" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Artists</SelectItem>
+            <SelectItem value="__all__">All Artists</SelectItem>
             {filterOptions.artists.map((artist) => (
               <SelectItem key={artist.id} value={artist.id}>
                 {artist.full_name}
@@ -85,14 +85,14 @@ export function ArtworkFilters({
 
         {/* Status Filter */}
         <Select
-          value={filters.status || ""}
-          onValueChange={(value) => onUpdateFilter('status', value || null)}
+          value={filters.status || "__all__"}
+          onValueChange={(value) => onUpdateFilter('status', value === "__all__" ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="__all__">All Statuses</SelectItem>
             {filterOptions.statuses.map((status) => (
               <SelectItem key={status} value={status}>
                 {status}
@@ -103,14 +103,14 @@ export function ArtworkFilters({
 
         {/* Medium Type Filter */}
         <Select
-          value={filters.mediumType || ""}
-          onValueChange={(value) => onUpdateFilter('mediumType', value || null)}
+          value={filters.mediumType || "__all__"}
+          onValueChange={(value) => onUpdateFilter('mediumType', value === "__all__" ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Mediums" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Mediums</SelectItem>
+            <SelectItem value="__all__">All Mediums</SelectItem>
             {filterOptions.mediumTypes.map((type) => (
               <SelectItem key={type} value={type}>
                 {type}
