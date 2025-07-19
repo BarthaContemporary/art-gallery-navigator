@@ -1,153 +1,166 @@
-import { ArtworksHeader } from "@/components/artworks/ArtworksHeader";
-import { ArtworksFilters } from "@/components/artworks/ArtworksFilters";
-import { ArtworksStats } from "@/components/artworks/ArtworksStats";
-import { ModernArtworkGrid } from "@/components/artworks/modern/ModernArtworkGrid";
-import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useArtworksPageLogic } from "@/hooks/pages/useArtworksPageLogic";
-import { useBackgroundImageProcessing } from "@/hooks/use-background-image-processing";
-import { useImagePerformanceMonitor } from "@/hooks/use-image-performance-monitor";
-import { useCloudinaryHealth } from "@/hooks/use-cloudinary-health";
+/**
+ * Clean Artworks Page
+ * Simple, reliable artwork management interface
+ */
 
-const Artworks = () => {
-  const {
-    searchTerm, setSearchTerm,
-    statusFilter, setStatusFilter,
-    typeFilter, setTypeFilter,
-    artistFilter, setArtistFilter,
-    activeIndex, setActiveIndex,
-    viewMode, setViewMode,
-    useVirtualization, setUseVirtualization,
-    pageTopRef,
-    containerHeight,
-    isMobile,
-    artworks,
-    artworksLoading,
-    artworksError,
-    artistsLoading,
-    artistsError,
-    filteredArtworks,
-    letters,
-    handleScrollToTop,
-    handleRefresh,
-  } = useArtworksPageLogic();
+import React, { useRef } from "react";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
+import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
+import { useArtworks, useArtists } from "@/hooks/use-artworks";
+import { useArtworkFilters } from "@/hooks/use-artwork-filters";
+import { toast } from "sonner";
+import type { Artwork } from "@/types/artwork";
 
-  // Disable background image processing for faster initial load
-  useBackgroundImageProcessing(false);
+export default function Artworks() {
+  const pageTopRef = useRef<HTMLDivElement>(null);
   
-  // Performance and health monitoring
-  const { health } = useCloudinaryHealth();
-  const performanceMonitor = useImagePerformanceMonitor();
+  const {
+    data: artworks = [],
+    isLoading: artworksLoading,
+    error: artworksError,
+    refetch: refetchArtworks
+  } = useArtworks();
 
-  if (artworksLoading || artistsLoading) {
+  const {
+    data: artists = [],
+    isLoading: artistsLoading,
+    error: artistsError,
+    refetch: refetchArtists
+  } = useArtists();
+
+  const {
+    filters,
+    filteredArtworks,
+    filterOptions,
+    updateFilter,
+    clearFilters,
+    hasActiveFilters
+  } = useArtworkFilters(artworks, artists);
+
+  const isLoading = artworksLoading || artistsLoading;
+  const hasError = artworksError || artistsError;
+
+  const handleRefresh = async () => {
+    try {
+      await Promise.all([refetchArtworks(), refetchArtists()]);
+      toast.success("Artworks refreshed successfully");
+    } catch (error) {
+      console.error('Refresh error:', error);
+      toast.error("Failed to refresh artworks");
+    }
+  };
+
+  const handleScrollToTop = () => {
+    if (pageTopRef.current) {
+      pageTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Placeholder handlers for actions (implement as needed)
+  const handleEdit = (artwork: Artwork) => {
+    toast.info(`Edit functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  const handleDuplicate = (artwork: Artwork) => {
+    toast.info(`Duplicate functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  const handleExport = (artwork: Artwork) => {
+    toast.info(`Export functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  const handleDelete = (artwork: Artwork) => {
+    toast.info(`Delete functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  const handleFavorite = (artwork: Artwork) => {
+    toast.info(`Favorite functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  const handleShare = (artwork: Artwork) => {
+    toast.info(`Share functionality for "${artwork.title}" would be implemented here`);
+  };
+
+  if (hasError) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <p className="text-muted-foreground">Loading artworks and artists...</p>
-      </div>
-    );
-  }
-
-  if (artworksError || artistsError) {
-    return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <p className="text-red-500">
-          {artworksError ? `Error loading artworks: ${artworksError.message}. ` : ''}
-          {artistsError ? `Error loading artists: ${artistsError.message}. ` : ''}
-          Please try again.
-        </p>
-      </div>
-    );
-  }
-
-  const content = (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto" ref={pageTopRef}>
-      {/* Development: Performance & Health Status */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-6 p-4 bg-muted/20 rounded-lg text-sm">
-          <div className="font-semibold mb-3">Phase 3 & 4: Performance Monitor</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div>
-              <div className="font-medium">Health Status</div>
-              <div className={health.isHealthy ? 'text-green-600' : 'text-amber-600'}>
-                {health.isHealthy ? '✓ Healthy' : '⚠ Degraded'}
-              </div>
-              <div className="text-muted-foreground">
-                {health.consecutiveErrors} errors
-              </div>
-            </div>
-            <div>
-              <div className="font-medium">Images Loaded</div>
-              <div>{performanceMonitor.metrics.totalLoads}</div>
-            </div>
-            <div>
-              <div className="font-medium">Avg Load Time</div>
-              <div>{performanceMonitor.metrics.averageLoadTime.toFixed(0)}ms</div>
-            </div>
-            <div>
-              <div className="font-medium">Error Rate</div>
-              <div className={performanceMonitor.metrics.errorRate > 0.1 ? 'text-amber-600' : 'text-green-600'}>
-                {(performanceMonitor.metrics.errorRate * 100).toFixed(1)}%
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            Sources: S{performanceMonitor.metrics.sourceBreakdown.supabase} | 
-            C{performanceMonitor.metrics.sourceBreakdown.cloudinary} | 
-            F{performanceMonitor.metrics.sourceBreakdown.fallback} | 
-            P{performanceMonitor.metrics.sourceBreakdown.placeholder}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2 text-destructive">
+              Failed to load artworks
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              There was an error loading the artwork data.
+            </p>
+            <Button onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      <div ref={pageTopRef} />
       
-      <ArtworksHeader
-        artworks={artworks}
-        filteredArtworks={filteredArtworks}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Artworks</h1>
+          <p className="text-muted-foreground">
+            Manage and explore the gallery collection
+          </p>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
+          {filteredArtworks.length > 20 && (
+            <Button
+              variant="outline"
+              onClick={handleScrollToTop}
+            >
+              Back to Top
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <ArtworkFilters
+        filters={filters}
+        filterOptions={filterOptions}
+        onUpdateFilter={updateFilter}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+        artworkCount={filteredArtworks.length}
       />
 
-      <ArtworksStats
-        filteredCount={filteredArtworks.length}
-        totalCount={artworks.length}
-        useVirtualization={useVirtualization}
-      />
-
-      <ArtworksFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        typeFilter={typeFilter}
-        onTypeFilterChange={setTypeFilter}
-        artistFilter={artistFilter}
-        onArtistFilterChange={setArtistFilter}
-        onShowAll={() => {
-          setSearchTerm("");
-          setStatusFilter(null);
-          setTypeFilter(null);
-          setArtistFilter(null);
-        }}
-      />
-
-      <ModernArtworkGrid 
+      {/* Grid */}
+      <ArtworkGrid
         artworks={filteredArtworks}
-        loading={artworksLoading || artistsLoading}
-        showActions={true}
+        onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
+        onExport={handleExport}
+        onDelete={handleDelete}
+        onFavorite={handleFavorite}
+        onShare={handleShare}
+        loading={isLoading}
       />
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <ErrorBoundary>
-        <PullToRefresh onRefresh={handleRefresh} enabled={!artworksLoading && !artistsLoading}>
-          {content}
-        </PullToRefresh>
-      </ErrorBoundary>
-    );
-  }
-
-  return <ErrorBoundary>{content}</ErrorBoundary>;
-};
-
-export default Artworks;
+}
