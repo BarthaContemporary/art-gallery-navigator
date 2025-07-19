@@ -52,15 +52,15 @@ export function useArtworksPageLogic() {
     const artistA = artists?.find(artist => artist.id === a.artist_id);
     const artistB = artists?.find(artist => artist.id === b.artist_id);
     
-    const sortLetterA = artistA?.surname_first_letter || artistA?.full_name?.charAt(0) || "Z";
-    const sortLetterB = artistB?.surname_first_letter || artistB?.full_name?.charAt(0) || "Z";
+    const artistNameA = artistA?.full_name || "Unknown Artist";
+    const artistNameB = artistB?.full_name || "Unknown Artist";
     
-    const letterCompare = sortLetterA.localeCompare(sortLetterB);
-    if (letterCompare !== 0) return letterCompare;
+    const nameCompare = artistNameA.localeCompare(artistNameB);
+    if (nameCompare !== 0) return nameCompare;
     
     const priceA = a.price || 0;
     const priceB = b.price || 0;
-    return priceB - priceA;
+    return priceA - priceB;
   }) ?? [], [artworks, artists, searchTerm, statusFilter, typeFilter, artistFilter]);
 
   const letters = useMemo(() => Array.from(new Set(filteredArtworks.map(artwork => {
