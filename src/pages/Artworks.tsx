@@ -147,8 +147,8 @@ export default function Artworks() {
           statuses: filterOptions.statuses,
           mediumTypes: filterOptions.mediumTypes,
           artists: filterOptions.artists,
-          yearRange: filterOptions.yearRange,
-          priceRange: filterOptions.priceRange,
+          yearRange: filterOptions.yearRange as [number, number],
+          priceRange: filterOptions.priceRange as [number, number],
         }}
         onUpdateFilter={updateFilter}
         onClearFilters={clearFilters}
