@@ -4,8 +4,9 @@
  */
 
 import React, { useRef } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
@@ -120,15 +121,6 @@ export default function Artworks() {
         </div>
         
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          
           {filteredArtworks.length > 20 && (
             <Button
               variant="outline"
@@ -141,20 +133,54 @@ export default function Artworks() {
       </div>
 
       {/* Filters */}
-      <ArtworkFilters
-        filters={filters}
-        filterOptions={{
-          statuses: filterOptions.statuses,
-          mediumTypes: filterOptions.mediumTypes,
-          artists: filterOptions.artists,
-          yearRange: filterOptions.yearRange as [number, number],
-          priceRange: filterOptions.priceRange as [number, number],
-        }}
-        onUpdateFilter={updateFilter}
-        onClearFilters={clearFilters}
-        hasActiveFilters={hasActiveFilters}
-        artworkCount={filteredArtworks.length}
-      />
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search artworks, artists, materials..."
+              value={filters.search}
+              onChange={(e) => updateFilter('search', e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="whitespace-nowrap"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
+        
+        <ArtworkFilters
+          filters={filters}
+          filterOptions={{
+            statuses: filterOptions.statuses,
+            mediumTypes: filterOptions.mediumTypes,
+            artists: filterOptions.artists,
+            yearRange: filterOptions.yearRange as [number, number],
+            priceRange: filterOptions.priceRange as [number, number],
+          }}
+          onUpdateFilter={updateFilter}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          artworkCount={filteredArtworks.length}
+        />
+      </div>
 
       {/* Grid */}
       <ArtworkGrid
