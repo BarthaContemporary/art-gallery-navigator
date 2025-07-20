@@ -68,13 +68,6 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
               preloadAndCache(generateImageUrl(config, 'medium'), 'medium');
             }
           }, 100);
-          
-          // Upgrade to medium tier after short delay
-          setTimeout(() => {
-            if (!isCancelled && mountedRef.current) {
-              upgradeToTier('medium');
-            }
-          }, 300);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -89,7 +82,7 @@ export function useOptimizedImage(config: OptimizedImageConfig) {
     return () => {
       isCancelled = true;
     };
-  }, [loadTier, upgradeToTier, getCachedImage, config.originalUrl, blurDataUrl]);
+  }, [loadTier, getCachedImage, config.originalUrl, preloadAndCache]);
 
   return {
     currentImageUrl: generateImageUrl(config, currentTier),
