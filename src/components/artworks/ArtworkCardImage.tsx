@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { ArtworkImage } from "./ArtworkImage";
+import { UnifiedImage } from "@/components/ui/unified-image";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export function ArtworkCardImage({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <ArtworkImage
+      <UnifiedImage
         artwork={artwork}
         tier="medium"
         className="w-full h-full cursor-pointer"
