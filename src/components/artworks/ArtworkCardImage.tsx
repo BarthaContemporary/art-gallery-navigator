@@ -1,10 +1,9 @@
 
 import React, { useState } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { ArtworkImageRenderer } from "./ArtworkImageRenderer";
+import { ArtworkImage } from "./ArtworkImage";
 import { ArtworkCardActions } from "./ArtworkCardActions";
 import { cn } from "@/lib/utils";
-import type { ImageRecord } from "@/utils/image-url-resolver";
 
 interface ArtworkCardImageProps {
   artwork: Artwork;
@@ -27,21 +26,6 @@ export function ArtworkCardImage({
 }: ArtworkCardImageProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Get the primary image or first image for faster loading
-  const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || 
-                      artwork.artwork_images?.[0];
-
-  // Create a simple image record for the optimized image component
-  const imageRecord: ImageRecord = {
-    id: primaryImage?.id || artwork.id,
-    image_url: primaryImage?.image_url || artwork.image_url || "/placeholder.svg",
-    thumbnail_url: primaryImage?.thumbnail_url,
-    medium_url: primaryImage?.medium_url,
-    processed: primaryImage?.processed || false,
-    is_primary: primaryImage?.is_primary || false,
-    display_order: primaryImage?.display_order || 0
-  };
-
   return (
     <div 
       className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
@@ -50,12 +34,13 @@ export function ArtworkCardImage({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <ArtworkImageRenderer
-        imageRecord={imageRecord}
-        title={title}
+      <ArtworkImage
+        artwork={artwork}
+        tier="medium"
         className="w-full h-full cursor-pointer"
-        tier="thumbnail"
+        alt={title}
         priority={false}
+        onClick={onClick}
       />
       
       {/* Overlay with actions */}
