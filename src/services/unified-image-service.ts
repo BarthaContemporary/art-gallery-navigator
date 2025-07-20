@@ -130,7 +130,7 @@ export class UnifiedImageService {
 
     // Generate the public URL
     const { data } = supabase.storage
-      .from('artwork-images')
+      .from('artwork-images-processed')
       .getPublicUrl(storagePath);
 
     return data.publicUrl;
