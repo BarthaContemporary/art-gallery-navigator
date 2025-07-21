@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, Search } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, Search, Link, Database } from 'lucide-react';
 import { toast } from 'sonner';
+import { AttachSharedFileDialog } from './AttachSharedFileDialog';
 
 interface AttachDocumentDialogProps {
   artworkId: string;
@@ -20,6 +22,7 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [isAttaching, setIsAttaching] = useState(false);
+  const [sharedFileDialogOpen, setSharedFileDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: documents, isLoading } = useDocuments();
@@ -68,87 +71,130 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] h-[80vh] min-h-0 flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Attach Documents</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[80vh] h-[80vh] min-h-0 flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Attach Documents</DialogTitle>
+          </DialogHeader>
 
-        <div className="flex-1 min-h-0 space-y-4 flex flex-col">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search documents..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <div className="flex-1 min-h-0 space-y-4 flex flex-col">
+            <Tabs defaultValue="existing" className="flex-1 flex flex-col min-h-0">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="existing" className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Existing Documents
+                </TabsTrigger>
+                <TabsTrigger value="shared" className="flex items-center gap-2">
+                  <Link className="h-4 w-4" />
+                  Link Shared Files
+                </TabsTrigger>
+              </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
-            {isLoading ? (
-              <div className="text-center py-8 text-gray-500">
-                Loading documents...
-              </div>
-            ) : filteredDocuments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                <p>No available documents found</p>
-                {searchTerm && (
-                  <p className="text-sm mt-1">Try adjusting your search terms</p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredDocuments.map((document) => (
-                  <div
-                    key={document.id}
-                    className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50"
-                  >
-                    <Checkbox
-                      checked={selectedDocuments.includes(document.id)}
-                      onCheckedChange={() => handleDocumentToggle(document.id)}
-                    />
-                    <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {document.file_name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
-                          {document.type}
-                        </span>
-                        {document.description && (
-                          <span className="text-xs text-gray-500 truncate">
-                            {document.description}
-                          </span>
-                        )}
-                      </div>
+              <TabsContent value="existing" className="flex-1 flex flex-col min-h-0 space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search documents..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
+                  {isLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Loading documents...
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+                  ) : filteredDocuments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p>No available documents found</p>
+                      {searchTerm && (
+                        <p className="text-sm mt-1">Try adjusting your search terms</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredDocuments.map((document) => (
+                        <div
+                          key={document.id}
+                          className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50"
+                        >
+                          <Checkbox
+                            checked={selectedDocuments.includes(document.id)}
+                            onCheckedChange={() => handleDocumentToggle(document.id)}
+                          />
+                          <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {document.file_name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                                {document.type}
+                              </span>
+                              {document.description && (
+                                <span className="text-xs text-gray-500 truncate">
+                                  {document.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
 
-          <div className="flex items-center justify-between pt-4 border-t">
-            <p className="text-sm text-gray-600">
-              {selectedDocuments.length} document(s) selected
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAttachDocuments}
-                disabled={selectedDocuments.length === 0 || isAttaching}
-              >
-                {isAttaching ? 'Attaching...' : `Attach ${selectedDocuments.length} Document(s)`}
-              </Button>
-            </div>
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    {selectedDocuments.length} document(s) selected
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAttachDocuments}
+                      disabled={selectedDocuments.length === 0 || isAttaching}
+                    >
+                      {isAttaching ? 'Attaching...' : `Attach ${selectedDocuments.length} Document(s)`}
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="shared" className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <Link className="h-12 w-12 mx-auto text-gray-400" />
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">Link Shared Files</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Browse and link files from your shared storage to this artwork
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => setSharedFileDialogOpen(true)}
+                      className="mt-4"
+                    >
+                      Browse Shared Files
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <AttachSharedFileDialog
+        artworkId={artworkId}
+        open={sharedFileDialogOpen}
+        onOpenChange={setSharedFileDialogOpen}
+      />
+    </>
   );
 }

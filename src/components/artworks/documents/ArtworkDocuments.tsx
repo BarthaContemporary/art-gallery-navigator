@@ -49,7 +49,7 @@ export function ArtworkDocuments({ artworkId }: ArtworkDocumentsProps) {
           className="flex items-center gap-1"
         >
           <Plus className="h-3 w-3" />
-          Attach
+          Attach / Link
         </Button>
       </div>
 
