@@ -99,13 +99,24 @@ export function useExportArtworksToGoogleDocs() {
       console.log('Export response:', response);
 
       if (response.success && response.documentUrl) {
-        toast({
-          title: "Export Successful",
-          description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Opening document...`,
-        });
-
-        // Open the document in a new tab
-        window.open(response.documentUrl, '_blank', 'noopener,noreferrer');
+        // Try to open the document in a new tab with better handling
+        setTimeout(() => {
+          const newWindow = window.open(response.documentUrl, '_blank', 'noopener,noreferrer');
+          
+          if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            // Popup was blocked, show toast with manual link
+            toast({
+              title: "Export Successful - Manual Action Required",
+              description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Your browser blocked the popup. Please copy and paste this URL to open the document: ${response.documentUrl}`,
+              duration: 15000, // Show longer so user can copy URL
+            });
+          } else {
+            toast({
+              title: "Export Successful",
+              description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Document opened in new tab.`,
+            });
+          }
+        }, 100); // Small delay to ensure popup isn't blocked by timing
 
         return response;
       } else {
