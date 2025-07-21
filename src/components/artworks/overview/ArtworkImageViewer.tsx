@@ -1,6 +1,6 @@
 
 import React from "react";
-import { LocalArtworkImageViewer } from "./LocalArtworkImageViewer";
+import { LocalArtworkCarousel } from "../LocalArtworkCarousel";
 
 interface ArtworkImageViewerProps {
   artworkId: string;
@@ -11,11 +11,11 @@ interface ArtworkImageViewerProps {
 
 export function ArtworkImageViewer({ artworkId, artworkTitle, imageUrl, className }: ArtworkImageViewerProps) {
   return (
-    <LocalArtworkImageViewer 
-      artworkId={artworkId} 
-      artworkTitle={artworkTitle} 
-      imageUrl={imageUrl}
-      className={className}
-    />
+    <div className={`w-full h-[60vh] max-h-[500px] min-h-[300px] ${className}`}>
+      <LocalArtworkCarousel 
+        artworkId={artworkId} 
+        artworkTitle={artworkTitle} 
+      />
+    </div>
   );
 }
