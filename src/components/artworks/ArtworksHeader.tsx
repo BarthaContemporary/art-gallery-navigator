@@ -24,6 +24,8 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
   const [showBulkOptimizer, setShowBulkOptimizer] = useState(false);
   const { isAdmin } = useAuth();
 
+  console.log("ArtworksHeader - isAdmin:", isAdmin, "artworks.length:", artworks.length);
+
   const handleCSVExport = () => {
     exportArtworksToCSV(artworks, 'artworks-export.csv');
   };
