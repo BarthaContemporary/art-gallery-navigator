@@ -10,6 +10,7 @@ interface ExportResponse {
   documentId?: string;
   artworkCount?: number;
   error?: string;
+  errorType?: string;
   details?: string;
 }
 
@@ -30,7 +31,7 @@ export function useExportArtworksToGoogleDocs() {
     setIsExporting(true);
 
     try {
-      console.log(`Exporting ${artworks.length} artworks to Google Docs...`);
+      console.log(`Starting export of ${artworks.length} artworks to Google Docs...`);
 
       // Prepare artwork data with proper artist information and all image data
       const artworkData = artworks.map(artwork => {
@@ -90,24 +91,71 @@ export function useExportArtworksToGoogleDocs() {
         },
       });
 
+      console.log('Export response received:', { data, error });
+
+      // Handle Supabase client errors (network, auth, etc.)
       if (error) {
-        console.error('Export error:', error);
-        
-        // Check if the data contains the actual error message from the edge function
-        let errorMessage = 'Failed to export artworks';
-        if (data && typeof data === 'object' && 'error' in data) {
-          errorMessage = data.error as string;
-        } else if (typeof error === 'object' && error !== null && 'message' in error) {
-          errorMessage = error.message as string;
-        }
-        
-        throw new Error(errorMessage);
+        console.error('Supabase client error:', error);
+        throw new Error(`Network or authentication error: ${error.message}`);
+      }
+
+      // Handle application errors from the edge function
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response from export service');
       }
 
       const response = data as ExportResponse;
-      console.log('Export response:', response);
 
-      if (response.success && response.documentUrl) {
+      if (!response.success) {
+        console.error('Export failed with application error:', response);
+        
+        // Provide specific error messages based on error type
+        let userErrorMessage = response.error || 'Export failed for unknown reason';
+        let errorTitle = 'Export Failed';
+        
+        switch (response.errorType) {
+          case 'storage_quota_exceeded':
+            errorTitle = 'Storage Quota Exceeded';
+            userErrorMessage = response.error || 'The Google Drive storage is full. Please contact an administrator to upgrade the account or clean up old documents.';
+            break;
+          case 'configuration_error':
+            errorTitle = 'Configuration Error';
+            userErrorMessage = response.error || 'Export service is not properly configured. Please contact an administrator.';
+            break;
+          case 'authentication_error':
+            errorTitle = 'Authentication Error';
+            userErrorMessage = response.error || 'Failed to authenticate with Google services. Please contact an administrator.';
+            break;
+          case 'document_creation_error':
+            errorTitle = 'Document Creation Error';
+            userErrorMessage = response.error || 'Failed to create the document. This may be due to template or permissions issues.';
+            break;
+          case 'content_processing_error':
+            errorTitle = 'Content Processing Error';
+            userErrorMessage = response.error || 'The document was created but artwork content could not be added.';
+            break;
+          case 'validation_error':
+            errorTitle = 'Invalid Request';
+            userErrorMessage = response.error || 'Invalid export request.';
+            break;
+          default:
+            errorTitle = 'Export Error';
+            userErrorMessage = response.error || 'An unexpected error occurred during export.';
+        }
+        
+        toast({
+          title: errorTitle,
+          description: userErrorMessage,
+          variant: "destructive",
+        });
+        
+        throw new Error(userErrorMessage);
+      }
+
+      // Handle successful export
+      if (response.documentUrl) {
+        console.log('Export successful, opening document:', response.documentUrl);
+        
         // Try to open the document in a new tab with better handling
         setTimeout(() => {
           const newWindow = window.open(response.documentUrl, '_blank', 'noopener,noreferrer');
@@ -129,36 +177,20 @@ export function useExportArtworksToGoogleDocs() {
 
         return response;
       } else {
-        throw new Error(response.error || 'Unknown error occurred during export');
-      }
-    } catch (error: any) {
-      console.error('Failed to export artworks to Google Docs:', error);
-      
-      let errorMessage = 'Failed to export artworks to Google Docs.';
-      let errorTitle = 'Export Failed';
-      
-      // Handle specific error cases with better user guidance
-      if (error.message?.includes('storage quota exceeded') || error.message?.includes('Google Drive storage is full')) {
-        errorTitle = 'Storage Quota Exceeded';
-        errorMessage = 'The Google Drive storage is full. An administrator needs to clean up old documents or upgrade the Google Workspace account. Please try again later.';
-      } else if (error.message?.includes('Template document not found') || error.message?.includes('Export template is not properly configured')) {
-        errorTitle = 'Configuration Error';
-        errorMessage = 'The export template is not properly configured. Please contact an administrator to resolve this issue.';
-      } else if (error.message?.includes('Google API credentials not configured')) {
-        errorTitle = 'Configuration Error';
-        errorMessage = 'Google API credentials are not configured. Please contact an administrator to set up the export functionality.';
-      } else if (error.message?.includes('Google API access forbidden') || error.message?.includes('Google API access is not properly configured')) {
-        errorTitle = 'Access Error';
-        errorMessage = 'Google API access is not properly configured. Please contact an administrator to check the API permissions.';
-      } else if (error.message) {
-        errorMessage = error.message;
+        throw new Error('Export completed but no document URL was provided');
       }
 
-      toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      console.error('Export process failed:', error);
+      
+      // Only show toast if we haven't already shown one for this specific error
+      if (!error.message?.includes('Export failed with application error')) {
+        toast({
+          title: "Export Failed",
+          description: error.message || "An unexpected error occurred during export. Please try again.",
+          variant: "destructive",
+        });
+      }
 
       throw error;
     } finally {

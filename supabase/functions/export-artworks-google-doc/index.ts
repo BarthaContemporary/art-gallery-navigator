@@ -15,22 +15,34 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("=== Export Request Started ===");
     const { artworks, title }: RequestBody = await req.json();
+    console.log(`Processing export request for ${artworks?.length || 0} artworks with title: "${title}"`);
     
     if (!artworks || artworks.length === 0) {
+      console.error("No artworks provided in request");
       return new Response(
-        JSON.stringify({ error: "No artworks provided" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          success: false,
+          error: "No artworks provided",
+          errorType: "validation_error"
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Get Google API credentials from environment
+    console.log("Checking Google API credentials...");
     const googleCredentials = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!googleCredentials) {
       console.error("Google API credentials not found in environment");
       return new Response(
-        JSON.stringify({ error: "Google API credentials not configured. Please add GOOGLE_SERVICE_ACCOUNT_KEY to your Supabase secrets." }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          success: false,
+          error: "Google API credentials not configured. Please add GOOGLE_SERVICE_ACCOUNT_KEY to your Supabase secrets.",
+          errorType: "configuration_error"
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -41,19 +53,38 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (error) {
       console.error("Failed to parse Google credentials:", error);
       return new Response(
-        JSON.stringify({ error: "Invalid Google API credentials format" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          success: false,
+          error: "Invalid Google API credentials format",
+          errorType: "configuration_error"
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
     
     // Get access token
     console.log("Attempting to get Google access token...");
-    const accessToken = await getGoogleAccessToken(credentials);
-    console.log("Access token obtained successfully");
+    let accessToken;
+    try {
+      accessToken = await getGoogleAccessToken(credentials);
+      console.log("Access token obtained successfully");
+    } catch (error) {
+      console.error("Failed to get access token:", error);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Failed to authenticate with Google API. Please check the service account configuration.",
+          errorType: "authentication_error",
+          details: error.message
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
     
     // Check storage quota before proceeding
     console.log("Checking Google Drive storage quota...");
     const storageCheck = await checkStorageQuota(accessToken);
+    console.log("Storage check result:", storageCheck);
     
     if (!storageCheck.available) {
       console.log("Storage quota exceeded, attempting cleanup...");
@@ -62,13 +93,18 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Check quota again after cleanup
       const postCleanupCheck = await checkStorageQuota(accessToken);
+      console.log("Post-cleanup storage check:", postCleanupCheck);
+      
       if (!postCleanupCheck.available) {
+        console.error("Storage quota still exceeded after cleanup");
         return new Response(
           JSON.stringify({ 
-            error: "Google Drive storage quota exceeded. Please contact an administrator to upgrade the Google Workspace account or manually clean up old documents.",
-            details: "The service has automatically removed some old exported documents, but more storage space is needed."
+            success: false,
+            error: "Google Drive storage quota exceeded. The system attempted to clean up old documents, but more storage space is needed. Please contact an administrator to upgrade the Google Workspace account or manually clean up old documents.",
+            errorType: "storage_quota_exceeded",
+            details: "Automatic cleanup performed but insufficient space remains"
           }),
-          { status: 507, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
     }
@@ -77,18 +113,68 @@ const handler = async (req: Request): Promise<Response> => {
     const docTitle = title || `Artwork List - ${new Date().toLocaleDateString()}`;
     console.log("Copying template document and creating new document with title:", docTitle);
     
-    const documentId = await copyTemplateDocument(accessToken, TEMPLATE_DOCUMENT_ID, docTitle);
-    console.log("Template document copied with new ID:", documentId);
+    let documentId;
+    try {
+      documentId = await copyTemplateDocument(accessToken, TEMPLATE_DOCUMENT_ID, docTitle);
+      console.log("Template document copied with new ID:", documentId);
+    } catch (error) {
+      console.error("Failed to copy template document:", error);
+      
+      // Check if it's a storage quota error
+      if (error.message && error.message.includes("storage quota exceeded")) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "Google Drive storage quota has been exceeded. Please contact an administrator to upgrade the Google Workspace account or clean up old documents.",
+            errorType: "storage_quota_exceeded",
+            details: error.message
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Failed to create document from template. This may be due to permissions or template access issues.",
+          errorType: "document_creation_error",
+          details: error.message
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Process document content with artworks
-    await processDocumentContent(documentId, accessToken, artworks);
+    try {
+      console.log("Processing document content with artworks...");
+      await processDocumentContent(documentId, accessToken, artworks);
+      console.log("Document content processed successfully");
+    } catch (error) {
+      console.error("Failed to process document content:", error);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Failed to add artwork content to the document. The document was created but content could not be added.",
+          errorType: "content_processing_error",
+          details: error.message,
+          documentId: documentId
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Make the document publicly viewable
-    console.log("Making document publicly viewable...");
-    await makeDocumentPublic(accessToken, documentId);
+    try {
+      console.log("Making document publicly viewable...");
+      await makeDocumentPublic(accessToken, documentId);
+      console.log("Document made publicly viewable");
+    } catch (error) {
+      console.warn("Failed to make document public (proceeding anyway):", error);
+    }
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
-    console.log("Document URL:", documentUrl);
+    console.log("Export completed successfully. Document URL:", documentUrl);
+    console.log("=== Export Request Completed Successfully ===");
 
     return new Response(
       JSON.stringify({ 
@@ -104,30 +190,18 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error creating artwork Google Doc:", error);
-    
-    // Provide more specific error messages to the user
-    let userErrorMessage = error.message;
-    let statusCode = 500;
-    
-    if (error.message.includes("storage quota exceeded") || error.message.includes("Drive storage")) {
-      statusCode = 507;
-      userErrorMessage = "Google Drive storage quota has been exceeded. Please contact an administrator to upgrade the Google Workspace account or manually clean up old documents.";
-    } else if (error.message.includes("Template document not found")) {
-      statusCode = 404;
-      userErrorMessage = "Export template is not properly configured. Please contact an administrator.";
-    } else if (error.message.includes("Google API access forbidden")) {
-      statusCode = 403;
-      userErrorMessage = "Google API access is not properly configured. Please contact an administrator.";
-    }
+    console.error("=== Export Request Failed ===");
+    console.error("Unexpected error in export handler:", error);
     
     return new Response(
       JSON.stringify({ 
-        error: userErrorMessage,
-        details: "Check the function logs for more information"
+        success: false,
+        error: "An unexpected error occurred during export. Please try again or contact support if the issue persists.",
+        errorType: "unexpected_error",
+        details: error.message || "Unknown error"
       }),
       { 
-        status: statusCode, 
+        status: 200, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
       }
     );
