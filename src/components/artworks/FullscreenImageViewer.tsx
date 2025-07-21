@@ -87,7 +87,7 @@ export function FullscreenImageViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-black border-none overflow-hidden fixed inset-0">
+      <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-black border-none overflow-hidden">
         <div className="w-full h-full bg-black group relative">
           {/* Close button */}
           <Button
@@ -133,9 +133,9 @@ export function FullscreenImageViewer({
             onZoomReset={handleZoomReset}
           />
 
-          {/* Main image container - constrained to screen size */}
-          <div className="absolute inset-0 flex items-center justify-center p-0">
-            <div className="w-full h-full flex items-center justify-center relative" style={{ maxWidth: '100vw', maxHeight: '100vh' }}>
+          {/* Main image container */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-full h-full flex items-center justify-center">
               <ZoomableImage
                 imageRecord={{
                   id: currentImage.id,
