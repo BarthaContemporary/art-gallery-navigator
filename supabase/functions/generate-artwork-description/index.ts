@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 interface GenerateDescriptionRequest {
+  artwork_id?: string;
   title: string;
   artist_name?: string;
   medium_type?: string;
@@ -36,7 +37,19 @@ serve(async (req) => {
     // Initialize Supabase client for saving history
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { title, artist_name, medium_type, year, materials, dimensions, story, additional_keywords }: GenerateDescriptionRequest = await req.json();
+    // Parse request body once and store all values
+    const requestBody: GenerateDescriptionRequest = await req.json();
+    const { 
+      artwork_id, 
+      title, 
+      artist_name, 
+      medium_type, 
+      year, 
+      materials, 
+      dimensions, 
+      story, 
+      additional_keywords 
+    } = requestBody;
 
     // Build a comprehensive prompt from the artwork data
     let prompt = `Generate a professional, engaging description for this artwork:\n\n`;
@@ -61,7 +74,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { 
             role: 'system', 
@@ -94,11 +107,6 @@ serve(async (req) => {
     // Get the Authorization header to extract user info
     const authHeader = req.headers.get('Authorization');
     let userId = null;
-    let artworkId = null;
-
-    // Try to extract artwork_id from request body if provided
-    const requestBody = await req.clone().json();
-    artworkId = requestBody.artwork_id;
 
     // Try to get user ID from the auth header
     if (authHeader) {
@@ -111,16 +119,16 @@ serve(async (req) => {
     }
 
     // Save to history table (non-blocking)
-    if (artworkId) {
+    if (artwork_id) {
       try {
         const { error: historyError } = await supabase
           .from('ai_description_history')
           .insert({
-            artwork_id: artworkId,
+            artwork_id: artwork_id,
             description: generatedDescription,
             keywords_used: additional_keywords || null,
             generated_by: userId,
-            model_used: 'gpt-4o-mini'
+            model_used: 'gpt-4.1-2025-04-14'
           });
 
         if (historyError) {
