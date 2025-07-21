@@ -16,34 +16,8 @@ export function DocumentCard({ document }: DocumentCardProps) {
     window.open(document.file_url, '_blank');
   };
 
-  const handleView = async () => {
-    try {
-      // Check if this is an external storage URL that needs proxying
-      if (document.file_url.includes('gallerysharedbucket') || document.file_url.includes('s3')) {
-        // Use edge function to get signed URL for secure access
-        const { data, error } = await supabase.functions.invoke('get-document-access', {
-          body: { file_url: document.file_url, document_id: document.id }
-        });
-        
-        if (error) {
-          console.error('Error getting document access:', error);
-          window.open(document.file_url, '_blank'); // Fallback to direct URL
-          return;
-        }
-        
-        if (data?.signed_url) {
-          window.open(data.signed_url, '_blank');
-        } else {
-          window.open(document.file_url, '_blank'); // Fallback
-        }
-      } else {
-        // Direct access for public URLs
-        window.open(document.file_url, '_blank');
-      }
-    } catch (error) {
-      console.error('Error viewing document:', error);
-      window.open(document.file_url, '_blank'); // Fallback
-    }
+  const handleView = () => {
+    window.open(document.file_url, '_blank');
   };
 
   return (
