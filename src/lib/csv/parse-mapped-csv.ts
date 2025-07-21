@@ -90,7 +90,7 @@ export function parseMappedCSVToArtworks(
     const artwork: Partial<ProcessedArtworkForImport> = {
       // Set more lenient default values
       classification: 'Unique' as const,
-      medium_type: 'Mixed Media' as const,
+      medium_type: 'Painting' as const,
       currency: 'USD' as const,
     };
 
@@ -142,7 +142,24 @@ export function parseMappedCSVToArtworks(
         case 'medium_type':
           const cleanMediumType = cleanFieldValue(rawValue);
           if (cleanMediumType !== null) {
-            (artwork as any).medium_type = cleanMediumType;
+            // Normalize medium_type to match database constraints
+            const mediumType = cleanMediumType.toLowerCase();
+            if (mediumType.includes('paint') || mediumType.includes('oil') || mediumType.includes('acrylic') || mediumType.includes('watercolor')) {
+              (artwork as any).medium_type = 'Painting';
+            } else if (mediumType.includes('sculpt') || mediumType.includes('bronze') || mediumType.includes('clay') || mediumType.includes('ceramic')) {
+              (artwork as any).medium_type = 'Sculpture';
+            } else if (mediumType.includes('photo') || mediumType.includes('digital print')) {
+              (artwork as any).medium_type = 'Photography';
+            } else if (mediumType.includes('drawing') || mediumType.includes('print') || mediumType.includes('paper') || mediumType.includes('collage') || mediumType.includes('etching') || mediumType.includes('lithograph')) {
+              (artwork as any).medium_type = 'Work on Paper';
+            } else if (mediumType.includes('textile') || mediumType.includes('fabric') || mediumType.includes('fiber')) {
+              (artwork as any).medium_type = 'Textile Arts';
+            } else if (mediumType.includes('install') || mediumType.includes('mixed media') || mediumType.includes('video') || mediumType.includes('performance')) {
+              (artwork as any).medium_type = 'Installation';
+            } else {
+              // Default fallback
+              (artwork as any).medium_type = 'Painting';
+            }
           }
           break;
 

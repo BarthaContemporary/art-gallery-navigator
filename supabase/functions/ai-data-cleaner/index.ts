@@ -56,7 +56,7 @@ Focus on:
 - Date standardization (YYYY format for years)
 - Dimension standardization (consistent units)
 - Artist name consistency
-- Medium type standardization (Painting, Sculpture, Photography, Drawing, etc.)
+- Medium type standardization (must be exactly one of: "Painting", "Sculpture", "Photography", "Work on Paper", "Installation", "Textile Arts" - map all other values to one of these)
 - Classification MUST be exactly "Unique" or "Limited Edition" (no other values allowed - map everything to one of these two)
 - Status values: "available", "sold", "reserved", "on hold", "for sale"
 - Title capitalization
@@ -99,9 +99,10 @@ Focus on:
       
       cleaningResult = JSON.parse(cleanedResponse);
       
-      // Post-process to ensure correct classification values
+      // Post-process to ensure correct classification and medium_type values
       if (cleaningResult.cleanedArtworks) {
         cleaningResult.cleanedArtworks.forEach(artwork => {
+          // Fix classification values
           if (artwork.suggestedChanges?.classification) {
             const suggested = artwork.suggestedChanges.classification.suggested;
             if (suggested) {
@@ -111,8 +112,31 @@ Focus on:
               } else if (classification.includes('limited') || classification.includes('edition')) {
                 artwork.suggestedChanges.classification.suggested = 'Limited Edition';
               } else {
-                // Default fallback
                 artwork.suggestedChanges.classification.suggested = 'Unique';
+              }
+            }
+          }
+          
+          // Fix medium_type values
+          if (artwork.suggestedChanges?.medium_type) {
+            const suggested = artwork.suggestedChanges.medium_type.suggested;
+            if (suggested) {
+              const mediumType = suggested.toLowerCase();
+              if (mediumType.includes('paint') || mediumType.includes('oil') || mediumType.includes('acrylic') || mediumType.includes('watercolor')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Painting';
+              } else if (mediumType.includes('sculpt') || mediumType.includes('bronze') || mediumType.includes('clay') || mediumType.includes('ceramic')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Sculpture';
+              } else if (mediumType.includes('photo') || mediumType.includes('digital print')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Photography';
+              } else if (mediumType.includes('drawing') || mediumType.includes('print') || mediumType.includes('paper') || mediumType.includes('collage') || mediumType.includes('etching') || mediumType.includes('lithograph')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Work on Paper';
+              } else if (mediumType.includes('textile') || mediumType.includes('fabric') || mediumType.includes('fiber')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Textile Arts';
+              } else if (mediumType.includes('install') || mediumType.includes('mixed media') || mediumType.includes('video') || mediumType.includes('performance')) {
+                artwork.suggestedChanges.medium_type.suggested = 'Installation';
+              } else {
+                // Default fallback
+                artwork.suggestedChanges.medium_type.suggested = 'Painting';
               }
             }
           }
