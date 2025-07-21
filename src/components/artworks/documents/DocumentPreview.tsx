@@ -19,32 +19,61 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
 
   const getSecureFileUrl = async (fileUrl: string, documentId: string) => {
     try {
+      console.log('Getting secure URL for file:', fileUrl);
+      
       // Check if this is an external storage URL that needs proxying
       if (fileUrl.includes('gallerysharedbucket') || fileUrl.includes('s3')) {
-        // For external files, use the edge function to get the file data directly
+        console.log('External file detected, calling edge function');
+        
+        const session = await supabase.auth.getSession();
+        if (!session.data.session?.access_token) {
+          throw new Error('No valid session found');
+        }
+        
+        // Use the edge function to get the file data directly
         const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/get-secure-document`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            'Authorization': `Bearer ${session.data.session.access_token}`,
             'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y'
           },
           body: JSON.stringify({ file_url: fileUrl, document_id: documentId })
         });
         
+        console.log('Edge function response status:', response.status);
+        
         if (!response.ok) {
-          console.error('Error getting secure file:', response.statusText);
-          return fileUrl; // Fallback to original URL
+          const errorText = await response.text();
+          console.error('Edge function error:', response.status, errorText);
+          throw new Error(`Edge function failed: ${response.status} ${errorText}`);
         }
         
-        // The edge function returns the file data directly, so create a blob URL
-        const blob = await response.blob();
-        return URL.createObjectURL(blob);
+        // Check if response is JSON (error) or binary data (file)
+        const contentType = response.headers.get('content-type');
+        console.log('Response content type:', contentType);
+        
+        if (contentType?.includes('application/json')) {
+          const jsonResponse = await response.json();
+          if (jsonResponse.secure_url) {
+            return jsonResponse.secure_url;
+          } else if (jsonResponse.error) {
+            throw new Error(jsonResponse.error);
+          }
+        } else {
+          // The edge function returns the file data directly, so create a blob URL
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          console.log('Created blob URL for secure file');
+          return blobUrl;
+        }
       }
       
       return fileUrl; // Return original URL for public files
     } catch (error) {
       console.error('Error getting secure URL:', error);
-      return fileUrl; // Fallback to original URL
+      toast.error(`Failed to load document: ${error.message}`);
+      return null; // Return null to indicate failure
     }
   };
 
@@ -55,7 +84,11 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
       
       getSecureFileUrl(document.file_url, document.id)
         .then(url => {
-          setSecureUrl(url);
+          if (url) {
+            setSecureUrl(url);
+          } else {
+            setError('Failed to load document - access denied');
+          }
         })
         .catch(err => {
           console.error('Failed to get secure URL:', err);
