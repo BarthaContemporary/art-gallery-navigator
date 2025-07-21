@@ -149,20 +149,69 @@ serve(async (req) => {
 
     console.log('External file detected, attempting to proxy...');
 
-    // For external buckets, try to proxy the file content
+    // For external buckets, try to proxy the file content with S3 headers
     try {
-      console.log('Fetching file from external storage...');
-      const fileResponse = await fetch(file_url);
+      console.log('Fetching file from S3-compatible storage...');
+      
+      // Add headers required for S3-type storage access
+      const s3Headers = {
+        'User-Agent': 'Mozilla/5.0 (compatible; Supabase-EdgeFunction/1.0)',
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+      };
+
+      const fileResponse = await fetch(file_url, {
+        method: 'GET',
+        headers: s3Headers,
+        redirect: 'follow',
+      });
       
       console.log('External file response status:', fileResponse.status);
+      console.log('External file response headers:', Object.fromEntries(fileResponse.headers.entries()));
       
       if (!fileResponse.ok) {
-        console.error(`External file fetch failed: ${fileResponse.status} ${fileResponse.statusText}`);
-        return new Response(JSON.stringify({ 
-          error: `External file access denied: ${fileResponse.status}` 
-        }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        console.error(`S3 file fetch failed: ${fileResponse.status} ${fileResponse.statusText}`);
+        
+        // Try without custom headers as fallback
+        console.log('Trying fallback fetch without custom headers...');
+        const fallbackResponse = await fetch(file_url, {
+          method: 'GET',
+          redirect: 'follow',
+        });
+        
+        console.log('Fallback response status:', fallbackResponse.status);
+        
+        if (!fallbackResponse.ok) {
+          console.error(`Fallback fetch also failed: ${fallbackResponse.status} ${fallbackResponse.statusText}`);
+          return new Response(JSON.stringify({ 
+            error: `S3 file access denied: ${fallbackResponse.status} - ${fallbackResponse.statusText}`,
+            details: `File URL: ${file_url}`
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // Use fallback response if it worked
+        console.log('Fallback fetch succeeded, using fallback response');
+        const fallbackContentType = fallbackResponse.headers.get('content-type') || 'application/octet-stream';
+        const fallbackFileData = await fallbackResponse.arrayBuffer();
+
+        console.log('Successfully proxied file via fallback:', { 
+          size: fallbackFileData.byteLength, 
+          contentType: fallbackContentType,
+          fileName: document.file_name 
+        });
+
+        return new Response(fallbackFileData, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': fallbackContentType,
+            'Content-Disposition': `inline; filename="${document.file_name}"`,
+            'Cache-Control': 'private, max-age=3600',
+          },
         });
       }
 
