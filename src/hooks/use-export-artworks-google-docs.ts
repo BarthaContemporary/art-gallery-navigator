@@ -6,7 +6,7 @@ import { Artwork } from "@/hooks/use-artworks";
 
 declare global {
   interface Window {
-    gapi: any;
+    google: any;
   }
 }
 
@@ -26,37 +26,44 @@ export function useExportArtworksToGoogleDocs() {
 
   const authenticateWithGoogle = async (): Promise<string | null> => {
     return new Promise((resolve) => {
-      // Load Google API
-      if (!window.gapi) {
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => initGapi();
-        document.head.appendChild(script);
-      } else {
-        initGapi();
-      }
-
-      function initGapi() {
-        window.gapi.load('auth2', () => {
-          const authInstance = window.gapi.auth2.init({
-            client_id: '255260465584-drej8c72nkt1no7sb8lldcg255fn903p.apps.googleusercontent.com',
-            scope: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file'
-          });
-
-          authInstance.signIn().then((user: any) => {
-            const accessToken = user.getAuthResponse().access_token;
-            resolve(accessToken);
-          }).catch((error: any) => {
-            console.error('Google auth failed:', error);
-            toast({
-              title: "Authentication Failed",
-              description: "Failed to authenticate with Google. Please try again.",
-              variant: "destructive",
-            });
-            resolve(null);
-          });
+      // Use Google Identity Services (newer OAuth method)
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.onload = () => {
+        const currentOrigin = window.location.origin;
+        console.log('Current origin for OAuth:', currentOrigin);
+        
+        // Initialize Google Identity Services
+        window.google.accounts.oauth2.initTokenClient({
+          client_id: '255260465584-drej8c72nkt1no7sb8lldcg255fn903p.apps.googleusercontent.com',
+          scope: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file',
+          callback: (response: any) => {
+            if (response.error) {
+              console.error('Google auth failed:', response);
+              toast({
+                title: "Authentication Failed", 
+                description: `Google authentication failed: ${response.error_description || response.error}. Please ensure popup blockers are disabled and try again.`,
+                variant: "destructive",
+              });
+              resolve(null);
+            } else {
+              console.log('Google auth successful');
+              resolve(response.access_token);
+            }
+          }
+        }).requestAccessToken();
+      };
+      
+      script.onerror = () => {
+        toast({
+          title: "Authentication Failed",
+          description: "Failed to load Google authentication. Please check your internet connection and try again.",
+          variant: "destructive",
         });
-      }
+        resolve(null);
+      };
+      
+      document.head.appendChild(script);
     });
   };
 
