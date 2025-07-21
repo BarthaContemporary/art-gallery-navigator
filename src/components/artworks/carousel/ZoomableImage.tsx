@@ -81,7 +81,9 @@ export function ZoomableImage({
       <div
         className="w-full h-full transition-transform duration-200 ease-out"
         style={{
-          transform: `scale(${zoomLevel}) translate(${panPosition.x}px, ${panPosition.y}px)`,
+          transform: zoomLevel > 1 
+            ? `scale(${zoomLevel}) translate(${panPosition.x}px, ${panPosition.y}px)`
+            : 'scale(1)',
           transformOrigin: 'center center',
           willChange: zoomLevel > 1 ? 'transform' : 'auto'
         }}

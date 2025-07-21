@@ -97,7 +97,7 @@ export function ArtworkImageRenderer({
         src={imageUrl}
         alt={title}
         className={cn(
-          "w-full h-full object-cover transition-all duration-300",
+          "w-full h-full object-contain transition-all duration-300",
           isLoading ? "opacity-0 scale-110" : "opacity-100 scale-100",
           onClick && "hover:scale-105"
         )}
