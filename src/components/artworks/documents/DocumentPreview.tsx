@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, ExternalLink, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ArtworkDocument } from '@/hooks/use-artwork-documents';
@@ -90,34 +89,6 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
       }
   }, [document, open]);
 
-  const handleDownload = async () => {
-    if (!document || !secureUrl) return;
-    
-    try {
-      const response = await fetch(secureUrl);
-      const blob = await response.blob();
-      
-      const url = window.URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = document.file_name;
-      window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast.success('Document downloaded successfully');
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast.error('Failed to download document');
-    }
-  };
-
-  const handleOpenInNewTab = () => {
-    if (secureUrl) {
-      window.open(secureUrl, '_blank');
-    }
-  };
 
   const renderPreview = () => {
     if (loading) {
@@ -194,7 +165,7 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
       );
     }
 
-    // Default fallback - show download option
+    // Default fallback - no preview available
     return (
       <div className="flex flex-col items-center justify-center h-96 space-y-4">
         <div className="text-center">
@@ -205,16 +176,6 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
             {document.file_name} • {document.type}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleDownload} variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
-          <Button onClick={handleOpenInNewTab} variant="outline" size="sm">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Open in new tab
-          </Button>
-        </div>
       </div>
     );
   };
@@ -223,31 +184,9 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <div className="flex items-center justify-between">
             <DialogTitle className="flex-1 truncate pr-4">
               {document?.file_name || 'Document Preview'}
             </DialogTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleDownload}
-                variant="outline"
-                size="sm"
-                disabled={loading || !secureUrl}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button
-                onClick={handleOpenInNewTab}
-                variant="outline"
-                size="sm"
-                disabled={loading || !secureUrl}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open
-              </Button>
-            </div>
-          </div>
           {document?.description && (
             <p className="text-sm text-muted-foreground mt-2">
               {document.description}
