@@ -34,9 +34,6 @@ export function DocumentCard({ document }: DocumentCardProps) {
                   {document.file_name}
                 </h4>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
-                    {document.type}
-                  </span>
                   <span className="text-xs text-gray-500">
                     {format(new Date(document.date_uploaded), 'MMM dd, yyyy')}
                   </span>
