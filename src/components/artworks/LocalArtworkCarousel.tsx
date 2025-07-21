@@ -118,14 +118,15 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
       />
 
       {/* Simple Image Display */}
-      <div className="w-full h-full relative">
+      <div className="w-full h-full relative overflow-hidden">
         {sortedImages[currentIndex] && (
           <img
             src={sortedImages[currentIndex].medium_storage_path 
               ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
               : '/placeholder.svg'}
             alt={artworkTitle}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain transition-transform duration-200"
+            style={{ transform: `scale(${zoomLevel})` }}
             loading="eager"
           />
         )}
