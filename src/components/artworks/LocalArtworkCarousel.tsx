@@ -7,6 +7,7 @@ import { CompactCarouselIndicator } from "./carousel/CompactCarouselIndicator";
 import { VirtualizedCarousel } from "./carousel/VirtualizedCarousel";
 import { ZoomableImage } from "./carousel/ZoomableImage";
 import { useZoomControls } from "./carousel/useZoomControls";
+import { FullscreenImageViewer } from "./FullscreenImageViewer";
 import type { ImageRecord } from "@/utils/image-url-resolver";
 
 interface LocalArtworkCarouselProps {
@@ -18,6 +19,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   const { images, loading, error, hasProcessingImages } = useLocalArtworkImages(artworkId);
   
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [isFullscreenOpen, setIsFullscreenOpen] = React.useState(false);
   
   const {
     zoomLevel,
@@ -74,6 +76,15 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   const canScrollNext = sortedImages.length > 1;
   const hasMultipleImages = sortedImages.length > 1;
 
+  // Handle fullscreen
+  const handleFullscreen = React.useCallback(() => {
+    setIsFullscreenOpen(true);
+  }, []);
+
+  const handleFullscreenNavigate = React.useCallback((index: number) => {
+    setCurrentIndex(index);
+  }, []);
+
   if (loading) {
     return (
       <div className="w-full h-[500px] bg-muted/10 rounded-lg flex items-center justify-center">
@@ -125,6 +136,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onZoomReset={handleZoomReset}
+        onFullscreen={handleFullscreen}
       />
 
       {/* Zoomable Image Display */}
@@ -175,6 +187,16 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         currentIndex={currentIndex}
         totalImages={sortedImages.length}
         onScrollTo={scrollTo}
+      />
+
+      {/* Fullscreen Image Viewer */}
+      <FullscreenImageViewer
+        open={isFullscreenOpen}
+        onOpenChange={setIsFullscreenOpen}
+        images={sortedImages}
+        currentIndex={currentIndex}
+        artworkTitle={artworkTitle}
+        onNavigate={hasMultipleImages ? handleFullscreenNavigate : undefined}
       />
     </div>
   );
