@@ -31,29 +31,27 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Template document ID
-    const TEMPLATE_DOCUMENT_ID = "1uHXsP9k-rkSGmfamNfS-LMy7hg6Xp_aMSPZVRkKtGpc";
-    
+    // Create a new document instead of copying a template
     const docTitle = title || `Artwork List - ${new Date().toLocaleDateString()}`;
-    console.log("Creating document with user's Google account:", docTitle);
+    console.log("Creating new document in user's Google Drive:", docTitle);
 
-    // Copy template using user's access token
-    const copyResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${TEMPLATE_DOCUMENT_ID}/copy`, {
+    // Create a new blank document
+    const createResponse = await fetch("https://docs.googleapis.com/v1/documents", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: docTitle
+        title: docTitle
       })
     });
 
-    if (!copyResponse.ok) {
-      const errorText = await copyResponse.text();
-      console.error("Failed to copy template:", copyResponse.status, errorText);
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      console.error("Failed to create document:", createResponse.status, errorText);
       
-      if (copyResponse.status === 401) {
+      if (createResponse.status === 401) {
         return new Response(
           JSON.stringify({ 
             success: false,
@@ -75,25 +73,58 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const docData = await copyResponse.json();
-    const documentId = docData.id;
+    const docData = await createResponse.json();
+    const documentId = docData.documentId;
     console.log("Document created with ID:", documentId);
+
+    // Add header content first
+    const headerRequests = [
+      {
+        insertText: {
+          location: { index: 1 },
+          text: `${docTitle}\n\nArtwork Details\n${'='.repeat(50)}\n\n`
+        }
+      },
+      {
+        updateTextStyle: {
+          range: {
+            startIndex: 1,
+            endIndex: docTitle.length + 1
+          },
+          textStyle: {
+            bold: true,
+            fontSize: { magnitude: 16, unit: "PT" }
+          },
+          fields: "bold,fontSize"
+        }
+      }
+    ];
+
+    // Apply header formatting
+    await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ requests: headerRequests })
+    });
 
     // Add artwork content to the document
     const requests = [];
-    let index = 1; // Start after the placeholder text
+    let index = docTitle.length + 25; // Start after the header content
 
     for (const artwork of artworks) {
       const artworkText = [
-        `Title: ${artwork.title || 'Untitled'}`,
-        `Artist: ${artwork.artist_name || 'Unknown Artist'}`,
-        artwork.year ? `Year: ${artwork.year}` : '',
-        artwork.medium_type ? `Medium: ${artwork.medium_type}` : '',
-        artwork.materials ? `Materials: ${artwork.materials}` : '',
-        artwork.dimensions ? `Dimensions: ${artwork.dimensions}` : '',
-        artwork.price && artwork.currency ? `Price: ${artwork.currency} ${artwork.price}` : '',
-        artwork.status ? `Status: ${artwork.status}` : '',
-        '\n---\n\n'
+        `\n📋 ${artwork.title || 'Untitled'}\n`,
+        `👤 Artist: ${artwork.artist_name || 'Unknown Artist'}`,
+        artwork.year ? `📅 Year: ${artwork.year}` : '',
+        artwork.medium_type ? `🎨 Medium: ${artwork.medium_type}` : '',
+        artwork.materials ? `🔧 Materials: ${artwork.materials}` : '',
+        artwork.dimensions ? `📏 Dimensions: ${artwork.dimensions}` : '',
+        artwork.price && artwork.currency ? `💰 Price: ${artwork.currency} ${artwork.price}` : '',
+        artwork.status ? `📊 Status: ${artwork.status}` : '',
+        '\n' + '─'.repeat(50) + '\n'
       ].filter(Boolean).join('\n');
 
       requests.push({
