@@ -36,18 +36,34 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(`Function error: ${error.message || 'Unknown error'}`);
+      }
+
+      if (!data?.description) {
+        throw new Error('No description returned from AI service');
+      }
 
       form.setValue('ai_description', data.description);
       toast({
         title: "AI Description Generated",
         description: "The AI description has been created successfully!",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating AI description:', error);
+      
+      let errorMessage = "Failed to generate AI description. Please try again.";
+      
+      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+        errorMessage = "OpenAI API rate limit exceeded. Please try again later.";
+      } else if (error.message?.includes('OPENAI_API_KEY')) {
+        errorMessage = "OpenAI API key not configured. Please contact admin.";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to generate AI description. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
