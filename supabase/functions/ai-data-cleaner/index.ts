@@ -56,7 +56,9 @@ Focus on:
 - Date standardization (YYYY format for years)
 - Dimension standardization (consistent units)
 - Artist name consistency
-- Medium type standardization
+- Medium type standardization (Painting, Sculpture, Photography, Drawing, etc.)
+- Classification MUST be exactly "Unique" or "Limited Edition" (no other values allowed - map everything to one of these two)
+- Status values: "available", "sold", "reserved", "on hold", "for sale"
 - Title capitalization
 - Remove extra spaces and normalize text`;
 
