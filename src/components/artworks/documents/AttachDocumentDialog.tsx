@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDocuments } from '@/hooks/use-documents';
@@ -27,7 +27,9 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
   const [isAttaching, setIsAttaching] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
   const [activeTab, setActiveTab] = useState('shared');
+  const [storageInitialized, setStorageInitialized] = useState(false);
   const queryClient = useQueryClient();
+  const initializationRef = useRef(false);
 
   const { data: documents, isLoading } = useDocuments();
   
@@ -42,23 +44,39 @@ export function AttachDocumentDialog({ artworkId, open, onOpenChange }: AttachDo
   } = useEnhancedIDriveStorage();
 
   // Initialize storage when dialog opens and shared tab is active
-  useEffect(() => {
-    if (open && activeTab === 'shared') {
-      const initStorage = async () => {
-        try {
-          const buckets = await initializeStorage();
-          const sharedBucket = buckets.find(bucket => bucket.name === 'Shared Gallery Storage');
-          if (sharedBucket) {
-            switchBucket(sharedBucket);
-            await listFiles('', sharedBucket);
-          }
-        } catch (error) {
-          console.error('Failed to initialize storage:', error);
-        }
-      };
-      initStorage();
+  const initializeSharedStorage = useCallback(async () => {
+    if (initializationRef.current) return;
+    
+    try {
+      initializationRef.current = true;
+      const buckets = await initializeStorage();
+      const sharedBucket = buckets.find(bucket => bucket.name === 'Shared Gallery Storage');
+      if (sharedBucket) {
+        switchBucket(sharedBucket);
+        await listFiles('', sharedBucket);
+      }
+      setStorageInitialized(true);
+    } catch (error) {
+      console.error('Failed to initialize storage:', error);
+      initializationRef.current = false;
     }
-  }, [open, activeTab, initializeStorage, switchBucket, listFiles]);
+  }, [initializeStorage, switchBucket, listFiles]);
+
+  useEffect(() => {
+    if (open && activeTab === 'shared' && !storageInitialized) {
+      initializeSharedStorage();
+    }
+  }, [open, activeTab, storageInitialized, initializeSharedStorage]);
+
+  // Reset initialization when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setStorageInitialized(false);
+      setCurrentPath('');
+      setSelectedFiles([]);
+      initializationRef.current = false;
+    }
+  }, [open]);
 
   const filteredDocuments = documents?.filter(doc => 
     !doc.artwork_id && // Only show unattached documents
