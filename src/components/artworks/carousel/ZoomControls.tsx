@@ -23,7 +23,7 @@ export function ZoomControls({
   onZoomReset,
 }: ZoomControlsProps) {
   return (
-    <div className="absolute top-4 left-4 z-30 flex flex-col gap-1 opacity-60 hover:opacity-100 transition-opacity">
+    <div className="absolute top-4 left-4 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
       <Button
         variant="secondary"
         size="sm"
