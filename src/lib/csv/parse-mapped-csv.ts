@@ -1,4 +1,5 @@
 
+
 import type { CSVRowObject, FieldMappings, ValidatedProcessedArtwork, ProcessedArtworkForImport } from "@/components/artworks/ArtworkFieldMapping.types";
 
 // Helper function to clean and validate field values
@@ -37,19 +38,19 @@ function validateRequiredFields(artwork: Partial<ProcessedArtworkForImport>): { 
     errors.push('Title is required');
   }
 
-  // Classification is required
+  // At least one of these should be present for classification
   if (!artwork.classification || artwork.classification.trim() === '') {
-    errors.push('Classification is required');
+    warnings.push('Classification not specified - will use default "Other"');
   }
 
-  // Medium type is required
+  // Medium type should be present
   if (!artwork.medium_type || artwork.medium_type.trim() === '') {
-    errors.push('Medium type is required');
+    warnings.push('Medium type not specified - will use default "Mixed Media"');
   }
 
-  // Currency is required
-  if (!artwork.currency || artwork.currency.trim() === '') {
-    errors.push('Currency is required');
+  // Currency should be present if price is specified
+  if (artwork.price !== null && artwork.price !== undefined && (!artwork.currency || artwork.currency.trim() === '')) {
+    warnings.push('Currency not specified but price is present - will use USD');
   }
 
   // Artist validation - either artist_id or artist_name should be provided
@@ -87,9 +88,9 @@ export function parseMappedCSVToArtworks(
     console.log(`Processing row ${index + 1}:`, row);
     
     const artwork: Partial<ProcessedArtworkForImport> = {
-      // Set default required values
+      // Set more lenient default values
       classification: 'Other' as const,
-      medium_type: 'Painting' as const,
+      medium_type: 'Mixed Media' as const,
       currency: 'USD' as const,
     };
 
@@ -113,15 +114,33 @@ export function parseMappedCSVToArtworks(
         case 'story':
         case 'exhibition_history':
         case 'condition':
-        case 'classification':
-        case 'medium_type':
-        case 'currency':
         case 'signature_type':
         case 'artist_id':
         case 'location_id':
           const cleanValue = cleanFieldValue(rawValue);
           if (cleanValue !== null) {
             (artwork as any)[artworkField] = cleanValue;
+          }
+          break;
+
+        case 'classification':
+          const cleanClassification = cleanFieldValue(rawValue);
+          if (cleanClassification !== null) {
+            (artwork as any).classification = cleanClassification;
+          }
+          break;
+
+        case 'medium_type':
+          const cleanMediumType = cleanFieldValue(rawValue);
+          if (cleanMediumType !== null) {
+            (artwork as any).medium_type = cleanMediumType;
+          }
+          break;
+
+        case 'currency':
+          const cleanCurrency = cleanFieldValue(rawValue);
+          if (cleanCurrency !== null) {
+            (artwork as any).currency = cleanCurrency;
           }
           break;
 
@@ -184,5 +203,8 @@ export function parseMappedCSVToArtworks(
   });
 
   console.log("Finished parsing CSV rows. Validated artworks:", validatedArtworks.length);
+  const validCount = validatedArtworks.filter(va => va.isValid).length;
+  console.log(`Valid artworks: ${validCount}/${validatedArtworks.length}`);
+  
   return validatedArtworks;
 }

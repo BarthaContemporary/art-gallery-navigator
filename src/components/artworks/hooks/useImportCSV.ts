@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseCSVForPreview } from "@/lib/csv/parse-csv-preview";
@@ -56,7 +57,6 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     const selectedFile = e.target.files[0];
     console.log("Selected file:", selectedFile.name, "Size:", selectedFile.size, "Type:", selectedFile.type);
     
-    // File validation is now handled in UploadStep component
     setFile(selectedFile);
     setIsProcessingFile(true);
 
@@ -91,10 +91,10 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   };
 
   const goToPreviewStep = () => {
-    console.log("Going to preview step");
+    console.log("Going to data cleaning step first");
     
     if (!csvPreviewData || !csvPreviewData.rows.length) {
-        toast.error("No CSV data available to preview.");
+        toast.error("No CSV data available to process.");
         return;
     }
 
@@ -106,22 +106,28 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
       setParsedArtworks(validatedArtworks);
       
       const validToImportCount = validatedArtworks.filter(va => va.isValid && va.isSelectedForImport).length;
-      if (validToImportCount === 0 && validatedArtworks.length > 0) {
-          const anyValid = validatedArtworks.some(va => va.isValid);
-          if (anyValid) {
-              toast.warning("No artworks are currently selected for import. Please review selections and validation messages.");
-          } else {
-              toast.warning("No artworks could be prepared for import. Please review validation errors and your field mappings.");
-          }
-      } else if (validatedArtworks.length === 0) {
+      const totalValidCount = validatedArtworks.filter(va => va.isValid).length;
+      
+      if (validatedArtworks.length === 0) {
           toast.warning("No artworks could be generated with the current mappings. Please check your field mappings or CSV content.");
-      } else {
-          toast.success(`${validToImportCount} artworks ready for import!`);
+          return;
       }
       
-    setCurrentStep(ImportStep.DATA_CLEANING);
+      if (totalValidCount === 0) {
+          toast.warning("No valid artworks found. Please review validation errors and your field mappings.");
+          setCurrentStep(ImportStep.DATA_CLEANING);
+          return;
+      }
+      
+      if (validToImportCount === 0) {
+          toast.warning("No artworks are currently selected for import. Please review selections and validation messages in the next step.");
+      } else {
+          toast.success(`${totalValidCount} artworks processed, ${validToImportCount} selected for import!`);
+      }
+      
+      setCurrentStep(ImportStep.DATA_CLEANING);
     } catch (error: any) {
-      console.error("Error during preview step:", error);
+      console.error("Error during CSV processing:", error);
       toast.error(`Error processing CSV data: ${error.message || "Unknown error"}`);
     }
   };
@@ -155,12 +161,19 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   };
   
   const handleDataCleaningComplete = (cleaned: ValidatedProcessedArtwork[]) => {
+    console.log("Data cleaning completed with", cleaned.length, "artworks");
     setCleanedArtworks(cleaned);
     setParsedArtworks(cleaned);
-  };
-
-  const goToPreviewFromCleaning = () => {
-    setCurrentStep(ImportStep.PREVIEW);
+    
+    // Provide user feedback
+    const selectedCount = cleaned.filter(art => art.isValid && art.isSelectedForImport).length;
+    const totalValidCount = cleaned.filter(art => art.isValid).length;
+    
+    if (selectedCount > 0) {
+      toast.success(`Data cleaning complete! ${selectedCount} of ${totalValidCount} valid artworks ready for import.`);
+    } else {
+      toast.warning("Data cleaning complete, but no artworks are selected for import. Please review and select artworks in the preview step.");
+    }
   };
 
   const handleImport = async () => {

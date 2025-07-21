@@ -1,10 +1,11 @@
+
 /**
  * Clean Artworks Page
  * Simple, reliable artwork management interface
  */
 
 import React, { useRef } from "react";
-import { RefreshCw, Search, X } from "lucide-react";
+import { RefreshCw, Search, X, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
@@ -115,8 +116,10 @@ export default function Artworks() {
       
       {/* Header */}
       <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-        <CreateArtworkDialog />
-        <ImportCSVDialog />
+        <div className="flex items-center gap-2">
+          <CreateArtworkDialog />
+          <ImportCSVDialog />
+        </div>
       </div>
 
       {/* Filters */}
