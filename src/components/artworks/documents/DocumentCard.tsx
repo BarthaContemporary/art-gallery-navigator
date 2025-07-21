@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { FileText, Download, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArtworkDocument } from '@/hooks/use-artwork-documents';
@@ -14,9 +14,6 @@ interface DocumentCardProps {
 export function DocumentCard({ document }: DocumentCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const handleDownload = () => {
-    setPreviewOpen(true); // Open preview which has secure download functionality
-  };
 
   const handleView = () => {
     setPreviewOpen(true);
@@ -55,18 +52,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
                     variant="ghost"
                     onClick={handleView}
                     className="h-8 w-8 p-0"
-                    title="View document"
+                    title="Preview document"
                   >
                     <ExternalLink className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleDownload}
-                    className="h-8 w-8 p-0"
-                    title="Download document"
-                  >
-                    <Download className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
