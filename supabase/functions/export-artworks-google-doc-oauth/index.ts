@@ -132,9 +132,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing ${artworks.length} artworks...`);
     console.log("First artwork details:", JSON.stringify(artworks[0], null, 2));
 
-    // Build all content requests at once to avoid index calculation issues
-    const allRequests = [];
+    // Build all text content first
     let contentText = "";
+    const imageRequests = [];
 
     for (const artwork of artworks) {
       const artworkDetails = [
@@ -151,56 +151,44 @@ const handler = async (req: Request): Promise<Response> => {
 
       contentText += artworkDetails;
       
-      // Find primary image URL - look for a working image URL
+      // Find primary image URL - collect for separate processing
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
       
       if (primaryImage) {
         let imageUrl = null;
         
         // Try different URL sources in order of preference
-        // 1. Try medium_url if it's a complete HTTP URL and doesn't end with /processing
         if (primaryImage.medium_url && 
             primaryImage.medium_url.startsWith('http') && 
             !primaryImage.medium_url.endsWith('/processing')) {
           imageUrl = primaryImage.medium_url;
         }
-        // 2. Try image_url if it's a complete HTTP URL and doesn't end with /processing
         else if (primaryImage.image_url && 
                  primaryImage.image_url.startsWith('http') && 
                  !primaryImage.image_url.endsWith('/processing')) {
           imageUrl = primaryImage.image_url;
         }
-        // 3. Try thumbnail_url if it's a complete HTTP URL and doesn't end with /processing
         else if (primaryImage.thumbnail_url && 
                  primaryImage.thumbnail_url.startsWith('http') && 
                  !primaryImage.thumbnail_url.endsWith('/processing')) {
           imageUrl = primaryImage.thumbnail_url;
         }
-        // 4. Try to construct Supabase storage URL from storage paths
         else if (primaryImage.medium_storage_path) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
         }
         else if (primaryImage.large_storage_path) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}`;
         }
-        // 5. Last resort: construct from image_url if it looks like a path
         else if (primaryImage.image_url && !primaryImage.image_url.startsWith('http')) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
         }
 
         if (imageUrl) {
           console.log(`Found image for ${artwork.title}: ${imageUrl}`);
-          
-          // Add image after the text content
-          allRequests.push({
-            insertInlineImage: {
-              location: { index: headerText.length + contentText.length + 1 },
-              uri: imageUrl,
-              objectSize: {
-                height: { magnitude: 200, unit: "PT" },
-                width: { magnitude: 200, unit: "PT" }
-              }
-            }
+          imageRequests.push({
+            artworkTitle: artwork.title,
+            imageUrl: imageUrl,
+            insertIndex: headerText.length + contentText.length + 1
           });
         } else {
           console.log(`No valid image URL found for ${artwork.title}`);
@@ -210,48 +198,80 @@ const handler = async (req: Request): Promise<Response> => {
       contentText += '─'.repeat(50) + '\n\n';
     }
 
-    // Insert all artwork text content at once
+    // Step 1: Insert all text content first
     if (contentText) {
       console.log("=== ADDING CONTENT TEXT ===");
       console.log("Content text length:", contentText.length);
       console.log("Content preview:", contentText.substring(0, 200) + "...");
       
-      allRequests.unshift({
+      const textRequest = [{
         insertText: {
           location: { index: headerText.length + 1 },
           text: contentText
         }
-      });
-    }
+      }];
 
-    // Apply all content updates in one batch
-    if (allRequests.length > 0) {
-      console.log("=== APPLYING ALL REQUESTS ===");
-      console.log(`Applying ${allRequests.length} content requests...`);
-      console.log("All requests:", JSON.stringify(allRequests, null, 2));
-      
       const contentResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ requests: allRequests })
+        body: JSON.stringify({ requests: textRequest })
       });
 
       console.log("Content response status:", contentResponse.status);
       
       if (!contentResponse.ok) {
         const errorText = await contentResponse.text();
-        console.error("Failed to add content:", contentResponse.status, errorText);
-        console.warn("Document created but content addition failed");
+        console.error("Failed to add text content:", contentResponse.status, errorText);
+        console.warn("Document created but text content addition failed");
       } else {
         const contentResult = await contentResponse.json();
+        console.log("Text content added successfully");
         console.log("Content response:", JSON.stringify(contentResult, null, 2));
-        console.log("Successfully added all content to document");
       }
     } else {
-      console.warn("No requests to apply - this shouldn't happen!");
+      console.warn("No text content to add - this shouldn't happen!");
+    }
+
+    // Step 2: Try to add images separately (so text content isn't lost if images fail)
+    if (imageRequests.length > 0) {
+      console.log("=== ADDING IMAGES ===");
+      console.log(`Attempting to add ${imageRequests.length} images...`);
+      
+      for (const imageReq of imageRequests) {
+        const imageRequest = [{
+          insertInlineImage: {
+            location: { index: imageReq.insertIndex },
+            uri: imageReq.imageUrl,
+            objectSize: {
+              height: { magnitude: 200, unit: "PT" },
+              width: { magnitude: 200, unit: "PT" }
+            }
+          }
+        }];
+
+        try {
+          const imageResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ requests: imageRequest })
+          });
+
+          if (!imageResponse.ok) {
+            const errorText = await imageResponse.text();
+            console.error(`Failed to add image for ${imageReq.artworkTitle}:`, imageResponse.status, errorText);
+          } else {
+            console.log(`Successfully added image for ${imageReq.artworkTitle}`);
+          }
+        } catch (error) {
+          console.error(`Error adding image for ${imageReq.artworkTitle}:`, error);
+        }
+      }
     }
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
