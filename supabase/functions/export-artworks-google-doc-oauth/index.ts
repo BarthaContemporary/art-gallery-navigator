@@ -111,7 +111,6 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Add artwork content to the document
-    const requests = [];
     let index = docTitle.length + 25; // Start after the header content
 
     for (const artwork of artworks) {
@@ -124,9 +123,12 @@ const handler = async (req: Request): Promise<Response> => {
         artwork.dimensions ? `📏 Dimensions: ${artwork.dimensions}` : '',
         artwork.price && artwork.currency ? `💰 Price: ${artwork.currency} ${artwork.price}` : '',
         artwork.status ? `📊 Status: ${artwork.status}` : '',
-        '\n' + '─'.repeat(50) + '\n'
+        '\n'
       ].filter(Boolean).join('\n');
 
+      const requests = [];
+      
+      // Insert artwork text
       requests.push({
         insertText: {
           location: { index },
@@ -135,23 +137,78 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       index += artworkText.length;
-    }
 
-    // Apply content updates
-    if (requests.length > 0) {
-      const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ requests })
+      // Find and insert primary image if available
+      const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+      
+      if (primaryImage) {
+        let imageUrl = null;
+        
+        // Try to get a public image URL - prefer medium_url, then image_url
+        if (primaryImage.medium_url && primaryImage.medium_url.startsWith('http')) {
+          imageUrl = primaryImage.medium_url;
+        } else if (primaryImage.image_url && primaryImage.image_url.startsWith('http')) {
+          imageUrl = primaryImage.image_url;
+        } else if (primaryImage.thumbnail_url && primaryImage.thumbnail_url.startsWith('http')) {
+          imageUrl = primaryImage.thumbnail_url;
+        } else if (primaryImage.image_url) {
+          // Construct Supabase storage URL if we have a relative path
+          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
+        }
+
+        if (imageUrl) {
+          console.log(`Adding image for ${artwork.title}: ${imageUrl}`);
+          
+          requests.push({
+            insertInlineImage: {
+              location: { index },
+              uri: imageUrl,
+              objectSize: {
+                height: { magnitude: 200, unit: "PT" },
+                width: { magnitude: 200, unit: "PT" }
+              }
+            }
+          });
+          
+          // Add space after image - the image insertion doesn't add line breaks
+          requests.push({
+            insertText: {
+              location: { index },
+              text: '\n\n'
+            }
+          });
+          
+          index += 2; // Account for the line breaks we added
+        }
+      }
+
+      // Add separator
+      const separator = '─'.repeat(50) + '\n';
+      requests.push({
+        insertText: {
+          location: { index },
+          text: separator
+        }
       });
 
-      if (!updateResponse.ok) {
-        console.warn("Failed to add content, but document was created");
-      } else {
-        console.log("Content added successfully");
+      index += separator.length;
+
+      // Apply all requests for this artwork
+      if (requests.length > 0) {
+        const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ requests })
+        });
+
+        if (!updateResponse.ok) {
+          console.warn(`Failed to add content for artwork ${artwork.title}, but continuing with others`);
+        } else {
+          console.log(`Successfully added content for artwork: ${artwork.title}`);
+        }
       }
     }
 
