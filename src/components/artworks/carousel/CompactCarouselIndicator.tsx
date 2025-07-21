@@ -32,7 +32,7 @@ export function CompactCarouselIndicator({
               onClick={() => onScrollTo(index)}
               aria-label={`Go to image ${index + 1}`}
               className={cn(
-                "w-0.5 h-0.5 rounded-full transition-all duration-200",
+                "w-[3px] h-[3px] rounded-full transition-all duration-200 p-0 border-0",
                 index === currentIndex 
                   ? "bg-white" 
                   : "bg-white/40"
