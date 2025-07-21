@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
+import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
 import { toast } from "sonner";
@@ -115,6 +116,7 @@ export default function Artworks() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
         <CreateArtworkDialog />
+        <ImportCSVDialog />
       </div>
 
       {/* Filters */}
