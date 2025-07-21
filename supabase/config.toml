@@ -32,15 +32,6 @@ port = 54322
 shadow_port = 54320
 major_version = 15
 
-[functions.webdav]
-verify_jwt = false
-
-[functions.webdav-create-token]
-verify_jwt = true
-
-[functions.idrive-proxy]
-verify_jwt = true
-
 [edge_runtime]
 enabled = true
 port = 54323
@@ -54,3 +45,21 @@ file_size_limit = "50MiB"
 enabled = false
 port = 54327
 vector_port = 54328
+
+[functions.webdav]
+verify_jwt = false
+
+[functions.webdav-create-token]
+verify_jwt = true
+
+[functions.idrive-proxy]
+verify_jwt = true
+
+[functions.ai-field-mapper]
+verify_jwt = true
+
+[functions.ai-data-cleaner]
+verify_jwt = true
+
+[functions.ai-content-enhancer]
+verify_jwt = true

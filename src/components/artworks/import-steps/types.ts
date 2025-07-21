@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 export enum ImportStep {
   UPLOAD = "upload",
   FIELD_MAPPING = "mapFields", 
+  DATA_CLEANING = "data_cleaning",
   PREVIEW = "preview",
   IMPORTING = "importing",
   COMPLETE = "complete"
@@ -41,6 +42,7 @@ export interface UseImportCSVReturn {
   resetState: () => void;
   toggleArtworkSelection: (originalRowIndex: number) => void; // Added
   toggleSelectAllArtworks: (selectAll: boolean) => void; // Added
+  handleDataCleaningComplete: (cleanedArtworks: ValidatedProcessedArtwork[]) => void;
 }
 
 export interface UploadStepProps {

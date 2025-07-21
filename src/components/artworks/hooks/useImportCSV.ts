@@ -16,6 +16,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
   const [csvPreviewData, setCsvPreviewData] = useState<CSVPreviewData | null>(null);
   const [fieldMappings, setFieldMappings] = useState<FieldMappings>({});
   const [parsedArtworks, setParsedArtworks] = useState<ValidatedProcessedArtwork[]>([]);
+  const [cleanedArtworks, setCleanedArtworks] = useState<ValidatedProcessedArtwork[]>([]);
 
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [importingProgress, setImportingProgress] = useState(0);
@@ -29,6 +30,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     setCsvPreviewData(null);
     setFieldMappings({});
     setParsedArtworks([]);
+    setCleanedArtworks([]);
     setCurrentStep(ImportStep.UPLOAD);
     setIsProcessingFile(false);
     setImportingProgress(0);
@@ -117,7 +119,7 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
           toast.success(`${validToImportCount} artworks ready for import!`);
       }
       
-      setCurrentStep(ImportStep.PREVIEW);
+    setCurrentStep(ImportStep.DATA_CLEANING);
     } catch (error: any) {
       console.error("Error during preview step:", error);
       toast.error(`Error processing CSV data: ${error.message || "Unknown error"}`);
@@ -126,28 +128,46 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
 
   const toggleArtworkSelection = (originalRowIndex: number) => {
     console.log("Toggling artwork selection for row:", originalRowIndex);
-    setParsedArtworks(prevArtworks =>
-      prevArtworks.map(artwork =>
+    const updateArtworks = (artworks: ValidatedProcessedArtwork[]) =>
+      artworks.map(artwork =>
         artwork.originalRowIndex === originalRowIndex
           ? { ...artwork, isSelectedForImport: !artwork.isSelectedForImport }
           : artwork
-      )
-    );
+      );
+    
+    setParsedArtworks(updateArtworks);
+    if (cleanedArtworks.length > 0) {
+      setCleanedArtworks(updateArtworks);
+    }
   };
 
   const toggleSelectAllArtworks = (selectAll: boolean) => {
     console.log("Toggling select all artworks:", selectAll);
-    setParsedArtworks(prevArtworks =>
-      prevArtworks.map(artwork =>
+    const updateArtworks = (artworks: ValidatedProcessedArtwork[]) =>
+      artworks.map(artwork =>
         artwork.isValid ? { ...artwork, isSelectedForImport: selectAll } : artwork
-      )
-    );
+      );
+    
+    setParsedArtworks(updateArtworks);
+    if (cleanedArtworks.length > 0) {
+      setCleanedArtworks(updateArtworks);
+    }
   };
   
+  const handleDataCleaningComplete = (cleaned: ValidatedProcessedArtwork[]) => {
+    setCleanedArtworks(cleaned);
+    setParsedArtworks(cleaned);
+  };
+
+  const goToPreviewFromCleaning = () => {
+    setCurrentStep(ImportStep.PREVIEW);
+  };
+
   const handleImport = async () => {
     console.log("Starting import process");
     
-    const artworksToAttemptImport = parsedArtworks
+    const artworksToImport = cleanedArtworks.length > 0 ? cleanedArtworks : parsedArtworks;
+    const artworksToAttemptImport = artworksToImport
       .filter(va => va.isValid && va.isSelectedForImport)
       .map(va => va.artwork);
 
@@ -221,5 +241,6 @@ export function useImportCSV(initialOpen: boolean = false, onCloseDialog?: () =>
     resetState,
     toggleArtworkSelection,
     toggleSelectAllArtworks,
+    handleDataCleaningComplete,
   };
 }

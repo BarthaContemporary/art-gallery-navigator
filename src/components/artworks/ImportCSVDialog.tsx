@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useImportCSV } from "./hooks/useImportCSV";
 import { UploadStep } from "./import-steps/UploadStep";
 import { FieldMappingStep } from "./FieldMappingStep";
+import { AIDataCleaningStep } from "./import-steps/AIDataCleaningStep";
 import { PreviewStep } from "./import-steps/PreviewStep";
 import { ImportingStep } from "./import-steps/ImportingStep";
 import { CompleteStep } from "./import-steps/CompleteStep";
@@ -29,6 +30,7 @@ export function ImportCSVDialog() {
     resetState,
     toggleArtworkSelection,
     toggleSelectAllArtworks,
+    handleDataCleaningComplete,
   } = useImportCSV();
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -58,11 +60,21 @@ export function ImportCSVDialog() {
             onBack={() => setCurrentStep(ImportStep.UPLOAD)}
           />
         );
+      case ImportStep.DATA_CLEANING:
+        return (
+          <AIDataCleaningStep
+            parsedArtworks={parsedArtworks}
+            fieldMappings={fieldMappings}
+            onCleaningComplete={handleDataCleaningComplete}
+            onBack={() => setCurrentStep(ImportStep.FIELD_MAPPING)}
+            onNext={() => setCurrentStep(ImportStep.PREVIEW)}
+          />
+        );
       case ImportStep.PREVIEW:
         return (
           <PreviewStep
             parsedArtworks={parsedArtworks}
-            onBack={() => setCurrentStep(ImportStep.FIELD_MAPPING)}
+            onBack={() => setCurrentStep(ImportStep.DATA_CLEANING)}
             onImport={handleImport}
             toggleArtworkSelection={toggleArtworkSelection}
             toggleSelectAllArtworks={toggleSelectAllArtworks}
@@ -93,6 +105,8 @@ export function ImportCSVDialog() {
         return "Upload CSV File";
       case ImportStep.FIELD_MAPPING:
         return "Map Fields";
+      case ImportStep.DATA_CLEANING:
+        return "AI Data Cleaning";
       case ImportStep.PREVIEW:
         return "Preview Import";
       case ImportStep.IMPORTING:
