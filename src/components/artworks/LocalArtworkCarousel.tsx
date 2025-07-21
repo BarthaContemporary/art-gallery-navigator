@@ -117,14 +117,19 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         onZoomReset={handleZoomReset}
       />
 
-      {/* Virtualized Carousel */}
-      <VirtualizedCarousel
-        images={sortedImages}
-        artworkTitle={artworkTitle}
-        currentIndex={currentIndex}
-        onIndexChange={setCurrentIndex}
-        className="w-full h-full"
-      />
+      {/* Simple Image Display */}
+      <div className="w-full h-full relative">
+        {sortedImages[currentIndex] && (
+          <img
+            src={sortedImages[currentIndex].medium_storage_path 
+              ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
+              : '/placeholder.svg'}
+            alt={artworkTitle}
+            className="w-full h-full object-contain"
+            loading="eager"
+          />
+        )}
+      </div>
 
       {/* Navigation Arrows */}
       <NavigationArrows
