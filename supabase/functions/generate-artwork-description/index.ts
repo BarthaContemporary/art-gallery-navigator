@@ -26,19 +26,49 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Function started, parsing request...');
+    
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
+    console.log('Environment variables loaded:', {
+      hasOpenAIKey: !!OPENAI_API_KEY,
+      hasSupabaseUrl: !!SUPABASE_URL,
+      hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY
+    });
+    
     if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+      console.error('OPENAI_API_KEY is missing');
+      return new Response(
+        JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // Initialize Supabase client for saving history
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     // Parse request body once and store all values
-    const requestBody: GenerateDescriptionRequest = await req.json();
+    console.log('Parsing request body...');
+    let requestBody: GenerateDescriptionRequest;
+    try {
+      requestBody = await req.json();
+      console.log('Request body parsed successfully:', requestBody);
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     const { 
       artwork_id, 
       title, 
@@ -52,6 +82,7 @@ serve(async (req) => {
     } = requestBody;
 
     // Build a comprehensive prompt from the artwork data
+    console.log('Building prompt with artwork data...');
     let prompt = `Generate a professional, engaging description for this artwork:\n\n`;
     prompt += `Title: ${title}\n`;
     if (artist_name) prompt += `Artist: ${artist_name}\n`;
@@ -59,13 +90,15 @@ serve(async (req) => {
     if (year) prompt += `Year: ${year}\n`;
     if (materials) prompt += `Materials: ${materials}\n`;
     if (dimensions) prompt += `Dimensions: ${dimensions}\n`;
-    if (story) prompt += `Artist's Story: ${story}\n`;
-    if (additional_keywords) prompt += `Additional Keywords: ${additional_keywords}\n`;
+    if (story && story.trim()) prompt += `Artist's Story: ${story}\n`;
+    if (additional_keywords && additional_keywords.trim()) prompt += `Additional Keywords: ${additional_keywords}\n`;
     
     prompt += `\nWrite a compelling 2-3 sentence description that would engage potential collectors and art enthusiasts. Focus on the artistic technique, emotional impact, and what makes this piece unique. Keep it professional but accessible.`;
-    if (additional_keywords) {
+    if (additional_keywords && additional_keywords.trim()) {
       prompt += ` Please incorporate these additional keywords naturally into the description: ${additional_keywords}`;
     }
+
+    console.log('Prompt built, calling OpenAI...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
