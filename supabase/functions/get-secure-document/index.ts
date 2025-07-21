@@ -21,64 +21,120 @@ serve(async (req) => {
   try {
     console.log(`Secure document request: ${req.method} ${req.url}`);
     
+    // Parse request body first
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('Request body parsed:', requestBody);
+    } catch (e) {
+      console.error('Failed to parse request body:', e);
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { file_url, document_id } = requestBody as SecureDocumentRequest;
+    
+    if (!file_url || !document_id) {
+      console.error('Missing required parameters:', { file_url: !!file_url, document_id: !!document_id });
+      return new Response(JSON.stringify({ error: 'Missing file_url or document_id' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    console.log('Processing request for document:', document_id);
+
+    // Get the Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No authorization header found');
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Auth header present');
+
+    // Initialize Supabase client
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Missing Supabase configuration');
-      throw new Error('Server configuration error');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Parse request body
-    const { file_url, document_id }: SecureDocumentRequest = await req.json();
-    
-    console.log('Processing secure document access:', { 
-      file_url: file_url?.substring(0, 50) + '...', 
-      document_id 
-    });
-
-    // Get the Authorization header to extract user info
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('No authorization header found');
-      throw new Error('Authorization required');
-    }
-
-    console.log('Auth header present:', authHeader.startsWith('Bearer '));
-
-    // Verify user has access to this document
+    // Verify user authentication
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError) {
-      console.error('User verification failed:', userError);
-      throw new Error('Invalid authorization');
+    let user;
+    try {
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(token);
+      if (userError) {
+        console.error('User verification failed:', userError);
+        return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      user = authUser;
+    } catch (e) {
+      console.error('Auth verification error:', e);
+      return new Response(JSON.stringify({ error: 'Authorization verification failed' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
     if (!user) {
       console.error('No user found from token');
-      throw new Error('User not found');
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('User verified:', user.id);
 
-    // Check if user can access this document
-    const { data: document, error: docError } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', document_id)
-      .maybeSingle();
+    // Check document access
+    let document;
+    try {
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', document_id)
+        .maybeSingle();
 
-    if (docError) {
-      console.error('Document query error:', docError);
-      throw new Error('Database error while checking document access');
+      if (docError) {
+        console.error('Document query error:', docError);
+        return new Response(JSON.stringify({ error: 'Database error' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      document = docData;
+    } catch (e) {
+      console.error('Document lookup error:', e);
+      return new Response(JSON.stringify({ error: 'Document lookup failed' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
     if (!document) {
       console.error('Document not found in database');
-      throw new Error('Document not found or access denied');
+      return new Response(JSON.stringify({ error: 'Document not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Document found:', document.file_name);
@@ -93,19 +149,17 @@ serve(async (req) => {
 
     console.log('External file detected, attempting to proxy...');
 
-    // For external buckets, we need to proxy the file content
+    // For external buckets, try to proxy the file content
     try {
-      console.log('Fetching file from external storage:', file_url);
+      console.log('Fetching file from external storage...');
       const fileResponse = await fetch(file_url);
       
       console.log('External file response status:', fileResponse.status);
       
       if (!fileResponse.ok) {
-        console.error(`Failed to fetch file: ${fileResponse.status} ${fileResponse.statusText}`);
-        
-        // If we can't access the file, return error
+        console.error(`External file fetch failed: ${fileResponse.status} ${fileResponse.statusText}`);
         return new Response(JSON.stringify({ 
-          error: `Access denied to external file: ${fileResponse.status}` 
+          error: `External file access denied: ${fileResponse.status}` 
         }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -113,31 +167,26 @@ serve(async (req) => {
       }
 
       const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
-      const contentLength = fileResponse.headers.get('content-length');
       const fileData = await fileResponse.arrayBuffer();
 
       console.log('Successfully proxied file:', { 
         size: fileData.byteLength, 
         contentType,
-        contentLength,
         fileName: document.file_name 
       });
 
-      // Return the file data directly with proper headers
+      // Return the file data directly
       return new Response(fileData, {
         headers: {
           ...corsHeaders,
           'Content-Type': contentType,
           'Content-Disposition': `inline; filename="${document.file_name}"`,
           'Cache-Control': 'private, max-age=3600',
-          'Content-Length': fileData.byteLength.toString(),
         },
       });
 
     } catch (fileError) {
-      console.error('Error fetching file from external storage:', fileError);
-      
-      // Return error response
+      console.error('Error fetching external file:', fileError);
       return new Response(JSON.stringify({ 
         error: `Failed to access external file: ${fileError.message}` 
       }), {
@@ -147,13 +196,12 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error in get-secure-document function:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('Unexpected error in edge function:', error);
+    return new Response(JSON.stringify({ 
+      error: `Unexpected error: ${error.message}` 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
