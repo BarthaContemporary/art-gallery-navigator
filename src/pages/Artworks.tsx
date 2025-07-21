@@ -4,11 +4,12 @@
  */
 
 import React, { useRef } from "react";
-import { RefreshCw, Search, X, PlusCircle } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
+import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
 import { toast } from "sonner";
@@ -113,13 +114,7 @@ export default function Artworks() {
       
       {/* Header */}
       <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-        <Button 
-          size="sm" 
-          className="flex gap-2"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Add Artwork
-        </Button>
+        <CreateArtworkDialog />
       </div>
 
       {/* Filters */}
