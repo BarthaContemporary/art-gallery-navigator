@@ -6,6 +6,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ArtworkDocument } from '@/hooks/use-artwork-documents';
 
+// Helper function to get MIME type from filename
+const getMimeTypeFromFileName = (fileName: string): string => {
+  const extension = fileName.toLowerCase().split('.').pop();
+  const mimeTypes: Record<string, string> = {
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg', 
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'svg': 'image/svg+xml',
+    'txt': 'text/plain',
+    'md': 'text/markdown',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'csv': 'text/csv'
+  };
+  return mimeTypes[extension || ''] || 'application/octet-stream';
+};
+
 interface DocumentPreviewProps {
   document: ArtworkDocument | null;
   open: boolean;
@@ -55,30 +75,24 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
           return data.secure_url;
         }
         
-        // If the response is binary data (the function returned the file directly)
-        // Create a blob URL from the response
-        if (data && data instanceof ArrayBuffer) {
-          console.log('Received binary data, creating blob URL');
-          const blob = new Blob([data]);
-          return URL.createObjectURL(blob);
-        }
-        
-        // If response is already a blob or can be converted
+        // The edge function returns the file directly as binary data
         if (data) {
-          console.log('Creating blob URL from response data');
-          try {
-            let blob;
-            if (data instanceof Blob) {
-              blob = data;
-            } else {
-              // Try to create blob from response
-              blob = new Blob([JSON.stringify(data)], { type: 'application/octet-stream' });
-            }
-            return URL.createObjectURL(blob);
-          } catch (blobError) {
-            console.error('Failed to create blob URL:', blobError);
-            throw new Error('Failed to process file data');
+          console.log('Received file data, creating blob URL');
+          let blob;
+          
+          if (data instanceof ArrayBuffer) {
+            // Get content type from file extension for proper MIME type
+            const mimeType = getMimeTypeFromFileName(document.file_name);
+            blob = new Blob([data], { type: mimeType });
+          } else if (data instanceof Blob) {
+            blob = data;
+          } else {
+            // Convert string data to blob with proper MIME type
+            const mimeType = getMimeTypeFromFileName(document.file_name);
+            blob = new Blob([data], { type: mimeType });
           }
+          
+          return URL.createObjectURL(blob);
         }
         
         console.log('No usable data received from edge function');
