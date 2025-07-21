@@ -69,16 +69,16 @@ serve(async (req) => {
       .from('documents')
       .select('*')
       .eq('id', document_id)
-      .single();
+      .maybeSingle();
 
     if (docError) {
       console.error('Document query error:', docError);
-      throw new Error('Document not found');
+      throw new Error('Database error while checking document access');
     }
     
     if (!document) {
       console.error('Document not found in database');
-      throw new Error('Document not found');
+      throw new Error('Document not found or access denied');
     }
 
     console.log('Document found:', document.file_name);

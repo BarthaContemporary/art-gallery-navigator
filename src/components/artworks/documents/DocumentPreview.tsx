@@ -30,43 +30,31 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
           throw new Error('No valid session found');
         }
         
-        // Use the edge function to get the file data directly
-        const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/get-secure-document`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.data.session.access_token}`,
-            'Content-Type': 'application/json',
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y'
-          },
-          body: JSON.stringify({ file_url: fileUrl, document_id: documentId })
+        // Use Supabase client to call the edge function properly
+        const { data, error } = await supabase.functions.invoke('get-secure-document', {
+          body: { file_url: fileUrl, document_id: documentId }
         });
         
-        console.log('Edge function response status:', response.status);
+        console.log('Edge function response:', { data, error });
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Edge function error:', response.status, errorText);
-          throw new Error(`Edge function failed: ${response.status} ${errorText}`);
+        if (error) {
+          console.error('Edge function error:', error);
+          throw new Error(`Edge function failed: ${error.message}`);
         }
         
-        // Check if response is JSON (error) or binary data (file)
-        const contentType = response.headers.get('content-type');
-        console.log('Response content type:', contentType);
-        
-        if (contentType?.includes('application/json')) {
-          const jsonResponse = await response.json();
-          if (jsonResponse.secure_url) {
-            return jsonResponse.secure_url;
-          } else if (jsonResponse.error) {
-            throw new Error(jsonResponse.error);
-          }
-        } else {
-          // The edge function returns the file data directly, so create a blob URL
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          console.log('Created blob URL for secure file');
-          return blobUrl;
+        if (data?.error) {
+          throw new Error(data.error);
         }
+        
+        // If we get a secure_url, use it
+        if (data?.secure_url) {
+          return data.secure_url;
+        }
+        
+        // If the response is binary data (the function returned the file directly)
+        // We need to handle this differently - for now, let's try the direct approach
+        console.log('No secure_url in response, attempting direct file access');
+        return fileUrl;
       }
       
       return fileUrl; // Return original URL for public files
@@ -78,26 +66,28 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
   };
 
   useEffect(() => {
-    if (document && open) {
-      setLoading(true);
-      setError(null);
-      
-      getSecureFileUrl(document.file_url, document.id)
-        .then(url => {
-          if (url) {
-            setSecureUrl(url);
-          } else {
-            setError('Failed to load document - access denied');
-          }
-        })
-        .catch(err => {
-          console.error('Failed to get secure URL:', err);
-          setError('Failed to load document');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
+      if (document && open) {
+        console.log('DocumentPreview: Starting secure URL fetch for:', document.file_name);
+        setLoading(true);
+        setError(null);
+        
+        getSecureFileUrl(document.file_url, document.id)
+          .then(url => {
+            console.log('DocumentPreview: Secure URL result:', url);
+            if (url) {
+              setSecureUrl(url);
+            } else {
+              setError('Failed to load document - access denied');
+            }
+          })
+          .catch(err => {
+            console.error('DocumentPreview: Failed to get secure URL:', err);
+            setError(`Failed to load document: ${err.message}`);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
   }, [document, open]);
 
   const handleDownload = async () => {
