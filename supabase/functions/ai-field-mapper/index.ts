@@ -105,7 +105,15 @@ Rules:
     // Parse the AI response
     let mappingResult;
     try {
-      mappingResult = JSON.parse(aiResponse);
+      // Strip markdown code blocks if present
+      let cleanedResponse = aiResponse.trim();
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      mappingResult = JSON.parse(cleanedResponse);
     } catch (e) {
       console.error('Failed to parse AI response:', aiResponse);
       throw new Error('Invalid AI response format');
