@@ -218,19 +218,26 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
     const mimeType = document.type?.toLowerCase() || '';
     const fileName = document.file_name.toLowerCase();
 
-    // PDF Preview
+    // PDF Preview - Chrome compatible approach
     if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
       return (
         <div className="h-96">
-          <iframe
-            src={`${secureUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            className="w-full h-full border-0"
-            title={document.file_name}
-            onError={() => {
-              console.error('PDF iframe load error');
-              setError('Failed to load PDF preview');
-            }}
-          />
+          <object
+            data={secureUrl}
+            type="application/pdf"
+            className="w-full h-full"
+            aria-label={document.file_name}
+          >
+            <iframe
+              src={secureUrl}
+              className="w-full h-full border-0"
+              title={document.file_name}
+              onError={() => {
+                console.error('PDF iframe load error');
+                setError('Failed to load PDF preview');
+              }}
+            />
+          </object>
         </div>
       );
     }
