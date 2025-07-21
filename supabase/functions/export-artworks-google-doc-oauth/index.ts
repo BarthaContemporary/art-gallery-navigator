@@ -78,11 +78,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Document created with ID:", documentId);
 
     // Add header content first
+    const headerText = `${docTitle}\n\nArtwork Details\n${'='.repeat(50)}\n\n`;
     const headerRequests = [
       {
         insertText: {
           location: { index: 1 },
-          text: `${docTitle}\n\nArtwork Details\n${'='.repeat(50)}\n\n`
+          text: headerText
         }
       },
       {
@@ -101,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
     ];
 
     // Apply header formatting
-    await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+    const headerResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -110,11 +111,18 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({ requests: headerRequests })
     });
 
-    // Add artwork content to the document
-    let index = docTitle.length + 25; // Start after the header content
+    if (!headerResponse.ok) {
+      console.warn("Failed to add header, but continuing with content");
+    }
+
+    console.log(`Processing ${artworks.length} artworks...`);
+
+    // Build all content requests at once to avoid index calculation issues
+    const allRequests = [];
+    let contentText = "";
 
     for (const artwork of artworks) {
-      const artworkText = [
+      const artworkDetails = [
         `\n📋 ${artwork.title || 'Untitled'}\n`,
         `👤 Artist: ${artwork.artist_name || 'Unknown Artist'}`,
         artwork.year ? `📅 Year: ${artwork.year}` : '',
@@ -126,19 +134,9 @@ const handler = async (req: Request): Promise<Response> => {
         '\n'
       ].filter(Boolean).join('\n');
 
-      const requests = [];
+      contentText += artworkDetails;
       
-      // Insert artwork text
-      requests.push({
-        insertText: {
-          location: { index },
-          text: artworkText
-        }
-      });
-
-      index += artworkText.length;
-
-      // Find and insert primary image if available
+      // Find primary image URL
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
       
       if (primaryImage) {
@@ -157,11 +155,12 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         if (imageUrl) {
-          console.log(`Adding image for ${artwork.title}: ${imageUrl}`);
+          console.log(`Found image for ${artwork.title}: ${imageUrl}`);
           
-          requests.push({
+          // Add image after the text content
+          allRequests.push({
             insertInlineImage: {
-              location: { index },
+              location: { index: headerText.length + contentText.length + 1 },
               uri: imageUrl,
               objectSize: {
                 height: { magnitude: 200, unit: "PT" },
@@ -169,46 +168,41 @@ const handler = async (req: Request): Promise<Response> => {
               }
             }
           });
-          
-          // Add space after image - the image insertion doesn't add line breaks
-          requests.push({
-            insertText: {
-              location: { index },
-              text: '\n\n'
-            }
-          });
-          
-          index += 2; // Account for the line breaks we added
         }
       }
 
-      // Add separator
-      const separator = '─'.repeat(50) + '\n';
-      requests.push({
+      contentText += '─'.repeat(50) + '\n\n';
+    }
+
+    // Insert all artwork text content at once
+    if (contentText) {
+      allRequests.unshift({
         insertText: {
-          location: { index },
-          text: separator
+          location: { index: headerText.length + 1 },
+          text: contentText
         }
       });
+    }
 
-      index += separator.length;
+    // Apply all content updates in one batch
+    if (allRequests.length > 0) {
+      console.log(`Applying ${allRequests.length} content requests...`);
+      
+      const contentResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ requests: allRequests })
+      });
 
-      // Apply all requests for this artwork
-      if (requests.length > 0) {
-        const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ requests })
-        });
-
-        if (!updateResponse.ok) {
-          console.warn(`Failed to add content for artwork ${artwork.title}, but continuing with others`);
-        } else {
-          console.log(`Successfully added content for artwork: ${artwork.title}`);
-        }
+      if (!contentResponse.ok) {
+        const errorText = await contentResponse.text();
+        console.error("Failed to add content:", contentResponse.status, errorText);
+        console.warn("Document created but content addition failed");
+      } else {
+        console.log("Successfully added all content to document");
       }
     }
 
