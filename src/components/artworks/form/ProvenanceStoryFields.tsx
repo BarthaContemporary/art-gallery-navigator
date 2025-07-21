@@ -19,22 +19,31 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateAIDescription = async () => {
+    console.log('🤖 Starting AI description generation...');
     setIsGenerating(true);
     try {
       const formValues = form.getValues();
-      const artist = artists.find(a => a.id === formValues.artist_id);
+      console.log('📝 Form values:', formValues);
       
+      const artist = artists.find(a => a.id === formValues.artist_id);
+      console.log('🎨 Found artist:', artist);
+      
+      const requestData = {
+        title: formValues.title,
+        artist_name: artist?.full_name,
+        medium_type: formValues.medium_type,
+        year: formValues.year,
+        materials: formValues.materials,
+        dimensions: formValues.dimensions,
+        story: formValues.story,
+      };
+      console.log('📤 Sending request data:', requestData);
+
       const { data, error } = await supabase.functions.invoke('generate-artwork-description', {
-        body: {
-          title: formValues.title,
-          artist_name: artist?.full_name,
-          medium_type: formValues.medium_type,
-          year: formValues.year,
-          materials: formValues.materials,
-          dimensions: formValues.dimensions,
-          story: formValues.story,
-        }
+        body: requestData
       });
+
+      console.log('📥 Supabase response:', { data, error });
 
       if (error) {
         console.error('Supabase function error:', error);
@@ -45,6 +54,7 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
         throw new Error('No description returned from AI service');
       }
 
+      console.log('✅ Generated description:', data.description);
       form.setValue('ai_description', data.description);
       toast({
         title: "AI Description Generated",
