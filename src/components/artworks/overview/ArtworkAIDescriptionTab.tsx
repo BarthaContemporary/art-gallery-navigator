@@ -104,26 +104,7 @@ export function ArtworkAIDescriptionTab({
     }
   };
   return <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            AI-Generated Description
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Professional artwork description generated using AI
-          </p>
-        </div>
-        <Button onClick={generateAIDescription} disabled={isGenerating} variant="outline" className="flex items-center gap-2">
-          {isGenerating ? <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {currentDescription ? 'Regenerating...' : 'Generating...'}
-            </> : <>
-              <Sparkles className="h-4 w-4" />
-              {currentDescription ? 'Regenerate' : 'Generate'}
-            </>}
-        </Button>
-      </div>
+      
 
       
 
