@@ -26,6 +26,11 @@ const getMimeTypeFromFileName = (fileName: string): string => {
   return mimeTypes[extension || ''] || 'application/octet-stream';
 };
 
+// Helper function to detect Chrome browser
+const isChrome = (): boolean => {
+  return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+};
+
 interface DocumentPreviewProps {
   document: ArtworkDocument | null;
   open: boolean;
@@ -218,8 +223,34 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
     const mimeType = document.type?.toLowerCase() || '';
     const fileName = document.file_name.toLowerCase();
 
-    // PDF Preview - Chrome compatible approach
+    // PDF Preview - Chrome-compatible approach
     if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      const chromeDetected = isChrome();
+      
+      if (chromeDetected) {
+        // Chrome-specific: Show message and open in new tab button
+        return (
+          <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                PDF preview is not supported in Chrome due to security restrictions.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Open PDF in new tab
+                  window.open(secureUrl, '_blank');
+                }}
+              >
+                Open PDF in New Tab
+              </Button>
+            </div>
+          </div>
+        );
+      }
+
+      // Non-Chrome browsers: Use embed approach
       return (
         <div className="h-96">
           <object
