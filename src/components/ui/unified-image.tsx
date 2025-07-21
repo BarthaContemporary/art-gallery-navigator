@@ -120,7 +120,7 @@ export function UnifiedImage({
         src={resolvedImage.url}
         alt={alt || artwork.title}
         className={cn(
-          "w-full h-full object-cover transition-opacity duration-300",
+          "w-full h-full object-contain transition-opacity duration-300",
           isLoading ? 'opacity-0' : 'opacity-100',
           onClick && "cursor-pointer"
         )}
