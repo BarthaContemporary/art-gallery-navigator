@@ -112,6 +112,11 @@ export default function Artworks() {
       <div ref={pageTopRef} />
       
       {/* Header */}
+      <div className="flex justify-start">
+        <Button>
+          Add Artwork
+        </Button>
+      </div>
 
       {/* Filters */}
       <div className="space-y-4">
