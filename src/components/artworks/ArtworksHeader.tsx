@@ -49,9 +49,7 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               
               <ExportToGoogleDocsButton artworks={artworks} />
               
-              <ExportToGoogleSheetsButton artworks={artworks} />
-              
-              <Button
+              <Button 
                 variant="outline" 
                 size="icon"
                 onClick={handleCSVExport}
@@ -60,6 +58,8 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               >
                 <ArrowDown className="h-4 w-4" />
               </Button>
+              
+              <ExportToGoogleSheetsButton artworks={artworks} />
               
               <ImportCSVDialog />
             </>
