@@ -92,7 +92,16 @@ export function useExportArtworksToGoogleDocs() {
 
       if (error) {
         console.error('Export error:', error);
-        throw new Error(error.message || 'Failed to export artworks');
+        
+        // Check if the data contains the actual error message from the edge function
+        let errorMessage = 'Failed to export artworks';
+        if (data && typeof data === 'object' && 'error' in data) {
+          errorMessage = data.error as string;
+        } else if (typeof error === 'object' && error !== null && 'message' in error) {
+          errorMessage = error.message as string;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const response = data as ExportResponse;
