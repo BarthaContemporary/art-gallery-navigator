@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArtworkImageRenderer } from "../ArtworkImageRenderer";
 import { ZoomControls } from "../carousel/ZoomControls";
+import { ZoomableImage } from "../carousel/ZoomableImage";
 import { CarouselContainer } from "../carousel/CarouselContainer";
 import { useZoomControls } from "../carousel/useZoomControls";
 import useEmblaCarousel from "embla-carousel-react";
@@ -37,12 +37,20 @@ export function ArtworkCarousel({
   const {
     zoomLevel,
     isZoomed,
+    panPosition,
+    isDragging,
     canZoomIn,
     canZoomOut,
     handleZoomIn,
     handleZoomOut,
     handleZoomReset,
-    resetZoom
+    resetZoom,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
   } = useZoomControls();
 
   const sortedImages = images
@@ -176,12 +184,21 @@ export function ArtworkCarousel({
         <div className="flex h-full">
           {sortedImages.map((image, index) => (
             <div key={image.id} className="flex-none w-full h-full relative">
-              <ArtworkImageRenderer
+              <ZoomableImage
                 imageRecord={image}
                 title={artworkTitle}
                 className="w-full h-full"
                 tier="full"
                 priority={index === currentIndex}
+                zoomLevel={zoomLevel}
+                panPosition={panPosition}
+                isDragging={isDragging}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               />
             </div>
           ))}

@@ -5,7 +5,9 @@ import { ZoomControls } from "./carousel/ZoomControls";
 import { NavigationArrows } from "./carousel/NavigationArrows";
 import { CompactCarouselIndicator } from "./carousel/CompactCarouselIndicator";
 import { VirtualizedCarousel } from "./carousel/VirtualizedCarousel";
+import { ZoomableImage } from "./carousel/ZoomableImage";
 import { useZoomControls } from "./carousel/useZoomControls";
+import type { ImageRecord } from "@/utils/image-url-resolver";
 
 interface LocalArtworkCarouselProps {
   artworkId: string;
@@ -20,12 +22,20 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   const {
     zoomLevel,
     isZoomed,
+    panPosition,
+    isDragging,
     canZoomIn,
     canZoomOut,
     handleZoomIn,
     handleZoomOut,
     handleZoomReset,
     resetZoom,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
   } = useZoomControls();
 
   // Sort images by display_order to ensure consistent ordering
@@ -117,17 +127,35 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         onZoomReset={handleZoomReset}
       />
 
-      {/* Simple Image Display */}
+      {/* Zoomable Image Display */}
       <div className="w-full h-full relative overflow-hidden">
         {sortedImages[currentIndex] && (
-          <img
-            src={sortedImages[currentIndex].medium_storage_path 
-              ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
-              : '/placeholder.svg'}
-            alt={artworkTitle}
-            className="w-full h-full object-contain transition-transform duration-200"
-            style={{ transform: `scale(${zoomLevel})` }}
-            loading="eager"
+          <ZoomableImage
+            imageRecord={{
+              id: sortedImages[currentIndex].id,
+              image_url: sortedImages[currentIndex].medium_storage_path 
+                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
+                : '/placeholder.svg',
+              medium_url: sortedImages[currentIndex].medium_storage_path 
+                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
+                : undefined,
+              thumbnail_url: sortedImages[currentIndex].thumbnail_storage_path
+                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].thumbnail_storage_path}`
+                : undefined,
+            } as ImageRecord}
+            title={artworkTitle}
+            className="w-full h-full"
+            tier="medium"
+            priority={true}
+            zoomLevel={zoomLevel}
+            panPosition={panPosition}
+            isDragging={isDragging}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           />
         )}
       </div>
