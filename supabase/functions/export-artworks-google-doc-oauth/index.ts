@@ -8,6 +8,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { artworks, title, accessToken } = await req.json();
+    console.log("=== EXPORT REQUEST START ===");
+    console.log(`Received request with ${artworks?.length || 0} artworks, title: "${title}"`);
+    console.log("Access token received:", accessToken ? "YES" : "NO");
     
     if (!accessToken) {
       return new Response(
@@ -75,7 +78,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const docData = await createResponse.json();
     const documentId = docData.documentId;
-    console.log("Document created with ID:", documentId);
+    console.log("=== DOCUMENT CREATED ===");
+    console.log("Document ID:", documentId);
+    console.log("Full document response:", JSON.stringify(docData, null, 2));
 
     // Add header content first
     const headerText = `${docTitle}\n\nArtwork Details\n${'='.repeat(50)}\n\n`;
@@ -102,6 +107,9 @@ const handler = async (req: Request): Promise<Response> => {
     ];
 
     // Apply header formatting
+    console.log("=== ADDING HEADER ===");
+    console.log("Header requests:", JSON.stringify(headerRequests, null, 2));
+    
     const headerResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
       method: "POST",
       headers: {
@@ -111,11 +119,18 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({ requests: headerRequests })
     });
 
+    console.log("Header response status:", headerResponse.status);
     if (!headerResponse.ok) {
+      const headerError = await headerResponse.text();
+      console.error("Header response error:", headerError);
       console.warn("Failed to add header, but continuing with content");
+    } else {
+      console.log("Header added successfully");
     }
 
+    console.log("=== PROCESSING ARTWORKS ===");
     console.log(`Processing ${artworks.length} artworks...`);
+    console.log("First artwork details:", JSON.stringify(artworks[0], null, 2));
 
     // Build all content requests at once to avoid index calculation issues
     const allRequests = [];
@@ -176,6 +191,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Insert all artwork text content at once
     if (contentText) {
+      console.log("=== ADDING CONTENT TEXT ===");
+      console.log("Content text length:", contentText.length);
+      console.log("Content preview:", contentText.substring(0, 200) + "...");
+      
       allRequests.unshift({
         insertText: {
           location: { index: headerText.length + 1 },
@@ -186,7 +205,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Apply all content updates in one batch
     if (allRequests.length > 0) {
+      console.log("=== APPLYING ALL REQUESTS ===");
       console.log(`Applying ${allRequests.length} content requests...`);
+      console.log("All requests:", JSON.stringify(allRequests, null, 2));
       
       const contentResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
         method: "POST",
@@ -197,16 +218,25 @@ const handler = async (req: Request): Promise<Response> => {
         body: JSON.stringify({ requests: allRequests })
       });
 
+      console.log("Content response status:", contentResponse.status);
+      
       if (!contentResponse.ok) {
         const errorText = await contentResponse.text();
         console.error("Failed to add content:", contentResponse.status, errorText);
         console.warn("Document created but content addition failed");
       } else {
+        const contentResult = await contentResponse.json();
+        console.log("Content response:", JSON.stringify(contentResult, null, 2));
         console.log("Successfully added all content to document");
       }
+    } else {
+      console.warn("No requests to apply - this shouldn't happen!");
     }
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
+    
+    console.log("=== EXPORT COMPLETE ===");
+    console.log("Final document URL:", documentUrl);
     
     return new Response(
       JSON.stringify({ 
