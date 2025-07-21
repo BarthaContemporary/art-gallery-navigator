@@ -138,12 +138,6 @@ export function UnifiedImage({
         </div>
       )}
       
-      {/* Development info */}
-      {process.env.NODE_ENV === 'development' && resolvedImage && (
-        <div className="absolute top-1 left-1 px-1 py-0.5 bg-black/60 text-white text-xs rounded">
-          {resolvedImage.source}-{tier}
-        </div>
-      )}
     </div>
   );
 }
