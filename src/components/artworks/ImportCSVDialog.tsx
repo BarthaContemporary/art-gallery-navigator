@@ -122,9 +122,8 @@ export function ImportCSVDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" size="icon" title="Import CSV">
           <Upload className="h-4 w-4" />
-          Import CSV
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
