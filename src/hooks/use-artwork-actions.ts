@@ -112,6 +112,7 @@ export function useArtworkActions(artwork: Artwork) {
         provenance: artwork.provenance,
         story: artwork.story,
         exhibition_history: artwork.exhibition_history,
+        ai_description: artwork.ai_description,
         height: artwork.height,
         width: artwork.width,
         depth: artwork.depth,

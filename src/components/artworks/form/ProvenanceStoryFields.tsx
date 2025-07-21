@@ -1,15 +1,60 @@
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { UseFormReturn } from "react-hook-form";
 import { ArtworkFormData } from "./types";
-import { Book } from "lucide-react";
+import { Book, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { useState } from "react";
 
 interface ProvenanceStoryFieldsProps {
   form: UseFormReturn<ArtworkFormData>;
+  artists?: any[];
 }
 
-export function ProvenanceStoryFields({ form }: ProvenanceStoryFieldsProps) {
+export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFieldsProps) {
+  const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generateAIDescription = async () => {
+    setIsGenerating(true);
+    try {
+      const formValues = form.getValues();
+      const artist = artists.find(a => a.id === formValues.artist_id);
+      
+      const { data, error } = await supabase.functions.invoke('generate-artwork-description', {
+        body: {
+          title: formValues.title,
+          artist_name: artist?.full_name,
+          medium_type: formValues.medium_type,
+          year: formValues.year,
+          materials: formValues.materials,
+          dimensions: formValues.dimensions,
+          story: formValues.story,
+        }
+      });
+
+      if (error) throw error;
+
+      form.setValue('ai_description', data.description);
+      toast({
+        title: "AI Description Generated",
+        description: "The AI description has been created successfully!",
+      });
+    } catch (error) {
+      console.error('Error generating AI description:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate AI description. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <FormField
@@ -69,6 +114,49 @@ export function ProvenanceStoryFields({ form }: ProvenanceStoryFieldsProps) {
                 placeholder="List the exhibitions where this artwork has been shown"
                 className="min-h-[100px]"
               />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="ai_description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Description
+            </FormLabel>
+            <FormControl>
+              <div className="space-y-2">
+                <Textarea
+                  {...field}
+                  placeholder="AI-generated description will appear here"
+                  className="min-h-[100px]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateAIDescription}
+                  disabled={isGenerating || !form.watch('title')}
+                  className="w-full"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate AI Description
+                    </>
+                  )}
+                </Button>
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>

@@ -544,6 +544,7 @@ export type Database = {
       }
       artworks: {
         Row: {
+          ai_description: string | null
           artist_id: string | null
           artist_proofs: number | null
           available_works: string | null
@@ -584,6 +585,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          ai_description?: string | null
           artist_id?: string | null
           artist_proofs?: number | null
           available_works?: string | null
@@ -624,6 +626,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          ai_description?: string | null
           artist_id?: string | null
           artist_proofs?: number | null
           available_works?: string | null

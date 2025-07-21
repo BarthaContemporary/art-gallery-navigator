@@ -41,6 +41,7 @@ export interface Artwork {
   crate_depth?: number;
   created_at: string;
   updated_at: string;
+  ai_description?: string;
   
   // Relations
   artist_name?: string;

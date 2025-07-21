@@ -44,6 +44,7 @@ export const getArtworkInitialValues = (
     provenance: initialData?.provenance || "",
     story: initialData?.story || "",
     exhibition_history: initialData?.exhibition_history || "",
+    ai_description: initialData?.ai_description || "",
     is_framed: initialData?.is_framed || false,
     frame_height: initialData?.frame_height || null,
     frame_width: initialData?.frame_width || null,

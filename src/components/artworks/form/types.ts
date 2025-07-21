@@ -36,4 +36,5 @@ export interface ArtworkFormData {
   provenance?: string;
   story?: string;
   exhibition_history?: string;
+  ai_description?: string;
 }

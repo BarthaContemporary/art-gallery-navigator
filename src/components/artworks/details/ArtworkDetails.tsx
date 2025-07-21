@@ -162,6 +162,18 @@ export function ArtworkDetails({
             </div>
           )}
           
+          {artwork.ai_description && (
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <span className="h-4 w-4">✨</span>
+                AI Description
+              </h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {artwork.ai_description}
+              </p>
+            </div>
+          )}
+
           {artwork.story && (
             <div>
               <h4 className="font-medium mb-2">Story / Notes</h4>

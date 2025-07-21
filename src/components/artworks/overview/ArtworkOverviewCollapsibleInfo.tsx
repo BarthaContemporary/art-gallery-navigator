@@ -77,6 +77,7 @@ export const ArtworkOverviewCollapsibleInfo: React.FC<ArtworkOverviewCollapsible
           <dl className="space-y-2">
             <ArtworkField label="Provenance" value={artwork.provenance} multiline />
             <ArtworkField label="Exhibition History" value={artwork.exhibition_history} multiline />
+            <ArtworkField label="✨ AI Description" value={artwork.ai_description} multiline />
             <ArtworkField label="Story / Notes" value={artwork.story} multiline />
           </dl>
         </AccordionContent>
