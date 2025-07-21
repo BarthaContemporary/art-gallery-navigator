@@ -112,25 +112,6 @@ export default function Artworks() {
       <div ref={pageTopRef} />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Artworks</h1>
-          <p className="text-muted-foreground">
-            Manage and explore the gallery collection
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          {filteredArtworks.length > 20 && (
-            <Button
-              variant="outline"
-              onClick={handleScrollToTop}
-            >
-              Back to Top
-            </Button>
-          )}
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="space-y-4">
