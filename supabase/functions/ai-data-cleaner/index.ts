@@ -98,6 +98,27 @@ Focus on:
       }
       
       cleaningResult = JSON.parse(cleanedResponse);
+      
+      // Post-process to ensure correct classification values
+      if (cleaningResult.cleanedArtworks) {
+        cleaningResult.cleanedArtworks.forEach(artwork => {
+          if (artwork.suggestedChanges?.classification) {
+            const suggested = artwork.suggestedChanges.classification.suggested;
+            if (suggested) {
+              const classification = suggested.toLowerCase();
+              if (classification.includes('unique') || classification === 'one of a kind' || classification === 'original') {
+                artwork.suggestedChanges.classification.suggested = 'Unique';
+              } else if (classification.includes('limited') || classification.includes('edition')) {
+                artwork.suggestedChanges.classification.suggested = 'Limited Edition';
+              } else {
+                // Default fallback
+                artwork.suggestedChanges.classification.suggested = 'Unique';
+              }
+            }
+          }
+        });
+      }
+      
     } catch (e) {
       console.error('Failed to parse AI response:', aiResponse);
       throw new Error('Invalid AI response format');

@@ -89,7 +89,7 @@ export function parseMappedCSVToArtworks(
     
     const artwork: Partial<ProcessedArtworkForImport> = {
       // Set more lenient default values
-      classification: 'Other' as const,
+      classification: 'Unique' as const,
       medium_type: 'Mixed Media' as const,
       currency: 'USD' as const,
     };
@@ -126,7 +126,16 @@ export function parseMappedCSVToArtworks(
         case 'classification':
           const cleanClassification = cleanFieldValue(rawValue);
           if (cleanClassification !== null) {
-            (artwork as any).classification = cleanClassification;
+            // Normalize classification to match database constraints
+            const classification = cleanClassification.toLowerCase();
+            if (classification.includes('unique') || classification === 'one of a kind' || classification === 'original') {
+              (artwork as any).classification = 'Unique';
+            } else if (classification.includes('limited') || classification.includes('edition')) {
+              (artwork as any).classification = 'Limited Edition';
+            } else {
+              // Default fallback
+              (artwork as any).classification = 'Unique';
+            }
           }
           break;
 
