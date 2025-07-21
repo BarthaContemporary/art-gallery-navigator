@@ -1,11 +1,10 @@
 
 import React from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import useEmblaCarousel from "embla-carousel-react";
 import { ZoomControls } from "./carousel/ZoomControls";
 import { NavigationArrows } from "./carousel/NavigationArrows";
 import { CompactCarouselIndicator } from "./carousel/CompactCarouselIndicator";
-import { CarouselContainer } from "./carousel/CarouselContainer";
+import { VirtualizedCarousel } from "./carousel/VirtualizedCarousel";
 import { useZoomControls } from "./carousel/useZoomControls";
 
 interface LocalArtworkCarouselProps {
@@ -16,11 +15,6 @@ interface LocalArtworkCarouselProps {
 export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCarouselProps) {
   const { images, loading, error, hasProcessingImages } = useLocalArtworkImages(artworkId);
   
-  const [emblaRef, emblaApi] = useEmblaCarousel({ 
-    loop: true, // Enable looping
-    align: "center",
-  });
-
   const [currentIndex, setCurrentIndex] = React.useState(0);
   
   const {
@@ -44,41 +38,30 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
     });
   }, [images]);
 
-  // Handle carousel selection
+  // Reset zoom when changing slides
   React.useEffect(() => {
-    if (!emblaApi) return;
+    resetZoom();
+  }, [currentIndex, resetZoom]);
 
-    const onSelect = () => {
-      setCurrentIndex(emblaApi.selectedScrollSnap());
-      // Reset zoom when changing slides
-      resetZoom();
-    };
-
-    emblaApi.on("select", onSelect);
-    onSelect(); // Set initial index
-
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi, resetZoom]);
-
-  const scrollTo = React.useCallback((index: number) => {
-    if (!emblaApi) return;
-    emblaApi.scrollTo(index);
-  }, [emblaApi]);
-
+  // Navigation functions
   const scrollPrev = React.useCallback(() => {
-    if (!emblaApi) return;
-    emblaApi.scrollPrev();
-  }, [emblaApi]);
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  }, [currentIndex]);
 
   const scrollNext = React.useCallback(() => {
-    if (!emblaApi) return;
-    emblaApi.scrollNext();
-  }, [emblaApi]);
+    if (currentIndex < sortedImages.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  }, [currentIndex, sortedImages.length]);
 
-  const canScrollPrev = emblaApi?.canScrollPrev() ?? false;
-  const canScrollNext = emblaApi?.canScrollNext() ?? false;
+  const scrollTo = React.useCallback((index: number) => {
+    setCurrentIndex(index);
+  }, []);
+
+  const canScrollPrev = currentIndex > 0;
+  const canScrollNext = currentIndex < sortedImages.length - 1;
   const hasMultipleImages = sortedImages.length > 1;
 
   if (loading) {
@@ -134,14 +117,13 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         onZoomReset={handleZoomReset}
       />
 
-      {/* Carousel Container */}
-      <CarouselContainer
-        sortedImages={sortedImages}
+      {/* Virtualized Carousel */}
+      <VirtualizedCarousel
+        images={sortedImages}
         artworkTitle={artworkTitle}
         currentIndex={currentIndex}
-        zoomLevel={zoomLevel}
-        isZoomed={isZoomed}
-        emblaRef={emblaRef}
+        onIndexChange={setCurrentIndex}
+        className="w-full h-full"
       />
 
       {/* Navigation Arrows */}
