@@ -56,18 +56,29 @@ export async function copyTemplateDocument(accessToken: string, templateId: stri
     console.error("Failed to copy template document:", copyDocResponse.status, errorText);
     
     if (copyDocResponse.status === 403) {
+      // Check for storage quota exceeded error in the raw text first
+      if (errorText.includes("storage quota") || errorText.includes("storageQuotaExceeded") || 
+          errorText.includes("Drive storage") || errorText.includes("Storage quota")) {
+        throw new Error("storage quota exceeded");
+      }
+      
+      // Try parsing as JSON for more detailed error checking
       let errorDetails;
       try {
         errorDetails = JSON.parse(errorText);
+        const errorMessage = errorDetails.error?.message || '';
+        const errorReason = errorDetails.error?.errors?.[0]?.reason || '';
+        
+        if (errorMessage.includes("storage quota") || errorReason === "storageQuotaExceeded" || 
+            errorMessage.includes("Drive storage")) {
+          throw new Error("storage quota exceeded");
+        }
       } catch (e) {
-        errorDetails = { error: { message: errorText } };
+        // If JSON parsing fails, we already checked the raw text above
       }
       
-      if (errorDetails.error?.message?.includes("storage quota") || errorDetails.error?.message?.includes("storageQuotaExceeded")) {
-        throw new Error("Google Drive storage quota has been exceeded. Please contact an administrator to clean up old documents or upgrade the Google Workspace account.");
-      } else {
-        throw new Error("Google API access forbidden. Please ensure the Google Docs API and Drive API are enabled, and the service account has access to the template document.");
-      }
+      // Default 403 error
+      throw new Error("Google API access forbidden. Please ensure the Google Docs API and Drive API are enabled, and the service account has access to the template document.");
     }
     
     if (copyDocResponse.status === 404) {

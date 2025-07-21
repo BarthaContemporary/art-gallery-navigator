@@ -110,9 +110,9 @@ const handler = async (req: Request): Promise<Response> => {
     let userErrorMessage = error.message;
     let statusCode = 500;
     
-    if (error.message.includes("storage quota exceeded")) {
+    if (error.message.includes("storage quota exceeded") || error.message.includes("Drive storage")) {
       statusCode = 507;
-      userErrorMessage = "Google Drive storage is full. Please contact an administrator to resolve this issue.";
+      userErrorMessage = "Google Drive storage quota has been exceeded. Please contact an administrator to upgrade the Google Workspace account or manually clean up old documents.";
     } else if (error.message.includes("Template document not found")) {
       statusCode = 404;
       userErrorMessage = "Export template is not properly configured. Please contact an administrator.";
