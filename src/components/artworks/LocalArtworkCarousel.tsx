@@ -45,23 +45,23 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
 
   // Navigation functions
   const scrollPrev = React.useCallback(() => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  }, [currentIndex]);
+    setCurrentIndex((prevIndex) => 
+      prevIndex === 0 ? sortedImages.length - 1 : prevIndex - 1
+    );
+  }, [sortedImages.length]);
 
   const scrollNext = React.useCallback(() => {
-    if (currentIndex < sortedImages.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  }, [currentIndex, sortedImages.length]);
+    setCurrentIndex((prevIndex) => 
+      prevIndex === sortedImages.length - 1 ? 0 : prevIndex + 1
+    );
+  }, [sortedImages.length]);
 
   const scrollTo = React.useCallback((index: number) => {
     setCurrentIndex(index);
   }, []);
 
-  const canScrollPrev = currentIndex > 0;
-  const canScrollNext = currentIndex < sortedImages.length - 1;
+  const canScrollPrev = sortedImages.length > 1;
+  const canScrollNext = sortedImages.length > 1;
   const hasMultipleImages = sortedImages.length > 1;
 
   if (loading) {
