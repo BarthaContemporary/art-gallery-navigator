@@ -151,21 +151,40 @@ const handler = async (req: Request): Promise<Response> => {
 
       contentText += artworkDetails;
       
-      // Find primary image URL
+      // Find primary image URL - look for a working image URL
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
       
       if (primaryImage) {
         let imageUrl = null;
         
-        // Try to get a public image URL - prefer medium_url, then image_url
-        if (primaryImage.medium_url && primaryImage.medium_url.startsWith('http')) {
+        // Try different URL sources in order of preference
+        // 1. Try medium_url if it's a complete HTTP URL and doesn't end with /processing
+        if (primaryImage.medium_url && 
+            primaryImage.medium_url.startsWith('http') && 
+            !primaryImage.medium_url.endsWith('/processing')) {
           imageUrl = primaryImage.medium_url;
-        } else if (primaryImage.image_url && primaryImage.image_url.startsWith('http')) {
+        }
+        // 2. Try image_url if it's a complete HTTP URL and doesn't end with /processing
+        else if (primaryImage.image_url && 
+                 primaryImage.image_url.startsWith('http') && 
+                 !primaryImage.image_url.endsWith('/processing')) {
           imageUrl = primaryImage.image_url;
-        } else if (primaryImage.thumbnail_url && primaryImage.thumbnail_url.startsWith('http')) {
+        }
+        // 3. Try thumbnail_url if it's a complete HTTP URL and doesn't end with /processing
+        else if (primaryImage.thumbnail_url && 
+                 primaryImage.thumbnail_url.startsWith('http') && 
+                 !primaryImage.thumbnail_url.endsWith('/processing')) {
           imageUrl = primaryImage.thumbnail_url;
-        } else if (primaryImage.image_url) {
-          // Construct Supabase storage URL if we have a relative path
+        }
+        // 4. Try to construct Supabase storage URL from storage paths
+        else if (primaryImage.medium_storage_path) {
+          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
+        }
+        else if (primaryImage.large_storage_path) {
+          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}`;
+        }
+        // 5. Last resort: construct from image_url if it looks like a path
+        else if (primaryImage.image_url && !primaryImage.image_url.startsWith('http')) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
         }
 
@@ -183,6 +202,8 @@ const handler = async (req: Request): Promise<Response> => {
               }
             }
           });
+        } else {
+          console.log(`No valid image URL found for ${artwork.title}`);
         }
       }
 
