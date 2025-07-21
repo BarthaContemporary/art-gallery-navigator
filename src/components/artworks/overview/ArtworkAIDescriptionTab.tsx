@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Artwork } from '@/hooks/use-artworks';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2 } from 'lucide-react';
@@ -14,6 +14,37 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
   const { toast } = useToast();
   const { data: artists } = useArtists();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentDescription, setCurrentDescription] = useState(artwork.ai_description);
+
+  // Set up real-time subscription to listen for updates to this artwork
+  useEffect(() => {
+    const channel = supabase
+      .channel('artwork-ai-description-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'artworks',
+          filter: `id=eq.${artwork.id}`
+        },
+        (payload) => {
+          if (payload.new && 'ai_description' in payload.new) {
+            setCurrentDescription(payload.new.ai_description);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [artwork.id]);
+
+  // Update local state when artwork prop changes
+  useEffect(() => {
+    setCurrentDescription(artwork.ai_description);
+  }, [artwork.ai_description]);
 
   const generateAIDescription = async () => {
     setIsGenerating(true);
@@ -52,13 +83,13 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
         throw new Error('Failed to save AI description');
       }
 
+      // Update local state immediately for instant feedback
+      setCurrentDescription(data.description);
+
       toast({
         title: "AI Description Generated",
         description: "The AI description has been created successfully!",
       });
-
-      // Reload the page to show the updated description
-      window.location.reload();
     } catch (error: any) {
       console.error('Error generating AI description:', error);
       
@@ -101,22 +132,22 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
           {isGenerating ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              {artwork.ai_description ? 'Regenerating...' : 'Generating...'}
+              {currentDescription ? 'Regenerating...' : 'Generating...'}
             </>
           ) : (
             <>
               <Sparkles className="h-4 w-4" />
-              {artwork.ai_description ? 'Regenerate' : 'Generate'}
+              {currentDescription ? 'Regenerate' : 'Generate'}
             </>
           )}
         </Button>
       </div>
 
       <div className="bg-muted/30 rounded-lg p-6">
-        {artwork.ai_description ? (
+        {currentDescription ? (
           <div className="prose prose-sm max-w-none">
             <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-              {artwork.ai_description}
+              {currentDescription}
             </p>
           </div>
         ) : (
