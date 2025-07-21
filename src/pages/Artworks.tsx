@@ -108,7 +108,7 @@ export default function Artworks() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 pt-4 pb-8 space-y-8">
       <div ref={pageTopRef} />
       
       {/* Header */}
