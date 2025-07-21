@@ -87,8 +87,8 @@ export function FullscreenImageViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 m-0 bg-black border-none">
-        <div className="relative w-full h-full bg-black group">
+      <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-black border-none overflow-hidden fixed inset-0">
+        <div className="w-full h-full bg-black group relative">
           {/* Close button */}
           <Button
             variant="ghost"
@@ -133,37 +133,39 @@ export function FullscreenImageViewer({
             onZoomReset={handleZoomReset}
           />
 
-          {/* Main image */}
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <ZoomableImage
-              imageRecord={{
-                id: currentImage.id,
-                image_url: currentImage.large_storage_path 
-                  ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.large_storage_path}`
-                  : currentImage.medium_storage_path 
+          {/* Main image container - constrained to screen size */}
+          <div className="absolute inset-0 flex items-center justify-center p-0">
+            <div className="w-full h-full flex items-center justify-center relative" style={{ maxWidth: '100vw', maxHeight: '100vh' }}>
+              <ZoomableImage
+                imageRecord={{
+                  id: currentImage.id,
+                  image_url: currentImage.large_storage_path 
+                    ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.large_storage_path}`
+                    : currentImage.medium_storage_path 
+                      ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.medium_storage_path}`
+                      : '/placeholder.svg',
+                  medium_url: currentImage.medium_storage_path 
                     ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.medium_storage_path}`
-                    : '/placeholder.svg',
-                medium_url: currentImage.medium_storage_path 
-                  ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.medium_storage_path}`
-                  : undefined,
-                thumbnail_url: currentImage.thumbnail_storage_path
-                  ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.thumbnail_storage_path}`
-                  : undefined,
-              } as ImageRecord}
-              title={artworkTitle}
-              className="max-w-full max-h-full"
-              tier="full"
-              priority={true}
-              zoomLevel={zoomLevel}
-              panPosition={panPosition}
-              isDragging={isDragging}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            />
+                    : undefined,
+                  thumbnail_url: currentImage.thumbnail_storage_path
+                    ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.thumbnail_storage_path}`
+                    : undefined,
+                } as ImageRecord}
+                title={artworkTitle}
+                className="w-full h-full"
+                tier="full"
+                priority={true}
+                zoomLevel={zoomLevel}
+                panPosition={panPosition}
+                isDragging={isDragging}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              />
+            </div>
           </div>
 
           {/* Image counter */}
