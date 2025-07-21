@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,75 +21,134 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
     try {
       console.log('Getting secure URL for file:', fileUrl);
       
-      // Check if this is an external storage URL that needs proxying
-      if (fileUrl.includes('gallerysharedbucket') || fileUrl.includes('s3')) {
-        console.log('External file detected, calling edge function');
+      // Check if this is an external storage URL that needs authentication
+      if (fileUrl.includes('gallerysharedbucket') || fileUrl.includes('s3') || fileUrl.includes('idrivee2')) {
+        console.log('External S3-type file detected, calling edge function');
         
         const session = await supabase.auth.getSession();
         if (!session.data.session?.access_token) {
           throw new Error('No valid session found');
         }
         
-        // Use Supabase client to call the edge function properly
+        // Use Supabase client to call the edge function
         const { data, error } = await supabase.functions.invoke('get-secure-document', {
           body: { file_url: fileUrl, document_id: documentId }
         });
         
-        console.log('Edge function response:', { data, error });
+        console.log('Edge function response data type:', typeof data);
+        console.log('Edge function response error:', error);
         
         if (error) {
           console.error('Edge function error:', error);
           throw new Error(`Edge function failed: ${error.message}`);
         }
         
-        if (data?.error) {
+        // Check if the response contains an error
+        if (data && typeof data === 'object' && 'error' in data) {
+          console.error('Edge function returned error:', data.error);
           throw new Error(data.error);
         }
         
-        // If we get a secure_url, use it
-        if (data?.secure_url) {
+        // If we get a JSON response with secure_url, use it
+        if (data && typeof data === 'object' && 'secure_url' in data) {
+          console.log('Received secure URL from edge function');
           return data.secure_url;
         }
         
         // If the response is binary data (the function returned the file directly)
-        // We need to handle this differently - for now, let's try the direct approach
-        console.log('No secure_url in response, attempting direct file access');
-        return fileUrl;
+        // Create a blob URL from the response
+        if (data && data instanceof ArrayBuffer) {
+          console.log('Received binary data, creating blob URL');
+          const blob = new Blob([data]);
+          return URL.createObjectURL(blob);
+        }
+        
+        // If response is already a blob or can be converted
+        if (data) {
+          console.log('Creating blob URL from response data');
+          try {
+            let blob;
+            if (data instanceof Blob) {
+              blob = data;
+            } else {
+              // Try to create blob from response
+              blob = new Blob([JSON.stringify(data)], { type: 'application/octet-stream' });
+            }
+            return URL.createObjectURL(blob);
+          } catch (blobError) {
+            console.error('Failed to create blob URL:', blobError);
+            throw new Error('Failed to process file data');
+          }
+        }
+        
+        console.log('No usable data received from edge function');
+        throw new Error('No file data received from server');
       }
       
-      return fileUrl; // Return original URL for public files
+      // Return original URL for public files
+      console.log('Public file, using original URL');
+      return fileUrl;
     } catch (error) {
       console.error('Error getting secure URL:', error);
-      toast.error(`Failed to load document: ${error.message}`);
-      return null; // Return null to indicate failure
+      throw error; // Re-throw to be handled by the calling function
     }
   };
 
   useEffect(() => {
-      if (document && open) {
-        console.log('DocumentPreview: Starting secure URL fetch for:', document.file_name);
-        setLoading(true);
-        setError(null);
-        
-        getSecureFileUrl(document.file_url, document.id)
-          .then(url => {
-            console.log('DocumentPreview: Secure URL result:', url);
-            if (url) {
-              setSecureUrl(url);
-            } else {
-              setError('Failed to load document - access denied');
-            }
-          })
-          .catch(err => {
-            console.error('DocumentPreview: Failed to get secure URL:', err);
-            setError(`Failed to load document: ${err.message}`);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      }
+    if (document && open) {
+      console.log('DocumentPreview: Starting secure URL fetch for:', document.file_name);
+      setLoading(true);
+      setError(null);
+      setSecureUrl(null); // Clear previous URL
+      
+      getSecureFileUrl(document.file_url, document.id)
+        .then(url => {
+          console.log('DocumentPreview: Secure URL result:', url);
+          if (url) {
+            setSecureUrl(url);
+            setError(null);
+          } else {
+            setError('No file data received from server');
+          }
+        })
+        .catch(err => {
+          console.error('DocumentPreview: Failed to get secure URL:', err);
+          let errorMessage = 'Failed to load document';
+          
+          if (err.message.includes('Edge function failed')) {
+            errorMessage = 'Server authentication failed - please try again';
+          } else if (err.message.includes('No valid session')) {
+            errorMessage = 'Please sign in to access this document';
+          } else if (err.message.includes('access denied') || err.message.includes('403')) {
+            errorMessage = 'Access denied - you may not have permission to view this document';
+          } else if (err.message.includes('not found') || err.message.includes('404')) {
+            errorMessage = 'Document not found';
+          } else if (err.message) {
+            errorMessage = err.message;
+          }
+          
+          setError(errorMessage);
+          toast.error(errorMessage);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      // Clear state when dialog is closed
+      setSecureUrl(null);
+      setError(null);
+      setLoading(false);
+    }
   }, [document, open]);
 
+  // Clean up blob URLs when component unmounts or URL changes
+  useEffect(() => {
+    return () => {
+      if (secureUrl && secureUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(secureUrl);
+      }
+    };
+  }, [secureUrl]);
 
   const renderPreview = () => {
     if (loading) {
@@ -105,11 +165,29 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
     if (error) {
       return (
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <p className="text-sm text-destructive mb-2">{error}</p>
-            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
+          <div className="text-center max-w-md">
+            <p className="text-sm text-destructive mb-4">{error}</p>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  if (document) {
+                    setError(null);
+                    setLoading(true);
+                    getSecureFileUrl(document.file_url, document.id)
+                      .then(setSecureUrl)
+                      .catch(err => setError(err.message))
+                      .finally(() => setLoading(false));
+                  }
+                }}
+              >
+                Retry
+              </Button>
+              <Button variant="outline" size="sm" onClick={onClose}>
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       );
@@ -134,6 +212,10 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
             src={`${secureUrl}#toolbar=0&navpanes=0&scrollbar=0`}
             className="w-full h-full border-0"
             title={document.file_name}
+            onError={() => {
+              console.error('PDF iframe load error');
+              setError('Failed to load PDF preview');
+            }}
           />
         </div>
       );
@@ -147,6 +229,10 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
             src={secureUrl}
             alt={document.file_name}
             className="max-w-full max-h-full object-contain"
+            onError={() => {
+              console.error('Image load error');
+              setError('Failed to load image preview');
+            }}
           />
         </div>
       );
@@ -160,6 +246,10 @@ export function DocumentPreview({ document, open, onClose }: DocumentPreviewProp
             src={secureUrl}
             className="w-full h-full border border-border rounded"
             title={document.file_name}
+            onError={() => {
+              console.error('Text file iframe load error');
+              setError('Failed to load text file preview');
+            }}
           />
         </div>
       );
