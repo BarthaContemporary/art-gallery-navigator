@@ -39,19 +39,9 @@ export function ArtworkFilters({
 }: ArtworkFiltersProps) {
   return (
     <div className={cn("space-y-4", compact && "space-y-2")}>
-      {/* Search and Clear */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search artworks, artists, materials..."
-            value={filters.search}
-            onChange={(e) => onUpdateFilter('search', e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        {hasActiveFilters && (
+      {/* Clear Filters */}
+      {hasActiveFilters && (
+        <div className="flex justify-end">
           <Button
             variant="outline"
             onClick={onClearFilters}
@@ -60,8 +50,8 @@ export function ArtworkFilters({
             <X className="h-4 w-4 mr-2" />
             Clear Filters
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Filter Options */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
