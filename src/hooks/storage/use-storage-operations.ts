@@ -210,17 +210,25 @@ export function useStorageOperations() {
 
     const key = path ? `${path}/${file.name}` : file.name;
     
-    const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${key}?bucket=${bucket.credentials.bucket_name}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': file.type,
-      },
-      body: file,
+    // Convert file to base64 for transmission
+    const fileBase64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
     });
 
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+    const { data, error } = await supabase.functions.invoke('idrive-proxy', {
+      body: {
+        action: 'upload',
+        bucket: bucket.credentials.bucket_name,
+        key: key,
+        file: fileBase64,
+        contentType: file.type
+      }
+    });
+
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
     }
 
     toast.success('File uploaded successfully');

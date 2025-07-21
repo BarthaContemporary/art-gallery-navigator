@@ -6,6 +6,183 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
 };
 
+async function handleUpload(body: any, supabaseClient: any): Promise<Response> {
+  try {
+    const { bucket: bucketName, key, file: fileBase64, contentType } = body;
+    
+    if (!bucketName || !key || !fileBase64) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get storage credentials
+    let credentials = null;
+    
+    if (bucketName === 'gallerysharedbucket') {
+      const { data, error } = await supabaseClient
+        .from('shared_storage_credentials')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (error || !data?.[0]) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch credentials' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      credentials = data[0];
+    } else {
+      // Check admin or artist buckets
+      const { data: adminData } = await supabaseClient
+        .from('admin_storage_credentials')
+        .select('*')
+        .eq('bucket_name', bucketName)
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (adminData?.[0]) {
+        credentials = adminData[0];
+      } else {
+        const { data: artistData } = await supabaseClient
+          .from('artist_storage_credentials')
+          .select('*')
+          .eq('bucket_name', bucketName)
+          .limit(1);
+        
+        credentials = artistData?.[0];
+      }
+    }
+
+    if (!credentials) {
+      return new Response(JSON.stringify({ error: 'No credentials found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Convert base64 to binary
+    const base64Data = fileBase64.split(',')[1]; // Remove data:mime/type;base64, prefix
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Create AWS signature for PUT request
+    const now = new Date();
+    const dateString = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const timeString = now.toISOString().slice(0, 19).replace(/[-:]/g, '') + 'Z';
+    
+    const host = credentials.endpoint_url.replace('https://', '');
+    const region = credentials.region || 'us-east-1';
+    
+    const method = 'PUT';
+    const uri = `/${bucketName}/${key}`;
+    
+    const canonicalHeaders = [
+      `host:${host}`,
+      `x-amz-content-sha256:UNSIGNED-PAYLOAD`,
+      `x-amz-date:${timeString}`
+    ].join('\n') + '\n';
+    
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    
+    const canonicalRequest = [
+      method,
+      uri,
+      '', // No query string for PUT
+      canonicalHeaders,
+      signedHeaders,
+      'UNSIGNED-PAYLOAD'
+    ].join('\n');
+    
+    // Create string to sign
+    const algorithm = 'AWS4-HMAC-SHA256';
+    const credentialScope = `${dateString}/${region}/s3/aws4_request`;
+    const stringToSign = [
+      algorithm,
+      timeString,
+      credentialScope,
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalRequest))
+        .then(hash => Array.from(new Uint8Array(hash))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join(''))
+    ].join('\n');
+    
+    // Create signing key (same process as in listing)
+    const kSecret = new TextEncoder().encode(`AWS4${credentials.secret_key}`);
+    const kDate = await crypto.subtle.importKey(
+      'raw', kSecret, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(dateString)));
+    
+    const kRegion = await crypto.subtle.importKey(
+      'raw', kDate, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(region)));
+    
+    const kService = await crypto.subtle.importKey(
+      'raw', kRegion, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode('s3')));
+    
+    const kSigning = await crypto.subtle.importKey(
+      'raw', kService, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode('aws4_request')));
+    
+    const signature = await crypto.subtle.importKey(
+      'raw', kSigning, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(stringToSign)))
+      .then(sig => Array.from(new Uint8Array(sig))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(''));
+    
+    const authorization = `${algorithm} Credential=${credentials.access_key}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    
+    // Upload to storage
+    const uploadUrl = `${credentials.endpoint_url}${uri}`;
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Host': host,
+        'Authorization': authorization,
+        'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
+        'X-Amz-Date': timeString,
+        'Content-Type': contentType || 'application/octet-stream'
+      },
+      body: binaryData
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('Upload failed:', uploadResponse.status, errorText);
+      return new Response(JSON.stringify({ 
+        error: 'Upload failed',
+        details: errorText 
+      }), {
+        status: uploadResponse.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'File uploaded successfully' 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Upload failed',
+      message: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   console.log('Request received:', req.method, req.url);
   
@@ -45,6 +222,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (req.method === 'POST') {
       // Handle POST request with body data from supabase.functions.invoke
       const body = await req.json();
+      
+      // Check if this is an upload action
+      if (body.action === 'upload') {
+        return await handleUpload(body, supabaseClient);
+      }
+      
       bucketName = body.bucket || 'default';
       prefix = body.prefix || '';
     } else {
