@@ -4,7 +4,7 @@
  */
 
 import React, { useRef } from "react";
-import { RefreshCw, Search, X } from "lucide-react";
+import { RefreshCw, Search, X, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
@@ -112,8 +112,12 @@ export default function Artworks() {
       <div ref={pageTopRef} />
       
       {/* Header */}
-      <div className="flex justify-start">
-        <Button>
+      <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+        <Button 
+          size="sm" 
+          className="flex gap-2"
+        >
+          <PlusCircle className="h-4 w-4" />
           Add Artwork
         </Button>
       </div>
