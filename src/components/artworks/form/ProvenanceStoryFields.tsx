@@ -12,9 +12,10 @@ import { useState } from "react";
 interface ProvenanceStoryFieldsProps {
   form: UseFormReturn<ArtworkFormData>;
   artists?: any[];
+  initialData?: any;
 }
 
-export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFieldsProps) {
+export function ProvenanceStoryFields({ form, artists = [], initialData }: ProvenanceStoryFieldsProps) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -29,6 +30,7 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
       console.log('🎨 Found artist:', artist);
       
       const requestData = {
+        artwork_id: initialData?.id,
         title: formValues.title,
         artist_name: artist?.full_name,
         medium_type: formValues.medium_type,
@@ -36,6 +38,7 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
         materials: formValues.materials,
         dimensions: formValues.dimensions,
         story: formValues.story,
+        additional_keywords: formValues.additional_keywords,
       };
       console.log('📤 Sending request data:', requestData);
 
@@ -139,6 +142,27 @@ export function ProvenanceStoryFields({ form, artists = [] }: ProvenanceStoryFie
                 {...field}
                 placeholder="List the exhibitions where this artwork has been shown"
                 className="min-h-[100px]"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="additional_keywords"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Additional Keywords (for AI Description)
+            </FormLabel>
+            <FormControl>
+              <Textarea
+                {...field}
+                placeholder="Enter additional keywords to guide the AI description (e.g., contemporary, bold colors, emotional impact, etc.)"
+                className="min-h-[80px]"
               />
             </FormControl>
             <FormMessage />

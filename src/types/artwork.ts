@@ -42,6 +42,7 @@ export interface Artwork {
   created_at: string;
   updated_at: string;
   ai_description?: string;
+  additional_keywords?: string;
   
   // Relations
   artist_name?: string;

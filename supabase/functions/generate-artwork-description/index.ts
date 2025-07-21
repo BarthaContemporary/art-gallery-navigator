@@ -15,6 +15,7 @@ interface GenerateDescriptionRequest {
   materials?: string;
   dimensions?: string;
   story?: string;
+  additional_keywords?: string;
 }
 
 serve(async (req) => {
@@ -25,11 +26,17 @@ serve(async (req) => {
 
   try {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
     if (!OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    const { title, artist_name, medium_type, year, materials, dimensions, story }: GenerateDescriptionRequest = await req.json();
+    // Initialize Supabase client for saving history
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    const { title, artist_name, medium_type, year, materials, dimensions, story, additional_keywords }: GenerateDescriptionRequest = await req.json();
 
     // Build a comprehensive prompt from the artwork data
     let prompt = `Generate a professional, engaging description for this artwork:\n\n`;
@@ -40,8 +47,12 @@ serve(async (req) => {
     if (materials) prompt += `Materials: ${materials}\n`;
     if (dimensions) prompt += `Dimensions: ${dimensions}\n`;
     if (story) prompt += `Artist's Story: ${story}\n`;
+    if (additional_keywords) prompt += `Additional Keywords: ${additional_keywords}\n`;
     
     prompt += `\nWrite a compelling 2-3 sentence description that would engage potential collectors and art enthusiasts. Focus on the artistic technique, emotional impact, and what makes this piece unique. Keep it professional but accessible.`;
+    if (additional_keywords) {
+      prompt += ` Please incorporate these additional keywords naturally into the description: ${additional_keywords}`;
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -79,6 +90,48 @@ serve(async (req) => {
     const generatedDescription = data.choices[0].message.content;
 
     console.log('Generated description:', generatedDescription);
+
+    // Get the Authorization header to extract user info
+    const authHeader = req.headers.get('Authorization');
+    let userId = null;
+    let artworkId = null;
+
+    // Try to extract artwork_id from request body if provided
+    const requestBody = await req.clone().json();
+    artworkId = requestBody.artwork_id;
+
+    // Try to get user ID from the auth header
+    if (authHeader) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        userId = user?.id;
+      } catch (e) {
+        console.log('Could not extract user from auth header:', e);
+      }
+    }
+
+    // Save to history table (non-blocking)
+    if (artworkId) {
+      try {
+        const { error: historyError } = await supabase
+          .from('ai_description_history')
+          .insert({
+            artwork_id: artworkId,
+            description: generatedDescription,
+            keywords_used: additional_keywords || null,
+            generated_by: userId,
+            model_used: 'gpt-4o-mini'
+          });
+
+        if (historyError) {
+          console.error('Failed to save description history:', historyError);
+        } else {
+          console.log('Successfully saved description to history');
+        }
+      } catch (e) {
+        console.error('Error saving to history:', e);
+      }
+    }
 
     return new Response(JSON.stringify({ description: generatedDescription }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

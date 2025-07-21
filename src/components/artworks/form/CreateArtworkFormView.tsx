@@ -104,7 +104,7 @@ export function CreateArtworkFormView({
         
         <FramingCrateFields form={form} />
         
-        <ProvenanceStoryFields form={form} artists={artists} />
+        <ProvenanceStoryFields form={form} artists={artists} initialData={initialData} />
         
         {!initialData && (
           <div className="space-y-6">

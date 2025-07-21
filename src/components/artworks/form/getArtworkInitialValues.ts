@@ -41,6 +41,7 @@ export const getArtworkInitialValues = (
     signature_type: (initialData?.signature_type as any) || null,
     condition: initialData?.condition || "",
     signature_details: initialData?.signature_details || "",
+    additional_keywords: initialData?.additional_keywords || "",
     provenance: initialData?.provenance || "",
     story: initialData?.story || "",
     exhibition_history: initialData?.exhibition_history || "",

@@ -56,6 +56,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_description_history: {
+        Row: {
+          artwork_id: string
+          description: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          keywords_used: string | null
+          model_used: string | null
+        }
+        Insert: {
+          artwork_id: string
+          description: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          keywords_used?: string | null
+          model_used?: string | null
+        }
+        Update: {
+          artwork_id?: string
+          description?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          keywords_used?: string | null
+          model_used?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_description_history_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_slots: {
         Row: {
           appointment_type_id: string | null
@@ -544,6 +582,7 @@ export type Database = {
       }
       artworks: {
         Row: {
+          additional_keywords: string | null
           ai_description: string | null
           artist_id: string | null
           artist_proofs: number | null
@@ -585,6 +624,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          additional_keywords?: string | null
           ai_description?: string | null
           artist_id?: string | null
           artist_proofs?: number | null
@@ -626,6 +666,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          additional_keywords?: string | null
           ai_description?: string | null
           artist_id?: string | null
           artist_proofs?: number | null

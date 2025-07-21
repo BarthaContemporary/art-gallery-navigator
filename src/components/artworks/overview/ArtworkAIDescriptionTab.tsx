@@ -5,6 +5,7 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useArtists } from '@/hooks/useArtists';
+import { AIDescriptionHistory } from './AIDescriptionHistory';
 
 interface ArtworkAIDescriptionTabProps {
   artwork: Artwork;
@@ -52,6 +53,7 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
       const artist = artists?.find(a => a.id === artwork.artist_id);
       
       const requestData = {
+        artwork_id: artwork.id,
         title: artwork.title,
         artist_name: artist?.full_name,
         medium_type: artwork.medium_type,
@@ -59,6 +61,7 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
         materials: artwork.materials,
         dimensions: artwork.dimensions,
         story: artwork.story,
+        additional_keywords: artwork.additional_keywords,
       };
 
       const { data, error } = await supabase.functions.invoke('generate-artwork-description', {
@@ -179,6 +182,8 @@ export function ArtworkAIDescriptionTab({ artwork }: ArtworkAIDescriptionTabProp
           </div>
         )}
       </div>
+
+      <AIDescriptionHistory artworkId={artwork.id} />
     </div>
   );
 }
