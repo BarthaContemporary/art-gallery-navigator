@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Artwork } from "@/hooks/use-artworks";
 
+declare global {
+  interface Window {
+    gapi: any;
+  }
+}
+
 interface ExportResponse {
   success: boolean;
   documentUrl?: string;
@@ -17,6 +23,42 @@ interface ExportResponse {
 export function useExportArtworksToGoogleDocs() {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+
+  const authenticateWithGoogle = async (): Promise<string | null> => {
+    return new Promise((resolve) => {
+      // Load Google API
+      if (!window.gapi) {
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = () => initGapi();
+        document.head.appendChild(script);
+      } else {
+        initGapi();
+      }
+
+      function initGapi() {
+        window.gapi.load('auth2', () => {
+          const authInstance = window.gapi.auth2.init({
+            client_id: '255260465584-drej8c72nkt1no7sb8lldcg255fn903p.apps.googleusercontent.com',
+            scope: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file'
+          });
+
+          authInstance.signIn().then((user: any) => {
+            const accessToken = user.getAuthResponse().access_token;
+            resolve(accessToken);
+          }).catch((error: any) => {
+            console.error('Google auth failed:', error);
+            toast({
+              title: "Authentication Failed",
+              description: "Failed to authenticate with Google. Please try again.",
+              variant: "destructive",
+            });
+            resolve(null);
+          });
+        });
+      }
+    });
+  };
 
   const exportToGoogleDocs = async (artworks: Artwork[], title?: string) => {
     if (artworks.length === 0) {
@@ -32,6 +74,12 @@ export function useExportArtworksToGoogleDocs() {
 
     try {
       console.log(`Starting export of ${artworks.length} artworks to Google Docs...`);
+      
+      // Authenticate with Google
+      const accessToken = await authenticateWithGoogle();
+      if (!accessToken) {
+        return; // Error already shown in authenticateWithGoogle
+      }
 
       // Prepare artwork data with proper artist information and all image data
       const artworkData = artworks.map(artwork => {
@@ -74,20 +122,14 @@ export function useExportArtworksToGoogleDocs() {
       console.log("Artwork data prepared for export:", artworkData.map(a => ({ 
         title: a.title, 
         artist_name: a.artist_name, 
-        images: a.artwork_images?.length || 0,
-        sampleImageUrls: a.artwork_images?.slice(0, 1).map(img => ({
-          image_url: img.image_url,
-          thumbnail_url: img.thumbnail_url,
-          medium_url: img.medium_url,
-          medium_storage_path: img.medium_storage_path,
-          is_primary: img.is_primary
-        })) || []
+        images: a.artwork_images?.length || 0
       })));
 
-      const { data, error } = await supabase.functions.invoke('export-artworks-google-doc', {
+      const { data, error } = await supabase.functions.invoke('export-artworks-google-doc-oauth', {
         body: {
           artworks: artworkData,
           title: title || `Artwork List - ${new Date().toLocaleDateString()}`,
+          accessToken: accessToken,
         },
       });
 
@@ -96,7 +138,12 @@ export function useExportArtworksToGoogleDocs() {
       // Handle Supabase client errors (network, auth, etc.)
       if (error) {
         console.error('Supabase client error:', error);
-        throw new Error(`Network or authentication error: ${error.message}`);
+        toast({
+          title: "Export Failed",
+          description: error.message || "Failed to connect to export service",
+          variant: "destructive",
+        });
+        return;
       }
 
       // Handle application errors from the edge function
@@ -114,25 +161,17 @@ export function useExportArtworksToGoogleDocs() {
         let errorTitle = 'Export Failed';
         
         switch (response.errorType) {
-          case 'storage_quota_exceeded':
-            errorTitle = 'Storage Quota Exceeded';
-            userErrorMessage = response.error || 'The Google Drive storage is full. Please contact an administrator to upgrade the account or clean up old documents.';
+          case 'authentication_required':
+            errorTitle = 'Authentication Required';
+            userErrorMessage = 'Please sign in to your Google account to export to Google Docs.';
             break;
-          case 'configuration_error':
-            errorTitle = 'Configuration Error';
-            userErrorMessage = response.error || 'Export service is not properly configured. Please contact an administrator.';
-            break;
-          case 'authentication_error':
-            errorTitle = 'Authentication Error';
-            userErrorMessage = response.error || 'Failed to authenticate with Google services. Please contact an administrator.';
+          case 'authentication_expired':
+            errorTitle = 'Authentication Expired';
+            userErrorMessage = 'Your Google authentication has expired. Please try again.';
             break;
           case 'document_creation_error':
             errorTitle = 'Document Creation Error';
-            userErrorMessage = response.error || 'Failed to create the document. This may be due to template or permissions issues.';
-            break;
-          case 'content_processing_error':
-            errorTitle = 'Content Processing Error';
-            userErrorMessage = response.error || 'The document was created but artwork content could not be added.';
+            userErrorMessage = response.error || 'Failed to create the document in your Google Drive.';
             break;
           case 'validation_error':
             errorTitle = 'Invalid Request';
@@ -148,8 +187,7 @@ export function useExportArtworksToGoogleDocs() {
           description: userErrorMessage,
           variant: "destructive",
         });
-        
-        throw new Error(userErrorMessage);
+        return;
       }
 
       // Handle successful export
@@ -164,35 +202,35 @@ export function useExportArtworksToGoogleDocs() {
             // Popup was blocked, show toast with manual link
             toast({
               title: "Export Successful - Manual Action Required",
-              description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Your browser blocked the popup. Please copy and paste this URL to open the document: ${response.documentUrl}`,
+              description: `Successfully exported ${response.artworkCount} artworks to your Google Drive. Your browser blocked the popup. Please copy and paste this URL to open the document: ${response.documentUrl}`,
               duration: 15000, // Show longer so user can copy URL
             });
           } else {
             toast({
               title: "Export Successful",
-              description: `Successfully exported ${response.artworkCount} artworks to Google Docs. Document opened in new tab.`,
+              description: `Successfully exported ${response.artworkCount} artworks to your Google Drive. Document opened in new tab.`,
             });
           }
         }, 100); // Small delay to ensure popup isn't blocked by timing
 
         return response;
       } else {
-        throw new Error('Export completed but no document URL was provided');
+        toast({
+          title: "Export Failed",
+          description: "Export completed but no document URL was provided",
+          variant: "destructive",
+        });
+        return;
       }
 
     } catch (error: any) {
       console.error('Export process failed:', error);
       
-      // Only show toast if we haven't already shown one for this specific error
-      if (!error.message?.includes('Export failed with application error')) {
-        toast({
-          title: "Export Failed",
-          description: error.message || "An unexpected error occurred during export. Please try again.",
-          variant: "destructive",
-        });
-      }
-
-      throw error;
+      toast({
+        title: "Export Failed",
+        description: error.message || "An unexpected error occurred during export. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }
