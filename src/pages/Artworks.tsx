@@ -12,13 +12,16 @@ import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
+import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
+import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import type { Artwork } from "@/types/artwork";
 
 export default function Artworks() {
   const pageTopRef = useRef<HTMLDivElement>(null);
+  const { isAdmin } = useAuth();
   
   const {
     data: artworks = [],
@@ -118,7 +121,12 @@ export default function Artworks() {
       <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
         <div className="flex items-center gap-2">
           <CreateArtworkDialog />
-          <ImportCSVDialog />
+          {isAdmin && (
+            <>
+              <ExportToGoogleSheetsButton artworks={artworks} />
+              <ImportCSVDialog />
+            </>
+          )}
         </div>
       </div>
 
