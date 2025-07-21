@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { RequestBody } from "./types.ts";
 import { getGoogleAccessToken } from "./google-auth.ts";
-import { copyTemplateDocument, makeDocumentPublic } from "./google-drive-service.ts";
+import { copyTemplateDocument, makeDocumentPublic, checkStorageQuota, cleanupOldDocuments } from "./google-drive-service.ts";
 import { processDocumentContent } from "./document-processor.ts";
 
 // Template document ID extracted from the URL
@@ -51,6 +51,28 @@ const handler = async (req: Request): Promise<Response> => {
     const accessToken = await getGoogleAccessToken(credentials);
     console.log("Access token obtained successfully");
     
+    // Check storage quota before proceeding
+    console.log("Checking Google Drive storage quota...");
+    const storageCheck = await checkStorageQuota(accessToken);
+    
+    if (!storageCheck.available) {
+      console.log("Storage quota exceeded, attempting cleanup...");
+      const deletedCount = await cleanupOldDocuments(accessToken, 30);
+      console.log(`Cleaned up ${deletedCount} old documents`);
+      
+      // Check quota again after cleanup
+      const postCleanupCheck = await checkStorageQuota(accessToken);
+      if (!postCleanupCheck.available) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Google Drive storage quota exceeded. Please contact an administrator to upgrade the Google Workspace account or manually clean up old documents.",
+            details: "The service has automatically removed some old exported documents, but more storage space is needed."
+          }),
+          { status: 507, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+    
     // Copy the template document
     const docTitle = title || `Artwork List - ${new Date().toLocaleDateString()}`;
     console.log("Copying template document and creating new document with title:", docTitle);
@@ -83,13 +105,29 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error creating artwork Google Doc:", error);
+    
+    // Provide more specific error messages to the user
+    let userErrorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.message.includes("storage quota exceeded")) {
+      statusCode = 507;
+      userErrorMessage = "Google Drive storage is full. Please contact an administrator to resolve this issue.";
+    } else if (error.message.includes("Template document not found")) {
+      statusCode = 404;
+      userErrorMessage = "Export template is not properly configured. Please contact an administrator.";
+    } else if (error.message.includes("Google API access forbidden")) {
+      statusCode = 403;
+      userErrorMessage = "Google API access is not properly configured. Please contact an administrator.";
+    }
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: userErrorMessage,
         details: "Check the function logs for more information"
       }),
       { 
-        status: 500, 
+        status: statusCode, 
         headers: { "Content-Type": "application/json", ...corsHeaders } 
       }
     );

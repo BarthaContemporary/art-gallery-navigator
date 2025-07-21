@@ -10,6 +10,7 @@ interface ExportResponse {
   documentId?: string;
   artworkCount?: number;
   error?: string;
+  details?: string;
 }
 
 export function useExportArtworksToGoogleDocs() {
@@ -114,16 +115,27 @@ export function useExportArtworksToGoogleDocs() {
       console.error('Failed to export artworks to Google Docs:', error);
       
       let errorMessage = 'Failed to export artworks to Google Docs.';
-      if (error.message?.includes('Google API credentials not configured')) {
-        errorMessage = 'Google API credentials are not configured. Please contact an administrator.';
-      } else if (error.message?.includes('Google API access forbidden')) {
-        errorMessage = 'Google API access is forbidden. Please check the API configuration.';
+      let errorTitle = 'Export Failed';
+      
+      // Handle specific error cases with better user guidance
+      if (error.message?.includes('storage quota exceeded') || error.message?.includes('Google Drive storage is full')) {
+        errorTitle = 'Storage Quota Exceeded';
+        errorMessage = 'The Google Drive storage is full. An administrator needs to clean up old documents or upgrade the Google Workspace account. Please try again later.';
+      } else if (error.message?.includes('Template document not found') || error.message?.includes('Export template is not properly configured')) {
+        errorTitle = 'Configuration Error';
+        errorMessage = 'The export template is not properly configured. Please contact an administrator to resolve this issue.';
+      } else if (error.message?.includes('Google API credentials not configured')) {
+        errorTitle = 'Configuration Error';
+        errorMessage = 'Google API credentials are not configured. Please contact an administrator to set up the export functionality.';
+      } else if (error.message?.includes('Google API access forbidden') || error.message?.includes('Google API access is not properly configured')) {
+        errorTitle = 'Access Error';
+        errorMessage = 'Google API access is not properly configured. Please contact an administrator to check the API permissions.';
       } else if (error.message) {
         errorMessage = error.message;
       }
 
       toast({
-        title: "Export Failed",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
       });
