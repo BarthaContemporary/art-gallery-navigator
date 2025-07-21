@@ -3,9 +3,10 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtworkLocationHistory } from '../location-history/ArtworkLocationHistory';
 import { ArtworkDocuments } from '../documents/ArtworkDocuments';
-import { MapPin, FileText, Info } from 'lucide-react';
+import { MapPin, FileText, Info, Sparkles } from 'lucide-react';
 import { ArtworkOverviewPrimaryInfo } from './ArtworkOverviewPrimaryInfo';
 import { ArtworkOverviewCollapsibleInfo } from './ArtworkOverviewCollapsibleInfo';
+import { ArtworkAIDescriptionTab } from './ArtworkAIDescriptionTab';
 import { Artwork } from '@/hooks/use-artworks';
 import { Artist } from '@/hooks/useArtists';
 import { Location } from '@/hooks/use-locations';
@@ -27,10 +28,14 @@ export function ArtworkOverviewTabs({
 }: ArtworkOverviewTabsProps) {
   return (
     <Tabs defaultValue="details" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="details" className="flex items-center gap-2">
           <Info className="h-4 w-4" />
           Details
+        </TabsTrigger>
+        <TabsTrigger value="ai-description" className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          AI Description
         </TabsTrigger>
         <TabsTrigger value="location-history" className="flex items-center gap-2">
           <MapPin className="h-4 w-4" />
@@ -53,6 +58,10 @@ export function ArtworkOverviewTabs({
           location={location}
           locationLoading={locationLoading}
         />
+      </TabsContent>
+
+      <TabsContent value="ai-description" className="mt-6">
+        <ArtworkAIDescriptionTab artwork={artwork} />
       </TabsContent>
 
       <TabsContent value="location-history" className="mt-6">

@@ -1,14 +1,10 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Artwork } from '@/hooks/use-artworks';
 import { Location } from '@/hooks/use-locations';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ArtworkField } from './ArtworkField';
-import { Check, X, Sparkles, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
-import { useArtists } from '@/hooks/useArtists';
+import { Check, X } from 'lucide-react';
 
 interface ArtworkOverviewCollapsibleInfoProps {
   artwork: Artwork;
@@ -17,77 +13,9 @@ interface ArtworkOverviewCollapsibleInfoProps {
 }
 
 export const ArtworkOverviewCollapsibleInfo: React.FC<ArtworkOverviewCollapsibleInfoProps> = ({ artwork, location, locationLoading }) => {
-  const { toast } = useToast();
-  const { data: artists } = useArtists();
-  const [isGenerating, setIsGenerating] = useState(false);
   
   const BooleanDisplay: React.FC<{value?: boolean | null}> = ({ value }) => 
     value ? <Check className="h-4 w-4 text-green-500 inline-block mr-1" /> : <X className="h-4 w-4 text-red-500 inline-block mr-1" />;
-
-  const generateAIDescription = async () => {
-    setIsGenerating(true);
-    try {
-      const artist = artists?.find(a => a.id === artwork.artist_id);
-      
-      const requestData = {
-        title: artwork.title,
-        artist_name: artist?.full_name,
-        medium_type: artwork.medium_type,
-        year: artwork.year,
-        materials: artwork.materials,
-        dimensions: artwork.dimensions,
-        story: artwork.story,
-      };
-
-      const { data, error } = await supabase.functions.invoke('generate-artwork-description', {
-        body: requestData
-      });
-
-      if (error) {
-        throw new Error(`Function error: ${error.message || 'Unknown error'}`);
-      }
-
-      if (!data?.description) {
-        throw new Error('No description returned from AI service');
-      }
-
-      // Update the artwork with new AI description
-      const { error: updateError } = await supabase
-        .from('artworks')
-        .update({ ai_description: data.description })
-        .eq('id', artwork.id);
-
-      if (updateError) {
-        throw new Error('Failed to save AI description');
-      }
-
-      toast({
-        title: "AI Description Generated",
-        description: "The AI description has been created successfully!",
-      });
-
-      // Reload the page to show the updated description
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Error generating AI description:', error);
-      
-      let errorMessage = "Failed to generate AI description. Please try again.";
-      
-      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-        errorMessage = "OpenAI API rate limit exceeded. Please try again later.";
-      } else if (error.message?.includes('OPENAI_API_KEY')) {
-        errorMessage = "OpenAI API key not configured. Please contact admin.";
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const formatFramingDetails = () => {
     if (!artwork.is_framed) return <><BooleanDisplay value={false} /><span>Not Framed</span></>;
@@ -143,65 +71,6 @@ export const ArtworkOverviewCollapsibleInfo: React.FC<ArtworkOverviewCollapsible
         </AccordionContent>
       </AccordionItem>
       
-      <AccordionItem value="ai-description">
-        <AccordionTrigger className="text-base font-medium flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
-          AI Description
-        </AccordionTrigger>
-        <AccordionContent className="pt-2">
-          <div className="space-y-3">
-            {artwork.ai_description ? (
-              <div>
-                <ArtworkField label="" value={artwork.ai_description} multiline />
-                <div className="mt-3">
-                  <Button
-                    onClick={generateAIDescription}
-                    disabled={isGenerating}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Regenerating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Regenerate
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground mb-3">No AI description generated yet</p>
-                <Button
-                  onClick={generateAIDescription}
-                  disabled={isGenerating}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Generate AI Description
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
       
       <AccordionItem value="history-context">
         <AccordionTrigger className="text-base font-medium">History & Context</AccordionTrigger>
