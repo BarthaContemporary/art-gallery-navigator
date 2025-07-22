@@ -60,11 +60,11 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     medium_storage_path: imageRecord.medium_storage_path
   });
 
-  // Priority 1: Complete Cloudinary URLs
+  // Only use Cloudinary URLs for Google Docs compatibility
   const cloudinaryUrls = [
-    imageRecord.image_url,
     imageRecord.medium_url,
-    imageRecord.thumbnail_url
+    imageRecord.thumbnail_url,
+    imageRecord.image_url
   ].filter(url => isCompleteCloudinaryUrl(url));
 
   for (const url of cloudinaryUrls) {
@@ -74,42 +74,6 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     }
   }
 
-  // Priority 2: Supabase processed storage
-  const processedStoragePaths = [
-    imageRecord.medium_storage_path,
-    imageRecord.large_storage_path,
-    imageRecord.thumbnail_storage_path
-  ].filter(Boolean);
-
-  for (const path of processedStoragePaths) {
-    const url = constructSupabaseStorageUrl(path, 'artwork-images-processed');
-    if (await validateImageUrl(url)) {
-      console.log(`[findBestImageUrl] Using valid processed storage URL: ${url}`);
-      return { url, isValid: true, source: 'supabase_processed' };
-    }
-  }
-
-  // Priority 3: Supabase original storage
-  if (imageRecord.original_storage_path) {
-    const url = constructSupabaseStorageUrl(imageRecord.original_storage_path, 'artwork-images-original');
-    if (await validateImageUrl(url)) {
-      console.log(`[findBestImageUrl] Using valid original storage URL: ${url}`);
-      return { url, isValid: true, source: 'supabase_original' };
-    }
-  }
-
-  // Priority 4: Try other buckets as fallback
-  const fallbackBuckets = ['artwork-images', 'gallery_images'];
-  for (const bucket of fallbackBuckets) {
-    for (const path of processedStoragePaths) {
-      const url = constructSupabaseStorageUrl(path, bucket);
-      if (await validateImageUrl(url)) {
-        console.log(`[findBestImageUrl] Using fallback bucket URL: ${url}`);
-        return { url, isValid: true, source: 'legacy' };
-      }
-    }
-  }
-
-  console.warn(`[findBestImageUrl] No valid URL found for image record:`, imageRecord.id);
+  console.warn(`[findBestImageUrl] No valid Cloudinary URL found for Google Docs export, image record:`, imageRecord.id);
   return null;
 }

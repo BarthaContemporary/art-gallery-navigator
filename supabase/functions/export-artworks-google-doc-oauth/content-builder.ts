@@ -114,9 +114,9 @@ export function buildBatchRequests(
     });
     currentIndex += textContent.length;
 
-    // Add image if available - temporarily disabled due to Google Docs compatibility issues
+    // Add image if available (only Cloudinary URLs for Google Docs compatibility)
     const imageResult = imageResults.get(artwork.id);
-    if (false && imageResult) { // Temporarily disabled
+    if (imageResult) {
       // Add a line break before image
       requests.push({
         insertText: {
@@ -126,23 +126,21 @@ export function buildBatchRequests(
       });
       currentIndex += 1;
 
-      // Insert image
+      // Insert image with smaller size for Google Docs compatibility
       requests.push({
         insertInlineImage: {
           location: { index: currentIndex },
           uri: imageResult.url,
           objectSize: {
-            height: { magnitude: 50, unit: "PT" },
-            width: { magnitude: 50, unit: "PT" }
+            height: { magnitude: 80, unit: "PT" },
+            width: { magnitude: 80, unit: "PT" }
           }
         }
       });
       currentIndex += 1;
     } else {
       // Add placeholder text for missing image
-      const placeholderText = imageResult ? 
-        `[Image URL: ${imageResult.url}]\n` : 
-        "[Image not available]\n";
+      const placeholderText = "[Image not available]\n";
       requests.push({
         insertText: {
           location: { index: currentIndex },
