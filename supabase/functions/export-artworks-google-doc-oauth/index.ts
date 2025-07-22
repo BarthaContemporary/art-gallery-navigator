@@ -234,12 +234,14 @@ const handler = async (req: Request): Promise<Response> => {
         
         // Try multiple approaches in priority order
         const candidates = [
-          // Try the primary storage paths in the main public bucket
-          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}` : null,
-          primaryImage.large_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}` : null,
-          primaryImage.thumbnail_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.thumbnail_storage_path}` : null,
-          // Try the primary_image_url if it exists and looks valid
-          (artworkAny.primary_image_url && artworkAny.primary_image_url.startsWith('http') && !artworkAny.primary_image_url.includes('processing')) ? artworkAny.primary_image_url : null
+          // First try the primary_image_url if it exists and looks valid (this should be the processed bucket)
+          (artworkAny.primary_image_url && artworkAny.primary_image_url.startsWith('http') && !artworkAny.primary_image_url.includes('processing')) ? artworkAny.primary_image_url : null,
+          // Try the artwork-images-processed bucket with storage paths
+          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}` : null,
+          primaryImage.large_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.large_storage_path}` : null,
+          primaryImage.thumbnail_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.thumbnail_storage_path}` : null,
+          // Fallback to the original artwork-images bucket
+          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}` : null
         ].filter(Boolean);
         
         imageUrl = candidates[0] || null;
