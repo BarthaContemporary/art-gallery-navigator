@@ -61,21 +61,7 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     medium_storage_path: imageRecord.medium_storage_path
   });
 
-  // Try Cloudinary URLs first
-  const cloudinaryUrls = [
-    imageRecord.medium_url,
-    imageRecord.thumbnail_url,
-    imageRecord.image_url
-  ].filter(url => isCompleteCloudinaryUrl(url));
-
-  for (const url of cloudinaryUrls) {
-    if (await validateImageUrl(url)) {
-      console.log(`[findBestImageUrl] Using valid Cloudinary URL: ${url}`);
-      return { url, isValid: true, source: 'cloudinary' };
-    }
-  }
-
-  // Fallback to Supabase storage for Google Docs
+  // Use Supabase storage URLs for Google Docs compatibility
   const storagePaths = [
     imageRecord.medium_storage_path,
     imageRecord.large_storage_path,
@@ -87,6 +73,15 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     if (await validateImageUrl(url)) {
       console.log(`[findBestImageUrl] Using valid storage URL: ${url}`);
       return { url, isValid: true, source: 'supabase_processed' };
+    }
+  }
+
+  // Try original bucket as fallback
+  for (const path of storagePaths) {
+    const url = constructSupabaseStorageUrl(path, 'artwork-images-original');
+    if (await validateImageUrl(url)) {
+      console.log(`[findBestImageUrl] Using original storage URL: ${url}`);
+      return { url, isValid: true, source: 'supabase_original' };
     }
   }
 
