@@ -136,20 +136,60 @@ const handler = async (req: Request): Promise<Response> => {
     let contentText = "";
     const imageRequests = [];
 
-    for (const artwork of artworks) {
-      const artworkDetails = [
-        `\n📋 ${artwork.title || 'Untitled'}\n`,
-        `👤 Artist: ${artwork.artist_name || 'Unknown Artist'}`,
-        artwork.year ? `📅 Year: ${artwork.year}` : '',
-        artwork.medium_type ? `🎨 Medium: ${artwork.medium_type}` : '',
-        artwork.materials ? `🔧 Materials: ${artwork.materials}` : '',
-        artwork.dimensions ? `📏 Dimensions: ${artwork.dimensions}` : '',
-        artwork.price && artwork.currency ? `💰 Price: ${artwork.currency} ${artwork.price}` : '',
-        artwork.status ? `📊 Status: ${artwork.status}` : '',
-        '\n'
-      ].filter(Boolean).join('\n');
+    for (let i = 0; i < artworks.length; i++) {
+      const artwork = artworks[i];
+      let artworkContent = `${i + 1}. `;
+      
+      // 1. URL to public image of the artwork as HTML
+      if ((artwork as any).primary_image_url) {
+        artworkContent += `<a href="${(artwork as any).primary_image_url}">${(artwork as any).primary_image_url}</a>\n`;
+      }
+      
+      // 2. Artist Name
+      if (artwork.artist_name && artwork.artist_name.trim() !== '') {
+        artworkContent += `${artwork.artist_name}\n`;
+      } else {
+        artworkContent += "Artist information not available\n";
+      }
+      
+      // 3. Title + Year (on same line)
+      const title = artwork.title || "Untitled";
+      const year = artwork.year ? `, ${artwork.year}` : "";
+      artworkContent += `${title}${year}\n`;
+      
+      // 4. Materials
+      if (artwork.materials) {
+        artworkContent += `${artwork.materials}\n`;
+      }
+      
+      // 5. Dimensions
+      if (artwork.dimensions) {
+        artworkContent += `${artwork.dimensions}\n`;
+      }
+      
+      // 6. Framed Dimensions
+      const artworkAny = artwork as any;
+      if (artworkAny.frame_width && artworkAny.frame_height) {
+        let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
+        if (artworkAny.frame_depth) {
+          framedDimensions += ` x ${artworkAny.frame_depth}`;
+        }
+        artworkContent += `Framed: ${framedDimensions} cm\n`;
+      }
+      
+      // 7. AI Description (if available)
+      if (artworkAny.ai_description) {
+        artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
+      }
+      
+      // 8. Current Location
+      if (artworkAny.location_name) {
+        artworkContent += `Location: ${artworkAny.location_name}\n`;
+      } else if (artwork.location_id) {
+        artworkContent += `Location ID: ${artwork.location_id}\n`;
+      }
 
-      contentText += artworkDetails;
+      contentText += artworkContent;
       
       // Find primary image URL - collect for separate processing
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
