@@ -114,12 +114,33 @@ export function buildBatchRequests(
     });
     currentIndex += textContent.length;
 
-    // Temporarily disable image insertion until we fix the "too large" issue
-    // Force redeploy - v2
+    // Try image insertion with minimal size - v3
     const imageResult = imageResults.get(artwork.id);
     if (imageResult) {
-      // Add image URL as text for now
-      const imageText = `\nImage URL: ${imageResult.url}\n`;
+      // Add a line break before image
+      requests.push({
+        insertText: {
+          location: { index: currentIndex },
+          text: "\n"
+        }
+      });
+      currentIndex += 1;
+
+      // Insert image with minimal size (10pt x 10pt)
+      requests.push({
+        insertInlineImage: {
+          location: { index: currentIndex },
+          uri: imageResult.url,
+          objectSize: {
+            height: { magnitude: 10, unit: "PT" },
+            width: { magnitude: 10, unit: "PT" }
+          }
+        }
+      });
+      currentIndex += 1;
+      
+      // Also add URL as backup
+      const imageText = `\nImage: ${imageResult.url}\n`;
       requests.push({
         insertText: {
           location: { index: currentIndex },
