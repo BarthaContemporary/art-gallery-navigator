@@ -48,6 +48,7 @@ export interface Artwork {
   artist_name?: string;
   artists?: {
     full_name: string;
+    surname_first_letter?: string;
   };
   artwork_images?: ArtworkImage[];
 }

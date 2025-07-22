@@ -24,9 +24,23 @@ export function ArtworkGrid({ artworks, loading, onScrollToTop }: ArtworkGridPro
       return acc;
     }, {} as Record<string, Artwork[]>);
 
-    // Sort artists alphabetically and return array of groups
+    // Sort artists by surname_first_letter, then by full name
     return Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([artistNameA, artworksA], [artistNameB, artworksB]) => {
+        const artistA = artworksA[0]?.artists;
+        const artistB = artworksB[0]?.artists;
+        
+        const sortLetterA = artistA?.surname_first_letter || artistNameA.charAt(0).toUpperCase();
+        const sortLetterB = artistB?.surname_first_letter || artistNameB.charAt(0).toUpperCase();
+        
+        // First sort by surname_first_letter
+        if (sortLetterA !== sortLetterB) {
+          return sortLetterA.localeCompare(sortLetterB);
+        }
+        
+        // Then sort by full name
+        return artistNameA.localeCompare(artistNameB);
+      })
       .map(([artistName, artworks]) => ({
         artistName,
         artworks: artworks.sort((a, b) => a.title.localeCompare(b.title))

@@ -55,7 +55,8 @@ export function useArtworks() {
           created_at,
           updated_at,
           artists!inner(
-            full_name
+            full_name,
+            surname_first_letter
           ),
           artwork_images(
             id,
@@ -172,7 +173,8 @@ export function useArtwork(id: string) {
           created_at,
           updated_at,
           artists!inner(
-            full_name
+            full_name,
+            surname_first_letter
           ),
           artwork_images(
             id,
