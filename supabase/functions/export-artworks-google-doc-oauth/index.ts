@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { findBestImageUrl } from "./image-url-validator.ts";
+import { buildBatchRequests } from "./content-builder.ts";
 
 const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
 
@@ -10,69 +12,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function validateImageUrl(url: string): Promise<boolean> {
-  try {
-    if (!url || url === '/placeholder.svg' || url.includes('processing')) {
-      return false;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(url, {
-      method: 'HEAD',
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-    console.log(`URL validation for ${url}: ${response.status} ${response.ok ? 'OK' : 'FAILED'}`);
-    
-    return response.ok;
-  } catch (error) {
-    console.warn(`Failed to validate URL ${url}:`, error.message);
-    return false;
-  }
-}
-
-function selectBestImageUrl(imageRecord: any): string | null {
-  console.log('Selecting best image URL from:', {
-    id: imageRecord.id,
-    image_url: imageRecord.image_url,
-    medium_url: imageRecord.medium_url,
-    thumbnail_url: imageRecord.thumbnail_url,
-    medium_storage_path: imageRecord.medium_storage_path
-  });
-
-  // Priority 1: Cloudinary URLs (most reliable for Google Docs)
-  const cloudinaryUrls = [
-    imageRecord.image_url,
-    imageRecord.medium_url,
-    imageRecord.thumbnail_url
-  ].filter(url => url && typeof url === 'string' && url.includes('cloudinary.com') && !url.includes('processing'));
-
-  if (cloudinaryUrls.length > 0) {
-    console.log('Using Cloudinary URL:', cloudinaryUrls[0]);
-    return cloudinaryUrls[0];
-  }
-
-  // Priority 2: Supabase processed storage URLs (public bucket)
-  if (imageRecord.medium_storage_path) {
-    const processedUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${imageRecord.medium_storage_path}`;
-    console.log('Using processed storage URL:', processedUrl);
-    return processedUrl;
-  }
-
-  // Priority 3: Other storage paths as fallback
-  if (imageRecord.large_storage_path) {
-    const largeUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${imageRecord.large_storage_path}`;
-    console.log('Using large storage URL:', largeUrl);
-    return largeUrl;
-  }
-
-  console.warn('No suitable image URL found for image record:', imageRecord.id);
-  return null;
-}
-
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -80,9 +19,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { artworks, title, accessToken } = await req.json();
-    console.log("=== EXPORT REQUEST START ===");
+    console.log("=== ENHANCED EXPORT REQUEST START ===");
     console.log(`Received request with ${artworks?.length || 0} artworks, title: "${title}"`);
-    console.log("Access token received:", accessToken ? "YES" : "NO");
     
     if (!accessToken) {
       return new Response(
@@ -108,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create a new document
     const docTitle = title || `Artwork List - ${new Date().toLocaleDateString()}`;
-    console.log("Creating new document in user's Google Drive:", docTitle);
+    console.log("Creating new document:", docTitle);
 
     const createResponse = await fetch("https://docs.googleapis.com/v1/documents", {
       method: "POST",
@@ -149,10 +87,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const docData = await createResponse.json();
     const documentId = docData.documentId;
-    console.log("=== DOCUMENT CREATED ===");
-    console.log("Document ID:", documentId);
+    console.log("Document created with ID:", documentId);
 
-    // Get unique location IDs for batch lookup
+    // Load location data
     const locationIds = [...new Set(artworks.map(artwork => artwork.location_id).filter(Boolean))];
     const locationMap = new Map();
     
@@ -168,146 +105,53 @@ const handler = async (req: Request): Promise<Response> => {
         locations.forEach(location => {
           locationMap.set(location.id, location.name);
         });
-        console.log('Loaded location names:', locationMap);
+        console.log(`Loaded ${locations.length} location names`);
       }
     }
 
-    console.log("=== PROCESSING ARTWORKS ===");
-    console.log(`Processing ${artworks.length} artworks...`);
+    // Enhanced image processing with validation
+    console.log("=== PROCESSING IMAGES ===");
+    const imageResults = new Map();
+    const imageStats = { total: 0, found: 0, validated: 0, failed: 0 };
 
-    // Build batch requests for all content at once
-    const batchRequests = [];
-    let currentIndex = 1; // Start after the default paragraph
-
-    for (let i = 0; i < artworks.length; i++) {
-      const artwork = artworks[i];
-      const artworkAny = artwork as any;
+    for (const artwork of artworks) {
+      imageStats.total++;
       
-      console.log(`\n--- Processing artwork ${i + 1}: "${artwork.title}" ---`);
-
-      // Find the best image URL
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
-      let selectedImageUrl = null;
-      let imageValidated = false;
+      if (!primaryImage) {
+        console.log(`No images found for artwork: ${artwork.title}`);
+        imageStats.failed++;
+        continue;
+      }
 
-      if (primaryImage) {
-        selectedImageUrl = selectBestImageUrl(primaryImage);
-        
-        if (selectedImageUrl) {
-          console.log(`Validating selected image URL: ${selectedImageUrl}`);
-          imageValidated = await validateImageUrl(selectedImageUrl);
-          console.log(`Image validation result: ${imageValidated ? 'VALID' : 'INVALID'}`);
+      imageStats.found++;
+      console.log(`\n--- Validating image for "${artwork.title}" ---`);
+      
+      try {
+        const imageResult = await findBestImageUrl(primaryImage);
+        if (imageResult) {
+          imageResults.set(artwork.id, imageResult);
+          imageStats.validated++;
+          console.log(`✓ Valid image found for "${artwork.title}": ${imageResult.source}`);
+        } else {
+          imageStats.failed++;
+          console.log(`✗ No valid image found for "${artwork.title}"`);
         }
-      }
-
-      // Build artwork text content
-      let artworkText = "";
-      
-      // Artist Name
-      if (artwork.artist_name && artwork.artist_name.trim() !== '') {
-        artworkText += `${artwork.artist_name}\n`;
-      } else {
-        artworkText += "Artist information not available\n";
-      }
-      
-      // Title + Year
-      const title = artwork.title || "Untitled";
-      const year = artwork.year ? `, ${artwork.year}` : "";
-      artworkText += `${title}${year}\n`;
-      
-      // Materials
-      if (artwork.materials) {
-        artworkText += `${artwork.materials}\n`;
-      }
-      
-      // Dimensions
-      if (artwork.dimensions) {
-        artworkText += `${artwork.dimensions}\n`;
-      }
-      
-      // Price
-      if (artwork.price && artwork.currency) {
-        const formattedPrice = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: artwork.currency,
-          minimumFractionDigits: 0
-        }).format(artwork.price);
-        artworkText += `Price: ${formattedPrice}\n`;
-      }
-      
-      // Framed Dimensions
-      if (artworkAny.frame_width && artworkAny.frame_height) {
-        let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
-        if (artworkAny.frame_depth) {
-          framedDimensions += ` x ${artworkAny.frame_depth}`;
-        }
-        artworkText += `Framed: ${framedDimensions} cm\n`;
-      }
-      
-      // AI Description
-      if (artworkAny.ai_description) {
-        artworkText += `AI Description: ${artworkAny.ai_description}\n`;
-      }
-      
-      // Location
-      if (artwork.location_id) {
-        const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
-        artworkText += `Location: ${locationName}\n`;
-      }
-
-      // Add the text first
-      batchRequests.push({
-        insertText: {
-          location: { index: currentIndex },
-          text: artworkText
-        }
-      });
-      
-      currentIndex += artworkText.length;
-
-      // Add image if valid
-      if (selectedImageUrl && imageValidated) {
-        console.log(`Adding image request for "${artwork.title}" at index ${currentIndex}`);
-        
-        batchRequests.push({
-          insertText: {
-            location: { index: currentIndex },
-            text: "\n"
-          }
-        });
-        currentIndex += 1;
-
-        batchRequests.push({
-          insertInlineImage: {
-            location: { index: currentIndex },
-            uri: selectedImageUrl,
-            objectSize: {
-              height: { magnitude: 200, unit: "PT" },
-              width: { magnitude: 200, unit: "PT" }
-            }
-          }
-        });
-        currentIndex += 1;
-      } else {
-        console.warn(`Skipping image for "${artwork.title}" - no valid URL found`);
-      }
-
-      // Add spacing between artworks (except for the last one)
-      if (i < artworks.length - 1) {
-        batchRequests.push({
-          insertText: {
-            location: { index: currentIndex },
-            text: "\n\n"
-          }
-        });
-        currentIndex += 2;
+      } catch (error) {
+        imageStats.failed++;
+        console.error(`Error processing image for "${artwork.title}":`, error);
       }
     }
 
-    console.log("\n=== EXECUTING BATCH UPDATE ===");
-    console.log(`Total batch requests: ${batchRequests.length}`);
+    console.log("Image processing complete:", imageStats);
 
-    // Execute the batch update
+    // Build content with enhanced structure
+    console.log("=== BUILDING DOCUMENT CONTENT ===");
+    const batchRequests = buildBatchRequests(artworks, locationMap, imageResults);
+    console.log(`Built ${batchRequests.length} batch requests`);
+
+    // Execute batch update
+    console.log("=== EXECUTING BATCH UPDATE ===");
     const batchResponse = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
       method: "POST",
       headers: {
@@ -339,21 +183,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
     
-    console.log("=== EXPORT COMPLETE ===");
-    console.log("Final document URL:", documentUrl);
+    console.log("=== ENHANCED EXPORT COMPLETE ===");
+    console.log("Document URL:", documentUrl);
+    console.log("Image statistics:", imageStats);
     
     return new Response(
       JSON.stringify({ 
         success: true, 
         documentUrl,
         documentId,
-        artworkCount: artworks.length
+        artworkCount: artworks.length,
+        imageStats: {
+          total: imageStats.total,
+          successful: imageStats.validated,
+          failed: imageStats.failed
+        }
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
   } catch (error: any) {
-    console.error("Export error:", error);
+    console.error("Enhanced export error:", error);
     
     return new Response(
       JSON.stringify({ 
