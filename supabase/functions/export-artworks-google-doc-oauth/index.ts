@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
@@ -40,6 +41,11 @@ async function insertImageAtIndex(documentId: string, accessToken: string, index
     throw new Error(`Failed to insert image: ${response.status} - ${errorText}`);
   }
 }
+
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -122,55 +128,31 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Document ID:", documentId);
     console.log("Full document response:", JSON.stringify(docData, null, 2));
 
-    // Add header content first
-    const headerText = `${docTitle}\n\nArtwork Details\n${'='.repeat(50)}\n\n`;
-    const headerRequests = [
-      {
-        insertText: {
-          location: { index: 1 },
-          text: headerText
-        }
-      },
-      {
-        updateTextStyle: {
-          range: {
-            startIndex: 1,
-            endIndex: docTitle.length + 1
-          },
-          textStyle: {
-            bold: true,
-            fontSize: { magnitude: 16, unit: "PT" }
-          },
-          fields: "bold,fontSize"
-        }
-      }
-    ];
-
-    // Apply header formatting
-    console.log("=== ADDING HEADER ===");
-    console.log("Header requests:", JSON.stringify(headerRequests, null, 2));
-    
-    const headerResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ requests: headerRequests })
-    });
-
-    console.log("Header response status:", headerResponse.status);
-    if (!headerResponse.ok) {
-      const headerError = await headerResponse.text();
-      console.error("Header response error:", headerError);
-      console.warn("Failed to add header, but continuing with content");
-    } else {
-      console.log("Header added successfully");
-    }
+    // Skip adding header - user doesn't want it
 
     console.log("=== PROCESSING ARTWORKS ===");
     console.log(`Processing ${artworks.length} artworks...`);
     console.log("First artwork details:", JSON.stringify(artworks[0], null, 2));
+
+    // Get unique location IDs for batch lookup
+    const locationIds = [...new Set(artworks.map(artwork => artwork.location_id).filter(Boolean))];
+    const locationMap = new Map();
+    
+    if (locationIds.length > 0) {
+      const { data: locations, error: locationError } = await supabase
+        .from('locations')
+        .select('id, name')
+        .in('id', locationIds);
+      
+      if (locationError) {
+        console.warn('Failed to fetch locations:', locationError);
+      } else if (locations) {
+        locations.forEach(location => {
+          locationMap.set(location.id, location.name);
+        });
+        console.log('Loaded location names:', locationMap);
+      }
+    }
 
     // Build all text content and collect image data
     let contentText = "";
@@ -215,7 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Store image data for later insertion
       if (imageUrl) {
         // Calculate the index where the image should be inserted (after the artwork number)
-        const currentTextLength = headerText.length + 1 + contentText.length + artworkContent.length;
+        const currentTextLength = 1 + contentText.length + artworkContent.length;
         artworkImages.push({
           index: currentTextLength,
           url: imageUrl,
@@ -261,9 +243,10 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
       }
       
-      // 8. Current Location - only show if location_id is available
+      // 8. Current Location - lookup location name from location_id
       if (artwork.location_id) {
-        artworkContent += `Location ID: ${artwork.location_id}\n`;
+        const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
+        artworkContent += `Location: ${locationName}\n`;
       }
 
       contentText += artworkContent + '\n';
@@ -277,7 +260,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       const textRequest = [{
         insertText: {
-          location: { index: headerText.length + 1 },
+          location: { index: 1 },
           text: contentText
         }
       }];
