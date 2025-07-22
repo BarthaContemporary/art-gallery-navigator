@@ -154,21 +154,75 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Build all text content and collect image data
-    let contentText = "";
-    const artworkImages: { index: number; url: string; artworkTitle: string }[] = [];
+    // Build all content and image requests in proper sequence
+    const allRequests: any[] = [];
+    let currentIndex = 1; // Start after the initial paragraph
 
     for (let i = 0; i < artworks.length; i++) {
       const artwork = artworks[i];
       const artworkAny = artwork as any;
+      
+      // Build artwork text content
       let artworkContent = `${i + 1}. `;
       
-      // 1. Find image URL for later insertion
-      let imageUrl = null;
+      // 1. Artist Name
+      if (artwork.artist_name && artwork.artist_name.trim() !== '') {
+        artworkContent += `${artwork.artist_name}\n`;
+      } else {
+        artworkContent += "Artist information not available\n";
+      }
+      
+      // 2. Title + Year (on same line)
+      const title = artwork.title || "Untitled";
+      const year = artwork.year ? `, ${artwork.year}` : "";
+      artworkContent += `${title}${year}\n`;
+      
+      // 3. Materials
+      if (artwork.materials) {
+        artworkContent += `${artwork.materials}\n`;
+      }
+      
+      // 4. Dimensions
+      if (artwork.dimensions) {
+        artworkContent += `${artwork.dimensions}\n`;
+      }
+      
+      // 5. Framed Dimensions
+      if (artworkAny.frame_width && artworkAny.frame_height) {
+        let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
+        if (artworkAny.frame_depth) {
+          framedDimensions += ` x ${artworkAny.frame_depth}`;
+        }
+        artworkContent += `Framed: ${framedDimensions} cm\n`;
+      }
+      
+      // 6. AI Description (if available)
+      if (artworkAny.ai_description) {
+        artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
+      }
+      
+      // 7. Current Location
+      if (artwork.location_id) {
+        const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
+        artworkContent += `Location: ${locationName}\n`;
+      }
+
+      // Add text content request
+      allRequests.push({
+        insertText: {
+          location: { index: currentIndex },
+          text: artworkContent
+        }
+      });
+      
+      currentIndex += artworkContent.length;
+
+      // Find and insert image immediately after text
       const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+      let imageUrl = null;
       
       if (primaryImage) {
-        // Use the correct public bucket - try storage paths first as they're more reliable
+        // Use the correct public bucket - try storage paths first
         if (primaryImage.medium_storage_path) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
         }
@@ -178,129 +232,76 @@ const handler = async (req: Request): Promise<Response> => {
         else if (primaryImage.thumbnail_storage_path) {
           imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.thumbnail_storage_path}`;
         }
-        // Try external URLs if they don't contain '/processing'
-        else if (primaryImage.medium_url && primaryImage.medium_url.startsWith('http') && !primaryImage.medium_url.includes('/processing')) {
-          imageUrl = primaryImage.medium_url;
-        }
-        else if (primaryImage.image_url && primaryImage.image_url.startsWith('http') && !primaryImage.image_url.includes('/processing')) {
-          imageUrl = primaryImage.image_url;
-        }
-        else if (primaryImage.thumbnail_url && primaryImage.thumbnail_url.startsWith('http') && !primaryImage.thumbnail_url.includes('/processing')) {
-          imageUrl = primaryImage.thumbnail_url;
-        }
-        // Final fallback - construct URL from image_url field if it doesn't start with http
-        else if (primaryImage.image_url && !primaryImage.image_url.startsWith('http')) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
-        }
       }
       
-      // Store image data for later insertion
       if (imageUrl) {
-        // Calculate the index where the image should be inserted (after the artwork number)
-        const currentTextLength = 1 + contentText.length + artworkContent.length;
-        artworkImages.push({
-          index: currentTextLength,
-          url: imageUrl,
-          artworkTitle: artwork.title || "Untitled"
+        console.log(`Adding image for ${artwork.title}: ${imageUrl} at index ${currentIndex}`);
+        
+        // Add image insertion request
+        allRequests.push({
+          insertInlineImage: {
+            location: { index: currentIndex },
+            uri: imageUrl,
+            objectSize: {
+              height: {
+                magnitude: 113.4, // 4cm in points (4 * 28.35)
+                unit: "PT"
+              },
+              width: {
+                magnitude: 113.4, // Will be adjusted proportionally by Google Docs
+                unit: "PT"
+              }
+            }
+          }
         });
-        artworkContent += "\n"; // Add space where image will be inserted
-        console.log(`Found image for ${artwork.title}: ${imageUrl}`);
+        
+        currentIndex += 1; // Images take 1 character space
       }
       
-      // 2. Artist Name
-      if (artwork.artist_name && artwork.artist_name.trim() !== '') {
-        artworkContent += `${artwork.artist_name}\n`;
-      } else {
-        artworkContent += "Artist information not available\n";
+      // Add spacing between artworks
+      if (i < artworks.length - 1) {
+        allRequests.push({
+          insertText: {
+            location: { index: currentIndex },
+            text: '\n\n'
+          }
+        });
+        currentIndex += 2;
       }
-      
-      // 3. Title + Year (on same line)
-      const title = artwork.title || "Untitled";
-      const year = artwork.year ? `, ${artwork.year}` : "";
-      artworkContent += `${title}${year}\n`;
-      
-      // 4. Materials
-      if (artwork.materials) {
-        artworkContent += `${artwork.materials}\n`;
-      }
-      
-      // 5. Dimensions
-      if (artwork.dimensions) {
-        artworkContent += `${artwork.dimensions}\n`;
-      }
-      
-      // 6. Framed Dimensions
-      if (artworkAny.frame_width && artworkAny.frame_height) {
-        let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
-        if (artworkAny.frame_depth) {
-          framedDimensions += ` x ${artworkAny.frame_depth}`;
-        }
-        artworkContent += `Framed: ${framedDimensions} cm\n`;
-      }
-      
-      // 7. AI Description (if available)
-      if (artworkAny.ai_description) {
-        artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
-      }
-      
-      // 8. Current Location - lookup location name from location_id
-      if (artwork.location_id) {
-        const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
-        artworkContent += `Location: ${locationName}\n`;
-      }
-
-      contentText += artworkContent + '\n';
     }
 
-    // Step 1: Insert all text content first
-    if (contentText) {
-      console.log("=== ADDING CONTENT TEXT ===");
-      console.log("Content text length:", contentText.length);
-      console.log("Content preview:", contentText.substring(0, 200) + "...");
+    // Execute all requests at once
+    if (allRequests.length > 0) {
+      console.log("=== EXECUTING ALL REQUESTS ===");
+      console.log(`Executing ${allRequests.length} requests`);
       
-      const textRequest = [{
-        insertText: {
-          location: { index: 1 },
-          text: contentText
-        }
-      }];
-
-      const contentResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+      const batchResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ requests: textRequest })
+        body: JSON.stringify({ requests: allRequests })
       });
 
-      console.log("Content response status:", contentResponse.status);
+      console.log("Batch response status:", batchResponse.status);
       
-      if (!contentResponse.ok) {
-        const errorText = await contentResponse.text();
-        console.error("Failed to add text content:", contentResponse.status, errorText);
-        console.warn("Document created but text content addition failed");
+      if (!batchResponse.ok) {
+        const errorText = await batchResponse.text();
+        console.error("Failed to execute batch requests:", batchResponse.status, errorText);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "Failed to add content to document",
+            details: errorText
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       } else {
-        const contentResult = await contentResponse.json();
-        console.log("Text content added successfully");
-        console.log("Content response:", JSON.stringify(contentResult, null, 2));
-      }
-    } else {
-      console.warn("No text content to add - this shouldn't happen!");
-    }
-
-    // Step 2: Insert images at their calculated positions
-    console.log("=== INSERTING IMAGES ===");
-    console.log(`Found ${artworkImages.length} images to insert`);
-    
-    for (const imageData of artworkImages) {
-      try {
-        console.log(`Inserting image for "${imageData.artworkTitle}" at index ${imageData.index}`);
-        await insertImageAtIndex(documentId, accessToken, imageData.index, imageData.url);
-        console.log(`Successfully inserted image for "${imageData.artworkTitle}"`);
-      } catch (error) {
-        console.error(`Failed to insert image for "${imageData.artworkTitle}":`, error);
-        // Continue with other images even if one fails
+        const batchResult = await batchResponse.json();
+        console.log("All requests executed successfully");
+        console.log("Batch response:", JSON.stringify(batchResult, null, 2));
       }
     }
 
