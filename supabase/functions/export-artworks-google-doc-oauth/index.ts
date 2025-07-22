@@ -148,15 +148,29 @@ const handler = async (req: Request): Promise<Response> => {
         // Fallback to finding image from artwork_images array
         const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
         if (primaryImage) {
-          // Try different URL sources in order of preference, using correct bucket
-          if (primaryImage.medium_storage_path) {
-            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}`;
+          // Try different URL sources in order of preference
+          if (primaryImage.medium_url && primaryImage.medium_url.startsWith('http') && !primaryImage.medium_url.includes('/processing')) {
+            imageUrl = primaryImage.medium_url;
+          }
+          else if (primaryImage.image_url && primaryImage.image_url.startsWith('http') && !primaryImage.image_url.includes('/processing')) {
+            imageUrl = primaryImage.image_url;
+          }
+          else if (primaryImage.thumbnail_url && primaryImage.thumbnail_url.startsWith('http') && !primaryImage.thumbnail_url.includes('/processing')) {
+            imageUrl = primaryImage.thumbnail_url;
+          }
+          // Fallback to Supabase storage URLs - use the correct public bucket
+          else if (primaryImage.medium_storage_path) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
           }
           else if (primaryImage.large_storage_path) {
-            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.large_storage_path}`;
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}`;
           }
           else if (primaryImage.thumbnail_storage_path) {
-            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.thumbnail_storage_path}`;
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.thumbnail_storage_path}`;
+          }
+          // Final fallback - construct URL from image_url field if it doesn't start with http
+          else if (primaryImage.image_url && !primaryImage.image_url.startsWith('http')) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
           }
         }
       }
