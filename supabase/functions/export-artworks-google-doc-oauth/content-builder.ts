@@ -114,30 +114,18 @@ export function buildBatchRequests(
     });
     currentIndex += textContent.length;
 
-    // Add image if available (only Cloudinary URLs for Google Docs compatibility)
+    // Temporarily disable image insertion until we fix the "too large" issue
     const imageResult = imageResults.get(artwork.id);
     if (imageResult) {
-      // Add a line break before image
+      // Add image URL as text for now
+      const imageText = `\nImage URL: ${imageResult.url}\n`;
       requests.push({
         insertText: {
           location: { index: currentIndex },
-          text: "\n"
+          text: imageText
         }
       });
-      currentIndex += 1;
-
-      // Insert image with smaller size for Google Docs compatibility
-      requests.push({
-        insertInlineImage: {
-          location: { index: currentIndex },
-          uri: imageResult.url,
-          objectSize: {
-            height: { magnitude: 30, unit: "PT" },
-            width: { magnitude: 30, unit: "PT" }
-          }
-        }
-      });
-      currentIndex += 1;
+      currentIndex += imageText.length;
     } else {
       // Add placeholder text for missing image
       const placeholderText = "[Image not available]\n";
