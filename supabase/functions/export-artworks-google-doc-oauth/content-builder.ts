@@ -132,8 +132,8 @@ export function buildBatchRequests(
           location: { index: currentIndex },
           uri: imageResult.url,
           objectSize: {
-            height: { magnitude: 80, unit: "PT" },
-            width: { magnitude: 80, unit: "PT" }
+            height: { magnitude: 30, unit: "PT" },
+            width: { magnitude: 30, unit: "PT" }
           }
         }
       });
