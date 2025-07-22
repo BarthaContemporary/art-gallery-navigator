@@ -114,9 +114,9 @@ export function buildBatchRequests(
     });
     currentIndex += textContent.length;
 
-    // Add image if available
+    // Add image if available - temporarily disabled due to Google Docs compatibility issues
     const imageResult = imageResults.get(artwork.id);
-    if (imageResult) {
+    if (false && imageResult) { // Temporarily disabled
       // Add a line break before image
       requests.push({
         insertText: {
@@ -140,7 +140,9 @@ export function buildBatchRequests(
       currentIndex += 1;
     } else {
       // Add placeholder text for missing image
-      const placeholderText = "[Image not available]\n";
+      const placeholderText = imageResult ? 
+        `[Image URL: ${imageResult.url}]\n` : 
+        "[Image not available]\n";
       requests.push({
         insertText: {
           location: { index: currentIndex },
