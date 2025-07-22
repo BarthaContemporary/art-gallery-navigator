@@ -132,17 +132,38 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing ${artworks.length} artworks...`);
     console.log("First artwork details:", JSON.stringify(artworks[0], null, 2));
 
-    // Build all text content first
+    // Build all text content
     let contentText = "";
-    const imageRequests = [];
 
     for (let i = 0; i < artworks.length; i++) {
       const artwork = artworks[i];
+      const artworkAny = artwork as any;
       let artworkContent = `${i + 1}. `;
       
-      // 1. URL to public image of the artwork as HTML
-      if ((artwork as any).primary_image_url) {
-        artworkContent += `<a href="${(artwork as any).primary_image_url}">${(artwork as any).primary_image_url}</a>\n`;
+      // 1. URL to public image of the artwork as HTML - use primary_image_url if available
+      let imageUrl = null;
+      if (artworkAny.primary_image_url) {
+        imageUrl = artworkAny.primary_image_url;
+      } else {
+        // Fallback to finding image from artwork_images array
+        const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+        if (primaryImage) {
+          // Try different URL sources in order of preference, using correct bucket
+          if (primaryImage.medium_storage_path) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}`;
+          }
+          else if (primaryImage.large_storage_path) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.large_storage_path}`;
+          }
+          else if (primaryImage.thumbnail_storage_path) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.thumbnail_storage_path}`;
+          }
+        }
+      }
+      
+      if (imageUrl) {
+        artworkContent += `<a href="${imageUrl}">${imageUrl}</a>\n`;
+        console.log(`Found image for ${artwork.title}: ${imageUrl}`);
       }
       
       // 2. Artist Name
@@ -168,7 +189,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
       
       // 6. Framed Dimensions
-      const artworkAny = artwork as any;
       if (artworkAny.frame_width && artworkAny.frame_height) {
         let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
         if (artworkAny.frame_depth) {
@@ -182,60 +202,12 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
       }
       
-      // 8. Current Location
+      // 8. Current Location - ensure we get location name, not ID
       if (artworkAny.location_name) {
         artworkContent += `Location: ${artworkAny.location_name}\n`;
-      } else if (artwork.location_id) {
-        artworkContent += `Location ID: ${artwork.location_id}\n`;
       }
 
-      contentText += artworkContent;
-      
-      // Find primary image URL - collect for separate processing
-      const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
-      
-      if (primaryImage) {
-        let imageUrl = null;
-        
-        // Try different URL sources in order of preference
-        if (primaryImage.medium_url && 
-            primaryImage.medium_url.startsWith('http') && 
-            !primaryImage.medium_url.endsWith('/processing')) {
-          imageUrl = primaryImage.medium_url;
-        }
-        else if (primaryImage.image_url && 
-                 primaryImage.image_url.startsWith('http') && 
-                 !primaryImage.image_url.endsWith('/processing')) {
-          imageUrl = primaryImage.image_url;
-        }
-        else if (primaryImage.thumbnail_url && 
-                 primaryImage.thumbnail_url.startsWith('http') && 
-                 !primaryImage.thumbnail_url.endsWith('/processing')) {
-          imageUrl = primaryImage.thumbnail_url;
-        }
-        else if (primaryImage.medium_storage_path) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
-        }
-        else if (primaryImage.large_storage_path) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}`;
-        }
-        else if (primaryImage.image_url && !primaryImage.image_url.startsWith('http')) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.image_url}`;
-        }
-
-        if (imageUrl) {
-          console.log(`Found image for ${artwork.title}: ${imageUrl}`);
-          imageRequests.push({
-            artworkTitle: artwork.title,
-            imageUrl: imageUrl,
-            insertIndex: headerText.length + contentText.length + 1
-          });
-        } else {
-          console.log(`No valid image URL found for ${artwork.title}`);
-        }
-      }
-
-      contentText += '─'.repeat(50) + '\n\n';
+      contentText += artworkContent + '\n';
     }
 
     // Step 1: Insert all text content first
@@ -275,44 +247,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("No text content to add - this shouldn't happen!");
     }
 
-    // Step 2: Try to add images separately (so text content isn't lost if images fail)
-    if (imageRequests.length > 0) {
-      console.log("=== ADDING IMAGES ===");
-      console.log(`Attempting to add ${imageRequests.length} images...`);
-      
-      for (const imageReq of imageRequests) {
-        const imageRequest = [{
-          insertInlineImage: {
-            location: { index: imageReq.insertIndex },
-            uri: imageReq.imageUrl,
-            objectSize: {
-              height: { magnitude: 200, unit: "PT" },
-              width: { magnitude: 200, unit: "PT" }
-            }
-          }
-        }];
-
-        try {
-          const imageResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ requests: imageRequest })
-          });
-
-          if (!imageResponse.ok) {
-            const errorText = await imageResponse.text();
-            console.error(`Failed to add image for ${imageReq.artworkTitle}:`, imageResponse.status, errorText);
-          } else {
-            console.log(`Successfully added image for ${imageReq.artworkTitle}`);
-          }
-        } catch (error) {
-          console.error(`Error adding image for ${imageReq.artworkTitle}:`, error);
-        }
-      }
-    }
+    // Images are included as HTML links in the text content above
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
     

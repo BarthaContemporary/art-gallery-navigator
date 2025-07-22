@@ -135,6 +135,11 @@ export function useExportArtworksToGoogleDocs() {
           currency: artwork.currency,
           status: artwork.status,
           location_id: artwork.location_id,
+          location_name: (artwork as any).locations?.name,
+          ai_description: (artwork as any).ai_description,
+          frame_width: (artwork as any).frame_width,
+          frame_height: (artwork as any).frame_height,
+          frame_depth: (artwork as any).frame_depth,
           primary_image_url: primaryImageUrl,
           artwork_images: processedImages
         };
