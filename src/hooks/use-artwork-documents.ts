@@ -38,15 +38,46 @@ export function useDeleteArtworkDocument() {
 
   return useMutation({
     mutationFn: async ({ documentId, artworkId }: { documentId: string; artworkId: string }) => {
-      // Remove the link by setting artwork_id to null
-      const { error } = await supabase
+      // Check if document is linked to other entities before deletion
+      const { data: document, error: fetchError } = await supabase
         .from("documents")
-        .update({ artwork_id: null })
+        .select("id, artwork_id, collection_id, artist_id, folder_id")
         .eq("id", documentId)
-        .eq("artwork_id", artworkId);
+        .single();
 
-      if (error) {
-        throw error;
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // If document is only linked to this artwork, delete it entirely
+      // Otherwise, just remove the artwork link
+      const isOnlyLinkedToArtwork = document.artwork_id === artworkId && 
+                                   !document.collection_id && 
+                                   !document.artist_id && 
+                                   !document.folder_id;
+
+      if (isOnlyLinkedToArtwork) {
+        // Delete the document entirely
+        const { error: deleteError } = await supabase
+          .from("documents")
+          .delete()
+          .eq("id", documentId)
+          .eq("artwork_id", artworkId);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+      } else {
+        // Just remove the artwork link
+        const { error: updateError } = await supabase
+          .from("documents")
+          .update({ artwork_id: null })
+          .eq("id", documentId)
+          .eq("artwork_id", artworkId);
+
+        if (updateError) {
+          throw updateError;
+        }
       }
 
       return { documentId, artworkId };
