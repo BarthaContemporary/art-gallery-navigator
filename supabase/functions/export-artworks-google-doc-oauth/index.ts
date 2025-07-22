@@ -190,7 +190,17 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `${artwork.dimensions}\n`;
       }
       
-      // 5. Framed Dimensions
+      // 5. Price
+      if (artwork.price && artwork.currency) {
+        const formattedPrice = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: artwork.currency,
+          minimumFractionDigits: 0
+        }).format(artwork.price);
+        artworkContent += `Price: ${formattedPrice}\n`;
+      }
+      
+      // 6. Framed Dimensions
       if (artworkAny.frame_width && artworkAny.frame_height) {
         let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
         if (artworkAny.frame_depth) {
@@ -199,12 +209,12 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `Framed: ${framedDimensions} cm\n`;
       }
       
-      // 6. AI Description (if available)
+      // 7. AI Description (if available)
       if (artworkAny.ai_description) {
         artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
       }
       
-      // 7. Current Location
+      // 8. Current Location
       if (artwork.location_id) {
         const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
         artworkContent += `Location: ${locationName}\n`;
@@ -215,20 +225,25 @@ const handler = async (req: Request): Promise<Response> => {
       let imageUrl = null;
       
       if (primaryImage) {
-        // First try the primary_image_url from the artwork data if available
-        if (artworkAny.primary_image_url && artworkAny.primary_image_url.startsWith('http')) {
-          imageUrl = artworkAny.primary_image_url;
-        }
-        // Then try storage paths in the correct public bucket
-        else if (primaryImage.medium_storage_path) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
-        }
-        else if (primaryImage.large_storage_path) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}`;
-        }
-        else if (primaryImage.thumbnail_storage_path) {
-          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.thumbnail_storage_path}`;
-        }
+        console.log(`Processing image for ${title}:`, {
+          primary_image_url: artworkAny.primary_image_url,
+          medium_storage_path: primaryImage.medium_storage_path,
+          large_storage_path: primaryImage.large_storage_path,
+          thumbnail_storage_path: primaryImage.thumbnail_storage_path
+        });
+        
+        // Try multiple approaches in priority order
+        const candidates = [
+          // Try the primary storage paths in the main public bucket
+          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}` : null,
+          primaryImage.large_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.large_storage_path}` : null,
+          primaryImage.thumbnail_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.thumbnail_storage_path}` : null,
+          // Try the primary_image_url if it exists and looks valid
+          (artworkAny.primary_image_url && artworkAny.primary_image_url.startsWith('http') && !artworkAny.primary_image_url.includes('processing')) ? artworkAny.primary_image_url : null
+        ].filter(Boolean);
+        
+        imageUrl = candidates[0] || null;
+        console.log(`Selected image URL for ${title}: ${imageUrl}`);
       }
       
       if (imageUrl) {
