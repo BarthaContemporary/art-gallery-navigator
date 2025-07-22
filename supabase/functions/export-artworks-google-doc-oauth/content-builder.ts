@@ -115,6 +115,7 @@ export function buildBatchRequests(
     currentIndex += textContent.length;
 
     // Temporarily disable image insertion until we fix the "too large" issue
+    // Force redeploy - v2
     const imageResult = imageResults.get(artwork.id);
     if (imageResult) {
       // Add image URL as text for now
