@@ -1,11 +1,22 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { FileText, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink, Trash2, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArtworkDocument } from '@/hooks/use-artwork-documents';
+import { ArtworkDocument, useDeleteArtworkDocument } from '@/hooks/use-artwork-documents';
 import { DocumentPreview } from './DocumentPreview';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DocumentCardProps {
   document: ArtworkDocument;
@@ -13,10 +24,19 @@ interface DocumentCardProps {
 
 export function DocumentCard({ document }: DocumentCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
-
+  const deleteDocument = useDeleteArtworkDocument();
 
   const handleView = () => {
     setPreviewOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!document.artwork_id) return;
+    
+    deleteDocument.mutate({
+      documentId: document.id,
+      artworkId: document.artwork_id,
+    });
   };
 
   return (
@@ -56,6 +76,42 @@ export function DocumentCard({ document }: DocumentCardProps) {
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Remove document link"
+                        disabled={deleteDocument.isPending}
+                      >
+                        {deleteDocument.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Document Link</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to remove the link to "{document.file_name}" from this artwork? 
+                          The document will not be deleted, only the link will be removed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleDelete}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Remove Link
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>
