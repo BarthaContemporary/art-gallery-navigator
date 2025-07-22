@@ -41,6 +41,7 @@ export function isCompleteCloudinaryUrl(url: string): boolean {
   return url && 
     url.includes('res.cloudinary.com') && 
     !url.includes('/processing') && 
+    !url.includes('%2F') && // Skip URL-encoded paths that are invalid
     (url.startsWith('http://') || url.startsWith('https://'));
 }
 
@@ -60,7 +61,7 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     medium_storage_path: imageRecord.medium_storage_path
   });
 
-  // Only use Cloudinary URLs for Google Docs compatibility
+  // Try Cloudinary URLs first
   const cloudinaryUrls = [
     imageRecord.medium_url,
     imageRecord.thumbnail_url,
@@ -74,6 +75,21 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     }
   }
 
-  console.warn(`[findBestImageUrl] No valid Cloudinary URL found for Google Docs export, image record:`, imageRecord.id);
+  // Fallback to Supabase storage for Google Docs
+  const storagePaths = [
+    imageRecord.medium_storage_path,
+    imageRecord.large_storage_path,
+    imageRecord.thumbnail_storage_path
+  ].filter(Boolean);
+
+  for (const path of storagePaths) {
+    const url = constructSupabaseStorageUrl(path, 'artwork-images-processed');
+    if (await validateImageUrl(url)) {
+      console.log(`[findBestImageUrl] Using valid storage URL: ${url}`);
+      return { url, isValid: true, source: 'supabase_processed' };
+    }
+  }
+
+  console.warn(`[findBestImageUrl] No valid image URL found for Google Docs export, image record:`, imageRecord.id);
   return null;
 }
