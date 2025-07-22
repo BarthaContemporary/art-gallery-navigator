@@ -1,6 +1,45 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { insertImageAtIndex } from "./document-operations.ts";
+
+const GOOGLE_API_URL = "https://docs.googleapis.com/v1/documents";
+
+async function insertImageAtIndex(documentId: string, accessToken: string, index: number, imageUrl: string) {
+  // Convert 4cm to points (1 cm = 28.35 points)
+  const maxHeightPoints = 4 * 28.35;
+  
+  const response = await fetch(`${GOOGLE_API_URL}/${documentId}:batchUpdate`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          insertInlineImage: {
+            location: { index },
+            uri: imageUrl,
+            objectSize: {
+              height: {
+                magnitude: maxHeightPoints,
+                unit: "PT"
+              },
+              width: {
+                magnitude: maxHeightPoints, // Will be adjusted proportionally by Google Docs
+                unit: "PT"
+              }
+            }
+          }
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to insert image: ${response.status} - ${errorText}`);
+  }
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
