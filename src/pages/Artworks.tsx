@@ -13,6 +13,7 @@ import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
+import { NewCollectionFromArtworksButton } from "@/components/artworks/NewCollectionFromArtworksButton";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
 import { useAuth } from "@/hooks/use-auth";
@@ -121,6 +122,7 @@ export default function Artworks() {
       <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
         <div className="flex items-center gap-2">
           <CreateArtworkDialog />
+          <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
           {isAdmin && (
             <>
               <ExportToGoogleSheetsButton artworks={artworks} />
