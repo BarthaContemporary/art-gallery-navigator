@@ -125,7 +125,7 @@ export default function Artworks() {
           <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
           {isAdmin && (
             <>
-              <ExportToGoogleSheetsButton artworks={artworks} />
+              <ExportToGoogleSheetsButton artworks={filteredArtworks} />
               <ImportCSVDialog />
             </>
           )}

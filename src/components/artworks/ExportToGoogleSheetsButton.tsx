@@ -16,7 +16,9 @@ export function ExportToGoogleSheetsButton({
   const { exportToGoogleSheets, isExporting } = useExportArtworksToGoogleSheets();
 
   const handleExport = async () => {
-    const title = filename || `Artwork List - ${new Date().toLocaleDateString()}`;
+    const date = new Date().toLocaleDateString();
+    const count = artworks.length;
+    const title = filename || `Artwork Export (${count} works) - ${date}`;
     await exportToGoogleSheets(artworks, title);
   };
 
