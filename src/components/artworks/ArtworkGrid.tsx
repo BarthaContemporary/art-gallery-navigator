@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 interface ArtworkGridProps {
   artworks: Artwork[];
   loading?: boolean;
+  onScrollToTop?: () => void;
 }
 
-export function ArtworkGrid({ artworks, loading }: ArtworkGridProps) {
+export function ArtworkGrid({ artworks, loading, onScrollToTop }: ArtworkGridProps) {
   const groupedArtworks = useMemo(() => {
     if (!artworks || artworks.length === 0) return [];
 
@@ -33,7 +34,11 @@ export function ArtworkGrid({ artworks, loading }: ArtworkGridProps) {
   }, [artworks]);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (onScrollToTop) {
+      onScrollToTop();
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   if (loading) {

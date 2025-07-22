@@ -186,6 +186,7 @@ export default function Artworks() {
       <ArtworkGrid
         artworks={filteredArtworks}
         loading={isLoading}
+        onScrollToTop={handleScrollToTop}
       />
     </div>
   );
