@@ -202,9 +202,9 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
       }
       
-      // 8. Current Location - ensure we get location name, not ID
-      if (artworkAny.location_name) {
-        artworkContent += `Location: ${artworkAny.location_name}\n`;
+      // 8. Current Location - only show if location_id is available
+      if (artwork.location_id) {
+        artworkContent += `Location ID: ${artwork.location_id}\n`;
       }
 
       contentText += artworkContent + '\n';

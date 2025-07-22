@@ -50,9 +50,6 @@ export interface Artwork {
     full_name: string;
     surname_first_letter?: string;
   };
-  locations?: {
-    name: string;
-  } | null;
   artwork_images?: ArtworkImage[];
 }
 

@@ -58,9 +58,6 @@ export function useArtworks() {
             full_name,
             surname_first_letter
           ),
-          locations(
-            name
-          ),
           artwork_images(
             id,
             artwork_id,
@@ -90,7 +87,6 @@ export function useArtworks() {
       return (data || []).map(artwork => ({
         ...artwork,
         artist_name: artwork.artists?.full_name || 'Unknown Artist',
-        locations: (artwork as any).locations?.[0] || null,
         artwork_images: (artwork.artwork_images || []).sort((a, b) => {
           // Primary images first, then by display order
           if (a.is_primary && !b.is_primary) return -1;
