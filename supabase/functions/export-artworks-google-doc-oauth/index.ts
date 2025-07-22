@@ -156,41 +156,72 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Build all text content first
     let allTextContent = "";
-    const imageInsertions: { index: number; url: string; title: string }[] = [];
+    const imageInsertions: { url: string; title: string }[] = [];
     
     for (let i = 0; i < artworks.length; i++) {
       const artwork = artworks[i];
       const artworkAny = artwork as any;
       
-      // Build artwork text content
-      let artworkContent = `${i + 1}. `;
+      // 1. First find image URL
+      const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+      let imageUrl = null;
       
-      // Track where to insert image (after the artwork number)
-      const imageInsertionIndex = allTextContent.length + artworkContent.length + 1; // +1 for document start
+      if (primaryImage) {
+        console.log(`Processing image for ${artwork.title}:`, {
+          primary_image_url: artworkAny.primary_image_url,
+          medium_storage_path: primaryImage.medium_storage_path,
+        });
+        
+        // Try processed bucket first, then original
+        imageUrl = primaryImage.medium_storage_path ? 
+          `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}` :
+          null;
+
+        // Fallback to original bucket
+        if (!imageUrl && primaryImage.medium_storage_path) {
+          imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}`;
+        }
+        
+        console.log(`Selected image URL: ${imageUrl}`);
+      }
+
+      // 2. Build text content
+      let artworkContent = "";
       
-      // 1. Artist Name
+      // Now add the text content
+      artworkContent += `${i + 1}. `; // Artwork number
+
+      // Add image to list for later insertion
+      if (imageUrl) {
+        imageInsertions.push({
+          url: imageUrl,
+          title: artwork.title || "Untitled"
+        });
+      }
+      
+      // Artist Name
       if (artwork.artist_name && artwork.artist_name.trim() !== '') {
         artworkContent += `${artwork.artist_name}\n`;
       } else {
         artworkContent += "Artist information not available\n";
       }
       
-      // 2. Title + Year (on same line)
+      // Title + Year
       const title = artwork.title || "Untitled";
       const year = artwork.year ? `, ${artwork.year}` : "";
       artworkContent += `${title}${year}\n`;
       
-      // 3. Materials
+      // Materials
       if (artwork.materials) {
         artworkContent += `${artwork.materials}\n`;
       }
       
-      // 4. Dimensions
+      // Dimensions
       if (artwork.dimensions) {
         artworkContent += `${artwork.dimensions}\n`;
       }
       
-      // 5. Price
+      // Price
       if (artwork.price && artwork.currency) {
         const formattedPrice = new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -200,7 +231,7 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `Price: ${formattedPrice}\n`;
       }
       
-      // 6. Framed Dimensions
+      // Framed Dimensions
       if (artworkAny.frame_width && artworkAny.frame_height) {
         let framedDimensions = `${artworkAny.frame_width} x ${artworkAny.frame_height}`;
         if (artworkAny.frame_depth) {
@@ -209,53 +240,15 @@ const handler = async (req: Request): Promise<Response> => {
         artworkContent += `Framed: ${framedDimensions} cm\n`;
       }
       
-      // 7. AI Description (if available)
+      // AI Description
       if (artworkAny.ai_description) {
         artworkContent += `AI Description: ${artworkAny.ai_description}\n`;
       }
       
-      // 8. Current Location
+      // Location
       if (artwork.location_id) {
         const locationName = locationMap.get(artwork.location_id) || 'Unknown Location';
         artworkContent += `Location: ${locationName}\n`;
-      }
-
-      // Find image URL for later insertion
-      const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
-      let imageUrl = null;
-      
-      if (primaryImage) {
-        console.log(`Processing image for ${title}:`, {
-          primary_image_url: artworkAny.primary_image_url,
-          medium_storage_path: primaryImage.medium_storage_path,
-          large_storage_path: primaryImage.large_storage_path,
-          thumbnail_storage_path: primaryImage.thumbnail_storage_path
-        });
-        
-        // Try multiple approaches in priority order
-        const candidates = [
-          // First try the primary_image_url if it exists and looks valid (this should be the processed bucket)
-          (artworkAny.primary_image_url && artworkAny.primary_image_url.startsWith('http') && !artworkAny.primary_image_url.includes('processing')) ? artworkAny.primary_image_url : null,
-          // Try the artwork-images-processed bucket with storage paths
-          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}` : null,
-          primaryImage.large_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.large_storage_path}` : null,
-          primaryImage.thumbnail_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.thumbnail_storage_path}` : null,
-          // Fallback to the original artwork-images bucket
-          primaryImage.medium_storage_path ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images/${primaryImage.medium_storage_path}` : null
-        ].filter(Boolean);
-        
-        imageUrl = candidates[0] || null;
-        console.log(`Selected image URL for ${title}: ${imageUrl}`);
-      }
-      
-      if (imageUrl) {
-        imageInsertions.push({
-          index: imageInsertionIndex,
-          url: imageUrl,
-          title: title
-        });
-        artworkContent += "\n"; // Space where image will be inserted
-        console.log(`Will insert image for ${title} at index ${imageInsertionIndex}: ${imageUrl}`);
       }
       
       allTextContent += artworkContent;
@@ -309,7 +302,16 @@ const handler = async (req: Request): Promise<Response> => {
     let successfulImages = 0;
     for (const imageData of imageInsertions) {
       try {
-        console.log(`Attempting to insert image for "${imageData.title}" at index ${imageData.index}`);
+        // Get current document length to append at the end
+        const docResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+          }
+        });
+        const docData = await docResponse.json();
+        const endIndex = docData.body.content[docData.body.content.length - 1].endIndex;
+        
+        console.log(`Inserting image for "${imageData.title}" at end of document (index: ${endIndex})`);
         
         const imageResponse = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
           method: "POST",
@@ -318,16 +320,26 @@ const handler = async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            requests: [{
-              insertInlineImage: {
-                location: { index: imageData.index },
-                uri: imageData.url,
-                objectSize: {
-                  height: { magnitude: 113.4, unit: "PT" },
-                  width: { magnitude: 113.4, unit: "PT" }
+            requests: [
+              // First add a newline
+              {
+                insertText: {
+                  location: { index: endIndex },
+                  text: "\n"
+                }
+              },
+              // Then add the image
+              {
+                insertInlineImage: {
+                  location: { index: endIndex + 1 },
+                  uri: imageData.url,
+                  objectSize: {
+                    height: { magnitude: 113.4, unit: "PT" },
+                    width: { magnitude: 113.4, unit: "PT" }
+                  }
                 }
               }
-            }]
+            ]
           })
         });
         
