@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { insertImageAtIndex } from "./document-operations.ts";
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -132,15 +133,16 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing ${artworks.length} artworks...`);
     console.log("First artwork details:", JSON.stringify(artworks[0], null, 2));
 
-    // Build all text content
+    // Build all text content and collect image data
     let contentText = "";
+    const artworkImages: { index: number; url: string; artworkTitle: string }[] = [];
 
     for (let i = 0; i < artworks.length; i++) {
       const artwork = artworks[i];
       const artworkAny = artwork as any;
       let artworkContent = `${i + 1}. `;
       
-      // 1. URL to public image of the artwork as HTML - use primary_image_url if available
+      // 1. Find image URL for later insertion
       let imageUrl = null;
       if (artworkAny.primary_image_url) {
         imageUrl = artworkAny.primary_image_url;
@@ -175,8 +177,16 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
+      // Store image data for later insertion
       if (imageUrl) {
-        artworkContent += `<a href="${imageUrl}">${imageUrl}</a>\n`;
+        // Calculate the index where the image should be inserted (after the artwork number)
+        const currentTextLength = headerText.length + 1 + contentText.length + artworkContent.length;
+        artworkImages.push({
+          index: currentTextLength,
+          url: imageUrl,
+          artworkTitle: artwork.title || "Untitled"
+        });
+        artworkContent += "\n"; // Add space where image will be inserted
         console.log(`Found image for ${artwork.title}: ${imageUrl}`);
       }
       
@@ -261,7 +271,20 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("No text content to add - this shouldn't happen!");
     }
 
-    // Images are included as HTML links in the text content above
+    // Step 2: Insert images at their calculated positions
+    console.log("=== INSERTING IMAGES ===");
+    console.log(`Found ${artworkImages.length} images to insert`);
+    
+    for (const imageData of artworkImages) {
+      try {
+        console.log(`Inserting image for "${imageData.artworkTitle}" at index ${imageData.index}`);
+        await insertImageAtIndex(documentId, accessToken, imageData.index, imageData.url);
+        console.log(`Successfully inserted image for "${imageData.artworkTitle}"`);
+      } catch (error) {
+        console.error(`Failed to insert image for "${imageData.artworkTitle}":`, error);
+        // Continue with other images even if one fails
+      }
+    }
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
     
