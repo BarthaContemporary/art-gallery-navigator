@@ -73,6 +73,8 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     if (await validateImageUrl(url)) {
       console.log(`[findBestImageUrl] Using valid storage URL: ${url}`);
       return { url, isValid: true, source: 'supabase_processed' };
+    } else {
+      console.log(`[findBestImageUrl] Storage URL failed validation: ${url}`);
     }
   }
 
@@ -82,6 +84,8 @@ export async function findBestImageUrl(imageRecord: any): Promise<ImageValidatio
     if (await validateImageUrl(url)) {
       console.log(`[findBestImageUrl] Using original storage URL: ${url}`);
       return { url, isValid: true, source: 'supabase_original' };
+    } else {
+      console.log(`[findBestImageUrl] Original storage URL failed validation: ${url}`);
     }
   }
 
