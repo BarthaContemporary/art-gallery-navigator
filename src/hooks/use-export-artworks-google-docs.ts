@@ -93,6 +93,19 @@ export function useExportArtworksToGoogleDocs() {
         // Get artist name from multiple possible sources
         const artistName = artwork.artist_name || artwork.artists?.full_name || "Artist information not available";
         
+        // Get primary image URL for =IMAGE() function
+        const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+        let primaryImageUrl = '';
+        
+        if (primaryImage) {
+          // Try to get the best available URL
+          if (primaryImage.medium_storage_path) {
+            primaryImageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}`;
+          } else if (primaryImage.image_url && !primaryImage.image_url.includes('/processing')) {
+            primaryImageUrl = primaryImage.image_url;
+          }
+        }
+        
         // Ensure all artwork images are included with ALL URL variants for better compatibility
         const processedImages = artwork.artwork_images?.map(img => ({
           id: img.id,
@@ -122,6 +135,7 @@ export function useExportArtworksToGoogleDocs() {
           currency: artwork.currency,
           status: artwork.status,
           location_id: artwork.location_id,
+          primary_image_url: primaryImageUrl,
           artwork_images: processedImages
         };
       });

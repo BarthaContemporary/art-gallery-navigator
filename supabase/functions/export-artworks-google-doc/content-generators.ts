@@ -11,6 +11,11 @@ export function generateHeaderContent(artworks: Artwork[]): string {
 export function generateArtworkContent(artwork: Artwork, index: number): string {
   let content = `${index}. `;
   
+  // Add =IMAGE() function if primary image URL is available
+  if ((artwork as any).primary_image_url) {
+    content += `=IMAGE("${(artwork as any).primary_image_url}")\n`;
+  }
+  
   // Artist name - improved logic to handle artist_name field properly
   if (artwork.artist_name && artwork.artist_name.trim() !== '') {
     content += `${artwork.artist_name}\n`;
