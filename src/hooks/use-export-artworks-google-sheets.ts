@@ -79,8 +79,22 @@ export function useExportArtworksToGoogleSheets() {
         // Get artist name from multiple possible sources
         const artistName = artwork.artist_name || artwork.artists?.full_name || "Artist information not available";
         
+        // Get primary image URL
+        const primaryImage = artwork.artwork_images?.find(img => img.is_primary) || artwork.artwork_images?.[0];
+        let imageUrl = '';
+        
+        if (primaryImage) {
+          // Try to get the best available URL
+          if (primaryImage.medium_storage_path) {
+            imageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}`;
+          } else if (primaryImage.image_url && !primaryImage.image_url.includes('/processing')) {
+            imageUrl = primaryImage.image_url;
+          }
+        }
+        
         return {
           id: artwork.id,
+          image_url: imageUrl,
           title: artwork.title,
           artist_name: artistName,
           year: artwork.year,
@@ -104,6 +118,7 @@ export function useExportArtworksToGoogleSheets() {
       console.log("Artwork data prepared for export:", artworkData.map(a => ({ 
         title: a.title, 
         artist_name: a.artist_name, 
+        image_url: a.image_url ? 'YES' : 'NO',
         images: a.image_count
       })));
 

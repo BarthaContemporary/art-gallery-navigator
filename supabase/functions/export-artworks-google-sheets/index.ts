@@ -7,6 +7,7 @@ const corsHeaders = {
 
 interface ArtworkData {
   id: string;
+  image_url: string;
   title: string;
   artist_name: string;
   year?: number;
@@ -100,7 +101,7 @@ serve(async (req) => {
             title: 'Artworks',
             gridProperties: {
               rowCount: body.artworks.length + 2,
-              columnCount: 20,
+              columnCount: 18, // Updated for the new Image column
             },
           },
         }],
@@ -145,13 +146,14 @@ serve(async (req) => {
 
     // Prepare data for the spreadsheet
     const headers = [
-      'Title', 'Artist', 'Year', 'Medium Type', 'Materials', 'Dimensions',
+      'Image', 'Title', 'Artist', 'Year', 'Medium Type', 'Materials', 'Dimensions',
       'Price', 'Currency', 'Status', 'Classification', 'Condition',
       'Signature Type', 'Provenance', 'Exhibition History', 'Story',
       'AI Description', 'Image Count'
     ];
 
     const rows = body.artworks.map(artwork => [
+      artwork.image_url ? `=IMAGE("${artwork.image_url}")` : '', // Google Sheets IMAGE function
       artwork.title || '',
       artwork.artist_name || '',
       artwork.year || '',
@@ -171,9 +173,9 @@ serve(async (req) => {
       artwork.image_count || 0
     ]);
 
-    // Add data to the spreadsheet
+    // Add data to the spreadsheet - use USER_ENTERED to allow formulas
     const updateResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Artworks!A1:Q${rows.length + 1}?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Artworks!A1:R${rows.length + 1}?valueInputOption=USER_ENTERED`,
       {
         method: 'PUT',
         headers: {
@@ -237,6 +239,34 @@ serve(async (req) => {
                   },
                 },
                 fields: 'userEnteredFormat(textFormat,backgroundColor)',
+              },
+            },
+            {
+              updateDimensionProperties: {
+                range: {
+                  sheetId: 0,
+                  dimension: 'COLUMNS',
+                  startIndex: 0, // Image column
+                  endIndex: 1,
+                },
+                properties: {
+                  pixelSize: 120, // Make image column wider
+                },
+                fields: 'pixelSize',
+              },
+            },
+            {
+              updateDimensionProperties: {
+                range: {
+                  sheetId: 0,
+                  dimension: 'ROWS',
+                  startIndex: 1, // Start from row 2 (after header)
+                  endIndex: rows.length + 1,
+                },
+                properties: {
+                  pixelSize: 100, // Make artwork rows taller for better image display
+                },
+                fields: 'pixelSize',
               },
             },
             {
