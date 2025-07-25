@@ -12,11 +12,11 @@ export function Navigation() {
     { href: "/artists", icon: Users, name: "Artists" },
     { href: "/file-sharing", icon: Share2, name: "File Sharing" },
     { href: "/collections", icon: FolderOpen, name: "Collections" },
-    { href: "/appointments", icon: Calendar, name: "Appointments" },
     { href: "/locations", icon: MapPin, name: "Locations" },
   ];
 
   const adminNavItems = [
+    { href: "/appointments", icon: Calendar, name: "Appointments" },
     { href: "/crm", icon: Users, name: "CRM" },
     { href: "/projects", icon: Archive, name: "Projects" },
     { href: "/admin", icon: Settings, name: "Admin" },
