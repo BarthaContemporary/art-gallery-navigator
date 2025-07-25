@@ -153,22 +153,21 @@ export function useCreateArtworkForm({
           resetUploaded();
           form.reset(getArtworkInitialValues(undefined, isAdmin, currentUserArtist)); 
           
+          // Immediately invalidate queries to update the UI
+          queryClient.invalidateQueries({ queryKey: ['artworks'] });
+          queryClient.invalidateQueries({ queryKey: ['artwork-images'] });
+          queryClient.invalidateQueries({ queryKey: ['artwork', initialData?.id] });
+          
+          const safeTimeout = preventFreeze ? 500 : 250;
           setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['artworks'] });
-            queryClient.invalidateQueries({ queryKey: ['artwork-images'] }); // Ensure this matches actual query key if different
-            queryClient.invalidateQueries({ queryKey: ['artwork', initialData?.id] }); // For specific artwork
-            
-            const safeTimeout = preventFreeze ? 500 : 250;
-            setTimeout(() => {
-              if (onSuccessCallback) {
-                onSuccessCallback();
-              } else {
-                requestAnimationFrame(() => {
-                  setOpen(false);
-                });
-              }
-            }, safeTimeout);
-          }, 100);
+            if (onSuccessCallback) {
+              onSuccessCallback();
+            } else {
+              requestAnimationFrame(() => {
+                setOpen(false);
+              });
+            }
+          }, safeTimeout);
         },
         errorMessage: initialData
           ? "There was an error updating the artwork"
