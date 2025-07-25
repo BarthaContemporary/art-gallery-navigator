@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { RequireAuth } from "@/components/auth/RequireAuth";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AuthProvider } from "@/providers/auth-provider";
 import { LoadingProvider } from "@/contexts/loading-context";
 import { SecurityProvider } from "@/components/security/SecurityProvider";
@@ -60,7 +61,7 @@ function App() {
                   <Route path="projects" element={<Projects />} />
                   <Route path="locations" element={<Locations />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="appointments" element={<Appointments />} />
+                  <Route path="appointments" element={<AdminRoute><Appointments /></AdminRoute>} />
                   <Route path="crm" element={<CRM />} />
                   <Route path="chat" element={<Chat />} />
                   <Route path="admin" element={<UserSignup />} />
