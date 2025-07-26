@@ -94,10 +94,12 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
   const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
   const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
   
+  console.log('=== CREDENTIALS CHECK ===');
   console.log('API Key available:', !!apiKey);
   console.log('Search Engine ID available:', !!searchEngineId);
   console.log('API Key (first 10 chars):', apiKey?.substring(0, 10));
   console.log('Search Engine ID:', searchEngineId);
+  console.log('========================');
   
   if (!apiKey || !searchEngineId) {
     console.error('Google Custom Search API credentials not configured');
