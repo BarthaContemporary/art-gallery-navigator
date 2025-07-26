@@ -14,7 +14,7 @@ interface ImageSearchResult {
   medium?: string;
   dimensions?: string;
   sourceUrl: string;
-  source: 'artsy' | 'ocula';
+  source: 'artsy' | 'ocula' | 'google';
 }
 
 serve(async (req) => {
@@ -47,8 +47,8 @@ serve(async (req) => {
     
     // Search multiple sources in parallel
     const searchPromises = [
-      searchArtsy(searchQuery, artist, title),
-      searchOcula(searchQuery, artist, title)
+      searchCustomSearchSite(searchQuery, 'artsy.net', artist, title),
+      searchCustomSearchSite(searchQuery, 'ocula.com', artist, title)
     ];
     
     const searchResults = await Promise.allSettled(searchPromises);
@@ -62,6 +62,16 @@ serve(async (req) => {
         console.error(`${sourceName} search failed:`, result.reason);
       }
     });
+
+    // If we don't have enough results, search Google Images generally
+    if (results.length < 3) {
+      try {
+        const generalResults = await searchGeneralImages(searchQuery, artist, title);
+        results.push(...generalResults);
+      } catch (error) {
+        console.error('General Google Images search failed:', error);
+      }
+    }
 
     console.log(`Found ${results.length} total results for search: ${searchQuery}`);
     
@@ -79,78 +89,96 @@ serve(async (req) => {
   }
 });
 
-// Search Google for artwork images on specific sites
-async function searchWithGoogle(searchQuery: string, site: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
-  const googleQuery = `site:${site} "${artist}" "${title}" ${searchQuery}`;
-  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}&tbm=isch&safe=off`;
+// Use Google Custom Search API to search specific sites
+async function searchCustomSearchSite(searchQuery: string, site: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+  const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
+  const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
   
-  console.log(`Searching Google for: ${googleQuery}`);
-  
-  const response = await fetch(searchUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Cache-Control': 'max-age=0',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Google search failed for ${site}: ${response.status}`);
+  if (!apiKey || !searchEngineId) {
+    console.error('Google Custom Search API credentials not configured');
+    return [];
   }
 
-  const html = await response.text();
-  const results: ImageSearchResult[] = [];
+  const query = `site:${site} "${artist}" "${title}" ${searchQuery}`.trim();
+  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=10&safe=active`;
   
-  // Extract image URLs from Google Images search results
-  // Look for patterns that include our target sites
-  const imagePatterns = site === 'artsy.net' ? [
-    /https:\/\/d32dm0rphc51dk\.cloudfront\.net\/[^"'&]+\.(?:jpg|jpeg|png)/gi,
-    /https:\/\/[^"'&]*artsy[^"'&]*\.(?:jpg|jpeg|png)/gi,
-  ] : [
-    /https:\/\/[^"'&]*ocula[^"'&]*\.(?:jpg|jpeg|png)/gi,
-    /https:\/\/[^"'&]*cloudinary[^"'&]*ocula[^"'&]*\.(?:jpg|jpeg|png)/gi,
-  ];
+  console.log(`Searching ${site} with Custom Search API: ${query}`);
   
-  const allImages = new Set<string>();
-  imagePatterns.forEach(pattern => {
-    const matches = html.match(pattern) || [];
-    matches.forEach(url => {
-      // Clean up URL - remove any trailing parameters
-      const cleanUrl = url.split('&')[0].split('?')[0];
-      allImages.add(cleanUrl);
-    });
-  });
-  
-  const uniqueImages = Array.from(allImages).slice(0, 5);
-  
-  uniqueImages.forEach((imageUrl, i) => {
-    results.push({
-      title: title || `${site} Result ${i + 1}`,
-      artist: artist || 'Unknown Artist',
-      imageUrl: imageUrl,
-      sourceUrl: `https://${site}`,
-      source: site === 'artsy.net' ? 'artsy' : 'ocula',
-    });
-  });
-  
-  console.log(`Found ${results.length} images from ${site}`);
-  return results;
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Custom Search API failed for ${site}: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const results: ImageSearchResult[] = [];
+    
+    if (data.items) {
+      data.items.forEach((item: any, i: number) => {
+        if (item.link && item.link.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          results.push({
+            title: item.title || title || `${site} Result ${i + 1}`,
+            artist: artist || 'Unknown Artist',
+            imageUrl: item.link,
+            sourceUrl: item.image?.contextLink || `https://${site}`,
+            source: site === 'artsy.net' ? 'artsy' : 'ocula',
+          });
+        }
+      });
+    }
+    
+    console.log(`Found ${results.length} images from ${site} via Custom Search`);
+    return results.slice(0, 5);
+  } catch (error) {
+    console.error(`Custom Search failed for ${site}:`, error);
+    return [];
+  }
 }
 
-// Search Artsy.net via Google
-async function searchArtsy(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
-  return searchWithGoogle(searchQuery, 'artsy.net', artist, title);
-}
+// General Google Images search as fallback
+async function searchGeneralImages(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+  const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
+  const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
+  
+  if (!apiKey || !searchEngineId) {
+    console.error('Google Custom Search API credentials not configured');
+    return [];
+  }
 
-// Search Ocula.com via Google  
-async function searchOcula(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
-  return searchWithGoogle(searchQuery, 'ocula.com', artist, title);
+  const query = `"${artist}" "${title}" ${searchQuery} artwork art`.trim();
+  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=5&safe=active`;
+  
+  console.log(`Searching Google Images generally: ${query}`);
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Custom Search API failed for general search: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const results: ImageSearchResult[] = [];
+    
+    if (data.items) {
+      data.items.forEach((item: any, i: number) => {
+        if (item.link && item.link.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          results.push({
+            title: item.title || title || `Google Result ${i + 1}`,
+            artist: artist || 'Unknown Artist',
+            imageUrl: item.link,
+            sourceUrl: item.image?.contextLink || item.displayLink || 'https://google.com',
+            source: 'google',
+          });
+        }
+      });
+    }
+    
+    console.log(`Found ${results.length} images from general Google search`);
+    return results;
+  } catch (error) {
+    console.error('General Google Images search failed:', error);
+    return [];
+  }
 }
