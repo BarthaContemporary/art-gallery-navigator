@@ -45,6 +45,7 @@ export function useCreateArtworkForm({
   const {
     uploadedImageUrls,
     handleImagesUploaded,
+    handleArtsyImageSelected,
     resetUploaded
   } = useImageUpload(form);
 
@@ -183,7 +184,9 @@ export function useCreateArtworkForm({
     locations,
     onSubmit,
     handleImagesUploaded,
+    handleArtsyImageSelected,
     uploadedImageUrls,
+    resetUploaded,
     isSaving,
     isAdmin,
     currentUserArtist

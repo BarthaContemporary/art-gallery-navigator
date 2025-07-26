@@ -13,7 +13,12 @@ export function useImageUpload(form: UseFormReturn<ArtworkFormData>) {
     }
   };
 
+  const handleArtsyImageSelected = (url: string) => {
+    form.setValue("image_url", url);
+    setUploadedImageUrls([url]);
+  };
+
   const resetUploaded = () => setUploadedImageUrls([]);
 
-  return { uploadedImageUrls, handleImagesUploaded, resetUploaded };
+  return { uploadedImageUrls, handleImagesUploaded, handleArtsyImageSelected, resetUploaded };
 }

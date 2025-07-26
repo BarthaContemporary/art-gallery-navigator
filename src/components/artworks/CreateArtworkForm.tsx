@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react"; // Added useEffect
 import { CreateArtworkFormView } from "./form/CreateArtworkFormView";
 import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
@@ -30,8 +29,10 @@ export function CreateArtworkForm({
     artists,
     locations,
     onSubmit,
-    handleImagesUploaded,
     uploadedImageUrls,
+    handleImagesUploaded,
+    handleArtsyImageSelected,
+    resetUploaded,
     // initialData: initialDataFromHook, // This is already passed as prop
     isSaving,
     isAdmin,
@@ -55,6 +56,7 @@ export function CreateArtworkForm({
       artists={artists || []}
       locations={locations || []}
       handleImagesUploaded={handleImagesUploaded}
+      handleArtsyImageSelected={handleArtsyImageSelected}
       initialData={initialData}
       onSubmit={handleSubmit}
       isAdmin={isAdmin}

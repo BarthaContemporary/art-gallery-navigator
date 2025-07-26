@@ -63,3 +63,6 @@ verify_jwt = true
 
 [functions.ai-content-enhancer]
 verify_jwt = true
+
+[functions.search-artsy-images]
+verify_jwt = false

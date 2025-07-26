@@ -17,6 +17,7 @@ import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { VideoUploadFields } from "./VideoUploadFields";
 import { LocalImageUploader } from "../LocalImageUploader";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
+import { ArtsyImageSearch } from "./ArtsyImageSearch";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
 
@@ -26,6 +27,7 @@ interface CreateArtworkFormViewProps {
   artists: any[];
   locations: any[];
   handleImagesUploaded: (urls: string[]) => void;
+  handleArtsyImageSelected: (url: string) => void;
   initialData?: Artwork;
   onSubmit: (data: ArtworkFormData) => void;
   isAdmin: boolean;
@@ -43,6 +45,7 @@ export function CreateArtworkFormView({
   artists,
   locations,
   handleImagesUploaded,
+  handleArtsyImageSelected,
   initialData,
   onSubmit,
   isAdmin,
@@ -109,9 +112,17 @@ export function CreateArtworkFormView({
         {!initialData && (
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Upload Images</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Upload Images</label>
+                <ArtsyImageSearch
+                  onImageSelected={handleArtsyImageSelected}
+                  defaultArtist={form.getValues('artist_id') ? artists?.find(a => a.id === form.getValues('artist_id'))?.full_name : ''}
+                  defaultTitle={form.getValues('title')}
+                  defaultYear={form.getValues('year')}
+                />
+              </div>
               <p className="text-xs text-muted-foreground mb-4">
-                Upload high-quality images of your artwork. The first image will be set as primary.
+                Upload high-quality images of your artwork or search Artsy.net for similar pieces. The first image will be set as primary.
               </p>
               {artworkId ? (
                 <LocalImageUploader 
