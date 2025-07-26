@@ -94,8 +94,13 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
   const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
   const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
   
+  console.log('API Key available:', !!apiKey);
+  console.log('Search Engine ID available:', !!searchEngineId);
+  
   if (!apiKey || !searchEngineId) {
     console.error('Google Custom Search API credentials not configured');
+    console.error('API Key missing:', !apiKey);
+    console.error('Search Engine ID missing:', !searchEngineId);
     return [];
   }
 
@@ -107,15 +112,28 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
   try {
     const response = await fetch(url);
     
+    console.log(`API Response status for ${site}:`, response.status);
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Custom Search API failed for ${site}: ${response.status} - ${errorText}`);
       throw new Error(`Custom Search API failed for ${site}: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log(`API Response data for ${site}:`, JSON.stringify(data, null, 2));
+    
     const results: ImageSearchResult[] = [];
     
-    if (data.items) {
+    if (data.items && Array.isArray(data.items)) {
+      console.log(`Found ${data.items.length} items from ${site}`);
       data.items.forEach((item: any, i: number) => {
+        console.log(`Processing item ${i}:`, {
+          link: item.link,
+          title: item.title,
+          hasImage: !!item.image
+        });
+        
         if (item.link && item.link.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
           results.push({
             title: item.title || title || `${site} Result ${i + 1}`,
@@ -126,6 +144,8 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
           });
         }
       });
+    } else {
+      console.log(`No items found in response for ${site}:`, data);
     }
     
     console.log(`Found ${results.length} images from ${site} via Custom Search`);
