@@ -1,16 +1,30 @@
 import React, { useMemo } from "react";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, CheckSquare } from "lucide-react";
 import { Artwork } from "@/types/artwork";
 import { ArtworkCard } from "./ArtworkCard";
+import { ArtworkSelectionCard } from "./selection/ArtworkSelectionCard";
 import { Button } from "@/components/ui/button";
 
 interface ArtworkGridProps {
   artworks: Artwork[];
   loading?: boolean;
   onScrollToTop?: () => void;
+  // Selection props
+  isSelectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelection?: (artworkId: string) => void;
+  onEnterSelectionMode?: () => void;
 }
 
-export function ArtworkGrid({ artworks, loading, onScrollToTop }: ArtworkGridProps) {
+export function ArtworkGrid({ 
+  artworks, 
+  loading, 
+  onScrollToTop,
+  isSelectionMode = false,
+  selectedIds = new Set(),
+  onToggleSelection,
+  onEnterSelectionMode 
+}: ArtworkGridProps) {
   const groupedArtworks = useMemo(() => {
     if (!artworks || artworks.length === 0) return [];
 
@@ -94,20 +108,43 @@ export function ArtworkGrid({ artworks, loading, onScrollToTop }: ArtworkGridPro
                 {artworks.length} {artworks.length === 1 ? 'work' : 'works'}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={scrollToTop}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4 mr-1" />
-              Top
-            </Button>
+            <div className="flex items-center gap-2">
+              {!isSelectionMode && onEnterSelectionMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEnterSelectionMode}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                  Select
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={scrollToTop}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Top
+              </Button>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {artworks.map((artwork) => (
-              <ArtworkCard key={artwork.id} artwork={artwork} />
+              isSelectionMode ? (
+                <ArtworkSelectionCard
+                  key={artwork.id}
+                  artwork={artwork}
+                  isSelected={selectedIds.has(artwork.id)}
+                  isSelectionMode={isSelectionMode}
+                  onToggleSelection={onToggleSelection || (() => {})}
+                />
+              ) : (
+                <ArtworkCard key={artwork.id} artwork={artwork} />
+              )
             ))}
           </div>
         </div>

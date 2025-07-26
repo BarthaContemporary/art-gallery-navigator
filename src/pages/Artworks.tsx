@@ -4,18 +4,23 @@
  * Simple, reliable artwork management interface
  */
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { RefreshCw, Search, X, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
+import { ArtworkSelectionToolbar } from "@/components/artworks/selection/ArtworkSelectionToolbar";
+import { BulkDeleteDialog } from "@/components/artworks/dialogs/BulkDeleteDialog";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
 import { NewCollectionFromArtworksButton } from "@/components/artworks/NewCollectionFromArtworksButton";
+import { CreateCollectionDialog } from "@/components/artworks/dialogs/CreateCollectionDialog";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
+import { useArtworkSelection } from "@/hooks/use-artwork-selection";
+import { useBulkDeleteArtworks } from "@/components/artworks/hooks/useBulkDeleteArtworks";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import type { Artwork } from "@/types/artwork";
@@ -23,6 +28,8 @@ import type { Artwork } from "@/types/artwork";
 export default function Artworks() {
   const pageTopRef = useRef<HTMLDivElement>(null);
   const { isAdmin } = useAuth();
+  const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   
   const {
     data: artworks = [],
@@ -46,6 +53,23 @@ export default function Artworks() {
     clearFilters,
     hasActiveFilters
   } = useArtworkFilters(artworks, artists);
+
+  const {
+    selectedIds,
+    selectedArtworks,
+    selectedCount,
+    allSelected,
+    someSelected,
+    isSelectionMode,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    enterSelectionMode,
+    exitSelectionMode,
+    isSelected,
+  } = useArtworkSelection(filteredArtworks);
+
+  const { bulkDeleteArtworks, isDeleting } = useBulkDeleteArtworks();
 
   const isLoading = artworksLoading || artistsLoading;
   const hasError = artworksError || artistsError;
@@ -93,6 +117,20 @@ export default function Artworks() {
     toast.info(`Share functionality for "${artwork.title}" would be implemented here`);
   };
 
+  const handleCreateCollectionFromSelected = () => {
+    setShowCreateCollectionDialog(true);
+  };
+
+  const handleBulkDelete = () => {
+    setShowBulkDeleteDialog(true);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    await bulkDeleteArtworks(selectedArtworks);
+    exitSelectionMode();
+    setShowBulkDeleteDialog(false);
+  };
+
   if (hasError) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -118,75 +156,112 @@ export default function Artworks() {
     <div className="container mx-auto px-4 pt-4 pb-8 space-y-8">
       <div ref={pageTopRef} />
       
+      {/* Selection Toolbar */}
+      {isSelectionMode && (
+        <ArtworkSelectionToolbar
+          selectedCount={selectedCount}
+          allSelected={allSelected}
+          someSelected={someSelected}
+          onSelectAll={selectAll}
+          onClearSelection={clearSelection}
+          onCreateCollection={handleCreateCollectionFromSelected}
+          onBulkDelete={handleBulkDelete}
+          onExitSelectionMode={exitSelectionMode}
+        />
+      )}
+      
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-        <div className="flex items-center gap-2">
-          <CreateArtworkDialog />
-          <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
-          {isAdmin && (
-            <>
-              <ExportToGoogleSheetsButton artworks={filteredArtworks} />
-              <ImportCSVDialog />
-            </>
-          )}
+      {!isSelectionMode && (
+        <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+          <div className="flex items-center gap-2">
+            <CreateArtworkDialog />
+            <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
+            {isAdmin && (
+              <>
+                <ExportToGoogleSheetsButton artworks={filteredArtworks} />
+                <ImportCSVDialog />
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filters */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search artworks, artists, materials..."
-              value={filters.search}
-              onChange={(e) => updateFilter('search', e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          
-          {hasActiveFilters && (
+      {!isSelectionMode && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search artworks, artists, materials..."
+                value={filters.search}
+                onChange={(e) => updateFilter('search', e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
             <Button
               variant="outline"
-              onClick={clearFilters}
-              className="whitespace-nowrap"
+              onClick={handleRefresh}
+              disabled={isLoading}
             >
-              <X className="h-4 w-4 mr-2" />
-              Clear Filters
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          )}
+            
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="whitespace-nowrap"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+          
+          <ArtworkFilters
+            filters={filters}
+            filterOptions={{
+              statuses: filterOptions.statuses,
+              mediumTypes: filterOptions.mediumTypes,
+              artists: filterOptions.artists,
+              yearRange: filterOptions.yearRange as [number, number],
+              priceRange: filterOptions.priceRange as [number, number],
+            }}
+            onUpdateFilter={updateFilter}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+            artworkCount={filteredArtworks.length}
+          />
         </div>
-        
-        <ArtworkFilters
-          filters={filters}
-          filterOptions={{
-            statuses: filterOptions.statuses,
-            mediumTypes: filterOptions.mediumTypes,
-            artists: filterOptions.artists,
-            yearRange: filterOptions.yearRange as [number, number],
-            priceRange: filterOptions.priceRange as [number, number],
-          }}
-          onUpdateFilter={updateFilter}
-          onClearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters}
-          artworkCount={filteredArtworks.length}
-        />
-      </div>
+      )}
 
       {/* Grid */}
       <ArtworkGrid
         artworks={filteredArtworks}
         loading={isLoading}
         onScrollToTop={handleScrollToTop}
+        isSelectionMode={isSelectionMode}
+        selectedIds={selectedIds}
+        onToggleSelection={toggleSelection}
+        onEnterSelectionMode={enterSelectionMode}
+      />
+
+      {/* Dialogs */}
+      <CreateCollectionDialog
+        open={showCreateCollectionDialog}
+        onOpenChange={setShowCreateCollectionDialog}
+        filteredArtworks={selectedArtworks}
+      />
+
+      <BulkDeleteDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        artworks={selectedArtworks}
+        onConfirm={handleConfirmBulkDelete}
+        isDeleting={isDeleting}
       />
     </div>
   );
