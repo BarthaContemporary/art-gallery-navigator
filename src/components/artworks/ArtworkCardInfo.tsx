@@ -41,13 +41,12 @@ export function ArtworkCardInfo({ artwork, artistName, available }: ArtworkCardI
     >
       <div className="space-y-2">
         <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
-        <div className="flex items-baseline gap-2">
-          <h3 className="font-medium text-base leading-tight truncate" title={artwork.title}>
-            {truncatedTitle}
-          </h3>
-          {year && <span className="text-sm text-muted-foreground">{year}</span>}
-        </div>
-        {dimensions && <p className="text-sm text-muted-foreground">{dimensions}</p>}
+        <h3 className="font-medium text-base leading-tight truncate" title={artwork.title}>
+          {truncatedTitle}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {year && dimensions ? `${year}, ${dimensions}` : year || dimensions}
+        </p>
         <p className="text-xs text-muted-foreground">{artwork.medium_type}</p>
       </div>
       <div className="flex items-center mt-2">
