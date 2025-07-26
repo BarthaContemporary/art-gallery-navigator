@@ -79,9 +79,12 @@ serve(async (req) => {
   }
 });
 
-// Search Artsy.net for artwork images
-async function searchArtsy(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
-  const searchUrl = `https://www.artsy.net/search?q=${encodeURIComponent(searchQuery)}`;
+// Search Google for artwork images on specific sites
+async function searchWithGoogle(searchQuery: string, site: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+  const googleQuery = `site:${site} "${artist}" "${title}" ${searchQuery}`;
+  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}&tbm=isch&safe=off`;
+  
+  console.log(`Searching Google for: ${googleQuery}`);
   
   const response = await fetch(searchUrl, {
     headers: {
@@ -100,89 +103,54 @@ async function searchArtsy(searchQuery: string, artist?: string, title?: string)
   });
 
   if (!response.ok) {
-    throw new Error(`Artsy search failed: ${response.status}`);
+    throw new Error(`Google search failed for ${site}: ${response.status}`);
   }
 
   const html = await response.text();
   const results: ImageSearchResult[] = [];
   
-  // Look for various image patterns from Artsy
-  const imagePatterns = [
-    /https:\/\/d32dm0rphc51dk\.cloudfront\.net\/[^"']+\.(?:jpg|jpeg|png)/gi,
-    /https:\/\/[^"']*artsy[^"']*\.(?:jpg|jpeg|png)/gi,
+  // Extract image URLs from Google Images search results
+  // Look for patterns that include our target sites
+  const imagePatterns = site === 'artsy.net' ? [
+    /https:\/\/d32dm0rphc51dk\.cloudfront\.net\/[^"'&]+\.(?:jpg|jpeg|png)/gi,
+    /https:\/\/[^"'&]*artsy[^"'&]*\.(?:jpg|jpeg|png)/gi,
+  ] : [
+    /https:\/\/[^"'&]*ocula[^"'&]*\.(?:jpg|jpeg|png)/gi,
+    /https:\/\/[^"'&]*cloudinary[^"'&]*ocula[^"'&]*\.(?:jpg|jpeg|png)/gi,
   ];
   
   const allImages = new Set<string>();
   imagePatterns.forEach(pattern => {
     const matches = html.match(pattern) || [];
-    matches.forEach(url => allImages.add(url));
+    matches.forEach(url => {
+      // Clean up URL - remove any trailing parameters
+      const cleanUrl = url.split('&')[0].split('?')[0];
+      allImages.add(cleanUrl);
+    });
   });
   
   const uniqueImages = Array.from(allImages).slice(0, 5);
   
   uniqueImages.forEach((imageUrl, i) => {
     results.push({
-      title: title || `Artsy Result ${i + 1}`,
+      title: title || `${site} Result ${i + 1}`,
       artist: artist || 'Unknown Artist',
       imageUrl: imageUrl,
-      sourceUrl: searchUrl,
-      source: 'artsy',
+      sourceUrl: `https://${site}`,
+      source: site === 'artsy.net' ? 'artsy' : 'ocula',
     });
   });
   
+  console.log(`Found ${results.length} images from ${site}`);
   return results;
 }
 
-// Search Ocula.com for artwork images
+// Search Artsy.net via Google
+async function searchArtsy(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+  return searchWithGoogle(searchQuery, 'artsy.net', artist, title);
+}
+
+// Search Ocula.com via Google  
 async function searchOcula(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
-  const searchUrl = `https://ocula.com/search/?q=${encodeURIComponent(searchQuery)}`;
-  
-  const response = await fetch(searchUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Cache-Control': 'max-age=0',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ocula search failed: ${response.status}`);
-  }
-
-  const html = await response.text();
-  const results: ImageSearchResult[] = [];
-  
-  // Look for Ocula image patterns
-  const imagePatterns = [
-    /https:\/\/[^"']*ocula[^"']*\.(?:jpg|jpeg|png)/gi,
-    /https:\/\/[^"']*cloudinary[^"']*ocula[^"']*\.(?:jpg|jpeg|png)/gi,
-  ];
-  
-  const allImages = new Set<string>();
-  imagePatterns.forEach(pattern => {
-    const matches = html.match(pattern) || [];
-    matches.forEach(url => allImages.add(url));
-  });
-  
-  const uniqueImages = Array.from(allImages).slice(0, 5);
-  
-  uniqueImages.forEach((imageUrl, i) => {
-    results.push({
-      title: title || `Ocula Result ${i + 1}`,
-      artist: artist || 'Unknown Artist',
-      imageUrl: imageUrl,
-      sourceUrl: searchUrl,
-      source: 'ocula',
-    });
-  });
-  
-  return results;
+  return searchWithGoogle(searchQuery, 'ocula.com', artist, title);
 }
