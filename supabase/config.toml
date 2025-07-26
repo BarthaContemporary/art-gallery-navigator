@@ -64,5 +64,5 @@ verify_jwt = true
 [functions.ai-content-enhancer]
 verify_jwt = true
 
-[functions.search-artsy-images]
+[functions.targeted-image-search]
 verify_jwt = false

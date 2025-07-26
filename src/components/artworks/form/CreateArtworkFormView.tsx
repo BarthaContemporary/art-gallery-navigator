@@ -17,7 +17,7 @@ import { ProvenanceStoryFields } from "./ProvenanceStoryFields";
 import { VideoUploadFields } from "./VideoUploadFields";
 import { LocalImageUploader } from "../LocalImageUploader";
 import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialog";
-import { ArtsyImageSearch } from "./ArtsyImageSearch";
+import { TargetedImageSearch } from "./TargetedImageSearch";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
 
@@ -114,7 +114,7 @@ export function CreateArtworkFormView({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Upload Images</label>
-                <ArtsyImageSearch
+                <TargetedImageSearch
                   onImageSelected={handleArtsyImageSelected}
                   defaultArtist={form.getValues('artist_id') ? artists?.find(a => a.id === form.getValues('artist_id'))?.full_name : ''}
                   defaultTitle={form.getValues('title')}

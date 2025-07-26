@@ -19,7 +19,7 @@ import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { LocalImageUploader } from "./LocalImageUploader";
 import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import { ArtsyImageSearch } from "./form/ArtsyImageSearch";
+import { TargetedImageSearch } from "./form/TargetedImageSearch";
 import { useImageUpload } from "./form/useImageUpload";
 import { useForm } from "react-hook-form";
 import { ArtworkFormData } from "./form/types";
@@ -121,7 +121,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-sm font-medium">Upload New Images</h4>
-                    <ArtsyImageSearch
+                    <TargetedImageSearch
                       onImageSelected={(url) => {
                         handleArtsyImageSelected(url);
                         // You could also trigger an upload to your system here if needed

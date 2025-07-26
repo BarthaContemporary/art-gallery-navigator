@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface ArtsySearchResult {
+interface ImageSearchResult {
   title: string;
   artist: string;
   imageUrl: string;
@@ -17,24 +17,25 @@ interface ArtsySearchResult {
   medium?: string;
   dimensions?: string;
   sourceUrl: string;
+  source: 'artsy' | 'ocula';
 }
 
-interface ArtsyImageSearchProps {
+interface TargetedImageSearchProps {
   onImageSelected: (url: string) => void;
   defaultArtist?: string;
   defaultTitle?: string;
   defaultYear?: number;
 }
 
-export function ArtsyImageSearch({ 
+export function TargetedImageSearch({ 
   onImageSelected, 
   defaultArtist = '', 
   defaultTitle = '', 
   defaultYear 
-}: ArtsyImageSearchProps) {
+}: TargetedImageSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<ArtsySearchResult[]>([]);
+  const [results, setResults] = useState<ImageSearchResult[]>([]);
   const [searchForm, setSearchForm] = useState({
     artist: defaultArtist,
     title: defaultTitle,
@@ -49,7 +50,7 @@ export function ArtsyImageSearch({
 
     setIsSearching(true);
     try {
-      const { data, error } = await supabase.functions.invoke('search-artsy-images', {
+      const { data, error } = await supabase.functions.invoke('targeted-image-search', {
         body: {
           artist: searchForm.artist,
           title: searchForm.title,
@@ -67,8 +68,8 @@ export function ArtsyImageSearch({
         toast.success(`Found ${data.results.length} images`);
       }
     } catch (error) {
-      console.error('Error searching Artsy:', error);
-      toast.error('Failed to search Artsy. Please try again.');
+      console.error('Error searching:', error);
+      toast.error('Failed to search for images. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -77,7 +78,7 @@ export function ArtsyImageSearch({
   const handleSelectImage = (imageUrl: string) => {
     onImageSelected(imageUrl);
     setIsOpen(false);
-    toast.success('Image selected from Artsy');
+    toast.success('Image selected');
   };
 
   return (
@@ -85,12 +86,12 @@ export function ArtsyImageSearch({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Search className="h-4 w-4" />
-          Search Artsy
+          Targeted Image Search
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Search Artsy.net for Images</DialogTitle>
+          <DialogTitle>Targeted Image Search</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -130,7 +131,7 @@ export function ArtsyImageSearch({
             disabled={isSearching}
             className="w-full"
           >
-            {isSearching ? 'Searching...' : 'Search Artsy'}
+            {isSearching ? 'Searching...' : 'Search Images'}
           </Button>
 
           {/* Results */}
@@ -165,6 +166,7 @@ export function ArtsyImageSearch({
                       </div>
                       <h4 className="font-medium text-sm truncate">{result.title}</h4>
                       <p className="text-xs text-muted-foreground truncate">{result.artist}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{result.source}</p>
                       
                       <div className="flex gap-1 mt-2">
                         <Button
