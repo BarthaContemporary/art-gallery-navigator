@@ -19,6 +19,10 @@ import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { LocalImageUploader } from "./LocalImageUploader";
 import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
+import { ArtsyImageSearch } from "./form/ArtsyImageSearch";
+import { useImageUpload } from "./form/useImageUpload";
+import { useForm } from "react-hook-form";
+import { ArtworkFormData } from "./form/types";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
@@ -38,6 +42,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   // Get the refresh function from the images hook
   const { refreshImages } = useLocalArtworkImages(artwork.id);
+
+  // Form for handling Artsy image selection
+  const form = useForm<ArtworkFormData>();
+  const { handleArtsyImageSelected } = useImageUpload(form);
 
   useEffect(() => {
     setIsMounted(true);
@@ -111,7 +119,19 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               
               <TabsContent value="images" className="mt-6 space-y-6">
                 <div>
-                  <h4 className="text-sm font-medium mb-4">Upload New Images</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-medium">Upload New Images</h4>
+                    <ArtsyImageSearch
+                      onImageSelected={(url) => {
+                        handleArtsyImageSelected(url);
+                        // You could also trigger an upload to your system here if needed
+                        console.log('Selected Artsy image:', url);
+                      }}
+                      defaultArtist={artwork.artists?.full_name}
+                      defaultTitle={artwork.title}
+                      defaultYear={artwork.year}
+                    />
+                  </div>
                   <LocalImageUploader 
                     artworkId={artwork.id}
                     onUploadComplete={handleImageUploadComplete}
