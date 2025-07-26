@@ -17,7 +17,7 @@ interface ImageSearchResult {
   medium?: string;
   dimensions?: string;
   sourceUrl: string;
-  source: 'artsy' | 'ocula';
+  source: 'artsy' | 'ocula' | 'bartha';
 }
 
 interface TargetedImageSearchProps {

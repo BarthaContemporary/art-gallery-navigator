@@ -14,7 +14,7 @@ interface ImageSearchResult {
   medium?: string;
   dimensions?: string;
   sourceUrl: string;
-  source: 'artsy' | 'ocula' | 'google';
+  source: 'artsy' | 'ocula' | 'bartha';
 }
 
 serve(async (req) => {
@@ -45,33 +45,24 @@ serve(async (req) => {
     
     const results: ImageSearchResult[] = [];
     
-    // Search multiple sources in parallel
+    // Search the three specific sites in parallel
     const searchPromises = [
       searchCustomSearchSite(searchQuery, 'artsy.net', artist, title),
-      searchCustomSearchSite(searchQuery, 'ocula.com', artist, title)
+      searchCustomSearchSite(searchQuery, 'ocula.com', artist, title),
+      searchCustomSearchSite(searchQuery, 'barthacontemporary.com', artist, title)
     ];
     
     const searchResults = await Promise.allSettled(searchPromises);
     
-    // Combine results from all sources
+    // Combine results from all three sources
     searchResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         results.push(...result.value);
       } else {
-        const sourceName = index === 0 ? 'Artsy' : 'Ocula';
+        const sourceName = index === 0 ? 'Artsy' : index === 1 ? 'Ocula' : 'Bartha Contemporary';
         console.error(`${sourceName} search failed:`, result.reason);
       }
     });
-
-    // If we don't have enough results, search Google Images generally
-    if (results.length < 3) {
-      try {
-        const generalResults = await searchGeneralImages(searchQuery, artist, title);
-        results.push(...generalResults);
-      } catch (error) {
-        console.error('General Google Images search failed:', error);
-      }
-    }
 
     console.log(`Found ${results.length} total results for search: ${searchQuery}`);
     
@@ -144,7 +135,7 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
             artist: artist || 'Unknown Artist',
             imageUrl: item.link,
             sourceUrl: item.image?.contextLink || `https://${site}`,
-            source: site === 'artsy.net' ? 'artsy' : 'ocula',
+            source: site === 'artsy.net' ? 'artsy' : site === 'ocula.com' ? 'ocula' : 'bartha',
           });
         }
       });
