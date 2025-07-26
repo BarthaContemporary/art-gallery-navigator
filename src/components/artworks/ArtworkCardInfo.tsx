@@ -28,11 +28,8 @@ export function ArtworkCardInfo({ artwork, artistName, available }: ArtworkCardI
     dimensions = artwork.dimensions;
   }
 
-  const truncatedTitleWithYear = getTruncatedTitleWithYear(
-    artwork.title,
-    artwork.year,
-    26
-  );
+  // Truncate title separately since year will be on its own line
+  const truncatedTitle = artwork.title.length > 30 ? artwork.title.substring(0, 30) + '...' : artwork.title;
 
   // Info section fixed height (matches parent design)
   const INFO_HEIGHT_PX = Math.round((2 / 3) * 256); // 256px image height
@@ -44,9 +41,10 @@ export function ArtworkCardInfo({ artwork, artistName, available }: ArtworkCardI
     >
       <div className="space-y-2">
         <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>
-        <h3 className="font-semibold text-lg leading-tight truncate" title={artwork.title + (year ? `, ${year}` : "")}>
-          {truncatedTitleWithYear}
+        <h3 className="font-medium text-base leading-tight truncate" title={artwork.title}>
+          {truncatedTitle}
         </h3>
+        {year && <p className="text-sm text-muted-foreground">{year}</p>}
         {dimensions && <p className="text-sm text-muted-foreground">{dimensions}</p>}
         <p className="text-xs text-muted-foreground">{artwork.medium_type}</p>
       </div>
