@@ -96,6 +96,8 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
   
   console.log('API Key available:', !!apiKey);
   console.log('Search Engine ID available:', !!searchEngineId);
+  console.log('API Key (first 10 chars):', apiKey?.substring(0, 10));
+  console.log('Search Engine ID:', searchEngineId);
   
   if (!apiKey || !searchEngineId) {
     console.error('Google Custom Search API credentials not configured');
