@@ -20,8 +20,8 @@ import { LocalImageUploader } from "./LocalImageUploader";
 import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { TargetedImageSearch } from "./form/TargetedImageSearch";
-import { useImageUpload } from "./form/useImageUpload";
-import { useForm } from "react-hook-form";
+import { ImageUploadService } from "@/services/image-upload-service";
+import { toast } from "sonner";
 import { ArtworkFormData } from "./form/types";
 
 interface EditArtworkDialogProps {
@@ -42,10 +42,6 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
 
   // Get the refresh function from the images hook
   const { refreshImages } = useLocalArtworkImages(artwork.id);
-
-  // Form for handling Artsy image selection
-  const form = useForm<ArtworkFormData>();
-  const { handleArtsyImageSelected } = useImageUpload(form);
 
   useEffect(() => {
     setIsMounted(true);
@@ -77,6 +73,38 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     // Refresh the images list when upload completes
     refreshImages();
   }, [refreshImages]);
+
+  const handleArtsyImageSelected = useCallback(async (url: string) => {
+    try {
+      toast.loading("Downloading and uploading image...");
+      
+      // Fetch the external image
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch image');
+      
+      const blob = await response.blob();
+      
+      // Create a file from the blob
+      const filename = `external-image-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
+      const file = new File([blob], filename, { type: blob.type });
+      
+      // Upload using the ImageUploadService
+      const result = await ImageUploadService.uploadAndProcessImage(file, artwork.id, true, 0);
+      
+      if (result.success) {
+        toast.dismiss();
+        toast.success("Image uploaded successfully");
+        // Refresh the images list
+        refreshImages();
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading external image:', error);
+      toast.dismiss();
+      toast.error("Failed to upload image. Please try again.");
+    }
+  }, [artwork.id, refreshImages]);
 
   return (
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
