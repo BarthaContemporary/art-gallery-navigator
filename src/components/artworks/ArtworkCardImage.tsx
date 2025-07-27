@@ -37,7 +37,7 @@ export function ArtworkCardImage({
       <UnifiedImage
         artwork={artwork}
         tier="medium"
-        className="w-full h-full cursor-pointer"
+        className="w-full h-full cursor-pointer [&>img]:object-cover"
         alt={title}
         priority={false}
         onClick={onClick}
