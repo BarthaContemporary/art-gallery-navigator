@@ -14,7 +14,7 @@ interface ImageSearchResult {
   medium?: string;
   dimensions?: string;
   sourceUrl: string;
-  source: 'artsy' | 'ocula' | 'bartha';
+  source: 'artsy' | 'ocula' | 'bartha' | 'google';
 }
 
 serve(async (req) => {
@@ -24,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    const { artist, title, year } = await req.json();
+    const { artist, title, year, page = 1 } = await req.json();
     
     if (!artist && !title) {
       return new Response(
@@ -45,29 +45,42 @@ serve(async (req) => {
     
     const results: ImageSearchResult[] = [];
     
-    // Search the three specific sites in parallel
+    // Search the three specific sites plus Google in parallel
     const searchPromises = [
-      searchCustomSearchSite(searchQuery, 'artsy.net', artist, title),
-      searchCustomSearchSite(searchQuery, 'ocula.com', artist, title),
-      searchCustomSearchSite(searchQuery, 'barthacontemporary.com', artist, title)
+      searchCustomSearchSite(searchQuery, 'artsy.net', artist, title, page),
+      searchCustomSearchSite(searchQuery, 'ocula.com', artist, title, page),
+      searchCustomSearchSite(searchQuery, 'barthacontemporary.com', artist, title, page),
+      searchGeneralImages(searchQuery, artist, title, page)
     ];
     
     const searchResults = await Promise.allSettled(searchPromises);
     
-    // Combine results from all three sources
+    // Combine results from all four sources
     searchResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         results.push(...result.value);
       } else {
-        const sourceName = index === 0 ? 'Artsy' : index === 1 ? 'Ocula' : 'Bartha Contemporary';
+        const sourceName = index === 0 ? 'Artsy' : index === 1 ? 'Ocula' : index === 2 ? 'Bartha Contemporary' : 'Google Images';
         console.error(`${sourceName} search failed:`, result.reason);
       }
     });
 
     console.log(`Found ${results.length} total results for search: ${searchQuery}`);
     
+    // Limit to 9 results per page but preserve total for pagination
+    const itemsPerPage = 9;
+    const totalResults = results.length;
+    const hasMore = totalResults > itemsPerPage;
+    const limitedResults = results.slice(0, itemsPerPage);
+    
     return new Response(
-      JSON.stringify({ results }),
+      JSON.stringify({ 
+        results: limitedResults, 
+        totalResults,
+        hasMore,
+        page,
+        itemsPerPage
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -81,7 +94,7 @@ serve(async (req) => {
 });
 
 // Use Google Custom Search API to search specific sites
-async function searchCustomSearchSite(searchQuery: string, site: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+async function searchCustomSearchSite(searchQuery: string, site: string, artist?: string, title?: string, page: number = 1): Promise<ImageSearchResult[]> {
   const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
   const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
   
@@ -100,7 +113,8 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
   }
 
   const query = `site:${site} "${artist}" "${title}" ${searchQuery}`.trim();
-  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=10&safe=active`;
+  const startIndex = ((page - 1) * 3) + 1; // 3 results per page per site
+  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=3&start=${startIndex}&safe=active`;
   
   console.log(`Searching ${site} with Custom Search API: ${query}`);
   
@@ -144,7 +158,7 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
     }
     
     console.log(`Found ${results.length} images from ${site} via Custom Search`);
-    return results.slice(0, 5);
+    return results;
   } catch (error) {
     console.error(`Custom Search failed for ${site}:`, error);
     return [];
@@ -152,7 +166,7 @@ async function searchCustomSearchSite(searchQuery: string, site: string, artist?
 }
 
 // General Google Images search as fallback
-async function searchGeneralImages(searchQuery: string, artist?: string, title?: string): Promise<ImageSearchResult[]> {
+async function searchGeneralImages(searchQuery: string, artist?: string, title?: string, page: number = 1): Promise<ImageSearchResult[]> {
   const apiKey = Deno.env.get('GOOGLE_CUSTOM_SEARCH_API_KEY');
   const searchEngineId = Deno.env.get('GOOGLE_SEARCH_ENGINE_ID');
   
@@ -162,7 +176,8 @@ async function searchGeneralImages(searchQuery: string, artist?: string, title?:
   }
 
   const query = `"${artist}" "${title}" ${searchQuery} artwork art`.trim();
-  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=5&safe=active`;
+  const startIndex = ((page - 1) * 3) + 1; // 3 results per page for general search
+  const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=3&start=${startIndex}&safe=active`;
   
   console.log(`Searching Google Images generally: ${query}`);
   

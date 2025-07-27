@@ -74,35 +74,51 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     refreshImages();
   }, [refreshImages]);
 
-  const handleArtsyImageSelected = useCallback(async (url: string) => {
+  const handleArtsyImageSelected = useCallback(async (urls: string[]) => {
     try {
-      toast.loading("Downloading and uploading image...");
+      toast.loading(`Downloading and uploading ${urls.length} image(s)...`);
       
-      // Fetch the external image
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch image');
+      let successCount = 0;
       
-      const blob = await response.blob();
-      
-      // Create a file from the blob
-      const filename = `external-image-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
-      const file = new File([blob], filename, { type: blob.type });
-      
-      // Upload using the ImageUploadService
-      const result = await ImageUploadService.uploadAndProcessImage(file, artwork.id, true, 0);
-      
-      if (result.success) {
-        toast.dismiss();
-        toast.success("Image uploaded successfully");
-        // Refresh the images list
-        refreshImages();
-      } else {
-        throw new Error(result.error || 'Upload failed');
+      // Process each URL
+      for (const url of urls) {
+        try {
+          // Fetch the external image
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch image');
+          
+          const blob = await response.blob();
+          
+          // Create a file from the blob
+          const filename = `external-image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${blob.type.split('/')[1] || 'jpg'}`;
+          const file = new File([blob], filename, { type: blob.type });
+          
+          // Upload using the ImageUploadService
+          const result = await ImageUploadService.uploadAndProcessImage(file, artwork.id, true, 0);
+          
+          if (result.success) {
+            successCount++;
+          }
+        } catch (error) {
+          console.error('Error uploading individual image:', error);
+        }
       }
-    } catch (error) {
-      console.error('Error uploading external image:', error);
+      
       toast.dismiss();
-      toast.error("Failed to upload image. Please try again.");
+      if (successCount === urls.length) {
+        toast.success(`All ${successCount} images uploaded successfully`);
+      } else if (successCount > 0) {
+        toast.success(`${successCount} of ${urls.length} images uploaded successfully`);
+      } else {
+        toast.error("Failed to upload any images");
+      }
+      
+      // Refresh the images list
+      refreshImages();
+    } catch (error) {
+      console.error('Error uploading external images:', error);
+      toast.dismiss();
+      toast.error("Failed to upload images. Please try again.");
     }
   }, [artwork.id, refreshImages]);
 
@@ -150,11 +166,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-sm font-medium">Upload New Images</h4>
                     <TargetedImageSearch
-                      onImageSelected={(url) => {
-                        handleArtsyImageSelected(url);
-                        // You could also trigger an upload to your system here if needed
-                        console.log('Selected Artsy image:', url);
-                      }}
+                      onImageSelected={handleArtsyImageSelected}
                       defaultArtist={artwork.artists?.full_name}
                       defaultTitle={artwork.title}
                       defaultYear={artwork.year}

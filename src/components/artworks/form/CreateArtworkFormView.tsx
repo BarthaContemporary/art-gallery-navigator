@@ -27,7 +27,7 @@ interface CreateArtworkFormViewProps {
   artists: any[];
   locations: any[];
   handleImagesUploaded: (urls: string[]) => void;
-  handleArtsyImageSelected: (url: string) => void;
+  handleArtsyImageSelected: (urls: string[]) => void;
   initialData?: Artwork;
   onSubmit: (data: ArtworkFormData) => void;
   isAdmin: boolean;
