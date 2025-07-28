@@ -170,12 +170,17 @@ serve(async (req) => {
     // Sanitize input
     const sanitizedPassword = sanitizeInput(password)
 
-    // Hash the password
+    // Generate secure salt and hash the password using SHA-256 with salt
+    // Note: For production, consider using bcrypt or Argon2 for stronger security
+    const salt = crypto.getRandomValues(new Uint8Array(32))
+    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+    
     const encoder = new TextEncoder()
-    const data = encoder.encode(sanitizedPassword)
+    const saltedPassword = saltHex + sanitizedPassword
+    const data = encoder.encode(saltedPassword)
     const hashBuffer = await crypto.subtle.digest('SHA-256', data)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    const hashHex = saltHex + ':' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
     // Log successful operation
     await logSecurityEvent(
