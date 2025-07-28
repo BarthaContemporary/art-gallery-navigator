@@ -33,6 +33,7 @@ interface EditArtworkDialogProps {
 export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDialogProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
@@ -61,13 +62,20 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   }, [onOpenChange, isMounted]);
 
   const handleUpdateArtwork = useCallback(() => {
-    // Trigger form submission by clicking the hidden submit button
-    const form = document.getElementById('edit-artwork-form');
-    if (form) {
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      form.dispatchEvent(submitEvent);
+    if (activeTab === "details") {
+      // Trigger form submission for details tab
+      const form = document.getElementById('edit-artwork-form');
+      if (form) {
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(submitEvent);
+      }
+    } else {
+      // For other tabs (images, videos, documents), just close the dialog
+      // since uploads are handled immediately when they occur
+      toast.success("Changes saved successfully");
+      handleOpenChange(false);
     }
-  }, []);
+  }, [activeTab, handleOpenChange]);
 
   const handleImageUploadComplete = useCallback(() => {
     // Refresh the images list when upload completes
@@ -137,7 +145,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
         </ScrollableDialogHeader>
         <ScrollableDialogBody ref={scrollContainerRef}>
           <div className="px-6 pt-6 pb-6">
-            <Tabs defaultValue="details" className="w-full">
+            <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="images">Images</TabsTrigger>
@@ -208,7 +216,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             onClick={handleUpdateArtwork}
             disabled={isFormActuallySaving}
           >
-            {isFormActuallySaving ? "Updating..." : "Update Artwork"}
+            {isFormActuallySaving ? "Updating..." : activeTab === "details" ? "Update Artwork" : "Save Changes"}
           </Button>
         </ScrollableDialogFooter>
       </ScrollableDialogContent>
