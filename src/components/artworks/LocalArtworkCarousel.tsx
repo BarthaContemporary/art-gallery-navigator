@@ -197,6 +197,7 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
         currentIndex={currentIndex}
         artworkTitle={artworkTitle}
         onNavigate={hasMultipleImages ? handleFullscreenNavigate : undefined}
+        hideCloseButton={true}
       />
     </div>
   );

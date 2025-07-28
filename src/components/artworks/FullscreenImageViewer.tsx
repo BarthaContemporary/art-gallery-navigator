@@ -14,6 +14,7 @@ interface FullscreenImageViewerProps {
   currentIndex: number;
   artworkTitle: string;
   onNavigate?: (index: number) => void;
+  hideCloseButton?: boolean;
 }
 
 export function FullscreenImageViewer({
@@ -22,7 +23,8 @@ export function FullscreenImageViewer({
   images,
   currentIndex,
   artworkTitle,
-  onNavigate
+  onNavigate,
+  hideCloseButton = false
 }: FullscreenImageViewerProps) {
   const {
     zoomLevel,
@@ -90,14 +92,16 @@ export function FullscreenImageViewer({
       <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-black border-none overflow-hidden">
         <div className="w-full h-full bg-black group relative">
           {/* Close button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="absolute top-4 right-4 z-50 text-white hover:bg-white/20 h-10 w-10 p-0"
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          {!hideCloseButton && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="absolute top-4 right-4 z-50 text-white hover:bg-white/20 h-10 w-10 p-0"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          )}
 
           {/* Navigation arrows */}
           {hasMultipleImages && canGoPrev && onNavigate && (
