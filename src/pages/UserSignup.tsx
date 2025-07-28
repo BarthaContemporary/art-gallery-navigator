@@ -4,6 +4,8 @@ import { UserManagementSection } from "@/components/settings/UserManagementSecti
 import { BackupExportSection } from "@/components/settings/BackupExportSection";
 import { UploadAssetsSection } from "@/components/settings/UploadAssetsSection";
 import { ImageHealthDashboard } from "@/components/artworks/ImageHealthDashboard";
+import { ComplianceDashboard } from "@/components/security/ComplianceDashboard";
+import { SecurityTraining } from "@/components/security/SecurityTraining";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function UserSignup() {
@@ -22,6 +24,30 @@ export default function UserSignup() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
       <UserManagementSection />
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Security Compliance Dashboard</CardTitle>
+          <CardDescription>
+            Monitor ISO/IEC 27034 compliance status and security metrics
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ComplianceDashboard />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security Training</CardTitle>
+          <CardDescription>
+            Complete security training modules for compliance
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SecurityTraining />
+        </CardContent>
+      </Card>
       
       <Card>
         <CardHeader>
