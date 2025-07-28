@@ -312,7 +312,7 @@ export class IncidentResponseManager {
 
     // Log the alert creation
       this.securityMonitor.logSecurityEvent({
-        type: 'monitoring',
+        type: 'suspicious_activity',
         severity: alert.severity,
         details: {
           alertId: alert.id,
@@ -400,7 +400,7 @@ export class IncidentResponseManager {
 
     // Log plan activation
     this.securityMonitor.logSecurityEvent({
-      type: 'monitoring',
+      type: 'admin_function_used',
       severity: 'high',
       details: {
         action: 'plan_activated',
@@ -422,7 +422,7 @@ export class IncidentResponseManager {
   private executeEscalation(escalation: EscalationLevel, incidentId: string): void {
     // Log escalation
     this.securityMonitor.logSecurityEvent({
-      type: 'monitoring',
+      type: 'admin_function_used',
       severity: 'medium',
       details: {
         action: 'escalation_triggered',

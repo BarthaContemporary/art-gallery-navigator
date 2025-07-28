@@ -365,7 +365,7 @@ export class AutomatedSecurityTesting {
 
         // Log security test event
         this.securityMonitor.logSecurityEvent({
-          type: 'monitoring',
+          type: 'admin_function_used',
           severity: result.passed ? 'low' : test.severity,
           details: {
             testId: test.id,

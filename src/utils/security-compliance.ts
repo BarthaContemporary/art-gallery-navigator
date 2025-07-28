@@ -194,7 +194,7 @@ export class SecurityComplianceManager {
         threat: 'SQL Injection',
         vulnerability: 'Inadequate input validation',
         likelihood: 'low',
-        impact: 'critical',
+        impact: 'high',
         riskLevel: 'medium',
         mitigation: 'Use parameterized queries and input validation',
         owner: 'Development Team',
