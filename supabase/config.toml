@@ -66,3 +66,6 @@ verify_jwt = true
 
 [functions.targeted-image-search]
 verify_jwt = true
+
+[functions.security-compliance-scanner]
+verify_jwt = true
