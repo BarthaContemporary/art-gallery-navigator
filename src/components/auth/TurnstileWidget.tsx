@@ -93,8 +93,8 @@ export function TurnstileWidget({
         widgetIdRef.current = null;
       }
 
-      // Clear the container
-      containerRef.current.innerHTML = '';
+      // Clear the container safely
+      containerRef.current.replaceChildren();
 
       // Render new widget
       widgetIdRef.current = window.turnstile.render(containerRef.current, {

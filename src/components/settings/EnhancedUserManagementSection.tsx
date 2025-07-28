@@ -137,7 +137,9 @@ export function EnhancedUserManagementSection() {
             onChange={e => setPassword(e.target.value)} 
             required 
             className="flex-1 min-w-[200px]" 
-            autoComplete="new-password" 
+            autoComplete="new-password"
+            spellCheck="false"
+            autoCapitalize="off"
           />
           
           <select 

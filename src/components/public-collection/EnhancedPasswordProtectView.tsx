@@ -143,6 +143,9 @@ export function EnhancedPasswordProtectView({
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading || blockedTimeRemaining > 0}
                   autoFocus
+                  autoComplete="current-password"
+                  spellCheck="false"
+                  autoCapitalize="off"
                 />
               </div>
               

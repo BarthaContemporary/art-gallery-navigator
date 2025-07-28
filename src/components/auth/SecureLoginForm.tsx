@@ -192,6 +192,8 @@ export function SecureLoginForm({ onNeedsOTP }: SecureLoginFormProps) {
                 onChange={handlePasswordChange}
                 className={validationErrors.password ? 'border-red-500' : ''}
                 autoComplete="current-password"
+                spellCheck="false"
+                autoCapitalize="off"
                 maxLength={128}
               />
               <Button

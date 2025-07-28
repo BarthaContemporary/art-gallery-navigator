@@ -3,15 +3,16 @@ export const SECURITY_HEADERS = {
   // Content Security Policy - Prevents XSS attacks
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com", // Cloudflare Turnstile
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "script-src 'self' 'unsafe-eval' https://challenges.cloudflare.com", // Cloudflare Turnstile (removed unsafe-inline)
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Keep unsafe-inline for styled components
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https: http:", // Allow images from various sources including Supabase storage
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
     "frame-src 'self' https://challenges.cloudflare.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'"
+    "form-action 'self'",
+    "upgrade-insecure-requests"
   ].join('; '),
   
   // Prevent clickjacking attacks
@@ -35,7 +36,12 @@ export const SECURITY_HEADERS = {
     'usb=()',
     'magnetometer=()',
     'gyroscope=()'
-  ].join(', ')
+  ].join(', '),
+  
+  // Cross-Origin policies for additional security
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+  'Cross-Origin-Resource-Policy': 'same-origin'
 } as const;
 
 // Apply security headers to responses

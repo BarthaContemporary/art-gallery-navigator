@@ -87,7 +87,14 @@ export function EditCollectionWebsiteForm({ website, onSubmit, isPending, onCanc
             <FormItem>
               <FormLabel>Password (optional)</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Leave blank to keep current or no password" {...field} />
+                <Input 
+                  type="password" 
+                  placeholder="Leave blank to keep current or no password" 
+                  autoComplete="new-password"
+                  spellCheck="false"
+                  autoCapitalize="off"
+                  {...field} 
+                />
               </FormControl>
               <FormDescription>
                 Enter a new password to set or change it. Enter an empty string and submit (if field was touched) to remove password protection.

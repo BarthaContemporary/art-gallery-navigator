@@ -69,6 +69,9 @@ export function PasswordProtectView({ websiteSlug, onVerified }: PasswordProtect
               required
               className="text-base"
               aria-label="Password"
+              autoComplete="current-password"
+              spellCheck="false"
+              autoCapitalize="off"
             />
             {error && (
               <Alert variant="destructive">
