@@ -49,7 +49,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Artists" />
           </SelectTrigger>
-          <SelectContent className="z-50">
+          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
             <SelectItem value="__all__">All Artists</SelectItem>
             {filterOptions.artists.map((artist) => (
               <SelectItem key={artist.id} value={artist.id}>
@@ -67,7 +67,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
-          <SelectContent className="z-50">
+          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
             <SelectItem value="__all__">All Statuses</SelectItem>
             {filterOptions.statuses.map((status) => (
               <SelectItem key={status} value={status}>
@@ -85,7 +85,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Mediums" />
           </SelectTrigger>
-          <SelectContent className="z-50">
+          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
             <SelectItem value="__all__">All Mediums</SelectItem>
             {filterOptions.mediumTypes.map((type) => (
               <SelectItem key={type} value={type}>
