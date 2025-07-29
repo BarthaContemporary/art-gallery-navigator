@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"; // Added useEffect
+import React, { useEffect, useImperativeHandle, forwardRef } from "react";
 import { CreateArtworkFormView } from "./form/CreateArtworkFormView";
 import { useCreateArtworkForm, UseCreateArtworkFormProps } from "./form/useCreateArtworkForm";
 import { ArtworkFormData } from "./form/types";
@@ -13,16 +13,20 @@ interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
   scrollToFirstError?: () => void;
 }
 
-export function CreateArtworkForm({
+export interface CreateArtworkFormRef {
+  submitForm: () => void;
+}
+
+export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkFormProps>(({
   setOpen,
   initialData,
   preventFreeze,
   hideSubmitButton,
   formId,
   onSuccessCallback,
-  onSavingChange, // Destructure new prop
-  scrollToFirstError // Destructure new prop
-}: CreateArtworkFormProps) {
+  onSavingChange,
+  scrollToFirstError
+}, ref) => {
   const {
     form,
     classification,
@@ -33,7 +37,6 @@ export function CreateArtworkForm({
     handleImagesUploaded,
     handleArtsyImageSelected,
     resetUploaded,
-    // initialData: initialDataFromHook, // This is already passed as prop
     isSaving,
     isAdmin,
     currentUserArtist
@@ -45,7 +48,30 @@ export function CreateArtworkForm({
     }
   }, [isSaving, onSavingChange]);
 
+  // Expose submitForm method via ref
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      console.log("submitForm called via ref");
+      const formData = form.getValues();
+      console.log("Current form data:", formData);
+      
+      // Validate the form first
+      form.trigger().then((isValid) => {
+        console.log("Form validation result:", isValid);
+        if (isValid) {
+          onSubmit(formData);
+        } else {
+          console.log("Form has validation errors:", form.formState.errors);
+          if (scrollToFirstError) {
+            scrollToFirstError();
+          }
+        }
+      });
+    }
+  }), [form, onSubmit, scrollToFirstError]);
+
   const handleSubmit = (data: ArtworkFormData) => {
+    console.log("handleSubmit called with:", data);
     onSubmit(data);
   };
 
@@ -64,7 +90,7 @@ export function CreateArtworkForm({
       hideSubmitButton={hideSubmitButton}
       formId={formId}
       isSaving={isSaving}
-      scrollToFirstError={scrollToFirstError} // Pass down
+      scrollToFirstError={scrollToFirstError}
     />
   );
-}
+});

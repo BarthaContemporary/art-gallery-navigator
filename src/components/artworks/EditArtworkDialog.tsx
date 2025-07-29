@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/scrollable-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreateArtworkForm } from "./CreateArtworkForm";
+import { CreateArtworkForm, CreateArtworkFormRef } from "./CreateArtworkForm";
 import { VideoUploadFields } from "./form/VideoUploadFields";
 import { ArtworkDocuments } from "./documents/ArtworkDocuments";
 import { Artwork } from "@/hooks/use-artworks";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { LocalImageUploader } from "./LocalImageUploader";
 import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
@@ -34,6 +34,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   const [isMounted, setIsMounted] = useState(false);
   const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+  const formRef = useRef<CreateArtworkFormRef>(null);
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
     restoreScrollPosition: true,
@@ -65,26 +66,11 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     console.log("handleUpdateArtwork called, activeTab:", activeTab);
     
     if (activeTab === "details") {
-      // Trigger form submission for details tab
-      const form = document.getElementById('edit-artwork-form');
-      console.log("Form element found:", !!form);
-      console.log("Form element:", form);
-      
-      if (form) {
-        // Try both approaches - direct submit and event dispatch
-        console.log("Attempting form.submit()");
-        try {
-          (form as HTMLFormElement).requestSubmit();
-          console.log("requestSubmit() called successfully");
-        } catch (error) {
-          console.log("requestSubmit() failed, trying dispatchEvent:", error);
-          const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-          console.log("Dispatching submit event");
-          form.dispatchEvent(submitEvent);
-        }
+      console.log("Triggering form submission via ref");
+      if (formRef.current) {
+        formRef.current.submitForm();
       } else {
-        console.error("Form element with ID 'edit-artwork-form' not found");
-        console.log("Available forms:", document.querySelectorAll('form'));
+        console.error("Form ref not available");
       }
     } else {
       // For other tabs (images, videos, documents), just close the dialog
@@ -172,6 +158,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               
               <TabsContent value="details" className="mt-6">
                 <CreateArtworkForm
+                  ref={formRef}
                   setOpen={onOpenChange}
                   initialData={artwork}
                   preventFreeze={true}
