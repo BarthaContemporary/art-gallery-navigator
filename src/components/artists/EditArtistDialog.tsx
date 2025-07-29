@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -10,7 +10,21 @@ import { ImageUploadField } from "./EditArtist/ImageUploadField";
 import { useEditArtistForm } from "@/hooks/use-edit-artist-form";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EditArtistFormValues, representationStatusSchema } from "@/schemas/artistSchema";
-import { useScrollableDialog } from "@/hooks/use-scrollable-dialog"; // Import the hook
+import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 interface ArtistData { // Define a type for the artist data structure consistent with useEditArtistForm
   id: string;
@@ -40,12 +54,36 @@ const statusOptions = [
 ];
 
 export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialogProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const { form, isLoading, onSubmit } = useEditArtistForm({
     artist,
     onSuccess: () => onOpenChange(false)
   });
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open);
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('artists')
+        .delete()
+        .eq('id', artist.id);
+
+      if (error) throw error;
+
+      toast.success("Artist deleted successfully");
+      setShowDeleteConfirm(false);
+      onOpenChange(false);
+    } catch (error) {
+      logger.error('Error deleting artist:', error);
+      toast.error("Failed to delete artist");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -104,29 +142,67 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
                 artistName={artist.full_name}
               />
 
-              <div className="flex gap-2 justify-end pt-2">
+              <div className="flex gap-2 justify-between pt-2">
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="destructive"
+                  size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onOpenChange(false);
+                    setShowDeleteConfirm(true);
                   }} 
-                  disabled={isLoading}
+                  disabled={isLoading || isDeleting}
+                  className="flex items-center gap-2"
                 >
-                  Cancel
+                  <Trash2 className="h-4 w-4" />
+                  Delete
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Saving..." : "Save Changes"}
-                </Button>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenChange(false);
+                    }} 
+                    disabled={isLoading || isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || isDeleting}
+                  >
+                    {isLoading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </div>
             </form>
           </Form>
         </ScrollArea>
       </DialogContent>
+      
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the artist "{artist.full_name}" and remove all associated data.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Artist"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
