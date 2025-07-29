@@ -40,60 +40,66 @@ export function ArtworkFilters({
   return (
     <div className={cn("space-y-4", compact && "space-y-2")}>
       {/* Filter Options */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 overflow-visible" style={{ contain: 'layout' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Artist Filter */}
-        <Select
-          value={filters.artist || "__all__"}
-          onValueChange={(value) => onUpdateFilter('artist', value === "__all__" ? null : value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="All Artists" />
-          </SelectTrigger>
-          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
-            <SelectItem value="__all__">All Artists</SelectItem>
-            {filterOptions.artists.map((artist) => (
-              <SelectItem key={artist.id} value={artist.id}>
-                {artist.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative" style={{ isolation: 'isolate' }}>
+          <Select
+            value={filters.artist || "__all__"}
+            onValueChange={(value) => onUpdateFilter('artist', value === "__all__" ? null : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All Artists" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999]" align="start">
+              <SelectItem value="__all__">All Artists</SelectItem>
+              {filterOptions.artists.map((artist) => (
+                <SelectItem key={artist.id} value={artist.id}>
+                  {artist.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Status Filter */}
-        <Select
-          value={filters.status || "__all__"}
-          onValueChange={(value) => onUpdateFilter('status', value === "__all__" ? null : value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
-            <SelectItem value="__all__">All Statuses</SelectItem>
-            {filterOptions.statuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative" style={{ isolation: 'isolate' }}>
+          <Select
+            value={filters.status || "__all__"}
+            onValueChange={(value) => onUpdateFilter('status', value === "__all__" ? null : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999]" align="start">
+              <SelectItem value="__all__">All Statuses</SelectItem>
+              {filterOptions.statuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Medium Type Filter */}
-        <Select
-          value={filters.mediumType || "__all__"}
-          onValueChange={(value) => onUpdateFilter('mediumType', value === "__all__" ? null : value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="All Mediums" />
-          </SelectTrigger>
-          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
-            <SelectItem value="__all__">All Mediums</SelectItem>
-            {filterOptions.mediumTypes.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative" style={{ isolation: 'isolate' }}>
+          <Select
+            value={filters.mediumType || "__all__"}
+            onValueChange={(value) => onUpdateFilter('mediumType', value === "__all__" ? null : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All Mediums" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999]" align="start">
+              <SelectItem value="__all__">All Mediums</SelectItem>
+              {filterOptions.mediumTypes.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Results Count */}
         <div className="flex items-center justify-center sm:justify-start">
