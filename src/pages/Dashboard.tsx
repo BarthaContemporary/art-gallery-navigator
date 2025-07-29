@@ -9,6 +9,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { ArtworkValueByLocation } from "@/components/dashboard/ArtworkValueByLocation";
 
 const Dashboard = () => {
   const {
@@ -266,6 +267,9 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Artwork Value by Location */}
+      <ArtworkValueByLocation />
 
       {/* Admin Notifications */}
       {isAdmin && (
