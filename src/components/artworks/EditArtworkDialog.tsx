@@ -23,6 +23,7 @@ import { TargetedImageSearch } from "./form/TargetedImageSearch";
 import { ImageUploadService } from "@/services/image-upload-service";
 import { toast } from "sonner";
 import { ArtworkFormData } from "./form/types";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
@@ -34,6 +35,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   const [isMounted, setIsMounted] = useState(false);
   const [isFormActuallySaving, setIsFormActuallySaving] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const formRef = useRef<CreateArtworkFormRef>(null);
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open, {
@@ -171,6 +173,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                   }}
                   onSavingChange={setIsFormActuallySaving}
                   scrollToFirstError={scrollToFirstError}
+                  onAutosaveStatusChange={setAutosaveStatus}
                 />
               </TabsContent>
               
@@ -207,27 +210,33 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           </div>
         </ScrollableDialogBody>
         <ScrollableDialogFooter className="bg-background flex-shrink-0 z-10 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={isFormActuallySaving}
-            className="mr-2"
-          >
-            Close
-          </Button>
-          {activeTab !== "details" && (
-            <Button
-              type="button"
-              onClick={() => {
-                console.log("Update Artwork button clicked!");
-                handleUpdateArtwork();
-              }}
-              disabled={isFormActuallySaving}
-            >
-              {isFormActuallySaving ? "Updating..." : "Save Changes"}
-            </Button>
-          )}
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                disabled={isFormActuallySaving}
+              >
+                Close
+              </Button>
+              {activeTab === "details" && autosaveStatus !== 'idle' && (
+                <AutosaveIndicator status={autosaveStatus} />
+              )}
+            </div>
+            {activeTab !== "details" && (
+              <Button
+                type="button"
+                onClick={() => {
+                  console.log("Update Artwork button clicked!");
+                  handleUpdateArtwork();
+                }}
+                disabled={isFormActuallySaving}
+              >
+                {isFormActuallySaving ? "Updating..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
         </ScrollableDialogFooter>
       </ScrollableDialogContent>
     </ScrollableDialog>

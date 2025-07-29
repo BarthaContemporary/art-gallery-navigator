@@ -88,9 +88,8 @@ export function CreateArtworkFormView({
       >
         
         {enableAutosave && (
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4">
             <h3 className="text-lg font-medium">Edit Artwork Details</h3>
-            <AutosaveIndicator status={autosaveStatus} />
           </div>
         )}
         <BasicInformationFields 

@@ -12,6 +12,7 @@ interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
   onSavingChange?: (isSaving: boolean) => void;
   scrollToFirstError?: () => void;
   enableAutosave?: boolean;
+  onAutosaveStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
 }
 
 export interface CreateArtworkFormRef {
@@ -27,7 +28,8 @@ export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkF
   onSuccessCallback,
   onSavingChange,
   scrollToFirstError,
-  enableAutosave = false
+  enableAutosave = false,
+  onAutosaveStatusChange
 }, ref) => {
   const {
     form,
@@ -56,6 +58,12 @@ export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkF
       onSavingChange(isSaving);
     }
   }, [isSaving, onSavingChange]);
+
+  useEffect(() => {
+    if (onAutosaveStatusChange) {
+      onAutosaveStatusChange(autosaveStatus);
+    }
+  }, [autosaveStatus, onAutosaveStatusChange]);
 
   // Expose submitForm method via ref
   useImperativeHandle(ref, () => ({

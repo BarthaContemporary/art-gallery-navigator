@@ -120,15 +120,12 @@ export function BasicInformationFields({
                 <SelectContent>
                   <SelectItem value="Painting">Painting</SelectItem>
                   <SelectItem value="Sculpture">Sculpture</SelectItem>
-                  <SelectItem value="Drawing">Drawing</SelectItem>
+                  <SelectItem value="Work on Paper">Work on Paper</SelectItem>
                   <SelectItem value="Photography">Photography</SelectItem>
-                  <SelectItem value="Print">Print</SelectItem>
-                  <SelectItem value="Mixed Media">Mixed Media</SelectItem>
-                  <SelectItem value="Digital Art">Digital Art</SelectItem>
                   <SelectItem value="Installation">Installation</SelectItem>
                   <SelectItem value="Video">Video</SelectItem>
-                  <SelectItem value="Performance">Performance</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="Textile Arts">Textile Arts</SelectItem>
+                  <SelectItem value="Book">Book</SelectItem>
                 </SelectContent>
               </Select>
             </FormControl>
