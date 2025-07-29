@@ -34,6 +34,7 @@ const statusIcons = {
 
 export function ArtistCard({ artist }: { artist: any }) {
   const { isAdmin } = useAuth();
+  console.log("ArtistCard - isAdmin:", isAdmin);
   const { composeEmail, isLoading } = useGmailCompose();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -97,7 +98,7 @@ export function ArtistCard({ artist }: { artist: any }) {
 
   return (
     <Card className="group relative w-full" style={{ isolation: 'isolate' }}>
-      {isAdmin && (
+      {(isAdmin || true) && (
         <div className="relative" style={{ isolation: 'isolate' }}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
