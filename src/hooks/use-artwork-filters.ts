@@ -67,7 +67,7 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
     });
   }, [artworks, filters]);
 
-  // Sort artworks by artist name, then by price
+  // Sort artworks by artist name, then by type, then by price
   const sortedArtworks = useMemo(() => {
     return [...filteredArtworks].sort((a, b) => {
       // First by artist name
@@ -77,10 +77,16 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
       const nameCompare = artistA.localeCompare(artistB);
       if (nameCompare !== 0) return nameCompare;
       
-      // Then by price (lowest first)
+      // Then by type/medium_type
+      const typeA = a.medium_type || '';
+      const typeB = b.medium_type || '';
+      const typeCompare = typeA.localeCompare(typeB);
+      if (typeCompare !== 0) return typeCompare;
+      
+      // Then by price (highest first)
       const priceA = a.price || 0;
       const priceB = b.price || 0;
-      return priceA - priceB;
+      return priceB - priceA;
     });
   }, [filteredArtworks]);
 
