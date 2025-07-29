@@ -57,7 +57,18 @@ export function ArtworkGrid({
       })
       .map(([artistName, artworks]) => ({
         artistName,
-        artworks: artworks.sort((a, b) => a.title.localeCompare(b.title))
+        artworks: artworks.sort((a, b) => {
+          // First sort by type/medium_type
+          const typeA = a.medium_type || '';
+          const typeB = b.medium_type || '';
+          const typeCompare = typeA.localeCompare(typeB);
+          if (typeCompare !== 0) return typeCompare;
+          
+          // Then sort by price (highest first)
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          return priceB - priceA;
+        })
       }));
   }, [artworks]);
 
