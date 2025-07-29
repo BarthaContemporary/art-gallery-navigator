@@ -36,7 +36,14 @@ export function ArtworkCardActions({
           <span className="sr-only">Artwork actions</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-white z-[100]" onClick={e => e.stopPropagation()}>
+      <DropdownMenuContent 
+        align="end" 
+        side="bottom"
+        sideOffset={4}
+        className="bg-white z-[100] border shadow-lg" 
+        onClick={e => e.stopPropagation()}
+        style={{ position: 'fixed' }}
+      >
         <DropdownMenuItem onClick={onEdit}>
           <Edit className="h-4 w-4 mr-2" />
           Edit
