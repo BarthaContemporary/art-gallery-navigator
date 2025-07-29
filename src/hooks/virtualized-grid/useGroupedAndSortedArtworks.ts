@@ -51,6 +51,13 @@ export function useGroupedAndSortedArtworks(
           const artistCompare = artistNameA.localeCompare(artistNameB);
           if (artistCompare !== 0) return artistCompare;
           
+          // Sort by type/medium_type
+          const typeA = a.medium_type || "";
+          const typeB = b.medium_type || "";
+          const typeCompare = typeA.localeCompare(typeB);
+          if (typeCompare !== 0) return typeCompare;
+          
+          // Then sort by price descending
           const priceA = (a && typeof a.price === 'number') ? a.price : 0;
           const priceB = (b && typeof b.price === 'number') ? b.price : 0;
           return priceB - priceA; // Sort by price descending
