@@ -93,11 +93,6 @@ export function CreateArtworkFormView({
             <AutosaveIndicator status={autosaveStatus} />
           </div>
         )}
-        
-        {/* Debug info - remove this later */}
-        <div className="text-xs text-muted-foreground mb-2">
-          Debug: enableAutosave={enableAutosave ? 'true' : 'false'}, status={autosaveStatus}
-        </div>
         <BasicInformationFields 
           form={form} 
           artists={artists}

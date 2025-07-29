@@ -27,19 +27,20 @@ export function useAutosave<T>({
       
       console.log('Autosave: Attempting to save data:', data);
       
-      // Validate form before saving
-      const isValid = await form.trigger();
-      console.log('Autosave: Form validation result:', isValid);
-      
-      if (isValid) {
-        try {
+      try {
+        // For autosave, we'll do minimal validation - just check required fields
+        const hasRequiredFields = (data as any).title && (data as any).artist_id;
+        
+        if (hasRequiredFields) {
+          console.log('Autosave: Required fields present, proceeding with save');
           await onSave(data);
           console.log('Autosave: Successfully saved');
-        } catch (error) {
-          console.error('Autosave: Failed to save:', error);
+        } else {
+          console.log('Autosave: Skipping save - missing required fields (title or artist_id)');
         }
-      } else {
-        console.log('Autosave: Skipping save due to validation errors:', form.formState.errors);
+      } catch (error) {
+        console.error('Autosave: Failed to save:', error);
+        throw error; // Let the calling component handle the error
       }
     }, [form, onSave, enabled]),
     delay

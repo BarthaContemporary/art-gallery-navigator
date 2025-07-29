@@ -7,6 +7,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useSafeAsync } from "@/hooks/use-safe-async";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserRoles } from "@/hooks/use-user-roles";
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 import { ArtworkFormData } from "./types";
 import { useAutosave } from "@/hooks/use-autosave";
 import { getArtworkInitialValues } from "./getArtworkInitialValues";
@@ -40,7 +41,7 @@ export function useCreateArtworkForm({
 
   const userRoles = useUserRoles(user);
   const isAdmin = userRoles.isAdmin || false;
-  const currentUserArtist = null; // Simplified for now
+  const currentUserArtist = useCurrentUserArtist();
 
   const form = useForm<ArtworkFormData>({
     defaultValues: getArtworkInitialValues(initialData, isAdmin, currentUserArtist),
@@ -78,27 +79,38 @@ export function useCreateArtworkForm({
       submissionData.depth ? `${submissionData.depth}cm D` : ''
     ].filter(Boolean).join(' x ');
 
+    // Helper function to safely convert to number, treating 0 as null for optional numeric fields
+    const safeNumber = (value: any, allowZero = false) => {
+      if (value === null || value === undefined || value === '') return null;
+      const num = Number(value);
+      if (isNaN(num)) return null;
+      if (!allowZero && num === 0) return null;
+      return num;
+    };
+
     const formattedData = {
       ...submissionData,
       dimensions: dimensions || null,
-      price: submissionData.price ? Number(submissionData.price) : null,
-      year: submissionData.year ? Number(submissionData.year) : null,
-      height: submissionData.height ? Number(submissionData.height) : null,
-      width: submissionData.width ? Number(submissionData.width) : null,
-      depth: submissionData.depth ? Number(submissionData.depth) : null,
-      edition_size: submissionData.edition_size ? Number(submissionData.edition_size) : null,
-      inventory_quantity: submissionData.inventory_quantity ? Number(submissionData.inventory_quantity) : null,
+      price: safeNumber(submissionData.price),
+      year: safeNumber(submissionData.year),
+      height: safeNumber(submissionData.height),
+      width: safeNumber(submissionData.width),
+      depth: safeNumber(submissionData.depth),
+      edition_size: safeNumber(submissionData.edition_size),
+      inventory_quantity: safeNumber(submissionData.inventory_quantity),
       available_works: submissionData.available_works || null,
-      artist_proofs: submissionData.artist_proofs ? Number(submissionData.artist_proofs) : null,
+      artist_proofs: safeNumber(submissionData.artist_proofs),
       is_framed: !!submissionData.is_framed,
-      frame_height: submissionData.frame_height ? Number(submissionData.frame_height) : null,
-      frame_width: submissionData.frame_width ? Number(submissionData.frame_width) : null,
-      frame_depth: submissionData.frame_depth ? Number(submissionData.frame_depth) : null,
-      weight: submissionData.weight ? Number(submissionData.weight) : null,
+      frame_height: safeNumber(submissionData.frame_height),
+      frame_width: safeNumber(submissionData.frame_width),
+      frame_depth: safeNumber(submissionData.frame_depth),
+      weight: safeNumber(submissionData.weight),
       has_crate: !!submissionData.has_crate,
-      crate_height: submissionData.crate_height ? Number(submissionData.crate_height) : null,
-      crate_width: submissionData.crate_width ? Number(submissionData.crate_width) : null,
-      crate_depth: submissionData.crate_depth ? Number(submissionData.crate_depth) : null,
+      crate_height: safeNumber(submissionData.crate_height),
+      crate_width: safeNumber(submissionData.crate_width),
+      crate_depth: safeNumber(submissionData.crate_depth),
+      // Ensure required fields are not null/empty
+      location_id: submissionData.location_id || null,
     };
 
     let artworkId: string;
@@ -154,22 +166,37 @@ export function useCreateArtworkForm({
 
   // Autosave implementation
   const handleAutosave = async (data: ArtworkFormData) => {
-    if (!initialData || !enableAutosave) return;
+    if (!initialData || !enableAutosave) {
+      console.log('Autosave: Skipping - no initialData or autosave disabled');
+      return;
+    }
     
+    console.log('Autosave: Starting save process...');
     setAutosaveStatus('saving');
+    
     try {
       await performSave(data);
+      console.log('Autosave: Save completed successfully');
       setAutosaveStatus('saved');
       
       // Invalidate queries to update the UI
       queryClient.invalidateQueries({ queryKey: ['artworks'] });
       queryClient.invalidateQueries({ queryKey: ['artwork', initialData?.id] });
       
-      setTimeout(() => setAutosaveStatus('idle'), 2000);
+      // Reset status to idle after showing saved status
+      setTimeout(() => {
+        console.log('Autosave: Resetting status to idle');
+        setAutosaveStatus('idle');
+      }, 2000);
     } catch (error) {
       console.error('Autosave error:', error);
       setAutosaveStatus('error');
-      setTimeout(() => setAutosaveStatus('idle'), 3000);
+      
+      // Reset status to idle after showing error status
+      setTimeout(() => {
+        console.log('Autosave: Resetting error status to idle');
+        setAutosaveStatus('idle');
+      }, 3000);
     }
   };
 

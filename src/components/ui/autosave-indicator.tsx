@@ -43,9 +43,14 @@ export function AutosaveIndicator({ status, className }: AutosaveIndicatorProps)
   const { icon: Icon, text, className: statusClassName, iconClassName } = statusInfo;
 
   return (
-    <div className={cn('flex items-center gap-2 text-sm', statusClassName, className)}>
+    <div className={cn(
+      'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border',
+      'bg-background/80 backdrop-blur-sm transition-all duration-200',
+      statusClassName, 
+      className
+    )}>
       <Icon className={cn('h-4 w-4', iconClassName)} />
-      <span>{text}</span>
+      <span className="font-medium">{text}</span>
     </div>
   );
 }
