@@ -58,6 +58,7 @@ export function CreateArtworkFormView({
 }: CreateArtworkFormViewProps) {
 
   const handleInvalidSubmit = () => {
+    console.log("Form validation failed - handleInvalidSubmit called");
     if (scrollToFirstError) {
       setTimeout(() => {
         scrollToFirstError();
@@ -74,7 +75,10 @@ export function CreateArtworkFormView({
     <Form {...form}>
       <form 
         id={formId}
-        onSubmit={form.handleSubmit(handleFormSubmit, handleInvalidSubmit)}
+        onSubmit={(e) => {
+          console.log("Form onSubmit event triggered", e);
+          form.handleSubmit(handleFormSubmit, handleInvalidSubmit)(e);
+        }}
         className="space-y-6"
       >
         <BasicInformationFields 

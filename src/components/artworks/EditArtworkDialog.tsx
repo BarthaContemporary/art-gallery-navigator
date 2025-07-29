@@ -68,13 +68,23 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
       // Trigger form submission for details tab
       const form = document.getElementById('edit-artwork-form');
       console.log("Form element found:", !!form);
+      console.log("Form element:", form);
       
       if (form) {
-        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-        console.log("Dispatching submit event");
-        form.dispatchEvent(submitEvent);
+        // Try both approaches - direct submit and event dispatch
+        console.log("Attempting form.submit()");
+        try {
+          (form as HTMLFormElement).requestSubmit();
+          console.log("requestSubmit() called successfully");
+        } catch (error) {
+          console.log("requestSubmit() failed, trying dispatchEvent:", error);
+          const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+          console.log("Dispatching submit event");
+          form.dispatchEvent(submitEvent);
+        }
       } else {
         console.error("Form element with ID 'edit-artwork-form' not found");
+        console.log("Available forms:", document.querySelectorAll('form'));
       }
     } else {
       // For other tabs (images, videos, documents), just close the dialog
@@ -220,7 +230,10 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
           </Button>
           <Button
             type="button"
-            onClick={handleUpdateArtwork}
+            onClick={() => {
+              console.log("Update Artwork button clicked!");
+              handleUpdateArtwork();
+            }}
             disabled={isFormActuallySaving}
           >
             {isFormActuallySaving ? "Updating..." : activeTab === "details" ? "Update Artwork" : "Save Changes"}
