@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { useArtistAutosave } from "@/hooks/use-artist-autosave";
 
 interface ArtistData { // Define a type for the artist data structure consistent with useEditArtistForm
   id: string;
@@ -63,6 +64,13 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   });
 
   const { scrollContainerRef, scrollToFirstError } = useScrollableDialog(open);
+
+  // Enable autosave
+  useArtistAutosave({
+    form,
+    artistId: artist.id,
+    enabled: open
+  });
 
   const handleDelete = async () => {
     try {
@@ -115,17 +123,19 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-[425px] flex flex-col max-h-[calc(100dvh-5rem)]"
+        className="sm:max-w-[500px] h-[90vh] max-h-[800px] flex flex-col p-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <DialogHeader>
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>Edit Artist</DialogTitle>
           <DialogDescription>
-            Make changes to artist details. Click save when you're done.
+            Make changes to artist details. Changes are saved automatically.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea ref={scrollContainerRef} className="flex-1 min-h-0 p-1 pr-3">
-          <Form {...form}>
+        
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full px-6" ref={scrollContainerRef}>
+            <Form {...form}>
             <form 
               className="space-y-4" 
               onSubmit={(e) => {
@@ -142,7 +152,7 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
                 artistName={artist.full_name}
               />
 
-              <div className="flex gap-2 justify-between pt-2">
+              <div className="flex gap-2 justify-between pt-4 border-t">
                 <Button 
                   type="button" 
                   variant="destructive"
@@ -168,19 +178,21 @@ export function EditArtistDialog({ artist, open, onOpenChange }: EditArtistDialo
                     }} 
                     disabled={isLoading || isDeleting}
                   >
-                    Cancel
+                    Close
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={isLoading || isDeleting}
+                    variant="secondary"
                   >
-                    {isLoading ? "Saving..." : "Save Changes"}
+                    {isLoading ? "Saving..." : "Save Now"}
                   </Button>
                 </div>
               </div>
             </form>
-          </Form>
-        </ScrollArea>
+            </Form>
+          </ScrollArea>
+        </div>
       </DialogContent>
       
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
