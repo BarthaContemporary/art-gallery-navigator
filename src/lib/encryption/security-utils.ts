@@ -10,13 +10,28 @@ export class SecurityUtils {
     return result === 0;
   }
 
-  // Sanitize text output to prevent XSS
+  // Enhanced sanitize text output to prevent XSS
   static sanitizeText(text: string): string {
+    if (!text || typeof text !== 'string') return '';
+    
+    // Enhanced sanitization with comprehensive protection
     return text
+      .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#x27;')
-      .replace(/\//g, '&#x2F;');
+      .replace(/\//g, '&#x2F;')
+      .replace(/`/g, '&#x60;')
+      .replace(/=/g, '&#x3D;')
+      // Remove dangerous patterns
+      .replace(/javascript\s*:/gi, '')
+      .replace(/vbscript\s*:/gi, '')
+      .replace(/data\s*:\s*text\/html/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      // Remove control characters
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\x00/g, '')
+      .trim();
   }
 }
