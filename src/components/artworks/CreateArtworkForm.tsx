@@ -11,6 +11,7 @@ interface CreateArtworkFormProps extends UseCreateArtworkFormProps {
   // New props for state synchronization and actions
   onSavingChange?: (isSaving: boolean) => void;
   scrollToFirstError?: () => void;
+  enableAutosave?: boolean;
 }
 
 export interface CreateArtworkFormRef {
@@ -25,7 +26,8 @@ export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkF
   formId,
   onSuccessCallback,
   onSavingChange,
-  scrollToFirstError
+  scrollToFirstError,
+  enableAutosave = false
 }, ref) => {
   const {
     form,
@@ -39,8 +41,15 @@ export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkF
     resetUploaded,
     isSaving,
     isAdmin,
-    currentUserArtist
-  } = useCreateArtworkForm({ setOpen, initialData, preventFreeze, onSuccessCallback });
+    currentUserArtist,
+    autosaveStatus
+  } = useCreateArtworkForm({ 
+    setOpen, 
+    initialData, 
+    preventFreeze, 
+    onSuccessCallback, 
+    enableAutosave 
+  });
 
   useEffect(() => {
     if (onSavingChange) {
@@ -91,6 +100,8 @@ export const CreateArtworkForm = forwardRef<CreateArtworkFormRef, CreateArtworkF
       formId={formId}
       isSaving={isSaving}
       scrollToFirstError={scrollToFirstError}
+      autosaveStatus={autosaveStatus}
+      enableAutosave={enableAutosave}
     />
   );
 });

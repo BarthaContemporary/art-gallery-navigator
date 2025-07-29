@@ -20,6 +20,7 @@ import { UploadDocumentDialog } from "@/components/documents/UploadDocumentDialo
 import { TargetedImageSearch } from "./TargetedImageSearch";
 import { ArtworkFormData } from "./types";
 import { Artwork } from "@/hooks/use-artworks";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
 interface CreateArtworkFormViewProps {
   form: UseFormReturn<ArtworkFormData>;
@@ -37,6 +38,8 @@ interface CreateArtworkFormViewProps {
   isSaving?: boolean;
   scrollToFirstError?: () => void;
   artworkId?: string; // For created artworks
+  autosaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+  enableAutosave?: boolean;
 }
 
 export function CreateArtworkFormView({
@@ -55,6 +58,8 @@ export function CreateArtworkFormView({
   isSaving = false,
   scrollToFirstError,
   artworkId,
+  autosaveStatus = 'idle',
+  enableAutosave = false
 }: CreateArtworkFormViewProps) {
 
   const handleInvalidSubmit = () => {
@@ -81,6 +86,13 @@ export function CreateArtworkFormView({
         }}
         className="space-y-6"
       >
+        
+        {enableAutosave && (
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">Edit Artwork Details</h3>
+            <AutosaveIndicator status={autosaveStatus} />
+          </div>
+        )}
         <BasicInformationFields 
           form={form} 
           artists={artists}

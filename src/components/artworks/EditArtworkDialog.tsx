@@ -164,6 +164,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
                   preventFreeze={true}
                   hideSubmitButton={true}
                   formId="edit-artwork-form"
+                  enableAutosave={true}
                   onSuccessCallback={() => {
                     setIsFormActuallySaving(false);
                     handleOpenChange(false);
@@ -213,18 +214,20 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             disabled={isFormActuallySaving}
             className="mr-2"
           >
-            Cancel
+            Close
           </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              console.log("Update Artwork button clicked!");
-              handleUpdateArtwork();
-            }}
-            disabled={isFormActuallySaving}
-          >
-            {isFormActuallySaving ? "Updating..." : activeTab === "details" ? "Update Artwork" : "Save Changes"}
-          </Button>
+          {activeTab !== "details" && (
+            <Button
+              type="button"
+              onClick={() => {
+                console.log("Update Artwork button clicked!");
+                handleUpdateArtwork();
+              }}
+              disabled={isFormActuallySaving}
+            >
+              {isFormActuallySaving ? "Updating..." : "Save Changes"}
+            </Button>
+          )}
         </ScrollableDialogFooter>
       </ScrollableDialogContent>
     </ScrollableDialog>
