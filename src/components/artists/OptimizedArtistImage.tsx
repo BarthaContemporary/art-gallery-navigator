@@ -19,10 +19,14 @@ export function OptimizedArtistImage({
   const [hasError, setHasError] = useState(false);
 
   const getOptimizedUrl = useCallback((url: string | null): string => {
-    console.log(`Processing image URL for ${artistName}:`, url);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Processing image URL for ${artistName}:`, url);
+    }
     
     if (!url || url === 'null' || url === 'undefined' || url.trim() === '') {
-      console.log(`No valid URL for ${artistName}, using placeholder`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`No valid URL for ${artistName}, using placeholder`);
+      }
       return "/placeholder.svg";
     }
 
@@ -34,11 +38,15 @@ export function OptimizedArtistImage({
           const baseUrl = urlParts[0];
           const imagePath = urlParts[1];
           const optimizedUrl = `${baseUrl}/upload/w_400,h_300,c_fill,q_85,f_webp/${imagePath}`;
-          console.log(`Optimized Cloudinary URL for ${artistName}:`, optimizedUrl);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Optimized Cloudinary URL for ${artistName}:`, optimizedUrl);
+          }
           return optimizedUrl;
         }
       } catch (error) {
-        console.warn(`Failed to optimize Cloudinary URL for ${artistName}:`, url, error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Failed to optimize Cloudinary URL for ${artistName}:`, url, error);
+        }
         return url;
       }
     }
@@ -48,23 +56,31 @@ export function OptimizedArtistImage({
       const transformParams = "w=400&h=300&resize=cover&q=85&f=auto";
       const separator = url.includes('?') ? '&' : '?';
       const optimizedUrl = `${url}${separator}transform=${transformParams}`;
-      console.log(`Optimized Supabase URL for ${artistName}:`, optimizedUrl);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Optimized Supabase URL for ${artistName}:`, optimizedUrl);
+      }
       return optimizedUrl;
     }
 
-    console.log(`Using original URL for ${artistName}:`, url);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Using original URL for ${artistName}:`, url);
+    }
     return url;
   }, [artistName]);
 
   const handleImageLoad = useCallback(() => {
-    console.log(`Image loaded successfully for ${artistName}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Image loaded successfully for ${artistName}`);
+    }
     setIsLoading(false);
     setHasError(false);
   }, [artistName]);
 
   const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const imgElement = e.target as HTMLImageElement;
-    console.error(`Image failed to load for ${artistName}:`, imgElement.src);
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`Image failed to load for ${artistName}:`, imgElement.src);
+    }
     setIsLoading(false);
     setHasError(true);
   }, [artistName]);
