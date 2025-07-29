@@ -39,17 +39,40 @@ export class InputValidator {
     return { isValid: errors.length === 0, errors };
   }
 
-  // Sanitize user input to prevent XSS
+  // Enhanced sanitize user input to prevent XSS and injection attacks
   static sanitizeInput(input: string): string {
     if (!input || typeof input !== 'string') return '';
     
     return input
+      // First handle ampersands to avoid double encoding
+      .replace(/&/g, '&amp;')
+      // HTML entity encoding
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#x27;')
       .replace(/\//g, '&#x2F;')
-      .replace(/&/g, '&amp;')
+      .replace(/`/g, '&#x60;')
+      .replace(/=/g, '&#x3D;')
+      // Remove dangerous patterns
+      .replace(/javascript\s*:/gi, '')
+      .replace(/vbscript\s*:/gi, '')
+      .replace(/data\s*:\s*text\/html/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      // Remove control characters and null bytes
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\x00/g, '')
+      .replace(/\uFEFF/g, '') // BOM
+      .replace(/\u2028/g, '') // Line separator
+      .replace(/\u2029/g, '') // Paragraph separator
+      // SQL injection prevention
+      .replace(/(\b(ALTER|CREATE|DELETE|DROP|EXEC(UTE)?|INSERT|MERGE|SELECT|UPDATE|UNION|SCRIPT)\b)/gi, '')
+      // Additional dangerous patterns
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+      .replace(/expression\s*\(/gi, '')
+      .replace(/@import/gi, '')
       .trim()
       .slice(0, 10000); // Limit length
   }
