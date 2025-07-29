@@ -96,34 +96,41 @@ export function ArtistCard({ artist }: { artist: any }) {
   };
 
   return (
-    <Card className="group relative w-full">
+    <Card className="group relative w-full" style={{ isolation: 'isolate' }}>
       {isAdmin && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+        <div className="relative" style={{ isolation: 'isolate' }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={preventPropagation}
+              >
+                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">Actions for {artist.full_name}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
               onClick={preventPropagation}
+              className="z-[9999]"
+              avoidCollisions={false}
             >
-              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="sr-only">Actions for {artist.full_name}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={preventPropagation}>
-            <DropdownMenuItem onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleDelete}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleDelete}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
       
       <OptimizedArtistImage
