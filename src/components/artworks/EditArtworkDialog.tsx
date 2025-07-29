@@ -62,12 +62,19 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
   }, [onOpenChange, isMounted]);
 
   const handleUpdateArtwork = useCallback(() => {
+    console.log("handleUpdateArtwork called, activeTab:", activeTab);
+    
     if (activeTab === "details") {
       // Trigger form submission for details tab
       const form = document.getElementById('edit-artwork-form');
+      console.log("Form element found:", !!form);
+      
       if (form) {
         const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        console.log("Dispatching submit event");
         form.dispatchEvent(submitEvent);
+      } else {
+        console.error("Form element with ID 'edit-artwork-form' not found");
       }
     } else {
       // For other tabs (images, videos, documents), just close the dialog

@@ -66,6 +66,7 @@ export function CreateArtworkFormView({
   };
 
   const handleFormSubmit = (data: ArtworkFormData) => {
+    console.log("Form submit handler called with data:", data);
     onSubmit(data);
   };
 

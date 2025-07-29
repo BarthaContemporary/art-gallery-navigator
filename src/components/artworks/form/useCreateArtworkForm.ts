@@ -65,6 +65,8 @@ export function useCreateArtworkForm({
 
     execute(
       async () => {
+        console.log("useCreateArtworkForm onSubmit called with:", submissionData);
+        console.log("initialData:", initialData);
         const dimensions = [
           submissionData.height ? `${submissionData.height}cm H` : '',
           submissionData.width ? `${submissionData.width}cm W` : '',
@@ -96,12 +98,16 @@ export function useCreateArtworkForm({
 
         let artworkId: string;
         if (initialData) {
-          const { error } = await supabase
+          console.log("Updating existing artwork with ID:", initialData.id);
+          console.log("Formatted update data:", formattedData);
+          
+          const { data: updatedData, error } = await supabase
             .from('artworks')
             .update(formattedData as any)
             .eq('id', initialData.id)
             .select();
           
+          console.log("Update result:", { data: updatedData, error });
           if (error) throw error;
           artworkId = initialData.id;
         } else {
