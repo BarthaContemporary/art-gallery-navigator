@@ -20,7 +20,10 @@ export function useAutosave<T>({
   
   const debouncedSave = useDebouncedCallback(
     useCallback(async (data: T) => {
-      if (!enabled) return;
+      if (!enabled) {
+        console.log('Autosave: Disabled, skipping save');
+        return;
+      }
       
       console.log('Autosave: Attempting to save data:', data);
       
@@ -43,11 +46,13 @@ export function useAutosave<T>({
   );
 
   useEffect(() => {
+    console.log('Autosave: Setting up watch with enabled =', enabled);
     if (!enabled) return;
 
     const subscription = form.watch((data) => {
       // Skip the first call which happens on initialization
       if (!isInitializedRef.current) {
+        console.log('Autosave: Initializing, skipping first call');
         isInitializedRef.current = true;
         previousValuesRef.current = JSON.stringify(data);
         return;
