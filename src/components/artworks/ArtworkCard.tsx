@@ -54,10 +54,10 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   return (
     <>
       <div 
-        className="group relative flex flex-col border rounded-lg bg-card hover:shadow-md transition-all duration-200 overflow-visible"
+        className="group relative flex flex-col border rounded-lg bg-card hover:shadow-md transition-all duration-200 overflow-hidden"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{ contain: 'layout style', width: "100%" }}
+        style={{ contain: 'layout', width: "100%" }}
       >
         <ArtworkCardImage
           artwork={artwork}

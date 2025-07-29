@@ -22,7 +22,7 @@ export function ArtworkCardActions({
   onDelete 
 }: ArtworkCardActionsProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button 
           size="icon" 
@@ -38,11 +38,11 @@ export function ArtworkCardActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        side="bottom"
-        sideOffset={4}
         className="bg-white z-[100] border shadow-lg" 
         onClick={e => e.stopPropagation()}
-        style={{ position: 'fixed' }}
+        side="bottom"
+        sideOffset={4}
+        avoidCollisions={true}
       >
         <DropdownMenuItem onClick={onEdit}>
           <Edit className="h-4 w-4 mr-2" />
