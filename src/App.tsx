@@ -14,6 +14,7 @@ import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AuthProvider } from "@/providers/auth-provider";
 import { LoadingProvider } from "@/contexts/loading-context";
 import { SecurityProvider } from "@/components/security/SecurityProvider";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import Dashboard from "@/pages/Dashboard";
 import Artists from "@/pages/Artists";
 import Artworks from "@/pages/Artworks";
@@ -41,8 +42,9 @@ function App() {
       <LoadingProvider>
         <BrowserRouter>
           <AuthProvider>
-            <SecurityProvider>
-              <Toaster />
+            <CurrencyProvider>
+              <SecurityProvider>
+                <Toaster />
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/book-appointment" element={<BookAppointment />} />
@@ -71,7 +73,8 @@ function App() {
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </SecurityProvider>
+              </SecurityProvider>
+            </CurrencyProvider>
           </AuthProvider>
         </BrowserRouter>
       </LoadingProvider>

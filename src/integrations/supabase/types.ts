@@ -1361,6 +1361,39 @@ export type Database = {
           },
         ]
       }
+      exchange_rates: {
+        Row: {
+          base_currency: string
+          created_at: string
+          expires_at: string
+          fetched_at: string
+          id: string
+          rate: number
+          target_currency: string
+          updated_at: string
+        }
+        Insert: {
+          base_currency: string
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          rate: number
+          target_currency: string
+          updated_at?: string
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          expires_at?: string
+          fetched_at?: string
+          id?: string
+          rate?: number
+          target_currency?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exhibition_artworks: {
         Row: {
           artwork_id: string
@@ -2175,6 +2208,10 @@ export type Database = {
       get_artist_id_for_current_user: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_available_currencies: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
       }
       get_folder_artist_access: {
         Args: { folder_id_param: string }

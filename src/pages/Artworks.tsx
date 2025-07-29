@@ -17,6 +17,7 @@ import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
 import { NewCollectionFromArtworksButton } from "@/components/artworks/NewCollectionFromArtworksButton";
 import { CreateCollectionDialog } from "@/components/artworks/dialogs/CreateCollectionDialog";
+import { CurrencySelector } from "@/components/artworks/CurrencySelector";
 import { useArtworks, useArtists } from "@/hooks/use-artworks";
 import { useArtworkFilters } from "@/hooks/use-artwork-filters";
 import { useArtworkSelection } from "@/hooks/use-artwork-selection";
@@ -199,6 +200,8 @@ export default function Artworks() {
                 className="pl-10"
               />
             </div>
+            
+            <CurrencySelector />
             
             <Button
               variant="outline"

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ConvertedPrice } from "./ConvertedPrice";
 import type { ArtworkImage } from "@/hooks/use-artworks";
 
 const ArtworkOverviewDialogLazy = lazy(() => import('./overview/ArtworkOverviewDialog').then(module => ({ default: module.ArtworkOverviewDialog })));
@@ -163,7 +164,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                       {artwork.status}
                     </Badge>
                   )}
-                  <span>Price: {formatPrice(artwork)}</span>
+                  <span>Price: <ConvertedPrice price={artwork.price} currency={artwork.currency} /></span>
                 </div>
               </div>
 
@@ -212,7 +213,10 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
                 {artwork.price ? (
                   <div className="flex items-center gap-1">
                     <DollarSign className="h-3 w-3" />
-                    <span>{formatPrice(artwork)}</span>
+                    <ConvertedPrice 
+                      price={artwork.price} 
+                      currency={artwork.currency} 
+                    />
                   </div>
                 ) : (
                   "—"
