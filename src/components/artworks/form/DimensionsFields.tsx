@@ -22,7 +22,12 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
               Height (cm)
             </FormLabel>
             <FormControl>
-              <Input type="number" {...field} placeholder="Height" />
+              <Input 
+                type="number" 
+                {...field} 
+                value={field.value || ""} 
+                placeholder="Height" 
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -38,7 +43,12 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
               Width (cm)
             </FormLabel>
             <FormControl>
-              <Input type="number" {...field} placeholder="Width" />
+              <Input 
+                type="number" 
+                {...field} 
+                value={field.value || ""} 
+                placeholder="Width" 
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -54,7 +64,12 @@ export function DimensionsFields({ form }: DimensionsFieldsProps) {
               Depth (cm)
             </FormLabel>
             <FormControl>
-              <Input type="number" {...field} placeholder="Depth" />
+              <Input 
+                type="number" 
+                {...field} 
+                value={field.value || ""} 
+                placeholder="Depth" 
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
