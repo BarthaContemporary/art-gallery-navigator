@@ -40,7 +40,7 @@ export function ArtworkFilters({
   return (
     <div className={cn("space-y-4", compact && "space-y-2")}>
       {/* Filter Options */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 overflow-visible" style={{ contain: 'layout' }}>
         {/* Artist Filter */}
         <Select
           value={filters.artist || "__all__"}
@@ -49,7 +49,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Artists" />
           </SelectTrigger>
-          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
+          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
             <SelectItem value="__all__">All Artists</SelectItem>
             {filterOptions.artists.map((artist) => (
               <SelectItem key={artist.id} value={artist.id}>
@@ -67,7 +67,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
-          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
+          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
             <SelectItem value="__all__">All Statuses</SelectItem>
             {filterOptions.statuses.map((status) => (
               <SelectItem key={status} value={status}>
@@ -85,7 +85,7 @@ export function ArtworkFilters({
           <SelectTrigger>
             <SelectValue placeholder="All Mediums" />
           </SelectTrigger>
-          <SelectContent className="z-50" position="popper" sideOffset={4} avoidCollisions={true}>
+          <SelectContent className="absolute z-50 bg-background border shadow-lg" position="popper" sideOffset={4} avoidCollisions={false}>
             <SelectItem value="__all__">All Mediums</SelectItem>
             {filterOptions.mediumTypes.map((type) => (
               <SelectItem key={type} value={type}>
