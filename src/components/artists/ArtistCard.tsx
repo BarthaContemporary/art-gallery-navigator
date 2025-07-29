@@ -104,7 +104,7 @@ export function ArtistCard({ artist }: { artist: any }) {
               <Button 
                 size="icon" 
                 variant="ghost" 
-                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 transition-opacity"
                 onClick={preventPropagation}
               >
                 <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
