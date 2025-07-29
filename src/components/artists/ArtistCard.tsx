@@ -114,7 +114,7 @@ export function ArtistCard({ artist }: { artist: any }) {
             <DropdownMenuContent 
               align="end" 
               onClick={preventPropagation}
-              className="z-[9999]"
+              className="z-[9999] bg-white border shadow-lg"
               avoidCollisions={false}
             >
               <DropdownMenuItem onClick={handleEdit}>
