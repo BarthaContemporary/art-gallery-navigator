@@ -25,7 +25,7 @@ import Projects from "@/pages/Projects";
 import Locations from "@/pages/Locations";
 import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
-import Appointments from "@/pages/Appointments";
+import GoogleCalendarAppointments from "@/pages/GoogleCalendarAppointments";
 import BookAppointment from "@/pages/BookAppointment";
 import UserSignup from "@/pages/UserSignup";
 import ManageWebsites from "@/pages/ManageWebsites";
@@ -63,7 +63,7 @@ function App() {
                   <Route path="projects" element={<Projects />} />
                   <Route path="locations" element={<Locations />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="appointments" element={<AdminRoute><Appointments /></AdminRoute>} />
+                  <Route path="appointments" element={<AdminRoute><GoogleCalendarAppointments /></AdminRoute>} />
                   <Route path="crm" element={<CRM />} />
                   <Route path="chat" element={<Chat />} />
                   <Route path="admin" element={<UserSignup />} />
