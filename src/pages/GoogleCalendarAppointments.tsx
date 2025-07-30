@@ -53,13 +53,6 @@ export default function GoogleCalendarAppointments() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Calendar className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Appointments</h1>
-          <p className="text-muted-foreground">Schedule your gallery visits and consultations</p>
-        </div>
-      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
