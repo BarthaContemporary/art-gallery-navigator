@@ -59,29 +59,10 @@ export default function GoogleCalendarAppointments() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Book an Appointment
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">Book a Google Meeting (like Zoom) for one to one assistance or general conversation</p>
-            
-            
-
-            {/* Google Calendar Button Container */}
-            <div className="pt-4">
-              <div id="google-calendar-target"></div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>Contact</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">Schedule a call in the next panel, or use the chat button at the bottom. </p>
+            <p className="text-muted-foreground">Schedule a call in the next panel, or use the chat button at the bottom. </p>
             
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
@@ -108,6 +89,25 @@ export default function GoogleCalendarAppointments() {
                   <p className="text-sm text-muted-foreground">niklas@barthacontemporary.com</p>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Book an Appointment
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">Book a Google Meeting (like Zoom) for one to one assistance or general conversation</p>
+            
+            
+
+            {/* Google Calendar Button Container */}
+            <div className="pt-4">
+              <div id="google-calendar-target"></div>
             </div>
           </CardContent>
         </Card>
