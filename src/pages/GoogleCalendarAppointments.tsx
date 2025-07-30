@@ -32,7 +32,7 @@ export default function GoogleCalendarAppointments() {
     // Initialize the calendar button when the script loads
     script.onload = () => {
       const targetElement = document.getElementById('google-calendar-target');
-      if (window.calendar && targetElement) {
+      if (window.calendar && targetElement && !targetElement.hasChildNodes()) {
         window.calendar.schedulingButton.load({
           url: 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ1VBfIFXwKkPot_gxCvnJxBTw2FcN6zvzax5HycsH9IH2oRdMdcb56hlWKTdsBy4QuHtLiXNHTK?gv=true',
           color: '#039BE5',
