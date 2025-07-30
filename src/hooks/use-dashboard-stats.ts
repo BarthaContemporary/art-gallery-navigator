@@ -25,7 +25,7 @@ interface DashboardStats {
     color: 'blue' | 'green' | 'yellow' | 'purple';
   }>;
   recent_activities: Array<{
-    type: 'artwork' | 'artist' | 'location' | 'client';
+    type: 'login' | 'client';
     title: string;
     timestamp: string;
     color: 'blue' | 'green' | 'purple' | 'yellow';
@@ -103,12 +103,13 @@ export function useDashboardStats() {
         }));
       }
 
-      // Fetch recent activities (latest updates across tables)
-      const { data: recentArtworks } = await supabase
-        .from('artworks')
-        .select('title, created_at')
+      // Fetch recent user logins from security events
+      const { data: recentLogins } = await supabase
+        .from('security_events')
+        .select('user_id, created_at, details')
+        .ilike('event_type', '%login%')
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(10);
 
       // Fetch inventory statuses
       const { data: inventoryStatus } = await supabase
@@ -125,13 +126,27 @@ export function useDashboardStats() {
         }
       }
 
-      // Format recent activities (combine artwork and client activities for admins)
-      const artworkActivities = (recentArtworks || []).map(artwork => ({
-        type: 'artwork' as const,
-        title: artwork.title,
-        timestamp: new Date(artwork.created_at).toISOString(),
-        color: 'blue' as const,
-      }));
+      // Get user profiles for recent logins to show user names
+      const loginUserIds = [...new Set((recentLogins || []).map(login => login.user_id).filter(id => id))];
+      const { data: userProfiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, email')
+        .in('id', loginUserIds);
+
+      // Create a map for quick lookup
+      const userMap = new Map((userProfiles || []).map(user => [user.id, user]));
+
+      // Format recent login activities
+      const loginActivities = (recentLogins || []).map(login => {
+        const user = userMap.get(login.user_id);
+        const displayName = user?.display_name || user?.email || 'Unknown User';
+        return {
+          type: 'login' as const,
+          title: `${displayName} logged in`,
+          timestamp: new Date(login.created_at).toISOString(),
+          color: 'green' as const,
+        };
+      });
 
       const clientActivitiesForFeed = recentClientActivities.map(activity => ({
         type: activity.type,
@@ -141,10 +156,10 @@ export function useDashboardStats() {
       }));
 
       const recent_activities = isAdmin 
-        ? [...artworkActivities, ...clientActivitiesForFeed].sort((a, b) => 
+        ? [...loginActivities, ...clientActivitiesForFeed].sort((a, b) => 
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           ).slice(0, 5)
-        : artworkActivities;
+        : loginActivities.slice(0, 5);
 
       const stats: DashboardStats = {
         artworks_count: artworksResult.count || 0,
