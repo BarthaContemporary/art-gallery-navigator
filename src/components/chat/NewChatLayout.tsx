@@ -63,7 +63,7 @@ export function NewChatLayout() {
           onClick={() => setCurrentView('online')}
         >
           <Users className="h-4 w-4 mr-2" />
-          Online
+          Users
         </Button>
       </div>
       
