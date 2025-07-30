@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Clock } from "lucide-react";
 declare global {
@@ -16,6 +16,29 @@ declare global {
   }
 }
 export default function GoogleCalendarAppointments() {
+  const [londonTime, setLondonTime] = useState("");
+
+  useEffect(() => {
+    const updateLondonTime = () => {
+      const now = new Date();
+      const londonTimeString = now.toLocaleTimeString("en-GB", {
+        timeZone: "Europe/London",
+        hour12: true,
+        hour: "numeric",
+        minute: "2-digit"
+      });
+      setLondonTime(londonTimeString);
+    };
+
+    // Update immediately
+    updateLondonTime();
+
+    // Update every second
+    const interval = setInterval(updateLondonTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // Check if CSS is already loaded
     const existingCSS = document.querySelector('link[href="https://calendar.google.com/calendar/scheduling-button-script.css"]');
@@ -69,7 +92,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Current time in London</p>
-                  <p className="text-sm text-muted-foreground">5:24 PM</p>
+                  <p className="text-sm text-muted-foreground">{londonTime}</p>
                   
                 </div>
               </div>
