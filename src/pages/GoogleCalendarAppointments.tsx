@@ -26,7 +26,7 @@ export default function GoogleCalendarAppointments() {
         hour12: true,
         hour: "numeric",
         minute: "2-digit"
-      });
+      }).toUpperCase();
       setLondonTime(londonTimeString);
     };
 
