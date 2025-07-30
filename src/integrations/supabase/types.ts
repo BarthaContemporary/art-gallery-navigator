@@ -2137,6 +2137,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_link_artist_to_user: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_old_chat_messages: {
         Args: Record<PropertyKey, never>
         Returns: undefined
