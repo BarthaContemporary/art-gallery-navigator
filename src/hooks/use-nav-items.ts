@@ -13,8 +13,8 @@ export const useNavItems = () => {
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
-    // Appointments - only for admin users
-    ...(isAdmin ? [{ title: "Appointments", href: "/appointments", icon: Calendar }] : []),
+    // Appointments - available to all users
+    { title: "Appointments", href: "/appointments", icon: Calendar },
     { title: "Locations", href: "/locations", icon: MapPin },
     // CRM - only for admin users
     ...(isAdmin ? [{ title: "CRM", href: "/crm", icon: UserCheck }] : []),

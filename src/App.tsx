@@ -63,7 +63,7 @@ function App() {
                   <Route path="projects" element={<Projects />} />
                   <Route path="locations" element={<Locations />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="appointments" element={<AdminRoute><GoogleCalendarAppointments /></AdminRoute>} />
+                  <Route path="appointments" element={<GoogleCalendarAppointments />} />
                   <Route path="crm" element={<CRM />} />
                   <Route path="chat" element={<Chat />} />
                   <Route path="admin" element={<UserSignup />} />
