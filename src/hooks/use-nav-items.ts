@@ -11,8 +11,8 @@ export const useNavItems = () => {
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
     // Artists - only for admin users
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
-    { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Locations", href: "/locations", icon: MapPin },
     // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },
@@ -39,8 +39,8 @@ export const useNavItemsGrouped = () => {
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
     // Artists - only for admin users
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
-    { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Locations", href: "/locations", icon: MapPin },
     // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },

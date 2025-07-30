@@ -10,8 +10,8 @@ export function Navigation() {
     { href: "/", icon: Home, name: "Dashboard" },
     { href: "/artworks", icon: Palette, name: "Artworks" },
     { href: "/artists", icon: Users, name: "Artists" },
-    { href: "/file-sharing", icon: Share2, name: "File Sharing" },
     { href: "/collections", icon: FolderOpen, name: "Collections" },
+    { href: "/file-sharing", icon: Share2, name: "File Sharing" },
     { href: "/locations", icon: MapPin, name: "Locations" },
     { href: "/appointments", icon: Calendar, name: "Appointments" },
   ];
