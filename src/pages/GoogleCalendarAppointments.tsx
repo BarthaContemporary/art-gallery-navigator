@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Clock } from "lucide-react";
-
 declare global {
   interface Window {
     calendar?: {
@@ -16,7 +15,6 @@ declare global {
     };
   }
 }
-
 export default function GoogleCalendarAppointments() {
   useEffect(() => {
     // Load Google Calendar scheduling button CSS
@@ -39,7 +37,7 @@ export default function GoogleCalendarAppointments() {
           url: 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ1VBfIFXwKkPot_gxCvnJxBTw2FcN6zvzax5HycsH9IH2oRdMdcb56hlWKTdsBy4QuHtLiXNHTK?gv=true',
           color: '#039BE5',
           label: 'Book an appointment',
-          target: targetElement,
+          target: targetElement
         });
       }
     };
@@ -50,9 +48,7 @@ export default function GoogleCalendarAppointments() {
       document.head.removeChild(script);
     };
   }, []);
-
-  return (
-    <div className="container mx-auto p-6 space-y-6">
+  return <div className="container mx-auto p-6 space-y-6">
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -63,20 +59,9 @@ export default function GoogleCalendarAppointments() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Schedule a personalized consultation or gallery visit. Choose from available time slots
-              that work best for your schedule.
-            </p>
+            <p className="text-muted-foreground">Book a Google Meeting (like Zoom) for one to one assistance or general conversation</p>
             
-            <div className="bg-muted/30 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2">What to expect:</h4>
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Personalized art consultation</li>
-                <li>• Private gallery viewing</li>
-                <li>• Discussion of collection interests</li>
-                <li>• Expert guidance and recommendations</li>
-              </ul>
-            </div>
+            
 
             {/* Google Calendar Button Container */}
             <div className="pt-4">
@@ -147,6 +132,5 @@ export default function GoogleCalendarAppointments() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
