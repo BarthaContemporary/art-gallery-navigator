@@ -5,13 +5,13 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { useNavItems } from "@/hooks/use-nav-items";
+import { useNavItemsGrouped } from "@/hooks/use-nav-items";
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { signOut } = useAuth();
-  const navItems = useNavItems();
+  const { signOut, isAdmin } = useAuth();
+  const { mainItems, adminItems } = useNavItemsGrouped();
 
   return (
     <>
@@ -50,13 +50,14 @@ export function MobileSidebar() {
               
               {/* Navigation items */}
               <nav className="flex-1 py-2 px-4 overflow-y-auto bg-white">
+                {/* Main navigation items */}
                 <div className="space-y-1">
-                  {navItems.map((item) => (
+                  {mainItems.map((item) => (
                     <Link
                       to={item.href}
                       key={item.href}
                       onClick={() => setOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-3 text-sm transition-colors ${ // Updated: removed rounded-lg
+                      className={`flex items-center gap-3 px-3 py-3 text-sm transition-colors ${
                         location.pathname === item.href || 
                         (item.href !== "/" && location.pathname.startsWith(item.href))
                           ? "bg-primary text-primary-foreground"
@@ -68,6 +69,35 @@ export function MobileSidebar() {
                     </Link>
                   ))}
                 </div>
+
+                {/* Admin section */}
+                {isAdmin && adminItems.length > 0 && (
+                  <>
+                    <div className="pt-4 pb-2">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">
+                        Admin
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      {adminItems.map((item) => (
+                        <Link
+                          to={item.href}
+                          key={item.href}
+                          onClick={() => setOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-3 text-sm transition-colors ${
+                            location.pathname === item.href || 
+                            (item.href !== "/" && location.pathname.startsWith(item.href))
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-gray-100"
+                          }`}
+                        >
+                          <item.icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="font-normal">{item.title}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
               </nav>
               
               {/* Logout button */}
