@@ -33,7 +33,6 @@ export default function GoogleCalendarAppointments() {
       script.src = 'https://calendar.google.com/calendar/scheduling-button-script.js';
       script.async = true;
       document.head.appendChild(script);
-
       script.onload = () => {
         initializeCalendarButton();
       };
@@ -41,7 +40,6 @@ export default function GoogleCalendarAppointments() {
       // Script already exists, just initialize
       initializeCalendarButton();
     }
-
     function initializeCalendarButton() {
       const targetElement = document.getElementById('google-calendar-target');
       if (window.calendar && targetElement) {
@@ -80,20 +78,18 @@ export default function GoogleCalendarAppointments() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
+            <CardTitle>Contact</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Prefer to schedule by phone or have questions? We're here to help.
-            </p>
+            <p className="text-muted-foreground">Schedule a call in the next panel, or use the chat button at the bottom. </p>
             
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div>
-                  <p className="font-medium">Gallery Hours</p>
-                  <p className="text-sm text-muted-foreground">Monday - Friday: 9:00 AM - 6:00 PM</p>
-                  <p className="text-sm text-muted-foreground">Saturday: 10:00 AM - 4:00 PM</p>
+                  <p className="font-medium">Current time in London</p>
+                  <p className="text-sm text-muted-foreground">Monday - Friday: 11:00 AM - 5:00 PM</p>
+                  
                 </div>
               </div>
               
@@ -101,7 +97,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Phone</p>
-                  <p className="text-sm text-muted-foreground">Call us for immediate assistance</p>
+                  <p className="text-sm text-muted-foreground">Gallery +44 20 7985 0015</p>
                 </div>
               </div>
               
@@ -109,7 +105,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">Send us your questions anytime</p>
+                  <p className="text-sm text-muted-foreground">niklas@barthacontemporary.com</p>
                 </div>
               </div>
             </div>
@@ -117,28 +113,6 @@ export default function GoogleCalendarAppointments() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Appointment Policies</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <h4 className="font-semibold mb-2">Cancellation Policy</h4>
-              <p className="text-sm text-muted-foreground">
-                Please provide at least 24 hours notice for cancellations to allow others 
-                to book the time slot.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Preparation</h4>
-              <p className="text-sm text-muted-foreground">
-                Come prepared with any specific questions or interests you'd like to discuss 
-                during your visit.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      
     </div>;
 }
