@@ -12,8 +12,8 @@ export function Navigation() {
     { href: "/artists", icon: Users, name: "Artists" },
     { href: "/file-sharing", icon: Share2, name: "File Sharing" },
     { href: "/collections", icon: FolderOpen, name: "Collections" },
-    { href: "/appointments", icon: Calendar, name: "Appointments" },
     { href: "/locations", icon: MapPin, name: "Locations" },
+    { href: "/appointments", icon: Calendar, name: "Appointments" },
   ];
 
   const adminNavItems = [

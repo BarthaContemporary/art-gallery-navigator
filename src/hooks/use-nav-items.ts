@@ -13,9 +13,9 @@ export const useNavItems = () => {
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    { title: "Locations", href: "/locations", icon: MapPin },
     // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },
-    { title: "Locations", href: "/locations", icon: MapPin },
   ];
 
   const adminItems = isAdmin ? [
@@ -41,9 +41,9 @@ export const useNavItemsGrouped = () => {
     ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "File Sharing", href: "/file-sharing", icon: Share2 },
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    { title: "Locations", href: "/locations", icon: MapPin },
     // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },
-    { title: "Locations", href: "/locations", icon: MapPin },
   ];
 
   const adminItems = isAdmin ? [
