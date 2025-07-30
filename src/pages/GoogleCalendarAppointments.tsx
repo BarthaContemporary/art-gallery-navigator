@@ -101,7 +101,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Phone</p>
-                  <p className="text-sm text-muted-foreground">Gallery +44 20 7985 0015</p>
+                  <a href="tel:+442079850015" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Gallery +44 20 7985 0015</a>
                 </div>
               </div>
               
