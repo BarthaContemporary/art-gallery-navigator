@@ -17,22 +17,36 @@ declare global {
 }
 export default function GoogleCalendarAppointments() {
   useEffect(() => {
-    // Load Google Calendar scheduling button CSS
-    const link = document.createElement('link');
-    link.href = 'https://calendar.google.com/calendar/scheduling-button-script.css';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
+    // Check if CSS is already loaded
+    const existingCSS = document.querySelector('link[href="https://calendar.google.com/calendar/scheduling-button-script.css"]');
+    if (!existingCSS) {
+      const link = document.createElement('link');
+      link.href = 'https://calendar.google.com/calendar/scheduling-button-script.css';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
 
-    // Load Google Calendar scheduling button script
-    const script = document.createElement('script');
-    script.src = 'https://calendar.google.com/calendar/scheduling-button-script.js';
-    script.async = true;
-    document.head.appendChild(script);
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[src="https://calendar.google.com/calendar/scheduling-button-script.js"]');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://calendar.google.com/calendar/scheduling-button-script.js';
+      script.async = true;
+      document.head.appendChild(script);
 
-    // Initialize the calendar button when the script loads
-    script.onload = () => {
+      script.onload = () => {
+        initializeCalendarButton();
+      };
+    } else {
+      // Script already exists, just initialize
+      initializeCalendarButton();
+    }
+
+    function initializeCalendarButton() {
       const targetElement = document.getElementById('google-calendar-target');
-      if (window.calendar && targetElement && !targetElement.hasChildNodes()) {
+      if (window.calendar && targetElement) {
+        // Clear any existing content
+        targetElement.innerHTML = '';
         window.calendar.schedulingButton.load({
           url: 'https://calendar.google.com/calendar/appointments/schedules/AcZssZ1VBfIFXwKkPot_gxCvnJxBTw2FcN6zvzax5HycsH9IH2oRdMdcb56hlWKTdsBy4QuHtLiXNHTK?gv=true',
           color: '#039BE5',
@@ -40,13 +54,7 @@ export default function GoogleCalendarAppointments() {
           target: targetElement
         });
       }
-    };
-
-    // Cleanup function
-    return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(script);
-    };
+    }
   }, []);
   return <div className="container mx-auto p-6 space-y-6">
 
