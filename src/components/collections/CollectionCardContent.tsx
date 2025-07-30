@@ -4,9 +4,10 @@ import { CardContent } from "@/components/ui/card";
 
 interface CollectionCardContentProps {
   collection: Collection;
+  showArtistName?: boolean;
 }
 
-export function CollectionCardContent({ collection }: CollectionCardContentProps) {
+export function CollectionCardContent({ collection, showArtistName = false }: CollectionCardContentProps) {
   const artworkCount = collection.artworks?.length || 0;
   
   return (
@@ -16,6 +17,11 @@ export function CollectionCardContent({ collection }: CollectionCardContentProps
           <h3 className="font-semibold text-lg text-foreground pr-10 group-hover:text-primary transition-colors truncate">
             {collection.name}
           </h3>
+          {showArtistName && collection.artist_name && (
+            <p className="text-xs text-primary font-medium">
+              by {collection.artist_name}
+            </p>
+          )}
           {collection.description && (
             <p className="text-sm text-muted-foreground leading-relaxed truncate">
               {collection.description}

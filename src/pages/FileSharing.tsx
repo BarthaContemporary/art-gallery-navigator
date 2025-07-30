@@ -4,12 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Key, Cloud, FolderOpen, Share } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/hooks/use-auth";
+import { useArtistStorage } from "@/hooks/use-artist-storage";
 import { EnhancedIDriveFileManager } from "@/components/file-sharing/EnhancedIDriveFileManager";
 import { StorageCredentialsManagement } from "@/components/file-sharing/StorageCredentialsManagement";
+import { ArtistStorageInfo } from "@/components/file-sharing/ArtistStorageInfo";
 
 export default function FileSharing() {
   const [activeTab, setActiveTab] = useState("shared-documents");
-  const { isAdmin } = useAuth();
+  const { isAdmin, isArtist } = useAuth();
+  const { bucketName, hasCredentials, error: storageError } = useArtistStorage();
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
@@ -41,7 +44,15 @@ export default function FileSharing() {
         </TabsContent>
 
         <TabsContent value="my-storage" className="space-y-4">
-          <EnhancedIDriveFileManager mode="personal" />
+          {isArtist ? (
+            <ArtistStorageInfo 
+              bucketName={bucketName}
+              hasCredentials={hasCredentials}
+              error={storageError}
+            />
+          ) : (
+            <EnhancedIDriveFileManager mode="personal" />
+          )}
         </TabsContent>
 
         {isAdmin && (

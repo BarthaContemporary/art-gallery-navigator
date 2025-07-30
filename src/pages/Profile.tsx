@@ -35,8 +35,12 @@ export default function Profile() {
         setCurrentAvatarUrl(undefined);
     }
 
-    // Set initial full name from user metadata
-    setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+    // Set initial full name - prefer artist name if available
+    if (isArtist && currentUserArtist?.full_name) {
+      setFullName(currentUserArtist.full_name);
+    } else {
+      setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+    }
   }, [user, isArtist, currentUserArtist]);
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +82,11 @@ export default function Profile() {
   };
 
   const handleCancelEdit = () => {
-    setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+    if (isArtist && currentUserArtist?.full_name) {
+      setFullName(currentUserArtist.full_name);
+    } else {
+      setFullName(user?.user_metadata?.full_name || user?.user_metadata?.display_name || '');
+    }
     setIsEditingFullName(false);
   };
 
@@ -192,9 +200,10 @@ export default function Profile() {
             <div className="border rounded-md p-3 bg-muted/50">
               <div className="text-xs text-muted-foreground font-semibold">Artist Profile</div>
               <div className="text-sm font-medium">Name: {currentUserArtist.full_name}</div>
+              <div className="text-sm font-medium">Status: {currentUserArtist.representation_status}</div>
               {currentUserArtist.image_url && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your artist profile image is currently used as your avatar. Uploading a new avatar here will override it for your user profile but not the artist listing.
+                  Your artist profile image is currently used as your avatar. You can update your artist image through the Artists panel.
                 </p>
               )}
             </div>

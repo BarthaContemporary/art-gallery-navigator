@@ -5,6 +5,7 @@ import { TypeFilter } from "./TypeFilter";
 import { ArtistFilter } from "./ArtistFilter";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ArtworksFiltersProps {
   searchTerm: string;
@@ -29,6 +30,7 @@ export function ArtworksFilters({
   onArtistFilterChange,
   onShowAll
 }: ArtworksFiltersProps) {
+  const { isArtist } = useAuth();
   const hasActiveFilters = searchTerm || statusFilter || typeFilter || artistFilter;
 
   return (
@@ -55,9 +57,11 @@ export function ArtworksFilters({
           <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
             <TypeFilter value={typeFilter} onChange={onTypeFilterChange} />
           </div>
-          <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
-            <ArtistFilter value={artistFilter} onChange={onArtistFilterChange} />
-          </div>
+          {!isArtist && (
+            <div className="flex-shrink-0 w-[85px] sm:w-[100px]">
+              <ArtistFilter value={artistFilter} onChange={onArtistFilterChange} />
+            </div>
+          )}
         </div>
       </div>
     </div>

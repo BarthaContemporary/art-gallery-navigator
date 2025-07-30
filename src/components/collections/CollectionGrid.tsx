@@ -2,8 +2,10 @@
 import { useCollections } from "@/hooks/use-collections";
 import { CollectionCard } from "./CollectionCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 
 export function CollectionGrid() {
+  const { isAdmin } = useAuth();
   const { data: collections, isLoading, error } = useCollections();
 
   if (isLoading) {
@@ -53,7 +55,10 @@ export function CollectionGrid() {
           className="animate-fade-in"
           style={{ animationDelay: `${index * 0.1}s` }}
         >
-          <CollectionCard collection={collection} />
+          <CollectionCard 
+            collection={collection} 
+            showArtistName={isAdmin && !!collection.artist_name}
+          />
         </div>
       ))}
     </div>

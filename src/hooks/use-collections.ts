@@ -1,6 +1,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 import { Artwork } from "@/hooks/use-artworks";
 
 export interface Collection {
@@ -11,25 +13,89 @@ export interface Collection {
   updated_at?: string;
   artworks?: Artwork[];
   external_emails?: string[];
+  artist_name?: string; // For displaying artist name in admin view
 }
 
 // Fetch all collections with attached artworks
 export function useCollections() {
+  const { isAdmin, isArtist } = useAuth();
+  const currentUserArtist = useCurrentUserArtist();
+  
   return useQuery({
-    queryKey: ["collections"],
+    queryKey: ["collections", isArtist, currentUserArtist?.id],
     queryFn: async (): Promise<Collection[]> => {
-      const { data, error } = await supabase
-        .from("collections")
-        .select("*, collection_artworks(artwork_id, artworks(*))")
-        .order("created_at", { ascending: false });
+      if (isArtist && currentUserArtist?.id) {
+        // For artists, get collections that contain their artworks
+        const { data: artistCollections, error } = await supabase
+          .from("collections")
+          .select(`
+            *, 
+            collection_artworks!inner(
+              artwork_id, 
+              artworks!inner(
+                *, 
+                artists(full_name)
+              )
+            )
+          `)
+          .eq('collection_artworks.artworks.artist_id', currentUserArtist.id)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Transform the data structure to get artworks from collection_artworks
-      return data?.map((collection: any) => ({
-        ...collection,
-        artworks: collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [],
-      })) || [];
+        // Transform the data and remove duplicates
+        const collectionsMap = new Map();
+        artistCollections?.forEach((collection: any) => {
+          if (!collectionsMap.has(collection.id)) {
+            const artworks = collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [];
+            collectionsMap.set(collection.id, {
+              ...collection,
+              artworks,
+            });
+          }
+        });
+
+        return Array.from(collectionsMap.values());
+      } else {
+        // For admins, get all collections
+        const { data, error } = await supabase
+          .from("collections")
+          .select(`
+            *, 
+            collection_artworks(
+              artwork_id, 
+              artworks(
+                *, 
+                artists(full_name)
+              )
+            )
+          `)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        // Transform the data structure to get artworks from collection_artworks
+        const collections = data?.map((collection: any) => {
+          const artworks = collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [];
+          
+          // For admin view, get artist name from first artwork
+          let artist_name = undefined;
+          if (isAdmin && artworks.length > 0) {
+            const firstArtist = artworks[0]?.artists?.full_name;
+            if (firstArtist) {
+              artist_name = firstArtist;
+            }
+          }
+          
+          return {
+            ...collection,
+            artworks,
+            artist_name,
+          };
+        }) || [];
+
+        return collections;
+      }
     },
   });
 }

@@ -28,7 +28,7 @@ import type { Artwork } from "@/types/artwork";
 
 export default function Artworks() {
   const pageTopRef = useRef<HTMLDivElement>(null);
-  const { isAdmin } = useAuth();
+  const { isAdmin, isArtist } = useAuth();
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   
@@ -229,7 +229,7 @@ export default function Artworks() {
             filterOptions={{
               statuses: filterOptions.statuses,
               mediumTypes: filterOptions.mediumTypes,
-              artists: filterOptions.artists,
+              artists: isArtist ? [] : filterOptions.artists, // Hide artist options for artist users
               yearRange: filterOptions.yearRange as [number, number],
               priceRange: filterOptions.priceRange as [number, number],
             }}

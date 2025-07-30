@@ -5,16 +5,21 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { useCurrentUserArtist } from "@/hooks/useCurrentUserArtist";
 import type { Artwork, ArtworkImage, Artist } from "@/types/artwork";
 
 // Re-export types for backward compatibility
 export type { Artwork, ArtworkImage, Artist } from "@/types/artwork";
 
 export function useArtworks() {
+  const { isArtist } = useAuth();
+  const currentUserArtist = useCurrentUserArtist();
+  
   return useQuery({
-    queryKey: ['artworks'],
+    queryKey: ['artworks', isArtist, currentUserArtist?.id],
     queryFn: async (): Promise<Artwork[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('artworks')
         .select(`
           id,
@@ -75,8 +80,14 @@ export function useArtworks() {
             created_at,
             updated_at
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
+
+      // Filter by artist if user is an artist
+      if (isArtist && currentUserArtist?.id) {
+        query = query.eq('artist_id', currentUserArtist.id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching artworks:', error);

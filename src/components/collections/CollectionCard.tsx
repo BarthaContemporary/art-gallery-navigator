@@ -9,9 +9,10 @@ import { CollectionCardAdminMenu } from "./CollectionCardAdminMenu";
 
 interface CollectionCardProps {
   collection: Collection;
+  showArtistName?: boolean;
 }
 
-export function CollectionCard({ collection }: CollectionCardProps) {
+export function CollectionCard({ collection, showArtistName = false }: CollectionCardProps) {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const { isAdmin } = useAuth();
   
@@ -30,7 +31,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         aria-label={`View details for collection ${collection.name}`}
       >
         {isAdmin && <CollectionCardAdminMenu collection={collection} />}
-        <CollectionCardContent collection={collection} />
+        <CollectionCardContent collection={collection} showArtistName={showArtistName} />
       </Card>
       
       <CollectionDetailsDialog
