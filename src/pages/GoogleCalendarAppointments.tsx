@@ -69,7 +69,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Current time in London</p>
-                  <p className="text-sm text-muted-foreground">Monday - Friday: 11:00 AM - 5:00 PM</p>
+                  <p className="text-sm text-muted-foreground">5:24 PM</p>
                   
                 </div>
               </div>
