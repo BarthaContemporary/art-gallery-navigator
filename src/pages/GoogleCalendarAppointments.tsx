@@ -109,7 +109,7 @@ export default function GoogleCalendarAppointments() {
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                 <div>
                   <p className="font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">niklas@barthacontemporary.com</p>
+                  <a href="mailto:niklas@barthacontemporary.com" className="text-sm text-muted-foreground hover:text-foreground transition-colors">niklas@barthacontemporary.com</a>
                 </div>
               </div>
             </div>
