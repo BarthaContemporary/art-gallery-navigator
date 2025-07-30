@@ -51,8 +51,17 @@ export function useUsersList() {
     try {
       console.log(`Attempting to delete user: ${userId}`);
       
+      // Get the current session to pass the auth token
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error("No authentication token available");
+      }
+      
       const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId }
+        body: { userId },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
       });
 
       if (error) {
