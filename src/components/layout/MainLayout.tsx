@@ -10,7 +10,7 @@ import { ChatPopup } from "@/components/chat/ChatPopup";
 export function MainLayout() {
   const isMobile = useIsMobile();
   const location = useLocation();
-  useInactivity();
+  const { SessionWarning } = useInactivity();
 
   // Don't show chat popup on auth-related pages
   const isAuthPage = location.pathname.startsWith('/auth') || 
@@ -20,6 +20,7 @@ export function MainLayout() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-white">
+        <SessionWarning />
         {/* Desktop sidebar - always visible on desktop */}
         {!isMobile && (
           <div className="flex-shrink-0">

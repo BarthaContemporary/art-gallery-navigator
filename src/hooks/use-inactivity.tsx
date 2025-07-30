@@ -1,28 +1,45 @@
 
-import { useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useEnhancedInactivity } from './use-enhanced-inactivity';
+import { SessionWarningDialog } from '@/components/session-warning-dialog';
 import { useAuth } from './use-auth';
-import { useUnifiedActivityTracker } from './use-unified-activity-tracker';
-
-const TIMEOUT_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 export function useInactivity() {
   const { signOut } = useAuth();
+  const [showDialog, setShowDialog] = useState(false);
 
-  const handleInactivity = useCallback(() => {
+  const {
+    showWarning,
+    extendSession,
+    warningDuration,
+    trackActivity
+  } = useEnhancedInactivity({
+    onWarning: () => setShowDialog(true),
+    onExtendSession: () => setShowDialog(false)
+  });
+
+  const handleExtendSession = () => {
+    extendSession();
+    setShowDialog(false);
+    trackActivity(); // Track activity to reset all timers
+  };
+
+  const handleLogout = () => {
+    setShowDialog(false);
     signOut();
-  }, [signOut]);
+  };
 
-  const { setupActivityListeners, cleanup } = useUnifiedActivityTracker(
-    handleInactivity,
-    undefined,
-    {
-      inactivityTimeoutMs: TIMEOUT_DURATION,
-      debounceMs: 60000 // 1 minute debounce
-    }
+  const SessionWarning = () => (
+    <SessionWarningDialog
+      isOpen={showDialog}
+      onExtendSession={handleExtendSession}
+      onLogout={handleLogout}
+      warningDurationMs={warningDuration}
+    />
   );
 
-  useEffect(() => {
-    setupActivityListeners();
-    return cleanup;
-  }, [setupActivityListeners, cleanup]);
+  return {
+    SessionWarning,
+    showWarning: showDialog
+  };
 }

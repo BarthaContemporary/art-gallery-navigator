@@ -6,6 +6,9 @@ interface ActivityTrackerConfig {
   inactivityTimeoutMs?: number;
   presenceUpdateIntervalMs?: number;
   debounceMs?: number;
+  warningTimeoutMs?: number;
+  onWarning?: () => void;
+  pauseWhenHidden?: boolean;
 }
 
 export function useUnifiedActivityTracker(
@@ -14,39 +17,61 @@ export function useUnifiedActivityTracker(
   config: ActivityTrackerConfig = {}
 ) {
   const {
-    inactivityTimeoutMs = 10 * 60 * 1000, // 10 minutes
+    inactivityTimeoutMs = 30 * 60 * 1000, // 30 minutes default
     presenceUpdateIntervalMs = 2 * 60 * 1000, // 2 minutes
-    debounceMs = 30000 // 30 seconds
+    debounceMs = 30000, // 30 seconds
+    warningTimeoutMs,
+    onWarning,
+    pauseWhenHidden = false
   } = config;
 
   const [lastActivity, setLastActivity] = useState<Date>(new Date());
   const [isActive, setIsActive] = useState(true);
+  const [isTabVisible, setIsTabVisible] = useState(true);
   
   const inactivityTimeout = useRef<NodeJS.Timeout | null>(null);
+  const warningTimeout = useRef<NodeJS.Timeout | null>(null);
   const presenceInterval = useRef<NodeJS.Timeout | null>(null);
   const eventListeners = useRef<(() => void)[]>([]);
   const isSetup = useRef(false);
+  const isPaused = useRef(false);
 
   // Debounce activity updates to reduce frequency
   const debouncedLastActivity = useDebounce(lastActivity, debounceMs);
 
   const trackActivity = useCallback(() => {
+    if (pauseWhenHidden && !isTabVisible) return;
+    
     const now = new Date();
     setLastActivity(now);
     setIsActive(true);
+    isPaused.current = false;
     
-    // Reset inactivity timer
+    // Clear existing timeouts
     if (inactivityTimeout.current) {
       clearTimeout(inactivityTimeout.current);
     }
+    if (warningTimeout.current) {
+      clearTimeout(warningTimeout.current);
+    }
     
+    // Set warning timeout if configured
+    if (warningTimeoutMs && onWarning) {
+      warningTimeout.current = setTimeout(() => {
+        if (!isPaused.current) {
+          onWarning();
+        }
+      }, warningTimeoutMs);
+    }
+    
+    // Set inactivity timeout
     inactivityTimeout.current = setTimeout(() => {
-      setIsActive(false);
-      onInactivity?.();
+      if (!isPaused.current) {
+        setIsActive(false);
+        onInactivity?.();
+      }
     }, inactivityTimeoutMs);
-
-    // Call activity callback (debounced through effect)
-  }, [inactivityTimeoutMs, onInactivity]);
+  }, [inactivityTimeoutMs, warningTimeoutMs, onInactivity, onWarning, pauseWhenHidden, isTabVisible]);
 
   // Call onActivity when debounced activity changes
   useEffect(() => {
@@ -59,8 +84,8 @@ export function useUnifiedActivityTracker(
     if (isSetup.current) return;
     isSetup.current = true;
 
-    // Reduced set of events with passive listeners
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    // Enhanced set of events for better activity detection
+    const events = ['mousedown', 'mousemove', 'keydown', 'keypress', 'touchstart', 'scroll', 'click', 'focus', 'input'];
     
     const throttle = (func: Function, limit: number) => {
       let inThrottle: boolean;
@@ -73,7 +98,35 @@ export function useUnifiedActivityTracker(
       };
     };
 
-    const throttledTrackActivity = throttle(trackActivity, 60000); // Once per minute max
+    const throttledTrackActivity = throttle(trackActivity, 30000); // Once per 30 seconds max
+    
+    // Handle tab visibility changes
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState === 'visible';
+      setIsTabVisible(visible);
+      
+      if (pauseWhenHidden) {
+        if (!visible) {
+          // Pause timers when tab becomes hidden
+          isPaused.current = true;
+          if (inactivityTimeout.current) {
+            clearTimeout(inactivityTimeout.current);
+          }
+          if (warningTimeout.current) {
+            clearTimeout(warningTimeout.current);
+          }
+        } else {
+          // Resume activity tracking when tab becomes visible
+          isPaused.current = false;
+          trackActivity();
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    eventListeners.current.push(() => 
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    );
     
     events.forEach(event => {
       document.addEventListener(event, throttledTrackActivity, { 
@@ -94,14 +147,20 @@ export function useUnifiedActivityTracker(
 
     // Initial activity tracking
     trackActivity();
-  }, [trackActivity, presenceUpdateIntervalMs, onActivity, isActive]);
+  }, [trackActivity, presenceUpdateIntervalMs, onActivity, isActive, pauseWhenHidden]);
 
   const cleanup = useCallback(() => {
     isSetup.current = false;
+    isPaused.current = false;
     
     if (inactivityTimeout.current) {
       clearTimeout(inactivityTimeout.current);
       inactivityTimeout.current = null;
+    }
+    
+    if (warningTimeout.current) {
+      clearTimeout(warningTimeout.current);
+      warningTimeout.current = null;
     }
     
     if (presenceInterval.current) {
