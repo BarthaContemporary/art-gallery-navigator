@@ -31,14 +31,16 @@ export function ArtworkGrid({
 
   if (shouldUseOptimizedGrid) {
     return (
-      <PerformanceOptimizedArtworkGrid
-        artworks={artworks}
-        containerHeight={600}
-        onScrollToTop={onScrollToTop}
-        isSelectionMode={isSelectionMode}
-        selectedIds={selectedIds}
-        onToggleSelection={onToggleSelection}
-      />
+      <div className="h-full">
+        <PerformanceOptimizedArtworkGrid
+          artworks={artworks}
+          containerHeight={600}
+          onScrollToTop={onScrollToTop}
+          isSelectionMode={isSelectionMode}
+          selectedIds={selectedIds}
+          onToggleSelection={onToggleSelection}
+        />
+      </div>
     );
   }
 

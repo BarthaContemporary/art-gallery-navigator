@@ -140,8 +140,7 @@ const PerformanceOptimizedArtworkGridComponent = ({
       <div
         id={VIRTUALIZED_GRID_CONTAINER_ID}
         ref={scrollContainerRef}
-        className="w-full overflow-auto"
-        style={{ height: containerHeight }}
+        className="w-full h-full overflow-auto"
         onScroll={handleScroll}
       >
         <div
