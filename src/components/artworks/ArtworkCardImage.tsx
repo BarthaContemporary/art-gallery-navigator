@@ -28,8 +28,7 @@ export function ArtworkCardImage({
 
   return (
     <div 
-      className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0"
-      style={{ height: "192px" }}
+      className="relative w-full bg-muted/20 overflow-hidden flex-shrink-0 aspect-square"
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
