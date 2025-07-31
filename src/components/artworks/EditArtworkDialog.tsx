@@ -1,4 +1,3 @@
-
 import {
   ScrollableDialog,
   ScrollableDialogContent,
@@ -10,20 +9,18 @@ import {
 } from "@/components/ui/scrollable-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreateArtworkForm, CreateArtworkFormRef } from "./CreateArtworkForm";
-import { VideoUploadFields } from "./form/VideoUploadFields";
-import { ArtworkDocuments } from "./documents/ArtworkDocuments";
+import { CreateArtworkFormRef } from "./CreateArtworkForm";
 import { Artwork } from "@/hooks/use-artworks";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
-import { LocalImageUploader } from "./LocalImageUploader";
-import { LocalArtworkImageManager } from "./LocalArtworkImageManager";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import { TargetedImageSearch } from "./form/TargetedImageSearch";
 import { ImageUploadService } from "@/services/image-upload-service";
 import { toast } from "sonner";
-import { ArtworkFormData } from "./form/types";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+import { DetailsTab } from "./edit-tabs/DetailsTab";
+import { ImagesTab } from "./edit-tabs/ImagesTab";
+import { VideosTab } from "./edit-tabs/VideosTab";
+import { DocumentsTab } from "./edit-tabs/DocumentsTab";
 
 interface EditArtworkDialogProps {
   artwork: Artwork;
@@ -159,52 +156,27 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
               </TabsList>
               
               <TabsContent value="details" className="mt-6">
-                <CreateArtworkForm
-                  ref={formRef}
-                  setOpen={onOpenChange}
-                  initialData={artwork}
-                  preventFreeze={true}
-                  hideSubmitButton={true}
-                  formId="edit-artwork-form"
-                  enableAutosave={true}
-                  onSuccessCallback={() => {
-                    setIsFormActuallySaving(false);
-                    handleOpenChange(false);
-                  }}
-                  onSavingChange={setIsFormActuallySaving}
-                  scrollToFirstError={scrollToFirstError}
-                  onAutosaveStatusChange={setAutosaveStatus}
+                <DetailsTab
+                  artwork={artwork}
+                  formRef={formRef}
+                  setAutosaveStatus={setAutosaveStatus}
                 />
               </TabsContent>
-              
-              <TabsContent value="images" className="mt-6 space-y-6">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium">Upload New Images</h4>
-                    <TargetedImageSearch
-                      onImageSelected={handleArtsyImageSelected}
-                      defaultArtist={artwork.artists?.full_name}
-                      defaultTitle={artwork.title}
-                      defaultYear={artwork.year}
-                    />
-                  </div>
-                  <LocalImageUploader 
-                    artworkId={artwork.id}
-                    onUploadComplete={handleImageUploadComplete}
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-4">Manage Images</h4>
-                  <LocalArtworkImageManager artworkId={artwork.id} />
-                </div>
+
+              <TabsContent value="images" className="mt-6">
+                <ImagesTab
+                  artworkId={artwork.id}
+                  onImageUploadComplete={handleImageUploadComplete}
+                  onArtsyImageSelected={handleArtsyImageSelected}
+                />
               </TabsContent>
-              
+
               <TabsContent value="videos" className="mt-6">
-                <VideoUploadFields artworkId={artwork.id} />
+                <VideosTab artworkId={artwork.id} />
               </TabsContent>
 
               <TabsContent value="documents" className="mt-6">
-                <ArtworkDocuments artworkId={artwork.id} />
+                <DocumentsTab artworkId={artwork.id} />
               </TabsContent>
             </Tabs>
           </div>
