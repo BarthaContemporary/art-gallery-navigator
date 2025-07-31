@@ -36,8 +36,8 @@ const DialogLoadingFallback = () => (
 export function GlobalDialogRenderer() {
   const { type, artwork, isOpen, isDeleting, closeDialog, setDeleting } = useDialogManager();
   
-  // Only initialize artwork actions when needed
-  const artworkActions = artwork ? useArtworkActions(artwork) : null;
+  // Always call hooks unconditionally - React hooks rule
+  const artworkActions = useArtworkActions(artwork || {} as any);
 
   if (!isOpen || !artwork) {
     return null;
@@ -65,7 +65,7 @@ export function GlobalDialogRenderer() {
         />
       )}
       
-      {type === 'delete' && artworkActions && (
+      {type === 'delete' && artworkActions && artwork && (
         <ArtworkDeleteDialogLazy
           artwork={artwork}
           open={isOpen}

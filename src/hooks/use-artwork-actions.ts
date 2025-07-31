@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Artwork } from "@/hooks/use-artworks";
 
-export function useArtworkActions(artwork: Artwork) {
+export function useArtworkActions(artwork: Artwork | null) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isOverviewDialogOpen, setIsOverviewDialogOpen] = useState(false);
@@ -34,6 +34,8 @@ export function useArtworkActions(artwork: Artwork) {
   };
 
   const handleDelete = async () => {
+    if (!artwork) return false;
+    
     try {
       setIsDeleting(true);
       
@@ -87,6 +89,8 @@ export function useArtworkActions(artwork: Artwork) {
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    if (!artwork) return false;
     
     try {
       const artworkCopy = {
@@ -148,6 +152,8 @@ export function useArtworkActions(artwork: Artwork) {
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    if (!artwork) return;
     
     try {
       // Simple CSV export of single artwork
