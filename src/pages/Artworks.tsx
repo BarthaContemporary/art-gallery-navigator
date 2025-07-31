@@ -154,8 +154,9 @@ export default function Artworks() {
   }
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-8 space-y-8">
-      <div ref={pageTopRef} />
+    <div className="w-full min-h-full">
+      <div className="container mx-auto px-4 pt-4 pb-8 space-y-8">
+        <div ref={pageTopRef} />
       
       {/* Selection Toolbar */}
       {isSelectionMode && (
@@ -266,6 +267,7 @@ export default function Artworks() {
         onConfirm={handleConfirmBulkDelete}
         isDeleting={isDeleting}
       />
+      </div>
     </div>
   );
 }
