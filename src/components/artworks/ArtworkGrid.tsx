@@ -3,6 +3,7 @@ import { ChevronUp, CheckSquare } from "lucide-react";
 import { Artwork } from "@/types/artwork";
 import { ArtworkCard } from "./ArtworkCard";
 import { ArtworkSelectionCard } from "./selection/ArtworkSelectionCard";
+import { PerformanceOptimizedArtworkGrid } from "./PerformanceOptimizedArtworkGrid";
 import { Button } from "@/components/ui/button";
 
 interface ArtworkGridProps {
@@ -25,6 +26,22 @@ export function ArtworkGrid({
   onToggleSelection,
   onEnterSelectionMode 
 }: ArtworkGridProps) {
+  // Use performance optimized grid for better performance
+  const shouldUseOptimizedGrid = artworks.length > 20;
+
+  if (shouldUseOptimizedGrid) {
+    return (
+      <PerformanceOptimizedArtworkGrid
+        artworks={artworks}
+        containerHeight={600}
+        onScrollToTop={onScrollToTop}
+        isSelectionMode={isSelectionMode}
+        selectedIds={selectedIds}
+        onToggleSelection={onToggleSelection}
+      />
+    );
+  }
+
   const groupedArtworks = useMemo(() => {
     if (!artworks || artworks.length === 0) return [];
 

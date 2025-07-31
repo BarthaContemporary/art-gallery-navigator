@@ -33,6 +33,7 @@ import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
 import PublicCollectionView from "@/pages/PublicCollectionView";
 import CRM from "@/pages/CRM";
 import Chat from "@/pages/Chat";
+import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ function App() {
             <CurrencyProvider>
               <SecurityProvider>
                 <Toaster />
+                <GlobalDialogRenderer />
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/book-appointment" element={<BookAppointment />} />
