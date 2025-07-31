@@ -25,7 +25,7 @@ interface UploadProgressItem {
 export function LocalImageUploader({
   artworkId,
   onUploadComplete,
-  maxFiles = 10,
+  maxFiles = 50,
   acceptedFileTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 }: LocalImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
