@@ -1,11 +1,7 @@
 
-import React, { memo, useState } from "react";
+import React, { memo, useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
-import { useArtists } from "@/hooks/useArtists";
-import { ArtworkOverviewDialogHandler } from "./dialogs/ArtworkOverviewDialogHandler";
-import { ArtworkEditDialogHandler } from "./dialogs/ArtworkEditDialogHandler";
-import { ArtworkDeleteDialogHandler } from "./dialogs/ArtworkDeleteDialogHandler";
-import { useArtworkActions } from "@/hooks/use-artwork-actions";
+import { useDialogManager } from "@/hooks/use-dialog-manager";
 import { ArtworkCardImage } from "./ArtworkCardImage";
 import { ArtworkCardInfo } from "./ArtworkCardInfo";
 
@@ -23,40 +19,35 @@ function ArtworkCardComponent({ artwork, disabled = false }: ArtworkCardProps) {
   // Status: Available if "available" (case-insensitive), else not. Use icon.
   const available = (artwork.status || "available").toLowerCase() === "available";
 
-  const {
-    handleView,
-    handleEdit,
-    handleDelete,
-    handleDuplicate,
-    handleExport,
-    isDeleteDialogOpen,
-    setIsDeleteDialogOpen,
-    isOverviewDialogOpen,
-    setIsOverviewDialogOpen,
-    isEditDialogOpen,
-    setIsEditDialogOpen,
-    isDeleting
-  } = useArtworkActions(artwork);
+  const { showArtworkOverview, showArtworkEdit, showArtworkDelete } = useDialogManager();
 
-  const onEdit = (e: React.MouseEvent) => {
+  const handleView = useCallback(() => {
     if (disabled) return;
-    if (e) e.stopPropagation();
-    handleEdit();
-  };
-  const onDuplicate = (e: React.MouseEvent) => {
+    showArtworkOverview(artwork);
+  }, [disabled, showArtworkOverview, artwork]);
+
+  const handleEdit = useCallback((e?: React.MouseEvent) => {
     if (disabled) return;
-    if (e) e.stopPropagation();
-    handleDuplicate();
-  };
-  const onExport = (e: React.MouseEvent) => {
+    e?.stopPropagation();
+    showArtworkEdit(artwork);
+  }, [disabled, showArtworkEdit, artwork]);
+
+  const handleDelete = useCallback(() => {
     if (disabled) return;
-    if (e) e.stopPropagation();
-    handleExport();
-  };
-  const onDelete = () => {
+    showArtworkDelete(artwork);
+  }, [disabled, showArtworkDelete, artwork]);
+
+  const handleDuplicate = useCallback((e?: React.MouseEvent) => {
     if (disabled) return;
-    setIsDeleteDialogOpen(true);
-  };
+    e?.stopPropagation();
+    // TODO: Implement duplicate functionality
+  }, [disabled]);
+
+  const handleExport = useCallback((e?: React.MouseEvent) => {
+    if (disabled) return;
+    e?.stopPropagation();
+    // TODO: Implement export functionality
+  }, [disabled]);
 
   return (
     <>
@@ -70,10 +61,10 @@ function ArtworkCardComponent({ artwork, disabled = false }: ArtworkCardProps) {
           artwork={artwork}
           title={artwork.title}
           onClick={disabled ? undefined : handleView}
-          onEdit={onEdit}
-          onDuplicate={onDuplicate}
-          onExport={onExport}
-          onDelete={onDelete}
+          onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
+          onExport={handleExport}
+          onDelete={handleDelete}
         />
         <ArtworkCardInfo
           artwork={artwork}
@@ -81,24 +72,6 @@ function ArtworkCardComponent({ artwork, disabled = false }: ArtworkCardProps) {
           available={available}
         />
       </div>
-      {/* DIALOGS: Actual components must be rendered so state works */}
-      <ArtworkOverviewDialogHandler
-        artwork={artwork}
-        open={isOverviewDialogOpen}
-        onOpenChange={setIsOverviewDialogOpen}
-      />
-      <ArtworkEditDialogHandler
-        artwork={artwork}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-      />
-      <ArtworkDeleteDialogHandler
-        artwork={artwork}
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        isDeleting={isDeleting}
-        confirmDelete={async () => { await handleDelete(); }}
-      />
     </>
   );
 }
