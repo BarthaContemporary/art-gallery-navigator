@@ -11,9 +11,10 @@ import { ArtworkCardInfo } from "./ArtworkCardInfo";
 
 interface ArtworkCardProps {
   artwork: Artwork;
+  disabled?: boolean;
 }
 
-function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
+function ArtworkCardComponent({ artwork, disabled = false }: ArtworkCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   // Use artist name from the artwork data (already included in query)
@@ -38,18 +39,24 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
   } = useArtworkActions(artwork);
 
   const onEdit = (e: React.MouseEvent) => {
+    if (disabled) return;
     if (e) e.stopPropagation();
     handleEdit();
   };
   const onDuplicate = (e: React.MouseEvent) => {
+    if (disabled) return;
     if (e) e.stopPropagation();
     handleDuplicate();
   };
   const onExport = (e: React.MouseEvent) => {
+    if (disabled) return;
     if (e) e.stopPropagation();
     handleExport();
   };
-  const onDelete = () => setIsDeleteDialogOpen(true);
+  const onDelete = () => {
+    if (disabled) return;
+    setIsDeleteDialogOpen(true);
+  };
 
   return (
     <>
@@ -62,7 +69,7 @@ function ArtworkCardComponent({ artwork }: ArtworkCardProps) {
         <ArtworkCardImage
           artwork={artwork}
           title={artwork.title}
-          onClick={handleView}
+          onClick={disabled ? undefined : handleView}
           onEdit={onEdit}
           onDuplicate={onDuplicate}
           onExport={onExport}

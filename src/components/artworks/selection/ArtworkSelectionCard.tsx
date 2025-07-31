@@ -57,7 +57,7 @@ export function ArtworkSelectionCard({
         "transition-opacity",
         isSelectionMode && !isSelected && "opacity-70 hover:opacity-100"
       )}>
-        <ArtworkCard artwork={artwork} />
+        <ArtworkCard artwork={artwork} disabled={isSelectionMode} />
       </div>
     </div>
   );
