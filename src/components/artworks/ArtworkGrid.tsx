@@ -26,8 +26,8 @@ export function ArtworkGrid({
   onToggleSelection,
   onEnterSelectionMode 
 }: ArtworkGridProps) {
-  // Use performance optimized grid for very large datasets (increased threshold)
-  const shouldUseOptimizedGrid = artworks.length > 100;
+  // Temporarily disable performance optimization to show all artworks
+  const shouldUseOptimizedGrid = false; // artworks.length > 100;
 
   console.log("ArtworkGrid render:", {
     shouldUseOptimizedGrid,
