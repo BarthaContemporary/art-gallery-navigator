@@ -28,20 +28,32 @@ export function ArtworkOverviewTabs({
 }: ArtworkOverviewTabsProps) {
   return (
     <Tabs defaultValue="details" className="w-full">
-      <TabsList className="grid w-full grid-cols-4 h-9">
-        <TabsTrigger value="details" className="flex items-center gap-1 px-3 py-1 text-xs">
+      <TabsList className="inline-flex h-8 items-center justify-start rounded-lg bg-muted/30 p-1 text-muted-foreground w-fit">
+        <TabsTrigger 
+          value="details" 
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm gap-1.5"
+        >
           <Info className="h-3 w-3" />
           Details
         </TabsTrigger>
-        <TabsTrigger value="ai-description" className="flex items-center gap-1 px-3 py-1 text-xs">
+        <TabsTrigger 
+          value="ai-description" 
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm gap-1.5"
+        >
           <Sparkles className="h-3 w-3" />
           AI Description
         </TabsTrigger>
-        <TabsTrigger value="location-history" className="flex items-center gap-1 px-3 py-1 text-xs">
+        <TabsTrigger 
+          value="location-history" 
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm gap-1.5"
+        >
           <MapPin className="h-3 w-3" />
-          Location History
+          Location
         </TabsTrigger>
-        <TabsTrigger value="documents" className="flex items-center gap-1 px-3 py-1 text-xs">
+        <TabsTrigger 
+          value="documents" 
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm gap-1.5"
+        >
           <FileText className="h-3 w-3" />
           Documents
         </TabsTrigger>
