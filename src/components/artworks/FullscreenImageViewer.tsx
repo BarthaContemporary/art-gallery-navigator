@@ -97,9 +97,10 @@ export function FullscreenImageViewer({
               variant="ghost"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 z-50 text-white hover:bg-white/20 h-10 w-10 p-0"
+              className="absolute top-4 right-4 z-50 opacity-20 hover:opacity-100 transition-opacity duration-200 rounded-sm bg-yellow-400/30 backdrop-blur-sm hover:bg-yellow-400/90 text-white hover:text-black p-2 h-10 w-10"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
             </Button>
           )}
 
