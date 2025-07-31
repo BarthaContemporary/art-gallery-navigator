@@ -136,7 +136,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
     <ScrollableDialog open={open} onOpenChange={handleOpenChange}>
       <ScrollableDialogContent
         size="2xl"
-        className="flex flex-col max-h-[90vh] bg-background"
+        className="flex flex-col h-[90vh] max-h-[90vh] bg-background"
         onPointerDownOutside={e => e.preventDefault()}
       >
         <ScrollableDialogHeader className="px-6 pt-6 pb-2 border-b bg-background flex-shrink-0">
@@ -145,7 +145,7 @@ export function EditArtworkDialog({ artwork, open, onOpenChange }: EditArtworkDi
             Update artwork details and manage media files
           </ScrollableDialogDescription>
         </ScrollableDialogHeader>
-        <ScrollableDialogBody ref={scrollContainerRef}>
+        <ScrollableDialogBody ref={scrollContainerRef} className="flex-1 min-h-0">
           <div className="px-6 pt-6 pb-6">
             <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
