@@ -16,8 +16,14 @@ interface VirtualizedGridDimensions {
   rowCount: number;
 }
 
-// Fixed card height: Image 256px + Info 170px + vertical padding 32px = 458px
-const FIXED_CARD_HEIGHT = 458;
+// Card height calculation: Square image (dynamic based on width) + Info section (~170px) + padding
+// For consistent spacing, we'll calculate height dynamically based on width
+const calculateCardHeight = (width: number): number => {
+  const imageHeight = width; // Square aspect ratio
+  const infoSectionHeight = 170; // Approximate height of the info section
+  const padding = 32; // Vertical padding
+  return imageHeight + infoSectionHeight + padding;
+};
 
 export function useVirtualizedGridDimensions({
   containerWidth,
@@ -29,15 +35,21 @@ export function useVirtualizedGridDimensions({
   return useMemo(() => {
     if (containerWidth === 0) {
       // Fallback dimensions if container width isn't measured yet
-      return { columnCount: 1, itemWidth: 300, itemHeight: FIXED_CARD_HEIGHT, rowCount: 0 };
+      const fallbackWidth = 300;
+      return { 
+        columnCount: 1, 
+        itemWidth: fallbackWidth, 
+        itemHeight: calculateCardHeight(fallbackWidth), 
+        rowCount: 0 
+      };
     }
 
     const minItemWidth = isMobile ? minItemWidthMobile : minItemWidthDesktop;
     const cols = Math.max(1, Math.floor(containerWidth / minItemWidth));
     const width = Math.floor(containerWidth / cols);
 
-    // Use FIXED_CARD_HEIGHT for all cards for consistency
-    const height = FIXED_CARD_HEIGHT;
+    // Calculate height based on square image + info section
+    const height = calculateCardHeight(width);
     const rows = Math.ceil(itemCount / cols);
 
     return {

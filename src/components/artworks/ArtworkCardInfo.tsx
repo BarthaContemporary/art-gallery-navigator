@@ -32,13 +32,11 @@ export function ArtworkCardInfo({ artwork, artistName, available }: ArtworkCardI
   // Truncate title separately since year will be on its own line
   const truncatedTitle = artwork.title.length > 30 ? artwork.title.substring(0, 30) + '...' : artwork.title;
 
-  // Info section fixed height (matches parent design)
-  const INFO_HEIGHT_PX = Math.round((2 / 3) * 256); // 256px image height
+  // Info section flexible height that adapts to content
 
   return (
     <div
-      className="flex flex-col justify-between px-4 py-4 flex-shrink-0"
-      style={{ height: `${INFO_HEIGHT_PX}px` }}
+      className="flex flex-col justify-between px-4 py-4 flex-shrink-0 min-h-[170px]"
     >
       <div className="space-y-2">
         <p className="font-medium text-base text-muted-foreground truncate">{artistName}</p>

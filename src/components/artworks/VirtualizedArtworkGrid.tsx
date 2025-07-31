@@ -11,8 +11,8 @@ import {
   useVisibleRange,
 } from "@/hooks/virtualized-grid";
 
-// Fixed card height, in sync with ArtworkGrid and the dimension hook
-const FIXED_CARD_HEIGHT = 458;
+// Container ID for measuring and virtualizing, with consistent spacing
+const GRID_GAP = 8; // 8px gap between items (equivalent to gap-2 in Tailwind)
 
 interface VirtualizedArtworkGridProps {
   artworks: Artwork[];

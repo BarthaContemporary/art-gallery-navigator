@@ -161,7 +161,7 @@ const PerformanceOptimizedArtworkGridComponent = ({
                   top: position.top,
                   width: position.width,
                   height: position.height,
-                  padding: '8px',
+                  padding: '12px', // Consistent padding for proper spacing
                 }}
               >
                 <OptimizedArtworkSelectionCard
