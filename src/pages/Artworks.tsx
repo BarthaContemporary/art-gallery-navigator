@@ -155,8 +155,8 @@ export default function Artworks() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="container mx-auto px-4 pt-4 flex-1 flex flex-col space-y-6">
+    <div className="h-full flex flex-col">
+      <div className="container mx-auto px-4 pt-4 pb-4 flex-1 flex flex-col space-y-4">
         <div ref={pageTopRef} />
       
       {/* Selection Toolbar */}
@@ -254,7 +254,7 @@ export default function Artworks() {
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0">
         <ArtworkGrid
           artworks={filteredArtworks}
           loading={isLoading}

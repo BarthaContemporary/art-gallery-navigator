@@ -126,9 +126,9 @@ export function ArtworkGrid({
   }
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {groupedArtworks.map(({ artistName, artworks }) => (
-        <div key={artistName} className="space-y-6">
+        <div key={artistName} className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide">{artistName}</h2>
