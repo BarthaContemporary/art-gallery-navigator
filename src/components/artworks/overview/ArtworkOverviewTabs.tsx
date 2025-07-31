@@ -2,7 +2,8 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtworkLocationHistory } from '../location-history/ArtworkLocationHistory';
-import { MapPin, Info, Sparkles } from 'lucide-react';
+import { ArtworkDocuments } from '../documents/ArtworkDocuments';
+import { MapPin, FileText, Info, Sparkles } from 'lucide-react';
 import { ArtworkOverviewPrimaryInfo } from './ArtworkOverviewPrimaryInfo';
 import { ArtworkOverviewCollapsibleInfo } from './ArtworkOverviewCollapsibleInfo';
 import { ArtworkAIDescriptionTab } from './ArtworkAIDescriptionTab';
@@ -49,6 +50,13 @@ export function ArtworkOverviewTabs({
           <MapPin className="h-3 w-3" />
           Location
         </TabsTrigger>
+        <TabsTrigger 
+          value="documents" 
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm gap-1.5"
+        >
+          <FileText className="h-3 w-3" />
+          Documents
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="details" className="mt-6 space-y-6">
@@ -72,6 +80,9 @@ export function ArtworkOverviewTabs({
         <ArtworkLocationHistory artworkId={artwork.id} />
       </TabsContent>
 
+      <TabsContent value="documents" className="mt-6">
+        <ArtworkDocuments artworkId={artwork.id} />
+      </TabsContent>
     </Tabs>
   );
 }
