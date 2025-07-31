@@ -10,7 +10,7 @@ import { useArtworkActions } from "@/hooks/use-artwork-actions";
 
 // Lazy load dialog components for better performance
 const ArtworkOverviewDialogLazy = lazy(() => 
-  import('../overview/ArtworkOverviewDialog').then(module => ({ 
+  import('../ArtworkOverviewDialog').then(module => ({ 
     default: module.ArtworkOverviewDialog 
   }))
 );
