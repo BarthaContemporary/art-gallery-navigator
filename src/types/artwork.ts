@@ -96,6 +96,7 @@ export interface ArtworkFilters {
   mediumType: string | null;
   yearRange: [number, number] | null;
   priceRange: [number, number] | null;
+  sortBy: string;
 }
 
 export type ImageTier = 'thumbnail' | 'medium' | 'large' | 'original';

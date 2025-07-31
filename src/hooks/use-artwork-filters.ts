@@ -13,7 +13,8 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
     status: null,
     mediumType: null,
     yearRange: null,
-    priceRange: null
+    priceRange: null,
+    sortBy: 'artist'
   });
 
   const filteredArtworks = useMemo(() => {
@@ -67,28 +68,44 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
     });
   }, [artworks, filters]);
 
-  // Sort artworks by artist name, then by type, then by price
+  // Sort artworks based on selected sort option
   const sortedArtworks = useMemo(() => {
     return [...filteredArtworks].sort((a, b) => {
-      // First by artist name
-      const artistA = a.artist_name || 'Unknown Artist';
-      const artistB = b.artist_name || 'Unknown Artist';
-      
-      const nameCompare = artistA.localeCompare(artistB);
-      if (nameCompare !== 0) return nameCompare;
-      
-      // Then by type/medium_type
-      const typeA = a.medium_type || '';
-      const typeB = b.medium_type || '';
-      const typeCompare = typeA.localeCompare(typeB);
-      if (typeCompare !== 0) return typeCompare;
-      
-      // Then by price (highest first)
-      const priceA = a.price || 0;
-      const priceB = b.price || 0;
-      return priceB - priceA;
+      switch (filters.sortBy) {
+        case 'title':
+          return a.title.localeCompare(b.title);
+        
+        case 'year':
+          const yearA = a.year || 0;
+          const yearB = b.year || 0;
+          // Sort descending (newest first)
+          return yearB - yearA;
+        
+        case 'price':
+          const priceA = a.price || 0;
+          const priceB = b.price || 0;
+          // Sort descending (highest first)
+          return priceB - priceA;
+        
+        case 'medium':
+          const mediumA = a.medium_type || '';
+          const mediumB = b.medium_type || '';
+          return mediumA.localeCompare(mediumB);
+        
+        case 'artist':
+        default:
+          // First by artist name
+          const artistA = a.artist_name || 'Unknown Artist';
+          const artistB = b.artist_name || 'Unknown Artist';
+          
+          const nameCompare = artistA.localeCompare(artistB);
+          if (nameCompare !== 0) return nameCompare;
+          
+          // Then by title
+          return a.title.localeCompare(b.title);
+      }
     });
-  }, [filteredArtworks]);
+  }, [filteredArtworks, filters.sortBy]);
 
   // Get available filter options
   const filterOptions = useMemo(() => {
@@ -128,7 +145,8 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
       status: null,
       mediumType: null,
       yearRange: null,
-      priceRange: null
+      priceRange: null,
+      sortBy: 'artist'
     });
   };
 

@@ -40,7 +40,7 @@ export function ArtworkFilters({
   return (
     <div className={cn("space-y-4", compact && "space-y-2")}>
       {/* Filter Options */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Artist Filter */}
         <div className="relative" style={{ isolation: 'isolate' }}>
           <Select
@@ -97,6 +97,25 @@ export function ArtworkFilters({
                   {type}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sort By */}
+        <div className="relative" style={{ isolation: 'isolate' }}>
+          <Select
+            value={filters.sortBy}
+            onValueChange={(value) => onUpdateFilter('sortBy', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999]" align="start">
+              <SelectItem value="artist">Artist</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
+              <SelectItem value="year">Year</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="price">Price</SelectItem>
             </SelectContent>
           </Select>
         </div>
