@@ -69,39 +69,47 @@ export function ArtworkOverviewDialog({
               ref={scrollContainerRef}
               className="bg-white"
             >
-            <div className="px-6 py-6 min-h-[500px]">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex-1 min-w-0">
-                  <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
-                    {titleWithYear}
-                  </ScrollableDialogTitle>
-                  <p className="text-muted-foreground mt-1 text-base">
-                    {artistLoading ? (
-                      <Skeleton className="w-32 h-5 rounded" />
-                    ) : artist?.full_name || "Unknown Artist"}
-                  </p>
+              <div className="px-6 py-6">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex-1 min-w-0">
+                    <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
+                      {titleWithYear}
+                    </ScrollableDialogTitle>
+                    <p className="text-muted-foreground mt-1 text-base">
+                      {artistLoading ? (
+                        <Skeleton className="w-32 h-5 rounded" />
+                      ) : artist?.full_name || "Unknown Artist"}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleEditClick}
+                      title="Edit Artwork"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <DialogHeaderActions artwork={artwork} />
+                  </div>
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleEditClick}
-                    title="Edit Artwork"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <DialogHeaderActions artwork={artwork} />
+                <div className="mt-6">
+                  <ArtworkOverviewTabs
+                    artwork={artwork}
+                    artist={artist}
+                    artistLoading={artistLoading}
+                    location={location}
+                    locationLoading={locationLoading}
+                  />
                 </div>
-              </div>
-              <div className="mt-6">
-                <ArtworkOverviewTabs
-                  artwork={artwork}
-                  artist={artist}
-                  artistLoading={artistLoading}
-                  location={location}
-                  locationLoading={locationLoading}
-                />
-              </div>
+                {/* Add extra content to force scrolling for testing */}
+                <div className="mt-8 space-y-4">
+                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 1</div>
+                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 2</div>
+                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 3</div>
+                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 4</div>
+                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 5</div>
+                </div>
               </div>
             </ScrollableDialogBody>
           </DialogPrimitive.Content>
