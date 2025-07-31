@@ -20,10 +20,10 @@ export function useDialogManager() {
 
   return {
     ...state,
-    showArtworkOverview: dialogManager.showArtworkOverview.bind(dialogManager),
-    showArtworkEdit: dialogManager.showArtworkEdit.bind(dialogManager),
-    showArtworkDelete: dialogManager.showArtworkDelete.bind(dialogManager),
-    setDeleting: dialogManager.setDeleting.bind(dialogManager),
-    closeDialog: dialogManager.closeDialog.bind(dialogManager),
+    showArtworkOverview: dialogManager.showArtworkOverview,
+    showArtworkEdit: dialogManager.showArtworkEdit, 
+    showArtworkDelete: dialogManager.showArtworkDelete,
+    setDeleting: dialogManager.setDeleting,
+    closeDialog: dialogManager.closeDialog,
   };
 }

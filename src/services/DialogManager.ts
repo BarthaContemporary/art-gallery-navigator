@@ -34,7 +34,7 @@ class DialogManagerService {
   }
 
   // Open overview dialog
-  showArtworkOverview(artwork: Artwork) {
+  showArtworkOverview = (artwork: Artwork) => {
     this.state = {
       type: 'overview',
       artwork,
@@ -44,8 +44,8 @@ class DialogManagerService {
     this.preloadDialog('edit', artwork);
   }
 
-  // Open edit dialog
-  showArtworkEdit(artwork: Artwork) {
+  // Open edit dialog  
+  showArtworkEdit = (artwork: Artwork) => {
     this.state = {
       type: 'edit',
       artwork,
@@ -55,7 +55,7 @@ class DialogManagerService {
   }
 
   // Open delete dialog
-  showArtworkDelete(artwork: Artwork) {
+  showArtworkDelete = (artwork: Artwork) => {
     this.state = {
       type: 'delete',
       artwork,
@@ -66,7 +66,7 @@ class DialogManagerService {
   }
 
   // Set deleting state
-  setDeleting(isDeleting: boolean) {
+  setDeleting = (isDeleting: boolean) => {
     if (this.state.type === 'delete') {
       this.state = {
         ...this.state,
@@ -77,7 +77,7 @@ class DialogManagerService {
   }
 
   // Close dialog
-  closeDialog() {
+  closeDialog = () => {
     this.state = {
       type: null,
       artwork: null,
