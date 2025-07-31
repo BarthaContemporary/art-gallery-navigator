@@ -12,6 +12,7 @@ import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
 import { ArtworkFilters } from "@/components/artworks/ArtworkFilters";
 import { ArtworkSelectionToolbar } from "@/components/artworks/selection/ArtworkSelectionToolbar";
 import { BulkDeleteDialog } from "@/components/artworks/dialogs/BulkDeleteDialog";
+import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
@@ -267,6 +268,9 @@ export default function Artworks() {
         onConfirm={handleConfirmBulkDelete}
         isDeleting={isDeleting}
       />
+
+      {/* Global Dialog Renderer for artwork overview, edit, and delete dialogs */}
+      <GlobalDialogRenderer />
       </div>
     </div>
   );
