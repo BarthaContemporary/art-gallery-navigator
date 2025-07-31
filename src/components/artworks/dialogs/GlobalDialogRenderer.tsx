@@ -3,35 +3,23 @@
  * Eliminates duplicate dialog instances and improves performance
  */
 
-import React, { Suspense, lazy } from "react";
-import { Loader2 } from "lucide-react";
+import React from "react";
 import { useDialogManager } from "@/hooks/use-dialog-manager";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
+import { EnhancedArtworkOverviewDialog } from "../enhanced/EnhancedArtworkOverviewDialog";
 
-// Lazy load dialog components for better performance
-const ArtworkOverviewDialogLazy = lazy(() => 
-  import('../ArtworkOverviewDialog').then(module => ({ 
-    default: module.ArtworkOverviewDialog 
-  }))
-);
+// Import dialogs directly instead of lazy loading to avoid loading issues
+// const ArtworkEditDialogLazy = lazy(() => 
+//   import('../EditArtworkDialog').then(module => ({ 
+//     default: module.EditArtworkDialog 
+//   }))
+// );
 
-const ArtworkEditDialogLazy = lazy(() => 
-  import('../EditArtworkDialog').then(module => ({ 
-    default: module.EditArtworkDialog 
-  }))
-);
-
-const ArtworkDeleteDialogLazy = lazy(() => 
-  import('./ArtworkDeleteDialogHandler').then(module => ({ 
-    default: module.ArtworkDeleteDialogHandler 
-  }))
-);
-
-const DialogLoadingFallback = () => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <Loader2 className="h-8 w-8 animate-spin text-white" />
-  </div>
-);
+// const ArtworkDeleteDialogLazy = lazy(() => 
+//   import('./ArtworkDeleteDialogHandler').then(module => ({ 
+//     default: module.ArtworkDeleteDialogHandler 
+//   }))
+// );
 
 export function GlobalDialogRenderer() {
   const { type, artwork, isOpen, isDeleting, closeDialog, setDeleting } = useDialogManager();
@@ -39,14 +27,16 @@ export function GlobalDialogRenderer() {
   // Always call hooks unconditionally - React hooks rule
   const artworkActions = useArtworkActions(artwork || {} as any);
 
+  console.log("GlobalDialogRenderer render:", { type, isOpen, artworkId: artwork?.id });
+
   if (!isOpen || !artwork) {
     return null;
   }
 
   return (
-    <Suspense fallback={<DialogLoadingFallback />}>
+    <>
       {type === 'overview' && (
-        <ArtworkOverviewDialogLazy
+        <EnhancedArtworkOverviewDialog
           artwork={artwork}
           open={isOpen}
           onOpenChange={(open) => {
@@ -55,6 +45,8 @@ export function GlobalDialogRenderer() {
         />
       )}
       
+      {/* Temporarily disable edit and delete dialogs to focus on overview */}
+      {/* 
       {type === 'edit' && (
         <ArtworkEditDialogLazy
           artwork={artwork}
@@ -85,6 +77,7 @@ export function GlobalDialogRenderer() {
           }}
         />
       )}
-    </Suspense>
+      */}
+    </>
   );
 }
