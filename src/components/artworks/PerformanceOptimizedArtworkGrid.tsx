@@ -135,12 +135,6 @@ const PerformanceOptimizedArtworkGridComponent = ({
     );
   }
 
-  console.log("PerformanceOptimizedArtworkGrid render:", {
-    totalArtworks: artworks.length,
-    containerHeight,
-    totalHeight
-  });
-
   return (
     <>
       <div

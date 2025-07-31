@@ -29,12 +29,6 @@ export function ArtworkGrid({
   // Temporarily disable performance optimization to show all artworks
   const shouldUseOptimizedGrid = false; // artworks.length > 100;
 
-  console.log("ArtworkGrid render:", {
-    shouldUseOptimizedGrid,
-    artworksLength: artworks.length,
-    loading
-  });
-
   if (shouldUseOptimizedGrid) {
     return (
       <PerformanceOptimizedArtworkGrid

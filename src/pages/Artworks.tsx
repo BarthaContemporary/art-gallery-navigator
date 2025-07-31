@@ -154,12 +154,6 @@ export default function Artworks() {
     );
   }
 
-  console.log("Artworks page layout debug:", {
-    totalArtworks: filteredArtworks.length,
-    isLoading,
-    hasError
-  });
-
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="container mx-auto px-4 flex-1 flex flex-col space-y-4 min-h-0">
