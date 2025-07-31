@@ -131,18 +131,18 @@ export function ArtworkGrid({
         <div key={artistName} className="space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-foreground">{artistName}</h2>
-              <p className="text-sm text-muted-foreground">
-                {artworks.length} {artworks.length === 1 ? 'work' : 'works'}
+              <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide">{artistName}</h2>
+              <p className="text-sm text-muted-foreground font-medium">
+                {artworks.length} {artworks.length === 1 ? 'artwork' : 'artworks'}
               </p>
             </div>
             <div className="flex items-center gap-2">
               {!isSelectionMode && onEnterSelectionMode && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={onEnterSelectionMode}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
                 >
                   <CheckSquare className="h-4 w-4 mr-1" />
                   Select

@@ -5,7 +5,7 @@
  */
 
 import React, { useRef, useState } from "react";
-import { RefreshCw, Search, X, Plus, Upload } from "lucide-react";
+import { RefreshCw, Search, X, Plus, Upload, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
@@ -155,8 +155,8 @@ export default function Artworks() {
   }
 
   return (
-    <div className="w-full min-h-full">
-      <div className="container mx-auto px-4 pt-4 pb-8 space-y-8">
+    <div className="flex flex-col h-screen">
+      <div className="container mx-auto px-4 pt-4 flex-1 flex flex-col space-y-6">
         <div ref={pageTopRef} />
       
       {/* Selection Toolbar */}
@@ -175,7 +175,7 @@ export default function Artworks() {
       
       {/* Header */}
       {!isSelectionMode && (
-        <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CreateArtworkDialog />
             <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
@@ -185,6 +185,16 @@ export default function Artworks() {
                 <ImportCSVDialog />
               </>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={enterSelectionMode}
+              disabled={filteredArtworks.length === 0}
+            >
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Select Multiple
+            </Button>
           </div>
         </div>
       )}
@@ -244,15 +254,17 @@ export default function Artworks() {
       )}
 
       {/* Grid */}
-      <ArtworkGrid
-        artworks={filteredArtworks}
-        loading={isLoading}
-        onScrollToTop={handleScrollToTop}
-        isSelectionMode={isSelectionMode}
-        selectedIds={selectedIds}
-        onToggleSelection={toggleSelection}
-        onEnterSelectionMode={enterSelectionMode}
-      />
+      <div className="flex-1 overflow-hidden">
+        <ArtworkGrid
+          artworks={filteredArtworks}
+          loading={isLoading}
+          onScrollToTop={handleScrollToTop}
+          isSelectionMode={isSelectionMode}
+          selectedIds={selectedIds}
+          onToggleSelection={toggleSelection}
+          onEnterSelectionMode={enterSelectionMode}
+        />
+      </div>
 
       {/* Dialogs */}
       <CreateCollectionDialog
