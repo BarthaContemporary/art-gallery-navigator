@@ -6,28 +6,13 @@
 import React from "react";
 import { useDialogManager } from "@/hooks/use-dialog-manager";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
-import { EnhancedArtworkOverviewDialog } from "../enhanced/EnhancedArtworkOverviewDialog";
-
-// Import dialogs directly instead of lazy loading to avoid loading issues
-// const ArtworkEditDialogLazy = lazy(() => 
-//   import('../EditArtworkDialog').then(module => ({ 
-//     default: module.EditArtworkDialog 
-//   }))
-// );
-
-// const ArtworkDeleteDialogLazy = lazy(() => 
-//   import('./ArtworkDeleteDialogHandler').then(module => ({ 
-//     default: module.ArtworkDeleteDialogHandler 
-//   }))
-// );
+import { ArtworkOverviewDialog } from "../overview/ArtworkOverviewDialog";
 
 export function GlobalDialogRenderer() {
   const { type, artwork, isOpen, isDeleting, closeDialog, setDeleting } = useDialogManager();
   
   // Always call hooks unconditionally - React hooks rule
   const artworkActions = useArtworkActions(artwork || {} as any);
-
-  console.log("GlobalDialogRenderer render:", { type, isOpen, artworkId: artwork?.id });
 
   if (!isOpen || !artwork) {
     return null;
@@ -36,7 +21,7 @@ export function GlobalDialogRenderer() {
   return (
     <>
       {type === 'overview' && (
-        <EnhancedArtworkOverviewDialog
+        <ArtworkOverviewDialog
           artwork={artwork}
           open={isOpen}
           onOpenChange={(open) => {
