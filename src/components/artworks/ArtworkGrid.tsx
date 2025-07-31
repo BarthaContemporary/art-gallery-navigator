@@ -29,18 +29,22 @@ export function ArtworkGrid({
   // Use performance optimized grid for very large datasets (increased threshold)
   const shouldUseOptimizedGrid = artworks.length > 100;
 
+  console.log("ArtworkGrid render:", {
+    shouldUseOptimizedGrid,
+    artworksLength: artworks.length,
+    loading
+  });
+
   if (shouldUseOptimizedGrid) {
     return (
-      <div className="h-full">
-        <PerformanceOptimizedArtworkGrid
-          artworks={artworks}
-          containerHeight={600}
-          onScrollToTop={onScrollToTop}
-          isSelectionMode={isSelectionMode}
-          selectedIds={selectedIds}
-          onToggleSelection={onToggleSelection}
-        />
-      </div>
+      <PerformanceOptimizedArtworkGrid
+        artworks={artworks}
+        containerHeight={600}
+        onScrollToTop={onScrollToTop}
+        isSelectionMode={isSelectionMode}
+        selectedIds={selectedIds}
+        onToggleSelection={onToggleSelection}
+      />
     );
   }
 

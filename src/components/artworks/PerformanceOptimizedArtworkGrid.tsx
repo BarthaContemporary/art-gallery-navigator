@@ -135,17 +135,23 @@ const PerformanceOptimizedArtworkGridComponent = ({
     );
   }
 
+  console.log("PerformanceOptimizedArtworkGrid render:", {
+    totalArtworks: artworks.length,
+    containerHeight,
+    totalHeight
+  });
+
   return (
     <>
       <div
         id={VIRTUALIZED_GRID_CONTAINER_ID}
         ref={scrollContainerRef}
-        className="w-full h-full overflow-auto"
+        className="w-full h-full overflow-y-auto overflow-x-hidden"
         onScroll={handleScroll}
       >
         <div
-          className="relative"
-          style={{ height: totalHeight, contain: 'strict' }}
+          className="relative w-full"
+          style={{ height: totalHeight, contain: "strict" }}
         >
           {visibleArtworks.map(({ artwork, absoluteIndex, row, col }) => {
             const position = getItemPosition(row, col);

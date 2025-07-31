@@ -154,9 +154,15 @@ export default function Artworks() {
     );
   }
 
+  console.log("Artworks page layout debug:", {
+    totalArtworks: filteredArtworks.length,
+    isLoading,
+    hasError
+  });
+
   return (
-    <div className="w-full h-full overflow-hidden">
-      <div className="container mx-auto px-4 h-full flex flex-col space-y-4">
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="container mx-auto px-4 flex-1 flex flex-col space-y-4 min-h-0">
         <div ref={pageTopRef} />
       
       {/* Selection Toolbar */}
@@ -254,7 +260,7 @@ export default function Artworks() {
       )}
 
       {/* Grid */}
-      <div className="flex-1 h-0">
+      <div className="flex-1 overflow-hidden">
         <ArtworkGrid
           artworks={filteredArtworks}
           loading={isLoading}
