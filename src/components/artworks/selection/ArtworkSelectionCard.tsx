@@ -39,7 +39,7 @@ export function ArtworkSelectionCard({
       onClick={handleClick}
     >
       {isSelectionMode && (
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 left-2 z-10">
           <div
             className={cn(
               "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
