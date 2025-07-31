@@ -28,21 +28,21 @@ export function ArtworkOverviewTabs({
 }: ArtworkOverviewTabsProps) {
   return (
     <Tabs defaultValue="details" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="details" className="flex items-center gap-2">
-          <Info className="h-4 w-4" />
+      <TabsList className="grid w-full grid-cols-4 h-9">
+        <TabsTrigger value="details" className="flex items-center gap-1 px-3 py-1 text-xs">
+          <Info className="h-3 w-3" />
           Details
         </TabsTrigger>
-        <TabsTrigger value="ai-description" className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
+        <TabsTrigger value="ai-description" className="flex items-center gap-1 px-3 py-1 text-xs">
+          <Sparkles className="h-3 w-3" />
           AI Description
         </TabsTrigger>
-        <TabsTrigger value="location-history" className="flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
+        <TabsTrigger value="location-history" className="flex items-center gap-1 px-3 py-1 text-xs">
+          <MapPin className="h-3 w-3" />
           Location History
         </TabsTrigger>
-        <TabsTrigger value="documents" className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
+        <TabsTrigger value="documents" className="flex items-center gap-1 px-3 py-1 text-xs">
+          <FileText className="h-3 w-3" />
           Documents
         </TabsTrigger>
       </TabsList>
