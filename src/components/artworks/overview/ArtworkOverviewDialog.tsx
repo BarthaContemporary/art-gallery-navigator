@@ -102,14 +102,6 @@ export function ArtworkOverviewDialog({
                     locationLoading={locationLoading}
                   />
                 </div>
-                {/* Add extra content to force scrolling for testing */}
-                <div className="mt-8 space-y-4">
-                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 1</div>
-                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 2</div>
-                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 3</div>
-                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 4</div>
-                  <div className="h-32 bg-gray-100 rounded p-4">Extra content block 5</div>
-                </div>
               </div>
             </ScrollableDialogBody>
           </DialogPrimitive.Content>
