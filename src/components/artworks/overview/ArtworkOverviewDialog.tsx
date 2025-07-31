@@ -67,9 +67,9 @@ export function ArtworkOverviewDialog({
             <ScrollableDialogHeader className="px-6 py-2 bg-white flex-shrink-0" />
             <ScrollableDialogBody
               ref={scrollContainerRef}
-              className="flex-1 min-h-0 bg-white overflow-y-auto"
+              className="bg-white"
             >
-            <div className="max-w-4xl mx-auto px-6 py-6">
+            <div className="px-6 py-6 min-h-[500px]">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex-1 min-w-0">
                   <ScrollableDialogTitle className="text-2xl font-semibold text-foreground">
@@ -102,7 +102,7 @@ export function ArtworkOverviewDialog({
                   locationLoading={locationLoading}
                 />
               </div>
-            </div>
+              </div>
             </ScrollableDialogBody>
           </DialogPrimitive.Content>
         </ScrollableDialogPortal>
