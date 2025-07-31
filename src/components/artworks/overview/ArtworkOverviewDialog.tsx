@@ -9,14 +9,16 @@ import {
   ScrollableDialogHeader,
   ScrollableDialogTitle,
   ScrollableDialogBody,
+  ScrollableDialogPortal,
 } from "@/components/ui/scrollable-dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArtworkImageViewer } from "./ArtworkImageViewer";
 import { ArtworkOverviewTabs } from "./ArtworkOverviewTabs";
 import { DialogHeaderActions } from "./DialogHeaderActions";
 import { useScrollableDialog } from "@/hooks/use-scrollable-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Edit, X } from "lucide-react";
 import { ArtworkEditDialogHandler } from "../dialogs/ArtworkEditDialogHandler";
 import { useState } from "react";
 
@@ -45,21 +47,28 @@ export function ArtworkOverviewDialog({
   return (
     <>
       <ScrollableDialog open={open} onOpenChange={onOpenChange}>
-        <ScrollableDialogContent
-          size="4xl"
-          className="p-0"
-        >
-          <div className="relative w-full bg-black/95 flex-shrink-0">
-            <ArtworkImageViewer 
-              artworkId={artwork.id}
-              artworkTitle={artwork.title}
-            />
-          </div>
-          <ScrollableDialogHeader className="px-6 py-2 bg-background flex-shrink-0" />
-          <ScrollableDialogBody
-            ref={scrollContainerRef}
-            className="flex-1 min-h-0 bg-background"
+        <ScrollableDialogPortal>
+          {/* Custom overlay with white background and blur */}
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-white/80 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content
+            className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] border-none bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] flex flex-col max-h-[90vh] group p-0"
           >
+            <div className="relative w-full bg-gray-50 flex-shrink-0">
+              <ArtworkImageViewer 
+                artworkId={artwork.id}
+                artworkTitle={artwork.title}
+              />
+            </div>
+            <ScrollableDialogHeader className="px-6 py-2 bg-white flex-shrink-0" />
+            <ScrollableDialogBody
+              ref={scrollContainerRef}
+              className="flex-1 min-h-0 bg-white"
+            >
+              {/* Close button */}
+              <DialogPrimitive.Close className="absolute right-4 top-4 z-[60] opacity-20 group-hover:opacity-100 transition-opacity duration-200 rounded-sm bg-yellow-400/30 backdrop-blur-sm hover:bg-yellow-400/90 text-white hover:text-black p-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:pointer-events-none flex items-center justify-center">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
             <div className="max-w-4xl mx-auto px-6 py-6">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex-1 min-w-0">
@@ -94,8 +103,9 @@ export function ArtworkOverviewDialog({
                 />
               </div>
             </div>
-          </ScrollableDialogBody>
-        </ScrollableDialogContent>
+            </ScrollableDialogBody>
+          </DialogPrimitive.Content>
+        </ScrollableDialogPortal>
       </ScrollableDialog>
 
       <ArtworkEditDialogHandler
