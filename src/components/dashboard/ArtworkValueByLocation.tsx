@@ -212,7 +212,7 @@ export function ArtworkValueByLocation() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Pie Chart */}
       <Card className="p-4">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 bg-white">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Value Distribution by Location
