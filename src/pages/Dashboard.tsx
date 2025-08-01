@@ -106,7 +106,7 @@ const Dashboard = () => {
       }, {
         title: "Active",
         value: stats?.active_clients_count ?? 0,
-        icon: <MaterialIcon icon="pulse" size={16} />,
+        icon: <MaterialIcon icon="radio_button_checked" size={16} />,
         color: "text-green-600"
       }, {
         title: "Prospects",
@@ -137,7 +137,7 @@ const Dashboard = () => {
         <Card className="p-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <MaterialIcon icon="pulse" size={16} />
+              <MaterialIcon icon="bar_chart" size={16} />
               Inventory Status
             </CardTitle>
           </CardHeader>
@@ -186,7 +186,7 @@ const Dashboard = () => {
         <Card className="p-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <MaterialIcon icon="pulse" size={16} />
+              <MaterialIcon icon="schedule" size={16} />
               Recent Activity
             </CardTitle>
           </CardHeader>
