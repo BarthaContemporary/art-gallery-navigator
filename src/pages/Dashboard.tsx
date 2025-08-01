@@ -184,7 +184,7 @@ const Dashboard = () => {
 
         {/* Recent Activity */}
         <Card className="p-4">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 bg-white">
             <CardTitle className="text-base flex items-center gap-2">
               <MaterialIcon icon="schedule" size={16} />
               Recent Activity
