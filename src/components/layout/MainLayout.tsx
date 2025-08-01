@@ -1,9 +1,8 @@
 
 import { Outlet, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sidebar } from "@/components/layout/sidebar/Sidebar";
-import { MobileSidebar } from "@/components/layout/MobileSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { useInactivity } from "@/hooks/use-inactivity";
 import { ChatPopup } from "@/components/chat/ChatPopup";
 
@@ -18,26 +17,24 @@ export function MainLayout() {
                      location.pathname.startsWith('/signup');
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full bg-white">
+    <SidebarProvider defaultOpen={!isMobile}>
+      <div className="flex min-h-screen w-full">
         <SessionWarning />
-        {/* Desktop sidebar - always visible on desktop */}
-        {!isMobile && (
-          <div className="flex-shrink-0">
-            <Sidebar />
-          </div>
-        )}
         
-        {/* Mobile sidebar */}
-        {isMobile && <MobileSidebar />}
+        {/* App Sidebar - will collapse to icons on mobile/small screens */}
+        <AppSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <main className={`flex-1 overflow-auto bg-white ${isMobile ? 'pt-12 safe-area-top' : ''} touch-pan-y min-h-0`}>
-            <div className="w-full max-w-full">
-              <Outlet />
-            </div>
+        <SidebarInset>
+          {/* Header with sidebar trigger */}
+          <header className="flex h-12 items-center border-b bg-background px-4">
+            <SidebarTrigger className="h-8 w-8" />
+          </header>
+          
+          {/* Main content */}
+          <main className="flex-1 overflow-auto p-4">
+            <Outlet />
           </main>
-        </div>
+        </SidebarInset>
 
         {/* Chat Popup - only show on non-auth pages */}
         {!isAuthPage && <ChatPopup />}
