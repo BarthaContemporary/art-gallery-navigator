@@ -23,7 +23,7 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="flex-1 px-4 py-6 space-y-1">
+    <nav className="flex-1 px-2 py-6 space-y-2">
       {mainNavItems.map((item) => (
         <SidebarNavItem key={item.href} {...item} />
       ))}
@@ -31,9 +31,7 @@ export function Navigation() {
       {isAdmin && (
         <>
           <div className="pt-4 pb-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">
-              Admin
-            </p>
+            <div className="w-full h-px bg-gray-200 mx-auto"></div>
           </div>
           {adminNavItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />

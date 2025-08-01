@@ -8,10 +8,10 @@ import { SidebarNavLogo } from "./components/SidebarNavLogo";
 export function Sidebar() {
   return (
     <SidebarComponent
-      className="flex flex-col w-60 h-full bg-white"
+      className="flex flex-col w-16 h-full bg-white border-r"
       style={{
         minHeight: "100vh",
-        textAlign: "left"
+        textAlign: "center"
       }}
     >
       <SidebarNavLogo />

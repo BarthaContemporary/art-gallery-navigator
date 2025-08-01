@@ -4,6 +4,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { getSidebarLinkClasses } from "@/lib/sidebar-utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SidebarNavItemProps {
   href: string;
@@ -20,18 +21,19 @@ export function SidebarNavItem({
   const isActive = location.pathname === href || href !== "/" && location.pathname.startsWith(href);
 
   return (
-    <SidebarMenuButton asChild className={getSidebarLinkClasses(isActive)}>
-      <Link 
-        to={href}
-        style={{
-          fontWeight: isActive ? 600 : 500
-        }}
-      >
-        <Icon className="w-5 h-5 shrink-0" />
-        <span className="flex items-center gap-2">
-          {name}
-        </span>
-      </Link>
-    </SidebarMenuButton>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarMenuButton asChild className={`${getSidebarLinkClasses(isActive)} justify-center p-3 w-12 h-12`}>
+            <Link to={href}>
+              <Icon className="w-5 h-5" />
+            </Link>
+          </SidebarMenuButton>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="ml-2">
+          <p>{name}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
