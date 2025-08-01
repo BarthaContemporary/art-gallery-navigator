@@ -26,7 +26,6 @@ export function SidebarUserMenu() {
               imageUrl={user?.user_metadata.avatar_url}
               email={user?.email}
             />
-            <Settings className="h-4 w-4 text-muted-foreground ml-2" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white">
