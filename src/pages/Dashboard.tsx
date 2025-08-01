@@ -141,7 +141,7 @@ const Dashboard = () => {
               Inventory Status
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-[5px]">
             {isLoading ? <div className="space-y-3">
                 <Skeleton className="h-32 w-full" />
                 <div className="space-y-2">
