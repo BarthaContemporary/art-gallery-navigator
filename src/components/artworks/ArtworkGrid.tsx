@@ -144,8 +144,7 @@ export function ArtworkGrid({
                   onClick={onEnterSelectionMode}
                   className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
                 >
-                  <CheckSquare className="h-4 w-4 mr-1" />
-                  Select
+                  <CheckSquare className="h-4 w-4" />
                 </Button>
               )}
               <Button
