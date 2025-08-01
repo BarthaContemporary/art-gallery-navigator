@@ -1,4 +1,3 @@
-
 import { Palette, Users, Landmark, Calendar, Folder, TrendingUp, TrendingDown, Activity, AlertCircle, FileUp } from "lucide-react";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -10,7 +9,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis }
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { ArtworkValueByLocation } from "@/components/dashboard/ArtworkValueByLocation";
-
 const Dashboard = () => {
   const {
     data: stats,
@@ -41,76 +39,52 @@ const Dashboard = () => {
   })) : [];
 
   // Main stats data
-  const mainStats = [
-    {
-      title: "Artworks",
-      value: stats?.artworks_count ?? 0,
-      icon: <Palette className="h-4 w-4" />,
-      trend: "+12%",
-      isPositive: true
-    },
-    {
-      title: "Artists",
-      value: stats?.artists_count ?? 0,
-      icon: <Users className="h-4 w-4" />,
-      trend: "+5%",
-      isPositive: true
-    },
-    {
-      title: "Locations",
-      value: stats?.locations_count ?? 0,
-      icon: <Landmark className="h-4 w-4" />,
-      trend: "0%",
-      isPositive: null
-    },
-    {
-      title: "Collections",
-      value: stats?.collections_count ?? 0,
-      icon: <Folder className="h-4 w-4" />,
-      trend: "+8%",
-      isPositive: true
-    }
-  ];
-
+  const mainStats = [{
+    title: "Artworks",
+    value: stats?.artworks_count ?? 0,
+    icon: <Palette className="h-4 w-4" />,
+    trend: "+12%",
+    isPositive: true
+  }, {
+    title: "Artists",
+    value: stats?.artists_count ?? 0,
+    icon: <Users className="h-4 w-4" />,
+    trend: "+5%",
+    isPositive: true
+  }, {
+    title: "Locations",
+    value: stats?.locations_count ?? 0,
+    icon: <Landmark className="h-4 w-4" />,
+    trend: "0%",
+    isPositive: null
+  }, {
+    title: "Collections",
+    value: stats?.collections_count ?? 0,
+    icon: <Folder className="h-4 w-4" />,
+    trend: "+8%",
+    isPositive: true
+  }];
   if (error) {
-    return (
-      <div className="p-3 sm:p-4 max-w-6xl mx-auto">
+    return <div className="p-3 sm:p-4 max-w-6xl mx-auto">
         <div className="text-destructive p-4 border border-destructive/20 rounded-md">
           Error loading dashboard data. Please refresh the page or try again later.
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="p-3 sm:p-4 max-w-6xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          {format(new Date(), "MMMM d, yyyy")}
-        </div>
-      </div>
+  return <div className="p-3 sm:p-4 max-w-6xl mx-auto space-y-4">
+      
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {mainStats.map((stat, index) => (
-          <Card key={index} className="p-3">
+        {mainStats.map((stat, index) => <Card key={index} className="p-3">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">{stat.title}</p>
-                {isLoading ? (
-                  <Skeleton className="h-6 w-8" />
-                ) : (
-                  <p className="text-lg font-bold">{stat.value}</p>
-                )}
+                {isLoading ? <Skeleton className="h-6 w-8" /> : <p className="text-lg font-bold">{stat.value}</p>}
                 <div className="flex items-center gap-1 text-xs">
                   {stat.isPositive === true && <TrendingUp className="h-3 w-3 text-success" />}
                   {stat.isPositive === false && <TrendingDown className="h-3 w-3 text-destructive" />}
-                  <span className={
-                    stat.isPositive === true ? "text-success" : 
-                    stat.isPositive === false ? "text-destructive" : 
-                    "text-muted-foreground"
-                  }>
+                  <span className={stat.isPositive === true ? "text-success" : stat.isPositive === false ? "text-destructive" : "text-muted-foreground"}>
                     {stat.trend}
                   </span>
                 </div>
@@ -119,37 +93,43 @@ const Dashboard = () => {
                 {stat.icon}
               </div>
             </div>
-          </Card>
-        ))}
+          </Card>)}
       </div>
 
       {/* CRM Stats for Admin */}
-      {isAdmin && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { title: "Total Clients", value: stats?.total_clients_count ?? 0, icon: <Users className="h-4 w-4" />, color: "text-blue-600" },
-            { title: "Active", value: stats?.active_clients_count ?? 0, icon: <Activity className="h-4 w-4" />, color: "text-green-600" },
-            { title: "Prospects", value: stats?.prospects_count ?? 0, icon: <TrendingUp className="h-4 w-4" />, color: "text-yellow-600" },
-            { title: "Customers", value: stats?.customers_count ?? 0, icon: <Users className="h-4 w-4" />, color: "text-purple-600" }
-          ].map((stat, index) => (
-            <Card key={index} className="p-3">
+      {isAdmin && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[{
+        title: "Total Clients",
+        value: stats?.total_clients_count ?? 0,
+        icon: <Users className="h-4 w-4" />,
+        color: "text-blue-600"
+      }, {
+        title: "Active",
+        value: stats?.active_clients_count ?? 0,
+        icon: <Activity className="h-4 w-4" />,
+        color: "text-green-600"
+      }, {
+        title: "Prospects",
+        value: stats?.prospects_count ?? 0,
+        icon: <TrendingUp className="h-4 w-4" />,
+        color: "text-yellow-600"
+      }, {
+        title: "Customers",
+        value: stats?.customers_count ?? 0,
+        icon: <Users className="h-4 w-4" />,
+        color: "text-purple-600"
+      }].map((stat, index) => <Card key={index} className="p-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">{stat.title}</p>
-                  {isLoading ? (
-                    <Skeleton className="h-5 w-6" />
-                  ) : (
-                    <p className="text-lg font-bold">{stat.value}</p>
-                  )}
+                  {isLoading ? <Skeleton className="h-5 w-6" /> : <p className="text-lg font-bold">{stat.value}</p>}
                 </div>
                 <div className={`${stat.color}`}>
                   {stat.icon}
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            </Card>)}
+        </div>}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -162,43 +142,25 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
+            {isLoading ? <div className="space-y-3">
                 <Skeleton className="h-32 w-full" />
                 <div className="space-y-2">
-                  {[1, 2, 3].map(n => (
-                    <div key={n} className="flex items-center justify-between">
+                  {[1, 2, 3].map(n => <div key={n} className="flex items-center justify-between">
                       <Skeleton className="h-4 w-16" />
                       <Skeleton className="h-4 w-8" />
-                    </div>
-                  ))}
+                    </div>)}
                 </div>
-              </div>
-            ) : inventoryData.length > 0 ? (
-              <div className="space-y-4">
+              </div> : inventoryData.length > 0 ? <div className="space-y-4">
                 <div className="h-32">
-                  <ChartContainer
-                    config={{
-                      value: {
-                        label: "Count",
-                      },
-                    }}
-                    className="h-full w-full"
-                  >
+                  <ChartContainer config={{
+                value: {
+                  label: "Count"
+                }
+              }} className="h-full w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie
-                          data={inventoryData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {inventoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
+                        <Pie data={inventoryData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value">
+                          {inventoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                         </Pie>
                         <ChartTooltip content={<ChartTooltipContent />} />
                       </PieChart>
@@ -206,23 +168,17 @@ const Dashboard = () => {
                   </ChartContainer>
                 </div>
                 <div className="space-y-2">
-                  {inventoryData.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
+                  {inventoryData.map((item, index) => <div key={index} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: item.fill }}
-                        />
+                        <div className="h-2 w-2 rounded-full" style={{
+                    backgroundColor: item.fill
+                  }} />
                         <span>{item.name}</span>
                       </div>
                       <span className="font-medium">{item.value}</span>
-                    </div>
-                  ))}
+                    </div>)}
                 </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">No inventory data available</p>
-            )}
+              </div> : <p className="text-muted-foreground text-sm">No inventory data available</p>}
           </CardContent>
         </Card>
 
@@ -235,22 +191,16 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map(n => (
-                  <div key={n} className="flex items-center gap-3">
+            {isLoading ? <div className="space-y-3">
+                {[1, 2, 3, 4].map(n => <div key={n} className="flex items-center gap-3">
                     <Skeleton className="h-2 w-2 rounded-full" />
                     <div className="flex-1">
                       <Skeleton className="h-4 w-32 mb-1" />
                       <Skeleton className="h-3 w-20" />
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : stats?.recent_activities && stats.recent_activities.length > 0 ? (
-              <div className="space-y-3">
-                {stats.recent_activities.slice(0, 6).map((activity, index) => (
-                  <div key={index} className="flex items-center gap-3">
+                  </div>)}
+              </div> : stats?.recent_activities && stats.recent_activities.length > 0 ? <div className="space-y-3">
+                {stats.recent_activities.slice(0, 6).map((activity, index) => <div key={index} className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full bg-${activity.color || 'primary'}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{activity.title}</p>
@@ -258,12 +208,8 @@ const Dashboard = () => {
                         {format(new Date(activity.timestamp), "MMM d, HH:mm")}
                       </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">No recent activities</p>
-            )}
+                  </div>)}
+              </div> : <p className="text-muted-foreground text-sm">No recent activities</p>}
           </CardContent>
         </Card>
       </div>
@@ -272,18 +218,13 @@ const Dashboard = () => {
       <ArtworkValueByLocation />
 
       {/* Admin Notifications */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {isAdmin && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link to="/documents" className="no-underline">
             <Card className={`p-4 hover:bg-accent/50 transition-colors ${stats?.pending_deletions_count ? 'border-warning' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Pending Deletions</p>
-                  {isLoading ? (
-                    <Skeleton className="h-6 w-8 mt-1" />
-                  ) : (
-                    <p className="text-lg font-bold">{stats?.pending_deletions_count ?? 0}</p>
-                  )}
+                  {isLoading ? <Skeleton className="h-6 w-8 mt-1" /> : <p className="text-lg font-bold">{stats?.pending_deletions_count ?? 0}</p>}
                   <p className="text-xs text-muted-foreground">Items awaiting review</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center text-warning">
@@ -298,11 +239,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">New Uploads</p>
-                  {isLoading ? (
-                    <Skeleton className="h-6 w-8 mt-1" />
-                  ) : (
-                    <p className="text-lg font-bold">{stats?.new_uploads_count ?? 0}</p>
-                  )}
+                  {isLoading ? <Skeleton className="h-6 w-8 mt-1" /> : <p className="text-lg font-bold">{stats?.new_uploads_count ?? 0}</p>}
                   <p className="text-xs text-muted-foreground">Last 7 days</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-info/10 flex items-center justify-center text-info">
@@ -311,9 +248,7 @@ const Dashboard = () => {
               </div>
             </Card>
           </Link>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 };
 export default Dashboard;
