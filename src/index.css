@@ -219,10 +219,16 @@
     @apply text-base; /* Prevent zoom on iOS */
   }
 
-  /* Better touch targets for mobile */
+  /* Remove button outlines */
   button, [role="button"], [type="button"] {
+    outline: none !important;
+    border: none;
     min-height: 44px; /* iOS recommended touch target */
     min-width: 44px;
+  }
+
+  button:focus, [role="button"]:focus, [type="button"]:focus {
+    outline: none !important;
   }
 }
 
