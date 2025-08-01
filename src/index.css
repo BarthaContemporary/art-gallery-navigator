@@ -49,10 +49,10 @@
     --destructive-foreground: 0 0% 100%;
     
     /* Modern borders and inputs */
-    --border: 220 13% 88%;
-    --border-hover: 220 13% 82%;
-    --input: 220 13% 94%;
-    --input-border: 220 13% 88%;
+    --border: 0 0% 96%;
+    --border-hover: 0 0% 92%;
+    --input: 0 0% 96%;
+    --input-border: 0 0% 96%;
     --ring: 200 85% 42%;
     
     /* Enhanced gradients */
@@ -113,10 +113,10 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 220 13% 88%;
-    --border-hover: 220 13% 82%;
-    --input: 220 13% 94%;
-    --input-border: 220 13% 88%;
+    --border: 0 0% 96%;
+    --border-hover: 0 0% 92%;
+    --input: 0 0% 96%;
+    --input-border: 0 0% 96%;
     --ring: 200 85% 42%;
     
     --gradient-primary: linear-gradient(135deg, hsl(200 85% 32%), hsl(200 85% 42%));
