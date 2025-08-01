@@ -299,7 +299,7 @@ export function ArtworkValueByLocation() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
