@@ -89,8 +89,8 @@ export function FullscreenImageViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-black border-none overflow-hidden">
-        <div className="w-full h-full bg-black group relative">
+      <DialogContent className="max-w-none max-h-none w-screen h-screen p-0 m-0 bg-white/80 backdrop-blur-sm border-none overflow-hidden">
+        <div className="w-full h-full bg-white/80 backdrop-blur-sm group relative">
           {/* Close button */}
           {!hideCloseButton && (
             <Button
