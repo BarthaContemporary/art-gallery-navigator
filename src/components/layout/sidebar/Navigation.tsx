@@ -30,9 +30,6 @@ export function Navigation() {
 
       {isAdmin && (
         <>
-          <div className="pt-4 pb-2">
-            <div className="w-full h-px bg-gray-200 mx-auto"></div>
-          </div>
           {adminNavItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
           ))}
