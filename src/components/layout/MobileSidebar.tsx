@@ -16,7 +16,7 @@ export function MobileSidebar() {
   return (
     <>
       {/* Fixed mobile header - optimized for iPhone screens */}
-      <div className="sm:hidden fixed top-0 left-0 right-0 h-12 bg-white z-50 flex items-center justify-between px-4 safe-area-top"> {/* Updated: removed border-b */}
+      <div className="sm:hidden fixed top-0 left-0 right-0 h-12 z-50 flex items-center justify-between px-4 safe-area-top"> {/* Updated: removed border-b and bg-white */}
         <Link to="/" className="flex items-center">
           <img
             src="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
