@@ -119,7 +119,9 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
   }
 
   return (
-    <div className="relative w-full h-[500px] bg-muted/10 rounded-lg overflow-hidden group">
+    <div className="relative w-full h-[500px] bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden group">
+      {/* Almost white grey background for image area */}
+      <div className="absolute inset-0 bg-gray-50 rounded-lg"></div>
       {/* Processing Status - Top Left */}
       {hasProcessingImages && (
         <div className="absolute top-4 left-4 z-20 bg-blue-500/80 text-white px-3 py-1 rounded-md text-sm backdrop-blur-sm">
