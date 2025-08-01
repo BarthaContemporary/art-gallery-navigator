@@ -73,16 +73,6 @@
     --radius-sm: 0.5rem;
     --radius-lg: 1rem;
     --radius-xl: 1.25rem;
-    
-    /* Sidebar variables */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 224 71% 8%;
-    --sidebar-primary: 200 85% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 93%;
-    --sidebar-accent-foreground: 224 71% 8%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 200 85% 42%;
   }
 
   .dark {
@@ -144,16 +134,6 @@
     --radius-sm: 0.5rem;
     --radius-lg: 1rem;
     --radius-xl: 1.25rem;
-    
-    /* Sidebar variables - same as light theme */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 224 71% 8%;
-    --sidebar-primary: 200 85% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 93%;
-    --sidebar-accent-foreground: 224 71% 8%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 200 85% 42%;
   }
 
   /* iPhone-specific safe area support */
