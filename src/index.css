@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Core neutrals with better contrast */
-    --background: 0 0% 99%;
+    --background: 0 0% 100%;
     --foreground: 224 71% 8%;
     
     /* Enhanced surface colors */
@@ -77,7 +77,7 @@
 
   .dark {
     /* Maintain light theme consistency */
-    --background: 0 0% 99%;
+    --background: 0 0% 100%;
     --foreground: 224 71% 8%;
     
     --card: 0 0% 100%;
