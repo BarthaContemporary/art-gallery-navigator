@@ -190,7 +190,7 @@ const Dashboard = () => {
               Recent Activity
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-[5px]">
             {isLoading ? <div className="space-y-3">
                 {[1, 2, 3, 4].map(n => <div key={n} className="flex items-center gap-3">
                     <Skeleton className="h-2 w-2 rounded-full" />
