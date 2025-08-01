@@ -5,7 +5,7 @@
  */
 
 import React, { useRef, useState } from "react";
-import { RefreshCw, Search, X, Plus, Upload, CheckSquare } from "lucide-react";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArtworkGrid } from "@/components/artworks/ArtworkGrid";
@@ -145,7 +145,7 @@ export default function Artworks() {
               There was an error loading the artwork data.
             </p>
             <Button onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <MaterialIcon icon="refresh" size={16} className="mr-2" />
               Try Again
             </Button>
           </div>
@@ -193,7 +193,7 @@ export default function Artworks() {
               disabled={filteredArtworks.length === 0}
               size="icon"
             >
-              <CheckSquare className="h-4 w-4" />
+              <MaterialIcon icon="check_box" size={16} />
             </Button>
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function Artworks() {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <MaterialIcon icon="search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search artworks, artists, materials..."
                 value={filters.search}
@@ -221,7 +221,7 @@ export default function Artworks() {
               disabled={isLoading}
               size="icon"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <MaterialIcon icon="refresh" size={16} className={isLoading ? 'animate-spin' : ''} />
             </Button>
             
             {hasActiveFilters && (
@@ -230,7 +230,7 @@ export default function Artworks() {
                 onClick={clearFilters}
                 size="icon"
               >
-                <X className="h-4 w-4" />
+                <MaterialIcon icon="close" size={16} />
               </Button>
             )}
           </div>

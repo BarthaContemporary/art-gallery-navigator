@@ -1,5 +1,5 @@
 
-import { LucideIcon } from "lucide-react";
+import { MaterialIcon } from "../material-icon";
 
 export type SidebarState = "expanded" | "collapsed";
 

@@ -1,4 +1,4 @@
-import { Palette, Users, Landmark, Calendar, Folder, TrendingUp, TrendingDown, Activity, AlertCircle, FileUp } from "lucide-react";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,25 +42,25 @@ const Dashboard = () => {
   const mainStats = [{
     title: "Artworks",
     value: stats?.artworks_count ?? 0,
-    icon: <Palette className="h-4 w-4" />,
+    icon: <MaterialIcon icon="palette" size={16} />,
     trend: "+12%",
     isPositive: true
   }, {
     title: "Artists",
     value: stats?.artists_count ?? 0,
-    icon: <Users className="h-4 w-4" />,
+    icon: <MaterialIcon icon="people" size={16} />,
     trend: "+5%",
     isPositive: true
   }, {
     title: "Locations",
     value: stats?.locations_count ?? 0,
-    icon: <Landmark className="h-4 w-4" />,
+    icon: <MaterialIcon icon="location_on" size={16} />,
     trend: "0%",
     isPositive: null
   }, {
     title: "Collections",
     value: stats?.collections_count ?? 0,
-    icon: <Folder className="h-4 w-4" />,
+    icon: <MaterialIcon icon="folder" size={16} />,
     trend: "+8%",
     isPositive: true
   }];
@@ -82,8 +82,8 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground">{stat.title}</p>
                 {isLoading ? <Skeleton className="h-6 w-8" /> : <p className="text-lg font-bold">{stat.value}</p>}
                 <div className="flex items-center gap-1 text-xs">
-                  {stat.isPositive === true && <TrendingUp className="h-3 w-3 text-success" />}
-                  {stat.isPositive === false && <TrendingDown className="h-3 w-3 text-destructive" />}
+                  {stat.isPositive === true && <MaterialIcon icon="trending_up" size={12} className="text-success" />}
+                  {stat.isPositive === false && <MaterialIcon icon="trending_down" size={12} className="text-destructive" />}
                   <span className={stat.isPositive === true ? "text-success" : stat.isPositive === false ? "text-destructive" : "text-muted-foreground"}>
                     {stat.trend}
                   </span>
@@ -101,22 +101,22 @@ const Dashboard = () => {
           {[{
         title: "Total Clients",
         value: stats?.total_clients_count ?? 0,
-        icon: <Users className="h-4 w-4" />,
+        icon: <MaterialIcon icon="people" size={16} />,
         color: "text-blue-600"
       }, {
         title: "Active",
         value: stats?.active_clients_count ?? 0,
-        icon: <Activity className="h-4 w-4" />,
+        icon: <MaterialIcon icon="pulse" size={16} />,
         color: "text-green-600"
       }, {
         title: "Prospects",
         value: stats?.prospects_count ?? 0,
-        icon: <TrendingUp className="h-4 w-4" />,
+        icon: <MaterialIcon icon="trending_up" size={16} />,
         color: "text-yellow-600"
       }, {
         title: "Customers",
         value: stats?.customers_count ?? 0,
-        icon: <Users className="h-4 w-4" />,
+        icon: <MaterialIcon icon="people" size={16} />,
         color: "text-purple-600"
       }].map((stat, index) => <Card key={index} className="p-3">
               <div className="flex items-center justify-between">
@@ -137,7 +137,7 @@ const Dashboard = () => {
         <Card className="p-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4" />
+              <MaterialIcon icon="pulse" size={16} />
               Inventory Status
             </CardTitle>
           </CardHeader>
@@ -186,7 +186,7 @@ const Dashboard = () => {
         <Card className="p-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4" />
+              <MaterialIcon icon="pulse" size={16} />
               Recent Activity
             </CardTitle>
           </CardHeader>
@@ -228,7 +228,7 @@ const Dashboard = () => {
                   <p className="text-xs text-muted-foreground">Items awaiting review</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center text-warning">
-                  <AlertCircle className="h-4 w-4" />
+                  <MaterialIcon icon="error" size={16} />
                 </div>
               </div>
             </Card>
@@ -243,7 +243,7 @@ const Dashboard = () => {
                   <p className="text-xs text-muted-foreground">Last 7 days</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-info/10 flex items-center justify-center text-info">
-                  <FileUp className="h-4 w-4" />
+                  <MaterialIcon icon="file_upload" size={16} />
                 </div>
               </div>
             </Card>
