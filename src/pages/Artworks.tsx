@@ -191,9 +191,9 @@ export default function Artworks() {
               variant="outline"
               onClick={enterSelectionMode}
               disabled={filteredArtworks.length === 0}
+              size="icon"
             >
-              <CheckSquare className="h-4 w-4 mr-2" />
-              Select Multiple
+              <CheckSquare className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -219,19 +219,18 @@ export default function Artworks() {
               variant="outline"
               onClick={handleRefresh}
               disabled={isLoading}
+              size="icon"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
             
             {hasActiveFilters && (
               <Button
                 variant="outline"
                 onClick={clearFilters}
-                className="whitespace-nowrap"
+                size="icon"
               >
-                <X className="h-4 w-4 mr-2" />
-                Clear Filters
+                <X className="h-4 w-4" />
               </Button>
             )}
           </div>
