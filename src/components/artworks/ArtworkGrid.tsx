@@ -153,8 +153,7 @@ export function ArtworkGrid({
                 onClick={scrollToTop}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <ChevronUp className="h-4 w-4 mr-1" />
-                Top
+                <ChevronUp className="h-4 w-4" />
               </Button>
             </div>
           </div>
