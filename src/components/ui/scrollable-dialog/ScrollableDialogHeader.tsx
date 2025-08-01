@@ -10,7 +10,7 @@ const ScrollableDialogHeader = React.forwardRef<
     ref={ref}
     className={cn(
       "flex flex-col space-y-1.5 text-center sm:text-left",
-      "flex-shrink-0 p-6 pb-4 border-b",
+      "flex-shrink-0 p-6 pb-4 border-b border-border/50 bg-gradient-secondary",
       className
     )}
     {...props}

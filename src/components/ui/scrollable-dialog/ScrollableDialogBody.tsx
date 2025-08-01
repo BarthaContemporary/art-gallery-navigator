@@ -14,7 +14,7 @@ const ScrollableDialogBody = React.forwardRef<
     <div
       ref={forwardedRef}
       className={cn(
-        "flex-1 min-h-0 overflow-y-auto", // Always fill and scroll
+        "flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent", // Always fill and scroll
         className
       )}
       tabIndex={0}
