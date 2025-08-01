@@ -13,7 +13,7 @@ export class PerformanceMonitor {
   private static metrics: PerformanceMetrics[] = [];
   private static isProduction = process.env.NODE_ENV === 'production';
 
-  // Remove console.log statements in production
+  // Completely silent in production, limited metrics in development
   static logRender(component: string, renderTime: number) {
     if (this.isProduction) return;
     
@@ -23,9 +23,9 @@ export class PerformanceMonitor {
       timestamp: Date.now()
     });
 
-    // Keep only last 100 metrics
-    if (this.metrics.length > 100) {
-      this.metrics = this.metrics.slice(-100);
+    // Keep only last 50 metrics to reduce memory usage
+    if (this.metrics.length > 50) {
+      this.metrics = this.metrics.slice(-50);
     }
   }
 
@@ -88,7 +88,7 @@ export function usePerformanceTracker(componentName: string) {
   });
 }
 
-// Memory usage tracking
+// Memory usage tracking - disabled in production for performance
 export class MemoryMonitor {
   static checkMemoryUsage() {
     const isProduction = process.env.NODE_ENV === 'production';
@@ -110,10 +110,11 @@ export class MemoryMonitor {
   }
 }
 
-// Image loading optimization
+// Image loading optimization with size limits
 export class ImageOptimizer {
   private static loadedImages = new Set<string>();
   private static loadingImages = new Map<string, Promise<boolean>>();
+  private static readonly MAX_LOADED_IMAGES = 500; // Limit memory usage
 
   static async preloadImage(src: string): Promise<boolean> {
     if (this.loadedImages.has(src)) {
@@ -127,6 +128,13 @@ export class ImageOptimizer {
     const promise = new Promise<boolean>((resolve) => {
       const img = new Image();
       img.onload = () => {
+        // Limit memory usage by removing old entries
+        if (this.loadedImages.size >= this.MAX_LOADED_IMAGES) {
+          const entries = Array.from(this.loadedImages);
+          entries.slice(0, Math.floor(this.MAX_LOADED_IMAGES * 0.2)).forEach(entry => {
+            this.loadedImages.delete(entry);
+          });
+        }
         this.loadedImages.add(src);
         this.loadingImages.delete(src);
         resolve(true);

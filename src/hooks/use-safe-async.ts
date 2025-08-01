@@ -68,7 +68,9 @@ export function useSafeAsync<T>() {
       return result;
     } catch (error) {
       // Handle error with performance logging
-      console.error("Operation failed:", error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("Operation failed:", error);
+      }
       
       if (!isMounted) return;
       

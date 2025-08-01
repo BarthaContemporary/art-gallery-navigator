@@ -4,9 +4,9 @@ import { logger } from "@/lib/logger";
 const CACHE_PREFIX = "art_img_cache_";
 const CACHE_VERSION = "v3.0";
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_CACHE_ITEM_SIZE = 2 * 1024 * 1024; // 2MB per item
-const MAX_TOTAL_CACHE_SIZE = 50 * 1024 * 1024; // 50MB total
-const MEMORY_CACHE_SIZE = 100; // Keep 100 images in memory
+const MAX_CACHE_ITEM_SIZE = 1 * 1024 * 1024; // Reduced to 1MB per item
+const MAX_TOTAL_CACHE_SIZE = 25 * 1024 * 1024; // Reduced to 25MB total
+const MEMORY_CACHE_SIZE = 50; // Reduced to 50 images in memory
 
 export type ImageTier = 'thumbnail' | 'medium' | 'full';
 
@@ -188,8 +188,8 @@ export function useEnhancedImageCache() {
         return bScore - aScore;
       });
       
-      // Remove items until we're under 70% of the total cache limit
-      const targetSize = MAX_TOTAL_CACHE_SIZE * 0.7;
+      // Remove items until we're under 50% of the total cache limit for better memory management
+      const targetSize = MAX_TOTAL_CACHE_SIZE * 0.5;
       let currentSize = cacheItems.reduce((sum, item) => sum + item.itemSize, 0);
       let removedItems = 0;
       

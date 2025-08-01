@@ -11,10 +11,13 @@ export class PerformanceMonitor {
     const measurements = performance.getEntriesByName(label);
     const lastMeasurement = measurements[measurements.length - 1];
     
-    console.log(`Performance: ${label}`, {
-      duration: lastMeasurement.duration,
-      timestamp: new Date().toISOString()
-    });
+    // Silent in production - performance logs only in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Performance: ${label}`, {
+        duration: lastMeasurement.duration,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Clean up marks and measures to prevent memory leaks
     performance.clearMarks(`${label}-start`);

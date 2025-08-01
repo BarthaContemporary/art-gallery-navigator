@@ -177,7 +177,7 @@ export function useImagePerformanceMonitor() {
     });
   }, []);
 
-  // Auto-cleanup old events
+  // Auto-cleanup old events with proper cleanup
   useEffect(() => {
     const cleanup = setInterval(() => {
       const now = Date.now();
@@ -187,7 +187,9 @@ export function useImagePerformanceMonitor() {
       );
     }, 60000); // Check every minute
 
-    return () => clearInterval(cleanup);
+    return () => {
+      clearInterval(cleanup);
+    };
   }, []);
 
   return {

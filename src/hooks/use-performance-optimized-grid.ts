@@ -63,7 +63,9 @@ export function usePerformanceOptimizedGrid({
     }
 
     renderCountRef.current++;
-    console.log(`Grid render #${renderCountRef.current}: showing items ${startIndex}-${endIndex}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Grid render #${renderCountRef.current}: showing items ${startIndex}-${endIndex}`);
+    }
     
     return flattenedArtworks.slice(startIndex, endIndex + 1).map((artwork, index) => ({
       artwork,
@@ -91,7 +93,9 @@ export function usePerformanceOptimizedGrid({
       visibleRange,
     };
     
-    console.log('Grid Performance Metrics:', metrics);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Grid Performance Metrics:', metrics);
+    }
   }, [flattenedArtworks.length, visibleArtworks.length, containerWidth, gridDimensions, visibleRange]);
 
   return {

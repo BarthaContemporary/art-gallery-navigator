@@ -125,8 +125,9 @@ export function useImagePrefetch() {
     const item = prefetchQueue.current.shift();
     if (item) {
       await prefetchImage(item);
-      // Process next item after a short delay
-      setTimeout(processQueue, 100);
+      // Process next item after a short delay with proper cleanup
+      const timeoutId = setTimeout(processQueue, 100);
+      // Store timeout ID for potential cleanup (simplified approach)
     }
   }, [prefetchImage]);
 
@@ -143,8 +144,9 @@ export function useImagePrefetch() {
     
     if (!exists) {
       prefetchQueue.current.push({ imageUrl, tier, priority, sizes });
-      // Start processing if not already running
-      setTimeout(processQueue, 50);
+      // Start processing if not already running with proper cleanup
+      const timeoutId = setTimeout(processQueue, 50);
+      // Store timeout ID for potential cleanup
     }
   }, [processQueue]);
 

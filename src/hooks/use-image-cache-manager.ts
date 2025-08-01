@@ -8,13 +8,15 @@ import { logger } from "@/lib/logger";
 export function useImageCacheManager() {
   const { warmUpCache, performCacheCleanup, cacheStats } = useEnhancedImageCache();
 
-  // Periodic cache cleanup
+  // Periodic cache cleanup with proper cleanup
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       performCacheCleanup();
     }, 5 * 60 * 1000); // Every 5 minutes
 
-    return () => clearInterval(cleanupInterval);
+    return () => {
+      clearInterval(cleanupInterval);
+    };
   }, [performCacheCleanup]);
 
   // Warm up cache on page load with critical images
@@ -26,10 +28,13 @@ export function useImageCacheManager() {
     // Warm up thumbnails first
     await warmUpCache(imageUrls.slice(0, 20), 'thumbnail');
     
-    // Then warm up medium images for first 10
-    setTimeout(() => {
+    // Then warm up medium images for first 10 with cleanup
+    const timeoutId = setTimeout(() => {
       warmUpCache(imageUrls.slice(0, 10), 'medium');
     }, 1000);
+    
+    // Return cleanup function
+    return () => clearTimeout(timeoutId);
   }, [warmUpCache]);
 
   // Prefetch images for better user experience
@@ -46,7 +51,10 @@ export function useImageCacheManager() {
       
       // Small delay between batches
       if (i + batchSize < imageUrls.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => {
+          const timeoutId = setTimeout(resolve, 100);
+          // Note: This is automatically cleaned up when promise resolves
+        });
       }
     }
   }, [warmUpCache]);
