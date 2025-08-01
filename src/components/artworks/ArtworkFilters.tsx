@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { CurrencySelector } from "@/components/artworks/CurrencySelector";
 import type { ArtworkFilters, Artist } from "@/types/artwork";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ export function ArtworkFilters({
   return (
     <div className={cn("space-y-4", compact && "space-y-2")}>
       {/* Filter Options */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Artist Filter */}
         <div className="relative" style={{ isolation: 'isolate' }}>
           <Select
@@ -99,6 +100,11 @@ export function ArtworkFilters({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Currency Selector */}
+        <div className="flex items-center">
+          <CurrencySelector />
         </div>
 
         {/* Results Count */}

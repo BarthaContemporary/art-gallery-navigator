@@ -213,8 +213,6 @@ export default function Artworks() {
               />
             </div>
             
-            <CurrencySelector />
-            
             <Button
               variant="outline"
               onClick={handleRefresh}
