@@ -1,26 +1,29 @@
 import React, { useState } from "react";
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
-import { LocalArtworkImage } from "./LocalArtworkImage";
+import { DraggableImageCard } from "./DraggableImageCard";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, Trash2, MoveUp, MoveDown, RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
 import { ImageRepairService } from "@/services/image-repair-service";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
 
 interface LocalArtworkImageManagerProps {
   artworkId: string;
@@ -32,6 +35,14 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
   const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
   const [retryingImageId, setRetryingImageId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleSetPrimary = async (imageId: string) => {
     setUpdatingImageId(imageId);
@@ -84,43 +95,6 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
     }
   };
 
-  const handleReorder = async (imageId: string, direction: 'up' | 'down') => {
-    setUpdatingImageId(imageId);
-    try {
-      const currentImage = images.find(img => img.id === imageId);
-      if (!currentImage) return;
-
-      const currentOrder = currentImage.display_order || 0;
-      const newOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
-
-      // Find image at target position and swap orders
-      const targetImage = images.find(img => (img.display_order || 0) === newOrder);
-      
-      if (targetImage) {
-        // Swap orders
-        await supabase
-          .from('artwork_images')
-          .update({ display_order: currentOrder })
-          .eq('id', targetImage.id);
-      }
-
-      const { error } = await supabase
-        .from('artwork_images')
-        .update({ display_order: newOrder })
-        .eq('id', imageId);
-
-      if (error) throw error;
-
-      toast.success('Image order updated');
-      refreshImages();
-    } catch (error) {
-      logger.error('[LocalArtworkImageManager] Reorder failed:', error);
-      toast.error('Failed to reorder image');
-    } finally {
-      setUpdatingImageId(null);
-    }
-  };
-
   const handleRetryProcessing = async (imageId: string) => {
     setRetryingImageId(imageId);
     try {
@@ -140,26 +114,47 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
     }
   };
 
-  const getProcessingStatusBadge = (image: any) => {
-    const status = image.processing_status;
-    const isStuck = status === 'processing' && image.created_at &&
-      new Date().getTime() - new Date(image.created_at).getTime() > 30 * 60 * 1000;
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
 
-    switch (status) {
-      case 'completed':
-        return <Badge variant="default" className="text-xs bg-green-600">Completed</Badge>;
-      case 'failed':
-        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
-      case 'processing':
-        return (
-          <Badge variant={isStuck ? "destructive" : "secondary"} className="text-xs">
-            {isStuck ? 'Stuck' : 'Processing...'}
-          </Badge>
-        );
-      case 'pending':
-        return <Badge variant="secondary" className="text-xs">Pending</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs">Unknown</Badge>;
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const sortedImages = [...images].sort((a, b) => {
+      // Primary image first, then by display order
+      if (a.is_primary && !b.is_primary) return -1;
+      if (!a.is_primary && b.is_primary) return 1;
+      return (a.display_order || 0) - (b.display_order || 0);
+    });
+
+    const oldIndex = sortedImages.findIndex(img => img.id === active.id);
+    const newIndex = sortedImages.findIndex(img => img.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reorderedImages = arrayMove(sortedImages, oldIndex, newIndex);
+      
+      try {
+        // Update display_order for all images based on new positions
+        const updates = reorderedImages.map((image, index) => ({
+          id: image.id,
+          display_order: index
+        }));
+
+        // Batch update all display orders
+        for (const update of updates) {
+          await supabase
+            .from('artwork_images')
+            .update({ display_order: update.display_order })
+            .eq('id', update.id);
+        }
+
+        toast.success('Images reordered');
+        refreshImages();
+      } catch (error) {
+        logger.error('[LocalArtworkImageManager] Drag reorder failed:', error);
+        toast.error('Failed to reorder images');
+      }
     }
   };
 
@@ -205,153 +200,31 @@ export function LocalArtworkImageManager({ artworkId }: LocalArtworkImageManager
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {sortedImages.map((image, index) => {
-        const needsRetry = image.processing_status === 'failed' || 
-          (image.processing_status === 'processing' && image.created_at &&
-           new Date().getTime() - new Date(image.created_at).getTime() > 30 * 60 * 1000);
-
-        return (
-          <Card key={image.id} className="relative group">
-            <CardContent className="p-0">
-              <div className="aspect-square relative">
-                <LocalArtworkImage
-                  imageRecord={image}
-                  title={`Image ${index + 1}`}
-                  className="w-full h-full rounded-t-lg"
-                  size="medium"
-                  showProcessingStatus={true}
-                />
-                
-                {/* Image badges - moved to top-right */}
-                <div className="absolute top-2 right-2 flex gap-1">
-                  {image.is_primary && (
-                    <Badge variant="default" className="text-xs">
-                      <Star className="w-3 h-3 mr-1" />
-                      Primary
-                    </Badge>
-                  )}
-                  {getProcessingStatusBadge(image)}
-                </div>
-
-                {/* Error indicator */}
-                {needsRetry && (
-                  <div className="absolute top-2 left-2">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                  </div>
-                )}
-              </div>
-              
-              {/* Image info and actions */}
-              <div className="p-3 space-y-2">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>Order: {image.display_order || 0}</span>
-                  <span>
-                    {image.original_width && image.original_height && 
-                      `${image.original_width}×${image.original_height}`
-                    }
-                  </span>
-                </div>
-
-                {/* Error message */}
-                {image.processing_error && (
-                  <div className="text-xs text-red-600 p-2 bg-red-50 rounded">
-                    <strong>Error:</strong> {image.processing_error}
-                  </div>
-                )}
-                
-                {/* Action buttons */}
-                <div className="flex justify-center gap-0.5">
-                  {!image.is_primary && image.processing_status === 'completed' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSetPrimary(image.id)}
-                      disabled={updatingImageId === image.id}
-                      className="text-xs h-4 w-4 p-0"
-                      title="Set as Primary"
-                    >
-                      <Star className="w-1.5 h-1.5" />
-                    </Button>
-                  )}
-
-                  {needsRetry && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleRetryProcessing(image.id)}
-                      disabled={retryingImageId === image.id}
-                      className="text-xs h-4 px-1"
-                    >
-                      {retryingImageId === image.id ? (
-                        <RefreshCw className="w-1.5 h-1.5 animate-spin" />
-                      ) : (
-                        <>
-                          <RefreshCw className="w-1.5 h-1.5 mr-0.5" />
-                          <span className="text-xs">Retry</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleReorder(image.id, 'up')}
-                    disabled={updatingImageId === image.id || index === 0}
-                    className="text-xs h-4 w-4 p-0"
-                    title="Move Up"
-                  >
-                    <MoveUp className="w-1.5 h-1.5" />
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleReorder(image.id, 'down')}
-                    disabled={updatingImageId === image.id || index === sortedImages.length - 1}
-                    className="text-xs h-4 w-4 p-0"
-                    title="Move Down"
-                  >
-                    <MoveDown className="w-1.5 h-1.5" />
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={deletingImageId === image.id}
-                        className="text-xs h-4 w-4 p-0"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-1.5 h-1.5" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Image</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this image? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(image.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={sortedImages.map(img => img.id)}
+        strategy={rectSortingStrategy}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedImages.map((image, index) => (
+            <DraggableImageCard
+              key={image.id}
+              image={image}
+              index={index}
+              onSetPrimary={handleSetPrimary}
+              onDelete={handleDelete}
+              onRetryProcessing={handleRetryProcessing}
+              updatingImageId={updatingImageId}
+              deletingImageId={deletingImageId}
+              retryingImageId={retryingImageId}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }
