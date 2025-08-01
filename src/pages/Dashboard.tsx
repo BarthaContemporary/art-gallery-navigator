@@ -135,7 +135,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Inventory Status with Chart */}
         <Card className="p-4">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 bg-white">
             <CardTitle className="text-base flex items-center gap-2">
               <MaterialIcon icon="bar_chart" size={16} />
               Inventory Status
