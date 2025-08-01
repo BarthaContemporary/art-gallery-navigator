@@ -18,16 +18,19 @@ export function SidebarUserMenu() {
     <div className="px-4 py-4 mt-auto bg-white">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="flex w-full items-center justify-start rounded-md px-2 py-1.5 hover:bg-[#e8c858] hover:text-black"
-          >
+          <div className="flex flex-col items-center space-y-2">
             <UserAvatar 
               imageUrl={user?.user_metadata.avatar_url}
               email={user?.email}
             />
-            <Settings className="h-4 w-4 text-muted-foreground ml-2" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-[#e8c858] hover:text-black"
+            >
+              <Settings className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white">
           <UserMenuItems onSignOut={signOut} />
