@@ -20,7 +20,7 @@ export function SidebarUserMenu() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="flex w-full items-center justify-center rounded-md px-2 py-1.5 hover:bg-[#e8c858] hover:text-black"
+            className="flex w-full items-center justify-start rounded-md px-2 py-1.5 hover:bg-[#e8c858] hover:text-black"
           >
             <UserAvatar 
               imageUrl={user?.user_metadata.avatar_url}
