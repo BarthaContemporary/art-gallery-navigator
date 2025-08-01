@@ -131,7 +131,7 @@ export function ArtworkGrid({
         <div key={artistName} className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide">{artistName}</h2>
+              <h2 className="text-lg font-bold text-foreground uppercase tracking-wide">{artistName}</h2>
               <p className="text-sm text-muted-foreground font-medium">
                 {artworks.length} {artworks.length === 1 ? 'artwork' : 'artworks'}
               </p>
