@@ -186,51 +186,52 @@ export default function Artworks() {
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={enterSelectionMode}
-              disabled={filteredArtworks.length === 0}
-              size="icon"
-            >
-              <MaterialIcon icon="check_box" size={16} />
-            </Button>
-          </div>
         </div>
       )}
 
       {/* Filters */}
       {!isSelectionMode && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative w-full sm:w-80">
               <MaterialIcon icon="search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search artworks, artists, materials..."
                 value={filters.search}
                 onChange={(e) => updateFilter('search', e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-[#F5F5F5]"
               />
             </div>
             
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isLoading}
-              size="icon"
-            >
-              <MaterialIcon icon="refresh" size={16} className={isLoading ? 'animate-spin' : ''} />
-            </Button>
-            
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2 ml-auto">
               <Button
                 variant="outline"
-                onClick={clearFilters}
+                onClick={handleRefresh}
+                disabled={isLoading}
                 size="icon"
               >
-                <MaterialIcon icon="close" size={16} />
+                <MaterialIcon icon="refresh" size={16} className={isLoading ? 'animate-spin' : ''} />
               </Button>
-            )}
+              
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  size="icon"
+                >
+                  <MaterialIcon icon="close" size={16} />
+                </Button>
+              )}
+              
+              <Button
+                variant="outline"
+                onClick={enterSelectionMode}
+                disabled={filteredArtworks.length === 0}
+                size="icon"
+              >
+                <MaterialIcon icon="check_box" size={16} />
+              </Button>
+            </div>
           </div>
           
           <ArtworkFilters

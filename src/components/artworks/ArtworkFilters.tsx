@@ -108,7 +108,7 @@ export function ArtworkFilters({
         </div>
 
         {/* Results Count */}
-        <div className="flex items-center justify-center sm:justify-start">
+        <div className="flex items-center justify-end">
           <Badge variant="secondary" className="text-sm">
             <Filter className="h-3 w-3 mr-1" />
             {artworkCount} artwork{artworkCount !== 1 ? 's' : ''}
