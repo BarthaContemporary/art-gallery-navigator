@@ -162,8 +162,10 @@ export function ArtistCard({ artist }: { artist: any }) {
         
         <p className="text-muted-foreground text-xs sm:text-sm">
           {artist.nationality}
-          {artist.nationality && artist.birth_year ? ", " : ""}
+          {artist.nationality && (artist.birth_year || artist.death_year) ? ", " : ""}
           {artist.birth_year && <span className="font-medium">b. {artist.birth_year}</span>}
+          {artist.birth_year && artist.death_year ? ", " : ""}
+          {artist.death_year && <span className="font-medium">d. {artist.death_year}</span>}
         </p>
 
         {artist.representation_status && (
