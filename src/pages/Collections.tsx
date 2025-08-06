@@ -1,43 +1,28 @@
-
 import { CollectionGrid } from "@/components/collections/CollectionGrid";
 import { CollectionDialog } from "@/components/collections/CollectionDialog";
 import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-
 export default function Collections() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-
+  const {
+    isAdmin
+  } = useAuth();
   const handleManageAllWebsites = () => {
     navigate("/manage-websites");
   };
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="space-y-8">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-foreground">Collections</h1>
-              <p className="text-muted-foreground">
-                Organize and share your artwork collections with others.
-              </p>
-            </div>
+            
             <div className="flex items-center gap-3">
-              {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleManageAllWebsites}
-                  className="whitespace-nowrap"
-                >
+              {isAdmin && <Button variant="outline" size="sm" onClick={handleManageAllWebsites} className="whitespace-nowrap">
                   <Globe className="h-4 w-4 mr-2" />
                   Manage Websites
-                </Button>
-              )}
+                </Button>}
               <CollectionDialog />
             </div>
           </div>
@@ -48,6 +33,5 @@ export default function Collections() {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
