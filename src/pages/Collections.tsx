@@ -20,9 +20,8 @@ export default function Collections() {
             
             <div className="flex items-center gap-3">
               <CollectionDialog />
-              {isAdmin && <Button variant="outline" size="sm" onClick={handleManageAllWebsites} className="whitespace-nowrap">
-                  <Globe className="h-4 w-4 mr-2" />
-                  Manage Websites
+              {isAdmin && <Button variant="outline" size="sm" onClick={handleManageAllWebsites} title="Manage Websites">
+                  <Globe className="h-4 w-4" />
                 </Button>}
             </div>
           </div>
