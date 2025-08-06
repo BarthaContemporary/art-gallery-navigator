@@ -10,6 +10,14 @@ interface CollectionCardContentProps {
 export function CollectionCardContent({ collection, showArtistName = false }: CollectionCardContentProps) {
   const artworkCount = collection.artworks?.length || 0;
   
+  // Get unique artists in this collection
+  const uniqueArtists = collection.artworks
+    ? [...new Set(collection.artworks
+        .map(artwork => artwork.artists?.full_name)
+        .filter(Boolean)
+      )]
+    : [];
+  
   return (
     <CardContent className="p-6">
       <div className="space-y-3">
@@ -17,9 +25,9 @@ export function CollectionCardContent({ collection, showArtistName = false }: Co
           <h3 className="font-semibold text-lg text-foreground pr-10 group-hover:text-primary transition-colors truncate">
             {collection.name}
           </h3>
-          {showArtistName && collection.artist_name && (
+          {showArtistName && uniqueArtists.length > 0 && (
             <p className="text-xs text-primary font-medium">
-              by {collection.artist_name}
+              {uniqueArtists.join(', ')}
             </p>
           )}
           {collection.description && (
