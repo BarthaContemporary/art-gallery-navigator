@@ -2288,6 +2288,24 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_artists_public: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          full_name: string
+          biography: string
+          nationality: string
+          birth_year: number
+          death_year: number
+          place_of_birth: string
+          place_of_death: string
+          image_url: string
+          representation_status: string
+          surname_first_letter: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
       get_available_currencies: {
         Args: Record<PropertyKey, never>
         Returns: string[]
