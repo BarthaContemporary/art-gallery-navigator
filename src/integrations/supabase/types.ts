@@ -324,6 +324,13 @@ export type Database = {
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists_public_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       artists: {
@@ -713,6 +720,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -1339,6 +1353,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documents_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documents_artwork_id_fkey"
             columns: ["artwork_id"]
             isOneToOne: false
@@ -1544,6 +1565,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2134,7 +2162,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      artists_public_safe: {
+        Row: {
+          biography: string | null
+          birth_year: number | null
+          created_at: string | null
+          death_year: number | null
+          full_name: string | null
+          id: string | null
+          image_url: string | null
+          nationality: string | null
+          place_of_birth: string | null
+          place_of_death: string | null
+          representation_status: string | null
+          surname_first_letter: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          death_year?: number | null
+          full_name?: string | null
+          id?: string | null
+          image_url?: string | null
+          nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
+          representation_status?: string | null
+          surname_first_letter?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          death_year?: number | null
+          full_name?: string | null
+          id?: string | null
+          image_url?: string | null
+          nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
+          representation_status?: string | null
+          surname_first_letter?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_link_artist_to_user: {
