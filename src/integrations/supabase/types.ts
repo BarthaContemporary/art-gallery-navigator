@@ -1174,6 +1174,13 @@ export type Database = {
             referencedRelation: "collections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "collection_artworks_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections_public_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       collection_websites: {
@@ -1216,6 +1223,13 @@ export type Database = {
             columns: ["collection_id"]
             isOneToOne: false
             referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_websites_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections_public_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -1371,6 +1385,13 @@ export type Database = {
             columns: ["collection_id"]
             isOneToOne: false
             referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections_public_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2210,11 +2231,39 @@ export type Database = {
         }
         Relationships: []
       }
+      collections_public_safe: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_link_artist_to_user: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      check_appointment_rate_limit: {
+        Args: { client_ip: unknown }
+        Returns: boolean
       }
       cleanup_old_chat_messages: {
         Args: Record<PropertyKey, never>
@@ -2309,6 +2358,17 @@ export type Database = {
       get_available_currencies: {
         Args: Record<PropertyKey, never>
         Returns: string[]
+      }
+      get_collections_for_user: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          description: string
+          external_emails: string[]
+          created_at: string
+          updated_at: string
+        }[]
       }
       get_folder_artist_access: {
         Args: { folder_id_param: string }
