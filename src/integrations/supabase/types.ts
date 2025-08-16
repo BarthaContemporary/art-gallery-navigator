@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -2276,35 +2276,35 @@ export type Database = {
       debug_folder_info: {
         Args: Record<PropertyKey, never>
         Returns: {
+          artist_linked_count: number
           folder_count: number
           root_folder_count: number
           user_created_count: number
-          artist_linked_count: number
         }[]
       }
       debug_webdav_folder_access: {
         Args: Record<PropertyKey, never>
         Returns: {
+          artist_id: string
+          artist_user_id: string
+          created_by: string
+          current_user_id: string
           folder_id: string
           folder_name: string
-          artist_id: string
-          created_by: string
-          parent_folder_id: string
-          current_user_id: string
           is_admin: boolean
-          artist_user_id: string
           matches_artist: boolean
           matches_creator: boolean
+          parent_folder_id: string
           should_be_accessible: boolean
         }[]
       }
       enhanced_log_security_event: {
         Args: {
-          _event_type: string
-          _severity?: string
-          _ip_address?: unknown
-          _user_agent?: string
           _details?: Json
+          _event_type: string
+          _ip_address?: unknown
+          _severity?: string
+          _user_agent?: string
         }
         Returns: string
       }
@@ -2315,8 +2315,8 @@ export type Database = {
       get_artist_folder_access: {
         Args: { folder_id: string }
         Returns: {
-          can_access: boolean
           artist_id: string
+          can_access: boolean
         }[]
       }
       get_artist_folder_overview: {
@@ -2324,13 +2324,13 @@ export type Database = {
         Returns: {
           artist_id: string
           artist_name: string
-          user_id: string
-          user_email: string
-          folder_id: string
-          folder_name: string
           assignment_method: string
           folder_created_at: string
+          folder_id: string
+          folder_name: string
           status: string
+          user_email: string
+          user_id: string
         }[]
       }
       get_artist_id_for_current_user: {
@@ -2340,19 +2340,37 @@ export type Database = {
       get_artists_public: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          full_name: string
           biography: string
-          nationality: string
           birth_year: number
+          created_at: string
           death_year: number
+          full_name: string
+          id: string
+          image_url: string
+          nationality: string
           place_of_birth: string
           place_of_death: string
-          image_url: string
           representation_status: string
           surname_first_letter: string
-          created_at: string
           updated_at: string
+        }[]
+      }
+      get_artists_public_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          biography: string | null
+          birth_year: number | null
+          created_at: string | null
+          death_year: number | null
+          full_name: string | null
+          id: string | null
+          image_url: string | null
+          nationality: string | null
+          place_of_birth: string | null
+          place_of_death: string | null
+          representation_status: string | null
+          surname_first_letter: string | null
+          updated_at: string | null
         }[]
       }
       get_available_currencies: {
@@ -2362,12 +2380,22 @@ export type Database = {
       get_collections_for_user: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
+          created_at: string
           description: string
           external_emails: string[]
-          created_at: string
+          id: string
+          name: string
           updated_at: string
+        }[]
+      }
+      get_collections_public: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string | null
+          name: string | null
+          updated_at: string | null
         }[]
       }
       get_folder_artist_access: {
@@ -2377,39 +2405,39 @@ export type Database = {
       get_user_accessible_documents: {
         Args: { folder_id_param?: string }
         Returns: {
-          document_id: string
-          document_name: string
-          file_url: string
-          file_size: number
-          mime_type: string
-          folder_id: string
           artist_id: string
           can_read: boolean
           can_write: boolean
+          document_id: string
+          document_name: string
+          file_size: number
+          file_url: string
+          folder_id: string
+          mime_type: string
         }[]
       }
       get_user_accessible_folders: {
         Args: Record<PropertyKey, never>
         Returns: {
+          artist_id: string
+          can_read: boolean
+          can_write: boolean
           folder_id: string
           folder_name: string
           folder_path: string
-          artist_id: string
           parent_folder_id: string
-          can_read: boolean
-          can_write: boolean
         }[]
       }
       get_user_accessible_folders_for_user: {
         Args: { user_id_param: string }
         Returns: {
+          artist_id: string
+          can_read: boolean
+          can_write: boolean
           folder_id: string
           folder_name: string
           folder_path: string
-          artist_id: string
           parent_folder_id: string
-          can_read: boolean
-          can_write: boolean
         }[]
       }
       get_user_projects: {
@@ -2418,8 +2446,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
         }
         Returns: boolean
       }
@@ -2432,7 +2460,7 @@ export type Database = {
         Returns: boolean
       }
       is_artist_user: {
-        Args: { _user_id: string; _artist_id: string }
+        Args: { _artist_id: string; _user_id: string }
         Returns: boolean
       }
       is_artwork_owned_by_current_user: {
@@ -2457,10 +2485,10 @@ export type Database = {
       }
       log_security_event: {
         Args: {
+          _details?: Json
           _event_type: string
           _ip_address?: unknown
           _user_agent?: string
-          _details?: Json
         }
         Returns: string
       }
@@ -2471,9 +2499,9 @@ export type Database = {
       validate_webdav_token: {
         Args: { token_text: string }
         Returns: {
-          user_id: string
-          token_id: string
           is_valid: boolean
+          token_id: string
+          user_id: string
         }[]
       }
     }
