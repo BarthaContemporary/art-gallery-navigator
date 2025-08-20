@@ -2312,6 +2312,19 @@ export type Database = {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
       }
+      get_appointments_admin_only: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          client_email: string
+          client_name: string
+          client_phone: string
+          end_datetime: string
+          id: string
+          notes: string
+          start_datetime: string
+          status: string
+        }[]
+      }
       get_appointments_for_admin: {
         Args: Record<PropertyKey, never>
         Returns: {
