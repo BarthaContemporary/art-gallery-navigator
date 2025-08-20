@@ -2339,6 +2339,15 @@ export type Database = {
           status: string
         }[]
       }
+      get_artist_contacts_admin_only: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          user_id: string
+        }[]
+      }
       get_artist_folder_access: {
         Args: { folder_id: string }
         Returns: {
@@ -2413,6 +2422,18 @@ export type Database = {
       get_available_currencies: {
         Args: Record<PropertyKey, never>
         Returns: string[]
+      }
+      get_clients_admin_only: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          company: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          status: string
+        }[]
       }
       get_collections_for_user: {
         Args: Record<PropertyKey, never>
