@@ -2504,6 +2504,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      verify_no_public_access: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          grantee: string
+          is_secure: boolean
+          privilege_type: string
+          table_name: string
+        }[]
+      }
     }
     Enums: {
       appointment_recurrence: "none" | "weekly" | "daily"
