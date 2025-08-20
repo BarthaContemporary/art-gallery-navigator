@@ -38,9 +38,9 @@ export function useIDriveStorage() {
 
       if (artistError) throw artistError;
 
-      // Get storage credentials
+      // Get storage credentials using the secure decrypted view
       const { data: creds, error: credError } = await supabase
-        .from('artist_storage_credentials')
+        .from('artist_storage_credentials_decrypted')
         .select('*')
         .eq('artist_id', artist.id)
         .single();

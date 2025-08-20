@@ -31,8 +31,9 @@ export function useArtistStorage() {
     setError(null);
 
     try {
+      // Use the secure decrypted view for encrypted credentials
       const { data, error } = await supabase
-        .from('artist_storage_credentials')
+        .from('artist_storage_credentials_decrypted')
         .select('*')
         .eq('artist_id', currentUserArtist.id)
         .single();
