@@ -2312,6 +2312,20 @@ export type Database = {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
       }
+      get_appointments_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          client_email: string
+          client_name: string
+          client_phone: string
+          created_at: string
+          end_datetime: string
+          id: string
+          notes: string
+          start_datetime: string
+          status: string
+        }[]
+      }
       get_artist_folder_access: {
         Args: { folder_id: string }
         Returns: {
@@ -2371,6 +2385,16 @@ export type Database = {
           representation_status: string | null
           surname_first_letter: string | null
           updated_at: string | null
+        }[]
+      }
+      get_available_appointment_slots: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          appointment_type: string
+          date: string
+          end_time: string
+          slot_id: string
+          start_time: string
         }[]
       }
       get_available_currencies: {
