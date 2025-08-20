@@ -2183,6 +2183,99 @@ export type Database = {
       }
     }
     Views: {
+      admin_storage_credentials_decrypted: {
+        Row: {
+          access_key: string | null
+          bucket_name: string | null
+          created_at: string | null
+          endpoint_url: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          region: string | null
+          secret_key: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_key?: never
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_key?: never
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      artist_storage_credentials_decrypted: {
+        Row: {
+          access_key: string | null
+          artist_id: string | null
+          bucket_name: string | null
+          created_at: string | null
+          endpoint_url: string | null
+          id: string | null
+          region: string | null
+          secret_key: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_key?: never
+          artist_id?: string | null
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+        }
+        Update: {
+          access_key?: never
+          artist_id?: string | null
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "artists_public_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artists_public_safe: {
         Row: {
           biography: string | null
@@ -2255,6 +2348,45 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_storage_credentials_decrypted: {
+        Row: {
+          access_key: string | null
+          bucket_name: string | null
+          created_at: string | null
+          endpoint_url: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          region: string | null
+          secret_key: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_key?: never
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+        }
+        Update: {
+          access_key?: never
+          bucket_name?: string | null
+          created_at?: string | null
+          endpoint_url?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          region?: string | null
+          secret_key?: never
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_link_artist_to_user: {
@@ -2297,6 +2429,14 @@ export type Database = {
           parent_folder_id: string
           should_be_accessible: boolean
         }[]
+      }
+      decrypt_credential: {
+        Args: { ciphertext: string }
+        Returns: string
+      }
+      encrypt_credential: {
+        Args: { plaintext: string }
+        Returns: string
       }
       enhanced_log_security_event: {
         Args: {
@@ -2456,6 +2596,10 @@ export type Database = {
           updated_at: string | null
         }[]
       }
+      get_encryption_key: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_folder_artist_access: {
         Args: { folder_id_param: string }
         Returns: string
@@ -2509,6 +2653,42 @@ export type Database = {
         }
         Returns: boolean
       }
+      insert_admin_storage_credentials: {
+        Args: {
+          p_access_key: string
+          p_bucket_name: string
+          p_endpoint_url?: string
+          p_is_active?: boolean
+          p_name: string
+          p_region?: string
+          p_secret_key: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      insert_artist_storage_credentials: {
+        Args: {
+          p_access_key: string
+          p_artist_id: string
+          p_bucket_name: string
+          p_endpoint_url?: string
+          p_region?: string
+          p_secret_key: string
+        }
+        Returns: string
+      }
+      insert_shared_storage_credentials: {
+        Args: {
+          p_access_key: string
+          p_bucket_name: string
+          p_endpoint_url?: string
+          p_is_active?: boolean
+          p_name: string
+          p_region?: string
+          p_secret_key: string
+        }
+        Returns: string
+      }
       is_admin: {
         Args: { _user_id: string }
         Returns: boolean
@@ -2550,9 +2730,26 @@ export type Database = {
         }
         Returns: string
       }
+      log_storage_encryption_event: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       mark_message_as_read: {
         Args: { message_id: string; reader_id: string }
         Returns: undefined
+      }
+      update_admin_storage_credentials: {
+        Args: {
+          p_access_key?: string
+          p_bucket_name?: string
+          p_endpoint_url?: string
+          p_id: string
+          p_is_active?: boolean
+          p_name?: string
+          p_region?: string
+          p_secret_key?: string
+        }
+        Returns: boolean
       }
       validate_webdav_token: {
         Args: { token_text: string }
