@@ -10,8 +10,8 @@ export interface ArtistContact {
 }
 
 /**
- * Hook to securely fetch artist contact information.
- * Only available to gallery admins for security reasons.
+ * Hook to fetch artist contact information (email addresses)
+ * Only available to gallery admins for security reasons
  */
 export function useArtistContacts() {
   const { isAdmin } = useAuth();
@@ -25,13 +25,9 @@ export function useArtistContacts() {
 
       const { data, error } = await supabase.rpc('get_artist_contacts_admin_only');
       
-      if (error) {
-        throw error;
-      }
-      
+      if (error) throw error;
       return data || [];
     },
-    enabled: isAdmin, // Only run the query if user is admin
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    enabled: isAdmin,
   });
 }

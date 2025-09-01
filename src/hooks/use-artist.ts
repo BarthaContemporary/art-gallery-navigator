@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,7 +19,7 @@ export function useArtist(artistId: string | null) {
     queryFn: async (): Promise<Artist | null> => {
       if (!artistId) return null;
       
-      // Use safe public view to exclude sensitive contact information
+      // Use public safe view to exclude sensitive contact information
       const { data, error } = await supabase
         .from("artists_public_safe")
         .select("*")

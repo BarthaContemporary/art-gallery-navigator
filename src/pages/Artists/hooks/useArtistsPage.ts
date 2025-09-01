@@ -42,8 +42,12 @@ export const useArtistsPage = () => {
     queryKey: ['artists', statusFilter],
     queryFn: async () => {
       console.log('Fetching artists for mobile...');
-      // Use safe public view to exclude sensitive contact information
-      let query = supabase.from('artists_public_safe').select('*').order('surname_first_letter', { ascending: true }).order('full_name', { ascending: true });
+      // Use safe artist query that excludes sensitive contact information
+      let query = supabase
+        .from('artists_public_safe')
+        .select('*')
+        .order('surname_first_letter', { ascending: true })
+        .order('full_name', { ascending: true });
       if (statusFilter !== "all") {
         query = query.eq('representation_status', statusFilter);
       }
