@@ -18,9 +18,10 @@ export function useArtists() {
   return useQuery({
     queryKey: ['artists'],
     queryFn: async () => {
+      // Use safe public view to exclude sensitive contact information  
       const { data, error } = await supabase
-        .from('artists')
-        .select('id, full_name, surname_first_letter, user_id, representation_status')
+        .from('artists_public_safe')
+        .select('id, full_name, surname_first_letter, representation_status')
         .order('surname_first_letter', { ascending: true })
         .order('full_name', { ascending: true });
       if (error) throw error;

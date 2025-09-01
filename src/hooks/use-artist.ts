@@ -20,8 +20,9 @@ export function useArtist(artistId: string | null) {
     queryFn: async (): Promise<Artist | null> => {
       if (!artistId) return null;
       
+      // Use safe public view to exclude sensitive contact information
       const { data, error } = await supabase
-        .from("artists")
+        .from("artists_public_safe")
         .select("*")
         .eq("id", artistId)
         .single();

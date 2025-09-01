@@ -17,7 +17,7 @@ interface Artist {
   representation_status: string;
   biography: string | null;
   image_url: string | null;
-  email?: string | null;
+  // email removed from public interface for security
 }
 
 type RepresentationStatusFilterType = "all" | "represented" | "formerly represented" | "not represented";
@@ -42,7 +42,8 @@ export const useArtistsPage = () => {
     queryKey: ['artists', statusFilter],
     queryFn: async () => {
       console.log('Fetching artists for mobile...');
-      let query = supabase.from('artists').select('*').order('surname_first_letter', { ascending: true }).order('full_name', { ascending: true });
+      // Use safe public view to exclude sensitive contact information
+      let query = supabase.from('artists_public_safe').select('*').order('surname_first_letter', { ascending: true }).order('full_name', { ascending: true });
       if (statusFilter !== "all") {
         query = query.eq('representation_status', statusFilter);
       }
@@ -77,7 +78,7 @@ export const useArtistsPage = () => {
     const matchesSearchTerm =
       artist.full_name.toLowerCase().includes(searchTermLower) ||
       (artist.nationality && artist.nationality.toLowerCase().includes(searchTermLower)) ||
-      (artist.email && artist.email.toLowerCase().includes(searchTermLower)) ||
+      // Email search removed for security - contact info only available to admins
       (artist.surname_first_letter && artist.surname_first_letter.toLowerCase().includes(searchTermLower)) ||
       (artist.place_of_birth && artist.place_of_birth.toLowerCase().includes(searchTermLower)) ||
       (artist.place_of_death && artist.place_of_death.toLowerCase().includes(searchTermLower));
