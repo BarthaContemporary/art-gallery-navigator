@@ -56,6 +56,48 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_storage_credentials_decrypted: {
+        Row: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_key: string
+          bucket_name: string
+          created_at?: string
+          endpoint_url?: string
+          id: string
+          is_active?: boolean
+          name: string
+          region?: string
+          secret_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_key?: string
+          bucket_name?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          region?: string
+          secret_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_description_history: {
         Row: {
           artwork_id: string
@@ -332,6 +374,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      artist_storage_credentials_decrypted: {
+        Row: {
+          access_key: string
+          artist_id: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          region: string
+          secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          access_key: string
+          artist_id: string
+          bucket_name: string
+          created_at?: string
+          endpoint_url?: string
+          id: string
+          region?: string
+          secret_key: string
+          updated_at?: string
+        }
+        Update: {
+          access_key?: string
+          artist_id?: string
+          bucket_name?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          region?: string
+          secret_key?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       artists: {
         Row: {
@@ -2032,6 +2110,45 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_storage_credentials_decrypted: {
+        Row: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          access_key: string
+          bucket_name: string
+          created_at?: string
+          endpoint_url?: string
+          id: string
+          is_active?: boolean
+          name: string
+          region?: string
+          secret_key: string
+          updated_at?: string
+        }
+        Update: {
+          access_key?: string
+          bucket_name?: string
+          created_at?: string
+          endpoint_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          region?: string
+          secret_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       uploads: {
         Row: {
           created_at: string
@@ -2183,99 +2300,6 @@ export type Database = {
       }
     }
     Views: {
-      admin_storage_credentials_decrypted: {
-        Row: {
-          access_key: string | null
-          bucket_name: string | null
-          created_at: string | null
-          endpoint_url: string | null
-          id: string | null
-          is_active: boolean | null
-          name: string | null
-          region: string | null
-          secret_key: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          access_key?: never
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          name?: string | null
-          region?: string | null
-          secret_key?: never
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          access_key?: never
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          name?: string | null
-          region?: string | null
-          secret_key?: never
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      artist_storage_credentials_decrypted: {
-        Row: {
-          access_key: string | null
-          artist_id: string | null
-          bucket_name: string | null
-          created_at: string | null
-          endpoint_url: string | null
-          id: string | null
-          region: string | null
-          secret_key: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          access_key?: never
-          artist_id?: string | null
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          region?: string | null
-          secret_key?: never
-          updated_at?: string | null
-        }
-        Update: {
-          access_key?: never
-          artist_id?: string | null
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          region?: string | null
-          secret_key?: never
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: true
-            referencedRelation: "artists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: true
-            referencedRelation: "artists_public_safe"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       artists_public_safe: {
         Row: {
           biography: string | null
@@ -2344,45 +2368,6 @@ export type Database = {
           description?: string | null
           id?: string | null
           name?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      shared_storage_credentials_decrypted: {
-        Row: {
-          access_key: string | null
-          bucket_name: string | null
-          created_at: string | null
-          endpoint_url: string | null
-          id: string | null
-          is_active: boolean | null
-          name: string | null
-          region: string | null
-          secret_key: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          access_key?: never
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          name?: string | null
-          region?: string | null
-          secret_key?: never
-          updated_at?: string | null
-        }
-        Update: {
-          access_key?: never
-          bucket_name?: string | null
-          created_at?: string | null
-          endpoint_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          name?: string | null
-          region?: string | null
-          secret_key?: never
           updated_at?: string | null
         }
         Relationships: []
