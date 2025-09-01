@@ -38,16 +38,16 @@ export function useIDriveStorage() {
 
       if (artistError) throw artistError;
 
-      // Get storage credentials using the secure decrypted view
-      const { data: creds, error: credError } = await supabase
-        .from('artist_storage_credentials_decrypted')
-        .select('*')
-        .eq('artist_id', artist.id)
-        .single();
+      // Get storage credentials using the secure function
+      const { data: credsArray, error: credError } = await supabase.rpc('get_artist_storage_credentials_decrypted', {
+        p_artist_id: artist.id
+      });
 
-      if (credError || !creds) {
+      if (credError || !credsArray || credsArray.length === 0) {
         throw new Error('Storage not configured for this artist');
       }
+
+      const creds = credsArray[0]; // Take the first credential
 
       setCredentials(creds);
       return creds;

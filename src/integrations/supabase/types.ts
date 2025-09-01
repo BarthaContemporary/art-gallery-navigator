@@ -2437,6 +2437,22 @@ export type Database = {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
       }
+      get_admin_storage_credentials_decrypted: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_appointments_admin_only: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2497,6 +2513,20 @@ export type Database = {
       get_artist_id_for_current_user: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_artist_storage_credentials_decrypted: {
+        Args: { p_artist_id?: string }
+        Returns: {
+          access_key: string
+          artist_id: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          region: string
+          secret_key: string
+          updated_at: string
+        }[]
       }
       get_artists_public: {
         Args: Record<PropertyKey, never>
@@ -2588,6 +2618,21 @@ export type Database = {
       get_folder_artist_access: {
         Args: { folder_id_param: string }
         Returns: string
+      }
+      get_shared_storage_credentials_decrypted: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          access_key: string
+          bucket_name: string
+          created_at: string
+          endpoint_url: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string
+          secret_key: string
+          updated_at: string
+        }[]
       }
       get_user_accessible_documents: {
         Args: { folder_id_param?: string }

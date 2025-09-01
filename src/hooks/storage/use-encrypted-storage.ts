@@ -134,9 +134,7 @@ export function useEncryptedStorage() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('admin_storage_credentials_decrypted')
-        .select('*');
+      const { data, error } = await supabase.rpc('get_admin_storage_credentials_decrypted');
 
       if (error) throw error;
 
@@ -155,13 +153,9 @@ export function useEncryptedStorage() {
     try {
       setLoading(true);
       
-      let query = supabase.from('artist_storage_credentials_decrypted').select('*');
-      
-      if (artistId) {
-        query = query.eq('artist_id', artistId);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc('get_artist_storage_credentials_decrypted', {
+        p_artist_id: artistId || null
+      });
 
       if (error) throw error;
 
@@ -180,9 +174,7 @@ export function useEncryptedStorage() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('shared_storage_credentials_decrypted')
-        .select('*');
+      const { data, error } = await supabase.rpc('get_shared_storage_credentials_decrypted');
 
       if (error) throw error;
 
