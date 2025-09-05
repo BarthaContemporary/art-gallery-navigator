@@ -55,29 +55,29 @@ export function useAppointments(date?: string) {
   return useQuery({
     queryKey: ['appointments', date],
     queryFn: async () => {
-      let query = supabase
-        .from('appointments')
-        .select(`
-          *,
-          appointment_types(name, color),
-          locations(name)
-        `)
-        .order('start_datetime', { ascending: true });
-
-      if (date) {
+      // Use secure admin-only function for appointment data access
+      const { data, error } = await supabase.rpc('get_appointments_for_admin');
+      
+      if (error) throw error;
+      
+      let appointments = data as Appointment[];
+      
+      // Apply date filtering if specified
+      if (date && appointments) {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
         
-        query = query
-          .gte('start_datetime', startOfDay.toISOString())
-          .lte('start_datetime', endOfDay.toISOString());
+        appointments = appointments.filter(appointment => {
+          const appointmentDate = new Date(appointment.start_datetime);
+          return appointmentDate >= startOfDay && appointmentDate <= endOfDay;
+        });
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Appointment[];
+      
+      return appointments.sort((a, b) => 
+        new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+      );
     },
   });
 }
