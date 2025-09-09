@@ -103,7 +103,7 @@ export function useArtworkActions(artwork: Artwork | null) {
         edition_size: artwork.edition_size,
         dimensions: artwork.dimensions,
         price: artwork.price,
-        currency: artwork.currency,
+        currency: artwork.currency || 'USD', // Default to USD if currency is missing
         status: artwork.status,
         image_url: artwork.image_url,
         location_id: artwork.location_id,
