@@ -109,7 +109,7 @@ export default function Profile() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <Card className="w-full max-w-md mx-auto p-4 shadow-md">
-        <CardHeader className="flex flex-col items-start">
+        <CardHeader className="flex flex-col items-center">
           <div className="relative group">
             <Avatar className="h-24 w-24 mb-4 border-2 border-muted group-hover:border-primary transition-colors">
               <AvatarImage src={currentAvatarUrl} alt={user.email || "User Avatar"} />
@@ -142,7 +142,7 @@ export default function Profile() {
           {uploadError && <p className="text-sm text-destructive text-center">{uploadError}</p>}
           
           {/* Full Name Field */}
-          <div className="border rounded-md p-3 bg-muted/50">
+          <div className="border rounded-md p-3">
             <Label className="text-xs text-muted-foreground font-semibold">Full Name</Label>
             {isEditingFullName ? (
               <div className="flex items-center gap-2 mt-1">
@@ -189,7 +189,7 @@ export default function Profile() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 border rounded-md p-3 bg-muted/50">
+          <div className="flex items-center gap-3 border rounded-md p-3">
             <Mail className="w-5 h-5 text-muted-foreground" />
             <div>
               <div className="text-xs text-muted-foreground font-semibold">Email</div>
@@ -197,7 +197,7 @@ export default function Profile() {
             </div>
           </div>
           {isArtist && currentUserArtist && (
-            <div className="border rounded-md p-3 bg-muted/50">
+            <div className="border rounded-md p-3">
               <div className="text-xs text-muted-foreground font-semibold">Artist Profile</div>
               <div className="text-sm font-medium">Name: {currentUserArtist.full_name}</div>
               <div className="text-sm font-medium">Status: {currentUserArtist.representation_status}</div>
