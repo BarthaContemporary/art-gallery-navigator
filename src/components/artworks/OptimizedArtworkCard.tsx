@@ -6,6 +6,7 @@
 import React, { memo, useState, useCallback } from "react";
 import { Artwork } from "@/hooks/use-artworks";
 import { useDialogManager } from "@/hooks/use-dialog-manager";
+import { useArtworkActions } from "@/hooks/use-artwork-actions";
 import { useArtworkPreloader } from "@/hooks/use-artwork-preloader";
 import { ArtworkCardImage } from "./ArtworkCardImage";
 import { ArtworkCardInfo } from "./ArtworkCardInfo";
@@ -24,6 +25,7 @@ const OptimizedArtworkCardComponent = ({
 }: OptimizedArtworkCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const { showArtworkOverview, showArtworkEdit, showArtworkDelete } = useDialogManager();
+  const { handleDuplicate: duplicateArtwork } = useArtworkActions(artwork);
   const { observeArtwork } = useArtworkPreloader({
     artworks: [artwork],
     currentIndex: index,
@@ -54,8 +56,8 @@ const OptimizedArtworkCardComponent = ({
   const handleDuplicate = useCallback((e?: React.MouseEvent) => {
     if (disabled) return;
     e?.stopPropagation();
-    // TODO: Implement duplicate functionality
-  }, [disabled]);
+    duplicateArtwork(e);
+  }, [disabled, duplicateArtwork]);
 
   const handleExport = useCallback((e?: React.MouseEvent) => {
     if (disabled) return;
