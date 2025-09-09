@@ -8,6 +8,7 @@ import { useDialogManager } from "@/hooks/use-dialog-manager";
 import { useArtworkActions } from "@/hooks/use-artwork-actions";
 import { ArtworkOverviewDialog } from "../overview/ArtworkOverviewDialog";
 import { EditArtworkDialog } from "../EditArtworkDialog";
+import { ArtworkDeleteDialogHandler } from "./ArtworkDeleteDialogHandler";
 
 export function GlobalDialogRenderer() {
   const { type, artwork, isOpen, isDeleting, closeDialog, setDeleting } = useDialogManager();
@@ -41,10 +42,8 @@ export function GlobalDialogRenderer() {
         />
       )}
       
-      {/* Temporarily disable delete dialog */}
-      {/* 
       {type === 'delete' && artworkActions && artwork && (
-        <ArtworkDeleteDialogLazy
+        <ArtworkDeleteDialogHandler
           artwork={artwork}
           open={isOpen}
           onOpenChange={(open) => {
@@ -63,7 +62,6 @@ export function GlobalDialogRenderer() {
           }}
         />
       )}
-      */}
     </>
   );
 }
