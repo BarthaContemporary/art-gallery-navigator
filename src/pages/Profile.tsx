@@ -109,7 +109,7 @@ export default function Profile() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <Card className="w-full max-w-md mx-auto p-4 shadow-md">
-        <CardHeader className="flex flex-col items-center">
+        <CardHeader className="flex flex-col items-start">
           <div className="relative group">
             <Avatar className="h-24 w-24 mb-4 border-2 border-muted group-hover:border-primary transition-colors">
               <AvatarImage src={currentAvatarUrl} alt={user.email || "User Avatar"} />
