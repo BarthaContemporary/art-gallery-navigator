@@ -12,7 +12,7 @@ export function Sidebar() {
       style={{
         width: "220px",
         minHeight: "100vh",
-        textAlign: "center"
+        textAlign: "left"
       }}
     >
       <SidebarNavLogo />
