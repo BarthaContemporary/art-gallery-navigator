@@ -25,7 +25,7 @@ export function SidebarUserMenu() {
             />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="z-50 min-w-[180px] shadow-lg bg-background border">
+        <DropdownMenuContent align="start" className="z-50 min-w-[180px] shadow-lg bg-background border">
           <UserMenuItems onSignOut={signOut} />
         </DropdownMenuContent>
       </DropdownMenu>
