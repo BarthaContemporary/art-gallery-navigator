@@ -15,15 +15,17 @@ export function SidebarUserMenu() {
   const { user, signOut } = useAuth();
 
   return (
-    <div className="px-4 py-4 mt-auto bg-white">
+    <div className="px-4 py-4 mt-auto">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <UserAvatar 
-            imageUrl={user?.user_metadata.avatar_url}
-            email={user?.email}
-          />
+          <Button variant="ghost" className="w-full p-0 h-auto">
+            <UserAvatar 
+              imageUrl={user?.user_metadata.avatar_url}
+              email={user?.email}
+            />
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="z-30 min-w-[180px] shadow-lg bg-white">
+        <DropdownMenuContent align="end" className="z-50 min-w-[180px] shadow-lg bg-background border">
           <UserMenuItems onSignOut={signOut} />
         </DropdownMenuContent>
       </DropdownMenu>
