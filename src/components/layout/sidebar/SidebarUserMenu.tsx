@@ -15,7 +15,7 @@ export function SidebarUserMenu() {
   const { user, signOut } = useAuth();
 
   return (
-    <div className="px-4 py-4 mt-auto">
+    <div className="px-4 py-4 mt-auto flex justify-start">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="w-full p-0 h-auto">
