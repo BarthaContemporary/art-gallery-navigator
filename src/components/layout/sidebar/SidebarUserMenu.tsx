@@ -18,7 +18,7 @@ export function SidebarUserMenu() {
     <div className="px-4 py-4 mt-auto flex justify-start">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="w-full p-0 h-auto">
+          <Button variant="ghost" className="w-full p-0 h-auto flex justify-start">
             <UserAvatar 
               imageUrl={user?.user_metadata.avatar_url}
               email={user?.email}
