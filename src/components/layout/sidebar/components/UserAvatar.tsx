@@ -9,7 +9,7 @@ interface UserAvatarProps {
 
 export function UserAvatar({ imageUrl, email }: UserAvatarProps) {
   return (
-    <Avatar className="h-8 w-8">
+    <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
       <AvatarImage src={imageUrl} />
       <AvatarFallback>
         {email?.substring(0, 2).toUpperCase()}
