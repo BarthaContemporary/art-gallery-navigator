@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -1709,6 +1709,122 @@ export type Database = {
           notes?: string | null
           type?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      notification_analytics: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_analytics_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "notification_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_campaigns: {
+        Row: {
+          action_url: string | null
+          click_count: number
+          created_at: string
+          created_by: string | null
+          delivery_count: number
+          icon_url: string | null
+          id: string
+          message: string
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_url?: string | null
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          delivery_count?: number
+          icon_url?: string | null
+          id?: string
+          message: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          target_audience: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_url?: string | null
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          delivery_count?: number
+          icon_url?: string | null
+          id?: string
+          message?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh_key: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh_key: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh_key?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
