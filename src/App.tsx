@@ -33,6 +33,7 @@ import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
 import PublicCollectionView from "@/pages/PublicCollectionView";
 import CRM from "@/pages/CRM";
 import Chat from "@/pages/Chat";
+import NotificationManager from "@/pages/admin/NotificationManager";
 import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,11 @@ function App() {
                   <Route path="crm" element={<CRM />} />
                   <Route path="chat" element={<Chat />} />
                   <Route path="admin" element={<UserSignup />} />
+                  <Route path="admin/notifications" element={
+                    <AdminRoute>
+                      <NotificationManager />
+                    </AdminRoute>
+                  } />
                   <Route path="settings" element={<UserSignup />} />
                   <Route path="manage-websites" element={<ManageWebsites />} />
                   <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />

@@ -17,13 +17,17 @@ interface NotificationCampaign {
   id: string;
   title: string;
   message: string;
-  target_audience: 'all' | 'artists' | 'clients' | 'custom';
+  target_audience: string;
   scheduled_at?: string;
   sent_at?: string;
-  status: 'draft' | 'scheduled' | 'sent';
+  status: string;
   click_count: number;
   delivery_count: number;
   created_at: string;
+  updated_at: string;
+  created_by?: string;
+  icon_url?: string;
+  action_url?: string;
 }
 
 export function PushNotificationManager() {
