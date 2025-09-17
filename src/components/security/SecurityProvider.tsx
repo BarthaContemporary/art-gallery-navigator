@@ -29,9 +29,10 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
         const dashboard = await securityDashboard.generateDashboard();
         
         SecurityMonitor.getInstance().logSecurityEvent({
-          type: 'security_validation_completed',
+          type: SECURITY_EVENT_TYPES.ADMIN_FUNCTION_USED,
           severity: validation.isValid ? 'low' : 'medium',
           details: {
+            action: 'security_validation_completed',
             isValid: validation.isValid,
             securityLevel: validation.securityLevel,
             dashboardScore: dashboard.overallScore
