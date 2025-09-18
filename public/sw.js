@@ -4,8 +4,8 @@ self.addEventListener('push', function(event) {
     const data = event.data.json();
     const options = {
       body: data.body,
-      icon: '/lovable-uploads/3ba18906-49f8-43ba-ad34-1ff106219d42.png',
-      badge: '/lovable-uploads/3ba18906-49f8-43ba-ad34-1ff106219d42.png',
+      icon: '/notification-icon.png',
+      badge: '/notification-icon.png',
       tag: 'chat-message',
       data: data.data,
       requireInteraction: true,
