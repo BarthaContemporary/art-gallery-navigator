@@ -81,7 +81,33 @@ serve(async (req) => {
       .in('user_id', targetUserIds);
 
     if (!subscriptions || subscriptions.length === 0) {
-      throw new Error('No active subscriptions found for target audience');
+      console.log('No active subscriptions found for target audience, but marking campaign as sent');
+      
+      // Update campaign status and set delivery count to 0
+      const { error: updateError } = await supabase
+        .from('notification_campaigns')
+        .update({ 
+          status: 'sent',
+          delivery_count: 0,
+          sent_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Campaign marked as sent with 0 deliveries (no active subscriptions)',
+          deliveryCount: 0 
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Prepare notification payload
