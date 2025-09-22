@@ -95,16 +95,68 @@ export class NotificationService {
   }
 
   async subscribeToPushNotifications(userId: string) {
+    // Ensure the service worker is registered
+    if (!this.registration) {
+      await this.initialize();
+    }
+
     if (!this.registration) {
       console.error('Service Worker not registered');
       return null;
     }
 
     try {
-      // For now, we'll skip actual push subscription setup
-      // This would require VAPID keys and a backend push service
-      console.log('Push notifications would be set up for user:', userId);
-      return null;
+      // Note: Full Web Push requires VAPID keys. For now, we record an in-app/browser subscription
+      // so campaigns can target users while we finalize push infrastructure.
+      const userAgent = navigator.userAgent || 'unknown';
+      const endpoint = 'in-app';
+
+      // Check if a subscription already exists for this user/endpoint
+      const { data: existing, error: fetchErr } = await supabase
+        .from('notification_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('endpoint', endpoint)
+        .limit(1);
+
+      if (fetchErr) {
+        console.error('Failed checking existing subscription:', fetchErr);
+      }
+
+      if (existing && existing.length > 0) {
+        const { error: updateErr } = await supabase
+          .from('notification_subscriptions')
+          .update({ user_agent: userAgent, updated_at: new Date().toISOString() })
+          .eq('id', existing[0].id);
+
+        if (updateErr) {
+          console.error('Failed to update existing subscription:', updateErr);
+        } else {
+          console.log('Updated existing notification subscription');
+        }
+        return existing[0].id;
+      }
+
+      // Insert a minimal subscription record (acts as a delivery target for campaigns)
+      const { data: insertData, error: insertErr } = await supabase
+        .from('notification_subscriptions')
+        .insert({
+          user_id: userId,
+          endpoint,
+          p256dh_key: 'na',
+          auth_key: 'na',
+          user_agent: userAgent,
+        })
+        .select('id')
+        .single();
+
+      if (insertErr) {
+        console.error('Error subscribing to push notifications (DB insert):', insertErr);
+        return null;
+      }
+
+      console.log('Created notification subscription record');
+      return insertData?.id ?? null;
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
       return null;
