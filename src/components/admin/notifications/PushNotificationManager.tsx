@@ -12,6 +12,7 @@ import { Bell, Send, Users, BarChart3, Settings, Calendar, Target } from 'lucide
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNotifications } from '@/hooks/use-notifications';
 
 interface NotificationCampaign {
   id: string;
@@ -32,6 +33,7 @@ interface NotificationCampaign {
 
 export function PushNotificationManager() {
   const { isAdmin } = useAuth();
+  const { requestPermission, showInAppNotification, canShowNotifications } = useNotifications();
   const [campaigns, setCampaigns] = useState<NotificationCampaign[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
@@ -299,23 +301,41 @@ export function PushNotificationManager() {
 
               <Separator />
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setFormData({
-                  title: '',
-                  message: '',
-                  target_audience: 'all',
-                  scheduled_at: '',
-                  icon_url: '',
-                  action_url: ''
-                })}>
-                  Clear
-                </Button>
-                <Button 
-                  onClick={createCampaign} 
-                  disabled={loading || !formData.title || !formData.message}
-                >
-                  {loading ? 'Creating...' : 'Create Campaign'}
-                </Button>
+              <div className="flex justify-between items-center">
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => showInAppNotification("Test Notification", "This is a test message", "System")}
+                  >
+                    Test Notification
+                  </Button>
+                  {!canShowNotifications && (
+                    <Button 
+                      variant="outline" 
+                      onClick={requestPermission}
+                    >
+                      Enable Notifications
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setFormData({
+                    title: '',
+                    message: '',
+                    target_audience: 'all',
+                    scheduled_at: '',
+                    icon_url: '',
+                    action_url: ''
+                  })}>
+                    Clear
+                  </Button>
+                  <Button 
+                    onClick={createCampaign} 
+                    disabled={loading || !formData.title || !formData.message}
+                  >
+                    {loading ? 'Creating...' : 'Create Campaign'}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
