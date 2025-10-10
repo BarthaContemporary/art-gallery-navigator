@@ -42,7 +42,7 @@ export function useDashboardStats() {
       // Fetch total counts for all users
       const [artworksResult, artistsResult, locationsResult, projectsResult, collectionsResult] = await Promise.all([
         supabase.from('artworks').select('*', { count: 'exact', head: true }),
-        supabase.from('artists').select('*', { count: 'exact', head: true }),
+        supabase.from('artists_public_safe').select('*', { count: 'exact', head: true }),
         supabase.from('locations').select('*', { count: 'exact', head: true }),
         supabase.from('projects').select('*', { count: 'exact', head: true }),
         supabase.from('collections').select('*', { count: 'exact', head: true })
