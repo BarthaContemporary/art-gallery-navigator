@@ -15,7 +15,7 @@ export class KeyManager {
     return await window.crypto.subtle.deriveKey(
       {
         name: "PBKDF2",
-        salt: salt,
+        salt: salt.buffer as ArrayBuffer,
         iterations: ENCRYPTION_CONSTANTS.ITERATIONS,
         hash: "SHA-256",
       },
@@ -75,6 +75,6 @@ export class KeyManager {
   }
 
   static async createHMAC(key: CryptoKey, data: Uint8Array): Promise<ArrayBuffer> {
-    return await window.crypto.subtle.sign('HMAC', key, data);
+    return await window.crypto.subtle.sign('HMAC', key, data.buffer as ArrayBuffer);
   }
 }
