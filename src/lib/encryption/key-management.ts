@@ -6,7 +6,7 @@ export class KeyManager {
     const passwordBuffer = new TextEncoder().encode(password);
     const keyMaterial = await window.crypto.subtle.importKey(
       "raw",
-      passwordBuffer,
+      passwordBuffer.buffer as ArrayBuffer,
       { name: "PBKDF2" },
       false,
       ["deriveKey"]
@@ -31,7 +31,7 @@ export class KeyManager {
     // Use roomId as base for key derivation to ensure same key for all room participants
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(roomId + 'chat-encryption-salt'),
+      new TextEncoder().encode(roomId + 'chat-encryption-salt').buffer as ArrayBuffer,
       { name: 'PBKDF2' },
       false,
       ['deriveKey']
@@ -40,7 +40,7 @@ export class KeyManager {
     return await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: new TextEncoder().encode('lovable-chat-salt-2024'),
+        salt: new TextEncoder().encode('lovable-chat-salt-2024').buffer as ArrayBuffer,
         iterations: 100000,
         hash: 'SHA-256',
       },
@@ -56,7 +56,7 @@ export class KeyManager {
     // For shared keys, use a deterministic but secure approach
     const baseString = `shared-room-${roomId}`;
     const salt = new TextEncoder().encode(`${baseString}-salt`);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', salt);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', salt.buffer as ArrayBuffer);
     const finalSalt = new Uint8Array(hashBuffer.slice(0, ENCRYPTION_CONSTANTS.SALT_LENGTH));
     
     return await this.deriveKey(baseString, finalSalt);
