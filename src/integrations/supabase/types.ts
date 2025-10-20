@@ -134,6 +134,13 @@ export type Database = {
             referencedRelation: "artworks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_description_history_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       appointment_slots: {
@@ -563,6 +570,13 @@ export type Database = {
             referencedRelation: "artworks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "artwork_images_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       artwork_location_history: {
@@ -602,6 +616,13 @@ export type Database = {
             columns: ["artwork_id"]
             isOneToOne: false
             referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_location_history_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
             referencedColumns: ["id"]
           },
           {
@@ -689,6 +710,13 @@ export type Database = {
             columns: ["artwork_id"]
             isOneToOne: false
             referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_videos_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -1274,6 +1302,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "collection_artworks_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "collection_artworks_collection_id_fkey"
             columns: ["collection_id"]
             isOneToOne: false
@@ -1487,6 +1522,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documents_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documents_collection_id_fkey"
             columns: ["collection_id"]
             isOneToOne: false
@@ -1561,6 +1603,13 @@ export type Database = {
             columns: ["artwork_id"]
             isOneToOne: false
             referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exhibition_artworks_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2121,6 +2170,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -2498,6 +2554,138 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      artworks_public_safe: {
+        Row: {
+          artist_id: string | null
+          artist_proofs: number | null
+          available_works: string | null
+          classification: string | null
+          condition: string | null
+          crate_depth: number | null
+          crate_height: number | null
+          crate_width: number | null
+          created_at: string | null
+          currency: string | null
+          depth: number | null
+          dimensions: string | null
+          edition_size: number | null
+          exhibition_history: string | null
+          frame_depth: number | null
+          frame_height: number | null
+          frame_width: number | null
+          has_crate: boolean | null
+          height: number | null
+          id: string | null
+          image_url: string | null
+          is_framed: boolean | null
+          location_id: string | null
+          materials: string | null
+          medium_type: string | null
+          price: number | null
+          provenance: string | null
+          signature_details: string | null
+          signature_type: string | null
+          status: string | null
+          story: string | null
+          title: string | null
+          updated_at: string | null
+          weight: number | null
+          width: number | null
+          year: number | null
+        }
+        Insert: {
+          artist_id?: string | null
+          artist_proofs?: number | null
+          available_works?: string | null
+          classification?: string | null
+          condition?: string | null
+          crate_depth?: number | null
+          crate_height?: number | null
+          crate_width?: number | null
+          created_at?: string | null
+          currency?: string | null
+          depth?: number | null
+          dimensions?: string | null
+          edition_size?: number | null
+          exhibition_history?: string | null
+          frame_depth?: number | null
+          frame_height?: number | null
+          frame_width?: number | null
+          has_crate?: boolean | null
+          height?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_framed?: boolean | null
+          location_id?: string | null
+          materials?: string | null
+          medium_type?: string | null
+          price?: number | null
+          provenance?: string | null
+          signature_details?: string | null
+          signature_type?: string | null
+          status?: string | null
+          story?: string | null
+          title?: string | null
+          updated_at?: string | null
+          weight?: number | null
+          width?: number | null
+          year?: number | null
+        }
+        Update: {
+          artist_id?: string | null
+          artist_proofs?: number | null
+          available_works?: string | null
+          classification?: string | null
+          condition?: string | null
+          crate_depth?: number | null
+          crate_height?: number | null
+          crate_width?: number | null
+          created_at?: string | null
+          currency?: string | null
+          depth?: number | null
+          dimensions?: string | null
+          edition_size?: number | null
+          exhibition_history?: string | null
+          frame_depth?: number | null
+          frame_height?: number | null
+          frame_width?: number | null
+          has_crate?: boolean | null
+          height?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_framed?: boolean | null
+          location_id?: string | null
+          materials?: string | null
+          medium_type?: string | null
+          price?: number | null
+          provenance?: string | null
+          signature_details?: string | null
+          signature_type?: string | null
+          status?: string | null
+          story?: string | null
+          title?: string | null
+          updated_at?: string | null
+          weight?: number | null
+          width?: number | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_safe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       collections_public_safe: {
         Row: {
