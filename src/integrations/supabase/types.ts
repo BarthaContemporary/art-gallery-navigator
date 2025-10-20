@@ -203,6 +203,13 @@ export type Database = {
             referencedRelation: "locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "appointment_slots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations_booking_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       appointment_types: {
@@ -320,6 +327,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations_booking_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -598,10 +612,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "artwork_location_history_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations_booking_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "artwork_location_history_previous_location_id_fkey"
             columns: ["previous_location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_location_history_previous_location_id_fkey"
+            columns: ["previous_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations_booking_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2011,6 +2039,13 @@ export type Database = {
             referencedRelation: "locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "projects_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations_booking_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       push_subscriptions: {
@@ -2485,6 +2520,24 @@ export type Database = {
           id?: string | null
           name?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      locations_booking_safe: {
+        Row: {
+          id: string | null
+          name: string | null
+          type: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+          type?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
+          type?: string | null
         }
         Relationships: []
       }
