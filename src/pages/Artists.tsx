@@ -6,8 +6,9 @@ import { useArtistsPage } from "./Artists/hooks/useArtistsPage";
 import { ArtistsHeader } from "./Artists/components/ArtistsHeader";
 import { ArtistsFilters } from "./Artists/components/ArtistsFilters";
 import { ArtistsContent } from "./Artists/components/ArtistsContent";
+import { withErrorBoundary } from "@/components/ui/error-boundary";
 
-const Artists = () => {
+function Artists() {
   const {
     searchTerm,
     setSearchTerm,
@@ -80,6 +81,6 @@ const Artists = () => {
   }
 
   return content;
-};
+}
 
-export default Artists;
+export default withErrorBoundary(Artists);

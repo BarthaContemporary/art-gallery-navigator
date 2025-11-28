@@ -39,7 +39,7 @@ export function useFixArtworkImages() {
           .eq("id", image.id)
       );
 
-      await Promise.all(displayOrderUpdates);
+      await Promise.allSettled(displayOrderUpdates);
 
       // Fix primary image status - set first image as primary, others as false
       const primaryUpdates = images.map((image, index) => 
@@ -49,7 +49,7 @@ export function useFixArtworkImages() {
           .eq("id", image.id)
       );
 
-      await Promise.all(primaryUpdates);
+      await Promise.allSettled(primaryUpdates);
 
       // Process images through Cloudinary if they haven't been processed
       const unprocessedImages = images.filter(img => !img.processed || !img.thumbnail_url || !img.medium_url);

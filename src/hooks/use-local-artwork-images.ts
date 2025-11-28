@@ -32,10 +32,14 @@ export function useLocalArtworkImages(artworkId: string) {
       
       logger.log(`[useLocalArtworkImages] Fetching images for artwork: ${artworkId}`);
       
-      const [imageData, statusData] = await Promise.all([
+      // Use allSettled for resilience
+      const results = await Promise.allSettled([
         LocalImageService.getArtworkImages(artworkId),
         LocalImageService.getProcessingStatus(artworkId)
       ]);
+      
+      const imageData = results[0].status === 'fulfilled' ? results[0].value : [];
+      const statusData = results[1].status === 'fulfilled' ? results[1].value : null;
       
       setImages(imageData);
       setProcessingStatus(statusData);

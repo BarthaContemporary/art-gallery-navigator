@@ -28,11 +28,15 @@ export function ImageRepairDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [summary, failed, stuck] = await Promise.all([
+      const results = await Promise.allSettled([
         ImageRepairService.getProcessingStatusSummary(),
         ImageRepairService.findFailedImages(),
         ImageRepairService.findStuckImages()
       ]);
+      
+      const summary = results[0].status === 'fulfilled' ? results[0].value : null;
+      const failed = results[1].status === 'fulfilled' ? results[1].value : [];
+      const stuck = results[2].status === 'fulfilled' ? results[2].value : [];
       
       setStatusSummary(summary);
       setFailedImages(failed);

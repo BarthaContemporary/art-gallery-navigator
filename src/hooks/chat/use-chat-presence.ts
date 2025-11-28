@@ -52,17 +52,23 @@ export function useChatPresence(userId?: string) {
     } catch (error) {
       console.error('Error in fetchOnlineUsers:', error);
     }
-  }, []);
+  }, []); // Empty deps - stable reference
 
   // Initialize presence tracking
   useEffect(() => {
+    let isMounted = true;
+    
     if (!currentUserId) {
       // Still fetch online users even if we don't have a current user
-      fetchOnlineUsers();
+      if (isMounted) {
+        fetchOnlineUsers();
+      }
       return;
     }
 
     const initializePresence = async () => {
+      if (!isMounted) return;
+      
       // Update user presence to online
       await supabase
         .from('user_presence')
@@ -73,6 +79,8 @@ export function useChatPresence(userId?: string) {
           updated_at: new Date().toISOString(),
         });
 
+      if (!isMounted) return;
+
       // Set up presence channel
       presenceChannel.current = supabase
         .channel('user_presence')
@@ -81,18 +89,23 @@ export function useChatPresence(userId?: string) {
           schema: 'public',
           table: 'user_presence'
         }, () => {
-          fetchOnlineUsers();
+          if (isMounted) {
+            fetchOnlineUsers();
+          }
         })
         .subscribe();
 
       // Fetch initial online users
-      await fetchOnlineUsers();
+      if (isMounted) {
+        await fetchOnlineUsers();
+      }
     };
 
     initializePresence();
 
     // Cleanup on unmount
     return () => {
+      isMounted = false;
       if (presenceChannel.current) {
         supabase.removeChannel(presenceChannel.current);
         presenceChannel.current = null;

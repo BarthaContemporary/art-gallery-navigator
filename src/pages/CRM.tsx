@@ -13,8 +13,9 @@ import { CreateClientListDialog } from "@/components/crm/CreateClientListDialog"
 import { ClientListsFilter } from "@/components/crm/ClientListsFilter";
 import { ExportClientListDialog } from "@/components/crm/ExportClientListDialog";
 import { useClientsData } from "@/components/crm/hooks/useClientsData";
+import { withErrorBoundary } from "@/components/ui/error-boundary";
 
-export default function CRM() {
+function CRM() {
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -93,3 +94,5 @@ export default function CRM() {
     </div>
   );
 }
+
+export default withErrorBoundary(CRM);
