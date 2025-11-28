@@ -74,7 +74,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         connected: false
       }));
     }
-  }, [user?.id, chatService]);
+  }, [user?.id]); // Removed chatService from deps - it's stable
 
   const refreshOnlineUsers = useCallback(async () => {
     if (!user?.id) return;
@@ -85,7 +85,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to refresh online users:', error);
     }
-  }, [user?.id, chatService]);
+  }, [user?.id]); // Removed chatService from deps - it's stable
 
   const setActiveRoom = useCallback(async (roomId: string) => {
     if (!user?.id) return;
@@ -112,7 +112,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         error: 'Failed to load messages'
       }));
     }
-  }, [user?.id, chatService]);
+  }, [user?.id]); // Removed chatService from deps - it's stable
 
   const sendMessage = useCallback(async (content: string, type: 'text' | 'image' | 'file' = 'text') => {
     if (!user?.id || !state.activeRoomId) return;
@@ -139,7 +139,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         error: 'Failed to send message'
       }));
     }
-  }, [user?.id, state.activeRoomId, chatService]);
+  }, [user?.id, state.activeRoomId]); // Removed chatService from deps - it's stable
 
   const startChatWithUser = useCallback(async (userId: string): Promise<ChatRoom | null> => {
     if (!user?.id) return null;
@@ -159,7 +159,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ ...prev, error: 'Failed to start chat' }));
       return null;
     }
-  }, [user?.id, chatService]);
+  }, [user?.id]); // Removed chatService from deps - it's stable
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
@@ -199,12 +199,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // Set up real-time subscriptions - simplified
   useEffect(() => {
     if (!user?.id) return;
+    let isMounted = true;
 
     const roomsChannel = supabase
       .channel('chat-rooms')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'chat_rooms' },
-        () => refreshRooms()
+        () => {
+          if (isMounted) refreshRooms();
+        }
       )
       .subscribe();
 
@@ -213,6 +216,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
+          if (!isMounted) return;
           if (payload.new.room_id === state.activeRoomId) {
             // Only add message if it's for the active room and not from current user
             if (payload.new.sender_id !== user.id) {
@@ -230,16 +234,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .channel('user-presence')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'user_presence' },
-        () => refreshOnlineUsers()
+        () => {
+          if (isMounted) refreshOnlineUsers();
+        }
       )
       .subscribe();
 
     return () => {
+      isMounted = false;
       supabase.removeChannel(roomsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(presenceChannel);
     };
-  }, [user?.id, state.activeRoomId]); // Simplified dependencies
+  }, [user?.id, state.activeRoomId, refreshRooms, refreshOnlineUsers]); // Optimized dependencies
 
   const contextValue: ChatContextType = {
     state,

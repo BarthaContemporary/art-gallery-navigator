@@ -3,8 +3,9 @@ import { useState } from "react";
 import { ProjectsHeader } from "@/components/projects/ProjectsHeader";
 import { ProjectsSearch } from "@/components/projects/ProjectsSearch";
 import { ProjectsGrid } from "@/components/projects/ProjectsGrid";
+import { withErrorBoundary } from "@/components/ui/error-boundary";
 
-const Projects = () => {
+function Projects() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [type, setType] = useState("all");
@@ -27,6 +28,6 @@ const Projects = () => {
       />
     </div>
   );
-};
+}
 
-export default Projects;
+export default withErrorBoundary(Projects);

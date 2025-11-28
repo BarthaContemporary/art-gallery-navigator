@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-export default function Collections() {
+import { withErrorBoundary } from "@/components/ui/error-boundary";
+
+function Collections() {
   const navigate = useNavigate();
   const {
     isAdmin
@@ -34,3 +36,5 @@ export default function Collections() {
       </div>
     </div>;
 }
+
+export default withErrorBoundary(Collections);

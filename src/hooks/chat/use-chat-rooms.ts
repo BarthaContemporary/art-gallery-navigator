@@ -7,7 +7,7 @@ import { ChatRoom } from './types';
 export function useChatRooms(userId?: string) {
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
 
-  // Fetch chat rooms
+  // Fetch chat rooms - using allSettled for resilience
   const fetchChatRooms = async () => {
     if (!userId) return;
 
@@ -41,23 +41,26 @@ export function useChatRooms(userId?: string) {
       console.error('Error fetching profiles:', profilesError);
     }
 
-    // Fetch last message for each room and message counts
-    const roomsWithMessages = await Promise.all(
+    // Fetch last message for each room and message counts - using allSettled
+    const roomResults = await Promise.allSettled(
       data.map(async (room) => {
-        // Get last message for this room
-        const { data: lastMessageData } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('room_id', room.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
+        // Get last message and unread count in parallel
+        const [lastMessageRes, unreadCountRes] = await Promise.all([
+          supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('room_id', room.id)
+            .order('created_at', { ascending: false })
+            .limit(1),
+          supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('room_id', room.id)
+            .not('read_by', 'cs', `{${userId}}`)
+        ]);
 
-        // Get unread message count for current user
-        const { count: unreadCount } = await supabase
-          .from('chat_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('room_id', room.id)
-          .not('read_by', 'cs', `{${userId}}`);
+        const lastMessageData = lastMessageRes.data;
+        const unreadCount = unreadCountRes.count;
 
         const participant1Profile = (profilesData || []).find(p => p.id === room.participant_1_id);
         const participant2Profile = (profilesData || []).find(p => p.id === room.participant_2_id);
@@ -77,6 +80,11 @@ export function useChatRooms(userId?: string) {
         };
       })
     );
+
+    // Extract successful results
+    const roomsWithMessages = roomResults
+      .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+      .map(result => result.value);
 
     setChatRooms(roomsWithMessages);
   };

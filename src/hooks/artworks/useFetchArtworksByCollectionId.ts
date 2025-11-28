@@ -70,10 +70,10 @@ export function useFetchArtworksByCollectionId(collectionId: string | undefined)
       const artworkIds = collectionArtworks.map(ca => ca.artwork_id);
       console.log(`[useFetchArtworksByCollectionId] Extracted artwork IDs: ${artworkIds.join(', ')}`);
 
-      // 2. Fetch artworks with related data (artist and images)
+      // 2. Fetch artworks with related data (artist and images) - using public safe view
       console.log(`[useFetchArtworksByCollectionId] Fetching artwork details for ${artworkIds.length} ID(s).`);
       const { data: artworksData, error: artworksDataError } = await supabase
-        .from("artworks")
+        .from("artworks_public_safe")
         .select(`
           id,
           title,

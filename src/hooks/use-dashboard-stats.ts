@@ -39,14 +39,21 @@ export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboard-stats', { isAdmin }],
     queryFn: async (): Promise<DashboardStats> => {
-      // Fetch total counts for all users
-      const [artworksResult, artistsResult, locationsResult, projectsResult, collectionsResult] = await Promise.all([
+      // Fetch total counts for all users - using allSettled for resilience
+      const results = await Promise.allSettled([
         supabase.from('artworks').select('*', { count: 'exact', head: true }),
         supabase.from('artists_public_safe').select('*', { count: 'exact', head: true }),
         supabase.from('locations').select('*', { count: 'exact', head: true }),
         supabase.from('projects').select('*', { count: 'exact', head: true }),
         supabase.from('collections').select('*', { count: 'exact', head: true })
       ]);
+
+      // Extract results safely
+      const artworksResult = results[0].status === 'fulfilled' ? results[0].value : { count: 0 };
+      const artistsResult = results[1].status === 'fulfilled' ? results[1].value : { count: 0 };
+      const locationsResult = results[2].status === 'fulfilled' ? results[2].value : { count: 0 };
+      const projectsResult = results[3].status === 'fulfilled' ? results[3].value : { count: 0 };
+      const collectionsResult = results[4].status === 'fulfilled' ? results[4].value : { count: 0 };
 
       // Fetch admin-only data conditionally
       let pendingDeletionsCount = 0;
@@ -65,7 +72,7 @@ export function useDashboardStats() {
       }> = [];
 
       if (isAdmin) {
-        const [deletionsResult, uploadsResult, clientsResult, recentClientsResult] = await Promise.all([
+        const adminResults = await Promise.allSettled([
           supabase
             .from('deletion_requests')
             .select('*', { count: 'exact', head: true })
@@ -81,6 +88,12 @@ export function useDashboardStats() {
             .order('created_at', { ascending: false })
             .limit(5)
         ]);
+
+        // Extract admin results safely
+        const deletionsResult = adminResults[0].status === 'fulfilled' ? adminResults[0].value : { count: 0 };
+        const uploadsResult = adminResults[1].status === 'fulfilled' ? adminResults[1].value : { count: 0 };
+        const clientsResult = adminResults[2].status === 'fulfilled' ? adminResults[2].value : { data: [] };
+        const recentClientsResult = adminResults[3].status === 'fulfilled' ? adminResults[3].value : { data: [] };
 
         pendingDeletionsCount = deletionsResult.count || 0;
         newUploadsCount = uploadsResult.count || 0;

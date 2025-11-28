@@ -26,8 +26,9 @@ import { useBulkDeleteArtworks } from "@/components/artworks/hooks/useBulkDelete
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import type { Artwork } from "@/types/artwork";
+import { withErrorBoundary } from "@/components/ui/error-boundary";
 
-export default function Artworks() {
+function Artworks() {
   const pageTopRef = useRef<HTMLDivElement>(null);
   const { isAdmin, isArtist } = useAuth();
   const [showCreateCollectionDialog, setShowCreateCollectionDialog] = useState(false);
@@ -285,3 +286,5 @@ export default function Artworks() {
     </div>
   );
 }
+
+export default withErrorBoundary(Artworks);

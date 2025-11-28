@@ -8,10 +8,13 @@ export function CRMStats() {
   const { data: stats } = useQuery({
     queryKey: ['crm-stats'],
     queryFn: async () => {
-      const [clientsResult, recentResult] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from('clients').select('status'),
         supabase.from('clients').select('created_at').gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       ]);
+
+      const clientsResult = results[0].status === 'fulfilled' ? results[0].value : { data: [] };
+      const recentResult = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
 
       const totalClients = clientsResult.data?.length || 0;
       const prospects = clientsResult.data?.filter(c => c.status === 'prospect').length || 0;

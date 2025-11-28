@@ -116,7 +116,7 @@ export function useDownloadArtworkImages(artworkId: string) {
         }
       });
 
-      await Promise.all(downloadPromises);
+      await Promise.allSettled(downloadPromises);
 
       if (successCount > 0 && errorCount === 0) {
         toast.success(`Downloaded ${successCount} image(s)`, {
