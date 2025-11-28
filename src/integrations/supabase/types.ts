@@ -2191,7 +2191,7 @@ export type Database = {
           details: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
         }
@@ -2200,7 +2200,7 @@ export type Database = {
           details?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -2209,7 +2209,7 @@ export type Database = {
           details?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -2432,7 +2432,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           method: string
           path: string
           status_code: number | null
@@ -2443,7 +2443,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method: string
           path: string
           status_code?: number | null
@@ -2454,7 +2454,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method?: string
           path?: string
           status_code?: number | null
@@ -2731,24 +2731,15 @@ export type Database = {
       }
     }
     Functions: {
-      auto_link_artist_to_user: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      auto_link_artist_to_user: { Args: never; Returns: undefined }
       check_appointment_rate_limit: {
         Args: { client_ip: unknown }
         Returns: boolean
       }
-      cleanup_old_chat_messages: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_chat_messages_weekly: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_chat_messages: { Args: never; Returns: undefined }
+      cleanup_old_chat_messages_weekly: { Args: never; Returns: undefined }
       debug_folder_info: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           artist_linked_count: number
           folder_count: number
@@ -2757,7 +2748,7 @@ export type Database = {
         }[]
       }
       debug_webdav_folder_access: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           artist_id: string
           artist_user_id: string
@@ -2772,14 +2763,8 @@ export type Database = {
           should_be_accessible: boolean
         }[]
       }
-      decrypt_credential: {
-        Args: { ciphertext: string }
-        Returns: string
-      }
-      encrypt_credential: {
-        Args: { plaintext: string }
-        Returns: string
-      }
+      decrypt_credential: { Args: { ciphertext: string }; Returns: string }
+      encrypt_credential: { Args: { plaintext: string }; Returns: string }
       enhanced_log_security_event: {
         Args: {
           _details?: Json
@@ -2795,7 +2780,7 @@ export type Database = {
         Returns: string
       }
       get_admin_storage_credentials_decrypted: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           access_key: string
           bucket_name: string
@@ -2809,9 +2794,15 @@ export type Database = {
           updated_at: string
           user_id: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "admin_storage_credentials_decrypted"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_appointments_admin_only: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           client_email: string
           client_name: string
@@ -2824,7 +2815,7 @@ export type Database = {
         }[]
       }
       get_appointments_for_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           client_email: string
           client_name: string
@@ -2838,7 +2829,7 @@ export type Database = {
         }[]
       }
       get_artist_contacts_admin_only: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           email: string
           full_name: string
@@ -2854,7 +2845,7 @@ export type Database = {
         }[]
       }
       get_artist_folder_overview: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           artist_id: string
           artist_name: string
@@ -2867,10 +2858,7 @@ export type Database = {
           user_id: string
         }[]
       }
-      get_artist_id_for_current_user: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_artist_id_for_current_user: { Args: never; Returns: string }
       get_artist_storage_credentials_decrypted: {
         Args: { p_artist_id?: string }
         Returns: {
@@ -2884,9 +2872,15 @@ export type Database = {
           secret_key: string
           updated_at: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "artist_storage_credentials_decrypted"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_artists_public: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           biography: string
           birth_year: number
@@ -2904,7 +2898,7 @@ export type Database = {
         }[]
       }
       get_artists_public_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           biography: string | null
           birth_year: number | null
@@ -2920,9 +2914,15 @@ export type Database = {
           surname_first_letter: string | null
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "artists_public_safe"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_available_appointment_slots: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           appointment_type: string
           date: string
@@ -2931,12 +2931,9 @@ export type Database = {
           start_time: string
         }[]
       }
-      get_available_currencies: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
+      get_available_currencies: { Args: never; Returns: string[] }
       get_clients_admin_only: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           company: string
           created_at: string
@@ -2948,7 +2945,7 @@ export type Database = {
         }[]
       }
       get_collections_for_user: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           description: string
@@ -2959,7 +2956,7 @@ export type Database = {
         }[]
       }
       get_collections_public: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string | null
           description: string | null
@@ -2967,17 +2964,20 @@ export type Database = {
           name: string | null
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "collections_public_safe"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
-      get_encryption_key: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_encryption_key: { Args: never; Returns: string }
       get_folder_artist_access: {
         Args: { folder_id_param: string }
         Returns: string
       }
       get_shared_storage_credentials_decrypted: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           access_key: string
           bucket_name: string
@@ -2990,6 +2990,12 @@ export type Database = {
           secret_key: string
           updated_at: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "shared_storage_credentials_decrypted"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_user_accessible_documents: {
         Args: { folder_id_param?: string }
@@ -3006,7 +3012,7 @@ export type Database = {
         }[]
       }
       get_user_accessible_folders: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           artist_id: string
           can_read: boolean
@@ -3029,10 +3035,7 @@ export type Database = {
           parent_folder_id: string
         }[]
       }
-      get_user_projects: {
-        Args: { user_uuid: string }
-        Returns: string[]
-      }
+      get_user_projects: { Args: { user_uuid: string }; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -3076,14 +3079,8 @@ export type Database = {
         }
         Returns: string
       }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      is_artist_owner: {
-        Args: { artist_id_param: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_artist_owner: { Args: { artist_id_param: string }; Returns: boolean }
       is_artist_user: {
         Args: { _artist_id: string; _user_id: string }
         Returns: boolean
@@ -3100,10 +3097,7 @@ export type Database = {
         Args: { _document_id: string }
         Returns: boolean
       }
-      is_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_user_admin: { Args: never; Returns: boolean }
       link_artist_to_user: {
         Args: { artist_name: string; user_email: string }
         Returns: boolean
@@ -3117,10 +3111,7 @@ export type Database = {
         }
         Returns: string
       }
-      log_storage_encryption_event: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      log_storage_encryption_event: { Args: never; Returns: undefined }
       mark_message_as_read: {
         Args: { message_id: string; reader_id: string }
         Returns: undefined
@@ -3147,7 +3138,7 @@ export type Database = {
         }[]
       }
       verify_no_public_access: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           grantee: string
           is_secure: boolean
