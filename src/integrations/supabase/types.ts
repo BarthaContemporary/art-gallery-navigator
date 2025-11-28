@@ -2555,6 +2555,51 @@ export type Database = {
         }
         Relationships: []
       }
+      artwork_images_public_safe: {
+        Row: {
+          artwork_id: string | null
+          display_order: number | null
+          id: string | null
+          image_url: string | null
+          is_primary: boolean | null
+          medium_url: string | null
+          thumbnail_url: string | null
+        }
+        Insert: {
+          artwork_id?: string | null
+          display_order?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_primary?: boolean | null
+          medium_url?: string | null
+          thumbnail_url?: string | null
+        }
+        Update: {
+          artwork_id?: string | null
+          display_order?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_primary?: boolean | null
+          medium_url?: string | null
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artwork_images_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artwork_images_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artworks_public_safe: {
         Row: {
           artist_id: string | null
