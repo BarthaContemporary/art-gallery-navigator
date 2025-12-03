@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Clock, Edit, Trash2, X, Mail } from "lucide-react";
@@ -34,6 +35,7 @@ const statusIcons = {
 
 export function ArtistCard({ artist }: { artist: any }) {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   console.log("ArtistCard - isAdmin:", isAdmin);
   const { composeEmail, isLoading } = useGmailCompose();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -137,7 +139,7 @@ export function ArtistCard({ artist }: { artist: any }) {
       <OptimizedArtistImage
         imageUrl={artist.image_url}
         artistName={artist.full_name}
-        onClick={handleCardClick}
+        onClick={() => navigate(`/artworks?artist=${artist.id}`)}
       />
       
       <CardContent 
