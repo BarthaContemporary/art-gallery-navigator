@@ -1,4 +1,3 @@
-
 project_id = "cvhdspyugfcvkrufqzrq"
 
 [api]
@@ -72,3 +71,9 @@ verify_jwt = true
 
 [functions.exchange-rates]
 verify_jwt = false
+
+[functions.get-vapid-public-key]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = true
