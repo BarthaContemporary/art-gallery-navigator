@@ -66,13 +66,13 @@
     --shadow-md: 0 4px 6px -1px hsl(220 13% 69% / 0.1), 0 2px 4px -1px hsl(220 13% 69% / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(220 13% 69% / 0.1), 0 4px 6px -2px hsl(220 13% 69% / 0.05);
     --shadow-xl: 0 20px 25px -5px hsl(220 13% 69% / 0.1), 0 10px 10px -5px hsl(220 13% 69% / 0.04);
-    --shadow-glow: 0 0 20px hsl(200 85% 42% / 0.15);
+    --shadow-glow: 0 0 15px hsl(200 85% 42% / 0.1);
     
-    /* Enhanced radius system */
-    --radius: 0.75rem;
-    --radius-sm: 0.5rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
+    /* Minimal radius system - sharp corners */
+    --radius: 0;
+    --radius-sm: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
   }
 
   .dark {
@@ -128,12 +128,12 @@
     --shadow-md: 0 4px 6px -1px hsl(220 13% 69% / 0.1), 0 2px 4px -1px hsl(220 13% 69% / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(220 13% 69% / 0.1), 0 4px 6px -2px hsl(220 13% 69% / 0.05);
     --shadow-xl: 0 20px 25px -5px hsl(220 13% 69% / 0.1), 0 10px 10px -5px hsl(220 13% 69% / 0.04);
-    --shadow-glow: 0 0 20px hsl(200 85% 42% / 0.15);
+    --shadow-glow: 0 0 15px hsl(200 85% 42% / 0.1);
     
-    --radius: 0.75rem;
-    --radius-sm: 0.5rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
+    --radius: 0;
+    --radius-sm: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
   }
 
   /* iPhone-specific safe area support */
@@ -268,13 +268,13 @@
     box-shadow: var(--shadow-glow);
   }
   
-  /* Interactive states */
+  /* Interactive states - minimal */
   .interactive {
-    @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-elegant;
+    @apply transition-colors duration-200 hover:opacity-90;
   }
   
   .interactive-card {
-    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+    @apply transition-all duration-200 hover:border-border-hover;
   }
   
   /* Gradient utilities */
