@@ -2,7 +2,7 @@
 import { useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage } from '../types';
-import { NotificationService } from '@/services/notification-service';
+import { toast } from 'sonner';
 
 export function useMessageRealtime(userId?: string, onNewMessage?: (message: ChatMessage) => void) {
   const messagesChannel = useRef<any>(null);
@@ -45,27 +45,21 @@ export function useMessageRealtime(userId?: string, onNewMessage?: (message: Cha
             onNewMessage(transformedMessage);
           }
 
-          // Show notification if message is from another user
+          // Show toast notification if message is from another user
           if (newMessage.sender_id !== userId) {
-            const notificationService = NotificationService.getInstance();
             const senderName = senderProfile?.display_name || 'Unknown User';
             const messageContent = newMessage.encrypted_content || 'New message';
             
-            // Show in-app notification
-            notificationService.showInAppNotification(
-              'New Message',
-              messageContent,
-              senderName
-            );
-
-            // Show push notification if the app is in background or not on chat page
-            if (document.hidden || !window.location.pathname.includes('/chat')) {
-              notificationService.showPushNotification(
-                `Message from ${senderName}`,
-                messageContent,
-                { roomId, senderId: newMessage.sender_id }
-              );
-            }
+            toast('New Message', {
+              description: `${senderName}: ${messageContent}`,
+              duration: 5000,
+              action: {
+                label: 'View Chat',
+                onClick: () => {
+                  window.location.href = '/chat';
+                },
+              },
+            });
           }
         } catch (error) {
           console.error('Error handling real-time message:', error);
