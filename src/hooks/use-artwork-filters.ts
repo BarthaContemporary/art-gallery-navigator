@@ -3,18 +3,24 @@
  * Simple, efficient filtering logic
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Artwork, Artist, ArtworkFilters } from "@/types/artwork";
 
 export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
-  const [filters, setFilters] = useState<ArtworkFilters>({
-    search: '',
-    artist: null,
-    status: null,
-    mediumType: null,
-    yearRange: null,
-    priceRange: null,
-    sortBy: 'artist'
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [filters, setFilters] = useState<ArtworkFilters>(() => {
+    const artistFromUrl = searchParams.get('artist');
+    return {
+      search: '',
+      artist: artistFromUrl,
+      status: null,
+      mediumType: null,
+      yearRange: null,
+      priceRange: null,
+      sortBy: 'artist'
+    };
   });
 
   const filteredArtworks = useMemo(() => {
@@ -136,6 +142,15 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
     value: ArtworkFilters[K]
   ) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+    
+    // Sync artist filter with URL
+    if (key === 'artist') {
+      if (value) {
+        setSearchParams({ artist: value as string });
+      } else {
+        setSearchParams({});
+      }
+    }
   };
 
   const clearFilters = () => {
@@ -148,6 +163,8 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
       priceRange: null,
       sortBy: 'artist'
     });
+    // Clear URL params
+    setSearchParams({});
   };
 
   return {
