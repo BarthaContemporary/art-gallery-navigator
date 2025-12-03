@@ -111,7 +111,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
       >
         <div
           onClick={handleDropZoneClick}
-          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed cursor-pointer transition-colors ${
             isProcessingFile 
               ? 'border-gray-300 bg-gray-50 cursor-not-allowed' 
               : 'border-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
@@ -156,7 +156,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileChange, file, isPr
       )}
       
       {file && (
-        <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-md">
+        <div className="flex items-center p-3 bg-green-50 border border-green-200">
           <FileText className="h-4 w-4 text-green-600 mr-2" />
           <div className="flex-1">
             <p className="text-sm font-medium text-green-800">Selected file:</p>

@@ -97,7 +97,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
   return (
     <>
       <div className="space-y-1 overflow-x-auto">
-        <div className="hidden lg:grid lg:grid-cols-12 gap-4 px-4 py-3 bg-muted/30 rounded-lg text-sm font-medium text-muted-foreground">
+        <div className="hidden lg:grid lg:grid-cols-12 gap-4 px-4 py-3 bg-muted/30 text-sm font-medium text-muted-foreground">
           <div className="col-span-1">Image</div>
           <div className="col-span-3">Title & Artist</div>
           <div className="col-span-1">Year</div>
@@ -130,7 +130,7 @@ function ArtworkListViewContent({ artworks }: ArtworkListViewProps) {
           return (
             <div
               key={artwork.id}
-              className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-2 md:gap-4 px-4 py-3 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-2 md:gap-4 px-4 py-3 border hover:bg-muted/30 transition-colors cursor-pointer"
               onClick={() => handleArtworkClick(artwork)}
             >
               {/* Mobile view */}

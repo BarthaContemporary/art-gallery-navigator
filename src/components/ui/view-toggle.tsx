@@ -17,7 +17,7 @@ export function ViewToggle({
   className 
 }: ViewToggleProps) {
   return (
-    <div className={cn("flex items-center border rounded-md p-0.5 bg-muted", className)}>
+    <div className={cn("flex items-center border p-0.5 bg-muted", className)}>
       <Button
         variant={viewMode === 'grid' ? 'default' : 'ghost'}
         size="sm"

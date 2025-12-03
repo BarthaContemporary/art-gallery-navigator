@@ -44,7 +44,7 @@ export function AutosaveIndicator({ status, className }: AutosaveIndicatorProps)
 
   return (
     <div className={cn(
-      'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border',
+      'flex items-center gap-2 text-sm px-3 py-1.5 border',
       'bg-background/80 backdrop-blur-sm transition-all duration-200',
       statusClassName, 
       className

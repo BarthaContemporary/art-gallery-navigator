@@ -252,7 +252,7 @@ export function ArtworkValueByLocation() {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="bg-background border rounded-lg p-2 shadow-lg">
+                            <div className="bg-background border p-2 shadow-lg">
                               <p className="font-medium">{data.name}</p>
                               <p className="text-sm text-primary">£{data.value.toLocaleString()}</p>
                               <p className="text-xs text-muted-foreground">{data.percentage}% of total</p>
@@ -299,7 +299,7 @@ export function ArtworkValueByLocation() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md">
+          <div className="">
             <Table>
               <TableHeader>
                 <TableRow>

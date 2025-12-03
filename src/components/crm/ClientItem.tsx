@@ -12,7 +12,7 @@ interface ClientItemProps {
 
 export function ClientItem({ client, onEdit, onDelete, onViewDetails, getStatusColor }: ClientItemProps) {
   return (
-    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+    <div className="flex items-center justify-between p-4 border hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-4 flex-1">
         <div className="font-medium">{client.full_name}</div>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
