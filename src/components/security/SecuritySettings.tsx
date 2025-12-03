@@ -3,7 +3,6 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Shield, Key, Lock, Eye, AlertTriangle } from 'lucide-react';
-import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 
 export function SecuritySettings() {
   return (
@@ -120,8 +119,6 @@ export function SecuritySettings() {
           </CardContent>
         </Card>
       </div>
-
-      <NotificationSettings />
     </div>
   );
 }
