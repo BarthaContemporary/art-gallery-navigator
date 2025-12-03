@@ -179,7 +179,7 @@ export function EditClientListDialog({ list, open, onOpenChange }: EditClientLis
             <TabsContent value="current" className="flex-1 overflow-hidden mt-4">
               <div className="space-y-4 h-full flex flex-col">
                 {selectedCurrentClientIds.length > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted">
                     <span className="text-sm text-muted-foreground">
                       {selectedCurrentClientIds.length} client{selectedCurrentClientIds.length === 1 ? '' : 's'} selected
                     </span>
@@ -195,7 +195,7 @@ export function EditClientListDialog({ list, open, onOpenChange }: EditClientLis
                   </div>
                 )}
                 
-                <ScrollArea className="flex-1 border rounded-md">
+                <ScrollArea className="flex-1 border">
                   <div className="p-4 space-y-2">
                     {(!currentMembers || currentMembers.length === 0) ? (
                       <div className="text-center py-8 text-sm text-muted-foreground">
@@ -205,7 +205,7 @@ export function EditClientListDialog({ list, open, onOpenChange }: EditClientLis
                       currentMembers.map((member: any) => (
                         <div
                           key={member.client_id}
-                          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                          className="flex items-center space-x-3 p-2 hover:bg-muted/50 cursor-pointer"
                           onClick={() => handleCurrentClientToggle(member.client_id)}
                         >
                           <Checkbox
@@ -236,7 +236,7 @@ export function EditClientListDialog({ list, open, onOpenChange }: EditClientLis
             <TabsContent value="add" className="flex-1 overflow-hidden mt-4">
               <div className="space-y-4 h-full flex flex-col">
                 {selectedNewClientIds.length > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted">
                     <span className="text-sm text-muted-foreground">
                       {selectedNewClientIds.length} client{selectedNewClientIds.length === 1 ? '' : 's'} selected
                     </span>

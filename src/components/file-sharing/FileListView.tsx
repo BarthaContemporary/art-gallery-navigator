@@ -52,7 +52,7 @@ export function FileListView({ folders, documents, onFolderClick, onFileClick }:
 
   return (
     <>
-      <div className="border rounded-lg">
+      <div className="border">
         <Table>
           <TableHeader>
             <TableRow>

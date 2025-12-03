@@ -19,7 +19,7 @@ export function CollectionCard({ collection, showArtistName = false }: Collectio
   return (
     <>
       <Card 
-        className="cursor-pointer border rounded-lg bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden animate-fade-in"
+        className="cursor-pointer border bg-card hover:shadow-md transition-all duration-200 group relative overflow-hidden animate-fade-in"
         onClick={() => setShowDetailsDialog(true)}
         role="button"
         tabIndex={0}

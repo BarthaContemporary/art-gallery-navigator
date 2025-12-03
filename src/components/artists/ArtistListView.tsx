@@ -92,7 +92,7 @@ export function ArtistListView({ artists }: ArtistListViewProps) {
                 <OptimizedArtistImage
                   imageUrl={artist.image_url}
                   artistName={artist.full_name}
-                  className="w-16 h-16 rounded-lg object-cover"
+                  className="w-16 h-16 object-cover"
                 />
               </div>
 

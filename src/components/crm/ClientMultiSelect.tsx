@@ -121,7 +121,7 @@ export function ClientMultiSelect({
         )}
       </div>
 
-      <ScrollArea className="h-64 border rounded-md">
+      <ScrollArea className="h-64 border">
         <div className="p-4 space-y-2">
           {filteredClients.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
@@ -131,7 +131,7 @@ export function ClientMultiSelect({
             filteredClients.map((client) => (
               <div
                 key={client.id}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                className="flex items-center space-x-3 p-2 hover:bg-muted/50 cursor-pointer"
                 onClick={() => handleClientToggle(client.id)}
               >
                 <Checkbox

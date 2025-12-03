@@ -32,7 +32,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
           </span>
         )}
         
-        <div className={`rounded-lg px-3 py-2 ${
+        <div className={`px-3 py-2 ${
           isOwn 
             ? 'bg-primary text-primary-foreground' 
             : 'bg-muted'
@@ -42,7 +42,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
               <img 
                 src={content} 
                 alt="Shared image" 
-                className="rounded-md max-w-full h-auto max-h-64 object-contain cursor-pointer"
+                className="max-w-full h-auto max-h-64 object-contain cursor-pointer"
                 onClick={() => window.open(content, '_blank')}
               />
             </div>

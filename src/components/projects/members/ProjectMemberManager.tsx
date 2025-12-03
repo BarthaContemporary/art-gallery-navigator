@@ -66,7 +66,7 @@ export function ProjectMemberManager({ projectId, readOnly = false }: ProjectMem
   return (
     <div className="space-y-4">
       {isError && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-600 p-3 flex items-center justify-between">
           <div className="flex items-center">
             <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="text-sm">
