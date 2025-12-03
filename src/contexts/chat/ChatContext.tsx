@@ -215,14 +215,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .channel('chat-messages')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
+        async (payload) => {
           if (!isMounted) return;
           if (payload.new.room_id === state.activeRoomId) {
             // Only add message if it's for the active room and not from current user
             if (payload.new.sender_id !== user.id) {
+              // Fetch sender profile for the new message
+              const { data: senderProfile } = await supabase
+                .from('profiles')
+                .select('id, display_name, avatar_url')
+                .eq('id', payload.new.sender_id)
+                .single();
+
+              const transformedMessage: ChatMessage = {
+                id: payload.new.id,
+                room_id: payload.new.room_id,
+                sender_id: payload.new.sender_id,
+                content: payload.new.encrypted_content || '',
+                message_type: payload.new.message_type,
+                created_at: payload.new.created_at,
+                edited_at: payload.new.edited_at,
+                read_by: payload.new.read_by || [],
+                sender_profile: senderProfile || undefined
+              };
+
               setState(prev => ({
                 ...prev,
-                messages: [...prev.messages, payload.new as ChatMessage]
+                messages: [...prev.messages, transformedMessage]
               }));
             }
           }
