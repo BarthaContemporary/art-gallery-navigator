@@ -77,3 +77,12 @@ verify_jwt = false
 
 [functions.send-push-notification]
 verify_jwt = true
+
+[functions.google-oauth]
+verify_jwt = true
+
+[functions.google-contacts-sync]
+verify_jwt = true
+
+[functions.google-gmail]
+verify_jwt = true
