@@ -138,7 +138,7 @@ export function TaskFilters({ projectId, filters, onFiltersChange }: TaskFilters
                   <SelectItem value="unassigned">Unassigned</SelectItem>
                   {members?.map((m) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
-                      {m.profile?.display_name || 'Unknown'}
+                      {m.display_name || 'Unknown'}
                     </SelectItem>
                   ))}
                 </SelectContent>
