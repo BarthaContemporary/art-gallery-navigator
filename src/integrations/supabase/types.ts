@@ -1402,6 +1402,653 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_campaigns: {
+        Row: {
+          audience_snapshot: Json | null
+          clicks: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          from_email: string | null
+          from_name: string | null
+          id: string
+          list_id: string | null
+          name: string
+          opens: number | null
+          preview_text: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["crm_campaign_status"] | null
+          subject: string | null
+          total_recipients: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          audience_snapshot?: Json | null
+          clicks?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          list_id?: string | null
+          name: string
+          opens?: number | null
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["crm_campaign_status"] | null
+          subject?: string | null
+          total_recipients?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          audience_snapshot?: Json | null
+          clicks?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          list_id?: string | null
+          name?: string
+          opens?: number | null
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["crm_campaign_status"] | null
+          subject?: string | null
+          total_recipients?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaigns_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "crm_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_contacts: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          birthday: string | null
+          city: string | null
+          consent_date: string | null
+          consent_source: string | null
+          contact_type: Database["public"]["Enums"]["crm_contact_type"] | null
+          country: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_fields: Json | null
+          email: string | null
+          first_name: string | null
+          full_name: string
+          google_contact_id: string | null
+          id: string
+          instagram_handle: string | null
+          interested_artists: string[] | null
+          job_title: string | null
+          last_interaction_date: string | null
+          last_name: string | null
+          line_id: string | null
+          linkedin_handle: string | null
+          marketing_consent: boolean | null
+          notes: string | null
+          organization_id: string | null
+          phone: string | null
+          postal_code: string | null
+          secondary_email: string | null
+          secondary_phone: string | null
+          source: string | null
+          state: string | null
+          status: string | null
+          tags: string[] | null
+          updated_at: string | null
+          wechat_id: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          birthday?: string | null
+          city?: string | null
+          consent_date?: string | null
+          consent_source?: string | null
+          contact_type?: Database["public"]["Enums"]["crm_contact_type"] | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          first_name?: string | null
+          full_name: string
+          google_contact_id?: string | null
+          id?: string
+          instagram_handle?: string | null
+          interested_artists?: string[] | null
+          job_title?: string | null
+          last_interaction_date?: string | null
+          last_name?: string | null
+          line_id?: string | null
+          linkedin_handle?: string | null
+          marketing_consent?: boolean | null
+          notes?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          secondary_email?: string | null
+          secondary_phone?: string | null
+          source?: string | null
+          state?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          wechat_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          birthday?: string | null
+          city?: string | null
+          consent_date?: string | null
+          consent_source?: string | null
+          contact_type?: Database["public"]["Enums"]["crm_contact_type"] | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          first_name?: string | null
+          full_name?: string
+          google_contact_id?: string | null
+          id?: string
+          instagram_handle?: string | null
+          interested_artists?: string[] | null
+          job_title?: string | null
+          last_interaction_date?: string | null
+          last_name?: string | null
+          line_id?: string | null
+          linkedin_handle?: string | null
+          marketing_consent?: boolean | null
+          notes?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          secondary_email?: string | null
+          secondary_phone?: string | null
+          source?: string | null
+          state?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          wechat_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          display_order: number | null
+          expected_close_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string | null
+          pipeline_id: string | null
+          probability: number | null
+          related_artworks: string[] | null
+          related_exhibitions: string | null
+          stage_id: string | null
+          status: Database["public"]["Enums"]["crm_deal_status"] | null
+          updated_at: string | null
+          value: number | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          display_order?: number | null
+          expected_close_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id?: string | null
+          pipeline_id?: string | null
+          probability?: number | null
+          related_artworks?: string[] | null
+          related_exhibitions?: string | null
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_status"] | null
+          updated_at?: string | null
+          value?: number | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          display_order?: number | null
+          expected_close_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string | null
+          pipeline_id?: string | null
+          probability?: number | null
+          related_artworks?: string[] | null
+          related_exhibitions?: string | null
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_status"] | null
+          updated_at?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_export_history: {
+        Row: {
+          export_type: string
+          exported_at: string | null
+          exported_by: string | null
+          google_sheet_id: string | null
+          google_sheet_url: string | null
+          id: string
+          record_count: number | null
+          source_id: string | null
+          source_name: string | null
+          source_type: string
+        }
+        Insert: {
+          export_type: string
+          exported_at?: string | null
+          exported_by?: string | null
+          google_sheet_id?: string | null
+          google_sheet_url?: string | null
+          id?: string
+          record_count?: number | null
+          source_id?: string | null
+          source_name?: string | null
+          source_type: string
+        }
+        Update: {
+          export_type?: string
+          exported_at?: string | null
+          exported_by?: string | null
+          google_sheet_id?: string | null
+          google_sheet_url?: string | null
+          id?: string
+          record_count?: number | null
+          source_id?: string | null
+          source_name?: string | null
+          source_type?: string
+        }
+        Relationships: []
+      }
+      crm_integration_config: {
+        Row: {
+          auto_log_emails: boolean | null
+          auto_sync_contacts: boolean | null
+          created_at: string | null
+          google_access_token: string | null
+          google_refresh_token: string | null
+          google_scopes: string[] | null
+          google_token_expiry: string | null
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          auto_log_emails?: boolean | null
+          auto_sync_contacts?: boolean | null
+          created_at?: string | null
+          google_access_token?: string | null
+          google_refresh_token?: string | null
+          google_scopes?: string[] | null
+          google_token_expiry?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          auto_log_emails?: boolean | null
+          auto_sync_contacts?: boolean | null
+          created_at?: string | null
+          google_access_token?: string | null
+          google_refresh_token?: string | null
+          google_scopes?: string[] | null
+          google_token_expiry?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      crm_interactions: {
+        Row: {
+          calendar_event_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          direction:
+            | Database["public"]["Enums"]["crm_interaction_direction"]
+            | null
+          duration_minutes: number | null
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          interaction_date: string | null
+          notes: string | null
+          organization_id: string | null
+          subject: string | null
+          summary: string | null
+          type: Database["public"]["Enums"]["crm_interaction_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          direction?:
+            | Database["public"]["Enums"]["crm_interaction_direction"]
+            | null
+          duration_minutes?: number | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          interaction_date?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          subject?: string | null
+          summary?: string | null
+          type?: Database["public"]["Enums"]["crm_interaction_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          calendar_event_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          direction?:
+            | Database["public"]["Enums"]["crm_interaction_direction"]
+            | null
+          duration_minutes?: number | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          interaction_date?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          subject?: string | null
+          summary?: string | null
+          type?: Database["public"]["Enums"]["crm_interaction_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_interactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_list_members: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          contact_id: string | null
+          id: string
+          list_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          contact_id?: string | null
+          id?: string
+          list_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          contact_id?: string | null
+          id?: string
+          list_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_list_members_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_list_members_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "crm_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_lists: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          filter_rules: Json | null
+          id: string
+          name: string
+          type: Database["public"]["Enums"]["crm_list_type"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          filter_rules?: Json | null
+          id?: string
+          name: string
+          type?: Database["public"]["Enums"]["crm_list_type"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          filter_rules?: Json | null
+          id?: string
+          name?: string
+          type?: Database["public"]["Enums"]["crm_list_type"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      crm_organizations: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          custom_fields: Json | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          tags: string[] | null
+          type: Database["public"]["Enums"]["crm_organization_type"] | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          tags?: string[] | null
+          type?: Database["public"]["Enums"]["crm_organization_type"] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          tags?: string[] | null
+          type?: Database["public"]["Enums"]["crm_organization_type"] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      crm_pipeline_stages: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          name: string
+          pipeline_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          name: string
+          pipeline_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          name?: string
+          pipeline_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       deletion_requests: {
         Row: {
           created_at: string | null
@@ -3632,6 +4279,45 @@ export type Database = {
       appointment_status: "pending" | "confirmed" | "cancelled" | "completed"
       client_status: "active" | "inactive" | "prospect" | "lead" | "customer"
       communication_type: "email" | "phone" | "meeting" | "note" | "campaign"
+      crm_campaign_status:
+        | "draft"
+        | "scheduled"
+        | "sending"
+        | "sent"
+        | "archived"
+      crm_contact_type:
+        | "collector"
+        | "curator"
+        | "press"
+        | "institution"
+        | "artist"
+        | "advisor"
+        | "vip"
+        | "prospect"
+        | "other"
+      crm_deal_status: "open" | "won" | "lost"
+      crm_interaction_direction: "inbound" | "outbound" | "internal"
+      crm_interaction_type:
+        | "email"
+        | "call"
+        | "meeting"
+        | "instagram_dm"
+        | "whatsapp"
+        | "wechat"
+        | "line"
+        | "note"
+        | "task"
+        | "other"
+      crm_list_type: "static" | "dynamic"
+      crm_organization_type:
+        | "gallery"
+        | "museum"
+        | "foundation"
+        | "fair"
+        | "press"
+        | "corporation"
+        | "auction_house"
+        | "other"
       deletion_request_status: "pending" | "approved" | "rejected"
       message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
@@ -3769,6 +4455,49 @@ export const Constants = {
       appointment_status: ["pending", "confirmed", "cancelled", "completed"],
       client_status: ["active", "inactive", "prospect", "lead", "customer"],
       communication_type: ["email", "phone", "meeting", "note", "campaign"],
+      crm_campaign_status: [
+        "draft",
+        "scheduled",
+        "sending",
+        "sent",
+        "archived",
+      ],
+      crm_contact_type: [
+        "collector",
+        "curator",
+        "press",
+        "institution",
+        "artist",
+        "advisor",
+        "vip",
+        "prospect",
+        "other",
+      ],
+      crm_deal_status: ["open", "won", "lost"],
+      crm_interaction_direction: ["inbound", "outbound", "internal"],
+      crm_interaction_type: [
+        "email",
+        "call",
+        "meeting",
+        "instagram_dm",
+        "whatsapp",
+        "wechat",
+        "line",
+        "note",
+        "task",
+        "other",
+      ],
+      crm_list_type: ["static", "dynamic"],
+      crm_organization_type: [
+        "gallery",
+        "museum",
+        "foundation",
+        "fair",
+        "press",
+        "corporation",
+        "auction_house",
+        "other",
+      ],
       deletion_request_status: ["pending", "approved", "rejected"],
       message_type: ["text", "file", "image"],
       project_status: ["active", "scheduled", "completed", "abandoned"],
