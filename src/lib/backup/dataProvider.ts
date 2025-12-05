@@ -31,7 +31,8 @@ export async function fetchDataForTable(
   startDate?: string,
   endDate?: string
 ) {
-  let query = supabase.from(tableName).select('*');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from(tableName) as any).select('*');
 
   const tableTimestampInfo = timestampColumns[tableName];
   let appliedDateFilter = false;
