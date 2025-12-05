@@ -19,6 +19,8 @@ import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
 import { KanbanBoard } from "../kanban";
 import { ViewSwitcher, ProjectView } from "../ViewSwitcher";
+import { CalendarView, TimelineView, TaskFilters, defaultFilters, TaskFiltersState } from "../views";
+import { EnhancedTaskPanel } from "../task-panel";
 
 const ProjectDetailPage = () => {
   const navigate = useNavigate();
@@ -29,6 +31,9 @@ const ProjectDetailPage = () => {
   const projectDialogs = useProjectDialogs();
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ProjectView>('board');
+  const [filters, setFilters] = useState<TaskFiltersState>(defaultFilters);
+  const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   
   const { 
     data: project, 
@@ -89,7 +94,7 @@ const ProjectDetailPage = () => {
   };
 
   const handleKanbanTaskClick = (task: KanbanTask) => {
-    // Convert KanbanTask to TaskWithAssignee for the dialog
+    // Convert KanbanTask to TaskWithAssignee for the panel
     const taskWithAssignee: TaskWithAssignee = {
       id: task.id,
       project_id: task.project_id,
@@ -102,14 +107,44 @@ const ProjectDetailPage = () => {
       created_at: task.created_at,
       updated_at: task.updated_at,
       assignee: task.assignee,
+      section_id: task.section_id,
+      priority: task.priority,
+      position: task.position,
     };
-    projectDialogs.openTaskEditDialog(taskWithAssignee);
+    setSelectedTask(taskWithAssignee);
+    setTaskPanelOpen(true);
+  };
+
+  const handleTaskClick = (task: TaskWithAssignee) => {
+    setSelectedTask(task);
+    setTaskPanelOpen(true);
   };
 
   const handleAddTaskFromKanban = (sectionId?: string) => {
-    // Store the section ID for use when creating the task
     projectDialogs.setCreateTaskDialogOpen(true);
   };
+
+  // Filter tasks based on current filters
+  const filteredTasks = projectTasks?.filter(task => {
+    if (filters.search && !task.name.toLowerCase().includes(filters.search.toLowerCase())) {
+      return false;
+    }
+    if (filters.status !== 'all' && task.status !== filters.status) {
+      return false;
+    }
+    if (filters.priority !== 'all' && task.priority !== filters.priority) {
+      return false;
+    }
+    if (filters.assignee !== 'all') {
+      if (filters.assignee === 'unassigned' && task.assigned_to) {
+        return false;
+      }
+      if (filters.assignee !== 'unassigned' && task.assigned_to !== filters.assignee) {
+        return false;
+      }
+    }
+    return true;
+  });
   
   return (
     <div className="p-4 sm:p-6 max-w-full mx-auto">
@@ -122,18 +157,22 @@ const ProjectDetailPage = () => {
         onCalendarViewClick={() => projectDialogs.setCalendarViewOpen(true)}
       />
       
-      {/* View Switcher */}
-      <div className="flex items-center justify-between mb-4">
+      {/* View Switcher and Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <ViewSwitcher view={currentView} onViewChange={setCurrentView} />
         
-        {(isAdmin || actualUserIsMember) && currentView === 'list' && (
-          <button
-            onClick={() => projectDialogs.setCreateTaskDialogOpen(true)}
-            className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Add Task
-          </button>
-        )}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {id && <TaskFilters projectId={id} filters={filters} onFiltersChange={setFilters} />}
+          
+          {(isAdmin || actualUserIsMember) && (
+            <button
+              onClick={() => projectDialogs.setCreateTaskDialogOpen(true)}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
+            >
+              Add Task
+            </button>
+          )}
+        </div>
       </div>
       
       {/* View Content */}
@@ -147,26 +186,38 @@ const ProjectDetailPage = () => {
       
       {currentView === 'list' && (
         <ProjectTasksList 
-          tasks={projectTasks}
+          tasks={filteredTasks}
           isAdmin={isAdmin}
           userIsMember={actualUserIsMember}
           onCreateTask={() => projectDialogs.setCreateTaskDialogOpen(true)}
-          onEditTask={(task) => projectDialogs.openTaskEditDialog(task)}
+          onEditTask={handleTaskClick}
           isLoading={tasksLoading}
           isError={tasksError}
         />
       )}
       
-      {currentView === 'calendar' && (
-        <div className="flex items-center justify-center h-64 border border-dashed border-border">
-          <p className="text-muted-foreground">Calendar view coming soon</p>
-        </div>
+      {currentView === 'calendar' && id && (
+        <CalendarView
+          tasks={filteredTasks || []}
+          onTaskClick={handleTaskClick}
+        />
       )}
       
-      {currentView === 'timeline' && (
-        <div className="flex items-center justify-center h-64 border border-dashed border-border">
-          <p className="text-muted-foreground">Timeline view coming soon</p>
-        </div>
+      {currentView === 'timeline' && id && (
+        <TimelineView
+          tasks={filteredTasks || []}
+          onTaskClick={handleTaskClick}
+        />
+      )}
+
+      {/* Enhanced Task Panel */}
+      {selectedTask && id && (
+        <EnhancedTaskPanel
+          task={selectedTask}
+          projectId={id}
+          open={taskPanelOpen}
+          onOpenChange={setTaskPanelOpen}
+        />
       )}
       
       <ProjectDialogsManager
