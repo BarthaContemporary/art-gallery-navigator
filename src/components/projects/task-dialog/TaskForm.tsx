@@ -119,7 +119,7 @@ export function TaskForm({ projectId, task, onClose }: TaskFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 px-6">
         {error && (
           <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4 text-sm">
             {error}
