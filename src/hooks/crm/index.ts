@@ -5,3 +5,4 @@ export * from './use-crm-lists';
 export * from './use-crm-campaigns';
 export * from './use-crm-pipelines';
 export * from './use-crm-export';
+export * from './use-google-integration';
