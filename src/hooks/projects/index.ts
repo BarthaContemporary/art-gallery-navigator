@@ -1,4 +1,3 @@
-
 // Export project list hook
 export * from "./use-projects-list";
 
@@ -16,6 +15,10 @@ export * from "./use-task-references";
 
 // Export project members hook
 export * from "./use-project-members";
+
+// Export section hooks (Kanban)
+export * from "./use-sections";
+export * from "./use-kanban-tasks";
 
 // Export type definitions
 export * from "./types";
