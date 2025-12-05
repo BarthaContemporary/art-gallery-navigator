@@ -22,6 +22,7 @@ import Collections from "@/pages/Collections";
 import Documents from "@/pages/Documents";
 import FileSharing from "@/pages/FileSharing";
 import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
 import Locations from "@/pages/Locations";
 import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
@@ -63,6 +64,7 @@ function App() {
                   <Route path="documents" element={<Navigate to="/file-sharing" replace />} />
                   <Route path="file-sharing" element={<FileSharing />} />
                   <Route path="projects" element={<Projects />} />
+                  <Route path="projects/:id" element={<ProjectDetail />} />
                   <Route path="locations" element={<Locations />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="appointments" element={<GoogleCalendarAppointments />} />
