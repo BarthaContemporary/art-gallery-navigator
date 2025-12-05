@@ -19,9 +19,9 @@ export function ElegantDialIndicator({
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-      <div className="relative bg-black/60 backdrop-blur-sm rounded-full p-3 flex items-center justify-center">
+      <div className="relative bg-black/60 backdrop-blur-sm rounded-full p-5 flex items-center justify-center min-w-[80px]">
         {/* Counter Text */}
-        <div className="text-white text-sm font-medium px-2">
+        <div className="text-white text-sm font-medium px-4">
           {currentIndex + 1} / {totalImages}
         </div>
         
@@ -55,8 +55,8 @@ export function ElegantDialIndicator({
         <div className="absolute inset-0 rounded-full">
           {Array.from({ length: totalImages }, (_, index) => {
             const angle = (index / totalImages) * 360 - 90;
-            const x = 50 + 35 * Math.cos((angle * Math.PI) / 180);
-            const y = 50 + 35 * Math.sin((angle * Math.PI) / 180);
+            const x = 50 + 40 * Math.cos((angle * Math.PI) / 180);
+            const y = 50 + 40 * Math.sin((angle * Math.PI) / 180);
             
             return (
               <button
