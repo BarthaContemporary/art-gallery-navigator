@@ -20,5 +20,17 @@ export * from "./use-project-members";
 export * from "./use-sections";
 export * from "./use-kanban-tasks";
 
+// Export subtasks, comments, attachments, activity
+export * from "./use-subtasks";
+export * from "./use-task-comments";
+export * from "./use-task-attachments";
+export * from "./use-task-activity";
+
+// Export notifications
+export * from "./use-notifications";
+
+// Export tags
+export * from "./use-project-tags";
+
 // Export type definitions
 export * from "./types";
