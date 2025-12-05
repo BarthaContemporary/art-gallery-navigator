@@ -1,9 +1,9 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { TaskWithAssignee } from "@/hooks/projects";
 import { format } from "date-fns";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface ProjectTasksListProps {
@@ -51,18 +51,7 @@ export function ProjectTasksList({
   
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <h2 className="text-lg font-semibold">Tasks</h2>
-        {(isAdmin || userIsMember) && (
-          <Button 
-            variant="outline" 
-            onClick={handleCreateTaskClick}
-          >
-            <CalendarPlus className="mr-2 h-4 w-4" /> Add Task
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

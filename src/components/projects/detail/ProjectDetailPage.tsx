@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -8,17 +7,18 @@ import {
   useProject, 
   useProjectMembers, 
   useProjectTasks,
-  ProjectWithLocation, // Ensure type is imported
-  TaskWithAssignee // Ensure type is imported
-} from "@/hooks/projects"; // Standardized import path
+  ProjectWithLocation,
+  TaskWithAssignee,
+  KanbanTask
+} from "@/hooks/projects";
 
 import { ProjectDetailHeader } from "./ProjectDetailHeader";
-// ProjectTeamSection import removed
 import { ProjectTasksList } from "./ProjectTasksList";
 import { ProjectDialogsManager } from "./ProjectDialogsManager";
 import { useProjectDialogs } from "./useProjectDialogs";
 import { useAuth } from "@/hooks/use-auth";
-// DebugInfo import removed
+import { KanbanBoard } from "../kanban";
+import { ViewSwitcher, ProjectView } from "../ViewSwitcher";
 
 const ProjectDetailPage = () => {
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ const ProjectDetailPage = () => {
   
   const projectDialogs = useProjectDialogs();
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<ProjectView>('board');
   
   const { 
     data: project, 
@@ -59,10 +60,7 @@ const ProjectDetailPage = () => {
     }
   }, [membersError, membersErrorDetails, tasksError, tasksErrorDetails]);
   
-  // Refined userIsMember logic
   const actualUserIsMember = isAdmin || (members?.some(member => member.user_id === user?.id) ?? false);
-  
-  // debugData variable removed
   
   if (isLoading) {
     return <div className="p-6 text-center">Loading project details...</div>;
@@ -75,7 +73,7 @@ const ProjectDetailPage = () => {
         <div className="text-red-500 mb-4">Failed to load project details.</div>
         <button 
           onClick={() => navigate("/projects")}
-          className="px-4 py-2 bg-primary text-white rounded-md"
+          className="px-4 py-2 bg-primary text-white"
         >
           Return to Projects
         </button>
@@ -89,9 +87,32 @@ const ProjectDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ['project-members', id] });
     }, 300);
   };
+
+  const handleKanbanTaskClick = (task: KanbanTask) => {
+    // Convert KanbanTask to TaskWithAssignee for the dialog
+    const taskWithAssignee: TaskWithAssignee = {
+      id: task.id,
+      project_id: task.project_id,
+      name: task.name,
+      description: task.description,
+      status: task.status,
+      start_date: task.start_date,
+      end_date: task.end_date,
+      assigned_to: task.assigned_to,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+      assignee: task.assignee,
+    };
+    projectDialogs.openTaskEditDialog(taskWithAssignee);
+  };
+
+  const handleAddTaskFromKanban = (sectionId?: string) => {
+    // Store the section ID for use when creating the task
+    projectDialogs.setCreateTaskDialogOpen(true);
+  };
   
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-full mx-auto">
       <ProjectDetailHeader 
         project={project!} 
         userIsMember={actualUserIsMember}
@@ -101,17 +122,52 @@ const ProjectDetailPage = () => {
         onCalendarViewClick={() => projectDialogs.setCalendarViewOpen(true)}
       />
       
-      {/* ProjectTeamSection component usage removed */}
+      {/* View Switcher */}
+      <div className="flex items-center justify-between mb-4">
+        <ViewSwitcher view={currentView} onViewChange={setCurrentView} />
+        
+        {(isAdmin || actualUserIsMember) && currentView === 'list' && (
+          <button
+            onClick={() => projectDialogs.setCreateTaskDialogOpen(true)}
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            Add Task
+          </button>
+        )}
+      </div>
       
-      <ProjectTasksList 
-        tasks={projectTasks}
-        isAdmin={isAdmin}
-        userIsMember={actualUserIsMember}
-        onCreateTask={() => projectDialogs.setCreateTaskDialogOpen(true)}
-        onEditTask={(task) => projectDialogs.openTaskEditDialog(task)}
-        isLoading={tasksLoading}
-        isError={tasksError}
-      />
+      {/* View Content */}
+      {currentView === 'board' && id && (
+        <KanbanBoard
+          projectId={id}
+          onTaskClick={handleKanbanTaskClick}
+          onAddTask={handleAddTaskFromKanban}
+        />
+      )}
+      
+      {currentView === 'list' && (
+        <ProjectTasksList 
+          tasks={projectTasks}
+          isAdmin={isAdmin}
+          userIsMember={actualUserIsMember}
+          onCreateTask={() => projectDialogs.setCreateTaskDialogOpen(true)}
+          onEditTask={(task) => projectDialogs.openTaskEditDialog(task)}
+          isLoading={tasksLoading}
+          isError={tasksError}
+        />
+      )}
+      
+      {currentView === 'calendar' && (
+        <div className="flex items-center justify-center h-64 border border-dashed border-border">
+          <p className="text-muted-foreground">Calendar view coming soon</p>
+        </div>
+      )}
+      
+      {currentView === 'timeline' && (
+        <div className="flex items-center justify-center h-64 border border-dashed border-border">
+          <p className="text-muted-foreground">Timeline view coming soon</p>
+        </div>
+      )}
       
       <ProjectDialogsManager
         project={project!} 
@@ -122,8 +178,6 @@ const ProjectDetailPage = () => {
         }}
         navigate={navigate}
       />
-      
-      {/* DebugInfo component usage removed */}
     </div>
   );
 };
