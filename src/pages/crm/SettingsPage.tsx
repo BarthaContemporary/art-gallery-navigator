@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,17 @@ export default function SettingsPage() {
   // Handle OAuth callback
   useEffect(() => {
     const code = searchParams.get('code');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    
+    if (error) {
+      // Google returned an error
+      console.error('Google OAuth error:', error, errorDescription);
+      toast.error(`Google error: ${errorDescription || error}`);
+      setSearchParams({});
+      return;
+    }
+    
     if (code) {
       handleOAuthCallback(code)
         .then(() => {
