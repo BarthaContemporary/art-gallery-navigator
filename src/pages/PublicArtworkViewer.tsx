@@ -3,7 +3,9 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
-import type { ViewerArtworkImage } from '@/types/viewer';
+import { ProgressiveImage } from '@/components/viewer/ProgressiveImage';
+import { ThumbnailStrip } from '@/components/viewer/ThumbnailStrip';
+import { ViewerImageOptimizer } from '@/services/viewer/image-optimizer';
 
 export default function PublicArtworkViewer() {
   const { id } = useParams<{ id: string }>();
@@ -59,12 +61,21 @@ export default function PublicArtworkViewer() {
     setPan({ x: 0, y: 0 });
   }, [activeIndex]);
 
-  // Preload next image
+  // Preload next image using optimized URL
   useEffect(() => {
     if (images.length > 1) {
       const nextIndex = (activeIndex + 1) % images.length;
-      const img = new Image();
-      img.src = images[nextIndex].large_url || images[nextIndex].original_url;
+      const nextImage = images[nextIndex];
+      // Preload small version first for quick thumbnail, then medium
+      ViewerImageOptimizer.preloadImage(
+        ViewerImageOptimizer.getOptimizedUrl(nextImage, 'small')
+      ).then(() => {
+        ViewerImageOptimizer.preloadImage(
+          ViewerImageOptimizer.getOptimizedUrl(nextImage, 'medium')
+        );
+      }).catch(() => {
+        // Silently handle preload errors
+      });
     }
   }, [activeIndex, images]);
 
@@ -187,7 +198,7 @@ export default function PublicArtworkViewer() {
       )}
       onWheel={handleWheel}
     >
-      {/* Main Image */}
+      {/* Main Image with Progressive Loading */}
       <div
         className="absolute inset-0 flex items-center justify-center"
         onPointerDown={handlePointerDown}
@@ -195,12 +206,12 @@ export default function PublicArtworkViewer() {
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
       >
-        <img
-          ref={imageRef}
-          src={activeImage.large_url || activeImage.original_url}
+        <ProgressiveImage
+          image={activeImage}
           alt={activeImage.alt_text || artwork.title}
+          zoom={zoom}
           className={cn(
-            "max-w-none transition-transform duration-100",
+            "transition-transform duration-100",
             mode === 'fit' ? "max-h-full max-w-full object-contain" : "min-h-full min-w-full object-cover"
           )}
           style={{
@@ -294,36 +305,13 @@ export default function PublicArtworkViewer() {
         </button>
       </div>
 
-      {/* Thumbnail Strip */}
-      {images.length > 1 && (
-        <div className={cn(
-          "absolute bottom-20 left-1/2 -translate-x-1/2 max-w-[90vw]",
-          "backdrop-blur-xl bg-white/10 border border-white/20 rounded-lg",
-          "p-2 flex gap-2 overflow-x-auto transition-opacity duration-300",
-          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}>
-          {images.map((img, idx) => (
-            <button
-              key={img.id}
-              onClick={() => setActiveIndex(idx)}
-              className={cn(
-                "flex-shrink-0 w-12 h-12 rounded overflow-hidden transition-all",
-                "ring-2 ring-offset-2 ring-offset-transparent",
-                idx === activeIndex
-                  ? "ring-white"
-                  : "ring-transparent hover:ring-white/50"
-              )}
-            >
-              <img
-                src={img.small_url || img.medium_url || img.original_url}
-                alt=""
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Optimized Thumbnail Strip */}
+      <ThumbnailStrip
+        images={images}
+        activeIndex={activeIndex}
+        onSelect={setActiveIndex}
+        visible={showControls}
+      />
     </div>
   );
 }
