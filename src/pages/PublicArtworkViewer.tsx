@@ -140,7 +140,7 @@ export default function PublicArtworkViewer() {
     return (
       <div className={cn(
         "fixed inset-0 flex items-center justify-center",
-        forceDark ? "bg-black" : "bg-background"
+        forceDark ? "bg-black" : "bg-neutral-200"
       )}>
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
@@ -152,7 +152,7 @@ export default function PublicArtworkViewer() {
     return (
       <div className={cn(
         "fixed inset-0 flex items-center justify-center",
-        forceDark ? "bg-black text-white" : "bg-background"
+        forceDark ? "bg-black text-white" : "bg-neutral-200"
       )}>
         <div className="text-center">
           <h1 className="text-xl font-medium mb-2">Artwork not found</h1>
@@ -167,7 +167,7 @@ export default function PublicArtworkViewer() {
     return (
       <div className={cn(
         "fixed inset-0 flex items-center justify-center",
-        forceDark ? "bg-black text-white" : "bg-background"
+        forceDark ? "bg-black text-white" : "bg-neutral-200"
       )}>
         <div className="text-center">
           <h1 className="text-xl font-medium mb-2">{artwork.title}</h1>
@@ -182,7 +182,7 @@ export default function PublicArtworkViewer() {
       ref={containerRef}
       className={cn(
         "fixed inset-0 overflow-hidden select-none",
-        forceDark ? "bg-black" : "bg-background",
+        forceDark ? "bg-black" : "bg-neutral-200",
         isDragging ? "cursor-grabbing" : zoom > 1 ? "cursor-grab" : "cursor-default"
       )}
       onWheel={handleWheel}
@@ -253,7 +253,7 @@ export default function PublicArtworkViewer() {
         
         <button
           onClick={() => handleZoom(-0.5)}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
           title="Zoom out"
         >
           <ZoomOut className="h-4 w-4 text-white" />
@@ -265,7 +265,7 @@ export default function PublicArtworkViewer() {
         
         <button
           onClick={() => handleZoom(0.5)}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
           title="Zoom in"
         >
           <ZoomIn className="h-4 w-4 text-white" />
