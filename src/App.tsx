@@ -49,6 +49,10 @@ import {
   SettingsPage as AdminSettingsPage,
   LogsPage as AdminLogsPage
 } from "@/pages/admin";
+import ViewerArtworksPage from "@/pages/admin/ViewerArtworksPage";
+import ViewerArtworkDetailPage from "@/pages/admin/ViewerArtworkDetailPage";
+import ViewerSettingsPage from "@/pages/admin/ViewerSettingsPage";
+import PublicArtworkViewer from "@/pages/PublicArtworkViewer";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +69,7 @@ function App() {
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/book-appointment" element={<BookAppointment />} />
+                <Route path="/w/:id" element={<PublicArtworkViewer />} />
                 <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                 <Route path="/" element={
                   <RequireAuth>
@@ -98,6 +103,9 @@ function App() {
                     <Route path="integrations" element={<AdminIntegrationsPage />} />
                     <Route path="settings" element={<AdminSettingsPage />} />
                     <Route path="logs" element={<AdminLogsPage />} />
+                    <Route path="viewer" element={<ViewerArtworksPage />} />
+                    <Route path="viewer/:id" element={<ViewerArtworkDetailPage />} />
+                    <Route path="viewer/settings" element={<ViewerSettingsPage />} />
                   </Route>
                   <Route path="manage-websites" element={<ManageWebsites />} />
                   <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
