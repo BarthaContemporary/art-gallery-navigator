@@ -3451,6 +3451,113 @@ export type Database = {
         }
         Relationships: []
       }
+      viewer_artwork_images: {
+        Row: {
+          alt_text: string | null
+          artwork_id: string
+          created_at: string | null
+          height: number | null
+          id: string
+          large_url: string | null
+          medium_url: string | null
+          original_url: string
+          position: number | null
+          small_url: string | null
+          updated_at: string | null
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          artwork_id: string
+          created_at?: string | null
+          height?: number | null
+          id?: string
+          large_url?: string | null
+          medium_url?: string | null
+          original_url: string
+          position?: number | null
+          small_url?: string | null
+          updated_at?: string | null
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          artwork_id?: string
+          created_at?: string | null
+          height?: number | null
+          id?: string
+          large_url?: string | null
+          medium_url?: string | null
+          original_url?: string
+          position?: number | null
+          small_url?: string | null
+          updated_at?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viewer_artwork_images_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "viewer_artworks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viewer_artworks: {
+        Row: {
+          artist_name: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          slug: string | null
+          title: string
+          updated_at: string | null
+          year: string | null
+        }
+        Insert: {
+          artist_name: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          slug?: string | null
+          title: string
+          updated_at?: string | null
+          year?: string | null
+        }
+        Update: {
+          artist_name?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          slug?: string | null
+          title?: string
+          updated_at?: string | null
+          year?: string | null
+        }
+        Relationships: []
+      }
+      viewer_embed_domains: {
+        Row: {
+          created_at: string | null
+          domain: string
+          id: string
+          is_active: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          domain: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          domain?: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
       webdav_access_logs: {
         Row: {
           created_at: string
@@ -3957,6 +4064,7 @@ export type Database = {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string
       }
+      generate_short_id: { Args: { length?: number }; Returns: string }
       get_admin_storage_credentials_decrypted: {
         Args: never
         Returns: {
