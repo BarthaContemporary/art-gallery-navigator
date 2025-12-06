@@ -19,7 +19,7 @@ export function Navigation() {
   const adminNavItems = [
     { href: "/crm", icon: Users, name: "CRM" },
     { href: "/projects", icon: Archive, name: "Projects" },
-    { href: "/admin/viewer", icon: Image, name: "Image Viewer" },
+    { href: "/viewer", icon: Image, name: "Image Viewer" },
     { href: "/admin", icon: Settings, name: "Admin" },
   ];
 

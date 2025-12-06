@@ -42,7 +42,7 @@ export default function ViewerArtworksPage() {
     const result = await createArtwork.mutateAsync(formData);
     setCreateOpen(false);
     setFormData({ artist_name: '', title: '', year: '' });
-    navigate(`/admin/viewer/${result.id}`);
+    navigate(`/viewer/${result.id}`);
   };
 
   const handleDelete = async () => {
@@ -80,7 +80,7 @@ export default function ViewerArtworksPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/admin/viewer/settings')}>
+          <Button variant="outline" onClick={() => navigate('/viewer/settings')}>
             <Settings2 className="h-4 w-4 mr-2" />
             Settings
           </Button>
@@ -160,7 +160,7 @@ export default function ViewerArtworksPage() {
             <Card
               key={artwork.id}
               className="group cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate(`/admin/viewer/${artwork.id}`)}
+              onClick={() => navigate(`/viewer/${artwork.id}`)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">

@@ -216,7 +216,7 @@ export default function ViewerArtworkDetailPage() {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">Artwork not found</p>
-        <Button variant="link" onClick={() => navigate('/admin/viewer')} className="mt-2 px-0">
+        <Button variant="link" onClick={() => navigate('/viewer')} className="mt-2 px-0">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to artworks
         </Button>
@@ -227,7 +227,7 @@ export default function ViewerArtworkDetailPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/viewer')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/viewer')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">

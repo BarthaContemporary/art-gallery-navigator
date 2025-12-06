@@ -49,9 +49,10 @@ import {
   SettingsPage as AdminSettingsPage,
   LogsPage as AdminLogsPage
 } from "@/pages/admin";
-import ViewerArtworksPage from "@/pages/admin/ViewerArtworksPage";
-import ViewerArtworkDetailPage from "@/pages/admin/ViewerArtworkDetailPage";
-import ViewerSettingsPage from "@/pages/admin/ViewerSettingsPage";
+import ViewerLayout from "@/pages/viewer/ViewerLayout";
+import ViewerArtworksPage from "@/pages/viewer/ViewerArtworksPage";
+import ViewerArtworkDetailPage from "@/pages/viewer/ViewerArtworkDetailPage";
+import ViewerSettingsPage from "@/pages/viewer/ViewerSettingsPage";
 import PublicArtworkViewer from "@/pages/PublicArtworkViewer";
 
 const queryClient = new QueryClient();
@@ -103,9 +104,11 @@ function App() {
                     <Route path="integrations" element={<AdminIntegrationsPage />} />
                     <Route path="settings" element={<AdminSettingsPage />} />
                     <Route path="logs" element={<AdminLogsPage />} />
-                    <Route path="viewer" element={<ViewerArtworksPage />} />
-                    <Route path="viewer/:id" element={<ViewerArtworkDetailPage />} />
-                    <Route path="viewer/settings" element={<ViewerSettingsPage />} />
+                  </Route>
+                  <Route path="viewer" element={<ViewerLayout />}>
+                    <Route index element={<ViewerArtworksPage />} />
+                    <Route path=":id" element={<ViewerArtworkDetailPage />} />
+                    <Route path="settings" element={<ViewerSettingsPage />} />
                   </Route>
                   <Route path="manage-websites" element={<ManageWebsites />} />
                   <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
