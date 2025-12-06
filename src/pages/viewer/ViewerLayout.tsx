@@ -1,12 +1,9 @@
 import { Outlet, NavLink, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { 
-  LayoutDashboard,
-  Users,
-  Shield,
-  Plug,
+  Image,
+  List,
   Settings,
-  ScrollText,
   ChevronRight,
   Menu,
   X
@@ -15,15 +12,12 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const adminNavItems = [
-  { href: "/admin", icon: LayoutDashboard, label: "Overview", end: true },
-  { href: "/admin/users", icon: Users, label: "Users & Roles" },
-  { href: "/admin/integrations", icon: Plug, label: "Integrations" },
-  { href: "/admin/settings", icon: Settings, label: "Settings" },
-  { href: "/admin/logs", icon: ScrollText, label: "Logs & Audit" },
+const viewerNavItems = [
+  { href: "/viewer", icon: List, label: "Artworks", end: true },
+  { href: "/viewer/settings", icon: Settings, label: "Embed Settings" },
 ];
 
-export default function AdminLayout() {
+export default function ViewerLayout() {
   const { isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -51,7 +45,7 @@ export default function AdminLayout() {
         />
       )}
 
-      {/* Admin Sub-navigation */}
+      {/* Viewer Sub-navigation */}
       <aside className={cn(
         "w-56 border-r border-border bg-muted/30 flex-shrink-0 flex flex-col",
         "fixed md:relative inset-y-0 left-0 z-50 transition-transform duration-200",
@@ -59,13 +53,13 @@ export default function AdminLayout() {
       )}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold text-lg">Admin</h2>
+            <Image className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-lg">Image Viewer</h2>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">System management</p>
+          <p className="text-xs text-muted-foreground mt-1">Manage artwork viewers</p>
         </div>
         <nav className="p-2 space-y-1 flex-1">
-          {adminNavItems.map((item) => (
+          {viewerNavItems.map((item) => (
             <NavLink
               key={item.href}
               to={item.href}
