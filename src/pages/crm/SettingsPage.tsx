@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import { GoogleContactsImportDialog } from "@/components/crm/settings/GoogleCont
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const callbackHandledRef = useRef(false);
   
   const {
     config,
@@ -43,8 +44,11 @@ export default function SettingsPage() {
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
     
+    // Prevent double-execution
+    if (callbackHandledRef.current) return;
+    
     if (error) {
-      // Google returned an error
+      callbackHandledRef.current = true;
       console.error('Google OAuth error:', error, errorDescription);
       toast.error(`Google error: ${errorDescription || error}`);
       setSearchParams({});
@@ -52,13 +56,19 @@ export default function SettingsPage() {
     }
     
     if (code) {
+      callbackHandledRef.current = true;
+      console.log('CRM SettingsPage: Processing OAuth callback with code');
+      
       handleOAuthCallback(code)
         .then(() => {
-          // Clear URL params after successful auth
+          console.log('CRM SettingsPage: OAuth callback successful');
           setSearchParams({});
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error('CRM SettingsPage: OAuth callback failed:', err);
           setSearchParams({});
+          // Reset ref so user can try again
+          callbackHandledRef.current = false;
         });
     }
   }, [searchParams, handleOAuthCallback, setSearchParams]);

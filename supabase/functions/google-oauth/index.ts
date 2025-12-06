@@ -34,6 +34,7 @@ serve(async (req) => {
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('Missing authorization header');
       throw new Error('Missing authorization header');
     }
 
@@ -42,8 +43,11 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      console.error('Auth error:', authError);
       throw new Error('Unauthorized');
     }
+
+    console.log(`User authenticated: ${user.id}`);
 
     if (action === 'get-auth-url') {
       // Generate OAuth URL
@@ -58,7 +62,7 @@ serve(async (req) => {
       });
 
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-      console.log('Generated auth URL for user:', user.id);
+      console.log('Generated auth URL for user:', user.id, 'with redirect_uri:', redirectUri);
 
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -68,6 +72,22 @@ serve(async (req) => {
     if (action === 'exchange-code') {
       // Exchange authorization code for tokens
       console.log('Exchanging code for tokens...');
+      console.log('Redirect URI used for exchange:', redirectUri);
+      
+      if (!code) {
+        console.error('Missing authorization code');
+        throw new Error('Missing authorization code');
+      }
+
+      if (!redirectUri) {
+        console.error('Missing redirect URI');
+        throw new Error('Missing redirect URI');
+      }
+
+      if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+        console.error('Missing Google OAuth credentials');
+        throw new Error('Server configuration error: Missing OAuth credentials');
+      }
       
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -84,11 +104,16 @@ serve(async (req) => {
       const tokenData = await tokenResponse.json();
       
       if (tokenData.error) {
-        console.error('Token exchange error:', tokenData);
+        console.error('Token exchange error from Google:', tokenData);
+        console.error('Error details:', {
+          error: tokenData.error,
+          error_description: tokenData.error_description,
+          redirect_uri_used: redirectUri
+        });
         throw new Error(tokenData.error_description || tokenData.error);
       }
 
-      console.log('Token exchange successful');
+      console.log('Token exchange successful, storing tokens...');
 
       // Store tokens in database
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
@@ -109,7 +134,7 @@ serve(async (req) => {
         });
 
       if (upsertError) {
-        console.error('Error storing tokens:', upsertError);
+        console.error('Error storing tokens in database:', upsertError);
         throw upsertError;
       }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
@@ -22,6 +22,9 @@ export function useGoogleIntegration() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  
+  // Track if we've already processed the callback to prevent double-execution
+  const callbackProcessedRef = useRef(false);
 
   const fetchConfig = useCallback(async () => {
     if (!user?.id) return;
@@ -53,14 +56,14 @@ export function useGoogleIntegration() {
     fetchConfig();
   }, [fetchConfig]);
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     if (!user) return;
     
     setIsConnecting(true);
     try {
-      const redirectUri = `${window.location.origin}/crm/settings`;
-      
-      const { data: session } = await supabase.auth.getSession();
+      // Use current page path for redirect - supports both /crm/settings and /admin/integrations
+      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      console.log('Google OAuth: Starting connection with redirect URI:', redirectUri);
       
       const response = await supabase.functions.invoke('google-oauth', {
         body: {
@@ -72,9 +75,11 @@ export function useGoogleIntegration() {
 
       if (response.error) throw response.error;
       
-      // Store state for callback
-      localStorage.setItem('google_oauth_state', user.id);
-      localStorage.setItem('google_oauth_redirect', redirectUri);
+      // Store state for callback - use sessionStorage for better reliability across page loads
+      sessionStorage.setItem('google_oauth_state', user.id);
+      sessionStorage.setItem('google_oauth_redirect', redirectUri);
+      
+      console.log('Google OAuth: Stored session state, redirecting to Google...');
       
       // Open Google OAuth in same window
       window.location.href = response.data.authUrl;
@@ -83,21 +88,40 @@ export function useGoogleIntegration() {
       toast.error('Failed to connect Google Workspace');
       setIsConnecting(false);
     }
-  };
+  }, [user]);
 
-  const handleOAuthCallback = async (code: string) => {
-    const state = localStorage.getItem('google_oauth_state');
-    const redirectUri = localStorage.getItem('google_oauth_redirect');
+  const handleOAuthCallback = useCallback(async (code: string): Promise<void> => {
+    // Prevent double-execution (React Strict Mode, etc.)
+    if (callbackProcessedRef.current) {
+      console.log('Google OAuth: Callback already processed, skipping');
+      return;
+    }
+    callbackProcessedRef.current = true;
     
-    localStorage.removeItem('google_oauth_state');
-    localStorage.removeItem('google_oauth_redirect');
+    // Read values from sessionStorage (more reliable than localStorage for full page reloads)
+    const state = sessionStorage.getItem('google_oauth_state');
+    const redirectUri = sessionStorage.getItem('google_oauth_redirect');
+    
+    console.log('Google OAuth: Processing callback', { 
+      hasCode: !!code, 
+      hasState: !!state, 
+      hasRedirectUri: !!redirectUri,
+      redirectUri 
+    });
 
     if (!state || !redirectUri) {
-      throw new Error('Invalid OAuth state');
+      // Reset the ref so user can try again
+      callbackProcessedRef.current = false;
+      const errorMsg = 'OAuth session expired. Please try connecting again.';
+      console.error('Google OAuth:', errorMsg);
+      toast.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     setIsConnecting(true);
     try {
+      console.log('Google OAuth: Exchanging code for tokens...');
+      
       const response = await supabase.functions.invoke('google-oauth', {
         body: {
           action: 'exchange-code',
@@ -106,20 +130,31 @@ export function useGoogleIntegration() {
         },
       });
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        console.error('Google OAuth: Edge function error:', response.error);
+        throw response.error;
+      }
+
+      console.log('Google OAuth: Token exchange successful!');
+      
+      // Only clear storage AFTER successful exchange
+      sessionStorage.removeItem('google_oauth_state');
+      sessionStorage.removeItem('google_oauth_redirect');
 
       toast.success('Google Workspace connected successfully!');
       await fetchConfig();
     } catch (error: any) {
       console.error('Error exchanging OAuth code:', error);
-      toast.error('Failed to complete Google connection');
+      toast.error(error.message || 'Failed to complete Google connection');
+      // Reset the ref so user can try again
+      callbackProcessedRef.current = false;
       throw error;
     } finally {
       setIsConnecting(false);
     }
-  };
+  }, [fetchConfig]);
 
-  const disconnect = async () => {
+  const disconnect = useCallback(async () => {
     try {
       const response = await supabase.functions.invoke('google-oauth', {
         body: { action: 'disconnect' },
@@ -140,9 +175,9 @@ export function useGoogleIntegration() {
       console.error('Error disconnecting:', error);
       toast.error('Failed to disconnect Google Workspace');
     }
-  };
+  }, []);
 
-  const updateSettings = async (settings: { autoSyncContacts?: boolean; autoLogEmails?: boolean }) => {
+  const updateSettings = useCallback(async (settings: { autoSyncContacts?: boolean; autoLogEmails?: boolean }) => {
     if (!user?.id) return;
 
     try {
@@ -168,9 +203,9 @@ export function useGoogleIntegration() {
       console.error('Error updating settings:', error);
       toast.error('Failed to update settings');
     }
-  };
+  }, [user?.id, config.autoSyncContacts, config.autoLogEmails]);
 
-  const fetchGoogleContacts = async () => {
+  const fetchGoogleContacts = useCallback(async () => {
     try {
       const response = await supabase.functions.invoke('google-contacts-sync', {
         body: { action: 'fetch-contacts' },
@@ -184,9 +219,9 @@ export function useGoogleIntegration() {
       toast.error(error.message || 'Failed to fetch contacts');
       return [];
     }
-  };
+  }, []);
 
-  const importGoogleContacts = async (contacts: any[]) => {
+  const importGoogleContacts = useCallback(async (contacts: any[]) => {
     try {
       const response = await supabase.functions.invoke('google-contacts-sync', {
         body: { action: 'import-contacts', contacts },
@@ -203,9 +238,9 @@ export function useGoogleIntegration() {
       toast.error('Failed to import contacts');
       throw error;
     }
-  };
+  }, []);
 
-  const searchGmailThreads = async (contactEmail: string) => {
+  const searchGmailThreads = useCallback(async (contactEmail: string) => {
     try {
       const response = await supabase.functions.invoke('google-gmail', {
         body: { action: 'search-threads', contactEmail },
@@ -218,7 +253,7 @@ export function useGoogleIntegration() {
       console.error('Error searching Gmail:', error);
       return [];
     }
-  };
+  }, []);
 
   return {
     config,
