@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Copy, Upload, Trash2, GripVertical, Check } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Copy, Upload, Trash2, GripVertical, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -28,15 +29,24 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useViewerArtwork, useUpdateViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
 import { useAddViewerImage, useDeleteViewerImage, useReorderViewerImages } from '@/hooks/viewer/useViewerImages';
+import { useProcessViewerImage, useBatchProcessImages } from '@/hooks/viewer/useProcessViewerImage';
 import { supabase } from '@/integrations/supabase/client';
 import type { ViewerArtworkImage } from '@/types/viewer';
+import { cn } from '@/lib/utils';
+
+// Check if image has optimized URLs
+function isImageProcessed(image: ViewerArtworkImage): boolean {
+  return !!(image.small_url && image.medium_url && image.large_url);
+}
 
 function SortableImage({
   image,
   onDelete,
+  isProcessing,
 }: {
   image: ViewerArtworkImage;
   onDelete: () => void;
+  isProcessing?: boolean;
 }) {
   const {
     attributes,
@@ -53,6 +63,8 @@ function SortableImage({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const processed = isImageProcessed(image);
+
   return (
     <div
       ref={setNodeRef}
@@ -65,6 +77,21 @@ function SortableImage({
         className="w-full h-full object-cover"
         loading="lazy"
       />
+      
+      {/* Processing status indicator */}
+      <div className={cn(
+        "absolute top-1 right-1 p-1 rounded-full",
+        isProcessing ? "bg-yellow-500/80" : processed ? "bg-green-500/80" : "bg-orange-500/80"
+      )}>
+        {isProcessing ? (
+          <RefreshCw className="h-3 w-3 text-white animate-spin" />
+        ) : processed ? (
+          <CheckCircle2 className="h-3 w-3 text-white" />
+        ) : (
+          <AlertCircle className="h-3 w-3 text-white" />
+        )}
+      </div>
+      
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
         <Button
           variant="ghost"
@@ -99,10 +126,71 @@ export default function ViewerArtworkDetailPage() {
   const addImage = useAddViewerImage();
   const deleteImage = useDeleteViewerImage();
   const reorderImages = useReorderViewerImages();
+  const processImage = useProcessViewerImage();
+  const batchProcess = useBatchProcessImages();
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [processingImages, setProcessingImages] = useState<Set<string>>(new Set());
+
+  // Count processed vs unprocessed images
+  const processedCount = artwork?.images?.filter(isImageProcessed).length || 0;
+  const totalImages = artwork?.images?.length || 0;
+  const unprocessedImages = artwork?.images?.filter(img => !isImageProcessed(img)) || [];
+
+  // Auto-process new images that don't have optimized URLs
+  useEffect(() => {
+    if (!artwork?.images?.length) return;
+
+    const toProcess = artwork.images.filter(
+      img => !isImageProcessed(img) && !processingImages.has(img.id)
+    );
+
+    if (toProcess.length > 0) {
+      // Mark as processing
+      setProcessingImages(prev => {
+        const next = new Set(prev);
+        toProcess.forEach(img => next.add(img.id));
+        return next;
+      });
+
+      // Process in background
+      toProcess.forEach(img => {
+        processImage.mutate(
+          { image_id: img.id, original_url: img.original_url, artwork_id: artwork.id },
+          {
+            onSettled: () => {
+              setProcessingImages(prev => {
+                const next = new Set(prev);
+                next.delete(img.id);
+                return next;
+              });
+            },
+          }
+        );
+      });
+    }
+  }, [artwork?.images]);
+
+  // Manual reprocess all images
+  const handleReprocessAll = () => {
+    if (!artwork?.images?.length) return;
+
+    const imagesToProcess = artwork.images.map(img => ({
+      image_id: img.id,
+      original_url: img.original_url,
+      artwork_id: artwork.id,
+    }));
+
+    setProcessingImages(new Set(artwork.images.map(img => img.id)));
+    
+    batchProcess.mutate(imagesToProcess, {
+      onSettled: () => {
+        setProcessingImages(new Set());
+      },
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -253,10 +341,32 @@ export default function ViewerArtworkDetailPage() {
         <TabsContent value="images" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Images</CardTitle>
-              <CardDescription>
-                Upload up to 20 high-resolution images. Drag to reorder.
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Images</CardTitle>
+                  <CardDescription>
+                    Upload up to 20 high-resolution images. Drag to reorder.
+                  </CardDescription>
+                </div>
+                {totalImages > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant={processedCount === totalImages ? "default" : "secondary"}>
+                      {processedCount}/{totalImages} optimized
+                    </Badge>
+                    {unprocessedImages.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReprocessAll}
+                        disabled={batchProcess.isPending || processingImages.size > 0}
+                      >
+                        <RefreshCw className={cn("h-4 w-4 mr-2", batchProcess.isPending && "animate-spin")} />
+                        Reprocess All
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
@@ -295,6 +405,7 @@ export default function ViewerArtworkDetailPage() {
                         <SortableImage
                           key={image.id}
                           image={image}
+                          isProcessing={processingImages.has(image.id)}
                           onDelete={() =>
                             deleteImage.mutate({ id: image.id, artwork_id: artwork.id })
                           }
