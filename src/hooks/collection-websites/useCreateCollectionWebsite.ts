@@ -3,13 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateSlug } from "@/utils/slugUtils";
 import { hashPasswordWithEdgeFunction } from "@/utils/collectionWebsitePasswordUtils";
-import type { CollectionWebsite, CreateCollectionWebsitePayload } from "@/types/collection-website";
+import type { CollectionWebsiteAdmin, CreateCollectionWebsitePayload } from "@/types/collection-website";
 
-// Create a new collection website
+// Create a new collection website (admin only)
 export function useCreateCollectionWebsite() {
   const queryClient = useQueryClient();
   
-  return useMutation<CollectionWebsite, Error, CreateCollectionWebsitePayload>({
+  return useMutation<CollectionWebsiteAdmin, Error, CreateCollectionWebsitePayload>({
     mutationFn: async ({
       collection_id,
       collection_name,
@@ -17,7 +17,7 @@ export function useCreateCollectionWebsite() {
       password,
       show_prices = true,
       is_active = true,
-    }: CreateCollectionWebsitePayload): Promise<CollectionWebsite> => {
+    }: CreateCollectionWebsitePayload): Promise<CollectionWebsiteAdmin> => {
       const slug = generateSlug(collection_name || name || "collection-website");
       let password_hash: string | null = null;
 
@@ -45,11 +45,12 @@ export function useCreateCollectionWebsite() {
         throw error || new Error("Failed to create collection website");
       }
       console.log("Collection website created:", data.id);
-      return data;
+      return data as CollectionWebsiteAdmin;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["collectionWebsites", data.collection_id] });
-      queryClient.invalidateQueries({ queryKey: ["collections"] }); // Assuming this is for a general list of collections
+      queryClient.invalidateQueries({ queryKey: ["allCollectionWebsites"] });
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });
 }

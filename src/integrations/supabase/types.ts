@@ -3814,6 +3814,57 @@ export type Database = {
           },
         ]
       }
+      collection_websites_public_safe: {
+        Row: {
+          collection_id: string | null
+          created_at: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          requires_password: boolean | null
+          show_prices: boolean | null
+          slug: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          collection_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          requires_password?: never
+          show_prices?: boolean | null
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          collection_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          requires_password?: never
+          show_prices?: boolean | null
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_websites_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_websites_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections_public_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collections_public_safe: {
         Row: {
           created_at: string | null

@@ -86,3 +86,12 @@ verify_jwt = true
 
 [functions.google-gmail]
 verify_jwt = true
+
+[functions.verify-collection-password]
+verify_jwt = false
+
+[functions.hash-collection-password]
+verify_jwt = true
+
+[functions.verify-turnstile]
+verify_jwt = false

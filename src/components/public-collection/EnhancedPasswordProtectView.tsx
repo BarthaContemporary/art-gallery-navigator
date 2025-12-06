@@ -1,53 +1,28 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, AlertTriangle, Timer } from "lucide-react";
-import { collectionPasswordSecurity } from "@/utils/collection-password-security";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EnhancedPasswordProtectViewProps {
   onPasswordVerified: () => void;
   collectionName?: string;
-  hashedPassword: string;
   slug: string;
 }
 
 export function EnhancedPasswordProtectView({
   onPasswordVerified,
   collectionName,
-  hashedPassword,
   slug
 }: EnhancedPasswordProtectViewProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
-  const [blockedTimeRemaining, setBlockedTimeRemaining] = useState(0);
-
-  // Get client IP (in a real app, this would come from the server)
-  const getClientIP = () => {
-    // This is a simplified version - in production, you'd get this from the server
-    return 'client-ip';
-  };
-
-  useEffect(() => {
-    const checkBlockStatus = () => {
-      const clientIP = getClientIP();
-      const blocked = collectionPasswordSecurity.getBlockedTimeRemaining(slug, clientIP);
-      setBlockedTimeRemaining(blocked);
-      
-      if (blocked === 0) {
-        const remaining = collectionPasswordSecurity.getRemainingAttempts(slug, clientIP);
-        setRemainingAttempts(remaining);
-      }
-    };
-
-    checkBlockStatus();
-    const interval = setInterval(checkBlockStatus, 1000);
-    return () => clearInterval(interval);
-  }, [slug]);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const formatTimeRemaining = (milliseconds: number): string => {
     const minutes = Math.floor(milliseconds / 60000);
@@ -58,8 +33,8 @@ export function EnhancedPasswordProtectView({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (blockedTimeRemaining > 0) {
-      setError(`Access blocked. Try again in ${formatTimeRemaining(blockedTimeRemaining)}.`);
+    if (isBlocked) {
+      setError("Access blocked. Please wait before trying again.");
       return;
     }
 
@@ -72,28 +47,38 @@ export function EnhancedPasswordProtectView({
     setError("");
 
     try {
-      const clientIP = getClientIP();
-      const result = await collectionPasswordSecurity.verifyPassword(
-        slug,
-        password,
-        hashedPassword,
-        clientIP
-      );
+      // Use the secure server-side password verification edge function
+      const { data, error: invokeError } = await supabase.functions.invoke('verify-collection-password', {
+        body: {
+          slug,
+          password,
+        },
+      });
 
-      if (result.success) {
+      if (invokeError) {
+        console.error('Password verification error:', invokeError);
+        setError('Verification failed. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
         onPasswordVerified();
-      } else {
-        setError(result.message || "Incorrect password");
-        setRemainingAttempts(result.remainingAttempts || null);
+      } else if (data?.blocked) {
+        setIsBlocked(true);
+        setError('Too many failed attempts. Please try again later.');
+        setRemainingAttempts(0);
         
-        if (result.message?.includes("Too many failed attempts")) {
-          setBlockedTimeRemaining(
-            collectionPasswordSecurity.getBlockedTimeRemaining(slug, clientIP)
-          );
+        // Unblock after 15 minutes
+        setTimeout(() => setIsBlocked(false), 15 * 60 * 1000);
+      } else {
+        setError(data?.error || 'Incorrect password');
+        if (typeof data?.remainingAttempts === 'number') {
+          setRemainingAttempts(data.remainingAttempts);
         }
       }
     } catch (error) {
-      setError("An error occurred. Please try again.");
+      console.error('Password verification error:', error);
+      setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
       setPassword("");
@@ -118,15 +103,12 @@ export function EnhancedPasswordProtectView({
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {blockedTimeRemaining > 0 ? (
+          {isBlocked ? (
             <Alert variant="destructive">
               <Timer className="h-4 w-4" />
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <span>Access temporarily blocked</span>
-                  <span className="font-mono font-bold">
-                    {formatTimeRemaining(blockedTimeRemaining)}
-                  </span>
                 </div>
                 <div className="text-sm mt-1">
                   Too many failed attempts. Please wait before trying again.
@@ -141,7 +123,7 @@ export function EnhancedPasswordProtectView({
                   placeholder="Enter collection password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading || blockedTimeRemaining > 0}
+                  disabled={isLoading || isBlocked}
                   autoFocus
                   autoComplete="current-password"
                   spellCheck="false"
@@ -168,7 +150,7 @@ export function EnhancedPasswordProtectView({
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || blockedTimeRemaining > 0}
+                disabled={isLoading || isBlocked}
               >
                 {isLoading ? "Verifying..." : "Access Collection"}
               </Button>

@@ -1,9 +1,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { CollectionWebsite } from "@/types/collection-website";
+import type { CollectionWebsiteAdmin } from "@/types/collection-website";
 
-const fetchCollectionWebsiteById = async (websiteId: string): Promise<CollectionWebsite | null> => {
+// Fetch a single collection website by ID (admin only - includes password_hash)
+const fetchCollectionWebsiteById = async (websiteId: string): Promise<CollectionWebsiteAdmin | null> => {
   if (!websiteId) return null;
 
   const { data, error } = await supabase
@@ -13,21 +14,21 @@ const fetchCollectionWebsiteById = async (websiteId: string): Promise<Collection
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') { // PostgREST error code for " esattamente una riga (zero righe restituite)" meaning "exactly one row (zero rows returned)"
+    if (error.code === 'PGRST116') {
       console.warn(`No collection website found with ID: ${websiteId}`);
-      return null; // Or throw a specific "Not Found" error
+      return null;
     }
     console.error("Error fetching collection website by ID:", error);
     throw error;
   }
 
-  return data;
+  return data as CollectionWebsiteAdmin;
 };
 
 export function useFetchCollectionWebsiteById(websiteId: string | undefined) {
-  return useQuery<CollectionWebsite | null, Error>({
+  return useQuery<CollectionWebsiteAdmin | null, Error>({
     queryKey: ["collectionWebsiteById", websiteId],
     queryFn: () => fetchCollectionWebsiteById(websiteId!),
-    enabled: !!websiteId, // Only run query if websiteId is provided
+    enabled: !!websiteId,
   });
 }

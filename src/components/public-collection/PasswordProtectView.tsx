@@ -15,6 +15,7 @@ export function PasswordProtectView({ websiteSlug, onVerified }: PasswordProtect
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,28 +23,34 @@ export function PasswordProtectView({ websiteSlug, onVerified }: PasswordProtect
     setError(null);
 
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('hash-collection-password', {
+      // Use the secure server-side password verification edge function
+      const { data, error: invokeError } = await supabase.functions.invoke('verify-collection-password', {
         body: {
           slug: websiteSlug,
-          attemptedPassword: password,
+          password: password,
         },
       });
 
       if (invokeError) {
-        console.error('Supabase function invokeError:', invokeError);
-        setError(`Function Error: ${invokeError.message}`);
-      } else if (data.error) {
-        console.log('Function returned data error:', data.error);
-        setError(data.error);
-      } else if (data.verified) {
+        console.error('Password verification error:', invokeError);
+        setError('Verification failed. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
         onVerified();
+      } else if (data?.blocked) {
+        setError('Too many failed attempts. Please try again later.');
+        setRemainingAttempts(0);
       } else {
-        console.log('Verification failed, no specific error in data.');
-        setError('Invalid password. Please try again.');
+        setError(data?.error || 'Invalid password. Please try again.');
+        if (typeof data?.remainingAttempts === 'number') {
+          setRemainingAttempts(data.remainingAttempts);
+        }
       }
     } catch (err: any) {
-      console.error('Password verification submit catch error:', err);
-      setError(err.message || 'An unexpected error occurred. Please try again.');
+      console.error('Password verification error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

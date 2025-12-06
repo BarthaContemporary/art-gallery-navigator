@@ -101,7 +101,7 @@ export default function PublicCollectionView() {
     return <PublicPageStatusDisplay logoSrc={LOGO_SRC} status="websiteNotFound" />;
   }
 
-  if (website.password_hash && !isPasswordVerified) {
+  if (website.requires_password && !isPasswordVerified) {
     return (
       <div className="flex flex-col items-center justify-start min-h-screen p-4 pt-10">
         <img src={LOGO_SRC} alt="Gallery Logo" className="mb-8 h-auto" style={{ maxWidth: '250px' }} />
@@ -126,7 +126,7 @@ export default function PublicCollectionView() {
   const visibleArtworks = allArtworks?.slice(0, displayedArtworksCount);
   const hasMoreArtworks = !!allArtworks && displayedArtworksCount < allArtworks.length;
 
-  if (website && slug && sessionChecked && (!website.password_hash || isPasswordVerified)) {
+  if (website && slug && sessionChecked && (!website.requires_password || isPasswordVerified)) {
      console.log(`[PublicCollectionView] Rendering main content. Visible: ${visibleArtworks?.length}, Total: ${allArtworks?.length}, HasMore: ${hasMoreArtworks}, LoadingArtworks: ${isArtworksLoading}`);
   }
 
