@@ -1,9 +1,10 @@
 /**
  * Progressive Image Component for Viewer
  * Loads images in stages: blur placeholder -> small -> medium -> large (on zoom)
+ * Includes srcset for responsive loading
  */
 
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { ViewerImageOptimizer, type ImageTier } from '@/services/viewer/image-optimizer';
 import type { ViewerArtworkImage } from '@/types/viewer';
@@ -33,6 +34,24 @@ function ProgressiveImageComponent({
   const [currentSrc, setCurrentSrc] = useState<string>('/placeholder.svg');
   const [blurAmount, setBlurAmount] = useState(20);
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Generate srcset for responsive loading
+  const srcSet = useMemo(() => {
+    if (!image) return undefined;
+    
+    const smallUrl = ViewerImageOptimizer.getOptimizedUrl(image, 'small');
+    const mediumUrl = ViewerImageOptimizer.getOptimizedUrl(image, 'medium');
+    const largeUrl = ViewerImageOptimizer.getOptimizedUrl(image, 'large');
+
+    return `${smallUrl} 400w, ${mediumUrl} 1200w, ${largeUrl} 2400w`;
+  }, [image]);
+
+  // Determine sizes attribute based on zoom
+  const sizes = useMemo(() => {
+    if (zoom >= 2) return '2400px';
+    if (zoom >= 1) return '100vw';
+    return '(max-width: 768px) 100vw, 1200px';
+  }, [zoom]);
 
   // Determine which tier to load based on zoom level
   const getTargetTier = useCallback((currentZoom: number): ImageTier => {
@@ -150,6 +169,8 @@ function ProgressiveImageComponent({
   return (
     <img
       src={currentSrc}
+      srcSet={loadStage !== 'placeholder' ? srcSet : undefined}
+      sizes={loadStage !== 'placeholder' ? sizes : undefined}
       alt={alt}
       className={cn(
         "max-w-none",
@@ -163,6 +184,7 @@ function ProgressiveImageComponent({
       }}
       draggable={draggable}
       decoding="async"
+      fetchPriority="high"
     />
   );
 }
