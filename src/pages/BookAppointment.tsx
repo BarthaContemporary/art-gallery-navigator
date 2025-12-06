@@ -8,6 +8,8 @@ import { DateTimeSelection } from "@/components/appointments/DateTimeSelection";
 import { ClientInformationForm } from "@/components/appointments/ClientInformationForm";
 import { AppointmentSummary } from "@/components/appointments/AppointmentSummary";
 import { BookingSuccessView } from "@/components/appointments/BookingSuccessView";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -18,6 +20,7 @@ export default function BookAppointment() {
   const [clientPhone, setClientPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedAppointment, setBookedAppointment] = useState<any>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const { data: locations = [] } = useLocations();
   const { data: slots = [] } = useAppointmentSlots(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
@@ -50,6 +53,28 @@ export default function BookAppointment() {
 
     if (!selectedDate || !selectedSlot || !clientName || !clientEmail || !selectedLocation) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!captchaToken) {
+      toast.error("Please complete the security verification");
+      return;
+    }
+
+    // Verify CAPTCHA token server-side
+    try {
+      const { data: verifyResult, error: verifyError } = await supabase.functions.invoke('verify-turnstile', {
+        body: { token: captchaToken }
+      });
+
+      if (verifyError || !verifyResult?.success) {
+        toast.error("Security verification failed. Please try again.");
+        setCaptchaToken(null);
+        return;
+      }
+    } catch {
+      toast.error("Security verification failed. Please try again.");
+      setCaptchaToken(null);
       return;
     }
 
@@ -93,6 +118,7 @@ export default function BookAppointment() {
       setClientEmail("");
       setClientPhone("");
       setNotes("");
+      setCaptchaToken(null);
       
       toast.success("Appointment booked successfully! You will receive a confirmation email shortly.");
     } catch (error) {
@@ -105,7 +131,7 @@ export default function BookAppointment() {
   const selectedLocationData = locations.find(l => l.id === selectedLocation);
   const selectedSlotData = availableSlots.find(s => s.id === selectedSlot);
 
-  const isFormValid = selectedDate && selectedSlot && clientName && clientEmail && selectedLocation;
+  const isFormValid = selectedDate && selectedSlot && clientName && clientEmail && selectedLocation && captchaToken;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -143,6 +169,8 @@ export default function BookAppointment() {
                 onSubmit={handleSubmit}
                 isSubmitting={createAppointment.isPending}
                 isFormValid={!!isFormValid}
+                onCaptchaVerify={setCaptchaToken}
+                captchaVerified={!!captchaToken}
               />
 
               {selectedDate && selectedSlotData && selectedLocationData && (
