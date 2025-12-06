@@ -28,7 +28,6 @@ import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
 import GoogleCalendarAppointments from "@/pages/GoogleCalendarAppointments";
 import BookAppointment from "@/pages/BookAppointment";
-import UserSignup from "@/pages/UserSignup";
 import ManageWebsites from "@/pages/ManageWebsites";
 import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
 import PublicCollectionView from "@/pages/PublicCollectionView";
@@ -42,6 +41,14 @@ import CRMSettingsPage from "@/pages/crm/SettingsPage";
 import ContactDetailPage from "@/pages/crm/ContactDetailPage";
 import Chat from "@/pages/Chat";
 import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
+import {
+  AdminLayout,
+  OverviewPage as AdminOverviewPage,
+  UsersPage as AdminUsersPage,
+  IntegrationsPage as AdminIntegrationsPage,
+  SettingsPage as AdminSettingsPage,
+  LogsPage as AdminLogsPage
+} from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
@@ -85,8 +92,13 @@ function App() {
                     <Route path="settings" element={<CRMSettingsPage />} />
                   </Route>
                   <Route path="chat" element={<Chat />} />
-                  <Route path="admin" element={<UserSignup />} />
-                  <Route path="settings" element={<UserSignup />} />
+                  <Route path="admin" element={<AdminLayout />}>
+                    <Route index element={<AdminOverviewPage />} />
+                    <Route path="users" element={<AdminUsersPage />} />
+                    <Route path="integrations" element={<AdminIntegrationsPage />} />
+                    <Route path="settings" element={<AdminSettingsPage />} />
+                    <Route path="logs" element={<AdminLogsPage />} />
+                  </Route>
                   <Route path="manage-websites" element={<ManageWebsites />} />
                   <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
                 </Route>
