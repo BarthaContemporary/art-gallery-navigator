@@ -1,12 +1,13 @@
 
 import React from "react";
-import { MapPin, User } from "lucide-react";
+import { MapPin, User, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 import type { Location } from "@/hooks/use-locations";
 
 interface ClientInformationFormProps {
@@ -24,6 +25,8 @@ interface ClientInformationFormProps {
   onSubmit: (e: React.FormEvent) => void;
   isSubmitting: boolean;
   isFormValid: boolean;
+  onCaptchaVerify: (token: string) => void;
+  captchaVerified: boolean;
 }
 
 export function ClientInformationForm({
@@ -41,6 +44,8 @@ export function ClientInformationForm({
   onSubmit,
   isSubmitting,
   isFormValid,
+  onCaptchaVerify,
+  captchaVerified,
 }: ClientInformationFormProps) {
   return (
     <Card>
@@ -115,6 +120,17 @@ export function ClientInformationForm({
               rows={3}
               className="mt-1"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Security Verification
+            </Label>
+            <TurnstileWidget onVerify={onCaptchaVerify} />
+            {captchaVerified && (
+              <p className="text-sm text-green-600">Verified</p>
+            )}
           </div>
 
           <Button 
