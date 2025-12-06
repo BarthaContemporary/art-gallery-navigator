@@ -4225,6 +4225,7 @@ export type Database = {
         Returns: boolean
       }
       is_user_admin: { Args: never; Returns: boolean }
+      is_workspace_member: { Args: { _workspace_id: string }; Returns: boolean }
       link_artist_to_user: {
         Args: { artist_name: string; user_email: string }
         Returns: boolean
