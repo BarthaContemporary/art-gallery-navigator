@@ -16,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import type { CollectionWebsite, UpdateCollectionWebsitePayload } from '@/types/collection-website';
+import type { CollectionWebsiteAdmin, UpdateCollectionWebsitePayload } from '@/types/collection-website';
 
 const editWebsiteSchema = z.object({
   name: z.string().transform(val => val.trim() === "" ? null : val.trim()).nullable().optional(),
@@ -28,7 +28,7 @@ const editWebsiteSchema = z.object({
 type EditWebsiteFormValues = z.infer<typeof editWebsiteSchema>;
 
 interface EditCollectionWebsiteFormProps {
-  website: CollectionWebsite;
+  website: CollectionWebsiteAdmin;
   onSubmit: (data: UpdateCollectionWebsitePayload) => void;
   isPending: boolean;
   onCancel: () => void;

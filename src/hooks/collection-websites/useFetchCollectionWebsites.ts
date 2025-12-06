@@ -1,13 +1,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { CollectionWebsite } from "@/types/collection-website";
+import type { CollectionWebsiteAdmin } from "@/types/collection-website";
 
-// Fetch all websites for a specific collection
+// Fetch all websites for a specific collection (admin only - includes password_hash)
 export function useFetchCollectionWebsites(collectionId: string | undefined) {
-  return useQuery<CollectionWebsite[], Error>({
+  return useQuery<CollectionWebsiteAdmin[], Error>({
     queryKey: ["collectionWebsites", collectionId],
-    queryFn: async (): Promise<CollectionWebsite[]> => {
+    queryFn: async (): Promise<CollectionWebsiteAdmin[]> => {
       if (!collectionId) return [];
       const { data, error } = await supabase
         .from("collection_websites")
@@ -16,9 +16,9 @@ export function useFetchCollectionWebsites(collectionId: string | undefined) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as CollectionWebsiteAdmin[];
     },
-    enabled: !!collectionId, // Only run query if collectionId is provided
+    enabled: !!collectionId,
   });
 }
 

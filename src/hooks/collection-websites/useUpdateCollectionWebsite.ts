@@ -2,13 +2,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { hashPasswordWithEdgeFunction } from "@/utils/collectionWebsitePasswordUtils";
-import type { CollectionWebsite, UpdateCollectionWebsitePayload } from "@/types/collection-website";
+import type { CollectionWebsiteAdmin, UpdateCollectionWebsitePayload } from "@/types/collection-website";
 
-// Update an existing collection website
+// Update an existing collection website (admin only)
 export function useUpdateCollectionWebsite() {
   const queryClient = useQueryClient();
   
-  return useMutation<CollectionWebsite, Error, UpdateCollectionWebsitePayload>({
+  return useMutation<CollectionWebsiteAdmin, Error, UpdateCollectionWebsitePayload>({
     mutationFn: async ({
       id,
       collection_id,
@@ -16,9 +16,9 @@ export function useUpdateCollectionWebsite() {
       password, 
       show_prices,
       is_active,
-    }: UpdateCollectionWebsitePayload): Promise<CollectionWebsite> => {
+    }: UpdateCollectionWebsitePayload): Promise<CollectionWebsiteAdmin> => {
       
-      const updateData: Partial<Omit<CollectionWebsite, 'id' | 'collection_id' | 'created_at' | 'slug'>> & { updated_at: string } = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
 
@@ -47,11 +47,12 @@ export function useUpdateCollectionWebsite() {
         throw error || new Error("Failed to update collection website");
       }
       console.log("Collection website updated:", data.id);
-      return data;
+      return data as CollectionWebsiteAdmin;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["collectionWebsites", data.collection_id] });
-      queryClient.invalidateQueries({ queryKey: ["publicCollectionWebsite", data.slug]});
+      queryClient.invalidateQueries({ queryKey: ["publicCollectionWebsite", data.slug] });
+      queryClient.invalidateQueries({ queryKey: ["allCollectionWebsites"] });
       queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });

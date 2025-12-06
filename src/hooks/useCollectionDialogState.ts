@@ -5,7 +5,7 @@ import { Document } from "@/hooks/use-documents";
 import { createCollectionPDF } from "@/lib/create-collection-pdf";
 import { toast } from "sonner";
 import { UseMutationResult } from "@tanstack/react-query";
-import { CollectionWebsite, CreateCollectionWebsitePayload } from "@/types/collection-website";
+import { CollectionWebsiteAdmin, CreateCollectionWebsitePayload } from "@/types/collection-website";
 import { useNavigate } from "react-router-dom";
 import { logger } from "@/lib/logger";
 
@@ -19,7 +19,7 @@ interface UseCollectionDialogStateProps {
   collection: Collection | undefined;
   documents: Document[] | undefined;
   artists: DialogArtist[] | undefined; // Use the new simpler type
-  createCollectionWebsiteMutation: UseMutationResult<CollectionWebsite, Error, CreateCollectionWebsitePayload, unknown>;
+  createCollectionWebsiteMutation: UseMutationResult<CollectionWebsiteAdmin, Error, CreateCollectionWebsitePayload, unknown>;
 }
 
 export function useCollectionDialogState({
