@@ -5,7 +5,7 @@
 
 import type { ViewerArtworkImage } from '@/types/viewer';
 
-export type ImageTier = 'thumbnail' | 'small' | 'medium' | 'large' | 'original';
+export type ImageTier = 'thumbnail' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge' | 'original';
 
 interface TierConfig {
   width: number;
@@ -17,7 +17,9 @@ const TIER_CONFIGS: Record<ImageTier, TierConfig> = {
   small: { width: 400, quality: 70 },
   medium: { width: 1200, quality: 80 },
   large: { width: 2400, quality: 85 },
-  original: { width: 0, quality: 100 }, // 0 = no resize
+  xlarge: { width: 4800, quality: 90 },
+  xxlarge: { width: 9600, quality: 95 },
+  original: { width: 0, quality: 100 }, // 0 = no resize, max available
 };
 
 export class ViewerImageOptimizer {
