@@ -2,11 +2,15 @@
  * Viewer Image Optimizer Service
  * Uses Supabase Storage image transformations (requires Pro plan)
  * URL format: /storage/v1/render/image/public/{bucket}/{path}?width=X&quality=Y
+ * Note: Supabase has a 50MB file size limit for transformations
  */
 
 import type { ViewerArtworkImage } from '@/types/viewer';
 
 export type ImageTier = 'thumbnail' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge' | 'original';
+
+// Supabase transformation limit is 50MB
+const MAX_TRANSFORMABLE_SIZE_BYTES = 50 * 1024 * 1024;
 
 interface TierConfig {
   width: number;
@@ -28,11 +32,13 @@ export class ViewerImageOptimizer {
    * Transform Supabase storage URL to use image transformations
    * From: /storage/v1/object/public/bucket/path
    * To: /storage/v1/render/image/public/bucket/path?width=X&quality=Y
+   * Falls back to original URL if file exceeds 50MB limit
    */
   private static getTransformedUrl(
     originalUrl: string,
     width: number,
-    quality: number
+    quality: number,
+    fileSize?: number | null
   ): string {
     if (!originalUrl || originalUrl === '/placeholder.svg') {
       return '/placeholder.svg';
@@ -40,6 +46,12 @@ export class ViewerImageOptimizer {
 
     // Skip transformation for original tier (width = 0)
     if (width === 0) return originalUrl;
+
+    // Skip transformation if file exceeds Supabase's 50MB limit
+    if (fileSize && fileSize > MAX_TRANSFORMABLE_SIZE_BYTES) {
+      console.warn(`Image exceeds 50MB limit (${(fileSize / 1024 / 1024).toFixed(1)}MB), using original URL`);
+      return originalUrl;
+    }
 
     try {
       const url = new URL(originalUrl);
@@ -72,7 +84,7 @@ export class ViewerImageOptimizer {
     const config = TIER_CONFIGS[tier];
     const sourceUrl = image.original_url || '/placeholder.svg';
     
-    return this.getTransformedUrl(sourceUrl, config.width, config.quality);
+    return this.getTransformedUrl(sourceUrl, config.width, config.quality, image.file_size);
   }
 
   /**
@@ -107,7 +119,7 @@ export class ViewerImageOptimizer {
     if (!image) return '/placeholder.svg';
     const sourceUrl = image.original_url || '/placeholder.svg';
     // Ultra-small for blur placeholder (loads instantly)
-    return this.getTransformedUrl(sourceUrl, 40, 30);
+    return this.getTransformedUrl(sourceUrl, 40, 30, image.file_size);
   }
 
   /**
@@ -116,9 +128,14 @@ export class ViewerImageOptimizer {
   static generateSrcSet(image: ViewerArtworkImage | null): string | undefined {
     if (!image?.original_url) return undefined;
     
+    // Skip srcset for files exceeding 50MB limit
+    if (image.file_size && image.file_size > MAX_TRANSFORMABLE_SIZE_BYTES) {
+      return undefined;
+    }
+    
     const widths = [400, 800, 1200, 1600, 2400];
     const srcset = widths
-      .map(w => `${this.getTransformedUrl(image.original_url, w, 80)} ${w}w`)
+      .map(w => `${this.getTransformedUrl(image.original_url, w, 80, image.file_size)} ${w}w`)
       .join(', ');
     
     return srcset;
