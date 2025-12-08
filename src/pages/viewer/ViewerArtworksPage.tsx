@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ExternalLink, Trash2, Settings2, Image as ImageIcon } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Settings2, Image as ImageIcon, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,47 @@ export default function ViewerArtworksPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ViewerArtwork | null>(null);
   const [formData, setFormData] = useState({ artist_name: '', title: '', year: '' });
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+
+  // Group artworks by artist name
+  const groupedArtworks = useMemo(() => {
+    if (!artworks) return [];
+    
+    const groups: Record<string, ViewerArtwork[]> = {};
+    artworks.forEach((artwork) => {
+      const artistName = artwork.artist_name || 'Unknown Artist';
+      if (!groups[artistName]) {
+        groups[artistName] = [];
+      }
+      groups[artistName].push(artwork);
+    });
+
+    // Sort artist names alphabetically, with surname-first sorting
+    return Object.entries(groups)
+      .sort(([a], [b]) => {
+        const getSortKey = (name: string) => {
+          const parts = name.trim().split(' ');
+          return parts.length > 1 ? parts[parts.length - 1] : name;
+        };
+        return getSortKey(a).localeCompare(getSortKey(b));
+      })
+      .map(([artistName, works]) => ({
+        artistName,
+        artworks: works.sort((a, b) => a.title.localeCompare(b.title)),
+      }));
+  }, [artworks]);
+
+  const toggleFolder = (artistName: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(artistName)) {
+        next.delete(artistName);
+      } else {
+        next.add(artistName);
+      }
+      return next;
+    });
+  };
 
   const handleCreate = async () => {
     if (!formData.artist_name || !formData.title) return;
@@ -155,69 +196,97 @@ export default function ViewerArtworksPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {artworks.map((artwork) => (
-            <Card
-              key={artwork.id}
-              className="group cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate(`/viewer/${artwork.id}`)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <CardTitle className="text-base truncate">{artwork.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {artwork.artist_name}
-                      {artwork.year && `, ${artwork.year}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openViewer(artwork.id);
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(artwork);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {artwork.images?.length ? (
-                  <div className="aspect-video bg-muted rounded overflow-hidden">
-                    <img
-                      src={artwork.images[0].medium_url || artwork.images[0].original_url}
-                      alt={artwork.images[0].alt_text || artwork.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="aspect-video bg-muted rounded flex items-center justify-center">
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+        <div className="space-y-4">
+          {groupedArtworks.map(({ artistName, artworks: artistArtworks }) => {
+            const isCollapsed = collapsedFolders.has(artistName);
+            return (
+              <div key={artistName} className="border rounded bg-card">
+                <button
+                  onClick={() => toggleFolder(artistName)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span className="font-medium flex-1 truncate">{artistName}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {artistArtworks.length} work{artistArtworks.length !== 1 ? 's' : ''}
+                  </span>
+                </button>
+                
+                {!isCollapsed && (
+                  <div className="px-4 pb-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {artistArtworks.map((artwork) => (
+                        <Card
+                          key={artwork.id}
+                          className="group cursor-pointer hover:border-primary/50 transition-colors"
+                          onClick={() => navigate(`/viewer/${artwork.id}`)}
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <CardTitle className="text-base truncate">{artwork.title}</CardTitle>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {artwork.year || 'No year'}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openViewer(artwork.slug);
+                                  }}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteTarget(artwork);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {artwork.images?.length ? (
+                              <div className="aspect-video bg-muted rounded overflow-hidden">
+                                <img
+                                  src={artwork.images[0].medium_url || artwork.images[0].original_url}
+                                  alt={artwork.images[0].alt_text || artwork.title}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ) : (
+                              <div className="aspect-video bg-muted rounded flex items-center justify-center">
+                                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {artwork.images?.length || 0} image{(artwork.images?.length || 0) !== 1 ? 's' : ''}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-2">
-                  {artwork.images?.length || 0} image{(artwork.images?.length || 0) !== 1 ? 's' : ''} · ID: {artwork.id}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
