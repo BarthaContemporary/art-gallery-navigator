@@ -23,9 +23,46 @@ serve(async (req) => {
   }
 
   try {
+    // Verify user is authenticated and has admin role
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Get user from JWT
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('Auth error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if user has gallery_admin role
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'gallery_admin'
+    });
+
+    if (!isAdmin) {
+      console.warn(`Unauthorized access attempt by user ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { image_id, original_url, artwork_id }: ProcessRequest = await req.json();
 
-    console.log(`Processing image ${image_id} for artwork ${artwork_id}`);
+    console.log(`Processing image ${image_id} for artwork ${artwork_id} by admin ${user.id}`);
 
     if (!image_id || !original_url) {
       return new Response(
@@ -35,8 +72,6 @@ serve(async (req) => {
     }
 
     // Update the database - just mark as processed, use original URLs
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     const { error: updateError } = await supabase
       .from('viewer_artwork_images')
       .update({
