@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useViewerArtworks, useCreateViewerArtwork, useDeleteViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
+import { ViewerImageOptimizer } from '@/services/viewer/image-optimizer';
 import type { ViewerArtwork } from '@/types/viewer';
 
 export default function ViewerArtworksPage() {
@@ -264,7 +265,7 @@ export default function ViewerArtworksPage() {
                             {artwork.images?.length ? (
                               <div className="aspect-video bg-muted rounded overflow-hidden">
                                 <img
-                                  src={artwork.images[0].medium_url || artwork.images[0].original_url}
+                                  src={ViewerImageOptimizer.getOptimizedUrl(artwork.images[0], 'small')}
                                   alt={artwork.images[0].alt_text || artwork.title}
                                   className="w-full h-full object-cover"
                                   loading="lazy"
