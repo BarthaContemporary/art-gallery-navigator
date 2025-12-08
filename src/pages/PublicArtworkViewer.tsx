@@ -251,7 +251,7 @@ export default function PublicArtworkViewer() {
         
         <button
           onClick={resetView}
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"
           title="Reset view"
         >
           <RotateCcw className="h-4 w-4 text-white" />
@@ -259,7 +259,7 @@ export default function PublicArtworkViewer() {
         
         <button
           onClick={() => setMode(mode === 'fit' ? 'fill' : 'fit')}
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"
           title={mode === 'fit' ? 'Fill screen' : 'Fit to screen'}
         >
           {mode === 'fit' ? (
