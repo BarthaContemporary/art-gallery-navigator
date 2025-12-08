@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Info, X } from 'lucide-react';
+import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
 import { ProgressiveImage } from '@/components/viewer/ProgressiveImage';
@@ -12,10 +12,9 @@ export default function PublicArtworkViewer() {
   const [searchParams] = useSearchParams();
   const { data: artwork, isLoading, error } = useViewerArtwork(id);
 
-  // Settings from URL params
-  const initialMode = searchParams.get('initial') === 'fill' ? 'fill' : 'fit';
+  // Settings from URL params - default to fill mode for fullscreen
+  const initialMode = searchParams.get('initial') === 'fit' ? 'fit' : 'fill';
   const forceDark = searchParams.get('dark') === 'true';
-  const showMetadata = searchParams.get('metadata') !== 'false';
 
   // State
   const [activeIndex, setActiveIndex] = useState(0);
@@ -24,7 +23,6 @@ export default function PublicArtworkViewer() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [showInfo, setShowInfo] = useState(showMetadata);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -221,28 +219,6 @@ export default function PublicArtworkViewer() {
         />
       </div>
 
-      {/* Glass Overlay - Metadata */}
-      {showInfo && showControls && (
-        <div className={cn(
-          "absolute top-4 left-4 right-4 md:right-auto md:max-w-sm",
-          "backdrop-blur-xl bg-white/10 border border-white/20 rounded-lg",
-          "p-4 transition-opacity duration-300",
-          showControls ? "opacity-100" : "opacity-0"
-        )}>
-          <button
-            onClick={() => setShowInfo(false)}
-            className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="h-4 w-4 text-white/80" />
-          </button>
-          <h1 className="text-lg font-medium text-white pr-6">{artwork.title}</h1>
-          <p className="text-sm text-white/80">
-            {artwork.artist_name}
-            {artwork.year && `, ${artwork.year}`}
-          </p>
-        </div>
-      )}
-
       {/* Controls */}
       <div className={cn(
         "absolute bottom-4 left-1/2 -translate-x-1/2",
@@ -250,18 +226,6 @@ export default function PublicArtworkViewer() {
         "px-2 py-1.5 flex items-center gap-1 transition-opacity duration-300",
         showControls ? "opacity-100" : "opacity-0 pointer-events-none"
       )}>
-        {!showInfo && (
-          <button
-            onClick={() => setShowInfo(true)}
-            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            title="Show info"
-          >
-            <Info className="h-4 w-4 text-white" />
-          </button>
-        )}
-        
-        <div className="w-px h-6 bg-white/20" />
-        
         <button
           onClick={() => handleZoom(-0.5)}
           className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
