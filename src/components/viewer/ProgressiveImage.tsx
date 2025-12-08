@@ -19,7 +19,7 @@ interface ProgressiveImageProps {
   draggable?: boolean;
 }
 
-type LoadStage = 'placeholder' | 'small' | 'medium' | 'large' | 'loaded';
+type LoadStage = 'placeholder' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge' | 'loaded';
 
 function ProgressiveImageComponent({
   image,
@@ -48,6 +48,8 @@ function ProgressiveImageComponent({
 
   // Determine which tier to load based on zoom level
   const getTargetTier = useCallback((currentZoom: number): ImageTier => {
+    if (currentZoom >= 6) return 'xxlarge';
+    if (currentZoom >= 4) return 'xlarge';
     if (currentZoom >= 2) return 'large';
     if (currentZoom >= 1) return 'medium';
     return 'small';
@@ -126,9 +128,10 @@ function ProgressiveImageComponent({
     const targetTier = getTargetTier(zoom);
 
     // Only upgrade if we need a larger image
-    const shouldUpgrade =
-      (targetTier === 'large' && loadStage !== 'large') ||
-      (targetTier === 'medium' && loadStage === 'small');
+    const tierOrder = ['small', 'medium', 'large', 'xlarge', 'xxlarge'];
+    const currentIndex = tierOrder.indexOf(loadStage);
+    const targetIndex = tierOrder.indexOf(targetTier);
+    const shouldUpgrade = targetIndex > currentIndex && currentIndex !== -1;
 
     if (!shouldUpgrade) return;
 
@@ -137,7 +140,7 @@ function ProgressiveImageComponent({
         const url = await loadTier(targetTier);
         if (isMounted) {
           setCurrentSrc(url);
-          setLoadStage(targetTier === 'large' ? 'large' : 'loaded');
+          setLoadStage(targetTier as LoadStage);
         }
       } catch (error) {
         console.warn('Failed to upgrade image tier:', error);
