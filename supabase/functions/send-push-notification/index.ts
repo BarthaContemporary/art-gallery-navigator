@@ -14,35 +14,80 @@ interface PushPayload {
   url?: string;
 }
 
-// Convert VAPID key from URL-safe base64 to Uint8Array
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { userId, title, body, icon, url }: PushPayload = await req.json();
-    
-    console.log(`Sending push notification to user: ${userId}`);
-    console.log(`Title: ${title}, Body: ${body}`);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Authentication check
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const senderId = user.id;
+    console.log(`Authenticated user: ${senderId}`);
+
+    const { userId, title, body, icon, url }: PushPayload = await req.json();
+    
+    console.log(`Sending push notification to user: ${userId}`);
+    console.log(`Title: ${title}, Body: ${body}`);
+
+    // Authorization check: sender must be admin OR a chat room participant with the recipient
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: senderId,
+      _role: 'gallery_admin'
+    });
+
+    let isAuthorized = isAdmin;
+
+    if (!isAdmin) {
+      // Check if sender and recipient share a chat room
+      const { data: sharedRoom, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .or(`and(participant_1_id.eq.${senderId},participant_2_id.eq.${userId}),and(participant_1_id.eq.${userId},participant_2_id.eq.${senderId})`)
+        .limit(1);
+
+      if (roomError) {
+        console.error("Error checking chat room:", roomError);
+      }
+
+      isAuthorized = sharedRoom && sharedRoom.length > 0;
+    }
+
+    if (!isAuthorized) {
+      console.error(`User ${senderId} not authorized to send notifications to ${userId}`);
+      return new Response(
+        JSON.stringify({ error: "Not authorized to send notifications to this user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Authorization passed for user ${senderId}`);
 
     // Get user's push subscriptions
     const { data: subscriptions, error: subError } = await supabase
