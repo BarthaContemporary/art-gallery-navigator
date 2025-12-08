@@ -27,13 +27,22 @@ const Thumbnail = memo(function Thumbnail({ image, isActive, onClick, index }: T
   const [src, setSrc] = useState<string>('/placeholder.svg');
 
   useEffect(() => {
-    // Use optimized thumbnail URL
+    // Use optimized thumbnail URL with fallback to original
     const thumbnailUrl = ViewerImageOptimizer.getOptimizedUrl(image, 'thumbnail');
+    const fallbackUrl = ViewerImageOptimizer.getBestAvailableUrl(image);
+    
     setSrc(thumbnailUrl);
 
-    // Preload the thumbnail
+    // Preload the thumbnail with fallback
     const img = new Image();
     img.onload = () => setIsLoaded(true);
+    img.onerror = () => {
+      // Fall back to original if transformation fails
+      setSrc(fallbackUrl);
+      const fallbackImg = new Image();
+      fallbackImg.onload = () => setIsLoaded(true);
+      fallbackImg.src = fallbackUrl;
+    };
     img.src = thumbnailUrl;
   }, [image]);
 

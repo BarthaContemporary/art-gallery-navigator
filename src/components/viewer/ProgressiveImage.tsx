@@ -62,50 +62,35 @@ function ProgressiveImageComponent({
     return url;
   }, [image]);
 
-  // Initial load sequence: blur -> small -> medium
+  // Initial load sequence - simplified since transformations are disabled
   useEffect(() => {
     if (!image) return;
 
     let isMounted = true;
     setLoadStage('placeholder');
-    setBlurAmount(20);
+    setBlurAmount(10);
 
     const loadSequence = async () => {
+      const imageUrl = ViewerImageOptimizer.getBestAvailableUrl(image);
+      
       try {
-        // Stage 1: Load blur placeholder immediately
-        const blurUrl = ViewerImageOptimizer.getBlurPlaceholderUrl(image);
+        // Set src immediately
         if (isMounted) {
-          setCurrentSrc(blurUrl);
+          setCurrentSrc(imageUrl);
         }
 
-        // Stage 2: Load small version
-        const smallUrl = await loadTier('small');
+        // Preload the image
+        await ViewerImageOptimizer.preloadImage(imageUrl);
+        
         if (isMounted) {
-          setIsTransitioning(true);
-          setCurrentSrc(smallUrl);
-          setBlurAmount(8);
-          setLoadStage('small');
-          setTimeout(() => setIsTransitioning(false), 300);
-        }
-
-        // Stage 3: Load medium version
-        const mediumUrl = await loadTier('medium');
-        if (isMounted) {
-          setIsTransitioning(true);
-          setCurrentSrc(mediumUrl);
           setBlurAmount(0);
-          setLoadStage('medium');
-          setTimeout(() => {
-            setIsTransitioning(false);
-            onLoad?.();
-          }, 300);
+          setLoadStage('loaded');
+          onLoad?.();
         }
       } catch (error) {
-        console.warn('Progressive image load error:', error);
-        // Fallback to best available
+        console.warn('Image load error:', error);
         if (isMounted) {
-          const fallback = ViewerImageOptimizer.getBestAvailableUrl(image);
-          setCurrentSrc(fallback);
+          setCurrentSrc(imageUrl);
           setBlurAmount(0);
           setLoadStage('loaded');
           onLoad?.();

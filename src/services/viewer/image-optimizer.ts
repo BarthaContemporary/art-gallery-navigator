@@ -1,12 +1,19 @@
 /**
  * Viewer Image Optimizer Service
- * Uses Supabase Storage image transformations
- * URL format: /storage/v1/render/image/public/{bucket}/{path}?width=X&quality=Y
+ * 
+ * Image transformations are currently DISABLED because the Supabase
+ * transformation endpoint is not working as expected.
+ * 
+ * To re-enable: Set USE_TRANSFORMATIONS = true once you've verified
+ * transformations work in your Supabase dashboard.
  */
 
 import type { ViewerArtworkImage } from '@/types/viewer';
 
 export type ImageTier = 'thumbnail' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge' | 'original';
+
+// Toggle this to enable/disable transformations
+const USE_TRANSFORMATIONS = false;
 
 interface TierConfig {
   width: number;
@@ -18,16 +25,14 @@ const TIER_CONFIGS: Record<ImageTier, TierConfig> = {
   small: { width: 400, quality: 70 },
   medium: { width: 1200, quality: 80 },
   large: { width: 2400, quality: 85 },
-  xlarge: { width: 4800, quality: 90 },
-  xxlarge: { width: 9600, quality: 95 },
-  original: { width: 0, quality: 100 }, // 0 = no transformation
+  xlarge: { width: 2500, quality: 90 },
+  xxlarge: { width: 2500, quality: 95 },
+  original: { width: 0, quality: 100 },
 };
 
 export class ViewerImageOptimizer {
   /**
    * Transform Supabase storage URL to use image transformations
-   * From: /storage/v1/object/public/bucket/path
-   * To: /storage/v1/render/image/public/bucket/path?width=X&quality=Y
    */
   private static getTransformedUrl(
     originalUrl: string,
@@ -38,33 +43,32 @@ export class ViewerImageOptimizer {
       return '/placeholder.svg';
     }
 
-    // Skip transformation for original tier (width = 0)
-    if (width === 0) return originalUrl;
+    // If transformations disabled or requesting original, return as-is
+    if (!USE_TRANSFORMATIONS || width === 0) {
+      return originalUrl;
+    }
 
     try {
       const url = new URL(originalUrl);
       
-      // Check if it's a Supabase storage URL with the object path
       if (!url.pathname.includes('/storage/v1/object/public/')) {
         return originalUrl;
       }
 
-      // Replace /object/ with /render/image/ for transformations
       const transformedPath = url.pathname.replace(
         '/storage/v1/object/public/',
         '/storage/v1/render/image/public/'
       );
 
-      // Build transformation URL with query parameters
-      return `${url.origin}${transformedPath}?width=${width}&quality=${quality}`;
+      return `${url.origin}${transformedPath}?width=${width}&quality=${quality}&resize=contain`;
     } catch (error) {
-      console.warn('Failed to transform image URL:', error);
       return originalUrl;
     }
   }
 
   /**
    * Get optimized image URL for a specific tier
+   * Currently returns original URL (transformations disabled)
    */
   static getOptimizedUrl(image: ViewerArtworkImage | null, tier: ImageTier): string {
     if (!image) return '/placeholder.svg';
@@ -76,7 +80,7 @@ export class ViewerImageOptimizer {
   }
 
   /**
-   * Get the best available URL (original/largest)
+   * Get the best available URL (original)
    */
   static getBestAvailableUrl(image: ViewerArtworkImage | null): string {
     if (!image) return '/placeholder.svg';
@@ -101,20 +105,19 @@ export class ViewerImageOptimizer {
   }
 
   /**
-   * Get tiny blur placeholder URL for instant display
+   * Get blur placeholder URL
    */
   static getBlurPlaceholderUrl(image: ViewerArtworkImage | null): string {
     if (!image) return '/placeholder.svg';
-    const sourceUrl = image.original_url || '/placeholder.svg';
-    // Ultra-small for blur placeholder (loads instantly)
-    return this.getTransformedUrl(sourceUrl, 40, 30);
+    // When transformations disabled, just return original
+    return image.original_url || '/placeholder.svg';
   }
 
   /**
    * Generate srcset for responsive images
    */
   static generateSrcSet(image: ViewerArtworkImage | null): string | undefined {
-    if (!image?.original_url) return undefined;
+    if (!USE_TRANSFORMATIONS || !image?.original_url) return undefined;
     
     const widths = [400, 800, 1200, 1600, 2400];
     const srcset = widths
