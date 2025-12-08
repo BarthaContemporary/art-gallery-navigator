@@ -21,7 +21,6 @@ export interface ViewerArtworkImage {
   alt_text: string | null;
   width: number | null;
   height: number | null;
-  file_size: number | null;
   small_url: string | null;
   medium_url: string | null;
   large_url: string | null;
