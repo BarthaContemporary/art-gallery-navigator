@@ -217,9 +217,8 @@ export default function ViewerArtworkDetailPage() {
     [artwork, reorderImages]
   );
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length || !artwork) return;
+  const uploadFiles = async (files: FileList | File[]) => {
+    if (!files.length || !artwork) return;
 
     const maxImages = 20;
     const currentCount = artwork.images?.length || 0;
@@ -277,7 +276,42 @@ export default function ViewerArtworkDetailPage() {
     } finally {
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      await uploadFiles(e.target.files);
       e.target.value = '';
+    }
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading && (artwork.images?.length || 0) < 20) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (uploading || (artwork.images?.length || 0) >= 20) return;
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length) {
+      await uploadFiles(files);
     }
   };
 
@@ -369,25 +403,44 @@ export default function ViewerArtworkDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Button asChild disabled={uploading || (artwork.images?.length || 0) >= 20}>
-                  <label className="cursor-pointer">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Images
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-                  </label>
-                </Button>
-                {uploading && (
-                  <div className="flex-1 max-w-xs">
-                    <Progress value={uploadProgress} />
-                  </div>
+              {/* Drop Zone */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={cn(
+                  "relative border-2 border-dashed rounded-lg p-6 transition-colors",
+                  isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+                  uploading && "pointer-events-none opacity-60",
+                  (artwork.images?.length || 0) >= 20 && "pointer-events-none opacity-40"
                 )}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={handleFileUpload}
+                  disabled={uploading || (artwork.images?.length || 0) >= 20}
+                />
+                <div className="flex flex-col items-center justify-center gap-2 text-center pointer-events-none">
+                  <Upload className={cn("h-8 w-8", isDragging ? "text-primary" : "text-muted-foreground")} />
+                  {uploading ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Uploading...</p>
+                      <Progress value={uploadProgress} className="w-48" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">
+                        {isDragging ? "Drop images here" : "Drag & drop images here"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        or click to browse • Max 20 images
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
 
               {artwork.images?.length ? (
@@ -414,11 +467,7 @@ export default function ViewerArtworkDetailPage() {
                     </div>
                   </SortableContext>
                 </DndContext>
-              ) : (
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <p className="text-muted-foreground">No images uploaded yet</p>
-                </div>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>
