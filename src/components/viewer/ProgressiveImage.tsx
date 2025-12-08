@@ -35,15 +35,15 @@ function ProgressiveImageComponent({
   const [blurAmount, setBlurAmount] = useState(20);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Generate srcset - now just using original URL
+  // Generate srcset for responsive loading
   const srcSet = useMemo(() => {
     if (!image) return undefined;
-    return undefined; // Disable srcset since we're using original URLs only
+    return ViewerImageOptimizer.generateSrcSet(image);
   }, [image]);
 
-  // Sizes attribute - disabled since srcset is disabled
+  // Sizes attribute for responsive images
   const sizes = useMemo(() => {
-    return undefined;
+    return '100vw'; // Full viewport width for viewer
   }, []);
 
   // Determine which tier to load based on zoom level
