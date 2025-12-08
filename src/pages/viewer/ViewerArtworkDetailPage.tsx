@@ -320,7 +320,7 @@ export default function ViewerArtworkDetailPage() {
   };
 
   const copyEmbedCode = () => {
-    const code = `<iframe src="${window.location.origin}/w/${artwork?.id}" style="border:0;width:100%;height:100%;" allowfullscreen></iframe>`;
+    const code = `<iframe src="${window.location.origin}/w/${artwork?.slug}" style="border:0;width:100%;height:100%;" allowfullscreen></iframe>`;
     navigator.clipboard.writeText(code);
     setCopied(true);
     toast.success('Embed code copied');
@@ -363,7 +363,7 @@ export default function ViewerArtworkDetailPage() {
             {artwork.year && ` · ${artwork.year}`}
           </p>
         </div>
-        <Button variant="outline" onClick={() => window.open(`/w/${artwork.id}`, '_blank')}>
+        <Button variant="outline" onClick={() => window.open(`/w/${artwork.slug}`, '_blank')}>
           <ExternalLink className="h-4 w-4 mr-2" />
           Preview
         </Button>
@@ -536,7 +536,7 @@ export default function ViewerArtworkDetailPage() {
               <div className="relative">
                 <Textarea
                   readOnly
-                  value={`<iframe src="${window.location.origin}/w/${artwork.id}" style="border:0;width:100%;height:100%;" allowfullscreen></iframe>`}
+                  value={`<iframe src="${window.location.origin}/w/${artwork.slug}" style="border:0;width:100%;height:100%;" allowfullscreen></iframe>`}
                   className="font-mono text-sm pr-20"
                   rows={3}
                 />
@@ -571,14 +571,14 @@ export default function ViewerArtworkDetailPage() {
                 <div className="flex items-center gap-2 mt-2">
                   <Input
                     readOnly
-                    value={`${window.location.origin}/w/${artwork.id}`}
+                    value={`${window.location.origin}/w/${artwork.slug}`}
                     className="font-mono text-sm"
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/w/${artwork.id}`);
+                      navigator.clipboard.writeText(`${window.location.origin}/w/${artwork.slug}`);
                       toast.success('Link copied');
                     }}
                   >

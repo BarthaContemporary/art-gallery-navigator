@@ -70,7 +70,7 @@ function App() {
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/book-appointment" element={<BookAppointment />} />
-                <Route path="/w/:id" element={<PublicArtworkViewer />} />
+                <Route path="/w/:slug" element={<PublicArtworkViewer />} />
                 <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                 <Route path="/" element={
                   <RequireAuth>
