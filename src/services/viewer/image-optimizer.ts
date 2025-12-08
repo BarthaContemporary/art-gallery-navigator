@@ -24,21 +24,17 @@ const TIER_CONFIGS: Record<ImageTier, TierConfig> = {
 export class ViewerImageOptimizer {
   /**
    * Get optimized URL for a given image and tier
-   * Prioritizes pre-processed URLs from the database
+   * Always returns original_url since Cloudinary fetch URLs are failing
    */
   static getOptimizedUrl(image: ViewerArtworkImage | null, tier: ImageTier): string {
     if (!image) return '/placeholder.svg';
 
-    // Always prioritize pre-processed URLs from the database
-    const preProcessedUrl = this.getPreProcessedUrl(image, tier);
-    if (preProcessedUrl) return preProcessedUrl;
-
-    // Fallback to original URL
+    // Use original URL directly - Cloudinary fetch URLs are returning 400 errors
     return image.original_url || '/placeholder.svg';
   }
 
   /**
-   * Get pre-processed URL if available
+   * Get pre-processed URL if available (currently unused due to Cloudinary issues)
    */
   private static getPreProcessedUrl(image: ViewerArtworkImage, tier: ImageTier): string | null {
     switch (tier) {
@@ -97,17 +93,10 @@ export class ViewerImageOptimizer {
 
   /**
    * Generate a tiny blur placeholder URL for progressive loading
-   * Uses the small pre-processed URL if available, otherwise returns a minimal version
    */
   static getBlurPlaceholderUrl(image: ViewerArtworkImage | null): string {
     if (!image) return '/placeholder.svg';
-
-    // Use small pre-processed URL as blur placeholder (already optimized)
-    if (image.small_url) {
-      return image.small_url;
-    }
-
-    // Fallback to original
+    // Use original URL since Cloudinary is not working
     return image.original_url || '/placeholder.svg';
   }
 }
