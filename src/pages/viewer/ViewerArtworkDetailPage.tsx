@@ -30,6 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useViewerArtwork, useUpdateViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
 import { useAddViewerImage, useDeleteViewerImage, useReorderViewerImages } from '@/hooks/viewer/useViewerImages';
 import { useProcessViewerImage, useBatchProcessImages } from '@/hooks/viewer/useProcessViewerImage';
+import { ViewerImageOptimizer } from '@/services/viewer/image-optimizer';
 import { supabase } from '@/integrations/supabase/client';
 import type { ViewerArtworkImage } from '@/types/viewer';
 import { cn } from '@/lib/utils';
@@ -72,7 +73,7 @@ function SortableImage({
       className="relative group aspect-square bg-muted rounded overflow-hidden"
     >
       <img
-        src={image.medium_url || image.original_url}
+        src={ViewerImageOptimizer.getOptimizedUrl(image, 'small')}
         alt={image.alt_text || ''}
         className="w-full h-full object-cover"
         loading="lazy"
