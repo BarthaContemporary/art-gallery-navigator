@@ -219,38 +219,38 @@ export default function PublicArtworkViewer() {
         />
       </div>
 
-      {/* Controls */}
+      {/* Controls - Inverted dark background for legibility */}
       <div className={cn(
         "absolute bottom-4 left-1/2 -translate-x-1/2",
-        "backdrop-blur-xl bg-white/10 border border-white/20 rounded-full",
-        "px-2 py-1.5 flex items-center gap-1 transition-opacity duration-300",
+        "backdrop-blur-xl bg-black/80 border border-white/10 rounded-full",
+        "px-3 py-2 flex items-center gap-1.5 transition-opacity duration-300 shadow-lg",
         showControls ? "opacity-100" : "opacity-0 pointer-events-none"
       )}>
         <button
           onClick={() => handleZoom(-0.5)}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"
           title="Zoom out"
         >
           <ZoomOut className="h-4 w-4 text-white" />
         </button>
         
-        <span className="text-xs text-white/80 min-w-[3rem] text-center tabular-nums">
+        <span className="text-xs text-white font-medium min-w-[3rem] text-center tabular-nums">
           {Math.round(zoom * 100)}%
         </span>
         
         <button
           onClick={() => handleZoom(0.5)}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"
           title="Zoom in"
         >
           <ZoomIn className="h-4 w-4 text-white" />
         </button>
         
-        <div className="w-px h-6 bg-white/20" />
+        <div className="w-px h-6 bg-white/30" />
         
         <button
           onClick={resetView}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors"
           title="Reset view"
         >
           <RotateCcw className="h-4 w-4 text-white" />
@@ -258,7 +258,7 @@ export default function PublicArtworkViewer() {
         
         <button
           onClick={() => setMode(mode === 'fit' ? 'fill' : 'fit')}
-          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          className="p-2 hover:bg-white/10 rounded-full transition-colors"
           title={mode === 'fit' ? 'Fill screen' : 'Fit to screen'}
         >
           {mode === 'fit' ? (
