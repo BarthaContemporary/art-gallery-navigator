@@ -2,15 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useViewerArtwork } from '@/hooks/viewer/useViewerArtworks';
+import { useViewerArtworkBySlug } from '@/hooks/viewer/useViewerArtworks';
 import { ProgressiveImage } from '@/components/viewer/ProgressiveImage';
 import { ThumbnailStrip } from '@/components/viewer/ThumbnailStrip';
 import { ViewerImageOptimizer } from '@/services/viewer/image-optimizer';
 
 export default function PublicArtworkViewer() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
-  const { data: artwork, isLoading, error } = useViewerArtwork(id);
+  const { data: artwork, isLoading, error } = useViewerArtworkBySlug(slug);
 
   // Settings from URL params - default to fill mode for fullscreen
   const initialMode = searchParams.get('initial') === 'fit' ? 'fit' : 'fill';

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ViewerArtwork, ViewerArtworkImage } from '@/types/viewer';
 import { toast } from 'sonner';
+import { generateSlug } from '@/utils/slugUtils';
 
 export function useViewerArtworks() {
   return useQuery({
@@ -52,12 +53,44 @@ export function useViewerArtwork(id: string | undefined) {
   });
 }
 
+export function useViewerArtworkBySlug(slug: string | undefined) {
+  return useQuery({
+    queryKey: ['viewer-artwork-slug', slug],
+    queryFn: async (): Promise<ViewerArtwork | null> => {
+      if (!slug) return null;
+      
+      const { data, error } = await supabase
+        .from('viewer_artworks')
+        .select(`
+          *,
+          images:viewer_artwork_images(*)
+        `)
+        .eq('slug', slug)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
+      
+      // Sort images by position
+      if (data?.images) {
+        (data as any).images.sort((a: ViewerArtworkImage, b: ViewerArtworkImage) => a.position - b.position);
+      }
+      
+      return data as unknown as ViewerArtwork;
+    },
+    enabled: !!slug,
+  });
+}
+
 export function useCreateViewerArtwork() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (artwork: { artist_name: string; title: string; year?: string }) => {
       const { data: user } = await supabase.auth.getUser();
+      const slug = generateSlug(artwork.title);
       
       const { data, error } = await supabase
         .from('viewer_artworks')
@@ -65,6 +98,7 @@ export function useCreateViewerArtwork() {
           artist_name: artwork.artist_name,
           title: artwork.title,
           year: artwork.year || null,
+          slug,
           created_by: user.user?.id,
         })
         .select()
