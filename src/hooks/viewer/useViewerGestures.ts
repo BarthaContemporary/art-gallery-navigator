@@ -45,6 +45,7 @@ export function useViewerGestures(
   // Refs for gesture state
   const scaleRef = useRef(scale);
   const positionRef = useRef(position);
+  const dragStartPosition = useRef<Point>({ x: 0, y: 0 });
   const initialPinchScale = useRef(1);
   const initialPinchPosition = useRef<Point>({ x: 0, y: 0 });
   const velocity = useRef<Point>({ x: 0, y: 0 });
@@ -197,16 +198,17 @@ export function useViewerGestures(
         
         if (first) {
           stopMomentum();
+          dragStartPosition.current = positionRef.current;
           setIsGesturing(true);
         }
 
         const currentScale = scaleRef.current;
         
         if (down && currentScale > 1) {
-          // Calculate new position from movement
+          // Calculate new position from drag start + total movement
           const newPos = {
-            x: positionRef.current.x + mx,
-            y: positionRef.current.y + my,
+            x: dragStartPosition.current.x + mx,
+            y: dragStartPosition.current.y + my,
           };
           setPosition(clampPosition(newPos, currentScale));
         }
