@@ -1,11 +1,10 @@
 /**
  * Viewer Image Optimizer Service
- * Uses Cloudinary for on-the-fly image optimization
+ * Uses pre-processed Cloudinary URLs stored in the database
+ * Falls back to original URLs when pre-processed versions aren't available
  */
 
 import type { ViewerArtworkImage } from '@/types/viewer';
-
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
 
 export type ImageTier = 'thumbnail' | 'small' | 'medium' | 'large' | 'original';
 
@@ -23,47 +22,19 @@ const TIER_CONFIGS: Record<ImageTier, TierConfig> = {
 };
 
 export class ViewerImageOptimizer {
-  private static isConfigured(): boolean {
-    return !!CLOUDINARY_CLOUD_NAME && CLOUDINARY_CLOUD_NAME !== 'demo';
-  }
-
   /**
    * Get optimized URL for a given image and tier
+   * Prioritizes pre-processed URLs from the database
    */
   static getOptimizedUrl(image: ViewerArtworkImage | null, tier: ImageTier): string {
     if (!image) return '/placeholder.svg';
 
-    // First, check if we have pre-processed URLs
+    // Always prioritize pre-processed URLs from the database
     const preProcessedUrl = this.getPreProcessedUrl(image, tier);
     if (preProcessedUrl) return preProcessedUrl;
 
-    // Get original URL
-    const originalUrl = image.original_url;
-    if (!originalUrl || originalUrl === '/placeholder.svg') {
-      return '/placeholder.svg';
-    }
-
-    // If Cloudinary is not configured, return original
-    if (!this.isConfigured()) {
-      return originalUrl;
-    }
-
-    // If it's already a Cloudinary URL, return as-is for now
-    if (originalUrl.includes('res.cloudinary.com')) {
-      return originalUrl;
-    }
-
-    // Generate Cloudinary fetch URL with optimizations
-    const config = TIER_CONFIGS[tier];
-    const transforms = [
-      `w_${config.width}`,
-      `q_${config.quality}`,
-      'f_auto',
-      'c_limit',
-      'fl_progressive',
-    ].join(',');
-
-    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${transforms}/${encodeURIComponent(originalUrl)}`;
+    // Fallback to original URL
+    return image.original_url || '/placeholder.svg';
   }
 
   /**
@@ -126,28 +97,17 @@ export class ViewerImageOptimizer {
 
   /**
    * Generate a tiny blur placeholder URL for progressive loading
+   * Uses the small pre-processed URL if available, otherwise returns a minimal version
    */
   static getBlurPlaceholderUrl(image: ViewerArtworkImage | null): string {
     if (!image) return '/placeholder.svg';
 
-    const originalUrl = image.original_url;
-    if (!originalUrl || !this.isConfigured()) {
-      return '/placeholder.svg';
+    // Use small pre-processed URL as blur placeholder (already optimized)
+    if (image.small_url) {
+      return image.small_url;
     }
 
-    // Already Cloudinary URL
-    if (originalUrl.includes('res.cloudinary.com')) {
-      return originalUrl;
-    }
-
-    // Generate tiny blur placeholder via Cloudinary
-    const transforms = [
-      'w_40',
-      'q_30',
-      'f_auto',
-      'e_blur:800',
-    ].join(',');
-
-    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${transforms}/${encodeURIComponent(originalUrl)}`;
+    // Fallback to original
+    return image.original_url || '/placeholder.svg';
   }
 }
