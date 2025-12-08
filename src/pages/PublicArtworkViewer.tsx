@@ -53,10 +53,11 @@ export default function PublicArtworkViewer() {
     };
   }, [isDragging]);
 
-  // Reset zoom/pan when image changes
+  // Reset zoom/pan/mode when image changes - always start fullscreen
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setMode('fill');
   }, [activeIndex]);
 
   // Preload next image using optimized URL
