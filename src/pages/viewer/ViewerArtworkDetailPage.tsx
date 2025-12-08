@@ -222,6 +222,8 @@ export default function ViewerArtworkDetailPage() {
     [artwork, reorderImages]
   );
 
+  const MAX_FILE_SIZE = 300 * 1024 * 1024; // 300MB
+
   const uploadFiles = async (files: FileList | File[]) => {
     if (!files.length || !artwork) return;
 
@@ -240,6 +242,13 @@ export default function ViewerArtworkDetailPage() {
     try {
       for (let i = 0; i < filesToUpload.length; i++) {
         const file = filesToUpload[i];
+        
+        // Check file size
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(`File "${file.name}" exceeds 300MB limit`);
+          continue;
+        }
+        
         const ext = file.name.split('.').pop();
         const path = `viewer/${artwork.id}/${Date.now()}-${i}.${ext}`;
 
