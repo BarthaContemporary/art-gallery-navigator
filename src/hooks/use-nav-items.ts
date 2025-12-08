@@ -1,5 +1,5 @@
 
-import { Calendar, Users, Home, PaintBucket, Share2, MapPin, FolderOpen, Building2, UserCheck, Settings } from "lucide-react";
+import { Calendar, Users, Home, PaintBucket, Share2, MapPin, FolderOpen, Building2, UserCheck, Settings, Image } from "lucide-react";
 import { useAuth } from "./use-auth";
 
 export const useNavItems = () => {
@@ -21,6 +21,7 @@ export const useNavItems = () => {
   const adminItems = isAdmin ? [
     { title: "CRM", href: "/crm", icon: UserCheck },
     { title: "Projects", href: "/projects", icon: Building2 },
+    { title: "Image Viewer", href: "/viewer", icon: Image },
     { title: "Admin", href: "/admin", icon: Settings }
   ] : [];
 
@@ -49,6 +50,7 @@ export const useNavItemsGrouped = () => {
   const adminItems = isAdmin ? [
     { title: "CRM", href: "/crm", icon: UserCheck },
     { title: "Projects", href: "/projects", icon: Building2 },
+    { title: "Image Viewer", href: "/viewer", icon: Image },
     { title: "Admin", href: "/admin", icon: Settings }
   ] : [];
 
