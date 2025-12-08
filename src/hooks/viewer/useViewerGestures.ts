@@ -1,10 +1,10 @@
 /**
  * Mobile-optimized gesture hook for image viewer
  * Supports pinch-to-zoom, momentum panning, double-tap zoom
- * Optimized for iPhone and iPad
+ * Optimized for iPhone and iPad with proper touch handling
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, RefObject } from 'react';
 import { useGesture } from '@use-gesture/react';
 
 interface Point {
@@ -17,7 +17,6 @@ interface ViewerGestureOptions {
   maxZoom?: number;
   doubleTapZoom?: number;
   momentumFriction?: number;
-  boundaryPadding?: number;
 }
 
 interface ViewerGestureState {
@@ -27,13 +26,15 @@ interface ViewerGestureState {
   isPinching: boolean;
 }
 
-export function useViewerGestures(options: ViewerGestureOptions = {}) {
+export function useViewerGestures(
+  containerRef: RefObject<HTMLElement>,
+  options: ViewerGestureOptions = {}
+) {
   const {
     minZoom = 0.5,
     maxZoom = 10,
     doubleTapZoom = 2.5,
-    momentumFriction = 0.95,
-    boundaryPadding = 50,
+    momentumFriction = 0.92,
   } = options;
 
   const [scale, setScale] = useState(1);
@@ -42,32 +43,52 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
   const [isPinching, setIsPinching] = useState(false);
 
   // Refs for gesture state
-  const initialScale = useRef(1);
-  const initialPosition = useRef<Point>({ x: 0, y: 0 });
+  const scaleRef = useRef(scale);
+  const positionRef = useRef(position);
+  const initialPinchScale = useRef(1);
+  const initialPinchPosition = useRef<Point>({ x: 0, y: 0 });
   const velocity = useRef<Point>({ x: 0, y: 0 });
   const momentumFrame = useRef<number>();
   const lastTapTime = useRef(0);
   const lastTapPosition = useRef<Point>({ x: 0, y: 0 });
-  const containerSize = useRef({ width: 0, height: 0 });
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
 
   // Clamp scale within bounds
   const clampScale = useCallback((s: number) => {
     return Math.max(minZoom, Math.min(maxZoom, s));
   }, [minZoom, maxZoom]);
 
-  // Clamp position to keep image visible
+  // Clamp position based on actual container dimensions and current scale
   const clampPosition = useCallback((pos: Point, currentScale: number): Point => {
     if (currentScale <= 1) return { x: 0, y: 0 };
     
-    const maxPan = Math.max(0, (currentScale - 1) * boundaryPadding * 2);
+    const container = containerRef.current;
+    if (!container) return pos;
+    
+    const rect = container.getBoundingClientRect();
+    
+    // Calculate how much the scaled content exceeds the container
+    const overflowX = Math.max(0, (rect.width * currentScale - rect.width) / 2);
+    const overflowY = Math.max(0, (rect.height * currentScale - rect.height) / 2);
+    
     return {
-      x: Math.max(-maxPan, Math.min(maxPan, pos.x)),
-      y: Math.max(-maxPan, Math.min(maxPan, pos.y)),
+      x: Math.max(-overflowX, Math.min(overflowX, pos.x)),
+      y: Math.max(-overflowY, Math.min(overflowY, pos.y)),
     };
-  }, [boundaryPadding]);
+  }, [containerRef]);
 
   // Apply momentum after drag release
   const applyMomentum = useCallback(() => {
+    const currentScale = scaleRef.current;
+    
     if (Math.abs(velocity.current.x) < 0.5 && Math.abs(velocity.current.y) < 0.5) {
       velocity.current = { x: 0, y: 0 };
       return;
@@ -83,11 +104,11 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
         x: prev.x + velocity.current.x,
         y: prev.y + velocity.current.y,
       };
-      return clampPosition(newPos, scale);
+      return clampPosition(newPos, currentScale);
     });
 
     momentumFrame.current = requestAnimationFrame(applyMomentum);
-  }, [momentumFriction, clampPosition, scale]);
+  }, [momentumFriction, clampPosition]);
 
   // Stop momentum
   const stopMomentum = useCallback(() => {
@@ -105,103 +126,139 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
     setPosition({ x: 0, y: 0 });
   }, [stopMomentum]);
 
-  // Zoom to specific scale at point
-  const zoomToPoint = useCallback((newScale: number, point: Point, containerRect: DOMRect) => {
-    const clampedScale = clampScale(newScale);
-    const centerX = containerRect.width / 2;
-    const centerY = containerRect.height / 2;
+  // Handle double tap zoom
+  const handleDoubleTap = useCallback((point: Point) => {
+    const container = containerRef.current;
+    if (!container) return;
     
-    // Calculate offset from center
-    const offsetX = (point.x - containerRect.left - centerX);
-    const offsetY = (point.y - containerRect.top - centerY);
+    const rect = container.getBoundingClientRect();
+    const currentScale = scaleRef.current;
     
-    // Calculate new position to zoom toward point
-    const scaleRatio = clampedScale / scale;
-    const newX = position.x - offsetX * (scaleRatio - 1) / clampedScale;
-    const newY = position.y - offsetY * (scaleRatio - 1) / clampedScale;
-    
-    setScale(clampedScale);
-    setPosition(clampPosition({ x: newX, y: newY }, clampedScale));
-  }, [scale, position, clampScale, clampPosition]);
-
-  // Handle double tap
-  const handleDoubleTap = useCallback((point: Point, containerRect: DOMRect) => {
-    if (scale > 1.1) {
-      // Zoom out
+    if (currentScale > 1.1) {
+      // Zoom out to 1x
       setScale(1);
       setPosition({ x: 0, y: 0 });
     } else {
-      // Zoom in to double tap position
-      zoomToPoint(doubleTapZoom, point, containerRect);
+      // Zoom in toward tap point
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const offsetX = point.x - rect.left - centerX;
+      const offsetY = point.y - rect.top - centerY;
+      
+      const newScale = doubleTapZoom;
+      const scaleRatio = newScale / currentScale;
+      
+      // Calculate new position to zoom toward tap point
+      const newX = -offsetX * (scaleRatio - 1);
+      const newY = -offsetY * (scaleRatio - 1);
+      
+      setScale(newScale);
+      setPosition(clampPosition({ x: newX, y: newY }, newScale));
     }
-  }, [scale, doubleTapZoom, zoomToPoint]);
+  }, [containerRef, doubleTapZoom, clampPosition]);
 
-  // Main gesture binding
-  const bind = useGesture(
+  // Main gesture binding with target-based approach for iOS
+  useGesture(
     {
-      onDrag: ({ movement: [mx, my], velocity: [vx, vy], down, first, last, event, memo }) => {
-        // Prevent default to stop Safari bouncing
-        event?.preventDefault();
+      onDrag: ({ 
+        movement: [mx, my], 
+        velocity: [vx, vy], 
+        down, 
+        first, 
+        last, 
+        tap,
+        event,
+        xy: [x, y],
+      }) => {
+        // Prevent default to stop iOS Safari bounce
+        if (event?.cancelable) {
+          event.preventDefault();
+        }
+
+        // Handle tap for double-tap detection
+        if (tap) {
+          const now = Date.now();
+          const point = { x, y };
+          const timeDiff = now - lastTapTime.current;
+          const distance = Math.hypot(
+            point.x - lastTapPosition.current.x,
+            point.y - lastTapPosition.current.y
+          );
+
+          if (timeDiff < 300 && distance < 50) {
+            handleDoubleTap(point);
+            lastTapTime.current = 0;
+          } else {
+            lastTapTime.current = now;
+            lastTapPosition.current = point;
+          }
+          return;
+        }
         
         if (first) {
           stopMomentum();
-          initialPosition.current = position;
           setIsGesturing(true);
         }
 
-        if (down) {
-          // Only allow panning when zoomed in
-          if (scale > 1) {
-            const newPos = {
-              x: initialPosition.current.x + mx / scale,
-              y: initialPosition.current.y + my / scale,
-            };
-            setPosition(clampPosition(newPos, scale));
-          }
+        const currentScale = scaleRef.current;
+        
+        if (down && currentScale > 1) {
+          // Calculate new position from movement
+          const newPos = {
+            x: positionRef.current.x + mx,
+            y: positionRef.current.y + my,
+          };
+          setPosition(clampPosition(newPos, currentScale));
         }
 
         if (last) {
           setIsGesturing(false);
           
-          // Apply momentum if moving fast enough
-          if (scale > 1 && (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1)) {
-            velocity.current = { x: vx * 10, y: vy * 10 };
-            applyMomentum();
+          // Apply momentum if moving fast enough when zoomed
+          if (currentScale > 1 && (Math.abs(vx) > 0.2 || Math.abs(vy) > 0.2)) {
+            // Velocity is in px/ms, scale it appropriately
+            velocity.current = { x: vx * 15, y: vy * 15 };
+            requestAnimationFrame(applyMomentum);
           }
         }
-
-        return memo;
       },
-      onPinch: ({ origin: [ox, oy], first, last, offset: [s], event, memo }) => {
+      onPinch: ({ 
+        origin: [ox, oy], 
+        first, 
+        last, 
+        offset: [s], 
+        event,
+      }) => {
         // Prevent default to stop Safari zoom
-        event?.preventDefault();
+        if (event?.cancelable) {
+          event.preventDefault();
+        }
+        
+        const container = containerRef.current;
+        if (!container) return;
         
         if (first) {
           stopMomentum();
-          initialScale.current = scale;
-          initialPosition.current = position;
+          initialPinchScale.current = scaleRef.current;
+          initialPinchPosition.current = positionRef.current;
           setIsPinching(true);
           setIsGesturing(true);
-          
-          // Store container rect
-          const target = event?.currentTarget as HTMLElement;
-          if (target) {
-            const rect = target.getBoundingClientRect();
-            containerSize.current = { width: rect.width, height: rect.height };
-          }
         }
 
         const newScale = clampScale(s);
+        const rect = container.getBoundingClientRect();
         
         // Calculate zoom toward pinch center
-        const centerX = containerSize.current.width / 2;
-        const centerY = containerSize.current.height / 2;
-        const offsetX = ox - centerX;
-        const offsetY = oy - centerY;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const pinchX = ox - rect.left;
+        const pinchY = oy - rect.top;
+        const offsetX = pinchX - centerX;
+        const offsetY = pinchY - centerY;
         
-        const scaleRatio = newScale / initialScale.current;
-        const newX = initialPosition.current.x - offsetX * (scaleRatio - 1) / newScale;
-        const newY = initialPosition.current.y - offsetY * (scaleRatio - 1) / newScale;
+        const scaleRatio = newScale / initialPinchScale.current;
+        const newX = initialPinchPosition.current.x - offsetX * (scaleRatio - 1);
+        const newY = initialPinchPosition.current.y - offsetY * (scaleRatio - 1);
         
         setScale(newScale);
         setPosition(clampPosition({ x: newX, y: newY }, newScale));
@@ -210,65 +267,58 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
           setIsPinching(false);
           setIsGesturing(false);
         }
-
-        return memo;
       },
       onWheel: ({ delta: [, dy], event }) => {
-        event?.preventDefault();
-        const delta = dy > 0 ? -0.15 : 0.15;
-        const newScale = clampScale(scale + delta);
-        
-        const target = event?.currentTarget as HTMLElement;
-        if (target && event) {
-          const rect = target.getBoundingClientRect();
-          zoomToPoint(newScale, { x: (event as WheelEvent).clientX, y: (event as WheelEvent).clientY }, rect);
-        } else {
-          setScale(newScale);
+        if (event?.cancelable) {
+          event.preventDefault();
         }
+        
+        const container = containerRef.current;
+        if (!container || !event) return;
+        
+        const delta = dy > 0 ? -0.15 : 0.15;
+        const currentScale = scaleRef.current;
+        const newScale = clampScale(currentScale + delta);
+        
+        const rect = container.getBoundingClientRect();
+        const wheelEvent = event as WheelEvent;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const mouseX = wheelEvent.clientX - rect.left;
+        const mouseY = wheelEvent.clientY - rect.top;
+        const offsetX = mouseX - centerX;
+        const offsetY = mouseY - centerY;
+        
+        const scaleRatio = newScale / currentScale;
+        const currentPos = positionRef.current;
+        const newX = currentPos.x - offsetX * (scaleRatio - 1);
+        const newY = currentPos.y - offsetY * (scaleRatio - 1);
+        
+        setScale(newScale);
+        setPosition(clampPosition({ x: newX, y: newY }, newScale));
       },
     },
     {
+      target: containerRef,
+      eventOptions: { passive: false },
       drag: {
+        from: () => [0, 0], // Always start from 0, we track position separately
         filterTaps: true,
-        threshold: 5,
-        pointer: { touch: true },
+        threshold: 3,
+        pointer: { 
+          touch: true,
+          capture: false, // Critical for iOS
+        },
+        preventDefault: true,
       },
       pinch: {
         scaleBounds: { min: minZoom, max: maxZoom },
         rubberband: true,
         pointer: { touch: true },
-      },
-      wheel: {
-        eventOptions: { passive: false },
+        preventDefault: true,
       },
     }
   );
-
-  // Handle tap events separately for double-tap detection
-  const handleTap = useCallback((e: React.PointerEvent | React.TouchEvent) => {
-    const now = Date.now();
-    const point = 'touches' in e 
-      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      : { x: (e as React.PointerEvent).clientX, y: (e as React.PointerEvent).clientY };
-    
-    const timeDiff = now - lastTapTime.current;
-    const distance = Math.hypot(
-      point.x - lastTapPosition.current.x,
-      point.y - lastTapPosition.current.y
-    );
-
-    // Double tap detection (within 300ms and 50px)
-    if (timeDiff < 300 && distance < 50) {
-      const target = e.currentTarget as HTMLElement;
-      if (target) {
-        handleDoubleTap(point, target.getBoundingClientRect());
-      }
-      lastTapTime.current = 0;
-    } else {
-      lastTapTime.current = now;
-      lastTapPosition.current = point;
-    }
-  }, [handleDoubleTap]);
 
   // Manual zoom controls
   const zoomIn = useCallback(() => {
@@ -276,12 +326,12 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
   }, [clampScale]);
 
   const zoomOut = useCallback(() => {
-    const newScale = clampScale(scale - 0.5);
+    const newScale = clampScale(scaleRef.current - 0.5);
     setScale(newScale);
     if (newScale <= 1) {
       setPosition({ x: 0, y: 0 });
     }
-  }, [scale, clampScale]);
+  }, [clampScale]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -290,8 +340,20 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
     };
   }, [stopMomentum]);
 
+  // iOS document-level touch prevention during gestures
+  useEffect(() => {
+    const preventBounce = (e: TouchEvent) => {
+      // Only prevent when actively gesturing on the viewer
+      if (isGesturing && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+    
+    document.addEventListener('touchmove', preventBounce, { passive: false });
+    return () => document.removeEventListener('touchmove', preventBounce);
+  }, [isGesturing]);
+
   return {
-    bind,
     scale,
     position,
     isGesturing,
@@ -299,6 +361,5 @@ export function useViewerGestures(options: ViewerGestureOptions = {}) {
     resetView,
     zoomIn,
     zoomOut,
-    handleTap,
   };
 }

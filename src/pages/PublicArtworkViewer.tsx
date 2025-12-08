@@ -4,7 +4,7 @@
  * Designed for iPhone and iPad with proper touch handling
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,20 +28,19 @@ export default function PublicArtworkViewer() {
   const [mode, setMode] = useState<'fit' | 'fill'>(initialMode);
   const [showControls, setShowControls] = useState(true);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Ref for gesture container - must be defined before useViewerGestures
+  const gestureContainerRef = useRef<HTMLDivElement>(null);
   const hideTimeout = useRef<NodeJS.Timeout>();
 
-  // Use gesture hook for touch handling
+  // Use gesture hook for touch handling - pass container ref
   const {
-    bind,
     scale,
     position,
     isGesturing,
     resetView,
     zoomIn,
     zoomOut,
-    handleTap,
-  } = useViewerGestures({
+  } = useViewerGestures(gestureContainerRef, {
     minZoom: 0.5,
     maxZoom: 10,
     doubleTapZoom: 2.5,
@@ -57,17 +56,15 @@ export default function PublicArtworkViewer() {
       clearTimeout(hideTimeout.current);
       hideTimeout.current = setTimeout(() => {
         if (!isGesturing) setShowControls(false);
-      }, 4000); // Longer timeout for touch devices
+      }, 4000);
     };
 
     window.addEventListener('mousemove', handleInteraction);
     window.addEventListener('touchstart', handleInteraction, { passive: true });
-    window.addEventListener('touchmove', handleInteraction, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleInteraction);
       window.removeEventListener('touchstart', handleInteraction);
-      window.removeEventListener('touchmove', handleInteraction);
       clearTimeout(hideTimeout.current);
     };
   }, [isGesturing]);
@@ -139,28 +136,26 @@ export default function PublicArtworkViewer() {
 
   return (
     <div
-      ref={containerRef}
       className={cn(
         "fixed inset-0 overflow-hidden select-none",
         forceDark ? "bg-black" : "bg-neutral-200",
         isGesturing ? "cursor-grabbing" : scale > 1 ? "cursor-grab" : "cursor-default"
       )}
       style={{
-        // iOS-specific touch handling
-        touchAction: 'none',
+        // iOS-specific touch handling at root level
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
-        WebkitOverflowScrolling: 'touch',
         overscrollBehavior: 'none',
       } as React.CSSProperties}
     >
-      {/* Main Image with Gesture Handling */}
+      {/* Main Image with Gesture Handling - gesture target */}
       <div
-        {...bind()}
+        ref={gestureContainerRef}
         className="absolute inset-0 flex items-center justify-center"
-        onPointerDown={handleTap}
         style={{
           touchAction: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
         }}
       >
         <ProgressiveImage
@@ -168,11 +163,11 @@ export default function PublicArtworkViewer() {
           alt={activeImage.alt_text || artwork.title}
           zoom={scale}
           className={cn(
-            "transition-transform duration-75 will-change-transform",
+            "transition-transform duration-75 will-change-transform pointer-events-none",
             mode === 'fit' ? "max-h-full max-w-full object-contain" : "min-h-full min-w-full object-cover"
           )}
           style={{
-            transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
+            transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
             transformOrigin: 'center center',
           }}
           draggable={false}
