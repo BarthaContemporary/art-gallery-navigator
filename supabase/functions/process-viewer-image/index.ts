@@ -7,7 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CLOUDINARY_CLOUD_NAME = Deno.env.get('CLOUDINARY_CLOUD_NAME') || 'demo';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -15,43 +14,6 @@ interface ProcessRequest {
   image_id: string;
   original_url: string;
   artwork_id: string;
-}
-
-interface ProcessedUrls {
-  small_url: string;
-  medium_url: string;
-  large_url: string;
-}
-
-// Generate Cloudinary optimized URLs
-function generateOptimizedUrls(originalUrl: string): ProcessedUrls {
-  if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME === 'demo') {
-    // Fallback: return original for all sizes
-    return {
-      small_url: originalUrl,
-      medium_url: originalUrl,
-      large_url: originalUrl,
-    };
-  }
-
-  const encodedUrl = encodeURIComponent(originalUrl);
-  const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch`;
-
-  return {
-    small_url: `${baseUrl}/w_400,q_75,f_auto,c_limit,fl_progressive/${encodedUrl}`,
-    medium_url: `${baseUrl}/w_1200,q_85,f_auto,c_limit,fl_progressive/${encodedUrl}`,
-    large_url: `${baseUrl}/w_2400,q_90,f_auto,c_limit,fl_progressive/${encodedUrl}`,
-  };
-}
-
-// Verify a URL is accessible
-async function verifyUrl(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
-  } catch {
-    return false;
-  }
 }
 
 serve(async (req) => {
@@ -72,25 +34,15 @@ serve(async (req) => {
       );
     }
 
-    // Generate optimized URLs
-    const urls = generateOptimizedUrls(original_url);
-    console.log('Generated URLs:', urls);
-
-    // Verify at least the medium URL is accessible (warm the cache)
-    const isAccessible = await verifyUrl(urls.medium_url);
-    if (!isAccessible) {
-      console.warn(`Medium URL not accessible: ${urls.medium_url}`);
-    }
-
-    // Update the database with processed URLs
+    // Update the database - just mark as processed, use original URLs
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { error: updateError } = await supabase
       .from('viewer_artwork_images')
       .update({
-        small_url: urls.small_url,
-        medium_url: urls.medium_url,
-        large_url: urls.large_url,
+        small_url: original_url,
+        medium_url: original_url,
+        large_url: original_url,
         updated_at: new Date().toISOString(),
       })
       .eq('id', image_id);
@@ -109,8 +61,11 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         image_id,
-        urls,
-        cached: isAccessible,
+        urls: {
+          small_url: original_url,
+          medium_url: original_url,
+          large_url: original_url,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
