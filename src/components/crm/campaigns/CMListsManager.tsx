@@ -54,10 +54,7 @@ export function CMListsManager() {
                 <div className="p-2 bg-muted">
                   <Users className="h-4 w-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-medium">{list.Name}</h3>
-                  <p className="text-xs text-muted-foreground">ID: {list.ListID}</p>
-                </div>
+                <h3 className="text-xs font-medium">{list.Name}</h3>
               </div>
               <div className="flex items-center gap-2">
                 <Button
