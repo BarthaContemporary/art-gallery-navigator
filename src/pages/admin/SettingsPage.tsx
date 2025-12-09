@@ -22,8 +22,12 @@ import {
   FileSpreadsheet,
   Check,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  Plus,
+  Trash2
 } from "lucide-react";
+import { useViewerEmbedDomains, useAddEmbedDomain, useDeleteEmbedDomain } from '@/hooks/viewer/useViewerEmbedDomains';
 import { exportData } from "@/lib/backup";
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
@@ -477,6 +481,9 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Image Viewer Embed Settings */}
+        <ImageViewerEmbedSettings />
       </div>
 
       <GoogleContactsImportDialog
@@ -486,5 +493,77 @@ export default function SettingsPage() {
         importContacts={importGoogleContacts}
       />
     </div>
+  );
+}
+
+function ImageViewerEmbedSettings() {
+  const { data: domains, isLoading } = useViewerEmbedDomains();
+  const addDomain = useAddEmbedDomain();
+  const deleteDomain = useDeleteEmbedDomain();
+  const [newDomain, setNewDomain] = useState('');
+
+  const handleAddDomain = async () => {
+    if (!newDomain.trim()) return;
+    await addDomain.mutateAsync(newDomain);
+    setNewDomain('');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Image Viewer - Embed Domains
+        </CardTitle>
+        <CardDescription>
+          Specify which domains can embed the artwork viewer. Leave empty to allow all domains.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2 max-w-md">
+          <Input
+            placeholder="example.com"
+            value={newDomain}
+            onChange={(e) => setNewDomain(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
+          />
+          <Button onClick={handleAddDomain} disabled={!newDomain.trim() || addDomain.isPending}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2 max-w-md">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-10 bg-muted rounded animate-pulse" />
+            ))}
+          </div>
+        ) : domains?.length ? (
+          <div className="space-y-2 max-w-md">
+            {domains.map((domain) => (
+              <div
+                key={domain.id}
+                className="flex items-center justify-between p-3 bg-muted/50 rounded"
+              >
+                <span className="font-mono text-sm">{domain.domain}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteDomain.mutate(domain.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">
+            No domain restrictions. The viewer can be embedded on any website.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

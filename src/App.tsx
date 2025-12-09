@@ -51,7 +51,6 @@ import {
 import ViewerLayout from "@/pages/viewer/ViewerLayout";
 import ViewerArtworksPage from "@/pages/viewer/ViewerArtworksPage";
 import ViewerArtworkDetailPage from "@/pages/viewer/ViewerArtworkDetailPage";
-import ViewerSettingsPage from "@/pages/viewer/ViewerSettingsPage";
 import PublicArtworkViewer from "@/pages/PublicArtworkViewer";
 
 const queryClient = new QueryClient();
@@ -106,7 +105,6 @@ function App() {
                   <Route path="viewer" element={<ViewerLayout />}>
                     <Route index element={<ViewerArtworksPage />} />
                     <Route path=":id" element={<ViewerArtworkDetailPage />} />
-                    <Route path="settings" element={<ViewerSettingsPage />} />
                   </Route>
                   <Route path="manage-websites" element={<ManageWebsites />} />
                   <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
