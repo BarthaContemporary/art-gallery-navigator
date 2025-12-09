@@ -245,9 +245,10 @@ async function syncContact(supabaseClient: any, authString: string, contactId: s
       })
     }
 
-    const subscriberData: CampaignMonitorSubscriber = {
+    const subscriberData = {
       EmailAddress: contact.email,
       Name: contact.full_name,
+      ConsentToTrack: 'Yes',
       CustomFields: [
         { Key: 'Phone', Value: contact.phone || '' },
         { Key: 'Company', Value: contact.organization_id ? 'See CRM' : '' },
@@ -333,9 +334,10 @@ async function syncAllContacts(supabaseClient: any, authString: string, listId: 
 
     for (const contact of contacts) {
       try {
-        const subscriberData: CampaignMonitorSubscriber = {
+        const subscriberData = {
           EmailAddress: contact.email,
           Name: contact.full_name,
+          ConsentToTrack: 'Yes',
           CustomFields: [
             { Key: 'Phone', Value: contact.phone || '' },
             { Key: 'Source', Value: contact.source || '' },
