@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ExternalLink, Trash2, Settings2, Image as ImageIcon, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { PlusCircle, ExternalLink, Trash2, Image as ImageIcon, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -114,25 +114,14 @@ export default function ViewerArtworksPage() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Image Viewer</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage embeddable high-resolution artwork viewers
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/viewer/settings')}>
-            <Settings2 className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Artwork
-              </Button>
-            </DialogTrigger>
+      <div className="flex flex-col items-start gap-1">
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              New Artwork
+            </Button>
+          </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Artwork</DialogTitle>
@@ -179,7 +168,9 @@ export default function ViewerArtworksPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+        <p className="text-muted-foreground text-xs">
+          {artworks?.length || 0} artworks
+        </p>
       </div>
 
       {!artworks?.length ? (
@@ -190,8 +181,8 @@ export default function ViewerArtworksPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Create your first embeddable artwork viewer
             </p>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <PlusCircle className="h-4 w-4 mr-2" />
               Create Artwork
             </Button>
           </CardContent>
