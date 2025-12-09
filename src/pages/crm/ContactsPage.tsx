@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Download, Trash2 } from "lucide-react";
+import { PlusCircle, Search, Download, Trash2 } from "lucide-react";
 import { useCRMContacts, useBulkDeleteCRMContacts } from "@/hooks/crm";
 import { ContactsTable } from "@/components/crm/contacts/ContactsTable";
 import { ContactFilters } from "@/components/crm/contacts/ContactFilters";
@@ -40,17 +40,14 @@ export default function ContactsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Contacts</h1>
-          <p className="text-muted-foreground text-sm">
-            {contacts?.length || 0} contacts
-          </p>
-        </div>
+      <div className="flex flex-col items-start gap-1">
         <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
+          <PlusCircle className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
+        <p className="text-muted-foreground text-xs">
+          {contacts?.length || 0} contacts
+        </p>
       </div>
 
       {/* Search and Filters */}
