@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { useCRMPipelines, useCRMDeals } from "@/hooks/crm";
 import { PipelineBoard } from "@/components/crm/pipelines/PipelineBoard";
 import { DealDialog } from "@/components/crm/pipelines/DealDialog";
@@ -39,17 +39,15 @@ export default function PipelinesPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Pipelines</h1>
-            <p className="text-muted-foreground text-sm">
-              Track deals and opportunities
-            </p>
-          </div>
+      <div className="flex flex-col items-start gap-1">
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setIsCreateDealOpen(true)}>
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Deal
+          </Button>
           {pipelines && pipelines.length > 1 && (
             <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48 h-8">
                 <SelectValue placeholder="Select pipeline" />
               </SelectTrigger>
               <SelectContent>
@@ -62,10 +60,9 @@ export default function PipelinesPage() {
             </Select>
           )}
         </div>
-        <Button onClick={() => setIsCreateDealOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Deal
-        </Button>
+        <p className="text-muted-foreground text-xs">
+          {deals?.length || 0} deals
+        </p>
       </div>
 
       {/* Pipeline Board */}
