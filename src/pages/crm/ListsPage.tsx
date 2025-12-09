@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { useCRMLists } from "@/hooks/crm";
 import { ListsGrid } from "@/components/crm/lists/ListsGrid";
 import { ListDialog } from "@/components/crm/lists/ListDialog";
@@ -27,23 +27,20 @@ export default function ListsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Lists & Segments</h1>
-          <p className="text-muted-foreground text-sm">
-            {staticLists.length} static lists, {dynamicLists.length} dynamic segments
-          </p>
-        </div>
+      <div className="flex flex-col items-start gap-1">
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleCreateList("dynamic")}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={() => handleCreateList("dynamic")}>
+            <PlusCircle className="h-4 w-4 mr-2" />
             New Segment
           </Button>
-          <Button onClick={() => handleCreateList("static")}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" onClick={() => handleCreateList("static")}>
+            <PlusCircle className="h-4 w-4 mr-2" />
             New List
           </Button>
         </div>
+        <p className="text-muted-foreground text-xs">
+          {staticLists.length} static lists, {dynamicLists.length} dynamic segments
+        </p>
       </div>
 
       {/* Tabs */}

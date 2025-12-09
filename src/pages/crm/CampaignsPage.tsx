@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { useCRMCampaigns } from "@/hooks/crm";
 import { CampaignsList } from "@/components/crm/campaigns/CampaignsList";
 import { CampaignDialog } from "@/components/crm/campaigns/CampaignDialog";
@@ -21,17 +21,14 @@ export default function CampaignsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Campaigns</h1>
-          <p className="text-muted-foreground text-sm">
-            {campaigns?.length || 0} campaigns
-          </p>
-        </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+      <div className="flex flex-col items-start gap-1">
+        <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+          <PlusCircle className="h-4 w-4 mr-2" />
           New Campaign
         </Button>
+        <p className="text-muted-foreground text-xs">
+          {campaigns?.length || 0} campaigns
+        </p>
       </div>
 
       {/* Tabs */}
