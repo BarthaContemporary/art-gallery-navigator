@@ -313,11 +313,13 @@ async function syncContact(supabaseClient: any, authString: string, contactId: s
 
 async function syncAllContacts(supabaseClient: any, authString: string, listId: string) {
   try {
+    console.log('Starting bulk sync to list:', listId);
+    
+    // Get all contacts with email (no marketing_consent filter)
     const { data: contacts, error } = await supabaseClient
       .from('crm_contacts')
       .select('*')
       .not('email', 'is', null)
-      .eq('marketing_consent', true)
 
     if (error || !contacts) {
       return new Response(JSON.stringify({ error: 'Failed to fetch contacts' }), { 
@@ -366,6 +368,8 @@ async function syncAllContacts(supabaseClient: any, authString: string, listId: 
           syncedCount++
         } else {
           const errorData = await response.text()
+          console.error(`Sync error for contact ${contact.email}:`, errorData)
+          
           await supabaseClient
             .from('crm_contacts')
             .update({
