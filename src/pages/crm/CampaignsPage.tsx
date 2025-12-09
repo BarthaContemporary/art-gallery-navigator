@@ -15,7 +15,7 @@ export default function CampaignsPage() {
         </div>
         <Button variant="ghost" size="sm" asChild>
           <a 
-            href="https://login.createsend.com" 
+            href="https://barthacontemporary.createsend.com/" 
             target="_blank" 
             rel="noopener noreferrer"
           >
