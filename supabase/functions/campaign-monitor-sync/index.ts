@@ -75,6 +75,8 @@ serve(async (req) => {
         return await syncAllContacts(supabaseClient, authString, listId)
       case 'get_list_stats':
         return await getListStats(authString, listId)
+      case 'import_from_list':
+        return await importFromList(supabaseClient, authString, listId)
       default:
         return new Response(JSON.stringify({ error: 'Invalid action' }), { 
           status: 400,
@@ -404,6 +406,120 @@ async function syncAllContacts(supabaseClient: any, authString: string, listId: 
   } catch (error) {
     console.error('Bulk sync error:', error)
     return new Response(JSON.stringify({ error: 'Bulk sync failed' }), { 
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+async function importFromList(supabaseClient: any, authString: string, listId: string) {
+  try {
+    console.log('Starting import from CM list:', listId);
+    
+    // Fetch active subscribers from the list
+    const response = await fetch(`https://api.createsend.com/api/v3.3/lists/${listId}/active.json?pagesize=1000`, {
+      headers: {
+        'Authorization': `Basic ${authString}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to fetch subscribers:', errorText);
+      return new Response(JSON.stringify({ error: 'Failed to fetch subscribers from Campaign Monitor' }), { 
+        status: response.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const data = await response.json();
+    const subscribers = data.Results || [];
+    
+    console.log(`Found ${subscribers.length} subscribers to import`);
+    
+    let importedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    for (const subscriber of subscribers) {
+      try {
+        const email = subscriber.EmailAddress?.toLowerCase();
+        if (!email) {
+          skippedCount++;
+          continue;
+        }
+
+        // Check if contact already exists
+        const { data: existing } = await supabaseClient
+          .from('crm_contacts')
+          .select('id')
+          .eq('email', email)
+          .single();
+
+        if (existing) {
+          skippedCount++;
+          continue;
+        }
+
+        // Parse name
+        const fullName = subscriber.Name || email.split('@')[0];
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        // Get custom fields
+        const customFields = subscriber.CustomFields || [];
+        const getField = (key: string) => {
+          const field = customFields.find((f: any) => f.Key === key);
+          return field?.Value || null;
+        };
+
+        // Insert new contact
+        const { error: insertError } = await supabaseClient
+          .from('crm_contacts')
+          .insert({
+            email,
+            full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+            phone: getField('Phone'),
+            source: 'Campaign Monitor Import',
+            marketing_consent: true,
+            consent_date: new Date().toISOString(),
+            consent_source: 'Campaign Monitor List',
+            custom_fields: {
+              cm_list_id: listId,
+              cm_subscriber_date: subscriber.Date
+            }
+          });
+
+        if (insertError) {
+          console.error(`Error importing ${email}:`, insertError);
+          errorCount++;
+        } else {
+          importedCount++;
+        }
+
+        // Small delay to avoid overwhelming the database
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (err) {
+        console.error('Error processing subscriber:', err);
+        errorCount++;
+      }
+    }
+
+    return new Response(JSON.stringify({ 
+      importedCount, 
+      skippedCount, 
+      errorCount,
+      totalSubscribers: subscribers.length 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Import error:', error);
+    return new Response(JSON.stringify({ error: 'Import failed' }), { 
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
