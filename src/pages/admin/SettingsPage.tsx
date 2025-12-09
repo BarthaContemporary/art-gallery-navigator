@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { 
   Building2, 
   Mail, 
@@ -14,10 +16,17 @@ import {
   Database,
   ChevronDown,
   FileText,
-  Image
+  Image,
+  Users,
+  Calendar,
+  FileSpreadsheet,
+  Check,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { exportData } from "@/lib/backup";
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,11 +35,64 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useGoogleIntegration } from "@/hooks/crm/use-google-integration";
+import { GoogleContactsImportDialog } from "@/components/crm/settings/GoogleContactsImportDialog";
 
 export default function SettingsPage() {
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const callbackHandledRef = useRef(false);
+  
+  const {
+    config,
+    isLoading: isGoogleLoading,
+    isConnecting,
+    connect,
+    disconnect,
+    handleOAuthCallback,
+    updateSettings,
+    fetchGoogleContacts,
+    importGoogleContacts,
+  } = useGoogleIntegration();
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    
+    if (callbackHandledRef.current) return;
+    
+    if (error) {
+      callbackHandledRef.current = true;
+      console.error('Google OAuth error:', error, errorDescription);
+      toast.error(`Google error: ${errorDescription || error}`);
+      setSearchParams({});
+      return;
+    }
+    
+    if (code) {
+      callbackHandledRef.current = true;
+      handleOAuthCallback(code)
+        .then(() => {
+          setSearchParams({});
+        })
+        .catch(() => {
+          setSearchParams({});
+          callbackHandledRef.current = false;
+        });
+    }
+  }, [searchParams, handleOAuthCallback, setSearchParams]);
+
+  const scopeFeatures = [
+    { scope: 'contacts', icon: Users, label: 'Contacts', description: 'Import & sync', enabled: config.scopes?.some(s => s.includes('contacts')) },
+    { scope: 'gmail', icon: Mail, label: 'Gmail', description: 'View threads', enabled: config.scopes?.some(s => s.includes('gmail')) },
+    { scope: 'calendar', icon: Calendar, label: 'Calendar', description: 'Log meetings', enabled: config.scopes?.some(s => s.includes('calendar')) },
+    { scope: 'sheets', icon: FileSpreadsheet, label: 'Sheets', description: 'Export data', enabled: config.scopes?.some(s => s.includes('spreadsheets')) },
+  ];
 
   const handleExport = async (type: 'full' | 'data-only' | 'media-only') => {
     setIsExporting(true);
@@ -41,13 +103,13 @@ export default function SettingsPage() {
         setExportProgress(progress);
       });
 
-      toast({
+      toastHook({
         title: "Export completed",
         description: `Your ${type} backup has been downloaded successfully.`,
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast({
+      toastHook({
         title: "Export failed",
         description: "There was an error creating your backup. Please try again.",
         variant: "destructive",
@@ -307,7 +369,122 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* CRM / Google Workspace Integration */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="h-5 w-5" />
+                  CRM - Google Workspace
+                </CardTitle>
+                <CardDescription>Connect Gmail, Contacts, Calendar, and Sheets for CRM</CardDescription>
+              </div>
+              {isGoogleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : config.isConnected ? (
+                <Badge variant="default" className="bg-green-600">
+                  <Check className="h-3 w-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="secondary">Not Connected</Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {scopeFeatures.map((feature) => (
+                <div 
+                  key={feature.scope}
+                  className={`flex items-center gap-2 p-2 border ${feature.enabled ? 'bg-green-500/10 border-green-500/30' : 'bg-muted/30'}`}
+                >
+                  <feature.icon className={`h-4 w-4 ${feature.enabled ? 'text-green-600' : 'text-muted-foreground'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-xs">{feature.label}</p>
+                  </div>
+                  {feature.enabled && <Check className="h-3 w-3 text-green-600" />}
+                </div>
+              ))}
+            </div>
+
+            {config.isConnected && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="auto-sync">Auto-sync contacts</Label>
+                      <p className="text-xs text-muted-foreground">Automatically import new Google contacts</p>
+                    </div>
+                    <Switch
+                      id="auto-sync"
+                      checked={config.autoSyncContacts}
+                      onCheckedChange={(checked) => updateSettings({ autoSyncContacts: checked })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="auto-log">Auto-log emails</Label>
+                      <p className="text-xs text-muted-foreground">Track email interactions automatically</p>
+                    </div>
+                    <Switch
+                      id="auto-log"
+                      checked={config.autoLogEmails}
+                      onCheckedChange={(checked) => updateSettings({ autoLogEmails: checked })}
+                    />
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Import Contacts
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={connect} disabled={isConnecting}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reconnect
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={disconnect}>
+                    Disconnect
+                  </Button>
+                </div>
+                {config.lastSync && (
+                  <p className="text-xs text-muted-foreground">
+                    Last synced: {new Date(config.lastSync).toLocaleString()}
+                  </p>
+                )}
+              </>
+            )}
+
+            {!config.isConnected && (
+              <div className="mt-4">
+                <Button className="w-full" onClick={connect} disabled={isConnecting || isGoogleLoading}>
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Connect Google Workspace'
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Securely connect your Google account to sync contacts and track emails
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <GoogleContactsImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        fetchContacts={fetchGoogleContacts}
+        importContacts={importGoogleContacts}
+      />
     </div>
   );
 }

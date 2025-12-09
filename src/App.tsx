@@ -37,7 +37,6 @@ import OrganizationsPage from "@/pages/crm/OrganizationsPage";
 import ListsPage from "@/pages/crm/ListsPage";
 import CampaignsPage from "@/pages/crm/CampaignsPage";
 import PipelinesPage from "@/pages/crm/PipelinesPage";
-import CRMSettingsPage from "@/pages/crm/SettingsPage";
 import ContactDetailPage from "@/pages/crm/ContactDetailPage";
 import Chat from "@/pages/Chat";
 import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
@@ -95,7 +94,6 @@ function App() {
                     <Route path="lists" element={<ListsPage />} />
                     <Route path="campaigns" element={<CampaignsPage />} />
                     <Route path="pipelines" element={<PipelinesPage />} />
-                    <Route path="settings" element={<CRMSettingsPage />} />
                   </Route>
                   <Route path="chat" element={<Chat />} />
                   <Route path="admin" element={<AdminLayout />}>
