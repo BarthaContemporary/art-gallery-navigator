@@ -99,7 +99,7 @@ export default function ViewerArtworksPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-muted rounded" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -113,7 +113,7 @@ export default function ViewerArtworksPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Image Viewer</h1>

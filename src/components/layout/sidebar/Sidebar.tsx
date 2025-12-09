@@ -10,7 +10,7 @@ export function Sidebar() {
     <SidebarComponent
       className="flex flex-col h-full bg-white"
       style={{
-        width: "200px",
+        width: "180px",
         minHeight: "100vh",
         textAlign: "left"
       }}
