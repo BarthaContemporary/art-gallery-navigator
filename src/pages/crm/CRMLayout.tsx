@@ -32,12 +32,12 @@ export default function CRMLayout() {
   return (
     <div className="flex h-full">
       {/* CRM Sub-navigation */}
-      <aside className="w-56 border-r border-border bg-muted/30 flex-shrink-0">
-        <div className="p-4 border-b border-border">
+      <aside className="w-44 border-r border-border bg-muted/30 flex-shrink-0">
+        <div className="p-3 border-b border-border">
           <h2 className="font-semibold text-lg">CRM</h2>
           <p className="text-xs text-muted-foreground">Manage contacts & relationships</p>
         </div>
-        <nav className="p-2 space-y-1">
+        <nav className="p-1.5 space-y-0.5">
           {crmNavItems.map((item) => (
             <NavLink
               key={item.href}

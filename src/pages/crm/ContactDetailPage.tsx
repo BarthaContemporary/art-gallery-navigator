@@ -29,7 +29,7 @@ export default function ContactDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -38,7 +38,7 @@ export default function ContactDetailPage() {
 
   if (!contact) {
     return (
-      <div className="p-6">
+      <div className="p-4">
         <p className="text-muted-foreground">Contact not found</p>
         <Button variant="link" onClick={() => navigate("/crm")}>
           Back to contacts
@@ -60,7 +60,7 @@ export default function ContactDetailPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">

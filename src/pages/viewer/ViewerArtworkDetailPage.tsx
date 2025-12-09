@@ -339,7 +339,7 @@ export default function ViewerArtworkDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-muted rounded" />
           <div className="h-64 bg-muted rounded" />
@@ -350,7 +350,7 @@ export default function ViewerArtworkDetailPage() {
 
   if (!artwork) {
     return (
-      <div className="p-6">
+      <div className="p-4">
         <p className="text-muted-foreground">Artwork not found</p>
         <Button variant="link" onClick={() => navigate('/viewer')} className="mt-2 px-0">
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -361,7 +361,7 @@ export default function ViewerArtworkDetailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/viewer')}>
           <ArrowLeft className="h-4 w-4" />

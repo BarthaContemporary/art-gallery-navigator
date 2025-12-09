@@ -47,18 +47,18 @@ export default function ViewerLayout() {
 
       {/* Viewer Sub-navigation */}
       <aside className={cn(
-        "w-56 border-r border-border bg-muted/30 flex-shrink-0 flex flex-col",
+        "w-44 border-r border-border bg-muted/30 flex-shrink-0 flex flex-col",
         "fixed md:relative inset-y-0 left-0 z-50 transition-transform duration-200",
         sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
-        <div className="p-4 border-b border-border">
+        <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Image className="h-5 w-5 text-primary" />
             <h2 className="font-semibold text-lg">Image Viewer</h2>
           </div>
           <p className="text-xs text-muted-foreground mt-1">Manage artwork viewers</p>
         </div>
-        <nav className="p-2 space-y-1 flex-1">
+        <nav className="p-1.5 space-y-0.5 flex-1">
           {viewerNavItems.map((item) => (
             <NavLink
               key={item.href}
