@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Building2 } from "lucide-react";
+import { PlusCircle, Search, Building2 } from "lucide-react";
 import { useCRMOrganizations } from "@/hooks/crm";
 import { OrganizationDialog } from "@/components/crm/organizations/OrganizationDialog";
 import { OrganizationsTable } from "@/components/crm/organizations/OrganizationsTable";
@@ -39,17 +39,14 @@ export default function OrganizationsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Organizations</h1>
-          <p className="text-muted-foreground text-sm">
-            {organizations?.length || 0} organizations
-          </p>
-        </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+      <div className="flex flex-col items-start gap-1">
+        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+          <PlusCircle className="h-4 w-4 mr-2" />
           Add Organization
         </Button>
+        <p className="text-muted-foreground text-xs">
+          {organizations?.length || 0} organizations
+        </p>
       </div>
 
       {/* Search and Filters */}
