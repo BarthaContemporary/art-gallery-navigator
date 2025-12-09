@@ -55,7 +55,7 @@ export function CMListsManager() {
                   <Users className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="font-medium">{list.Name}</h3>
+                  <h3 className="text-xs font-medium">{list.Name}</h3>
                   <p className="text-xs text-muted-foreground">ID: {list.ListID}</p>
                 </div>
               </div>
