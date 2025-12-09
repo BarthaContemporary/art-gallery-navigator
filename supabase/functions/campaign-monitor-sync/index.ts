@@ -416,27 +416,42 @@ async function importFromList(supabaseClient: any, authString: string, listId: s
   try {
     console.log('Starting import from CM list:', listId);
     
-    // Fetch active subscribers from the list
-    const response = await fetch(`https://api.createsend.com/api/v3.3/lists/${listId}/active.json?pagesize=1000`, {
-      headers: {
-        'Authorization': `Basic ${authString}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to fetch subscribers:', errorText);
-      return new Response(JSON.stringify({ error: 'Failed to fetch subscribers from Campaign Monitor' }), { 
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const data = await response.json();
-    const subscribers = data.Results || [];
+    // Fetch ALL active subscribers with pagination
+    let allSubscribers: any[] = [];
+    let page = 1;
+    let hasMore = true;
     
-    console.log(`Found ${subscribers.length} subscribers to import`);
+    while (hasMore) {
+      const response = await fetch(`https://api.createsend.com/api/v3.3/lists/${listId}/active.json?page=${page}&pagesize=1000`, {
+        headers: {
+          'Authorization': `Basic ${authString}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch subscribers:', errorText);
+        return new Response(JSON.stringify({ error: 'Failed to fetch subscribers from Campaign Monitor' }), { 
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const data = await response.json();
+      const pageResults = data.Results || [];
+      allSubscribers = allSubscribers.concat(pageResults);
+      
+      console.log(`Page ${page}: fetched ${pageResults.length} subscribers (total: ${allSubscribers.length})`);
+      
+      // Check if there are more pages
+      const totalPages = data.NumberOfPages || 1;
+      hasMore = page < totalPages;
+      page++;
+    }
+    
+    const subscribers = allSubscribers;
+    console.log(`Found ${subscribers.length} total subscribers to import`);
     
     let importedCount = 0;
     let skippedCount = 0;
