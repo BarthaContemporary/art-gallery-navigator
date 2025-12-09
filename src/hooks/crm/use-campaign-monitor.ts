@@ -125,3 +125,26 @@ export function useSyncAllContacts() {
     },
   });
 }
+
+export function useImportFromList() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const { data, error } = await supabase.functions.invoke('campaign-monitor-sync', {
+        body: { action: 'import_from_list', listId }
+      });
+
+      if (error) throw error;
+      return data as { importedCount: number; skippedCount: number; errorCount: number; totalSubscribers: number };
+    },
+    onSuccess: (data) => {
+      toast.success(`Imported ${data.importedCount} contacts (${data.skippedCount} already exist, ${data.errorCount} errors)`);
+      queryClient.invalidateQueries({ queryKey: ['crm-contacts'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to import contacts');
+      console.error('Import error:', error);
+    },
+  });
+}
