@@ -36,10 +36,14 @@ export function CMCampaignsList() {
     );
   }
 
+  const sentList = Array.isArray(campaigns?.sent) ? campaigns.sent : [];
+  const scheduledList = Array.isArray(campaigns?.scheduled) ? campaigns.scheduled : [];
+  const draftsList = Array.isArray(campaigns?.drafts) ? campaigns.drafts : [];
+
   const allCampaigns = [
-    ...(campaigns?.sent || []).map(c => ({ ...c, status: 'sent' })),
-    ...(campaigns?.scheduled || []).map(c => ({ ...c, status: 'scheduled' })),
-    ...(campaigns?.drafts || []).map(c => ({ ...c, status: 'draft' })),
+    ...sentList.map(c => ({ ...c, status: 'sent' as const })),
+    ...scheduledList.map(c => ({ ...c, status: 'scheduled' as const })),
+    ...draftsList.map(c => ({ ...c, status: 'draft' as const })),
   ];
 
   if (allCampaigns.length === 0) {
