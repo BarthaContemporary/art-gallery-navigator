@@ -40,14 +40,14 @@ export default function ContactsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Contacts</h1>
           <p className="text-muted-foreground text-sm">
             {contacts?.length || 0} contacts
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
