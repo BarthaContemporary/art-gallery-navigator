@@ -18,7 +18,7 @@ interface DuplicatesDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function DuplicatesDialog({ open, onOpenChange }: DuplicatesDialogProps) {
+export function DuplicatesDialog({ open, onOpenChange }: DuplicatesDialogProps) { 
   const { data: duplicates, isLoading } = useDuplicateContacts();
   const mergeContacts = useMergeContacts();
   const bulkMergeAll = useBulkMergeAll();
