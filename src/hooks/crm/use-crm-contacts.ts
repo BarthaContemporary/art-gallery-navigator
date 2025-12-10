@@ -8,21 +8,27 @@ interface UseContactsOptions {
   contactType?: CRMContactType | 'all';
   tags?: string[];
   listId?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export function useCRMContacts(options: UseContactsOptions = {}) {
-  const { searchTerm, contactType, tags, listId } = options;
+  const { searchTerm, contactType, tags, listId, page = 1, pageSize = 100 } = options;
 
   return useQuery({
-    queryKey: ['crm-contacts', searchTerm, contactType, tags, listId],
+    queryKey: ['crm-contacts', searchTerm, contactType, tags, listId, page, pageSize],
     queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('crm_contacts')
         .select(`
           *,
           organization:crm_organizations(*)
-        `)
-        .order('full_name', { ascending: true });
+        `, { count: 'exact' })
+        .order('full_name', { ascending: true })
+        .range(from, to);
 
       if (searchTerm) {
         query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
@@ -36,7 +42,7 @@ export function useCRMContacts(options: UseContactsOptions = {}) {
         query = query.overlaps('tags', tags);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
@@ -50,10 +56,11 @@ export function useCRMContacts(options: UseContactsOptions = {}) {
         if (membersError) throw membersError;
         
         const memberIds = new Set(members?.map(m => m.contact_id) || []);
-        return (data || []).filter(c => memberIds.has(c.id)) as CRMContact[];
+        const filtered = (data || []).filter(c => memberIds.has(c.id)) as CRMContact[];
+        return { contacts: filtered, totalCount: filtered.length };
       }
 
-      return data as CRMContact[];
+      return { contacts: data as CRMContact[], totalCount: count || 0 };
     },
   });
 }
