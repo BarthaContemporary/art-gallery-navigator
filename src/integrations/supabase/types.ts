@@ -4111,6 +4111,18 @@ export type Database = {
         }
         Returns: string
       }
+      find_duplicate_contacts: {
+        Args: never
+        Returns: {
+          contact_ids: string[]
+          contact_names: string[]
+          contact_phones: string[]
+          contact_types: string[]
+          created_dates: string[]
+          duplicate_count: number
+          email: string
+        }[]
+      }
       find_or_create_chat_room: {
         Args: { _participant_1_id: string; _participant_2_id: string }
         Returns: string

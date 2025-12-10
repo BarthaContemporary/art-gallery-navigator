@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCRMContacts, useBulkDeleteCRMContacts } from "@/hooks/crm";
+import { PlusCircle, Search, Download, Trash2, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { useCRMContacts, useBulkDeleteCRMContacts, useDuplicateContacts } from "@/hooks/crm";
 import { ContactsTable } from "@/components/crm/contacts/ContactsTable";
 import { ContactFilters } from "@/components/crm/contacts/ContactFilters";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ExportDialog } from "@/components/crm/export/ExportDialog";
 import { AddToListDialog } from "@/components/crm/lists/AddToListDialog";
+import { DuplicatesDialog } from "@/components/crm/contacts/DuplicatesDialog";
 import { CRMContactType } from "@/types/crm";
 
 const PAGE_SIZE = 100;
@@ -20,7 +21,11 @@ export default function ContactsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isAddToListDialogOpen, setIsAddToListDialogOpen] = useState(false);
+  const [isDuplicatesDialogOpen, setIsDuplicatesDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  const { data: duplicates } = useDuplicateContacts();
+  const duplicateCount = duplicates?.reduce((sum, g) => sum + g.duplicate_count - 1, 0) || 0;
 
   const { data, isLoading } = useCRMContacts({
     searchTerm,
@@ -65,11 +70,23 @@ export default function ContactsPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex flex-col items-start gap-1">
-        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Contact
-        </Button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Contact
+          </Button>
+          {duplicateCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDuplicatesDialogOpen(true)}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              {duplicateCount} Duplicates
+            </Button>
+          )}
+        </div>
         <p className="text-muted-foreground text-xs">
           {totalCount.toLocaleString()} contacts
         </p>
@@ -191,6 +208,11 @@ export default function ContactsPage() {
         onOpenChange={setIsAddToListDialogOpen}
         contactIds={selectedContacts}
         onSuccess={() => setSelectedContacts([])}
+      />
+
+      <DuplicatesDialog
+        open={isDuplicatesDialogOpen}
+        onOpenChange={setIsDuplicatesDialogOpen}
       />
     </div>
   );
