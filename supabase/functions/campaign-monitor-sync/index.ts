@@ -453,76 +453,81 @@ async function importFromList(supabaseClient: any, authString: string, listId: s
     const subscribers = allSubscribers;
     console.log(`Found ${subscribers.length} total subscribers to import`);
     
-    let importedCount = 0;
+    // Get all existing emails to check for duplicates in one query
+    const subscriberEmails = subscribers
+      .map((s: any) => s.EmailAddress?.toLowerCase())
+      .filter(Boolean);
+    
+    const { data: existingContacts } = await supabaseClient
+      .from('crm_contacts')
+      .select('email')
+      .in('email', subscriberEmails);
+    
+    const existingEmails = new Set((existingContacts || []).map((c: any) => c.email?.toLowerCase()));
+    console.log(`Found ${existingEmails.size} existing contacts to skip`);
+    
+    // Prepare contacts for batch insert
+    const contactsToInsert = [];
     let skippedCount = 0;
-    let errorCount = 0;
-
+    
     for (const subscriber of subscribers) {
-      try {
-        const email = subscriber.EmailAddress?.toLowerCase();
-        if (!email) {
-          skippedCount++;
-          continue;
+      const email = subscriber.EmailAddress?.toLowerCase();
+      if (!email || existingEmails.has(email)) {
+        skippedCount++;
+        continue;
+      }
+      
+      const fullName = subscriber.Name || email.split('@')[0];
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const customFields = subscriber.CustomFields || [];
+      const getField = (key: string) => {
+        const field = customFields.find((f: any) => f.Key === key);
+        return field?.Value || null;
+      };
+      
+      contactsToInsert.push({
+        email,
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
+        phone: getField('Phone'),
+        source: 'Campaign Monitor Import',
+        marketing_consent: true,
+        consent_date: new Date().toISOString(),
+        consent_source: 'Campaign Monitor List',
+        custom_fields: {
+          cm_list_id: listId,
+          cm_subscriber_date: subscriber.Date
         }
-
-        // Check if contact already exists
-        const { data: existing } = await supabaseClient
-          .from('crm_contacts')
-          .select('id')
-          .eq('email', email)
-          .single();
-
-        if (existing) {
-          skippedCount++;
-          continue;
-        }
-
-        // Parse name
-        const fullName = subscriber.Name || email.split('@')[0];
-        const nameParts = fullName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        // Get custom fields
-        const customFields = subscriber.CustomFields || [];
-        const getField = (key: string) => {
-          const field = customFields.find((f: any) => f.Key === key);
-          return field?.Value || null;
-        };
-
-        // Insert new contact
-        const { error: insertError } = await supabaseClient
-          .from('crm_contacts')
-          .insert({
-            email,
-            full_name: fullName,
-            first_name: firstName,
-            last_name: lastName,
-            phone: getField('Phone'),
-            source: 'Campaign Monitor Import',
-            marketing_consent: true,
-            consent_date: new Date().toISOString(),
-            consent_source: 'Campaign Monitor List',
-            custom_fields: {
-              cm_list_id: listId,
-              cm_subscriber_date: subscriber.Date
-            }
-          });
-
-        if (insertError) {
-          console.error(`Error importing ${email}:`, insertError);
-          errorCount++;
-        } else {
-          importedCount++;
-        }
-
-        // Small delay to avoid overwhelming the database
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } catch (err) {
-        console.error('Error processing subscriber:', err);
-        errorCount++;
+      });
+    }
+    
+    console.log(`Inserting ${contactsToInsert.length} new contacts in batches`);
+    
+    // Batch insert in chunks of 100
+    let importedCount = 0;
+    let errorCount = 0;
+    const batchSize = 100;
+    
+    for (let i = 0; i < contactsToInsert.length; i += batchSize) {
+      const batch = contactsToInsert.slice(i, i + batchSize);
+      const { error: insertError, data } = await supabaseClient
+        .from('crm_contacts')
+        .insert(batch)
+        .select('id');
+      
+      if (insertError) {
+        console.error(`Batch insert error at ${i}:`, insertError);
+        errorCount += batch.length;
+      } else {
+        importedCount += (data?.length || batch.length);
       }
     }
+    
+    console.log(`Import complete: ${importedCount} imported, ${skippedCount} skipped, ${errorCount} errors`);
 
     return new Response(JSON.stringify({ 
       importedCount, 
