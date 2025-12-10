@@ -4068,6 +4068,13 @@ export type Database = {
     }
     Functions: {
       auto_link_artist_to_user: { Args: never; Returns: undefined }
+      bulk_merge_duplicate_contacts: {
+        Args: never
+        Returns: {
+          contacts_deleted: number
+          groups_processed: number
+        }[]
+      }
       check_appointment_rate_limit: {
         Args: { client_ip: unknown }
         Returns: boolean
