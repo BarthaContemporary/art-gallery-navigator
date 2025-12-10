@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Trash2, Merge, CheckCircle } from "lucide-react";
 import { useDuplicateContacts, DuplicateGroup } from "@/hooks/crm/use-duplicate-contacts";
-import { useMergeContacts, useBulkDeleteDuplicates } from "@/hooks/crm/use-merge-contacts";
+import { useMergeContacts } from "@/hooks/crm/use-merge-contacts";
 import { format } from "date-fns";
 
 interface DuplicatesDialogProps {
@@ -21,7 +21,7 @@ interface DuplicatesDialogProps {
 export function DuplicatesDialog({ open, onOpenChange }: DuplicatesDialogProps) {
   const { data: duplicates, isLoading } = useDuplicateContacts();
   const mergeContacts = useMergeContacts();
-  const bulkDelete = useBulkDeleteDuplicates();
+  
   const [processingGroup, setProcessingGroup] = useState<string | null>(null);
 
   const handleMergeGroup = async (group: DuplicateGroup) => {
@@ -31,16 +31,21 @@ export function DuplicatesDialog({ open, onOpenChange }: DuplicatesDialogProps) 
     setProcessingGroup(null);
   };
 
+  const [isAutoMerging, setIsAutoMerging] = useState(false);
+
   const handleAutoMergeAll = async () => {
     if (!duplicates || duplicates.length === 0) return;
-
-    const groups = duplicates.map((group) => ({
-      email: group.email,
-      keepId: group.contact_ids[0], // Keep oldest
-      deleteIds: group.contact_ids.slice(1),
-    }));
-
-    await bulkDelete.mutateAsync(groups);
+    
+    setIsAutoMerging(true);
+    try {
+      // Process each group sequentially to properly merge data
+      for (const group of duplicates) {
+        const [masterId, ...duplicateIds] = group.contact_ids;
+        await mergeContacts.mutateAsync({ masterId, duplicateIds });
+      }
+    } finally {
+      setIsAutoMerging(false);
+    }
   };
 
   const totalDuplicates = duplicates?.reduce((sum, g) => sum + g.duplicate_count - 1, 0) || 0;
@@ -64,10 +69,10 @@ export function DuplicatesDialog({ open, onOpenChange }: DuplicatesDialogProps) 
             <div className="flex gap-2 mb-4">
               <Button
                 onClick={handleAutoMergeAll}
-                disabled={bulkDelete.isPending}
+                disabled={isAutoMerging}
                 variant="default"
               >
-                {bulkDelete.isPending ? (
+                {isAutoMerging ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
                   <Merge className="h-4 w-4 mr-2" />
