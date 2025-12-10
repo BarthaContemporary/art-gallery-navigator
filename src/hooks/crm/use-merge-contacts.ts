@@ -112,42 +112,23 @@ export function useMergeContacts() {
   });
 }
 
-export function useBulkDeleteDuplicates() {
+export function useBulkMergeAll() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (duplicateGroups: { email: string; keepId: string; deleteIds: string[] }[]) => {
-      let totalDeleted = 0;
-
-      // Process in batches
-      for (const group of duplicateGroups) {
-        if (group.deleteIds.length === 0) continue;
-
-        // Update list memberships
-        await supabase
-          .from("crm_list_members")
-          .update({ contact_id: group.keepId })
-          .in("contact_id", group.deleteIds);
-
-        // Delete duplicates
-        const { error } = await supabase
-          .from("crm_contacts")
-          .delete()
-          .in("id", group.deleteIds);
-
-        if (error) throw error;
-        totalDeleted += group.deleteIds.length;
-      }
-
-      return { deleted: totalDeleted };
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("bulk_merge_duplicate_contacts" as any);
+      
+      if (error) throw error;
+      return data?.[0] || { groups_processed: 0, contacts_deleted: 0 };
     },
     onSuccess: (data) => {
-      toast.success(`Deleted ${data.deleted} duplicate contact(s)`);
+      toast.success(`Merged ${data.groups_processed} groups, removed ${data.contacts_deleted} duplicates`);
       queryClient.invalidateQueries({ queryKey: ["crm-contacts"] });
       queryClient.invalidateQueries({ queryKey: ["crm-duplicate-contacts"] });
     },
     onError: (error) => {
-      toast.error(`Failed to delete duplicates: ${error.message}`);
+      toast.error(`Failed to bulk merge: ${error.message}`);
     },
   });
 }
