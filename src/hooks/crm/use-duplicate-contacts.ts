@@ -15,7 +15,7 @@ export function useDuplicateContacts() {
   return useQuery({
     queryKey: ["crm-duplicate-contacts"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("find_duplicate_contacts");
+      const { data, error } = await supabase.rpc("find_duplicate_contacts" as any);
       
       if (error) throw error;
       return (data || []) as DuplicateGroup[];
