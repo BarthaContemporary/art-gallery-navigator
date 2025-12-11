@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateCRMOrganization } from "@/hooks/crm";
-import { CRMOrganizationType } from "@/types/crm";
-import { useState } from "react";
+import { useCreateCRMOrganization, useUpdateCRMOrganization } from "@/hooks/crm";
+import { CRMOrganization, CRMOrganizationType } from "@/types/crm";
+import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { VatEoriInput } from "@/components/crm/form/VatEoriInput";
 import { CompanyNumberInput } from "@/components/crm/form/CompanyNumberInput";
@@ -14,6 +14,7 @@ import { CompanyNumberInput } from "@/components/crm/form/CompanyNumberInput";
 interface OrganizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  organization?: CRMOrganization | null;
 }
 
 const initialFormData = {
@@ -34,18 +35,57 @@ const initialFormData = {
   notes: "",
 };
 
-export function OrganizationDialog({ open, onOpenChange }: OrganizationDialogProps) {
+export function OrganizationDialog({ open, onOpenChange, organization }: OrganizationDialogProps) {
   const [formData, setFormData] = useState(initialFormData);
   const createOrg = useCreateCRMOrganization();
+  const updateOrg = useUpdateCRMOrganization();
+  
+  const isEditing = !!organization;
+
+  useEffect(() => {
+    if (organization) {
+      setFormData({
+        name: organization.name || "",
+        type: organization.type || "other",
+        website: organization.website || "",
+        email: organization.email || "",
+        phone: organization.phone || "",
+        address_line1: organization.address_line1 || "",
+        address_line2: organization.address_line2 || "",
+        city: organization.city || "",
+        state: organization.state || "",
+        postal_code: organization.postal_code || "",
+        country: organization.country || "",
+        vat_number: organization.vat_number || "",
+        eori_number: organization.eori_number || "",
+        company_number: organization.company_number || "",
+        notes: organization.notes || "",
+      });
+    } else {
+      setFormData(initialFormData);
+    }
+  }, [organization, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createOrg.mutate(formData, {
-      onSuccess: () => {
-        onOpenChange(false);
-        setFormData(initialFormData);
-      },
-    });
+    
+    if (isEditing && organization) {
+      updateOrg.mutate(
+        { id: organization.id, ...formData },
+        {
+          onSuccess: () => {
+            onOpenChange(false);
+          },
+        }
+      );
+    } else {
+      createOrg.mutate(formData, {
+        onSuccess: () => {
+          onOpenChange(false);
+          setFormData(initialFormData);
+        },
+      });
+    }
   };
 
   const handleAddressChange = (address: {
@@ -63,7 +103,7 @@ export function OrganizationDialog({ open, onOpenChange }: OrganizationDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Organization</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Organization" : "New Organization"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -173,8 +213,8 @@ export function OrganizationDialog({ open, onOpenChange }: OrganizationDialogPro
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createOrg.isPending}>
-              Create
+            <Button type="submit" disabled={createOrg.isPending || updateOrg.isPending}>
+              {isEditing ? "Save" : "Create"}
             </Button>
           </div>
         </form>

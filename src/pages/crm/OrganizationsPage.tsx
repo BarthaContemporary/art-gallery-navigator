@@ -5,7 +5,7 @@ import { PlusCircle, Search, Building2 } from "lucide-react";
 import { useCRMOrganizations } from "@/hooks/crm";
 import { OrganizationDialog } from "@/components/crm/organizations/OrganizationDialog";
 import { OrganizationsTable } from "@/components/crm/organizations/OrganizationsTable";
-import { CRMOrganizationType } from "@/types/crm";
+import { CRMOrganization, CRMOrganizationType } from "@/types/crm";
 import {
   Select,
   SelectContent,
@@ -29,18 +29,36 @@ const organizationTypes: { value: CRMOrganizationType | 'all'; label: string }[]
 export default function OrganizationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [type, setType] = useState<CRMOrganizationType | "all">("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedOrganization, setSelectedOrganization] = useState<CRMOrganization | null>(null);
 
   const { data: organizations, isLoading } = useCRMOrganizations({
     searchTerm,
     type,
   });
 
+  const handleRowClick = (org: CRMOrganization) => {
+    setSelectedOrganization(org);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setSelectedOrganization(null);
+    }
+  };
+
+  const handleAddNew = () => {
+    setSelectedOrganization(null);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex flex-col items-start gap-1">
-        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+        <Button onClick={handleAddNew} size="sm">
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Organization
         </Button>
@@ -79,12 +97,14 @@ export default function OrganizationsPage() {
       <OrganizationsTable
         organizations={organizations || []}
         isLoading={isLoading}
+        onRowClick={handleRowClick}
       />
 
       {/* Dialog */}
       <OrganizationDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
+        open={isDialogOpen}
+        onOpenChange={handleDialogClose}
+        organization={selectedOrganization}
       />
     </div>
   );
