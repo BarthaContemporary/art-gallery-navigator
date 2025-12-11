@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { VatEoriInput } from "@/components/crm/form/VatEoriInput";
 import { CompanyNumberInput } from "@/components/crm/form/CompanyNumberInput";
+import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
 
 interface OrganizationDialogProps {
   open: boolean;
@@ -147,14 +148,10 @@ export function OrganizationDialog({ open, onOpenChange, organization }: Organiz
               />
             </div>
 
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
+            <EmailVerificationInput
+              value={formData.email}
+              onChange={(value) => setFormData({ ...formData, email: value })}
+            />
 
             <div>
               <Label>Phone</Label>

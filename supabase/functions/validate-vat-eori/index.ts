@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { vat_number, eori_number, company_number, action } = await req.json();
+    const { vat_number, eori_number, company_number, email, action } = await req.json();
 
     if (action === 'validate_vat' && vat_number) {
       const countryCode = vat_number.slice(0, 2).toUpperCase();
@@ -129,6 +129,83 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (action === 'validate_email' && email) {
+      console.log(`Validating email: ${email}`);
+
+      const hunterApiKey = Deno.env.get('HUNTER_API_KEY');
+      if (!hunterApiKey) {
+        console.error('HUNTER_API_KEY not configured');
+        // Basic format validation fallback
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return new Response(
+          JSON.stringify({
+            valid: emailRegex.test(email),
+            format_valid: emailRegex.test(email),
+            email: email,
+            note: 'Hunter.io API not configured. Format validation only.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const hunterResponse = await fetch(
+          `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterApiKey}`
+        );
+
+        if (!hunterResponse.ok) {
+          console.error('Hunter.io API error:', hunterResponse.status);
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return new Response(
+            JSON.stringify({
+              valid: emailRegex.test(email),
+              format_valid: true,
+              email: email,
+              note: 'Hunter.io verification unavailable.',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const hunterData = await hunterResponse.json();
+        console.log('Hunter.io response:', JSON.stringify(hunterData));
+
+        const data = hunterData.data;
+        const isValid = data.result === 'deliverable' || data.result === 'risky';
+        
+        return new Response(
+          JSON.stringify({
+            valid: isValid,
+            verified: true,
+            email: email,
+            result: data.result,
+            score: data.score,
+            disposable: data.disposable,
+            webmail: data.webmail,
+            mx_records: data.mx_records,
+            smtp_server: data.smtp_server,
+            smtp_check: data.smtp_check,
+            accept_all: data.accept_all,
+            block: data.block,
+            sources: data.sources,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (err) {
+        console.error('Hunter.io API error:', err);
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return new Response(
+          JSON.stringify({
+            valid: emailRegex.test(email),
+            format_valid: true,
+            email: email,
+            note: 'Hunter.io verification failed.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (action === 'validate_company' && company_number) {

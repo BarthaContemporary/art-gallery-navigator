@@ -8,6 +8,7 @@ import { useCreateCRMContact, useUpdateCRMContact } from "@/hooks/crm";
 import { CRMContact, CRMContactType } from "@/types/crm";
 import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
+import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
 
 interface ContactDialogProps {
   open: boolean;
@@ -93,10 +94,10 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               <Label>Name *</Label>
               <Input required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
             </div>
-            <div>
-              <Label>Email</Label>
-              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-            </div>
+            <EmailVerificationInput
+              value={formData.email}
+              onChange={(value) => setFormData({ ...formData, email: value })}
+            />
             <div>
               <Label>Phone</Label>
               <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
