@@ -251,7 +251,7 @@ serve(async (req) => {
       try {
         const chResponse = await fetch(`https://api.company-information.service.gov.uk/company/${cleanNumber}`, {
           headers: {
-            'Authorization': `Basic ${btoa(apiKey + ':')}`,
+            'Authorization': `Basic ${authString}`,
           },
         });
 
