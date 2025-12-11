@@ -240,6 +240,13 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      // Log API key details for debugging (only length and first/last chars)
+      const trimmedKey = apiKey.trim();
+      console.log(`API key length: ${trimmedKey.length}, starts with: ${trimmedKey.substring(0, 4)}..., ends with: ...${trimmedKey.substring(trimmedKey.length - 4)}`);
+      
+      const authString = btoa(trimmedKey + ':');
+      console.log(`Auth header: Basic ${authString.substring(0, 10)}...`);
 
       try {
         const chResponse = await fetch(`https://api.company-information.service.gov.uk/company/${cleanNumber}`, {
