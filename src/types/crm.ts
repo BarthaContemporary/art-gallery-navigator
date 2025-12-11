@@ -54,6 +54,12 @@ export interface CRMOrganization {
   state?: string;
   postal_code?: string;
   country?: string;
+  vat_number?: string;
+  vat_verified?: boolean;
+  vat_verified_at?: string;
+  eori_number?: string;
+  eori_verified?: boolean;
+  eori_verified_at?: string;
   notes?: string;
   tags: string[];
   custom_fields: Record<string, any>;
