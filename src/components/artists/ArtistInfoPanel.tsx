@@ -14,10 +14,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
 import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
 import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
+import { useMetMuseumSearch, MetObject } from "@/hooks/useMetMuseumSearch";
 import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
@@ -141,21 +142,64 @@ function RijksmuseumObjectCard({ object }: { object: RijksmuseumObject }) {
   );
 }
 
+function MetObjectCard({ object }: { object: MetObject }) {
+  return (
+    <a
+      href={object.objectURL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+    >
+      {object.primaryImageSmall ? (
+        <img
+          src={object.primaryImageSmall}
+          alt=""
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
+        />
+      ) : (
+        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+          <Columns className="h-8 w-8 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
+        {object.objectDate && (
+          <p className="text-xs text-muted-foreground mb-1">{object.objectDate}</p>
+        )}
+        {object.medium && (
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+            {object.medium}
+          </p>
+        )}
+        {object.department && (
+          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+            {object.department}
+          </Badge>
+        )}
+      </div>
+      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </a>
+  );
+}
+
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
   const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
   const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading, error: harvardError } = useHarvardMuseumSearch();
   const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading, error: rijksError } = useRijksmuseumSearch();
+  const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading, error: metError } = useMetMuseumSearch();
   const [articlesOpen, setArticlesOpen] = useState(false);
   const [harvardOpen, setHarvardOpen] = useState(false);
   const [rijksOpen, setRijksOpen] = useState(false);
+  const [metOpen, setMetOpen] = useState(false);
 
   useEffect(() => {
     if (open && artist.full_name) {
       searchGuardian(artist.full_name);
       searchHarvard(artist.full_name);
       searchRijks(artist.full_name);
+      searchMet(artist.full_name);
     }
-  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks]);
+  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks, searchMet]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -388,6 +432,60 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
                       No works found in Rijksmuseum collection.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+            
+            {/* MET Museum Section */}
+            <Separator />
+            <section className="space-y-3">
+              <Collapsible open={metOpen} onOpenChange={setMetOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Columns className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    The Metropolitan Museum of Art
+                  </h3>
+                  {!metLoading && metTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {metTotal}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      metOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {metLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : metError ? (
+                    <p className="text-sm text-destructive">{metError}</p>
+                  ) : metObjects.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {metObjects.map((object) => (
+                          <MetObjectCard key={object.objectID} object={object} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works found in MET Museum collection.
                     </p>
                   )}
                 </CollapsibleContent>
