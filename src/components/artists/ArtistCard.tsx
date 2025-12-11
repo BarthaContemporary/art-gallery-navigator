@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, Edit, Trash2, X, Mail } from "lucide-react";
+import { Check, Edit, Trash2, X, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { EditArtistDialog } from "./EditArtistDialog";
+import { ArtistInfoPanel } from "./ArtistInfoPanel";
 import { OptimizedArtistImage } from "./OptimizedArtistImage";
 import { useGmailCompose } from "@/hooks/use-gmail-compose";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,12 +29,12 @@ const statusIcons = {
 
 export function ArtistCard({ artist }: { artist: any }) {
   const { isAdmin } = useAuth();
-  const navigate = useNavigate();
-  console.log("ArtistCard - isAdmin:", isAdmin);
   const { composeEmail, isLoading } = useGmailCompose();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleEdit = (e?: React.MouseEvent) => {
     e?.preventDefault();
@@ -87,64 +81,62 @@ export function ArtistCard({ artist }: { artist: any }) {
     }
   };
 
-  const handleCardClick = () => {
+  const handleImageClick = () => {
+    setInfoPanelOpen(true);
+  };
+
+  const handleCardContentClick = () => {
     if (isAdmin) {
       setEditDialogOpen(true);
+    } else {
+      setInfoPanelOpen(true);
     }
   };
 
-  const preventPropagation = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
   return (
-    <Card className="group relative w-full" style={{ isolation: 'isolate' }}>
-      {(isAdmin || true) && (
-        <div className="relative" style={{ isolation: 'isolate' }}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 bg-white/80 hover:bg-white shadow-sm z-10 transition-opacity"
-                onClick={preventPropagation}
-              >
-                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="sr-only">Actions for {artist.full_name}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              onClick={preventPropagation}
-              className="z-[9999] bg-white border shadow-lg"
-              avoidCollisions={false}
-            >
-              <DropdownMenuItem onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <Card 
+      className="group relative w-full" 
+      style={{ isolation: 'isolate' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Edit/Delete buttons - only visible on hover */}
+      {isAdmin && (
+        <div 
+          className={`absolute top-2 right-2 z-10 flex gap-1 transition-opacity duration-200 ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-7 w-7 sm:h-8 sm:w-8 bg-white/90 hover:bg-white shadow-sm"
+            onClick={handleEdit}
+          >
+            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="sr-only">Edit {artist.full_name}</span>
+          </Button>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-7 w-7 sm:h-8 sm:w-8 bg-white/90 hover:bg-red-50 shadow-sm text-muted-foreground hover:text-red-600"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="sr-only">Delete {artist.full_name}</span>
+          </Button>
         </div>
       )}
       
       <OptimizedArtistImage
         imageUrl={artist.image_url}
         artistName={artist.full_name}
-        onClick={() => navigate(`/artworks?artist=${artist.id}`)}
+        onClick={handleImageClick}
       />
       
       <CardContent 
         className="p-3 sm:p-4 cursor-pointer space-y-1"
-        onClick={handleCardClick}
+        onClick={handleCardContentClick}
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-medium text-sm sm:text-lg leading-tight line-clamp-2">{artist.full_name}</h3>
@@ -182,6 +174,12 @@ export function ArtistCard({ artist }: { artist: any }) {
         artist={artist}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+      />
+
+      <ArtistInfoPanel
+        artist={artist}
+        open={infoPanelOpen}
+        onOpenChange={setInfoPanelOpen}
       />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
