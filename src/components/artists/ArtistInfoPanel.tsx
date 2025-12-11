@@ -14,8 +14,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2 } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
+import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
 import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
@@ -73,15 +74,58 @@ function ArticleCard({ article }: { article: GuardianArticle }) {
   );
 }
 
+function HarvardObjectCard({ object }: { object: HarvardObject }) {
+  return (
+    <a
+      href={object.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+    >
+      {object.primaryImageUrl ? (
+        <img
+          src={object.primaryImageUrl}
+          alt=""
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
+        />
+      ) : (
+        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+          <Building2 className="h-8 w-8 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
+        {object.dated && (
+          <p className="text-xs text-muted-foreground mb-1">{object.dated}</p>
+        )}
+        {object.medium && (
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+            {object.medium}
+          </p>
+        )}
+        {object.classification && (
+          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+            {object.classification}
+          </Badge>
+        )}
+      </div>
+      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </a>
+  );
+}
+
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
-  const { searchArtist, articles, isLoading, error } = useGuardianSearch();
+  const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
+  const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading, error: harvardError } = useHarvardMuseumSearch();
   const [articlesOpen, setArticlesOpen] = useState(false);
+  const [harvardOpen, setHarvardOpen] = useState(false);
 
   useEffect(() => {
     if (open && artist.full_name) {
-      searchArtist(artist.full_name);
+      searchGuardian(artist.full_name);
+      searchHarvard(artist.full_name);
     }
-  }, [open, artist.full_name, searchArtist]);
+  }, [open, artist.full_name, searchGuardian, searchHarvard]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,7 +210,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                     The Guardian Articles
                   </h3>
-                  {!isLoading && articles.length > 0 && (
+                  {!guardianLoading && articles.length > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1">
                       {articles.length}
                     </Badge>
@@ -179,7 +223,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent className="pt-3">
-                  {isLoading ? (
+                  {guardianLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="flex gap-3 p-3 border rounded-lg">
@@ -192,8 +236,8 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                         </div>
                       ))}
                     </div>
-                  ) : error ? (
-                    <p className="text-sm text-destructive">{error}</p>
+                  ) : guardianError ? (
+                    <p className="text-sm text-destructive">{guardianError}</p>
                   ) : articles.length > 0 ? (
                     <ScrollArea className="h-[280px]">
                       <div className="space-y-2 pr-4">
@@ -205,6 +249,61 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
                       No articles found for this artist.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+            
+            <Separator />
+            
+            {/* Harvard Art Museums Section */}
+            <section className="space-y-3">
+              <Collapsible open={harvardOpen} onOpenChange={setHarvardOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Harvard Art Museums
+                  </h3>
+                  {!harvardLoading && harvardTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {harvardTotal}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      harvardOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {harvardLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : harvardError ? (
+                    <p className="text-sm text-destructive">{harvardError}</p>
+                  ) : harvardObjects.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {harvardObjects.map((object) => (
+                          <HarvardObjectCard key={object.id} object={object} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works found in Harvard Art Museums collection.
                     </p>
                   )}
                 </CollapsibleContent>
