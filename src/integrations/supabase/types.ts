@@ -1936,6 +1936,9 @@ export type Database = {
           created_at: string | null
           custom_fields: Json | null
           email: string | null
+          eori_number: string | null
+          eori_verified: boolean | null
+          eori_verified_at: string | null
           id: string
           name: string
           notes: string | null
@@ -1945,6 +1948,9 @@ export type Database = {
           tags: string[] | null
           type: Database["public"]["Enums"]["crm_organization_type"] | null
           updated_at: string | null
+          vat_number: string | null
+          vat_verified: boolean | null
+          vat_verified_at: string | null
           website: string | null
         }
         Insert: {
@@ -1955,6 +1961,9 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email?: string | null
+          eori_number?: string | null
+          eori_verified?: boolean | null
+          eori_verified_at?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -1964,6 +1973,9 @@ export type Database = {
           tags?: string[] | null
           type?: Database["public"]["Enums"]["crm_organization_type"] | null
           updated_at?: string | null
+          vat_number?: string | null
+          vat_verified?: boolean | null
+          vat_verified_at?: string | null
           website?: string | null
         }
         Update: {
@@ -1974,6 +1986,9 @@ export type Database = {
           created_at?: string | null
           custom_fields?: Json | null
           email?: string | null
+          eori_number?: string | null
+          eori_verified?: boolean | null
+          eori_verified_at?: string | null
           id?: string
           name?: string
           notes?: string | null
@@ -1983,6 +1998,9 @@ export type Database = {
           tags?: string[] | null
           type?: Database["public"]["Enums"]["crm_organization_type"] | null
           updated_at?: string | null
+          vat_number?: string | null
+          vat_verified?: boolean | null
+          vat_verified_at?: string | null
           website?: string | null
         }
         Relationships: []

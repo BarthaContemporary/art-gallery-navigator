@@ -101,3 +101,6 @@ verify_jwt = true
 
 [functions.validate-address]
 verify_jwt = true
+
+[functions.validate-vat-eori]
+verify_jwt = true
