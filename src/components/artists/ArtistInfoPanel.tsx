@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Calendar, MapPin, Globe, User } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper } from "lucide-react";
+import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
+import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
   artist: {
@@ -28,15 +30,52 @@ interface ArtistInfoPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function ArticleCard({ article }: { article: GuardianArticle }) {
+  return (
+    <a
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+    >
+      {article.thumbnail && (
+        <img
+          src={article.thumbnail}
+          alt=""
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{article.title}</h4>
+        {article.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+            {article.description}
+          </p>
+        )}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {article.sectionName && (
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              {article.sectionName}
+            </Badge>
+          )}
+          {article.publishedDate && (
+            <span>{format(new Date(article.publishedDate), "MMM d, yyyy")}</span>
+          )}
+        </div>
+      </div>
+      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </a>
+  );
+}
+
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
-  // Placeholder for future API data
-  const [isLoadingExternalData, setIsLoadingExternalData] = useState(false);
-  const [externalData, setExternalData] = useState<{
-    wikipedia?: string;
-    artsy?: string;
-    exhibitions?: string[];
-    awards?: string[];
-  } | null>(null);
+  const { searchArtist, articles, isLoading, error } = useGuardianSearch();
+
+  useEffect(() => {
+    if (open && artist.full_name) {
+      searchArtist(artist.full_name);
+    }
+  }, [open, artist.full_name, searchArtist]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,61 +152,63 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
               </>
             )}
             
-            {/* External Data Section - Placeholder for API integration */}
+            {/* Guardian Articles Section */}
             <section className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                External Sources
-              </h3>
+              <div className="flex items-center gap-2">
+                <Newspaper className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  The Guardian Articles
+                </h3>
+              </div>
               
-              {isLoadingExternalData ? (
+              {isLoading ? (
                 <div className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                      <Skeleton className="w-20 h-20 rounded" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : error ? (
+                <p className="text-sm text-destructive">{error}</p>
+              ) : articles.length > 0 ? (
+                <div className="space-y-2">
+                  {articles.map((article) => (
+                    <ArticleCard key={article.id} article={article} />
+                  ))}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground italic">
-                    External data sources will be integrated here.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Wikipedia (coming soon)
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Artsy (coming soon)
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Artnet (coming soon)
-                    </Badge>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground italic">
+                  No articles found for this artist.
+                </p>
               )}
             </section>
             
-            {/* Exhibitions Section - Placeholder */}
+            {/* Placeholder for future APIs */}
             <Separator />
             <section className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Exhibition History
+                Coming Soon
               </h3>
-              <p className="text-sm text-muted-foreground italic">
-                Exhibition data will be populated from external APIs.
-              </p>
-            </section>
-            
-            {/* Market Data Section - Placeholder */}
-            <Separator />
-            <section className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Market Information
-              </h3>
-              <p className="text-sm text-muted-foreground italic">
-                Auction results and market data will appear here.
-              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Wikipedia
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Artsy
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Artnet
+                </Badge>
+              </div>
             </section>
           </div>
         </ScrollArea>
