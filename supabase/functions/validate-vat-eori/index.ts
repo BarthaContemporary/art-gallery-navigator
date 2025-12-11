@@ -14,85 +14,116 @@ serve(async (req) => {
     const { vat_number, eori_number, company_number, email, action } = await req.json();
 
     if (action === 'validate_vat' && vat_number) {
-      const countryCode = vat_number.slice(0, 2).toUpperCase();
-      const vatId = vat_number.slice(2).replace(/\s/g, '');
+      // Clean VAT number - remove spaces and convert to uppercase
+      const cleanVat = vat_number.replace(/\s/g, '').toUpperCase();
+      const countryCode = cleanVat.slice(0, 2);
+      const vatId = cleanVat.slice(2);
 
-      console.log(`Validating VAT: ${countryCode}${vatId}`);
+      console.log(`Validating VAT via VATCheckAPI: ${cleanVat}`);
 
-      // UK VAT numbers (GB prefix) - use HMRC format validation
-      if (countryCode === 'GB') {
-        // UK VAT format: GB followed by 9 or 12 digits
-        const ukVatPattern = /^[0-9]{9}([0-9]{3})?$/;
-        const isValidFormat = ukVatPattern.test(vatId);
-        
-        if (!isValidFormat) {
-          return new Response(
-            JSON.stringify({
-              valid: false,
-              error: 'Invalid UK VAT format. Expected: GB followed by 9 or 12 digits (e.g., GB123456789)',
-              country_code: countryCode,
-              vat_number: vatId,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // UK VAT numbers can't be validated via VIES since Brexit
-        // Return format validation success with note
+      // Get VATCheckAPI key
+      const apiKey = Deno.env.get('VATCHECKAPI_KEY');
+      if (!apiKey) {
+        console.error('VATCHECKAPI_KEY not configured');
+        // Fallback to basic format validation
+        const vatPattern = /^[A-Z]{2}[A-Z0-9]{2,12}$/;
+        const isValidFormat = vatPattern.test(cleanVat);
         return new Response(
           JSON.stringify({
-            valid: true,
-            format_valid: true,
+            valid: isValidFormat,
+            format_valid: isValidFormat,
             country_code: countryCode,
             vat_number: vatId,
-            note: 'UK VAT format validated. Full HMRC verification requires manual check.',
+            note: 'VATCheckAPI not configured. Format validation only.',
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // EU VAT validation via VIES SOAP API
-      const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
-        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:ec.europa.eu:taxud:vies:services:checkVat:types">
-          <soapenv:Header/>
-          <soapenv:Body>
-            <urn:checkVat>
-              <urn:countryCode>${countryCode}</urn:countryCode>
-              <urn:vatNumber>${vatId}</urn:vatNumber>
-            </urn:checkVat>
-          </soapenv:Body>
-        </soapenv:Envelope>`;
+      try {
+        // Add timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch('https://ec.europa.eu/taxation_customs/vies/services/checkVatService', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml;charset=UTF-8',
-          'SOAPAction': '',
-        },
-        body: soapEnvelope,
-      });
+        const response = await fetch(
+          `https://api.vatcheckapi.com/v2/check?vat_number=${encodeURIComponent(cleanVat)}`,
+          {
+            method: 'GET',
+            headers: {
+              'apikey': apiKey.trim(),
+              'Accept': 'application/json',
+            },
+            signal: controller.signal,
+          }
+        );
 
-      const responseText = await response.text();
-      console.log('VIES response:', responseText);
+        clearTimeout(timeoutId);
 
-      const validMatch = responseText.match(/<valid>(\w+)<\/valid>/);
-      const nameMatch = responseText.match(/<name>([^<]*)<\/name>/);
-      const addressMatch = responseText.match(/<address>([^<]*)<\/address>/);
+        console.log(`VATCheckAPI response status: ${response.status}`);
 
-      const isValid = validMatch?.[1]?.toLowerCase() === 'true';
-      const companyName = nameMatch?.[1] || null;
-      const companyAddress = addressMatch?.[1] || null;
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`VATCheckAPI error ${response.status}: ${errorBody}`);
+          
+          // Return format validation on API error
+          const vatPattern = /^[A-Z]{2}[A-Z0-9]{2,12}$/;
+          return new Response(
+            JSON.stringify({
+              valid: vatPattern.test(cleanVat),
+              format_valid: vatPattern.test(cleanVat),
+              country_code: countryCode,
+              vat_number: vatId,
+              note: `VAT API returned status ${response.status}. Format validation only.`,
+              api_error: true,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
-      return new Response(
-        JSON.stringify({
-          valid: isValid,
-          country_code: countryCode,
-          vat_number: vatId,
-          company_name: companyName,
-          company_address: companyAddress,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        const data = await response.json();
+        console.log('VATCheckAPI response:', JSON.stringify(data));
+
+        // VATCheckAPI response structure
+        const isRegistered = data.registration_info?.is_registered === true;
+        const isFormatValid = data.format_valid === true;
+        const companyName = data.registration_info?.name || null;
+        const companyAddress = data.registration_info?.address || null;
+
+        return new Response(
+          JSON.stringify({
+            valid: isRegistered || isFormatValid,
+            verified: isRegistered,
+            format_valid: isFormatValid,
+            checksum_valid: data.checksum_valid,
+            country_code: data.country_code || countryCode,
+            vat_number: data.vat_number || vatId,
+            company_name: companyName,
+            company_address: companyAddress,
+            checked_at: data.registration_info?.checked_at,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.error('VATCheckAPI request timed out');
+        } else {
+          console.error('VATCheckAPI error:', err);
+        }
+        
+        // Return format validation on error
+        const vatPattern = /^[A-Z]{2}[A-Z0-9]{2,12}$/;
+        return new Response(
+          JSON.stringify({
+            valid: vatPattern.test(cleanVat),
+            format_valid: vatPattern.test(cleanVat),
+            country_code: countryCode,
+            vat_number: vatId,
+            note: 'VAT verification service unavailable.',
+            api_error: true,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (action === 'validate_eori' && eori_number) {
