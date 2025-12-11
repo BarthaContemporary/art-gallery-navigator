@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
 import { format } from "date-fns";
 
@@ -70,6 +75,7 @@ function ArticleCard({ article }: { article: GuardianArticle }) {
 
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
   const { searchArtist, articles, isLoading, error } = useGuardianSearch();
+  const [articlesOpen, setArticlesOpen] = useState(false);
 
   useEffect(() => {
     if (open && artist.full_name) {
@@ -154,39 +160,55 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
             
             {/* Guardian Articles Section */}
             <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Newspaper className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  The Guardian Articles
-                </h3>
-              </div>
-              
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                      <Skeleton className="w-20 h-20 rounded" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-3 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
+              <Collapsible open={articlesOpen} onOpenChange={setArticlesOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Newspaper className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    The Guardian Articles
+                  </h3>
+                  {!isLoading && articles.length > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {articles.length}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      articlesOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {isLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : error ? (
-                <p className="text-sm text-destructive">{error}</p>
-              ) : articles.length > 0 ? (
-                <div className="space-y-2">
-                  {articles.map((article) => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  No articles found for this artist.
-                </p>
-              )}
+                  ) : error ? (
+                    <p className="text-sm text-destructive">{error}</p>
+                  ) : articles.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {articles.map((article) => (
+                          <ArticleCard key={article.id} article={article} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No articles found for this artist.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             </section>
             
             {/* Placeholder for future APIs */}
