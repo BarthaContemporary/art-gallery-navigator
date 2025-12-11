@@ -14,9 +14,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2 } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
 import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
+import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
 import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
@@ -114,18 +115,47 @@ function HarvardObjectCard({ object }: { object: HarvardObject }) {
   );
 }
 
+function RijksmuseumObjectCard({ object }: { object: RijksmuseumObject }) {
+  return (
+    <div className="flex gap-3 p-3 border rounded-lg">
+      <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+        <Landmark className="h-8 w-8 text-muted-foreground/40" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
+        {object.creator && (
+          <p className="text-xs text-muted-foreground mb-1">{object.creator}</p>
+        )}
+        {object.date && (
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+            {object.date}
+          </p>
+        )}
+        {object.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            {object.description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
   const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
   const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading, error: harvardError } = useHarvardMuseumSearch();
+  const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading, error: rijksError } = useRijksmuseumSearch();
   const [articlesOpen, setArticlesOpen] = useState(false);
   const [harvardOpen, setHarvardOpen] = useState(false);
+  const [rijksOpen, setRijksOpen] = useState(false);
 
   useEffect(() => {
     if (open && artist.full_name) {
       searchGuardian(artist.full_name);
       searchHarvard(artist.full_name);
+      searchRijks(artist.full_name);
     }
-  }, [open, artist.full_name, searchGuardian, searchHarvard]);
+  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -304,6 +334,60 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
                       No works found in Harvard Art Museums collection.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+            
+            {/* Rijksmuseum Section */}
+            <Separator />
+            <section className="space-y-3">
+              <Collapsible open={rijksOpen} onOpenChange={setRijksOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Landmark className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Rijksmuseum
+                  </h3>
+                  {!rijksLoading && rijksTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {rijksTotal}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      rijksOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {rijksLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : rijksError ? (
+                    <p className="text-sm text-destructive">{rijksError}</p>
+                  ) : rijksObjects.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {rijksObjects.map((object) => (
+                          <RijksmuseumObjectCard key={object.id} object={object} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works found in Rijksmuseum collection.
                     </p>
                   )}
                 </CollapsibleContent>
