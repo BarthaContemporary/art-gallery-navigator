@@ -29,11 +29,12 @@ serve(async (req) => {
       );
     }
 
-    // Search for artist name combined with "art" or "artist"
-    const searchQuery = `${artistName} AND (art OR artist OR exhibition OR gallery)`;
+    // Search for artist name as exact phrase combined with art-related terms
+    const searchQuery = `"${artistName}" AND (art OR artist)`;
     const encodedQuery = encodeURIComponent(searchQuery);
     
-    const url = `https://content.guardianapis.com/search?q=${encodedQuery}&api-key=${GUARDIAN_API_KEY}&show-fields=headline,trailText,thumbnail,shortUrl,byline&page-size=10&order-by=relevance`;
+    // Order by newest, increase page size to 50
+    const url = `https://content.guardianapis.com/search?q=${encodedQuery}&api-key=${GUARDIAN_API_KEY}&show-fields=headline,trailText,thumbnail,shortUrl,byline&page-size=50&order-by=newest`;
 
     console.log("Searching Guardian for:", artistName);
 
