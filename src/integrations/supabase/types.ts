@@ -1932,6 +1932,9 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           city: string | null
+          company_number: string | null
+          company_verified: boolean | null
+          company_verified_at: string | null
           country: string | null
           created_at: string | null
           custom_fields: Json | null
@@ -1957,6 +1960,9 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          company_number?: string | null
+          company_verified?: boolean | null
+          company_verified_at?: string | null
           country?: string | null
           created_at?: string | null
           custom_fields?: Json | null
@@ -1982,6 +1988,9 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          company_number?: string | null
+          company_verified?: boolean | null
+          company_verified_at?: string | null
           country?: string | null
           created_at?: string | null
           custom_fields?: Json | null
