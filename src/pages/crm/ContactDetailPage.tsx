@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Trash2, Mail, Phone, Building2 } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Mail, Phone, Building2, MapPin, ExternalLink } from "lucide-react";
 import { useCRMContact, useDeleteCRMContact } from "@/hooks/crm";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
@@ -126,10 +126,45 @@ export default function ContactDetailPage() {
                   {contact.phone}
                 </a>
               )}
-              {(contact.city || contact.country) && (
-                <p className="text-sm text-muted-foreground">
-                  {[contact.city, contact.country].filter(Boolean).join(", ")}
-                </p>
+              {/* Full Address Display */}
+              {(contact.address_line1 || contact.city || contact.country) && (
+                <div className="pt-2 border-t">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      {contact.address_line1 && <p>{contact.address_line1}</p>}
+                      {contact.address_line2 && <p>{contact.address_line2}</p>}
+                      <p>
+                        {[contact.city, contact.state, contact.postal_code]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                      {contact.country && <p>{contact.country}</p>}
+                    </div>
+                  </div>
+                  {/* View on Map Link */}
+                  {(contact.address_line1 || contact.city) && (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [
+                          contact.address_line1,
+                          contact.city,
+                          contact.state,
+                          contact.postal_code,
+                          contact.country,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View on Map
+                    </a>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

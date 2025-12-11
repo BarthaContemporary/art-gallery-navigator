@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateCRMContact, useUpdateCRMContact } from "@/hooks/crm";
 import { CRMContact, CRMContactType } from "@/types/crm";
 import { useState, useEffect } from "react";
+import { AddressInput } from "@/components/crm/form/AddressInput";
 
 interface ContactDialogProps {
   open: boolean;
@@ -14,17 +15,49 @@ interface ContactDialogProps {
   contact?: CRMContact;
 }
 
+const initialFormData = {
+  full_name: "",
+  email: "",
+  phone: "",
+  contact_type: "prospect" as CRMContactType,
+  notes: "",
+  instagram_handle: "",
+  linkedin_handle: "",
+  whatsapp_number: "",
+  address_line1: "",
+  address_line2: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "",
+};
+
 export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProps) {
-  const [formData, setFormData] = useState({ full_name: "", email: "", phone: "", contact_type: "prospect" as CRMContactType, notes: "", instagram_handle: "", linkedin_handle: "", whatsapp_number: "", city: "", country: "" });
+  const [formData, setFormData] = useState(initialFormData);
 
   const createContact = useCreateCRMContact();
   const updateContact = useUpdateCRMContact();
 
   useEffect(() => {
     if (contact) {
-      setFormData({ full_name: contact.full_name, email: contact.email || "", phone: contact.phone || "", contact_type: contact.contact_type, notes: contact.notes || "", instagram_handle: contact.instagram_handle || "", linkedin_handle: contact.linkedin_handle || "", whatsapp_number: contact.whatsapp_number || "", city: contact.city || "", country: contact.country || "" });
+      setFormData({
+        full_name: contact.full_name,
+        email: contact.email || "",
+        phone: contact.phone || "",
+        contact_type: contact.contact_type,
+        notes: contact.notes || "",
+        instagram_handle: contact.instagram_handle || "",
+        linkedin_handle: contact.linkedin_handle || "",
+        whatsapp_number: contact.whatsapp_number || "",
+        address_line1: contact.address_line1 || "",
+        address_line2: contact.address_line2 || "",
+        city: contact.city || "",
+        state: contact.state || "",
+        postal_code: contact.postal_code || "",
+        country: contact.country || "",
+      });
     } else {
-      setFormData({ full_name: "", email: "", phone: "", contact_type: "prospect", notes: "", instagram_handle: "", linkedin_handle: "", whatsapp_number: "", city: "", country: "" });
+      setFormData(initialFormData);
     }
   }, [contact, open]);
 
@@ -37,18 +70,39 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
     }
   };
 
+  const handleAddressChange = (address: {
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  }) => {
+    setFormData((prev) => ({ ...prev, ...address }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{contact ? "Edit Contact" : "New Contact"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><Label>Name *</Label><Input required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} /></div>
-            <div><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} /></div>
-            <div><Label>Phone</Label><Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} /></div>
-            <div><Label>Type</Label>
+            <div className="col-span-2">
+              <Label>Name *</Label>
+              <Input required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+            </div>
+            <div>
+              <Label>Type</Label>
               <Select value={formData.contact_type} onValueChange={(v) => setFormData({ ...formData, contact_type: v as CRMContactType })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -62,12 +116,38 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>City</Label><Input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} /></div>
-            <div><Label>Country</Label><Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} /></div>
-            <div><Label>Instagram</Label><Input placeholder="@handle" value={formData.instagram_handle} onChange={(e) => setFormData({ ...formData, instagram_handle: e.target.value })} /></div>
-            <div><Label>LinkedIn</Label><Input value={formData.linkedin_handle} onChange={(e) => setFormData({ ...formData, linkedin_handle: e.target.value })} /></div>
-            <div><Label>WhatsApp</Label><Input value={formData.whatsapp_number} onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })} /></div>
-            <div className="col-span-2"><Label>Notes</Label><Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} /></div>
+            <div>
+              <Label>Instagram</Label>
+              <Input placeholder="@handle" value={formData.instagram_handle} onChange={(e) => setFormData({ ...formData, instagram_handle: e.target.value })} />
+            </div>
+            <div>
+              <Label>LinkedIn</Label>
+              <Input value={formData.linkedin_handle} onChange={(e) => setFormData({ ...formData, linkedin_handle: e.target.value })} />
+            </div>
+            <div>
+              <Label>WhatsApp</Label>
+              <Input value={formData.whatsapp_number} onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })} />
+            </div>
+            
+            {/* Address Section */}
+            <div className="col-span-2">
+              <AddressInput
+                value={{
+                  address_line1: formData.address_line1,
+                  address_line2: formData.address_line2,
+                  city: formData.city,
+                  state: formData.state,
+                  postal_code: formData.postal_code,
+                  country: formData.country,
+                }}
+                onChange={handleAddressChange}
+              />
+            </div>
+            
+            <div className="col-span-2">
+              <Label>Notes</Label>
+              <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
