@@ -36,29 +36,37 @@ serve(async (req) => {
     const { input, action } = await req.json();
 
     if (action === 'autocomplete') {
-      // Get address suggestions
-      const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
-      url.searchParams.set('input', input);
-      url.searchParams.set('types', 'address');
-      url.searchParams.set('key', GOOGLE_MAPS_API_KEY);
+      // Use the new Places API (New) endpoint
+      const url = 'https://places.googleapis.com/v1/places:autocomplete';
 
       console.log('Fetching autocomplete suggestions for:', input);
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        },
+        body: JSON.stringify({
+          input: input,
+          includedPrimaryTypes: ['street_address', 'subpremise', 'premise', 'route'],
+        }),
+      });
+
       const data = await response.json();
 
-      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-        console.error('Autocomplete API error:', data.status, data.error_message);
+      if (data.error) {
+        console.error('Autocomplete API error:', data.error.message);
         return new Response(
-          JSON.stringify({ error: data.error_message || 'Autocomplete failed', status: data.status }),
+          JSON.stringify({ error: data.error.message, status: data.error.status }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const suggestions = data.predictions?.map((p: any) => ({
-        place_id: p.place_id,
-        description: p.description,
-      })) || [];
+      const suggestions = data.suggestions?.map((s: any) => ({
+        place_id: s.placePrediction?.placeId,
+        description: s.placePrediction?.text?.text || s.placePrediction?.structuredFormat?.mainText?.text,
+      })).filter((s: any) => s.place_id) || [];
 
       return new Response(
         JSON.stringify({ suggestions }),
@@ -67,36 +75,35 @@ serve(async (req) => {
     }
 
     if (action === 'details') {
-      // Get place details
-      const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-      url.searchParams.set('place_id', input);
-      url.searchParams.set('fields', 'address_components,formatted_address,geometry');
-      url.searchParams.set('key', GOOGLE_MAPS_API_KEY);
+      // Use the new Places API (New) for place details
+      const url = `https://places.googleapis.com/v1/places/${input}`;
 
       console.log('Fetching place details for:', input);
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,addressComponents,location',
+        },
+      });
+
       const data = await response.json();
 
-      if (data.status !== 'OK') {
-        console.error('Place details API error:', data.status, data.error_message);
+      if (data.error) {
+        console.error('Place details API error:', data.error.message);
         return new Response(
-          JSON.stringify({ error: data.error_message || 'Failed to get place details', status: data.status }),
+          JSON.stringify({ error: data.error.message, status: data.error.status }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const result = data.result;
-      const components = result.address_components || [];
+      const components = data.addressComponents || [];
 
       const getComponent = (types: string[]) => {
         const component = components.find((c: any) => types.some(t => c.types.includes(t)));
-        return component?.long_name || '';
-      };
-
-      const getComponentShort = (types: string[]) => {
-        const component = components.find((c: any) => types.some(t => c.types.includes(t)));
-        return component?.short_name || '';
+        return component?.longText || '';
       };
 
       const streetNumber = getComponent(['street_number']);
@@ -104,15 +111,15 @@ serve(async (req) => {
 
       const address: AddressSuggestion = {
         place_id: input,
-        formatted_address: result.formatted_address || '',
+        formatted_address: data.formattedAddress || '',
         address_line1: [streetNumber, route].filter(Boolean).join(' '),
         address_line2: getComponent(['subpremise', 'floor', 'room']),
         city: getComponent(['locality', 'sublocality', 'postal_town']),
         state: getComponent(['administrative_area_level_1']),
         postal_code: getComponent(['postal_code']),
         country: getComponent(['country']),
-        lat: result.geometry?.location?.lat,
-        lng: result.geometry?.location?.lng,
+        lat: data.location?.latitude,
+        lng: data.location?.longitude,
       };
 
       return new Response(
