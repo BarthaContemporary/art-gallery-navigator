@@ -28,32 +28,37 @@ export default function CRMLayout() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* CRM Top Navigation */}
-      <div className="border-b border-border bg-muted/30 px-4 py-2 flex items-center gap-1">
-        <TooltipProvider>
-          {crmNavItems.map((item) => (
-            <Tooltip key={item.href}>
-              <TooltipTrigger asChild>
-                <NavLink
-                  to={item.href}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center justify-center w-10 h-10 transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )
-                  }
-                >
-                  <item.icon className="h-5 w-5" />
-                </NavLink>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{item.label}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+      {/* CRM Top Navigation - minimal, integrated design */}
+      <div className="border-b border-border/50 bg-background px-4 h-11 flex items-center">
+        <TooltipProvider delayDuration={200}>
+          <nav className="flex items-center gap-0.5">
+            {crmNavItems.map((item) => (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to={item.href}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      cn(
+                        "relative flex items-center justify-center w-9 h-9 transition-all duration-200",
+                        "text-muted-foreground hover:text-foreground",
+                        isActive && [
+                          "text-primary",
+                          "after:absolute after:bottom-[-6px] after:left-1/2 after:-translate-x-1/2",
+                          "after:w-5 after:h-0.5 after:bg-primary"
+                        ]
+                      )
+                    }
+                  >
+                    <item.icon className="h-[18px] w-[18px]" />
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </nav>
         </TooltipProvider>
       </div>
 
