@@ -9,6 +9,7 @@ import { CRMOrganizationType } from "@/types/crm";
 import { useState } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { VatEoriInput } from "@/components/crm/form/VatEoriInput";
+import { CompanyNumberInput } from "@/components/crm/form/CompanyNumberInput";
 
 interface OrganizationDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ const initialFormData = {
   country: "",
   vat_number: "",
   eori_number: "",
+  company_number: "",
   notes: "",
 };
 
@@ -137,10 +139,14 @@ export function OrganizationDialog({ open, onOpenChange }: OrganizationDialogPro
               />
             </div>
 
-            {/* VAT & EORI Section */}
+            {/* Company & Tax Section */}
             <div className="col-span-2 border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Tax & Trade Information</h4>
+              <h4 className="text-sm font-medium mb-3">Company & Tax Information</h4>
               <div className="grid grid-cols-2 gap-4">
+                <CompanyNumberInput
+                  value={formData.company_number}
+                  onChange={(value) => setFormData({ ...formData, company_number: value })}
+                />
                 <VatEoriInput
                   type="vat"
                   value={formData.vat_number}

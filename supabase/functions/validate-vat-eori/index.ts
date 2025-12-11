@@ -11,16 +11,47 @@ serve(async (req) => {
   }
 
   try {
-    const { vat_number, eori_number, action } = await req.json();
+    const { vat_number, eori_number, company_number, action } = await req.json();
 
     if (action === 'validate_vat' && vat_number) {
-      // Extract country code and VAT number
       const countryCode = vat_number.slice(0, 2).toUpperCase();
       const vatId = vat_number.slice(2).replace(/\s/g, '');
 
       console.log(`Validating VAT: ${countryCode}${vatId}`);
 
-      // Use EU VIES SOAP API for VAT validation
+      // UK VAT numbers (GB prefix) - use HMRC format validation
+      if (countryCode === 'GB') {
+        // UK VAT format: GB followed by 9 or 12 digits
+        const ukVatPattern = /^[0-9]{9}([0-9]{3})?$/;
+        const isValidFormat = ukVatPattern.test(vatId);
+        
+        if (!isValidFormat) {
+          return new Response(
+            JSON.stringify({
+              valid: false,
+              error: 'Invalid UK VAT format. Expected: GB followed by 9 or 12 digits (e.g., GB123456789)',
+              country_code: countryCode,
+              vat_number: vatId,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // UK VAT numbers can't be validated via VIES since Brexit
+        // Return format validation success with note
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            format_valid: true,
+            country_code: countryCode,
+            vat_number: vatId,
+            note: 'UK VAT format validated. Full HMRC verification requires manual check.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // EU VAT validation via VIES SOAP API
       const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
         <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:ec.europa.eu:taxud:vies:services:checkVat:types">
           <soapenv:Header/>
@@ -44,7 +75,6 @@ serve(async (req) => {
       const responseText = await response.text();
       console.log('VIES response:', responseText);
 
-      // Parse SOAP response
       const validMatch = responseText.match(/<valid>(\w+)<\/valid>/);
       const nameMatch = responseText.match(/<name>([^<]*)<\/name>/);
       const addressMatch = responseText.match(/<address>([^<]*)<\/address>/);
@@ -66,19 +96,13 @@ serve(async (req) => {
     }
 
     if (action === 'validate_eori' && eori_number) {
-      // EORI validation is more complex and requires specific country APIs
-      // For now, we validate the format and provide basic checks
       const cleanEori = eori_number.replace(/\s/g, '').toUpperCase();
       const countryCode = cleanEori.slice(0, 2);
       const eoriId = cleanEori.slice(2);
 
       console.log(`Validating EORI: ${countryCode}${eoriId}`);
 
-      // Basic format validation
-      // EORI format: 2-letter country code + up to 15 alphanumeric characters
       const isValidFormat = /^[A-Z]{2}[A-Z0-9]{1,15}$/.test(cleanEori);
-
-      // EU member state codes
       const euCountries = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB', 'XI'];
       const isEuCountry = euCountries.includes(countryCode);
 
@@ -93,10 +117,6 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
-      // For real validation, the EU EORI validation service could be called
-      // https://ec.europa.eu/taxation_customs/dds2/eos/validation/services/validation
-      // For now, we just validate format
       
       return new Response(
         JSON.stringify({
@@ -111,8 +131,102 @@ serve(async (req) => {
       );
     }
 
+    if (action === 'validate_company' && company_number) {
+      const cleanNumber = company_number.replace(/\s/g, '').toUpperCase();
+      
+      console.log(`Validating UK Company Number: ${cleanNumber}`);
+
+      // UK Company number format: 8 characters (letters/numbers)
+      const ukCompanyPattern = /^[A-Z0-9]{8}$/;
+      if (!ukCompanyPattern.test(cleanNumber)) {
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            error: 'Invalid UK company number format. Expected: 8 alphanumeric characters.',
+            company_number: cleanNumber,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate against Companies House API
+      const apiKey = Deno.env.get('COMPANIES_HOUSE_API_KEY');
+      if (!apiKey) {
+        console.error('COMPANIES_HOUSE_API_KEY not configured');
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            format_valid: true,
+            company_number: cleanNumber,
+            note: 'Format validated. Companies House API not configured for full verification.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const chResponse = await fetch(`https://api.company-information.service.gov.uk/company/${cleanNumber}`, {
+          headers: {
+            'Authorization': `Basic ${btoa(apiKey + ':')}`,
+          },
+        });
+
+        if (chResponse.status === 404) {
+          return new Response(
+            JSON.stringify({
+              valid: false,
+              error: 'Company not found in Companies House register.',
+              company_number: cleanNumber,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!chResponse.ok) {
+          console.error('Companies House API error:', chResponse.status);
+          return new Response(
+            JSON.stringify({
+              valid: true,
+              format_valid: true,
+              company_number: cleanNumber,
+              note: 'Format validated. Companies House verification unavailable.',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const companyData = await chResponse.json();
+        console.log('Companies House response:', JSON.stringify(companyData));
+
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            verified: true,
+            company_number: cleanNumber,
+            company_name: companyData.company_name,
+            company_status: companyData.company_status,
+            company_type: companyData.type,
+            date_of_creation: companyData.date_of_creation,
+            registered_office_address: companyData.registered_office_address,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (err) {
+        console.error('Companies House API error:', err);
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            format_valid: true,
+            company_number: cleanNumber,
+            note: 'Format validated. Companies House verification failed.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     return new Response(
-      JSON.stringify({ error: 'Invalid action. Use "validate_vat" or "validate_eori"' }),
+      JSON.stringify({ error: 'Invalid action. Use "validate_vat", "validate_eori", or "validate_company"' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

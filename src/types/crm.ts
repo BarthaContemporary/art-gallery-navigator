@@ -60,6 +60,9 @@ export interface CRMOrganization {
   eori_number?: string;
   eori_verified?: boolean;
   eori_verified_at?: string;
+  company_number?: string;
+  company_verified?: boolean;
+  company_verified_at?: string;
   notes?: string;
   tags: string[];
   custom_fields: Record<string, any>;
