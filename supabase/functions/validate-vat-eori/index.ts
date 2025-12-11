@@ -214,12 +214,13 @@ serve(async (req) => {
       console.log(`Validating UK Company Number: ${cleanNumber}`);
 
       // UK Company number format: 8 characters (letters/numbers)
-      const ukCompanyPattern = /^[A-Z0-9]{8}$/;
+      // Can also be 6-8 digits for older companies
+      const ukCompanyPattern = /^([A-Z]{2}[0-9]{6}|[0-9]{6,8}|[A-Z][0-9]{7}|[A-Z]{2}[0-9]{5}[A-Z])$/;
       if (!ukCompanyPattern.test(cleanNumber)) {
         return new Response(
           JSON.stringify({
             valid: false,
-            error: 'Invalid UK company number format. Expected: 8 alphanumeric characters.',
+            error: 'Invalid UK company number format. Expected: 8 alphanumeric characters (e.g., 12345678, SC123456, OC123456).',
             company_number: cleanNumber,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -241,19 +242,56 @@ serve(async (req) => {
         );
       }
       
-      // Log API key details for debugging (only length and first/last chars)
+      // Clean and validate API key format
       const trimmedKey = apiKey.trim();
-      console.log(`API key length: ${trimmedKey.length}, starts with: ${trimmedKey.substring(0, 4)}..., ends with: ...${trimmedKey.substring(trimmedKey.length - 4)}`);
       
+      // Log API key details for debugging
+      console.log(`API key length: ${trimmedKey.length}`);
+      console.log(`API key format check: contains spaces=${trimmedKey.includes(' ')}, contains newlines=${trimmedKey.includes('\n')}`);
+      
+      // Companies House API keys are typically UUID format (36 chars) or alphanumeric
+      if (trimmedKey.length < 10) {
+        console.error('API key appears too short');
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            format_valid: true,
+            company_number: cleanNumber,
+            note: 'Format validated. API key configuration issue.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Build auth header - Companies House uses HTTP Basic Auth with API key as username and empty password
       const authString = btoa(trimmedKey + ':');
-      console.log(`Auth header: Basic ${authString.substring(0, 10)}...`);
+      console.log(`Making request to Companies House for company: ${cleanNumber}`);
 
       try {
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const chResponse = await fetch(`https://api.company-information.service.gov.uk/company/${cleanNumber}`, {
+          method: 'GET',
           headers: {
             'Authorization': `Basic ${authString}`,
+            'Accept': 'application/json',
+            'User-Agent': 'BarthaContemporary-CRM/1.0',
           },
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
+
+        console.log(`Companies House API response status: ${chResponse.status}`);
+        
+        // Log all response headers for debugging
+        const responseHeaders: Record<string, string> = {};
+        chResponse.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+        console.log(`Response headers: ${JSON.stringify(responseHeaders)}`);
 
         if (chResponse.status === 404) {
           return new Response(
@@ -266,14 +304,60 @@ serve(async (req) => {
           );
         }
 
-        if (!chResponse.ok) {
-          console.error('Companies House API error:', chResponse.status);
+        // Handle authentication errors specifically
+        if (chResponse.status === 401) {
+          const errorBody = await chResponse.text();
+          console.error(`Companies House 401 Unauthorized. Response body: ${errorBody}`);
+          
+          // Try to parse error message
+          let errorMessage = 'Authentication failed';
+          try {
+            const errorJson = JSON.parse(errorBody);
+            errorMessage = errorJson.error || errorJson.message || errorMessage;
+          } catch {
+            errorMessage = errorBody || errorMessage;
+          }
+          
           return new Response(
             JSON.stringify({
               valid: true,
               format_valid: true,
               company_number: cleanNumber,
-              note: 'Format validated. Companies House verification unavailable.',
+              note: `Format validated. Companies House API authentication issue: ${errorMessage}`,
+              api_error: true,
+              error_code: 401,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Handle rate limiting
+        if (chResponse.status === 429) {
+          console.error('Companies House API rate limited');
+          return new Response(
+            JSON.stringify({
+              valid: true,
+              format_valid: true,
+              company_number: cleanNumber,
+              note: 'Format validated. API rate limit reached - please try again later.',
+              api_error: true,
+              error_code: 429,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!chResponse.ok) {
+          const errorBody = await chResponse.text();
+          console.error(`Companies House API error ${chResponse.status}: ${errorBody}`);
+          return new Response(
+            JSON.stringify({
+              valid: true,
+              format_valid: true,
+              company_number: cleanNumber,
+              note: `Format validated. Companies House API returned status ${chResponse.status}.`,
+              api_error: true,
+              error_code: chResponse.status,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -296,6 +380,20 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.error('Companies House API request timed out');
+          return new Response(
+            JSON.stringify({
+              valid: true,
+              format_valid: true,
+              company_number: cleanNumber,
+              note: 'Format validated. Companies House API request timed out.',
+              api_error: true,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         console.error('Companies House API error:', err);
         return new Response(
           JSON.stringify({
@@ -303,6 +401,7 @@ serve(async (req) => {
             format_valid: true,
             company_number: cleanNumber,
             note: 'Format validated. Companies House verification failed.',
+            api_error: true,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

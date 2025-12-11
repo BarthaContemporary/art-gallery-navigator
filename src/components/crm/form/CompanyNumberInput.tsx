@@ -21,6 +21,8 @@ export function CompanyNumberInput({ value, onChange, onValidationResult, classN
     message?: string;
     companyName?: string;
     companyStatus?: string;
+    isApiError?: boolean;
+    isVerified?: boolean;
   } | null>(null);
 
   const handleValidate = async () => {
@@ -39,15 +41,20 @@ export function CompanyNumberInput({ value, onChange, onValidationResult, classN
 
       if (error) throw error;
 
+      const isApiError = data?.api_error === true;
+      const isVerified = data?.verified === true;
+      
       const result = {
         valid: data?.valid || false,
         message: data?.valid 
-          ? (data?.verified && data?.company_name 
+          ? (isVerified && data?.company_name 
               ? `✓ ${data.company_name}` 
               : (data?.note || '✓ Valid format'))
           : (data?.error || 'Validation failed'),
         companyName: data?.company_name,
         companyStatus: data?.company_status,
+        isApiError,
+        isVerified,
       };
 
       setValidationResult(result);
@@ -116,6 +123,7 @@ export function CompanyNumberInput({ value, onChange, onValidationResult, classN
       {validationResult?.message && (
         <p className={cn(
           'text-xs',
+          validationResult.isApiError ? 'text-amber-600' : 
           validationResult.valid ? 'text-green-600' : 'text-destructive'
         )}>
           {validationResult.message}
