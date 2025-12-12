@@ -1,10 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function verifyAuth(req: Request): Promise<{ user: any } | { error: string; status: number }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return { error: 'Unauthorized', status: 401 };
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return { error: 'Invalid token', status: 401 };
+  }
+
+  return { user };
+}
 
 interface GravatarProfile {
   displayName?: string;
@@ -234,6 +256,18 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authResult = await verifyAuth(req);
+    if ('error' in authResult) {
+      console.log('Authentication failed:', authResult.error);
+      return new Response(
+        JSON.stringify({ error: authResult.error }),
+        { status: authResult.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`Authenticated user ${authResult.user.id} requesting email enrichment`);
+
     const { email } = await req.json();
     
     if (!email || typeof email !== 'string') {
