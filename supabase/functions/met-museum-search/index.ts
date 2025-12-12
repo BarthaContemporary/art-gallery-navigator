@@ -36,20 +36,39 @@ serve(async (req) => {
 
     console.info(`Searching MET Museum for: ${artistName}`);
 
-    // Search for objects by artist name
-    const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1/search?artistOrCulture=true&q=${encodeURIComponent(artistName)}`;
+    // Use AbortController for timeout - MET API can be unreliable
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    let searchResponse;
+    let searchData;
     
-    const searchResponse = await fetch(searchUrl);
-    
-    if (!searchResponse.ok) {
-      console.error(`MET API search error: ${searchResponse.status}`);
+    try {
+      // Search for objects by artist name
+      const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1/search?artistOrCulture=true&q=${encodeURIComponent(artistName)}`;
+      
+      searchResponse = await fetch(searchUrl, { signal: controller.signal });
+      
+      if (!searchResponse.ok) {
+        console.info(`MET API returned ${searchResponse.status} - returning empty results`);
+        clearTimeout(timeoutId);
+        return new Response(
+          JSON.stringify({ objects: [], totalObjects: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      searchData = await searchResponse.json();
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.info('MET Museum API timeout or unavailable - returning empty results');
       return new Response(
-        JSON.stringify({ objects: [], totalObjects: 0 }),
+        JSON.stringify({ objects: [], totalObjects: 0, note: 'MET Museum API temporarily unavailable' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const searchData = await searchResponse.json();
     
     if (!searchData.objectIDs || searchData.objectIDs.length === 0) {
       console.info(`No MET objects found for: ${artistName}`);
