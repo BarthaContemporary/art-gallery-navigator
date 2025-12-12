@@ -109,6 +109,11 @@ export interface CRMContact {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Sanctions check fields
+  sanctions_checked_at?: string;
+  sanctions_risk_level?: string;
+  sanctions_match_count?: number;
+  sanctions_matches?: any[];
 }
 
 export interface CRMInteraction {
