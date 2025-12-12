@@ -47,7 +47,7 @@ export function useEmailEnrichment() {
       if (enrichmentResult.source !== 'none' && enrichmentResult.fullName) {
         toast.success(`Found profile for ${enrichmentResult.fullName}`);
       } else if (enrichmentResult.source === 'none') {
-        toast.info('No profile found for this email');
+        toast.info('No profiles found for this name');
       }
 
       return enrichmentResult;
