@@ -22,29 +22,47 @@ serve(async (req) => {
       );
     }
 
-    console.info(`Searching Rijksmuseum OAI for: ${artistName}`);
+    console.info(`Searching Rijksmuseum for: ${artistName}`);
 
-    // Query the OAI-PMH endpoint with ListRecords
-    // Using Dublin Core metadata prefix and searching for the artist
-    const oaiUrl = new URL('https://data.rijksmuseum.nl/oai');
-    oaiUrl.searchParams.set('verb', 'ListRecords');
-    oaiUrl.searchParams.set('metadataPrefix', 'oai_dc');
-    // OAI-PMH doesn't support direct search, so we'll get records and filter
-    // For a more targeted approach, we can use the set parameter if available
+    // Use AbortController for timeout - OAI-PMH can be very slow
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-    const response = await fetch(oaiUrl.toString(), {
-      headers: {
-        'Accept': 'application/xml',
-      },
-    });
+    let response;
+    try {
+      // Query the OAI-PMH endpoint with ListRecords
+      const oaiUrl = new URL('https://data.rijksmuseum.nl/oai');
+      oaiUrl.searchParams.set('verb', 'ListRecords');
+      oaiUrl.searchParams.set('metadataPrefix', 'oai_dc');
 
-    if (!response.ok) {
-      console.error(`Rijksmuseum OAI API error: ${response.status}`);
+      response = await fetch(oaiUrl.toString(), {
+        headers: {
+          'Accept': 'application/xml',
+        },
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.info('Rijksmuseum API timeout or unavailable - returning empty results');
       return new Response(
         JSON.stringify({ 
           objects: [],
           totalObjects: 0,
-          error: `API returned status ${response.status}` 
+          note: 'Rijksmuseum API temporarily unavailable'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      console.info(`Rijksmuseum API returned ${response.status} - returning empty results`);
+      return new Response(
+        JSON.stringify({ 
+          objects: [],
+          totalObjects: 0,
+          note: 'Rijksmuseum API temporarily unavailable'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
