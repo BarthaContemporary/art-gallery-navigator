@@ -170,7 +170,7 @@ function Auth() {
           </Card>
           
           {/* Privacy Policy Link */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center flex items-center justify-center gap-3">
             <a 
               href="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/642d28369450cfa104ea1b13_Website%20privacy%20policy.pdf"
               target="_blank"
@@ -178,6 +178,15 @@ function Auth() {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Privacy Policy
+            </a>
+            <span className="text-muted-foreground">·</span>
+            <a 
+              href="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/642d28366731c40b973b0809_Website%20terms%20and%20conditions.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Terms & Conditions
             </a>
           </div>
           
