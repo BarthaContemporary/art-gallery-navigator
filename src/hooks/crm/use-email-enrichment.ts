@@ -12,7 +12,9 @@ export interface EmailEnrichmentResult {
   profileUrl?: string;
   instagram_handle?: string;
   linkedin_handle?: string;
-  source: 'gravatar' | 'none';
+  linkedin_url?: string;
+  instagram_search_url?: string;
+  source: 'gravatar' | 'hunter' | 'combined' | 'none';
   message?: string;
 }
 

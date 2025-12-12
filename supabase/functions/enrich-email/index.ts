@@ -29,7 +29,9 @@ interface EnrichmentResult {
   profileUrl?: string;
   instagram_handle?: string;
   linkedin_handle?: string;
-  source: 'gravatar' | 'none';
+  linkedin_url?: string;
+  instagram_search_url?: string;
+  source: 'gravatar' | 'hunter' | 'combined' | 'none';
 }
 
 async function md5Hash(text: string): Promise<string> {
@@ -175,6 +177,57 @@ async function lookupGravatar(email: string): Promise<EnrichmentResult | null> {
   }
 }
 
+async function lookupHunterLinkedIn(email: string): Promise<{ linkedin_url?: string; linkedin_handle?: string; firstName?: string; lastName?: string } | null> {
+  try {
+    const hunterApiKey = Deno.env.get('HUNTER_API_KEY');
+    if (!hunterApiKey) {
+      console.log('HUNTER_API_KEY not configured, skipping Hunter.io lookup');
+      return null;
+    }
+
+    console.log('Looking up LinkedIn via Hunter.io');
+    
+    const response = await fetch(
+      `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterApiKey}`
+    );
+
+    if (!response.ok) {
+      console.error('Hunter.io API error:', response.status);
+      return null;
+    }
+
+    const hunterData = await response.json();
+    const data = hunterData.data;
+    
+    console.log('Hunter.io sources:', JSON.stringify(data?.sources));
+    
+    // Extract LinkedIn from sources
+    if (data?.sources && Array.isArray(data.sources)) {
+      for (const source of data.sources) {
+        if (source.uri?.includes('linkedin.com')) {
+          const linkedinUrl = source.uri;
+          const match = linkedinUrl.match(/linkedin\.com\/in\/([^\/\?]+)/i);
+          return {
+            linkedin_url: linkedinUrl,
+            linkedin_handle: match ? match[1] : undefined,
+          };
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Hunter.io lookup error:', error);
+    return null;
+  }
+}
+
+function generateInstagramSearchUrl(name: string): string {
+  // Generate Instagram search URL for manual lookup
+  const cleanName = name.trim().replace(/\s+/g, '%20');
+  return `https://www.instagram.com/explore/search/keyword/?q=${cleanName}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -192,12 +245,37 @@ serve(async (req) => {
     
     console.log(`Enriching email: ${email}`);
     
-    // Try Gravatar first (free, no API key needed)
-    const gravatarResult = await lookupGravatar(email);
+    // Run lookups in parallel
+    const [gravatarResult, hunterResult] = await Promise.all([
+      lookupGravatar(email),
+      lookupHunterLinkedIn(email),
+    ]);
     
-    if (gravatarResult) {
+    // Combine results
+    if (gravatarResult || hunterResult) {
+      const result: EnrichmentResult = {
+        email,
+        source: gravatarResult && hunterResult ? 'combined' : (gravatarResult ? 'gravatar' : 'hunter'),
+        ...(gravatarResult || {}),
+      };
+      
+      // Add Hunter.io LinkedIn data if not already present from Gravatar
+      if (hunterResult) {
+        if (!result.linkedin_handle && hunterResult.linkedin_handle) {
+          result.linkedin_handle = hunterResult.linkedin_handle;
+        }
+        if (!result.linkedin_url && hunterResult.linkedin_url) {
+          result.linkedin_url = hunterResult.linkedin_url;
+        }
+      }
+      
+      // Generate Instagram search URL if we have a name but no Instagram handle
+      if (result.fullName && !result.instagram_handle) {
+        result.instagram_search_url = generateInstagramSearchUrl(result.fullName);
+      }
+      
       return new Response(
-        JSON.stringify(gravatarResult),
+        JSON.stringify(result),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
