@@ -17,6 +17,7 @@ interface LinkedInProfile {
   profileUrl: string;
   headline?: string;
   snippet?: string;
+  isGenerated?: boolean;
 }
 
 async function verifyAuth(req: Request): Promise<{ user: any } | { error: string; status: number }> {
@@ -38,6 +39,44 @@ async function verifyAuth(req: Request): Promise<{ user: any } | { error: string
   }
 
   return { user };
+}
+
+// Generate common LinkedIn URL patterns from a name
+function generateLinkedInPatterns(fullName: string): string[] {
+  const name = fullName.toLowerCase().trim();
+  const parts = name.split(/\s+/).filter(p => p.length > 0);
+  
+  if (parts.length === 0) return [];
+  
+  const patterns: string[] = [];
+  
+  if (parts.length === 1) {
+    // Single name
+    patterns.push(parts[0]);
+  } else if (parts.length === 2) {
+    const [first, last] = parts;
+    // Common patterns for two-part names
+    patterns.push(`${first}-${last}`);           // john-doe
+    patterns.push(`${first}${last}`);            // johndoe
+    patterns.push(`${last}-${first}`);           // doe-john
+    patterns.push(`${first[0]}${last}`);         // jdoe
+    patterns.push(`${first}${last[0]}`);         // johnd
+    patterns.push(`${first}-${last}-`);          // john-doe- (with suffix numbers often)
+  } else {
+    // Three or more parts
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+    const middle = parts.slice(1, -1).join('-');
+    
+    patterns.push(`${first}-${last}`);                    // first-last
+    patterns.push(`${first}-${middle}-${last}`);          // first-middle-last
+    patterns.push(parts.join('-'));                       // all-parts
+    patterns.push(`${first}${last}`);                     // firstlast
+    patterns.push(`${first[0]}${last}`);                  // flast
+  }
+  
+  // Remove duplicates and invalid patterns
+  return [...new Set(patterns)].filter(p => p.length > 2);
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -62,109 +101,41 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Full name is required");
     }
 
-    console.log("Searching LinkedIn profile for:", fullName, company, jobTitle);
+    console.log("Generating LinkedIn profile suggestions for:", fullName);
 
-    // Build search query for LinkedIn profiles
-    let searchQuery = `site:linkedin.com/in "${fullName}"`;
-    if (company) {
-      searchQuery += ` "${company}"`;
-    }
-    if (jobTitle) {
-      searchQuery += ` "${jobTitle}"`;
-    }
-
-    // Use DuckDuckGo HTML search (no API key needed) as a fallback
-    // This is a simple approach that doesn't require additional secrets
-    const duckDuckGoUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
+    // Generate potential LinkedIn URL patterns
+    const patterns = generateLinkedInPatterns(fullName);
     
-    console.log("Search URL:", duckDuckGoUrl);
+    const profiles: LinkedInProfile[] = patterns.map(pattern => ({
+      name: fullName,
+      profileUrl: `https://www.linkedin.com/in/${pattern}`,
+      headline: company || jobTitle ? `${jobTitle || ''} ${company ? `at ${company}` : ''}`.trim() : undefined,
+      snippet: `Suggested profile based on name: ${pattern}`,
+      isGenerated: true,
+    }));
 
-    const response = await fetch(duckDuckGoUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
+    // Also add a Google search link as the first option
+    const googleSearchUrl = `https://www.google.com/search?q=site:linkedin.com/in+${encodeURIComponent(`"${fullName}"`)}${company ? `+${encodeURIComponent(company)}` : ''}`;
+    
+    profiles.unshift({
+      name: `Search Google for "${fullName}"`,
+      profileUrl: googleSearchUrl,
+      headline: 'Open Google to find the exact LinkedIn profile',
+      snippet: 'Click to search Google for LinkedIn profiles matching this name',
+      isGenerated: false,
     });
 
-    if (!response.ok) {
-      console.log("Search request failed:", response.status);
-      throw new Error("Search request failed");
-    }
-
-    const html = await response.text();
-    
-    // Parse search results for LinkedIn profile URLs
-    const profiles: LinkedInProfile[] = [];
-    
-    // Match LinkedIn profile URLs and their context
-    const linkedInRegex = /href="(https?:\/\/(www\.)?linkedin\.com\/in\/[^"\/]+\/?)[^"]*"[^>]*>([^<]*)<\/a>/gi;
-    const matches = html.matchAll(linkedInRegex);
-    
-    const seenUrls = new Set<string>();
-    
-    for (const match of matches) {
-      const url = match[1].replace(/\/+$/, ''); // Clean trailing slashes
-      const linkText = match[3];
-      
-      // Skip if we've seen this URL
-      if (seenUrls.has(url)) continue;
-      seenUrls.add(url);
-      
-      // Extract name from URL or link text
-      const urlHandle = url.split('/in/')[1]?.replace(/-/g, ' ') || '';
-      const displayName = linkText || urlHandle;
-      
-      // Try to find the snippet/description near this result
-      const snippetMatch = html.match(new RegExp(`${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^<]*<[^>]*>[^<]*<[^>]*class="result__snippet"[^>]*>([^<]+)`, 'i'));
-      const snippet = snippetMatch ? snippetMatch[1].trim() : undefined;
-      
-      profiles.push({
-        name: displayName.trim() || 'LinkedIn Profile',
-        profileUrl: url,
-        headline: snippet,
-        snippet: snippet,
-      });
-      
-      // Limit to 5 results
-      if (profiles.length >= 5) break;
-    }
-    
-    // Alternative parsing for DuckDuckGo results
-    if (profiles.length === 0) {
-      // Try to find result blocks
-      const resultBlockRegex = /<a[^>]*href="[^"]*linkedin\.com\/in\/([^"\/]+)[^"]*"[^>]*>[\s\S]*?<\/a>/gi;
-      const blockMatches = html.matchAll(resultBlockRegex);
-      
-      for (const match of blockMatches) {
-        const handle = match[1];
-        const url = `https://www.linkedin.com/in/${handle}`;
-        
-        if (seenUrls.has(url)) continue;
-        seenUrls.add(url);
-        
-        const displayName = handle.replace(/-/g, ' ');
-        
-        profiles.push({
-          name: displayName.charAt(0).toUpperCase() + displayName.slice(1),
-          profileUrl: url,
-        });
-        
-        if (profiles.length >= 5) break;
-      }
-    }
-
-    console.log(`Found ${profiles.length} LinkedIn profiles`);
+    console.log(`Generated ${profiles.length} suggestions`);
 
     return new Response(
-      JSON.stringify({ profiles }),
+      JSON.stringify({ profiles, googleSearchUrl }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   } catch (error: any) {
-    console.error("Error searching LinkedIn profiles:", error);
+    console.error("Error generating LinkedIn suggestions:", error);
     return new Response(
       JSON.stringify({ error: error.message, profiles: [] }),
       {
