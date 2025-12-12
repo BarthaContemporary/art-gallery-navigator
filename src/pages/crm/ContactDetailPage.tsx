@@ -9,7 +9,6 @@ import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
 import { SanctionsCheckCard } from "@/components/crm/contacts/SanctionsCheckCard";
-import { LinkedInProfilePanel } from "@/components/crm/contacts/LinkedInProfilePanel";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -231,16 +230,6 @@ export default function ContactDetailPage() {
 
           {/* Sanctions Check */}
           <SanctionsCheckCard contact={contact} />
-
-          {/* LinkedIn Profile Search */}
-          <LinkedInProfilePanel
-            contactId={contact.id}
-            fullName={contact.full_name}
-            company={contact.organization?.name}
-            jobTitle={contact.job_title}
-            currentProfileImageUrl={contact.profile_image_url}
-            currentLinkedInHandle={contact.linkedin_handle}
-          />
         </div>
 
         {/* Right Column - Timeline */}

@@ -11,9 +11,9 @@ import { AddressInput } from "@/components/crm/form/AddressInput";
 import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
 import { EnrichmentResultsPanel } from "@/components/crm/form/EnrichmentResultsPanel";
 import { PhoneInputWithWhatsApp } from "@/components/crm/form/PhoneInputWithWhatsApp";
+import { LinkedInSearchInput } from "@/components/crm/contacts/LinkedInSearchInput";
 import { Search, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
 interface ContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,6 +36,7 @@ const initialFormData = {
   state: "",
   postal_code: "",
   country: "",
+  profile_image_url: "",
 };
 
 export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProps) {
@@ -63,6 +64,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         state: contact.state || "",
         postal_code: contact.postal_code || "",
         country: contact.country || "",
+        profile_image_url: contact.profile_image_url || "",
       });
     } else {
       setFormData(initialFormData);
@@ -204,9 +206,15 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
               <Label>Instagram</Label>
               <Input placeholder="@handle" value={formData.instagram_handle} onChange={(e) => setFormData({ ...formData, instagram_handle: e.target.value })} />
             </div>
-            <div>
-              <Label>LinkedIn</Label>
-              <Input value={formData.linkedin_handle} onChange={(e) => setFormData({ ...formData, linkedin_handle: e.target.value })} />
+            <div className="col-span-2">
+              <LinkedInSearchInput
+                fullName={formData.full_name}
+                linkedinHandle={formData.linkedin_handle}
+                profileImageUrl={formData.profile_image_url}
+                onLinkedInChange={(handle) => setFormData({ ...formData, linkedin_handle: handle })}
+                onProfileImageChange={(url) => setFormData({ ...formData, profile_image_url: url })}
+                contactId={contact?.id}
+              />
             </div>
             <div>
               <Label>WhatsApp</Label>
