@@ -15,6 +15,26 @@ interface SanctionsMatch {
   properties: Record<string, string[]>;
 }
 
+// Function to get the appropriate API key based on date
+// Key 1 expires January 11, 2026 - Key 2 activates January 12, 2026
+function getApiKey(): { key: string | null; keyName: string } {
+  const switchDate = new Date('2026-01-12T00:00:00Z');
+  const now = new Date();
+  
+  if (now >= switchDate) {
+    const key2 = Deno.env.get('OPENSANCTIONS_API_KEY_2');
+    if (key2) {
+      console.log('Using OPENSANCTIONS_API_KEY_2 (activated Jan 12, 2026)');
+      return { key: key2, keyName: 'OPENSANCTIONS_API_KEY_2' };
+    }
+    console.warn('OPENSANCTIONS_API_KEY_2 not found, falling back to primary key');
+  }
+  
+  const key1 = Deno.env.get('OPENSANCTIONS_API_KEY');
+  console.log('Using OPENSANCTIONS_API_KEY (primary key, valid until Jan 11, 2026)');
+  return { key: key1 || null, keyName: 'OPENSANCTIONS_API_KEY' };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,9 +50,9 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('OPENSANCTIONS_API_KEY');
+    const { key: apiKey, keyName } = getApiKey();
     if (!apiKey) {
-      console.error('OPENSANCTIONS_API_KEY not configured');
+      console.error(`${keyName} not configured`);
       return new Response(
         JSON.stringify({ 
           error: 'Sanctions check API not configured',
