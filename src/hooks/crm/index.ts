@@ -11,3 +11,4 @@ export * from './use-duplicate-contacts';
 export * from './use-merge-contacts';
 export * from './use-address-validation';
 export * from './use-sanctions-check';
+export * from './use-email-enrichment';
