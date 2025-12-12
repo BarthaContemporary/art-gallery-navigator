@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +12,27 @@ interface SanctionsCheckCardProps {
 }
 
 export function SanctionsCheckCard({ contact }: SanctionsCheckCardProps) {
-  const { checkSanctions, isChecking, result, error } = useSanctionsCheck();
+  const { checkSanctions, loadSavedResult, isChecking, result, error } = useSanctionsCheck();
   const [expanded, setExpanded] = useState(false);
+
+  // Load saved result on mount
+  useEffect(() => {
+    if (contact.sanctions_checked_at) {
+      loadSavedResult({
+        sanctions_checked_at: contact.sanctions_checked_at,
+        sanctions_risk_level: contact.sanctions_risk_level,
+        sanctions_match_count: contact.sanctions_match_count,
+        sanctions_matches: contact.sanctions_matches,
+      });
+    }
+  }, [contact.id]);
 
   const handleCheck = () => {
     checkSanctions({
+      contactId: contact.id,
       name: contact.full_name,
       birthDate: contact.birthday || undefined,
-      nationality: undefined, // Could be derived from country
+      nationality: undefined,
       country: contact.country || undefined,
     });
   };
@@ -107,7 +120,7 @@ export function SanctionsCheckCard({ contact }: SanctionsCheckCardProps) {
         {result?.checked && (
           <div className="space-y-3">
             <div className="text-xs text-muted-foreground">
-              Checked: {result.checked_at ? new Date(result.checked_at).toLocaleString() : 'Just now'}
+              Last checked: {result.checked_at ? new Date(result.checked_at).toLocaleString() : 'Just now'}
             </div>
 
             {result.risk_level === 'clear' && (
