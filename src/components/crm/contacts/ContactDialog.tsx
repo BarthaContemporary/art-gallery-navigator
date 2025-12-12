@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
 import { EnrichmentResultsPanel } from "@/components/crm/form/EnrichmentResultsPanel";
+import { PhoneInputWithWhatsApp } from "@/components/crm/form/PhoneInputWithWhatsApp";
 import { Search, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -23,6 +24,7 @@ const initialFormData = {
   full_name: "",
   email: "",
   phone: "",
+  secondary_phone: "",
   contact_type: "prospect" as CRMContactType,
   notes: "",
   instagram_handle: "",
@@ -49,6 +51,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         full_name: contact.full_name,
         email: contact.email || "",
         phone: contact.phone || "",
+        secondary_phone: contact.secondary_phone || "",
         contact_type: contact.contact_type,
         notes: contact.notes || "",
         instagram_handle: contact.instagram_handle || "",
@@ -114,6 +117,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
+            {/* Name - full width with search button */}
             <div className="col-span-2">
               <Label>Name *</Label>
               <div className="flex gap-2">
@@ -157,18 +161,30 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                   full_name: formData.full_name,
                   notes: formData.notes,
                   city: formData.city,
+                  instagram_handle: formData.instagram_handle,
+                  linkedin_handle: formData.linkedin_handle,
                 }}
               />
             )}
 
-            <EmailVerificationInput
-              value={formData.email}
-              onChange={(value) => setFormData({ ...formData, email: value })}
-            />
-            <div>
-              <Label>Phone</Label>
-              <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+            {/* Email - full width */}
+            <div className="col-span-2">
+              <EmailVerificationInput
+                value={formData.email}
+                onChange={(value) => setFormData({ ...formData, email: value })}
+              />
             </div>
+
+            {/* Phone fields - landline and mobile with WhatsApp check */}
+            <PhoneInputWithWhatsApp
+              landlineValue={formData.phone}
+              mobileValue={formData.secondary_phone}
+              whatsappValue={formData.whatsapp_number}
+              onLandlineChange={(value) => setFormData({ ...formData, phone: value })}
+              onMobileChange={(value) => setFormData({ ...formData, secondary_phone: value })}
+              onWhatsappChange={(value) => setFormData({ ...formData, whatsapp_number: value })}
+            />
+
             <div>
               <Label>Type</Label>
               <Select value={formData.contact_type} onValueChange={(v) => setFormData({ ...formData, contact_type: v as CRMContactType })}>

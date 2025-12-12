@@ -16,6 +16,7 @@ interface GravatarProfile {
   aboutMe?: string;
   currentLocation?: string;
   urls?: Array<{ value: string; title?: string }>;
+  accounts?: Array<{ shortname: string; url: string; username?: string }>;
 }
 
 interface EnrichmentResult {
@@ -26,6 +27,8 @@ interface EnrichmentResult {
   bio?: string;
   location?: string;
   profileUrl?: string;
+  instagram_handle?: string;
+  linkedin_handle?: string;
   source: 'gravatar' | 'none';
 }
 
@@ -35,6 +38,52 @@ async function md5Hash(text: string): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('MD5', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function extractInstagramHandle(urls?: Array<{ value: string; title?: string }>, accounts?: Array<{ shortname: string; url: string; username?: string }>): string | undefined {
+  // Check accounts array first (more reliable)
+  if (accounts) {
+    const igAccount = accounts.find(a => a.shortname === 'instagram');
+    if (igAccount?.username) return igAccount.username;
+    if (igAccount?.url) {
+      const match = igAccount.url.match(/instagram\.com\/([^\/\?]+)/i);
+      if (match) return match[1];
+    }
+  }
+  
+  // Check URLs array
+  if (urls) {
+    for (const url of urls) {
+      const match = url.value.match(/instagram\.com\/([^\/\?]+)/i);
+      if (match) return match[1];
+    }
+  }
+  
+  return undefined;
+}
+
+function extractLinkedInHandle(urls?: Array<{ value: string; title?: string }>, accounts?: Array<{ shortname: string; url: string; username?: string }>): string | undefined {
+  // Check accounts array first
+  if (accounts) {
+    const liAccount = accounts.find(a => a.shortname === 'linkedin');
+    if (liAccount?.username) return liAccount.username;
+    if (liAccount?.url) {
+      const match = liAccount.url.match(/linkedin\.com\/in\/([^\/\?]+)/i);
+      if (match) return match[1];
+      return liAccount.url;
+    }
+  }
+  
+  // Check URLs array
+  if (urls) {
+    for (const url of urls) {
+      const match = url.value.match(/linkedin\.com\/in\/([^\/\?]+)/i);
+      if (match) return match[1];
+      if (url.value.includes('linkedin.com')) return url.value;
+    }
+  }
+  
+  return undefined;
 }
 
 async function lookupGravatar(email: string): Promise<EnrichmentResult | null> {
@@ -105,6 +154,17 @@ async function lookupGravatar(email: string): Promise<EnrichmentResult | null> {
     
     if (profile.currentLocation) {
       result.location = profile.currentLocation;
+    }
+    
+    // Extract social handles
+    const instagram = extractInstagramHandle(profile.urls, profile.accounts);
+    if (instagram) {
+      result.instagram_handle = instagram;
+    }
+    
+    const linkedin = extractLinkedInHandle(profile.urls, profile.accounts);
+    if (linkedin) {
+      result.linkedin_handle = linkedin;
     }
     
     console.log('Gravatar enrichment result:', result);

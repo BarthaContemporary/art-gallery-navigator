@@ -10,6 +10,8 @@ export interface EmailEnrichmentResult {
   bio?: string;
   location?: string;
   profileUrl?: string;
+  instagram_handle?: string;
+  linkedin_handle?: string;
   source: 'gravatar' | 'none';
   message?: string;
 }

@@ -144,12 +144,12 @@ export function EmailVerificationInput({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={handleValidate}
           disabled={isValidating || !value || !value.includes('@')}
-          className="shrink-0"
+          className="shrink-0 h-9 w-9"
         >
-          {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+          {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
         </Button>
       </div>
 
