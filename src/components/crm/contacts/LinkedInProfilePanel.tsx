@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Linkedin, ExternalLink, Check, X, Loader2, User } from 'lucide-react';
+import { Search, Linkedin, ExternalLink, Check, X, Loader2, User, Link } from 'lucide-react';
 import { useLinkedInProfileSearch, LinkedInProfile } from '@/hooks/crm/use-linkedin-profile-search';
 import { useUpdateCRMContact } from '@/hooks/crm';
 import { toast } from 'sonner';
@@ -31,6 +32,8 @@ export function LinkedInProfilePanel({
   const [selectedProfile, setSelectedProfile] = useState<LinkedInProfile | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [manualUrl, setManualUrl] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const {
     searchProfiles,
@@ -50,6 +53,13 @@ export function LinkedInProfilePanel({
   };
 
   const handleSelectProfile = async (profile: LinkedInProfile) => {
+    // If it's a Google search link, just open it
+    if (profile.profileUrl.includes('google.com/search')) {
+      window.open(profile.profileUrl, '_blank');
+      setShowManualInput(true);
+      return;
+    }
+
     setSelectedProfile(profile);
     setIsLoadingImage(true);
     setProfileImage(null);
@@ -61,12 +71,37 @@ export function LinkedInProfilePanel({
     setIsLoadingImage(false);
   };
 
+  const handleManualUrlSubmit = async () => {
+    if (!manualUrl) return;
+
+    // Clean and validate URL
+    let url = manualUrl.trim();
+    if (!url.startsWith('http')) {
+      url = `https://www.linkedin.com/in/${url.replace('@', '').replace('linkedin.com/in/', '')}`;
+    }
+
+    setSelectedProfile({
+      name: fullName,
+      profileUrl: url,
+      isGenerated: false,
+    });
+    setIsLoadingImage(true);
+    setProfileImage(null);
+
+    const imageUrl = await fetchProfileImage(url);
+    if (imageUrl) {
+      setProfileImage(imageUrl);
+    }
+    setIsLoadingImage(false);
+    setShowManualInput(false);
+  };
+
   const handleApplyProfile = async () => {
     if (!selectedProfile) return;
 
     try {
       // Extract handle from URL
-      const handle = selectedProfile.profileUrl.split('/in/')[1]?.replace(/\/$/, '');
+      const handle = selectedProfile.profileUrl.split('/in/')[1]?.replace(/\/$/, '').split('?')[0];
       
       let storedImageUrl = profileImage;
       if (profileImage) {
@@ -88,6 +123,7 @@ export function LinkedInProfilePanel({
       clearResults();
       setSelectedProfile(null);
       setProfileImage(null);
+      setManualUrl('');
       onProfileUpdated?.();
     } catch (err) {
       console.error('Failed to apply profile:', err);
@@ -99,6 +135,8 @@ export function LinkedInProfilePanel({
     clearResults();
     setSelectedProfile(null);
     setProfileImage(null);
+    setShowManualInput(false);
+    setManualUrl('');
   };
 
   return (
@@ -134,21 +172,55 @@ export function LinkedInProfilePanel({
         )}
 
         {/* Search button */}
-        {profiles.length === 0 && !selectedProfile && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="w-full"
-          >
-            {isSearching ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4 mr-2" />
-            )}
-            {isSearching ? 'Searching...' : 'Find LinkedIn Profile'}
-          </Button>
+        {profiles.length === 0 && !selectedProfile && !showManualInput && (
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="w-full"
+            >
+              {isSearching ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4 mr-2" />
+              )}
+              {isSearching ? 'Loading...' : 'Find LinkedIn Profile'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowManualInput(true)}
+              className="w-full text-xs"
+            >
+              <Link className="h-3 w-3 mr-1" />
+              Enter URL manually
+            </Button>
+          </div>
+        )}
+
+        {/* Manual URL input */}
+        {showManualInput && !selectedProfile && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Enter LinkedIn URL or handle</p>
+              <Button variant="ghost" size="sm" onClick={handleCancel}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="linkedin.com/in/..."
+                value={manualUrl}
+                onChange={(e) => setManualUrl(e.target.value)}
+                className="text-sm"
+              />
+              <Button size="sm" onClick={handleManualUrlSubmit} disabled={!manualUrl}>
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         )}
 
         {/* Error message */}
@@ -161,7 +233,7 @@ export function LinkedInProfilePanel({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Found {profiles.length} profile{profiles.length !== 1 ? 's' : ''}
+                Suggested profiles
               </p>
               <Button variant="ghost" size="sm" onClick={handleCancel}>
                 <X className="h-3 w-3" />
@@ -174,14 +246,35 @@ export function LinkedInProfilePanel({
                   onClick={() => handleSelectProfile(profile)}
                   className="w-full text-left p-2 rounded border hover:bg-muted/50 transition-colors"
                 >
-                  <p className="text-sm font-medium truncate">{profile.name}</p>
-                  {profile.headline && (
-                    <p className="text-xs text-muted-foreground truncate">{profile.headline}</p>
-                  )}
-                  <p className="text-xs text-primary truncate">{profile.profileUrl}</p>
+                  <div className="flex items-center gap-2">
+                    {profile.profileUrl.includes('google.com') ? (
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <Linkedin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{profile.name}</p>
+                      {profile.snippet && (
+                        <p className="text-xs text-muted-foreground truncate">{profile.snippet}</p>
+                      )}
+                    </div>
+                    <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                  </div>
                 </button>
               ))}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                clearResults();
+                setShowManualInput(true);
+              }}
+              className="w-full text-xs"
+            >
+              <Link className="h-3 w-3 mr-1" />
+              Enter URL manually instead
+            </Button>
           </div>
         )}
 

@@ -7,6 +7,7 @@ export interface LinkedInProfile {
   headline?: string;
   snippet?: string;
   imageUrl?: string;
+  isGenerated?: boolean;
 }
 
 export function useLinkedInProfileSearch() {
