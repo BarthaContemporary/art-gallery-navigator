@@ -4,11 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateCRMContact, useUpdateCRMContact } from "@/hooks/crm";
+import { useCreateCRMContact, useUpdateCRMContact, useEmailEnrichment } from "@/hooks/crm";
 import { CRMContact, CRMContactType } from "@/types/crm";
 import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
+import { Search, Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ContactDialogProps {
   open: boolean;
@@ -38,6 +40,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
 
   const createContact = useCreateCRMContact();
   const updateContact = useUpdateCRMContact();
+  const { enrichEmail, isLoading: isEnriching } = useEmailEnrichment();
 
   useEffect(() => {
     if (contact) {
@@ -61,6 +64,18 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
       setFormData(initialFormData);
     }
   }, [contact, open]);
+
+  const handleEnrichFromEmail = async () => {
+    if (!formData.email) return;
+    
+    const result = await enrichEmail(formData.email);
+    if (result && result.source !== 'none') {
+      setFormData(prev => ({
+        ...prev,
+        full_name: result.fullName || prev.full_name,
+      }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +107,36 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Name *</Label>
-              <Input required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
+              <div className="flex gap-2">
+                <Input 
+                  required 
+                  value={formData.full_name} 
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} 
+                  className="flex-1"
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleEnrichFromEmail}
+                        disabled={isEnriching || !formData.email}
+                      >
+                        {isEnriching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Look up name from email</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
             <EmailVerificationInput
               value={formData.email}
