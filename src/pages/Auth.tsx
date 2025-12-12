@@ -169,6 +169,18 @@ function Auth() {
             </Tabs>
           </Card>
           
+          {/* Privacy Policy Link */}
+          <div className="mt-6 text-center">
+            <a 
+              href="https://cdn.prod.website-files.com/641c45e709414b1f712574c2/642d28369450cfa104ea1b13_Website%20privacy%20policy.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </div>
+          
           <DebugInfo data={debugInfo} title="Auth Debug Info" />
         </div>
         
