@@ -1,10 +1,8 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,6 +10,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Location } from "@/hooks/use-locations";
 import { useState } from "react";
+import { LocationAddressInput } from "./LocationAddressInput";
+import { Input } from "@/components/ui/input";
 
 const locationTypes = ["exhibition", "storage", "consignment", "external", "artist studio"] as const;
 
@@ -154,7 +154,11 @@ export function LocationForm({ initialData, setOpen }: LocationFormProps) {
             <FormItem>
               <FormLabel>Address</FormLabel>
               <FormControl>
-                <Input placeholder="Location address" {...field} />
+                <LocationAddressInput
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                  placeholder="Location address"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
