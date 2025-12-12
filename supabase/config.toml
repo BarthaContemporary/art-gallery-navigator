@@ -104,3 +104,6 @@ verify_jwt = true
 
 [functions.validate-vat-eori]
 verify_jwt = true
+
+[functions.check-sanctions]
+verify_jwt = true

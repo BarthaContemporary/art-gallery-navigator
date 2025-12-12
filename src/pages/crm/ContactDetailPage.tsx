@@ -7,6 +7,7 @@ import { useCRMContact, useDeleteCRMContact } from "@/hooks/crm";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
+import { SanctionsCheckCard } from "@/components/crm/contacts/SanctionsCheckCard";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,6 +209,9 @@ export default function ContactDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Sanctions Check */}
+          <SanctionsCheckCard contact={contact} />
         </div>
 
         {/* Right Column - Timeline */}
