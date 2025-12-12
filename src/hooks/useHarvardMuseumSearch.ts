@@ -39,13 +39,11 @@ export function useHarvardMuseumSearch() {
   const [objects, setObjects] = useState<HarvardObject[]>([]);
   const [artists, setArtists] = useState<HarvardArtist[]>([]);
   const [totalObjects, setTotalObjects] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const searchArtist = useCallback(async (artistName: string) => {
     if (!artistName) return;
     
     setIsLoading(true);
-    setError(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke<HarvardSearchResult>(
@@ -53,23 +51,27 @@ export function useHarvardMuseumSearch() {
         { body: { artistName } }
       );
 
-      if (fnError) {
-        throw new Error(fnError.message);
+      // Silently handle errors - external APIs are unreliable
+      if (fnError || !data) {
+        console.info('Harvard Museum search unavailable');
+        setObjects([]);
+        setArtists([]);
+        setTotalObjects(0);
+        return;
       }
 
-      if (data?.success) {
+      if (data.success) {
         setObjects(data.objects || []);
         setArtists(data.artists || []);
         setTotalObjects(data.totalObjects || 0);
       } else {
-        setError(data?.error || "Failed to fetch from Harvard Museums");
         setObjects([]);
         setArtists([]);
         setTotalObjects(0);
       }
     } catch (err) {
-      console.error("Harvard Museum search error:", err);
-      setError(err instanceof Error ? err.message : "Failed to search");
+      // Silently fail - don't show errors for external API issues
+      console.info("Harvard Museum search error:", err);
       setObjects([]);
       setArtists([]);
       setTotalObjects(0);
@@ -78,5 +80,5 @@ export function useHarvardMuseumSearch() {
     }
   }, []);
 
-  return { searchArtist, objects, artists, totalObjects, isLoading, error };
+  return { searchArtist, objects, artists, totalObjects, isLoading };
 }

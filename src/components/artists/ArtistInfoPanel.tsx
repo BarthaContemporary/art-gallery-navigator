@@ -158,7 +158,7 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
 }
 
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
-  const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
+  const { searchArtist: searchGuardian, articles, isLoading: guardianLoading } = useGuardianSearch();
   const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading } = useHarvardMuseumSearch();
   const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading } = useRijksmuseumSearch();
   const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading } = useMetMuseumSearch();
@@ -357,8 +357,6 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                         </div>
                       ))}
                     </div>
-                  ) : guardianError ? (
-                    <p className="text-sm text-destructive">{guardianError}</p>
                   ) : articles.length > 0 ? (
                     <ScrollArea className="h-[280px]">
                       <div className="space-y-2 pr-4">
