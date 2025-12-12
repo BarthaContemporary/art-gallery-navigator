@@ -9,6 +9,7 @@ import { CRMContact, CRMContactType } from "@/types/crm";
 import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
 import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationInput";
+import { EnrichmentResultsPanel } from "@/components/crm/form/EnrichmentResultsPanel";
 import { Search, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -40,7 +41,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
 
   const createContact = useCreateCRMContact();
   const updateContact = useUpdateCRMContact();
-  const { enrichEmail, isLoading: isEnriching } = useEmailEnrichment();
+  const { enrichEmail, isLoading: isEnriching, result: enrichmentResult } = useEmailEnrichment();
 
   useEffect(() => {
     if (contact) {
@@ -67,12 +68,20 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
 
   const handleEnrichFromEmail = async () => {
     if (!formData.email) return;
-    
-    const result = await enrichEmail(formData.email);
-    if (result && result.source !== 'none') {
+    await enrichEmail(formData.email);
+  };
+
+  const handleAddEnrichmentField = (field: string, value: string) => {
+    if (field === 'notes' && formData.notes) {
+      // Append bio to existing notes
       setFormData(prev => ({
         ...prev,
-        full_name: result.fullName || prev.full_name,
+        notes: prev.notes + '\n\n' + value,
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
       }));
     }
   };
@@ -132,12 +141,26 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Look up name from email</p>
+                      <p>Look up profile from email</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
             </div>
+
+            {/* Enrichment Results Panel */}
+            {enrichmentResult && enrichmentResult.source !== 'none' && (
+              <EnrichmentResultsPanel
+                result={enrichmentResult}
+                onAddField={handleAddEnrichmentField}
+                currentValues={{
+                  full_name: formData.full_name,
+                  notes: formData.notes,
+                  city: formData.city,
+                }}
+              />
+            )}
+
             <EmailVerificationInput
               value={formData.email}
               onChange={(value) => setFormData({ ...formData, email: value })}
