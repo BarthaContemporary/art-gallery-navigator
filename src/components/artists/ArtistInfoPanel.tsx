@@ -14,11 +14,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
 import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
 import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
 import { useMetMuseumSearch, MetObject } from "@/hooks/useMetMuseumSearch";
+import { useMomaSearch, MomaObject } from "@/hooks/useMomaSearch";
+import { useTateSearch, TateObject } from "@/hooks/useTateSearch";
 import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
@@ -182,15 +184,102 @@ function MetObjectCard({ object }: { object: MetObject }) {
   );
 }
 
+function MomaObjectCard({ object }: { object: MomaObject }) {
+  return (
+    <a
+      href={object.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+    >
+      {object.thumbnailUrl ? (
+        <img
+          src={object.thumbnailUrl}
+          alt=""
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
+        />
+      ) : (
+        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+          <Square className="h-8 w-8 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
+        {object.date && (
+          <p className="text-xs text-muted-foreground mb-1">{object.date}</p>
+        )}
+        {object.medium && (
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+            {object.medium}
+          </p>
+        )}
+        {object.department && (
+          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+            {object.department}
+          </Badge>
+        )}
+      </div>
+      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </a>
+  );
+}
+
+function TateObjectCard({ object }: { object: TateObject }) {
+  return (
+    <a
+      href={object.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+    >
+      {object.thumbnailUrl ? (
+        <img
+          src={object.thumbnailUrl}
+          alt=""
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+          }}
+        />
+      ) : null}
+      <div className={`w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center ${object.thumbnailUrl ? 'hidden' : ''}`}>
+        <Frame className="h-8 w-8 text-muted-foreground/40" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
+        {object.date && (
+          <p className="text-xs text-muted-foreground mb-1">{object.date}</p>
+        )}
+        {object.medium && (
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+            {object.medium}
+          </p>
+        )}
+        {object.creditLine && (
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {object.creditLine}
+          </p>
+        )}
+      </div>
+      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </a>
+  );
+}
+
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
   const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
   const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading, error: harvardError } = useHarvardMuseumSearch();
   const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading, error: rijksError } = useRijksmuseumSearch();
   const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading, error: metError } = useMetMuseumSearch();
+  const { searchArtist: searchMoma, objects: momaObjects, totalObjects: momaTotal, isLoading: momaLoading, error: momaError } = useMomaSearch();
+  const { searchArtist: searchTate, objects: tateObjects, totalObjects: tateTotal, isLoading: tateLoading, error: tateError } = useTateSearch();
   const [articlesOpen, setArticlesOpen] = useState(false);
   const [harvardOpen, setHarvardOpen] = useState(false);
   const [rijksOpen, setRijksOpen] = useState(false);
   const [metOpen, setMetOpen] = useState(false);
+  const [momaOpen, setMomaOpen] = useState(false);
+  const [tateOpen, setTateOpen] = useState(false);
 
   useEffect(() => {
     if (open && artist.full_name) {
@@ -198,8 +287,10 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       searchHarvard(artist.full_name);
       searchRijks(artist.full_name);
       searchMet(artist.full_name);
+      searchMoma(artist.full_name);
+      searchTate(artist.full_name);
     }
-  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks, searchMet]);
+  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -486,6 +577,114 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
                       No works found in MET Museum collection.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+            
+            {/* MoMA Section */}
+            <Separator />
+            <section className="space-y-3">
+              <Collapsible open={momaOpen} onOpenChange={setMomaOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    MoMA New York
+                  </h3>
+                  {!momaLoading && momaTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {momaTotal}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      momaOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {momaLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : momaError ? (
+                    <p className="text-sm text-destructive">{momaError}</p>
+                  ) : momaObjects.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {momaObjects.map((object) => (
+                          <MomaObjectCard key={object.objectId} object={object} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works found in MoMA collection.
+                    </p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+            
+            {/* Tate Section */}
+            <Separator />
+            <section className="space-y-3">
+              <Collapsible open={tateOpen} onOpenChange={setTateOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
+                  <Frame className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Tate London
+                  </h3>
+                  {!tateLoading && tateTotal > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {tateTotal}
+                    </Badge>
+                  )}
+                  <ChevronDown 
+                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
+                      tateOpen ? "rotate-180" : ""
+                    }`} 
+                  />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3">
+                  {tateLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                          <Skeleton className="w-20 h-20 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-3 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : tateError ? (
+                    <p className="text-sm text-destructive">{tateError}</p>
+                  ) : tateObjects.length > 0 ? (
+                    <ScrollArea className="h-[280px]">
+                      <div className="space-y-2 pr-4">
+                        {tateObjects.map((object) => (
+                          <TateObjectCard key={object.id} object={object} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works found in Tate collection.
                     </p>
                   )}
                 </CollapsibleContent>
