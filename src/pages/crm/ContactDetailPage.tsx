@@ -2,16 +2,17 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Trash2, Mail, Phone, Building2, MapPin, ExternalLink } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Edit, Trash2, Mail, Phone, Building2, MapPin, ExternalLink, User } from "lucide-react";
 import { useCRMContact, useDeleteCRMContact } from "@/hooks/crm";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
 import { SanctionsCheckCard } from "@/components/crm/contacts/SanctionsCheckCard";
+import { LinkedInProfilePanel } from "@/components/crm/contacts/LinkedInProfilePanel";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 export default function ContactDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -60,6 +61,15 @@ export default function ContactDetailPage() {
     other: "Other",
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
@@ -68,6 +78,15 @@ export default function ContactDetailPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/crm")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
+          
+          {/* Profile Image */}
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={contact.profile_image_url} alt={contact.full_name} />
+            <AvatarFallback className="text-lg">
+              {getInitials(contact.full_name)}
+            </AvatarFallback>
+          </Avatar>
+          
           <div>
             <h1 className="text-2xl font-semibold">{contact.full_name}</h1>
             <div className="flex items-center gap-2 mt-1">
@@ -212,6 +231,16 @@ export default function ContactDetailPage() {
 
           {/* Sanctions Check */}
           <SanctionsCheckCard contact={contact} />
+
+          {/* LinkedIn Profile Search */}
+          <LinkedInProfilePanel
+            contactId={contact.id}
+            fullName={contact.full_name}
+            company={contact.organization?.name}
+            jobTitle={contact.job_title}
+            currentProfileImageUrl={contact.profile_image_url}
+            currentLinkedInHandle={contact.linkedin_handle}
+          />
         </div>
 
         {/* Right Column - Timeline */}
