@@ -16,28 +16,30 @@ export function useMomaSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [objects, setObjects] = useState<MomaObject[]>([]);
   const [totalObjects, setTotalObjects] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const searchArtist = async (artistName: string) => {
     if (!artistName) return;
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('moma-search', {
         body: { artistName },
       });
 
-      if (fnError) {
-        throw fnError;
+      // Silently handle errors - external APIs are unreliable
+      if (fnError || !data) {
+        console.info('MoMA search unavailable');
+        setObjects([]);
+        setTotalObjects(0);
+        return;
       }
 
       setObjects(data.objects || []);
       setTotalObjects(data.totalObjects || 0);
     } catch (err) {
-      console.error('MoMA search error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to search MoMA');
+      // Silently fail - don't show errors for external API issues
+      console.info('MoMA search error:', err);
       setObjects([]);
       setTotalObjects(0);
     } finally {
@@ -50,6 +52,5 @@ export function useMomaSearch() {
     objects,
     totalObjects,
     isLoading,
-    error,
   };
 }

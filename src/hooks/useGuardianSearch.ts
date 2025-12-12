@@ -27,7 +27,6 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export function useGuardianSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [articles, setArticles] = useState<GuardianArticle[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const lastRequestRef = useRef<string | null>(null);
 
   const searchArtist = useCallback(async (artistName: string) => {
@@ -41,12 +40,10 @@ export function useGuardianSearch() {
     const cached = cache.get(artistName);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       setArticles(cached.articles);
-      setError(null);
       return;
     }
     
     setIsLoading(true);
-    setError(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke<GuardianSearchResult>(
@@ -54,34 +51,34 @@ export function useGuardianSearch() {
         { body: { artistName } }
       );
 
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
-
-      if (data?.success && data.articles) {
-        setArticles(data.articles);
-        cache.set(artistName, { articles: data.articles, timestamp: Date.now() });
-      } else if (data?.error?.includes("429")) {
-        // Rate limited - use cached data if available, even if stale
+      // Silently handle errors - external APIs are unreliable
+      if (fnError || !data) {
+        console.info('Guardian search unavailable');
         if (cached) {
           setArticles(cached.articles);
-          setError("Rate limited - showing cached results");
         } else {
-          setError("Rate limited - please try again later");
           setArticles([]);
         }
+        return;
+      }
+
+      if (data.success && data.articles) {
+        setArticles(data.articles);
+        cache.set(artistName, { articles: data.articles, timestamp: Date.now() });
       } else {
-        setError(data?.error || "Failed to fetch articles");
-        setArticles([]);
+        // Use cached if available, otherwise empty
+        if (cached) {
+          setArticles(cached.articles);
+        } else {
+          setArticles([]);
+        }
       }
     } catch (err) {
-      console.error("Guardian search error:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to search";
-      if (errorMsg.includes("429") && cached) {
+      // Silently fail - don't show errors for external API issues
+      console.info("Guardian search error:", err);
+      if (cached) {
         setArticles(cached.articles);
-        setError("Rate limited - showing cached results");
       } else {
-        setError(errorMsg);
         setArticles([]);
       }
     } finally {
@@ -89,5 +86,5 @@ export function useGuardianSearch() {
     }
   }, []);
 
-  return { searchArtist, articles, isLoading, error };
+  return { searchArtist, articles, isLoading };
 }

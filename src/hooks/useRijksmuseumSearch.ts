@@ -19,28 +19,30 @@ export function useRijksmuseumSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [objects, setObjects] = useState<RijksmuseumObject[]>([]);
   const [totalObjects, setTotalObjects] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const searchArtist = async (artistName: string) => {
     if (!artistName) return;
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('rijksmuseum-search', {
         body: { artistName },
       });
 
-      if (fnError) {
-        throw fnError;
+      // Silently handle errors - external APIs are unreliable
+      if (fnError || !data) {
+        console.info('Rijksmuseum search unavailable');
+        setObjects([]);
+        setTotalObjects(0);
+        return;
       }
 
       setObjects(data.objects || []);
       setTotalObjects(data.totalObjects || 0);
     } catch (err) {
-      console.error('Rijksmuseum search error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to search Rijksmuseum');
+      // Silently fail - don't show errors for external API issues
+      console.info('Rijksmuseum search error:', err);
       setObjects([]);
       setTotalObjects(0);
     } finally {
@@ -53,6 +55,5 @@ export function useRijksmuseumSearch() {
     objects,
     totalObjects,
     isLoading,
-    error,
   };
 }
