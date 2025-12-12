@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, User, MapPin, FileText, ExternalLink } from "lucide-react";
+import { Plus, User, MapPin, FileText, ExternalLink, Instagram, Linkedin } from "lucide-react";
 import { EmailEnrichmentResult } from "@/hooks/crm/use-email-enrichment";
 
 interface EnrichmentResultsPanelProps {
@@ -10,6 +10,8 @@ interface EnrichmentResultsPanelProps {
     full_name?: string;
     notes?: string;
     city?: string;
+    instagram_handle?: string;
+    linkedin_handle?: string;
   };
 }
 
@@ -44,6 +46,20 @@ export function EnrichmentResultsPanel({
       value: result.location,
       icon: MapPin,
       currentValue: currentValues.city,
+    },
+    {
+      key: 'instagram_handle',
+      label: 'Instagram',
+      value: result.instagram_handle,
+      icon: Instagram,
+      currentValue: currentValues.instagram_handle,
+    },
+    {
+      key: 'linkedin_handle',
+      label: 'LinkedIn',
+      value: result.linkedin_handle,
+      icon: Linkedin,
+      currentValue: currentValues.linkedin_handle,
     },
   ].filter(f => f.value);
 
