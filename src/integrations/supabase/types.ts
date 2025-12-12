@@ -1506,6 +1506,7 @@ export type Database = {
           organization_id: string | null
           phone: string | null
           postal_code: string | null
+          profile_image_url: string | null
           sanctions_checked_at: string | null
           sanctions_match_count: number | null
           sanctions_matches: Json | null
@@ -1549,6 +1550,7 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           postal_code?: string | null
+          profile_image_url?: string | null
           sanctions_checked_at?: string | null
           sanctions_match_count?: number | null
           sanctions_matches?: Json | null
@@ -1592,6 +1594,7 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           postal_code?: string | null
+          profile_image_url?: string | null
           sanctions_checked_at?: string | null
           sanctions_match_count?: number | null
           sanctions_matches?: Json | null
