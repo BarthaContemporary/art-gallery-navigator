@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,19 @@ interface ArtistInfoPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Unified collection item type for combined display
+interface CollectionItem {
+  id: string;
+  title: string;
+  date?: string;
+  medium?: string;
+  url?: string;
+  imageUrl?: string;
+  source: 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate';
+  sourceName: string;
+  extra?: string;
+}
+
 function ArticleCard({ article }: { article: GuardianArticle }) {
   return (
     <a
@@ -78,219 +91,162 @@ function ArticleCard({ article }: { article: GuardianArticle }) {
   );
 }
 
-function HarvardObjectCard({ object }: { object: HarvardObject }) {
-  return (
-    <a
-      href={object.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-    >
-      {object.primaryImageUrl ? (
-        <img
-          src={object.primaryImageUrl}
-          alt=""
-          className="w-20 h-20 object-cover rounded flex-shrink-0"
-        />
-      ) : (
-        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
-          <Building2 className="h-8 w-8 text-muted-foreground/40" />
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
-        {object.dated && (
-          <p className="text-xs text-muted-foreground mb-1">{object.dated}</p>
-        )}
-        {object.medium && (
-          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
-            {object.medium}
-          </p>
-        )}
-        {object.classification && (
-          <Badge variant="secondary" className="text-xs px-1.5 py-0">
-            {object.classification}
-          </Badge>
-        )}
-      </div>
-      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </a>
-  );
-}
+function CollectionItemCard({ item }: { item: CollectionItem }) {
+  const getSourceIcon = () => {
+    switch (item.source) {
+      case 'harvard': return <Building2 className="h-3 w-3" />;
+      case 'rijksmuseum': return <Landmark className="h-3 w-3" />;
+      case 'met': return <Columns className="h-3 w-3" />;
+      case 'moma': return <Square className="h-3 w-3" />;
+      case 'tate': return <Frame className="h-3 w-3" />;
+    }
+  };
 
-function RijksmuseumObjectCard({ object }: { object: RijksmuseumObject }) {
-  return (
-    <div className="flex gap-3 p-3 border rounded-lg">
-      <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
-        <Landmark className="h-8 w-8 text-muted-foreground/40" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
-        {object.creator && (
-          <p className="text-xs text-muted-foreground mb-1">{object.creator}</p>
-        )}
-        {object.date && (
-          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
-            {object.date}
-          </p>
-        )}
-        {object.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {object.description}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MetObjectCard({ object }: { object: MetObject }) {
-  return (
-    <a
-      href={object.objectURL}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-    >
-      {object.primaryImageSmall ? (
+  const content = (
+    <>
+      {item.imageUrl ? (
         <img
-          src={object.primaryImageSmall}
+          src={item.imageUrl}
           alt=""
-          className="w-20 h-20 object-cover rounded flex-shrink-0"
-        />
-      ) : (
-        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
-          <Columns className="h-8 w-8 text-muted-foreground/40" />
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
-        {object.objectDate && (
-          <p className="text-xs text-muted-foreground mb-1">{object.objectDate}</p>
-        )}
-        {object.medium && (
-          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
-            {object.medium}
-          </p>
-        )}
-        {object.department && (
-          <Badge variant="secondary" className="text-xs px-1.5 py-0">
-            {object.department}
-          </Badge>
-        )}
-      </div>
-      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </a>
-  );
-}
-
-function MomaObjectCard({ object }: { object: MomaObject }) {
-  return (
-    <a
-      href={object.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-    >
-      {object.thumbnailUrl ? (
-        <img
-          src={object.thumbnailUrl}
-          alt=""
-          className="w-20 h-20 object-cover rounded flex-shrink-0"
-        />
-      ) : (
-        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
-          <Square className="h-8 w-8 text-muted-foreground/40" />
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
-        {object.date && (
-          <p className="text-xs text-muted-foreground mb-1">{object.date}</p>
-        )}
-        {object.medium && (
-          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
-            {object.medium}
-          </p>
-        )}
-        {object.department && (
-          <Badge variant="secondary" className="text-xs px-1.5 py-0">
-            {object.department}
-          </Badge>
-        )}
-      </div>
-      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </a>
-  );
-}
-
-function TateObjectCard({ object }: { object: TateObject }) {
-  return (
-    <a
-      href={object.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-    >
-      {object.thumbnailUrl ? (
-        <img
-          src={object.thumbnailUrl}
-          alt=""
-          className="w-20 h-20 object-cover rounded flex-shrink-0"
+          className="w-16 h-16 object-cover rounded flex-shrink-0"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
-            e.currentTarget.nextElementSibling?.classList.remove('hidden');
           }}
         />
-      ) : null}
-      <div className={`w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center ${object.thumbnailUrl ? 'hidden' : ''}`}>
-        <Frame className="h-8 w-8 text-muted-foreground/40" />
-      </div>
+      ) : (
+        <div className="w-16 h-16 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+          {getSourceIcon()}
+        </div>
+      )}
       <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{object.title}</h4>
-        {object.date && (
-          <p className="text-xs text-muted-foreground mb-1">{object.date}</p>
+        <h4 className="font-medium text-sm line-clamp-2 mb-1">{item.title}</h4>
+        {item.date && (
+          <p className="text-xs text-muted-foreground mb-1">{item.date}</p>
         )}
-        {object.medium && (
+        {item.medium && (
           <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
-            {object.medium}
+            {item.medium}
           </p>
         )}
-        {object.creditLine && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {object.creditLine}
-          </p>
-        )}
+        <Badge variant="outline" className="text-xs px-1.5 py-0">
+          {getSourceIcon()}
+          <span className="ml-1">{item.sourceName}</span>
+        </Badge>
       </div>
-      <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </a>
+      {item.url && <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+    </>
+  );
+
+  if (item.url) {
+    return (
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 p-3 border rounded-lg">
+      {content}
+    </div>
   );
 }
 
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
   const { searchArtist: searchGuardian, articles, isLoading: guardianLoading, error: guardianError } = useGuardianSearch();
-  const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading, error: harvardError } = useHarvardMuseumSearch();
-  const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading, error: rijksError } = useRijksmuseumSearch();
-  const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading, error: metError } = useMetMuseumSearch();
-  const { searchArtist: searchMoma, objects: momaObjects, totalObjects: momaTotal, isLoading: momaLoading, error: momaError } = useMomaSearch();
-  const { searchArtist: searchTate, objects: tateObjects, totalObjects: tateTotal, isLoading: tateLoading, error: tateError } = useTateSearch();
-  const [articlesOpen, setArticlesOpen] = useState(false);
-  const [harvardOpen, setHarvardOpen] = useState(false);
-  const [rijksOpen, setRijksOpen] = useState(false);
-  const [metOpen, setMetOpen] = useState(false);
-  const [momaOpen, setMomaOpen] = useState(false);
-  const [tateOpen, setTateOpen] = useState(false);
+  const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading } = useHarvardMuseumSearch();
+  const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading } = useRijksmuseumSearch();
+  const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading } = useMetMuseumSearch();
+  const { searchArtist: searchMoma, objects: momaObjects, totalObjects: momaTotal, isLoading: momaLoading } = useMomaSearch();
+  const { searchArtist: searchTate, objects: tateObjects, totalObjects: tateTotal, isLoading: tateLoading } = useTateSearch();
+  
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+
+  // Sequential search function for stability
+  const runSequentialSearches = useCallback(async (artistName: string) => {
+    // Media searches first
+    await searchGuardian(artistName);
+    
+    // Then museum searches sequentially
+    await searchHarvard(artistName);
+    await searchRijks(artistName);
+    await searchMet(artistName);
+    await searchMoma(artistName);
+    await searchTate(artistName);
+  }, [searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate]);
 
   useEffect(() => {
     if (open && artist.full_name) {
-      searchGuardian(artist.full_name);
-      searchHarvard(artist.full_name);
-      searchRijks(artist.full_name);
-      searchMet(artist.full_name);
-      searchMoma(artist.full_name);
-      searchTate(artist.full_name);
+      runSequentialSearches(artist.full_name);
     }
-  }, [open, artist.full_name, searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate]);
+  }, [open, artist.full_name, runSequentialSearches]);
+
+  // Combine all collection items
+  const allCollectionItems: CollectionItem[] = [
+    ...harvardObjects.map((obj): CollectionItem => ({
+      id: `harvard-${obj.id}`,
+      title: obj.title,
+      date: obj.dated,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.primaryImageUrl,
+      source: 'harvard',
+      sourceName: 'Harvard',
+      extra: obj.classification,
+    })),
+    ...rijksObjects.map((obj): CollectionItem => ({
+      id: `rijks-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.description,
+      url: undefined,
+      imageUrl: undefined,
+      source: 'rijksmuseum',
+      sourceName: 'Rijksmuseum',
+    })),
+    ...metObjects.map((obj): CollectionItem => ({
+      id: `met-${obj.objectID}`,
+      title: obj.title,
+      date: obj.objectDate,
+      medium: obj.medium,
+      url: obj.objectURL,
+      imageUrl: obj.primaryImageSmall,
+      source: 'met',
+      sourceName: 'MET',
+      extra: obj.department,
+    })),
+    ...momaObjects.map((obj): CollectionItem => ({
+      id: `moma-${obj.objectId}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.thumbnailUrl,
+      source: 'moma',
+      sourceName: 'MoMA',
+      extra: obj.department,
+    })),
+    ...tateObjects.map((obj): CollectionItem => ({
+      id: `tate-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.thumbnailUrl,
+      source: 'tate',
+      sourceName: 'Tate',
+      extra: obj.creditLine,
+    })),
+  ];
+
+  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal;
+  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -367,13 +323,13 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
               </>
             )}
             
-            {/* Guardian Articles Section */}
+            {/* Media Section (formerly Guardian Articles) */}
             <section className="space-y-3">
-              <Collapsible open={articlesOpen} onOpenChange={setArticlesOpen}>
+              <Collapsible open={mediaOpen} onOpenChange={setMediaOpen}>
                 <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
                   <Newspaper className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    The Guardian Articles
+                    Media
                   </h3>
                   {!guardianLoading && articles.length > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1">
@@ -382,7 +338,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   )}
                   <ChevronDown 
                     className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      articlesOpen ? "rotate-180" : ""
+                      mediaOpen ? "rotate-180" : ""
                     }`} 
                   />
                 </CollapsibleTrigger>
@@ -413,7 +369,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                     </ScrollArea>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
-                      No articles found for this artist.
+                      No media coverage found for this artist.
                     </p>
                   )}
                 </CollapsibleContent>
@@ -422,86 +378,71 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
             
             <Separator />
             
-            {/* Harvard Art Museums Section */}
+            {/* Works in Public Collections Section */}
             <section className="space-y-3">
-              <Collapsible open={harvardOpen} onOpenChange={setHarvardOpen}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Harvard Art Museums
-                  </h3>
-                  {!harvardLoading && harvardTotal > 0 && (
-                    <Badge variant="secondary" className="text-xs ml-1">
-                      {harvardTotal}
-                    </Badge>
-                  )}
-                  <ChevronDown 
-                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      harvardOpen ? "rotate-180" : ""
-                    }`} 
-                  />
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="pt-3">
-                  {harvardLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : harvardError ? (
-                    <p className="text-sm text-destructive">{harvardError}</p>
-                  ) : harvardObjects.length > 0 ? (
-                    <ScrollArea className="h-[280px]">
-                      <div className="space-y-2 pr-4">
-                        {harvardObjects.map((object) => (
-                          <HarvardObjectCard key={object.id} object={object} />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No works found in Harvard Art Museums collection.
-                    </p>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            </section>
-            
-            {/* Rijksmuseum Section */}
-            <Separator />
-            <section className="space-y-3">
-              <Collapsible open={rijksOpen} onOpenChange={setRijksOpen}>
+              <Collapsible open={collectionsOpen} onOpenChange={setCollectionsOpen}>
                 <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
                   <Landmark className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Rijksmuseum
+                    Works in Public Collections
                   </h3>
-                  {!rijksLoading && rijksTotal > 0 && (
+                  {!isCollectionsLoading && totalCollectionCount > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1">
-                      {rijksTotal}
+                      {totalCollectionCount}
                     </Badge>
+                  )}
+                  {isCollectionsLoading && (
+                    <span className="text-xs text-muted-foreground ml-1">Loading...</span>
                   )}
                   <ChevronDown 
                     className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      rijksOpen ? "rotate-180" : ""
+                      collectionsOpen ? "rotate-180" : ""
                     }`} 
                   />
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent className="pt-3">
-                  {rijksLoading ? (
+                  {/* Source summary badges */}
+                  {!isCollectionsLoading && totalCollectionCount > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {harvardTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          Harvard: {harvardTotal}
+                        </Badge>
+                      )}
+                      {rijksTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Landmark className="h-3 w-3 mr-1" />
+                          Rijksmuseum: {rijksTotal}
+                        </Badge>
+                      )}
+                      {metTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Columns className="h-3 w-3 mr-1" />
+                          MET: {metTotal}
+                        </Badge>
+                      )}
+                      {momaTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Square className="h-3 w-3 mr-1" />
+                          MoMA: {momaTotal}
+                        </Badge>
+                      )}
+                      {tateTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Frame className="h-3 w-3 mr-1" />
+                          Tate: {tateTotal}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
+                  {isCollectionsLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
+                          <Skeleton className="w-16 h-16 rounded" />
                           <div className="flex-1 space-y-2">
                             <Skeleton className="h-4 w-full" />
                             <Skeleton className="h-3 w-3/4" />
@@ -510,181 +451,17 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                         </div>
                       ))}
                     </div>
-                  ) : rijksError ? (
-                    <p className="text-sm text-destructive">{rijksError}</p>
-                  ) : rijksObjects.length > 0 ? (
-                    <ScrollArea className="h-[280px]">
+                  ) : allCollectionItems.length > 0 ? (
+                    <ScrollArea className="h-[350px]">
                       <div className="space-y-2 pr-4">
-                        {rijksObjects.map((object) => (
-                          <RijksmuseumObjectCard key={object.id} object={object} />
+                        {allCollectionItems.map((item) => (
+                          <CollectionItemCard key={item.id} item={item} />
                         ))}
                       </div>
                     </ScrollArea>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
-                      No works found in Rijksmuseum collection.
-                    </p>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            </section>
-            
-            {/* MET Museum Section */}
-            <Separator />
-            <section className="space-y-3">
-              <Collapsible open={metOpen} onOpenChange={setMetOpen}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
-                  <Columns className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    The Metropolitan Museum of Art
-                  </h3>
-                  {!metLoading && metTotal > 0 && (
-                    <Badge variant="secondary" className="text-xs ml-1">
-                      {metTotal}
-                    </Badge>
-                  )}
-                  <ChevronDown 
-                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      metOpen ? "rotate-180" : ""
-                    }`} 
-                  />
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="pt-3">
-                  {metLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : metError ? (
-                    <p className="text-sm text-destructive">{metError}</p>
-                  ) : metObjects.length > 0 ? (
-                    <ScrollArea className="h-[280px]">
-                      <div className="space-y-2 pr-4">
-                        {metObjects.map((object) => (
-                          <MetObjectCard key={object.objectID} object={object} />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No works found in MET Museum collection.
-                    </p>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            </section>
-            
-            {/* MoMA Section */}
-            <Separator />
-            <section className="space-y-3">
-              <Collapsible open={momaOpen} onOpenChange={setMomaOpen}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
-                  <Square className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    MoMA New York
-                  </h3>
-                  {!momaLoading && momaTotal > 0 && (
-                    <Badge variant="secondary" className="text-xs ml-1">
-                      {momaTotal}
-                    </Badge>
-                  )}
-                  <ChevronDown 
-                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      momaOpen ? "rotate-180" : ""
-                    }`} 
-                  />
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="pt-3">
-                  {momaLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : momaError ? (
-                    <p className="text-sm text-destructive">{momaError}</p>
-                  ) : momaObjects.length > 0 ? (
-                    <ScrollArea className="h-[280px]">
-                      <div className="space-y-2 pr-4">
-                        {momaObjects.map((object) => (
-                          <MomaObjectCard key={object.objectId} object={object} />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No works found in MoMA collection.
-                    </p>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            </section>
-            
-            {/* Tate Section */}
-            <Separator />
-            <section className="space-y-3">
-              <Collapsible open={tateOpen} onOpenChange={setTateOpen}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full hover:bg-muted/50 p-2 -m-2 transition-colors">
-                  <Frame className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Tate London
-                  </h3>
-                  {!tateLoading && tateTotal > 0 && (
-                    <Badge variant="secondary" className="text-xs ml-1">
-                      {tateTotal}
-                    </Badge>
-                  )}
-                  <ChevronDown 
-                    className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-                      tateOpen ? "rotate-180" : ""
-                    }`} 
-                  />
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="pt-3">
-                  {tateLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : tateError ? (
-                    <p className="text-sm text-destructive">{tateError}</p>
-                  ) : tateObjects.length > 0 ? (
-                    <ScrollArea className="h-[280px]">
-                      <div className="space-y-2 pr-4">
-                        {tateObjects.map((object) => (
-                          <TateObjectCard key={object.id} object={object} />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No works found in Tate collection.
+                      No works found in public collections.
                     </p>
                   )}
                 </CollapsibleContent>
