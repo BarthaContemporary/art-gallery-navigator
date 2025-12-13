@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OptimizedArtistImage } from "@/components/artists/OptimizedArtistImage";
 import { useGmailCompose } from "@/hooks/use-gmail-compose";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Artist {
   id: string;
@@ -33,6 +34,7 @@ interface ArtistListViewProps {
 export function ArtistListView({ artists }: ArtistListViewProps) {
   const { isAdmin } = useAuth();
   const { composeEmail, isLoading } = useGmailCompose();
+  const queryClient = useQueryClient();
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -52,6 +54,7 @@ export function ArtistListView({ artists }: ArtistListViewProps) {
       
       if (error) throw error;
       toast.success('Artist deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
     } catch (error) {
       console.error('Error deleting artist:', error);
       toast.error('Failed to delete artist');
