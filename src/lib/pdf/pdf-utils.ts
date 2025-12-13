@@ -47,7 +47,7 @@ function addTimeStampToHTML(html: string): string {
 /**
  * Generate PDF using PDFLayer API via edge function
  */
-async function generatePDFViaPDFLayer(options: {
+export async function generatePDFViaPDFLayer(options: {
   html: string;
   fileName: string;
   pageSize: 'a4' | 'letter' | 'legal';

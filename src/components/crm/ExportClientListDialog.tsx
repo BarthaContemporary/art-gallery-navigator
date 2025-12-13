@@ -74,7 +74,7 @@ export function ExportClientListDialog({ selectedListId, clientsData }: ExportCl
               <RadioGroupItem value="mailing-labels" id="mailing-labels" />
               <Label htmlFor="mailing-labels" className="flex items-center gap-2 cursor-pointer">
                 <FileText className="h-4 w-4" />
-                Mailing Labels (Google Docs)
+                Address Labels (PDF)
               </Label>
             </div>
             <div className="flex items-center space-x-2">
