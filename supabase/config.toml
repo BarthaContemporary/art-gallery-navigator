@@ -116,3 +116,18 @@ verify_jwt = true
 
 [functions.generate-pdf]
 verify_jwt = true
+
+[functions.art-institute-chicago-search]
+verify_jwt = true
+
+[functions.national-gallery-search]
+verify_jwt = true
+
+[functions.guggenheim-search]
+verify_jwt = true
+
+[functions.whitney-search]
+verify_jwt = true
+
+[functions.artsy-search]
+verify_jwt = true

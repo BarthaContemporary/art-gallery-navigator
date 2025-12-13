@@ -14,13 +14,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
 import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
 import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
 import { useMetMuseumSearch, MetObject } from "@/hooks/useMetMuseumSearch";
 import { useMomaSearch, MomaObject } from "@/hooks/useMomaSearch";
 import { useTateSearch, TateObject } from "@/hooks/useTateSearch";
+import { useArtInstituteChicagoSearch, AICObject } from "@/hooks/useArtInstituteChicagoSearch";
+import { useNationalGallerySearch, NationalGalleryObject } from "@/hooks/useNationalGallerySearch";
+import { useGuggenheimSearch, GuggenheimObject } from "@/hooks/useGuggenheimSearch";
+import { useWhitneySearch, WhitneyObject } from "@/hooks/useWhitneySearch";
 import { format } from "date-fns";
 
 interface ArtistInfoPanelProps {
@@ -48,7 +52,7 @@ interface CollectionItem {
   medium?: string;
   url?: string;
   imageUrl?: string;
-  source: 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate';
+  source: 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney';
   sourceName: string;
   extra?: string;
 }
@@ -99,6 +103,10 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
       case 'met': return <Columns className="h-3 w-3" />;
       case 'moma': return <Square className="h-3 w-3" />;
       case 'tate': return <Frame className="h-3 w-3" />;
+      case 'aic': return <Home className="h-3 w-3" />;
+      case 'national-gallery': return <Castle className="h-3 w-3" />;
+      case 'guggenheim': return <Building className="h-3 w-3" />;
+      case 'whitney': return <GalleryHorizontal className="h-3 w-3" />;
     }
   };
 
@@ -164,22 +172,30 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading } = useMetMuseumSearch();
   const { searchArtist: searchMoma, objects: momaObjects, totalObjects: momaTotal, isLoading: momaLoading } = useMomaSearch();
   const { searchArtist: searchTate, objects: tateObjects, totalObjects: tateTotal, isLoading: tateLoading } = useTateSearch();
+  const { searchArtist: searchAIC, objects: aicObjects, totalObjects: aicTotal, isLoading: aicLoading } = useArtInstituteChicagoSearch();
+  const { searchArtist: searchNationalGallery, objects: ngObjects, totalObjects: ngTotal, isLoading: ngLoading } = useNationalGallerySearch();
+  const { searchArtist: searchGuggenheim, objects: guggenheimObjects, totalObjects: guggenheimTotal, isLoading: guggenheimLoading } = useGuggenheimSearch();
+  const { searchArtist: searchWhitney, objects: whitneyObjects, totalObjects: whitneyTotal, isLoading: whitneyLoading } = useWhitneySearch();
   
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
 
-  // Sequential search function for stability
+  // Sequential search function for stability - all museums searched consecutively
   const runSequentialSearches = useCallback(async (artistName: string) => {
     // Media searches first
     await searchGuardian(artistName);
     
-    // Then museum searches sequentially
+    // Then museum searches sequentially to avoid data stream issues
     await searchHarvard(artistName);
     await searchRijks(artistName);
     await searchMet(artistName);
     await searchMoma(artistName);
     await searchTate(artistName);
-  }, [searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate]);
+    await searchAIC(artistName);
+    await searchNationalGallery(artistName);
+    await searchGuggenheim(artistName);
+    await searchWhitney(artistName);
+  }, [searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney]);
 
   useEffect(() => {
     if (open && artist.full_name) {
@@ -243,10 +259,51 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       sourceName: 'Tate',
       extra: obj.creditLine,
     })),
+    ...aicObjects.map((obj): CollectionItem => ({
+      id: `aic-${obj.id}`,
+      title: obj.title,
+      date: obj.dateDisplay,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || obj.thumbnailUrl,
+      source: 'aic',
+      sourceName: 'Art Institute Chicago',
+      extra: obj.department,
+    })),
+    ...ngObjects.map((obj): CollectionItem => ({
+      id: `ng-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url || undefined,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'national-gallery',
+      sourceName: 'National Gallery',
+    })),
+    ...guggenheimObjects.map((obj): CollectionItem => ({
+      id: obj.id,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'guggenheim',
+      sourceName: 'Guggenheim',
+    })),
+    ...whitneyObjects.map((obj): CollectionItem => ({
+      id: obj.id,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'whitney',
+      sourceName: 'Whitney',
+    })),
   ];
 
-  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal;
-  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading;
+  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal;
+  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -433,6 +490,30 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                           Tate: {tateTotal}
                         </Badge>
                       )}
+                      {aicTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Home className="h-3 w-3 mr-1" />
+                          AIC: {aicTotal}
+                        </Badge>
+                      )}
+                      {ngTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Castle className="h-3 w-3 mr-1" />
+                          National Gallery: {ngTotal}
+                        </Badge>
+                      )}
+                      {guggenheimTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <Building className="h-3 w-3 mr-1" />
+                          Guggenheim: {guggenheimTotal}
+                        </Badge>
+                      )}
+                      {whitneyTotal > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          <GalleryHorizontal className="h-3 w-3 mr-1" />
+                          Whitney: {whitneyTotal}
+                        </Badge>
+                      )}
                     </div>
                   )}
                   
@@ -464,28 +545,6 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   )}
                 </CollapsibleContent>
               </Collapsible>
-            </section>
-            
-            {/* Placeholder for future APIs */}
-            <Separator />
-            <section className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Coming Soon
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Wikipedia
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Artsy
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Artnet
-                </Badge>
-              </div>
             </section>
           </div>
         </ScrollArea>
