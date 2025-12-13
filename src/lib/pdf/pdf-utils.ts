@@ -1,8 +1,8 @@
 
 import { toast } from "sonner";
-import { convertEnhancedHTMLToPDF } from "./enhanced-html-to-pdf";
 import { uploadDocument } from "./document-storage";
 import { ensureDocumentsBucketExists } from "@/hooks/use-documents";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PDFGenerationOptions {
   html: string;
@@ -18,6 +18,63 @@ interface PDFGenerationOptions {
   forceSplitPages?: boolean;
 }
 
+/**
+ * Convert base64 string to Blob
+ */
+function base64ToBlob(base64: string, mimeType: string = 'application/pdf'): Blob {
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mimeType });
+}
+
+/**
+ * Add timestamp to HTML if requested
+ */
+function addTimeStampToHTML(html: string): string {
+  const timestamp = new Date().toLocaleString();
+  const timestampHTML = `
+    <div style="position: fixed; bottom: 5mm; left: 10mm; font-size: 8pt; color: #999;">
+      Generated on: ${timestamp}
+    </div>
+  `;
+  return html.replace('</body>', `${timestampHTML}</body>`);
+}
+
+/**
+ * Generate PDF using PDFLayer API via edge function
+ */
+async function generatePDFViaPDFLayer(options: {
+  html: string;
+  fileName: string;
+  pageSize: 'a4' | 'letter' | 'legal';
+  orientation: 'portrait' | 'landscape';
+}): Promise<Blob> {
+  const { data, error } = await supabase.functions.invoke('generate-pdf', {
+    body: {
+      html: options.html,
+      fileName: options.fileName,
+      pageSize: options.pageSize,
+      orientation: options.orientation,
+    },
+  });
+
+  if (error) {
+    console.error('Edge function error:', error);
+    throw new Error(`PDF generation failed: ${error.message}`);
+  }
+
+  if (!data.success) {
+    console.error('PDFLayer error:', data.error);
+    throw new Error(data.error || 'PDF generation failed');
+  }
+
+  return base64ToBlob(data.pdf);
+}
+
 export async function generatePDFFromHTML({
   html,
   fileName,
@@ -29,7 +86,6 @@ export async function generatePDFFromHTML({
   orientation = 'portrait',
   addPageNumbers = false,
   addTimeStamp = false,
-  forceSplitPages = false
 }: PDFGenerationOptions): Promise<string> {
   console.log(`Generating PDF for ${entityType} "${entityTitle}"`);
   
@@ -44,33 +100,29 @@ export async function generatePDFFromHTML({
   }
 
   const toastId = toast.loading("Preparing PDF document...");
-  let progressMessage = "Preparing PDF document...";
 
   try {
-    // Update progress callback
-    const updateProgress = (message: string, percentage?: number) => {
-      progressMessage = percentage ? `${message} (${Math.round(percentage)}%)` : message;
-      toast.loading(progressMessage, { id: toastId });
-      console.log(`PDF Generation Progress: ${progressMessage}`);
-    };
+    // Prepare HTML with optional timestamp
+    let processedHtml = html;
+    if (addTimeStamp) {
+      processedHtml = addTimeStampToHTML(processedHtml);
+    }
 
-    // Convert HTML to PDF using enhanced multi-page system
-    updateProgress("Converting HTML to PDF...");
-    const pdfBlob = await convertEnhancedHTMLToPDF({ 
-      html, 
+    // Generate PDF via PDFLayer API
+    toast.loading("Generating PDF...", { id: toastId });
+    console.log("Calling PDFLayer API...");
+    
+    const pdfBlob = await generatePDFViaPDFLayer({
+      html: processedHtml,
       fileName,
       pageSize,
       orientation,
-      addPageNumbers,
-      addTimeStamp,
-      forceSplitPages,
-      onProgress: updateProgress
     });
     
     console.log("PDF blob created, size:", Math.round(pdfBlob.size / 1024), "KB");
 
     // Upload document and create record
-    updateProgress("Uploading PDF to storage...");
+    toast.loading("Uploading PDF to storage...", { id: toastId });
     const publicUrl = await uploadDocument(pdfBlob, fileName, {
       type: entityType,
       entityId,
@@ -80,7 +132,6 @@ export async function generatePDFFromHTML({
     console.log("PDF uploaded successfully to:", publicUrl);
 
     // Create download link
-    updateProgress("Creating download link...");
     const downloadLink = document.createElement("a");
     downloadLink.href = URL.createObjectURL(pdfBlob);
     downloadLink.download = fileName;
