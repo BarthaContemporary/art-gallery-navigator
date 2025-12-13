@@ -7,6 +7,7 @@ import { EditArtistDialog } from "./EditArtistDialog";
 import { ArtistInfoPanel } from "./ArtistInfoPanel";
 import { OptimizedArtistImage } from "./OptimizedArtistImage";
 import { useGmailCompose } from "@/hooks/use-gmail-compose";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ const statusIcons = {
 export function ArtistCard({ artist }: { artist: any }) {
   const { isAdmin } = useAuth();
   const { composeEmail, isLoading } = useGmailCompose();
+  const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -72,6 +74,7 @@ export function ArtistCard({ artist }: { artist: any }) {
       if (error) throw error;
 
       toast.success("Artist deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['artists'] });
       setShowDeleteConfirm(false);
     } catch (error) {
       logger.error('Error deleting artist:', error);
