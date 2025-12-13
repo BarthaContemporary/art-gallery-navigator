@@ -113,3 +113,6 @@ verify_jwt = true
 
 [functions.search-linkedin-profile]
 verify_jwt = true
+
+[functions.generate-pdf]
+verify_jwt = true
