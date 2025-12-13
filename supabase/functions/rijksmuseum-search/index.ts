@@ -41,8 +41,9 @@ serve(async (req) => {
         },
         signal: controller.signal,
       });
-    } catch (fetchError) {
       clearTimeout(timeoutId);
+    } catch (fetchError) {
+      try { clearTimeout(timeoutId); } catch (_) { /* ignore */ }
       console.info('Rijksmuseum API timeout or unavailable - returning empty results');
       return new Response(
         JSON.stringify({ 
@@ -52,8 +53,6 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
