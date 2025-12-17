@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateCRMContact, useUpdateCRMContact, useEmailEnrichment } from "@/hooks/crm";
+import { useCRMOrganizations } from "@/hooks/crm/use-crm-organizations";
 import { CRMContact, CRMContactType } from "@/types/crm";
 import { useState, useEffect } from "react";
 import { AddressInput } from "@/components/crm/form/AddressInput";
@@ -12,8 +13,9 @@ import { EmailVerificationInput } from "@/components/crm/form/EmailVerificationI
 import { EnrichmentResultsPanel } from "@/components/crm/form/EnrichmentResultsPanel";
 import { PhoneInputWithWhatsApp } from "@/components/crm/form/PhoneInputWithWhatsApp";
 import { LinkedInSearchInput } from "@/components/crm/contacts/LinkedInSearchInput";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Building2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 interface ContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,6 +39,7 @@ const initialFormData = {
   postal_code: "",
   country: "",
   profile_image_url: "",
+  organization_id: "" as string | undefined,
 };
 
 export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProps) {
@@ -45,6 +48,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
   const createContact = useCreateCRMContact();
   const updateContact = useUpdateCRMContact();
   const { enrichEmail, isLoading: isEnriching, result: enrichmentResult } = useEmailEnrichment();
+  const { data: organizations = [] } = useCRMOrganizations();
 
   useEffect(() => {
     if (contact) {
@@ -65,6 +69,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
         postal_code: contact.postal_code || "",
         country: contact.country || "",
         profile_image_url: contact.profile_image_url || "",
+        organization_id: contact.organization_id || "",
       });
     } else {
       setFormData(initialFormData);
@@ -199,6 +204,32 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                   <SelectItem value="vip">VIP</SelectItem>
                   <SelectItem value="prospect">Prospect</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Organisation</Label>
+              <Select 
+                value={formData.organization_id || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, organization_id: v === "none" ? undefined : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select organisation">
+                    {formData.organization_id 
+                      ? organizations.find(o => o.id === formData.organization_id)?.name 
+                      : "None"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      <span className="flex items-center gap-2">
+                        <Building2 className="h-3 w-3 text-muted-foreground" />
+                        {org.name}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
