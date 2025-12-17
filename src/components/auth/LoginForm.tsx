@@ -1,10 +1,10 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, WifiOff, RefreshCw } from "lucide-react";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -19,6 +19,20 @@ interface LoginFormProps {
   onError: (error: Error) => void;
 }
 
+// Helper to detect network errors
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("failed to fetch") ||
+      message.includes("network") ||
+      message.includes("offline") ||
+      (error.name === "AuthRetryableFetchError")
+    );
+  }
+  return false;
+}
+
 export function LoginForm({
   onSubmit,
   isLoading,
@@ -30,6 +44,8 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string>("");
   const [captchaError, setCaptchaError] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const handleCaptchaVerify = useCallback((token: string) => {
     console.log("CAPTCHA verified successfully, token:", token ? "present" : "missing");
@@ -37,8 +53,15 @@ export function LoginForm({
     setCaptchaError(false);
   }, []);
 
+  const handleRetry = useCallback(() => {
+    setNetworkError(false);
+    setCaptchaToken("");
+    setTurnstileKey(prev => prev + 1); // Force re-render of Turnstile
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNetworkError(false);
     
     console.log("Login form submission:", {
       email,
@@ -59,11 +82,47 @@ export function LoginForm({
       }, captchaToken);
     } catch (error) {
       console.error("Login form submission error:", error);
-      if (error instanceof Error) {
+      if (isNetworkError(error)) {
+        setNetworkError(true);
+        setCaptchaToken("");
+        setTurnstileKey(prev => prev + 1);
+      } else if (error instanceof Error) {
         onError(error);
       }
     }
   };
+
+  // Network error state UI
+  if (networkError) {
+    return (
+      <Card className="w-full border-0 shadow-none">
+        <CardContent className="px-0 space-y-4">
+          <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+            <WifiOff className="h-4 w-4" />
+            <AlertDescription className="text-sm ml-2">
+              <strong>Connection failed</strong>
+              <p className="mt-1 text-muted-foreground">
+                Unable to reach the authentication server. Please check your internet connection and try again.
+              </p>
+            </AlertDescription>
+          </Alert>
+          
+          <Button 
+            onClick={handleRetry}
+            className="w-full h-11 text-sm font-normal"
+            variant="outline"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+          
+          <p className="text-xs text-center text-muted-foreground">
+            If the problem persists, check your firewall settings or try a different network.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card className="w-full border-0 shadow-none">
@@ -119,6 +178,7 @@ export function LoginForm({
             <Label className="font-thin text-sm">Security Verification</Label>
             <div className="w-full overflow-hidden">
               <TurnstileWidget 
+                key={turnstileKey}
                 onVerify={handleCaptchaVerify}
                 className="max-w-full"
               />
