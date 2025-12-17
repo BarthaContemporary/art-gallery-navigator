@@ -1,6 +1,6 @@
-
 import { Collection } from "@/hooks/use-collections";
 import { CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface CollectionCardContentProps {
   collection: Collection;
@@ -38,14 +38,11 @@ export function CollectionCardContent({ collection, showArtistName = false }: Co
         </div>
         
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{artworkCount}</span>{' '}
-              {artworkCount === 1 ? 'artwork' : 'artworks'}
-            </div>
-          </div>
+          <Badge variant="secondary" className="text-xs">
+            {artworkCount} {artworkCount === 1 ? 'artwork' : 'artworks'}
+          </Badge>
           <div className="text-xs text-muted-foreground">
-            {new Date(collection.updated_at).toLocaleDateString()}
+            {new Date(collection.updated_at || collection.created_at || '').toLocaleDateString()}
           </div>
         </div>
       </div>
