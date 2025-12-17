@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
@@ -24,14 +23,17 @@ export function SidebarNavItem({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <SidebarMenuButton asChild className={`${getSidebarLinkClasses(isActive)} justify-center p-3 w-12 h-12`}>
+          <SidebarMenuButton 
+            asChild 
+            className={`${getSidebarLinkClasses(isActive)} justify-center p-3 w-12 h-12`}
+          >
             <Link to={href}>
               <Icon className="w-5 h-5" />
             </Link>
           </SidebarMenuButton>
         </TooltipTrigger>
-        <TooltipContent side="right" className="ml-2">
-          <p>{name}</p>
+        <TooltipContent side="right" className="ml-2 rounded-lg shadow-lg">
+          <p className="text-[13px]">{name}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
