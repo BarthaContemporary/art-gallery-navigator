@@ -24,78 +24,62 @@ export function useCollections() {
   return useQuery({
     queryKey: ["collections", isArtist, currentUserArtist?.id],
     queryFn: async (): Promise<Collection[]> => {
-      if (isArtist && currentUserArtist?.id) {
-        // For artists, get collections that contain their artworks
-        const { data: artistCollections, error } = await supabase
-          .from("collections")
-          .select(`
-            *, 
-            collection_artworks!inner(
-              artwork_id, 
-              artworks!inner(
-                *, 
-                artists(full_name)
-              )
-            )
-          `)
-          .eq('collection_artworks.artworks.artist_id', currentUserArtist.id)
-          .order("created_at", { ascending: false });
+      // Step 1: Fetch collections (simple query)
+      const { data: collections, error: collectionsError } = await supabase
+        .from("collections")
+        .select("id, name, description, created_at, updated_at, external_emails")
+        .order("created_at", { ascending: false });
 
-        if (error) throw error;
+      if (collectionsError) throw collectionsError;
+      if (!collections || collections.length === 0) return [];
 
-        // Transform the data and remove duplicates
-        const collectionsMap = new Map();
-        artistCollections?.forEach((collection: any) => {
-          if (!collectionsMap.has(collection.id)) {
-            const artworks = collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [];
-            collectionsMap.set(collection.id, {
-              ...collection,
-              artworks,
-            });
-          }
-        });
+      // Step 2: Fetch collection_artworks separately
+      const collectionIds = collections.map(c => c.id);
+      const { data: collectionArtworks, error: caError } = await supabase
+        .from("collection_artworks")
+        .select("collection_id, artwork_id")
+        .in("collection_id", collectionIds);
 
-        return Array.from(collectionsMap.values());
-      } else {
-        // For admins, get all collections
-        const { data, error } = await supabase
-          .from("collections")
-          .select(`
-            *, 
-            collection_artworks(
-              artwork_id, 
-              artworks(
-                *, 
-                artists(full_name)
-              )
-            )
-          `)
-          .order("created_at", { ascending: false });
+      if (caError) throw caError;
 
-        if (error) throw error;
+      // Step 3: Fetch artworks using the public safe view
+      const artworkIds = [...new Set(collectionArtworks?.map(ca => ca.artwork_id) || [])];
+      let artworksMap: Map<string, any> = new Map();
+      
+      if (artworkIds.length > 0) {
+        const { data: artworks, error: artworksError } = await supabase
+          .from("artworks_public_safe")
+          .select("*")
+          .in("id", artworkIds);
 
-        // Transform the data structure to get artworks from collection_artworks
-        const collections = data?.map((collection: any) => {
-          const artworks = collection.collection_artworks?.map((ca: any) => ca.artworks).filter(Boolean) || [];
-          
-          // For admin view, get artist name from first artwork
-          let artist_name = undefined;
-          if (isAdmin && artworks.length > 0) {
-            const firstArtist = artworks[0]?.artists?.full_name;
-            if (firstArtist) {
-              artist_name = firstArtist;
-            }
-          }
-          
-          return {
-            ...collection,
-            artworks,
-            artist_name,
-          };
-        }) || [];
-
-        return collections;
+        if (artworksError) throw artworksError;
+        artworks?.forEach(a => artworksMap.set(a.id, a));
       }
+
+      // Step 4: Build collection objects with artworks
+      const result = collections.map(collection => {
+        const artworkIdsForCollection = collectionArtworks
+          ?.filter(ca => ca.collection_id === collection.id)
+          .map(ca => ca.artwork_id) || [];
+        
+        const artworks = artworkIdsForCollection
+          .map(id => artworksMap.get(id))
+          .filter(Boolean);
+
+        // For artist filtering
+        if (isArtist && currentUserArtist?.id) {
+          const hasArtistArtwork = artworks.some((a: any) => a.artist_id === currentUserArtist.id);
+          if (!hasArtistArtwork) return null;
+        }
+
+        return {
+          ...collection,
+          artworks,
+          artist_name: isAdmin && artworks.length > 0 ? artworks[0]?.artist_name : undefined,
+        };
+      }).filter(Boolean) as Collection[];
+
+      return result;
     },
   });
 }
