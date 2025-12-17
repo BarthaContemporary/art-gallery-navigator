@@ -32,7 +32,7 @@ export function SidebarNavItem({
             </Link>
           </SidebarMenuButton>
         </TooltipTrigger>
-        <TooltipContent side="right" align="center" className="ml-2 rounded-lg shadow-lg">
+        <TooltipContent side="right" align="center" sideOffset={8} className="rounded-lg shadow-lg">
           <p className="text-[13px] text-white">{name}</p>
         </TooltipContent>
       </Tooltip>
