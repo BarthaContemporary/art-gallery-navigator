@@ -4478,6 +4478,10 @@ export type Database = {
         Returns: string
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_artist_artwork_in_collection: {
+        Args: { _artwork_id: string }
+        Returns: boolean
+      }
       is_artist_owner: { Args: { artist_id_param: string }; Returns: boolean }
       is_artist_user: {
         Args: { _artist_id: string; _user_id: string }
