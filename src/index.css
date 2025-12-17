@@ -4,136 +4,184 @@
 
 @layer base {
   :root {
-    /* Core neutrals with better contrast */
+    /* Apple HIG Semantic Colors - Light Mode */
+    
+    /* Backgrounds - Apple's layered background system */
     --background: 0 0% 100%;
-    --foreground: 224 71% 8%;
+    --foreground: 0 0% 0%;
     
-    /* Enhanced surface colors */
+    /* Secondary background for grouped content */
+    --secondary-background: 240 6% 97%;
+    
+    /* Tertiary background for nested content */
+    --tertiary-background: 0 0% 100%;
+    
+    /* Card surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 8%;
-    --card-border: 220 13% 91%;
+    --card-foreground: 0 0% 0%;
+    --card-border: 240 6% 90%;
     
-    /* Modern popover with glass effect */
+    /* Popover surfaces */
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 8%;
-    --popover-border: 220 13% 88%;
+    --popover-foreground: 0 0% 0%;
+    --popover-border: 240 6% 90%;
     
-    /* Sophisticated primary palette */
-    --primary: 200 85% 32%;
+    /* Apple System Blue - Primary */
+    --primary: 211 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 200 85% 42%;
-    --primary-dark: 200 85% 22%;
+    --primary-light: 211 100% 60%;
+    --primary-dark: 211 100% 40%;
     
-    /* Enhanced secondary system */
-    --secondary: 220 15% 93%;
-    --secondary-foreground: 224 71% 8%;
-    --secondary-hover: 220 15% 89%;
+    /* Secondary - Apple's secondary fill */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --secondary-hover: 240 5% 92%;
     
-    /* Modern muted palette */
-    --muted: 220 15% 96%;
-    --muted-foreground: 220 10% 52%;
-    --muted-dark: 220 15% 88%;
+    /* Muted - Apple's tertiary fill */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --muted-dark: 240 5% 90%;
     
-    /* Vibrant accent system */
-    --accent: 45 95% 48%;
-    --accent-foreground: 224 71% 8%;
-    --accent-light: 45 95% 58%;
-    --accent-dark: 45 95% 38%;
+    /* Apple System Orange - Accent */
+    --accent: 28 100% 50%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 28 100% 60%;
+    --accent-dark: 28 100% 40%;
     
-    /* Status colors */
-    --success: 142 76% 36%;
+    /* Apple System Green - Success */
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 224 71% 8%;
-    --destructive: 0 84% 60%;
+    
+    /* Apple System Yellow - Warning */
+    --warning: 43 100% 50%;
+    --warning-foreground: 0 0% 0%;
+    
+    /* Apple System Red - Destructive */
+    --destructive: 0 100% 59%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Modern borders and inputs */
-    --border: 0 0% 96%;
-    --border-hover: 0 0% 92%;
-    --input: 0 0% 96%;
-    --input-border: 0 0% 96%;
-    --ring: 200 85% 42%;
+    /* Apple Label Colors */
+    --label: 0 0% 0%;
+    --secondary-label: 240 4% 46%;
+    --tertiary-label: 240 3% 60%;
+    --quaternary-label: 240 2% 76%;
     
-    /* Enhanced gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(200 85% 32%), hsl(200 85% 42%));
-    --gradient-secondary: linear-gradient(135deg, hsl(220 15% 96%), hsl(220 15% 93%));
-    --gradient-accent: linear-gradient(135deg, hsl(45 95% 48%), hsl(45 95% 58%));
-    --gradient-glass: linear-gradient(135deg, hsla(0 0% 100% / 0.8), hsla(0 0% 100% / 0.3));
+    /* Apple Separator */
+    --separator: 240 6% 90%;
+    --separator-opaque: 240 6% 84%;
     
-    /* Modern shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(220 13% 69% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 13% 69% / 0.1), 0 2px 4px -1px hsl(220 13% 69% / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(220 13% 69% / 0.1), 0 4px 6px -2px hsl(220 13% 69% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(220 13% 69% / 0.1), 0 10px 10px -5px hsl(220 13% 69% / 0.04);
-    --shadow-glow: 0 0 15px hsl(200 85% 42% / 0.1);
+    /* Borders and inputs */
+    --border: 240 6% 90%;
+    --border-hover: 240 6% 84%;
+    --input: 240 5% 96%;
+    --input-border: 240 6% 90%;
+    --ring: 211 100% 50%;
     
-    /* Minimal radius system - sharp corners */
-    --radius: 0;
-    --radius-sm: 0;
-    --radius-lg: 0;
-    --radius-xl: 0;
+    /* Apple-style gradients */
+    --gradient-primary: linear-gradient(180deg, hsl(211 100% 55%), hsl(211 100% 50%));
+    --gradient-secondary: linear-gradient(180deg, hsl(240 5% 98%), hsl(240 5% 96%));
+    --gradient-accent: linear-gradient(180deg, hsl(28 100% 55%), hsl(28 100% 50%));
+    --gradient-glass: linear-gradient(180deg, hsla(0 0% 100% / 0.72), hsla(0 0% 100% / 0.56));
+    
+    /* Apple-style shadows - softer, more diffuse */
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.04), 0 1px 2px -1px hsl(0 0% 0% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.08), 0 2px 6px -2px hsl(0 0% 0% / 0.04);
+    --shadow-lg: 0 12px 28px -6px hsl(0 0% 0% / 0.12), 0 4px 12px -4px hsl(0 0% 0% / 0.06);
+    --shadow-xl: 0 24px 48px -12px hsl(0 0% 0% / 0.18), 0 12px 24px -8px hsl(0 0% 0% / 0.08);
+    --shadow-glow: 0 0 20px hsl(211 100% 50% / 0.15);
+    
+    /* Apple HIG Border Radius */
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --radius-xl: 22px;
   }
 
   .dark {
-    /* Maintain light theme consistency */
-    --background: 0 0% 100%;
-    --foreground: 224 71% 8%;
+    /* Apple HIG Semantic Colors - Dark Mode */
     
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 8%;
-    --card-border: 220 13% 91%;
+    /* Backgrounds */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
     
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 8%;
-    --popover-border: 220 13% 88%;
+    --secondary-background: 240 3% 11%;
+    --tertiary-background: 240 3% 16%;
     
-    --primary: 200 85% 32%;
+    /* Card surfaces */
+    --card: 240 3% 11%;
+    --card-foreground: 0 0% 100%;
+    --card-border: 240 3% 20%;
+    
+    /* Popover surfaces */
+    --popover: 240 3% 16%;
+    --popover-foreground: 0 0% 100%;
+    --popover-border: 240 3% 24%;
+    
+    /* Apple System Blue - Primary (darker variant) */
+    --primary: 211 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 200 85% 42%;
-    --primary-dark: 200 85% 22%;
+    --primary-light: 211 100% 60%;
+    --primary-dark: 211 100% 40%;
     
-    --secondary: 220 15% 93%;
-    --secondary-foreground: 224 71% 8%;
-    --secondary-hover: 220 15% 89%;
+    /* Secondary */
+    --secondary: 240 3% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 240 3% 26%;
     
-    --muted: 220 15% 96%;
-    --muted-foreground: 220 10% 52%;
-    --muted-dark: 220 15% 88%;
+    /* Muted */
+    --muted: 240 3% 16%;
+    --muted-foreground: 240 4% 64%;
+    --muted-dark: 240 3% 24%;
     
-    --accent: 45 95% 48%;
-    --accent-foreground: 224 71% 8%;
-    --accent-light: 45 95% 58%;
-    --accent-dark: 45 95% 38%;
+    /* Accent */
+    --accent: 28 100% 55%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 28 100% 65%;
+    --accent-dark: 28 100% 45%;
     
-    --success: 142 76% 36%;
+    /* Status colors */
+    --success: 142 71% 50%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 224 71% 8%;
-    --destructive: 0 84% 60%;
+    --warning: 43 100% 55%;
+    --warning-foreground: 0 0% 0%;
+    --destructive: 0 100% 64%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 0 0% 96%;
-    --border-hover: 0 0% 92%;
-    --input: 0 0% 96%;
-    --input-border: 0 0% 96%;
-    --ring: 200 85% 42%;
+    /* Label Colors - Dark */
+    --label: 0 0% 100%;
+    --secondary-label: 240 4% 64%;
+    --tertiary-label: 240 3% 50%;
+    --quaternary-label: 240 2% 36%;
     
-    --gradient-primary: linear-gradient(135deg, hsl(200 85% 32%), hsl(200 85% 42%));
-    --gradient-secondary: linear-gradient(135deg, hsl(220 15% 96%), hsl(220 15% 93%));
-    --gradient-accent: linear-gradient(135deg, hsl(45 95% 48%), hsl(45 95% 58%));
-    --gradient-glass: linear-gradient(135deg, hsla(0 0% 100% / 0.8), hsla(0 0% 100% / 0.3));
+    /* Separators */
+    --separator: 240 3% 20%;
+    --separator-opaque: 240 3% 28%;
     
-    --shadow-sm: 0 1px 2px 0 hsl(220 13% 69% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 13% 69% / 0.1), 0 2px 4px -1px hsl(220 13% 69% / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(220 13% 69% / 0.1), 0 4px 6px -2px hsl(220 13% 69% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(220 13% 69% / 0.1), 0 10px 10px -5px hsl(220 13% 69% / 0.04);
-    --shadow-glow: 0 0 15px hsl(200 85% 42% / 0.1);
+    /* Borders and inputs */
+    --border: 240 3% 20%;
+    --border-hover: 240 3% 28%;
+    --input: 240 3% 16%;
+    --input-border: 240 3% 24%;
+    --ring: 211 100% 55%;
     
-    --radius: 0;
-    --radius-sm: 0;
-    --radius-lg: 0;
-    --radius-xl: 0;
+    /* Gradients */
+    --gradient-primary: linear-gradient(180deg, hsl(211 100% 55%), hsl(211 100% 50%));
+    --gradient-secondary: linear-gradient(180deg, hsl(240 3% 18%), hsl(240 3% 14%));
+    --gradient-accent: linear-gradient(180deg, hsl(28 100% 60%), hsl(28 100% 55%));
+    --gradient-glass: linear-gradient(180deg, hsla(0 0% 20% / 0.72), hsla(0 0% 16% / 0.56));
+    
+    /* Shadows - Dark mode */
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.3), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.4), 0 2px 6px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 12px 28px -6px hsl(0 0% 0% / 0.5), 0 4px 12px -4px hsl(0 0% 0% / 0.4);
+    --shadow-xl: 0 24px 48px -12px hsl(0 0% 0% / 0.6), 0 12px 24px -8px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 20px hsl(211 100% 50% / 0.25);
+    
+    /* Radius - same as light */
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --radius-xl: 22px;
   }
 
   /* iPhone-specific safe area support */
@@ -156,13 +204,17 @@
 
 @layer base {
   html {
-    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
+    /* Apple's text rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   
   body {
-    @apply bg-white text-foreground; /* Force white background */
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Prevent horizontal scroll and optimize for mobile */
@@ -170,6 +222,8 @@
     -webkit-overflow-scrolling: touch;
     /* Better touch interactions on iOS */
     -webkit-tap-highlight-color: transparent;
+    /* Apple-style letter spacing */
+    letter-spacing: -0.01em;
   }
 
   /* Optimize for iPhone viewport */
@@ -180,55 +234,85 @@
     }
   }
 
-  /* Enhanced typography scale */
+  /* Apple HIG Typography Scale */
   h1 {
-    @apply font-sans font-bold text-3xl lg:text-4xl xl:text-5xl text-foreground tracking-tight;
+    @apply font-sans font-bold text-3xl lg:text-4xl xl:text-5xl text-foreground;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
   }
   
   h2 {
-    @apply font-sans font-bold text-2xl lg:text-3xl xl:text-4xl text-foreground tracking-tight;
+    @apply font-sans font-bold text-2xl lg:text-3xl xl:text-4xl text-foreground;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
   }
   
   h3 {
-    @apply font-sans font-semibold text-xl lg:text-2xl xl:text-3xl text-foreground tracking-tight;
+    @apply font-sans font-semibold text-xl lg:text-2xl xl:text-3xl text-foreground;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
   }
   
   h4 {
     @apply font-sans font-semibold text-lg lg:text-xl text-foreground;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
   }
   
   h5 {
     @apply font-sans font-medium text-base lg:text-lg text-foreground;
+    letter-spacing: -0.005em;
+    line-height: 1.3;
   }
   
   h6 {
     @apply font-sans font-medium text-sm lg:text-base text-foreground;
+    line-height: 1.35;
   }
 
   p {
-    @apply text-sm sm:text-base leading-relaxed text-foreground/90;
+    @apply text-sm sm:text-base leading-relaxed;
+    color: hsl(var(--label));
+    line-height: 1.5;
   }
 
-  /* Enhanced link styles */
+  /* Apple-style link styles */
   a {
-    @apply text-primary hover:text-primary-light transition-all duration-200 hover:underline decoration-primary/30 underline-offset-4;
+    @apply text-primary hover:text-primary-light transition-colors duration-200;
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   /* Improve form elements for mobile */
   input, textarea, select, button {
     @apply text-base; /* Prevent zoom on iOS */
+    font-family: inherit;
   }
 
-  /* Remove button outlines */
+  /* Apple-style button reset */
   button, [role="button"], [type="button"] {
     outline: none !important;
     border: none;
     min-height: 44px; /* iOS recommended touch target */
     min-width: 44px;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
 
   button:focus, [role="button"]:focus, [type="button"]:focus {
     outline: none !important;
+  }
+  
+  /* Apple-style focus ring */
+  button:focus-visible, [role="button"]:focus-visible, [type="button"]:focus-visible,
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
@@ -250,13 +334,25 @@
     }
   }
   
-  /* Glass morphism effects */
+  /* Apple-style glass morphism effects */
   .glass {
-    @apply backdrop-blur-sm bg-white/80 border border-white/20;
+    background: hsla(0, 0%, 100%, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
   
   .glass-strong {
-    @apply backdrop-blur-md bg-white/90 border border-white/30;
+    background: hsla(0, 0%, 100%, 0.85);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+  }
+  
+  .dark .glass {
+    background: hsla(0, 0%, 10%, 0.72);
+  }
+  
+  .dark .glass-strong {
+    background: hsla(0, 0%, 10%, 0.85);
   }
   
   /* Modern shadow utilities */
@@ -268,13 +364,30 @@
     box-shadow: var(--shadow-glow);
   }
   
-  /* Interactive states - minimal */
+  /* Apple-style interactive states */
   .interactive {
-    @apply transition-colors duration-200 hover:opacity-90;
+    @apply transition-all duration-200;
+  }
+  
+  .interactive:hover {
+    opacity: 0.85;
+  }
+  
+  .interactive:active {
+    transform: scale(0.98);
   }
   
   .interactive-card {
-    @apply transition-all duration-200 hover:border-border-hover;
+    @apply transition-all duration-200;
+  }
+  
+  .interactive-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  .interactive-card:active {
+    transform: scale(0.99);
   }
   
   /* Gradient utilities */
@@ -292,5 +405,35 @@
   
   .gradient-glass {
     background: var(--gradient-glass);
+  }
+  
+  /* Apple-style text colors */
+  .text-label {
+    color: hsl(var(--label));
+  }
+  
+  .text-secondary-label {
+    color: hsl(var(--secondary-label));
+  }
+  
+  .text-tertiary-label {
+    color: hsl(var(--tertiary-label));
+  }
+  
+  .text-quaternary-label {
+    color: hsl(var(--quaternary-label));
+  }
+  
+  /* Apple-style separator */
+  .separator {
+    background-color: hsl(var(--separator));
+    height: 1px;
+    width: 100%;
+  }
+  
+  .separator-opaque {
+    background-color: hsl(var(--separator-opaque));
+    height: 1px;
+    width: 100%;
   }
 }

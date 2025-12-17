@@ -19,7 +19,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Source Sans 3', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Helvetica', 'Arial', 'system-ui', 'sans-serif'],
       },
       fontWeight: {
         thin: '200',
@@ -39,6 +39,8 @@ export default {
         ring: "hsl(var(--ring))",
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        "secondary-background": "hsl(var(--secondary-background))",
+        "tertiary-background": "hsl(var(--tertiary-background))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -83,13 +85,26 @@ export default {
           foreground: "hsl(var(--card-foreground))",
           border: "hsl(var(--card-border))",
         },
+        // Apple HIG Label colors
+        label: {
+          DEFAULT: "hsl(var(--label))",
+          secondary: "hsl(var(--secondary-label))",
+          tertiary: "hsl(var(--tertiary-label))",
+          quaternary: "hsl(var(--quaternary-label))",
+        },
+        // Apple HIG Separator colors
+        separator: {
+          DEFAULT: "hsl(var(--separator))",
+          opaque: "hsl(var(--separator-opaque))",
+        },
       },
       borderRadius: {
-        'xl': "0",
-        'lg': "0",
-        DEFAULT: "0",
-        'sm': "0",
-        'xs': "0",
+        'xl': "var(--radius-xl)",
+        'lg': "var(--radius-lg)",
+        DEFAULT: "var(--radius)",
+        'md': "var(--radius)",
+        'sm': "var(--radius-sm)",
+        'xs': "6px",
       },
       boxShadow: {
         'elegant': 'var(--shadow-md)',
