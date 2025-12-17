@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { retryWithBackoff } from "@/lib/retry-with-backoff";
 
 export function useAuthActions() {
   const navigate = useNavigate();
@@ -14,13 +15,21 @@ export function useAuthActions() {
       throw new Error("Security verification is required for login");
     }
     
-    const { error, data } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: {
-        captchaToken: captchaToken
+    const { error, data } = await retryWithBackoff(
+      () => supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: {
+          captchaToken: captchaToken
+        }
+      }),
+      {
+        maxRetries: 3,
+        onRetry: (attempt, err) => {
+          logger.log(`AuthActions: Retrying password sign-in (attempt ${attempt}) for:`, email);
+        }
       }
-    });
+    );
     
     if (error) {
       logger.error("AuthActions: Sign in with password error:", error.message, { email, errorDetails: error });
@@ -37,13 +46,21 @@ export function useAuthActions() {
       throw new Error("Security verification is required for OTP requests");
     }
     
-    const { error, data } = await supabase.auth.signInWithOtp({
-      email,
-      options: { 
-        shouldCreateUser: false,
-        captchaToken: captchaToken
+    const { error, data } = await retryWithBackoff(
+      () => supabase.auth.signInWithOtp({
+        email,
+        options: { 
+          shouldCreateUser: false,
+          captchaToken: captchaToken
+        }
+      }),
+      {
+        maxRetries: 3,
+        onRetry: (attempt) => {
+          logger.log(`AuthActions: Retrying OTP request (attempt ${attempt}) for:`, email);
+        }
       }
-    });
+    );
     
     if (error) {
       logger.error("AuthActions: Sign in with OTP error:", error.message, { email, errorDetails: error });
@@ -81,11 +98,21 @@ export function useAuthActions() {
 
   const verifyOTP = useCallback(async (email: string, token: string) => {
     logger.log("AuthActions: Verifying OTP for:", email);
-    const { error, data } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    });
+    
+    const { error, data } = await retryWithBackoff(
+      () => supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email'
+      }),
+      {
+        maxRetries: 2,
+        onRetry: (attempt) => {
+          logger.log(`AuthActions: Retrying OTP verification (attempt ${attempt}) for:`, email);
+        }
+      }
+    );
+    
     if (error) {
       logger.error("AuthActions: OTP verification error:", error.message, { email, errorDetails: error });
       throw error;
@@ -100,13 +127,21 @@ export function useAuthActions() {
       throw new Error("Security verification is required for registration");
     }
     
-    const { error, data } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        captchaToken: captchaToken
+    const { error, data } = await retryWithBackoff(
+      () => supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          captchaToken: captchaToken
+        }
+      }),
+      {
+        maxRetries: 3,
+        onRetry: (attempt) => {
+          logger.log(`AuthActions: Retrying sign-up (attempt ${attempt}) for:`, email);
+        }
       }
-    });
+    );
     
     if (error) {
       logger.error("AuthActions: Sign up error:", error.message, { email, errorDetails: error });
@@ -118,7 +153,17 @@ export function useAuthActions() {
 
   const signOut = useCallback(async () => {
     logger.log("AuthActions: Signing out current user.");
-    const { error } = await supabase.auth.signOut();
+    
+    const { error } = await retryWithBackoff(
+      () => supabase.auth.signOut(),
+      {
+        maxRetries: 2,
+        onRetry: (attempt) => {
+          logger.log(`AuthActions: Retrying sign-out (attempt ${attempt})`);
+        }
+      }
+    );
+    
     if (error) {
       logger.error("AuthActions: Sign out error:", error.message, { errorDetails: error });
       throw error;
