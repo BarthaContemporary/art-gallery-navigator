@@ -8,7 +8,7 @@ import { SidebarNavLogo } from "./components/SidebarNavLogo";
 export function Sidebar() {
   return (
     <SidebarComponent
-      className="flex flex-col h-full bg-slate-900"
+      className="flex flex-col h-full bg-white"
       style={{
         width: "180px",
         minHeight: "100vh",
