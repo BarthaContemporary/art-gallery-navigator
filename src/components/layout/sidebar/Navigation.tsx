@@ -1,6 +1,6 @@
 
 import { SidebarNavItem } from "./components/SidebarNavItem";
-import { Home, Palette, Users, FileText, Calendar, MapPin, FolderOpen, Share2, Settings, Archive, Image, Contact } from "lucide-react";
+import { Home, Palette, Users, FileText, Calendar, MapPin, FolderOpen, Share2, Settings, Archive, Image, Contact, BookOpen } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Navigation() {
@@ -19,6 +19,7 @@ export function Navigation() {
   const adminNavItems = [
     { href: "/crm", icon: Contact, name: "CRM" },
     { href: "/projects", icon: Archive, name: "Projects" },
+    { href: "/admin/publications", icon: BookOpen, name: "Publications" },
     { href: "/viewer", icon: Image, name: "Image Viewer" },
     { href: "/admin", icon: Settings, name: "Admin" },
   ];
