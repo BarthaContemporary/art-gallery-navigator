@@ -131,3 +131,15 @@ verify_jwt = true
 
 [functions.artsy-search]
 verify_jwt = true
+
+[functions.process-publication-pdf]
+verify_jwt = true
+
+[functions.publication-seo-page]
+verify_jwt = false
+
+[functions.publication-download]
+verify_jwt = false
+
+[functions.publication-lead-capture]
+verify_jwt = false
