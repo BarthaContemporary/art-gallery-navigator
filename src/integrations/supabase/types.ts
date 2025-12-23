@@ -2930,6 +2930,235 @@ export type Database = {
           },
         ]
       }
+      publication_download_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          lead_id: string
+          publication_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          lead_id: string
+          publication_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          lead_id?: string
+          publication_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_download_tokens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "publication_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publication_download_tokens_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publication_leads: {
+        Row: {
+          consent_timestamp: string | null
+          created_at: string | null
+          email: string
+          id: string
+          ip_hash: string | null
+          mailing_list_opt_in: boolean | null
+          name: string
+          publication_id: string
+          synced_to_campaign_monitor: boolean | null
+          synced_to_crm: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          consent_timestamp?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          ip_hash?: string | null
+          mailing_list_opt_in?: boolean | null
+          name: string
+          publication_id: string
+          synced_to_campaign_monitor?: boolean | null
+          synced_to_crm?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          consent_timestamp?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          ip_hash?: string | null
+          mailing_list_opt_in?: boolean | null
+          name?: string
+          publication_id?: string
+          synced_to_campaign_monitor?: boolean | null
+          synced_to_crm?: boolean | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_leads_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publication_pages: {
+        Row: {
+          created_at: string | null
+          id: string
+          page_number: number
+          publication_id: string
+          render_high_url: string | null
+          render_low_url: string | null
+          render_storage_path_high: string | null
+          render_storage_path_low: string | null
+          text_content: string | null
+          text_tokens: unknown
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          page_number: number
+          publication_id: string
+          render_high_url?: string | null
+          render_low_url?: string | null
+          render_storage_path_high?: string | null
+          render_storage_path_low?: string | null
+          text_content?: string | null
+          text_tokens?: unknown
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          page_number?: number
+          publication_id?: string
+          render_high_url?: string | null
+          render_low_url?: string | null
+          render_storage_path_high?: string | null
+          render_storage_path_low?: string | null
+          text_content?: string | null
+          text_tokens?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_pages_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publications: {
+        Row: {
+          author: string | null
+          cover_page: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          download_gate_enabled: boolean | null
+          id: string
+          mailing_list_config: Json | null
+          mailing_list_default_opt_in: boolean | null
+          og_image_url: string | null
+          page_count: number | null
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          processing_error: string | null
+          processing_status:
+            | Database["public"]["Enums"]["publication_processing_status"]
+            | null
+          seo: Json | null
+          slug: string | null
+          subtitle: string | null
+          theme: Database["public"]["Enums"]["publication_theme"] | null
+          title: string
+          updated_at: string | null
+          visibility:
+            | Database["public"]["Enums"]["publication_visibility"]
+            | null
+        }
+        Insert: {
+          author?: string | null
+          cover_page?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          download_gate_enabled?: boolean | null
+          id?: string
+          mailing_list_config?: Json | null
+          mailing_list_default_opt_in?: boolean | null
+          og_image_url?: string | null
+          page_count?: number | null
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          processing_error?: string | null
+          processing_status?:
+            | Database["public"]["Enums"]["publication_processing_status"]
+            | null
+          seo?: Json | null
+          slug?: string | null
+          subtitle?: string | null
+          theme?: Database["public"]["Enums"]["publication_theme"] | null
+          title: string
+          updated_at?: string | null
+          visibility?:
+            | Database["public"]["Enums"]["publication_visibility"]
+            | null
+        }
+        Update: {
+          author?: string | null
+          cover_page?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          download_gate_enabled?: boolean | null
+          id?: string
+          mailing_list_config?: Json | null
+          mailing_list_default_opt_in?: boolean | null
+          og_image_url?: string | null
+          page_count?: number | null
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          processing_error?: string | null
+          processing_status?:
+            | Database["public"]["Enums"]["publication_processing_status"]
+            | null
+          seo?: Json | null
+          slug?: string | null
+          subtitle?: string | null
+          theme?: Database["public"]["Enums"]["publication_theme"] | null
+          title?: string
+          updated_at?: string | null
+          visibility?:
+            | Database["public"]["Enums"]["publication_visibility"]
+            | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string | null
@@ -4519,6 +4748,15 @@ export type Database = {
         Args: { message_id: string; reader_id: string }
         Returns: undefined
       }
+      search_publication_pages: {
+        Args: { p_limit?: number; p_publication_id: string; p_query: string }
+        Returns: {
+          headline: string
+          page_id: string
+          page_number: number
+          rank: number
+        }[]
+      }
       update_admin_storage_credentials: {
         Args: {
           p_access_key?: string
@@ -4598,6 +4836,13 @@ export type Database = {
       message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
       project_type: "exhibition" | "fair" | "publication" | "talk" | "other"
+      publication_processing_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+      publication_theme: "light" | "dark" | "auto"
+      publication_visibility: "public" | "unlisted" | "private"
       reference_type: "document" | "collection" | "artwork" | "artist"
       user_role: "gallery_admin" | "artist" | "external"
     }
@@ -4778,6 +5023,14 @@ export const Constants = {
       message_type: ["text", "file", "image"],
       project_status: ["active", "scheduled", "completed", "abandoned"],
       project_type: ["exhibition", "fair", "publication", "talk", "other"],
+      publication_processing_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+      ],
+      publication_theme: ["light", "dark", "auto"],
+      publication_visibility: ["public", "unlisted", "private"],
       reference_type: ["document", "collection", "artwork", "artist"],
       user_role: ["gallery_admin", "artist", "external"],
     },
