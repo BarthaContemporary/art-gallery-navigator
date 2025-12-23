@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FlipbookViewer } from './FlipbookViewer';
 import { FlipbookControls } from './FlipbookControls';
 import { LeadCaptureModal } from './LeadCaptureModal';
-// SEO meta tags will be handled by the edge function for crawlers
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
