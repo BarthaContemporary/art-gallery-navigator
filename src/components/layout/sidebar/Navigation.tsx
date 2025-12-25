@@ -21,7 +21,7 @@ export function Navigation() {
     { href: "/projects", icon: Archive, name: "Projects" },
     { href: "/admin/publications", icon: BookOpen, name: "Publications" },
     { href: "/viewer", icon: Image, name: "Image Viewer" },
-    { href: "/admin", icon: Settings, name: "Admin" },
+    { href: "/admin", icon: Settings, name: "Admin", end: true },
   ];
 
   return (
