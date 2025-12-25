@@ -246,7 +246,7 @@ export default function PublicationEditor() {
 
       // Trigger edge function for processing
       const { error: processError } = await supabase.functions.invoke('process-publication-pdf', {
-        body: { publicationId },
+        body: { publicationId, pdfUrl: urlData.publicUrl },
       });
 
       if (processError) {
