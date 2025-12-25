@@ -1,10 +1,52 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 import { cn } from '@/lib/utils';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// PDF.js types for dynamic loading
+interface PDFDocumentProxy {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PDFPageProxy>;
+}
+
+interface PDFPageProxy {
+  getViewport: (options: { scale: number }) => { width: number; height: number };
+  render: (options: { canvasContext: CanvasRenderingContext2D; viewport: any }) => { promise: Promise<void> };
+}
+
+interface PDFLib {
+  getDocument: (url: string) => { promise: Promise<PDFDocumentProxy> };
+  GlobalWorkerOptions: { workerSrc: string };
+  version: string;
+}
+
+// Global PDF.js instance
+let pdfjsLib: PDFLib | null = null;
+let pdfjsLoadPromise: Promise<PDFLib> | null = null;
+
+// Load PDF.js from CDN
+async function loadPdfJs(): Promise<PDFLib> {
+  if (pdfjsLib) return pdfjsLib;
+  if (pdfjsLoadPromise) return pdfjsLoadPromise;
+
+  pdfjsLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const lib = (window as any).pdfjsLib;
+      if (lib) {
+        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib = lib;
+        resolve(lib);
+      } else {
+        reject(new Error('PDF.js failed to load'));
+      }
+    };
+    script.onerror = () => reject(new Error('Failed to load PDF.js script'));
+    document.head.appendChild(script);
+  });
+
+  return pdfjsLoadPromise;
+}
 
 interface FlipbookPage {
   pageNumber: number;
@@ -25,16 +67,19 @@ interface FlipbookViewerProps {
 // PDF Page renderer component
 const PdfPage = forwardRef<HTMLDivElement, { 
   pageNumber: number;
-  pdfDocument: pdfjsLib.PDFDocumentProxy | null;
+  pdfDocument: PDFDocumentProxy | null;
   width: number;
   height: number;
 }>(({ pageNumber, pdfDocument, width, height }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rendered, setRendered] = useState(false);
   const [error, setError] = useState(false);
+  const renderingRef = useRef(false);
 
   useEffect(() => {
-    if (!pdfDocument || !canvasRef.current || rendered) return;
+    if (!pdfDocument || !canvasRef.current || rendered || renderingRef.current) return;
+
+    renderingRef.current = true;
 
     const renderPage = async () => {
       try {
@@ -159,10 +204,11 @@ export function FlipbookViewer({
   onPageChange,
   className,
   width = 400,
-  height = 565, // A4 ratio
+  height = 565,
 }: FlipbookViewerProps) {
-  const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
 
   // Load PDF document
   useEffect(() => {
@@ -171,11 +217,13 @@ export function FlipbookViewer({
     const loadPdf = async () => {
       setLoadingPdf(true);
       try {
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const lib = await loadPdfJs();
+        const loadingTask = lib.getDocument(pdfUrl);
         const doc = await loadingTask.promise;
         setPdfDocument(doc);
       } catch (err) {
         console.error('Failed to load PDF:', err);
+        setPdfError(true);
       } finally {
         setLoadingPdf(false);
       }
@@ -201,7 +249,6 @@ export function FlipbookViewer({
   // Memoize pages to prevent unnecessary re-renders
   const renderedPages = useMemo(() => {
     if (usePdfRendering && pdfDocument) {
-      // Use PDF.js to render pages directly
       return pages.map((page) => (
         <PdfPage 
           key={page.pageNumber} 
@@ -213,7 +260,6 @@ export function FlipbookViewer({
       ));
     }
 
-    // Use pre-rendered images
     return pages.map((page) => (
       <ImagePage 
         key={page.pageNumber} 
