@@ -9,15 +9,19 @@ interface SidebarNavItemProps {
   href: string;
   icon: LucideIcon;
   name: string;
+  end?: boolean;
 }
 
 export function SidebarNavItem({
   href,
   icon: Icon,
-  name
+  name,
+  end = false
 }: SidebarNavItemProps) {
   const location = useLocation();
-  const isActive = location.pathname === href || href !== "/" && location.pathname.startsWith(href);
+  const isActive = end 
+    ? location.pathname === href 
+    : location.pathname === href || (href !== "/" && location.pathname.startsWith(href + "/"));
 
   return (
     <TooltipProvider>
