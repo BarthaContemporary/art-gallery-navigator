@@ -108,10 +108,10 @@ function App() {
                       <Route path="integrations" element={<AdminIntegrationsPage />} />
                       <Route path="settings" element={<AdminSettingsPage />} />
                       <Route path="logs" element={<AdminLogsPage />} />
-                      <Route path="publications" element={<Publications />} />
-                      <Route path="publications/:id" element={<PublicationEditor />} />
-                      <Route path="publications/:id/leads" element={<PublicationLeads />} />
                     </Route>
+                    <Route path="admin/publications" element={<Publications />} />
+                    <Route path="admin/publications/:id" element={<PublicationEditor />} />
+                    <Route path="admin/publications/:id/leads" element={<PublicationLeads />} />
                     <Route path="viewer" element={<ViewerLayout />}>
                       <Route index element={<ViewerArtworksPage />} />
                       <Route path=":id" element={<ViewerArtworkDetailPage />} />
