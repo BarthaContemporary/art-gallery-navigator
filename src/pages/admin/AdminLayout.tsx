@@ -9,7 +9,8 @@ import {
   ScrollText,
   ChevronRight,
   Menu,
-  X
+  X,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 const adminNavItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Overview", end: true },
   { href: "/admin/users", icon: Users, label: "Users & Roles" },
+  { href: "/admin/publications", icon: BookOpen, label: "Publications" },
   { href: "/admin/integrations", icon: Plug, label: "Integrations" },
   { href: "/admin/settings", icon: Settings, label: "Settings" },
   { href: "/admin/logs", icon: ScrollText, label: "Logs & Audit" },
