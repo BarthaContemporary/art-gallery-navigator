@@ -116,7 +116,7 @@ export function FlipbookViewer({
         ref={flipbookRef}
         width={width}
         height={height}
-        size="stretch"
+        size="fixed"
         minWidth={280}
         maxWidth={600}
         minHeight={400}
@@ -127,12 +127,12 @@ export function FlipbookViewer({
         onFlip={handleFlip}
         className="flipbook-book"
         style={{}}
-        startPage={Math.max(0, currentPage - 1)}
+        startPage={0}
         drawShadow={true}
         flippingTime={600}
-        usePortrait={true}
+        usePortrait={false}
         startZIndex={0}
-        autoSize={true}
+        autoSize={false}
         clickEventForward={true}
         useMouseEvents={true}
         swipeDistance={30}
