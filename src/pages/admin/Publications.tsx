@@ -120,7 +120,7 @@ export default function Publications() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-2 mb-1">
-                      <h3 className="font-semibold truncate">{pub.title}</h3>
+                      <h3 className="text-sm font-semibold truncate">{pub.title}</h3>
                       <Badge variant={getStatusColor(pub.processing_status || 'pending')}>
                         {pub.processing_status || 'pending'}
                       </Badge>
