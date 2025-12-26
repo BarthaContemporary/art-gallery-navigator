@@ -141,7 +141,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
 
   // Handle cover image capture and upload
   const handleCoverReady = useCallback(async (canvas: HTMLCanvasElement) => {
-    if (!publication?.id || coverUploadedRef.current || publication.og_image_url) return;
+    if (!publication?.id || coverUploadedRef.current) return;
     
     coverUploadedRef.current = true;
     console.log('Cover ready, uploading...');
