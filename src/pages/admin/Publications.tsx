@@ -110,7 +110,7 @@ export default function Publications() {
           </CardContent>
         </Card> : <div className="grid gap-4">
           {publications?.map(pub => <Card key={pub.id} className="overflow-hidden">
-              <CardContent className="p-4">
+              <CardContent className="px-4 pb-4 pt-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   {/* Thumbnail */}
                   <div className="w-full md:w-24 h-32 md:h-24 bg-muted rounded-md flex items-center justify-center shrink-0">
