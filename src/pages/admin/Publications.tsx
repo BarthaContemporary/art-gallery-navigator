@@ -113,8 +113,20 @@ export default function Publications() {
               <CardContent className="px-4 pb-4 pt-6">
                 <div className="flex flex-col md:flex-row items-center gap-4">
                   {/* Thumbnail */}
-                  <div className="w-full md:w-24 h-32 md:h-24 bg-muted rounded-md flex items-center justify-center shrink-0">
-                    {pub.og_image_url ? <img src={pub.og_image_url} alt={pub.title} className="w-full h-full object-cover rounded-md" /> : <FileText className="h-8 w-8 text-muted-foreground" />}
+                  <div className="w-full md:w-24 h-32 md:h-24 bg-muted rounded-md flex items-center justify-center shrink-0 overflow-hidden">
+                    {pub.og_image_url ? (
+                      <img 
+                        src={pub.og_image_url} 
+                        alt={pub.title} 
+                        className="w-full h-full object-cover rounded-md"
+                        onError={(e) => {
+                          // Hide broken image and show fallback
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <FileText className={`h-8 w-8 text-muted-foreground ${pub.og_image_url ? 'hidden' : ''}`} />
                   </div>
 
                   {/* Info */}
