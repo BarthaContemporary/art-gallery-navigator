@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [leadCaptureOpen, setLeadCaptureOpen] = useState(false);
+  const coverUploadedRef = useRef(false);
 
   // Fetch publication data
   const { data: publication, isLoading: loadingPublication, error: publicationError } = useQuery({
@@ -138,6 +139,57 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
     }
   };
 
+  // Handle cover image capture and upload
+  const handleCoverReady = useCallback(async (canvas: HTMLCanvasElement) => {
+    if (!publication?.id || coverUploadedRef.current || publication.og_image_url) return;
+    
+    coverUploadedRef.current = true;
+    console.log('Cover ready, uploading...');
+
+    try {
+      // Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Failed to create blob from canvas'));
+        }, 'image/jpeg', 0.9);
+      });
+
+      // Upload to storage
+      const coverPath = `${publication.id}/cover.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('publications')
+        .upload(coverPath, blob, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error('Failed to upload cover:', uploadError);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('publications')
+        .getPublicUrl(coverPath);
+
+      // Update publication with cover URL
+      const { error: updateError } = await supabase
+        .from('publications')
+        .update({ og_image_url: urlData.publicUrl })
+        .eq('id', publication.id);
+
+      if (updateError) {
+        console.error('Failed to update publication with cover URL:', updateError);
+      } else {
+        console.log('Cover image uploaded successfully:', urlData.publicUrl);
+      }
+    } catch (err) {
+      console.error('Error uploading cover:', err);
+    }
+  }, [publication?.id, publication?.og_image_url]);
+
   // Prepare pages for flipbook
   const flipbookPages = (pages || []).map(page => ({
     pageNumber: page.page_number,
@@ -231,6 +283,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
             pdfUrl={publication.pdf_url || undefined}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
+            onCoverReady={handleCoverReady}
             width={450}
             height={636}
           />

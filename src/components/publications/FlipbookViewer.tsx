@@ -59,6 +59,7 @@ interface FlipbookViewerProps {
   pdfUrl?: string;
   currentPage: number;
   onPageChange: (page: number) => void;
+  onCoverReady?: (canvas: HTMLCanvasElement) => void;
   className?: string;
   width?: number;
   height?: number;
@@ -70,7 +71,8 @@ const PdfPage = forwardRef<HTMLDivElement, {
   pdfDocument: PDFDocumentProxy | null;
   width: number;
   height: number;
-}>(({ pageNumber, pdfDocument, width, height }, ref) => {
+  onRendered?: (canvas: HTMLCanvasElement) => void;
+}>(({ pageNumber, pdfDocument, width, height, onRendered }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rendered, setRendered] = useState(false);
   const [error, setError] = useState(false);
@@ -80,15 +82,22 @@ const PdfPage = forwardRef<HTMLDivElement, {
     if (!pdfDocument || !canvasRef.current || rendered || renderingRef.current) return;
 
     renderingRef.current = true;
+    console.log(`Starting render of page ${pageNumber}...`);
 
     const renderPage = async () => {
       try {
         const page = await pdfDocument.getPage(pageNumber);
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) {
+          console.error(`Canvas not available for page ${pageNumber}`);
+          return;
+        }
 
         const context = canvas.getContext('2d');
-        if (!context) return;
+        if (!context) {
+          console.error(`Could not get 2d context for page ${pageNumber}`);
+          return;
+        }
 
         // Calculate scale to fit the container
         const viewport = page.getViewport({ scale: 1 });
@@ -108,7 +117,13 @@ const PdfPage = forwardRef<HTMLDivElement, {
           viewport: scaledViewport,
         }).promise;
 
+        console.log(`Page ${pageNumber} rendered successfully`);
         setRendered(true);
+        
+        // Notify parent that this page was rendered (for cover capture)
+        if (onRendered) {
+          onRendered(canvas);
+        }
       } catch (err) {
         console.error(`Failed to render page ${pageNumber}:`, err);
         setError(true);
@@ -116,7 +131,7 @@ const PdfPage = forwardRef<HTMLDivElement, {
     };
 
     renderPage();
-  }, [pdfDocument, pageNumber, width, height, rendered]);
+  }, [pdfDocument, pageNumber, width, height, rendered, onRendered]);
 
   return (
     <div 
@@ -202,6 +217,7 @@ export function FlipbookViewer({
   pdfUrl,
   currentPage,
   onPageChange,
+  onCoverReady,
   className,
   width = 400,
   height = 565,
@@ -209,17 +225,25 @@ export function FlipbookViewer({
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState(false);
+  const coverCapturedRef = useRef(false);
+
+  // Check if any page has a pre-rendered image
+  const hasPreRenderedImages = pages.some(p => p.imageUrl);
 
   // Load PDF document
   useEffect(() => {
-    if (!pdfUrl || pdfDocument) return;
+    if (!pdfUrl || pdfDocument || hasPreRenderedImages) return;
 
     const loadPdf = async () => {
       setLoadingPdf(true);
+      setPdfError(false);
+      console.log('Loading PDF from URL:', pdfUrl);
       try {
         const lib = await loadPdfJs();
+        console.log('PDF.js loaded, fetching document...');
         const loadingTask = lib.getDocument(pdfUrl);
         const doc = await loadingTask.promise;
+        console.log('PDF loaded successfully, pages:', doc.numPages);
         setPdfDocument(doc);
       } catch (err) {
         console.error('Failed to load PDF:', err);
@@ -230,7 +254,7 @@ export function FlipbookViewer({
     };
 
     loadPdf();
-  }, [pdfUrl, pdfDocument]);
+  }, [pdfUrl, pdfDocument, hasPreRenderedImages]);
 
   const flipbookRef = useCallback((node: any) => {
     if (node) {
@@ -243,19 +267,28 @@ export function FlipbookViewer({
     onPageChange(newPage);
   }, [onPageChange]);
 
-  // Check if we should use PDF rendering or pre-rendered images
-  const usePdfRendering = pdfUrl && pdfDocument && pages.every(p => !p.imageUrl);
+  // Use PDF rendering when we have PDF document and no pre-rendered images
+  const usePdfRendering = pdfUrl && pdfDocument && !hasPreRenderedImages;
+
+  // Handler for when cover page is rendered
+  const handleCoverRendered = useCallback((canvas: HTMLCanvasElement) => {
+    if (coverCapturedRef.current || !onCoverReady) return;
+    coverCapturedRef.current = true;
+    console.log('Cover page rendered, notifying parent');
+    onCoverReady(canvas);
+  }, [onCoverReady]);
 
   // Memoize pages to prevent unnecessary re-renders
   const renderedPages = useMemo(() => {
     if (usePdfRendering && pdfDocument) {
-      return pages.map((page) => (
+      return pages.map((page, index) => (
         <PdfPage 
           key={page.pageNumber} 
           pageNumber={page.pageNumber}
           pdfDocument={pdfDocument}
           width={width}
           height={height}
+          onRendered={index === 0 ? handleCoverRendered : undefined}
         />
       ));
     }
@@ -267,7 +300,7 @@ export function FlipbookViewer({
         pageNumber={page.pageNumber}
       />
     ));
-  }, [pages, usePdfRendering, pdfDocument, width, height]);
+  }, [pages, usePdfRendering, pdfDocument, width, height, handleCoverRendered]);
 
   if (pages.length === 0) {
     return (
@@ -282,6 +315,17 @@ export function FlipbookViewer({
       <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
         <div className="text-center">
           <div className="animate-pulse text-muted-foreground">Loading document...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (pdfError && !hasPreRenderedImages) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-muted rounded-lg">
+        <div className="text-center text-destructive">
+          <p>Failed to load document</p>
+          <p className="text-sm text-muted-foreground mt-2">Please try refreshing the page</p>
         </div>
       </div>
     );
