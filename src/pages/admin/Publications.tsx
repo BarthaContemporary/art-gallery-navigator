@@ -77,7 +77,7 @@ export default function Publications() {
         return 'outline';
     }
   };
-  return <div className="container mx-auto py-6 px-4 max-w-7xl">
+  return <div className="container mx-auto py-6 px-4 max-w-7xl flex flex-col items-center">
       <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center gap-4 mb-6">
         <Button asChild>
           <Link to="/admin/publications/new">
