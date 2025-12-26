@@ -24,6 +24,8 @@ interface FlipbookControlsProps {
   onDownloadClick: () => void;
   downloadGateEnabled: boolean;
   publicationTitle: string;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
 }
 
 export function FlipbookControls({
@@ -37,11 +39,12 @@ export function FlipbookControls({
   onDownloadClick,
   downloadGateEnabled,
   publicationTitle,
+  zoom,
+  onZoomChange,
 }: FlipbookControlsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoom, setZoom] = useState(1);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,9 +82,9 @@ export function FlipbookControls({
     }
   };
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.5));
-  const handleZoomReset = () => setZoom(1);
+  const handleZoomIn = () => onZoomChange(Math.min(zoom + 0.25, 2));
+  const handleZoomOut = () => onZoomChange(Math.max(zoom - 0.25, 0.5));
+  const handleZoomReset = () => onZoomChange(1);
 
   return (
     <div className="flipbook-controls space-y-4">

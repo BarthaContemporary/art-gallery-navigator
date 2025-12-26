@@ -63,6 +63,7 @@ interface FlipbookViewerProps {
   className?: string;
   width?: number;
   height?: number;
+  zoom?: number;
 }
 
 // PDF Page renderer component
@@ -221,11 +222,13 @@ export function FlipbookViewer({
   className,
   width = 400,
   height = 565,
+  zoom = 1,
 }: FlipbookViewerProps) {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState(false);
   const coverCapturedRef = useRef(false);
+  const flipbookInstanceRef = useRef<any>(null);
 
   // Check if any page has a pre-rendered image
   const hasPreRenderedImages = pages.some(p => p.imageUrl);
@@ -258,9 +261,24 @@ export function FlipbookViewer({
 
   const flipbookRef = useCallback((node: any) => {
     if (node) {
+      flipbookInstanceRef.current = node;
       (window as any).__flipbookRef = node;
     }
   }, []);
+
+  // Sync currentPage prop with flipbook
+  useEffect(() => {
+    if (flipbookInstanceRef.current && currentPage >= 1) {
+      const pageFlip = flipbookInstanceRef.current.pageFlip();
+      if (pageFlip) {
+        const currentFlipPage = pageFlip.getCurrentPageIndex();
+        const targetPage = currentPage - 1; // 0-indexed
+        if (currentFlipPage !== targetPage) {
+          pageFlip.turnToPage(targetPage);
+        }
+      }
+    }
+  }, [currentPage]);
 
   const handleFlip = useCallback((e: any) => {
     const newPage = e.data + 1;
@@ -332,7 +350,10 @@ export function FlipbookViewer({
   }
 
   return (
-    <div className={cn("flipbook-container flex items-center justify-center", className)}>
+    <div 
+      className={cn("flipbook-container flex items-center justify-center transition-transform duration-200", className)}
+      style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+    >
       <HTMLFlipBook
         ref={flipbookRef}
         width={width}

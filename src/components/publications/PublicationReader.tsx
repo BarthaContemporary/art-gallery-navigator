@@ -22,6 +22,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [leadCaptureOpen, setLeadCaptureOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const coverUploadedRef = useRef(false);
 
   // Fetch publication data
@@ -263,10 +264,12 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
           onDownloadClick={handleDownloadClick}
           downloadGateEnabled={publication.download_gate_enabled || false}
           publicationTitle={publication.title}
+          zoom={zoom}
+          onZoomChange={setZoom}
         />
 
         {/* Flipbook */}
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex justify-center overflow-hidden">
           <FlipbookViewer
             pages={flipbookPages}
             pdfUrl={publication.pdf_url || undefined}
@@ -275,6 +278,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
             onCoverReady={handleCoverReady}
             width={450}
             height={636}
+            zoom={zoom}
           />
         </div>
 
