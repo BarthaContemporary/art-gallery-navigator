@@ -251,17 +251,6 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
       </Helmet>
 
       <div className="publication-reader-container max-w-6xl mx-auto px-4 py-6">
-        {/* Header */}
-        <header className="mb-6 text-center">
-          <h1 className="text-2xl md:text-3xl font-bold">{publication.title}</h1>
-          {publication.subtitle && (
-            <p className="text-lg text-muted-foreground mt-1">{publication.subtitle}</p>
-          )}
-          {publication.author && (
-            <p className="text-sm text-muted-foreground mt-2">By {publication.author}</p>
-          )}
-        </header>
-
         {/* Controls */}
         <FlipbookControls
           pages={flipbookPages}
@@ -289,13 +278,21 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
           />
         </div>
 
-        {/* Description */}
-        {publication.description && (
-          <div className="mt-8 max-w-2xl mx-auto">
-            <h2 className="text-lg font-semibold mb-2">About this publication</h2>
-            <p className="text-muted-foreground">{publication.description}</p>
-          </div>
-        )}
+        {/* Title, Subtitle, Author - below flipbook */}
+        <div className="mt-8 max-w-2xl mx-auto">
+          <h1 className="text-lg font-semibold">{publication.title}</h1>
+          {publication.subtitle && (
+            <p className="text-muted-foreground mt-1">{publication.subtitle}</p>
+          )}
+          {publication.author && (
+            <p className="text-sm text-muted-foreground mt-2">By {publication.author}</p>
+          )}
+
+          {/* Description */}
+          {publication.description && (
+            <p className="text-muted-foreground mt-4">{publication.description}</p>
+          )}
+        </div>
       </div>
 
       {/* Lead capture modal */}
