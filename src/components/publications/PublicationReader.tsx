@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { FlipbookViewer } from './FlipbookViewer';
 import { FlipbookControls } from './FlipbookControls';
 import { LeadCaptureModal } from './LeadCaptureModal';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PublicationReaderProps {
   publicationSlug: string;
@@ -251,7 +252,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
         <link rel="canonical" href={`/p/${publication.slug}`} />
       </Helmet>
 
-      <div className="publication-reader-container max-w-6xl mx-auto px-4 py-6">
+      <div className="publication-reader-container max-w-6xl mx-auto px-4 py-6 min-h-screen bg-muted/30">
         {/* Controls */}
         <FlipbookControls
           pages={flipbookPages}
@@ -293,9 +294,17 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
             <p className="text-sm text-muted-foreground mt-2">By {publication.author}</p>
           )}
 
-          {/* Description */}
+          {/* Description - Collapsible */}
           {publication.description && (
-            <p className="text-muted-foreground mt-4">{publication.description}</p>
+            <Collapsible className="mt-4">
+              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                <span>Description</span>
+                <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <p className="text-muted-foreground">{publication.description}</p>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
       </div>
