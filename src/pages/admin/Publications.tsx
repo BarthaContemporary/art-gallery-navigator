@@ -119,22 +119,26 @@ export default function Publications() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2 mb-1">
-                      <h3 className="text-sm font-semibold truncate">{pub.title}</h3>
-                      <Badge variant={getStatusColor(pub.processing_status || 'pending')}>
-                        {pub.processing_status || 'pending'}
-                      </Badge>
-                      <Badge variant={getVisibilityColor(pub.visibility || 'private')}>
-                        {pub.visibility || 'private'}
-                      </Badge>
-                    </div>
+                    <h3 className="text-sm font-semibold truncate mb-1">{pub.title}</h3>
                     {pub.author && <p className="text-sm text-muted-foreground">By {pub.author}</p>}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {pub.page_count || 0} pages • Created {format(new Date(pub.created_at), 'MMM d, yyyy')}
-                    </p>
-                    {pub.slug && <p className="text-xs text-muted-foreground mt-1 font-mono">
-                        /p/{pub.slug}
-                      </p>}
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">
+                          {pub.page_count || 0} pages • Created {format(new Date(pub.created_at), 'MMM d, yyyy')}
+                        </p>
+                        {pub.slug && <span className="text-xs text-muted-foreground font-mono">
+                          /p/{pub.slug}
+                        </span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getStatusColor(pub.processing_status || 'pending')}>
+                          {pub.processing_status || 'pending'}
+                        </Badge>
+                        <Badge variant={getVisibilityColor(pub.visibility || 'private')}>
+                          {pub.visibility || 'private'}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Actions */}
