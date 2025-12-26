@@ -266,6 +266,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
           publicationTitle={publication.title}
           zoom={zoom}
           onZoomChange={setZoom}
+          pdfUrl={publication.pdf_url || undefined}
         />
 
         {/* Flipbook */}
