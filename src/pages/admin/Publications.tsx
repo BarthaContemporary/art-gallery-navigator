@@ -118,10 +118,10 @@ export default function Publications() {
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold truncate mb-1">{pub.title}</h3>
-                    {pub.author && <p className="text-sm text-muted-foreground">By {pub.author}</p>}
-                    <div className="flex items-center justify-between mt-1">
+                  <div className="flex-1 min-w-0 py-1">
+                    <h3 className="text-sm font-semibold truncate">{pub.title}</h3>
+                    {pub.author && <p className="text-sm text-muted-foreground mt-1">By {pub.author}</p>}
+                    <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <p className="text-sm text-muted-foreground">
                           {pub.page_count || 0} pages • Created {format(new Date(pub.created_at), 'MMM d, yyyy')}
