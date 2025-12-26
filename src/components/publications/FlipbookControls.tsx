@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Search, Grid, Maximize, Minimize, Download, ZoomIn, ZoomOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,88 @@ interface FlipbookPage {
   pageNumber: number;
   imageUrl?: string;
   textContent?: string;
+}
+
+interface ThumbnailProps {
+  page: FlipbookPage;
+  pdfUrl?: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function Thumbnail({ page, pdfUrl, isActive, onClick }: ThumbnailProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [rendered, setRendered] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (page.imageUrl || !pdfUrl || rendered || error) return;
+
+    const renderThumbnail = async () => {
+      try {
+        const pdfjsLib = (window as any).pdfjsLib;
+        if (!pdfjsLib) return;
+
+        const doc = await pdfjsLib.getDocument(pdfUrl).promise;
+        const pdfPage = await doc.getPage(page.pageNumber);
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        const viewport = pdfPage.getViewport({ scale: 0.3 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await pdfPage.render({
+          canvasContext: context,
+          viewport: viewport,
+        }).promise;
+
+        setRendered(true);
+      } catch (err) {
+        console.error('Failed to render thumbnail:', err);
+        setError(true);
+      }
+    };
+
+    renderThumbnail();
+  }, [page.pageNumber, page.imageUrl, pdfUrl, rendered, error]);
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative aspect-[3/4] rounded-md overflow-hidden border-2 transition-all",
+        isActive 
+          ? "border-primary ring-2 ring-primary/20" 
+          : "border-border hover:border-primary/50"
+      )}
+    >
+      {page.imageUrl ? (
+        <img 
+          src={page.imageUrl} 
+          alt={`Page ${page.pageNumber}`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      ) : rendered ? (
+        <canvas ref={canvasRef} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-muted flex items-center justify-center">
+          {error ? (
+            <span className="text-lg font-medium text-muted-foreground">{page.pageNumber}</span>
+          ) : (
+            <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>
+          )}
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
+        {page.pageNumber}
+      </div>
+    </button>
+  );
 }
 
 interface FlipbookControlsProps {
@@ -26,6 +108,7 @@ interface FlipbookControlsProps {
   publicationTitle: string;
   zoom: number;
   onZoomChange: (zoom: number) => void;
+  pdfUrl?: string;
 }
 
 export function FlipbookControls({
@@ -41,6 +124,7 @@ export function FlipbookControls({
   publicationTitle,
   zoom,
   onZoomChange,
+  pdfUrl,
 }: FlipbookControlsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
@@ -55,13 +139,17 @@ export function FlipbookControls({
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      onPageChange(currentPage - 1);
+      // Move by 2 for spread view (1 -> 1, 3 -> 1, 5 -> 3, etc.)
+      const newPage = currentPage <= 2 ? 1 : currentPage - 2;
+      onPageChange(newPage);
     }
   };
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      onPageChange(currentPage + 1);
+      // Move by 2 for spread view (1 -> 3, 3 -> 5, etc.)
+      const newPage = currentPage === 1 ? 3 : Math.min(currentPage + 2, totalPages);
+      onPageChange(newPage);
     }
   };
 
@@ -169,38 +257,34 @@ export function FlipbookControls({
               </SheetHeader>
               <ScrollArea className="h-[calc(100vh-100px)] mt-4">
                 <div className="grid grid-cols-2 gap-3 pr-4">
-                  {pages.map((page) => (
-                    <button
+                  {/* First page on its own row, right-aligned */}
+                  {pages.length > 0 && (
+                    <div className="col-span-2 flex justify-end">
+                      <div className="w-[calc(50%-6px)]">
+                        <Thumbnail
+                          page={pages[0]}
+                          pdfUrl={pdfUrl}
+                          isActive={currentPage === pages[0].pageNumber}
+                          onClick={() => {
+                            onPageChange(pages[0].pageNumber);
+                            setThumbnailsOpen(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {/* Remaining pages in 2-column grid */}
+                  {pages.slice(1).map((page) => (
+                    <Thumbnail
                       key={page.pageNumber}
+                      page={page}
+                      pdfUrl={pdfUrl}
+                      isActive={currentPage === page.pageNumber}
                       onClick={() => {
                         onPageChange(page.pageNumber);
                         setThumbnailsOpen(false);
                       }}
-                      className={cn(
-                        "relative aspect-[3/4] rounded-md overflow-hidden border-2 transition-all",
-                        currentPage === page.pageNumber 
-                          ? "border-primary ring-2 ring-primary/20" 
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      {page.imageUrl ? (
-                        <img 
-                          src={page.imageUrl} 
-                          alt={`Page ${page.pageNumber}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <span className="text-lg font-medium text-muted-foreground">
-                            {page.pageNumber}
-                          </span>
-                        </div>
-                      )}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
-                        {page.pageNumber}
-                      </div>
-                    </button>
+                    />
                   ))}
                 </div>
               </ScrollArea>
