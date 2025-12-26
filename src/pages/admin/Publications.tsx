@@ -78,11 +78,7 @@ export default function Publications() {
     }
   };
   return <div className="container mx-auto py-6 px-4 max-w-7xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          
-          
-        </div>
+      <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center gap-4 mb-6">
         <Button asChild>
           <Link to="/admin/publications/new">
             <Plus className="h-4 w-4 mr-2" />
