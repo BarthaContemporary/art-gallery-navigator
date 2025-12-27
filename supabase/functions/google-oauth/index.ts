@@ -71,8 +71,7 @@ serve(async (req) => {
 
     if (action === 'exchange-code') {
       // Exchange authorization code for tokens
-      console.log('Exchanging code for tokens...');
-      console.log('Redirect URI used for exchange:', redirectUri);
+      console.log('Processing OAuth code exchange');
       
       if (!code) {
         console.error('Missing authorization code');
@@ -113,7 +112,7 @@ serve(async (req) => {
         throw new Error(tokenData.error_description || tokenData.error);
       }
 
-      console.log('Token exchange successful, storing tokens...');
+      console.log('OAuth exchange successful, storing configuration');
 
       // Store tokens in database
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
@@ -138,7 +137,7 @@ serve(async (req) => {
         throw upsertError;
       }
 
-      console.log('Tokens stored successfully for user:', user.id);
+      console.log('OAuth configuration stored successfully');
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

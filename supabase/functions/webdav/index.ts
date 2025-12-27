@@ -151,7 +151,7 @@ async function authenticateUser(req: Request, supabase: any, requestId: string) 
     const credentials = atob(authHeader.substring(6));
     const [username, password] = credentials.split(':');
     
-    console.log(`[${requestId}] Authenticating user: ${username}, token length: ${password?.length || 0}`);
+    console.log(`[${requestId}] Authenticating user: ${username}`);
 
     if (!password || password.length === 0) {
       console.log(`[${requestId}] Empty password/token`);

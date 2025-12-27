@@ -158,7 +158,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Download token created: ${downloadToken.id}, expires at ${expiresAt}`);
+    console.log('Download token created successfully');
 
     return new Response(
       JSON.stringify({
