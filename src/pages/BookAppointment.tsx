@@ -10,6 +10,7 @@ import { AppointmentSummary } from "@/components/appointments/AppointmentSummary
 import { BookingSuccessView } from "@/components/appointments/BookingSuccessView";
 import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 import { supabase } from "@/integrations/supabase/client";
+import { validateAppointmentForm } from "@/utils/appointment-validation";
 
 export default function BookAppointment() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -61,6 +62,39 @@ export default function BookAppointment() {
       return;
     }
 
+    const slot = availableSlots.find(s => s.id === selectedSlot);
+    if (!slot) {
+      toast.error("Selected slot is no longer available");
+      return;
+    }
+
+    const startDateTime = new Date(selectedDate);
+    const [startHour, startMinute] = slot.start_time.split(':');
+    startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + 15);
+
+    // Validate and sanitize all form inputs
+    const validationResult = validateAppointmentForm({
+      clientName,
+      clientEmail,
+      clientPhone,
+      notes,
+      locationId: selectedLocation,
+      slotId: selectedSlot,
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString(),
+    });
+
+    if (!validationResult.success) {
+      const failedResult = validationResult as { success: false; errors: string[] };
+      failedResult.errors.forEach(error => toast.error(error));
+      return;
+    }
+    
+    const validatedData = validationResult.data;
+
     // Verify CAPTCHA token server-side
     try {
       const { data: verifyResult, error: verifyError } = await supabase.functions.invoke('verify-turnstile', {
@@ -78,28 +112,16 @@ export default function BookAppointment() {
       return;
     }
 
-    const slot = availableSlots.find(s => s.id === selectedSlot);
-    if (!slot) {
-      toast.error("Selected slot is no longer available");
-      return;
-    }
-
-    const startDateTime = new Date(selectedDate);
-    const [startHour, startMinute] = slot.start_time.split(':');
-    startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
-
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setMinutes(endDateTime.getMinutes() + 15);
-
+    // Use validated and sanitized data
     const appointmentData = {
-      appointment_slot_id: slot.id,
-      start_datetime: startDateTime.toISOString(),
-      end_datetime: endDateTime.toISOString(),
-      client_name: clientName,
-      client_email: clientEmail,
-      client_phone: clientPhone || undefined,
-      notes: notes || undefined,
-      location_id: selectedLocation,
+      appointment_slot_id: validatedData.appointment_slot_id,
+      start_datetime: validatedData.start_datetime,
+      end_datetime: validatedData.end_datetime,
+      client_name: validatedData.client_name,
+      client_email: validatedData.client_email,
+      client_phone: validatedData.client_phone || undefined,
+      notes: validatedData.notes || undefined,
+      location_id: validatedData.location_id,
       status: 'pending' as const,
     };
 

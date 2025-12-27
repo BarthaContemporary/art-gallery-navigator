@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
+import { APPOINTMENT_LIMITS } from "@/utils/appointment-validation";
 import type { Location } from "@/hooks/use-locations";
 
 interface ClientInformationFormProps {
@@ -64,8 +65,14 @@ export function ClientInformationForm({
               value={clientName}
               onChange={(e) => onClientNameChange(e.target.value)}
               required
+              maxLength={APPOINTMENT_LIMITS.NAME_MAX_LENGTH}
+              pattern="^[a-zA-Z\s\-'.]+$"
+              title="Name can only contain letters, spaces, hyphens, apostrophes, and periods"
               className="mt-1"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              {clientName.length}/{APPOINTMENT_LIMITS.NAME_MAX_LENGTH} characters
+            </p>
           </div>
 
           <div>
@@ -76,6 +83,7 @@ export function ClientInformationForm({
               value={clientEmail}
               onChange={(e) => onClientEmailChange(e.target.value)}
               required
+              maxLength={APPOINTMENT_LIMITS.EMAIL_MAX_LENGTH}
               className="mt-1"
             />
           </div>
@@ -87,6 +95,9 @@ export function ClientInformationForm({
               type="tel"
               value={clientPhone}
               onChange={(e) => onClientPhoneChange(e.target.value)}
+              maxLength={APPOINTMENT_LIMITS.PHONE_MAX_LENGTH}
+              pattern="^[\d\s\-+().]*$"
+              title="Phone can only contain numbers, spaces, hyphens, plus signs, parentheses, and periods"
               className="mt-1"
             />
           </div>
@@ -118,8 +129,12 @@ export function ClientInformationForm({
               onChange={(e) => onNotesChange(e.target.value)}
               placeholder="Any specific requirements or questions..."
               rows={3}
+              maxLength={APPOINTMENT_LIMITS.NOTES_MAX_LENGTH}
               className="mt-1"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              {notes.length}/{APPOINTMENT_LIMITS.NOTES_MAX_LENGTH} characters
+            </p>
           </div>
 
           <div className="space-y-2">
