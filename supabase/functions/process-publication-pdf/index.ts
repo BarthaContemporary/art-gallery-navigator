@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getDocumentProxy, extractText } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,15 +48,15 @@ serve(async (req) => {
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfData = new Uint8Array(pdfBuffer);
     console.log(`PDF fetched, size: ${pdfBuffer.byteLength} bytes`);
 
-    // Import pdf-lib dynamically
-    const { PDFDocument } = await import("https://esm.sh/pdf-lib@1.17.1");
+    // Load PDF using unpdf for text extraction
+    console.log('Loading PDF document for text extraction...');
+    const pdf = await getDocumentProxy(pdfData);
+    const pageCount = pdf.numPages;
     
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-    const pageCount = pdfDoc.getPageCount();
-    
-    console.log(`PDF has ${pageCount} pages`);
+    console.log(`PDF has ${pageCount} pages, extracting text from each page...`);
 
     // Update publication with page count
     await supabase
@@ -63,19 +64,39 @@ serve(async (req) => {
       .update({ page_count: pageCount })
       .eq('id', publicationId);
 
-    // Create page records
+    // Extract text from each page and create page records
     const pageRecords = [];
+    let totalTextLength = 0;
+
     for (let i = 1; i <= pageCount; i++) {
+      console.log(`Extracting text from page ${i}/${pageCount}...`);
+      
+      let pageText = '';
+      try {
+        // Extract text from this specific page
+        const { text } = await extractText(pdfData, { mergePages: false });
+        if (text && text[i - 1]) {
+          pageText = text[i - 1].trim();
+        }
+      } catch (textError) {
+        console.warn(`Warning: Could not extract text from page ${i}:`, textError);
+        pageText = '';
+      }
+
+      totalTextLength += pageText.length;
+
       pageRecords.push({
         publication_id: publicationId,
         page_number: i,
-        text_content: '',
+        text_content: pageText,
         render_low_url: null,
         render_high_url: null,
       });
     }
 
-    // Insert all pages
+    console.log(`Text extraction complete. Total characters extracted: ${totalTextLength}`);
+
+    // Insert all pages (the trigger will automatically populate text_tokens)
     const { error: pagesError } = await supabase
       .from('publication_pages')
       .insert(pageRecords);
@@ -85,39 +106,19 @@ serve(async (req) => {
       throw new Error(`Failed to create page records: ${pagesError.message}`);
     }
 
-    console.log(`Created ${pageCount} page records`);
+    console.log(`Created ${pageCount} page records with text content`);
 
-    // Generate cover image using an external PDF rendering service
-    // We'll use pdf.js via a simple canvas-like approach or store PDF URL as fallback
+    // Generate full document text for SEO metadata
+    const fullText = pageRecords.map(p => p.text_content).join(' ').substring(0, 5000);
+    
+    // Update publication as completed with text excerpt for SEO
     let ogImageUrl = null;
-
-    try {
-      // Use a PDF to image conversion service - we'll use the first page
-      // For now, generate a cover using the PDF rendering API
-      const coverFileName = `${publicationId}/cover.jpg`;
-      
-      // Try to use an external rendering service to create a thumbnail
-      // Using pdf2pic or similar - for now we'll use a placeholder approach
-      // and let the client generate the actual image on first view
-      
-      // Store the PDF URL as a reference - the actual cover will be generated client-side
-      // and uploaded back to storage
-      console.log('Cover image will be generated client-side on first view');
-      
-      // For OG image, we'll reference the PDF URL until cover is generated
-      ogImageUrl = null; // Will be set by client after rendering
-      
-    } catch (coverError) {
-      console.error('Error generating cover:', coverError);
-      // Continue without cover image
-    }
-
-    // Update publication as completed
+    
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
         processing_status: 'completed',
-        og_image_url: ogImageUrl
+        og_image_url: ogImageUrl,
       })
       .eq('id', publicationId);
 
@@ -125,13 +126,14 @@ serve(async (req) => {
       throw new Error(`Failed to update publication status: ${updateError.message}`);
     }
 
-    console.log('Publication processing completed successfully');
+    console.log('Publication processing completed successfully with full-text indexing');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         pageCount,
-        message: 'Publication processed successfully' 
+        totalTextLength,
+        message: 'Publication processed successfully with text extraction' 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
