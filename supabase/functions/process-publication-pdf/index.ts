@@ -64,25 +64,24 @@ serve(async (req) => {
       .update({ page_count: pageCount })
       .eq('id', publicationId);
 
-    // Extract text from each page and create page records
+    // Extract all text in a single call (much more efficient than per-page)
+    console.log('Extracting text from all pages...');
+    let allPageTexts: string[] = [];
+    try {
+      const { text } = await extractText(pdfData, { mergePages: false });
+      allPageTexts = text || [];
+      console.log(`Text extraction complete for ${allPageTexts.length} pages`);
+    } catch (textError) {
+      console.warn('Warning: Could not extract text from PDF:', textError);
+      allPageTexts = new Array(pageCount).fill('');
+    }
+
+    // Create page records from extracted text
     const pageRecords = [];
     let totalTextLength = 0;
 
     for (let i = 1; i <= pageCount; i++) {
-      console.log(`Extracting text from page ${i}/${pageCount}...`);
-      
-      let pageText = '';
-      try {
-        // Extract text from this specific page
-        const { text } = await extractText(pdfData, { mergePages: false });
-        if (text && text[i - 1]) {
-          pageText = text[i - 1].trim();
-        }
-      } catch (textError) {
-        console.warn(`Warning: Could not extract text from page ${i}:`, textError);
-        pageText = '';
-      }
-
+      const pageText = (allPageTexts[i - 1] || '').trim();
       totalTextLength += pageText.length;
 
       pageRecords.push({
