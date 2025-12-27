@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Search, Grid, Maximize, Minimize, Download, ZoomIn, ZoomOut, X } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Search, Grid, Maximize, Minimize, Download, ZoomIn, ZoomOut, X, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -13,6 +13,32 @@ interface FlipbookPage {
   textContent?: string;
 }
 
+// PDF.js loader - shared with FlipbookViewer
+let pdfjsLoadPromise: Promise<any> | null = null;
+
+async function loadPdfJs(): Promise<any> {
+  if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+  if (pdfjsLoadPromise) return pdfjsLoadPromise;
+
+  pdfjsLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const lib = (window as any).pdfjsLib;
+      if (lib) {
+        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(lib);
+      } else {
+        reject(new Error('PDF.js failed to initialize'));
+      }
+    };
+    script.onerror = () => reject(new Error('Failed to load PDF.js'));
+    document.head.appendChild(script);
+  });
+
+  return pdfjsLoadPromise;
+}
+
 interface ThumbnailProps {
   page: FlipbookPage;
   pdfUrl?: string;
@@ -22,19 +48,25 @@ interface ThumbnailProps {
 
 function Thumbnail({ page, pdfUrl, isActive, onClick }: ThumbnailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rendered, setRendered] = useState(false);
-  const [error, setError] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'rendered' | 'error'>('idle');
 
   useEffect(() => {
-    if (page.imageUrl || !pdfUrl || rendered || error) return;
+    if (page.imageUrl || !pdfUrl || status !== 'idle') return;
+
+    let cancelled = false;
 
     const renderThumbnail = async () => {
+      setStatus('loading');
       try {
-        const pdfjsLib = (window as any).pdfjsLib;
-        if (!pdfjsLib) return;
+        const pdfjsLib = await loadPdfJs();
+        if (cancelled) return;
 
         const doc = await pdfjsLib.getDocument(pdfUrl).promise;
+        if (cancelled) return;
+
         const pdfPage = await doc.getPage(page.pageNumber);
+        if (cancelled) return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -50,15 +82,23 @@ function Thumbnail({ page, pdfUrl, isActive, onClick }: ThumbnailProps) {
           viewport: viewport,
         }).promise;
 
-        setRendered(true);
+        if (!cancelled) {
+          setStatus('rendered');
+        }
       } catch (err) {
         console.error('Failed to render thumbnail:', err);
-        setError(true);
+        if (!cancelled) {
+          setStatus('error');
+        }
       }
     };
 
     renderThumbnail();
-  }, [page.pageNumber, page.imageUrl, pdfUrl, rendered, error]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page.pageNumber, page.imageUrl, pdfUrl, status]);
 
   return (
     <button
@@ -77,16 +117,19 @@ function Thumbnail({ page, pdfUrl, isActive, onClick }: ThumbnailProps) {
           className="w-full h-full object-cover"
           loading="lazy"
         />
-      ) : rendered ? (
+      ) : status === 'rendered' ? (
         <canvas ref={canvasRef} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full bg-muted flex items-center justify-center">
-          {error ? (
-            <span className="text-lg font-medium text-muted-foreground">{page.pageNumber}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>
-          )}
-        </div>
+        <>
+          <canvas ref={canvasRef} className="w-full h-full object-cover hidden" />
+          <div className="w-full h-full bg-muted flex items-center justify-center">
+            {status === 'error' ? (
+              <span className="text-lg font-medium text-muted-foreground">{page.pageNumber}</span>
+            ) : (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        </>
       )}
       <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
         {page.pageNumber}
@@ -127,15 +170,26 @@ export function FlipbookControls({
   pdfUrl,
 }: FlipbookControlsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setLastSearchQuery(searchQuery.trim());
+      setHasSearched(true);
       onSearch(searchQuery.trim());
     }
   };
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setLastSearchQuery('');
+    setHasSearched(false);
+    onSearch('');
+  }, [onSearch]);
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
@@ -304,39 +358,66 @@ export function FlipbookControls({
         </div>
       </div>
 
-      {/* Search results */}
-      {searchResults.length > 0 && (
+      {/* Search results panel */}
+      {(isSearching || hasSearched) && (
         <div className="bg-background border rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium">
-              Search Results ({searchResults.length})
+            <h3 className="font-medium flex items-center gap-2">
+              {isSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Searching for "{lastSearchQuery}"...
+                </>
+              ) : searchResults.length > 0 ? (
+                <>
+                  <Search className="h-4 w-4" />
+                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{lastSearchQuery}"
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4" />
+                  No results for "{lastSearchQuery}"
+                </>
+              )}
             </h3>
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => onSearch('')}
+              onClick={handleClearSearch}
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <ScrollArea className="max-h-48">
-            <div className="space-y-2">
-              {searchResults.map((result, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => onPageChange(result.pageNumber)}
-                  className="w-full text-left p-2 rounded hover:bg-muted transition-colors"
-                >
-                  <div className="text-sm font-medium">Page {result.pageNumber}</div>
-                  <div 
-                    className="text-xs text-muted-foreground line-clamp-2"
-                    dangerouslySetInnerHTML={{ __html: result.headline }}
-                  />
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
+          
+          {!isSearching && searchResults.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Try searching for different keywords. Make sure the publication has been fully processed for text indexing.
+            </p>
+          )}
+          
+          {searchResults.length > 0 && (
+            <ScrollArea className="max-h-60">
+              <div className="space-y-2">
+                {searchResults.map((result, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onPageChange(result.pageNumber)}
+                    className="w-full text-left p-3 rounded-md border hover:bg-muted hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">Page {result.pageNumber}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div 
+                      className="text-sm text-muted-foreground line-clamp-2"
+                      dangerouslySetInnerHTML={{ __html: result.headline }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
         </div>
       )}
     </div>
