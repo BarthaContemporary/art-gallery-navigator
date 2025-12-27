@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Search, Grid, Maximize, Minimize, Download, ZoomIn, ZoomOut, X, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,27 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+
+// Helper function to safely parse search highlights without dangerouslySetInnerHTML
+function parseSearchHighlight(text: string): ReactNode[] {
+  if (!text) return [];
+  
+  // Only allow <mark> tags for search highlighting - strip all other HTML
+  const sanitized = text
+    .replace(/<(?!\/?(mark)(?=>|\s.*>))\/?.*?>/gi, '') // Remove all tags except <mark>
+    .replace(/<mark>/gi, '\u0001') // Use control chars as markers
+    .replace(/<\/mark>/gi, '\u0002');
+  
+  const parts = sanitized.split(/(\u0001.*?\u0002)/g);
+  
+  return parts.map((part, i) => {
+    if (part.startsWith('\u0001') && part.endsWith('\u0002')) {
+      const content = part.slice(1, -1);
+      return <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">{content}</mark>;
+    }
+    return part;
+  }).filter(Boolean);
+}
 
 interface FlipbookPage {
   pageNumber: number;
@@ -409,10 +430,9 @@ export function FlipbookControls({
                       <span className="text-sm font-medium">Page {result.pageNumber}</span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div 
-                      className="text-sm text-muted-foreground line-clamp-2"
-                      dangerouslySetInnerHTML={{ __html: result.headline }}
-                    />
+                    <div className="text-sm text-muted-foreground line-clamp-2">
+                      {parseSearchHighlight(result.headline)}
+                    </div>
                   </button>
                 ))}
               </div>

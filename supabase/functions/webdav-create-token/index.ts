@@ -69,9 +69,6 @@ serve(async (req) => {
     crypto.getRandomValues(tokenBytes);
     const tokenString = Array.from(tokenBytes, b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Generated token length:', tokenString.length);
-    console.log('Generated token sample:', tokenString.substring(0, 8) + '...');
-
     // Hash the token using the EXACT same method as the validation function
     // This MUST match the database function: encode(digest(token_text::bytea, 'sha256'), 'hex')
     const encoder = new TextEncoder();
@@ -79,9 +76,6 @@ serve(async (req) => {
     const hashBuffer = await crypto.subtle.digest('SHA-256', tokenBytes2);
     const hashArray = new Uint8Array(hashBuffer);
     const tokenHash = Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
-
-    console.log('Token hash length:', tokenHash.length);
-    console.log('Token hash sample:', tokenHash.substring(0, 8) + '...');
 
     // Verify our hashing method produces the expected result
     if (tokenHash.length !== 64) {
@@ -129,33 +123,20 @@ serve(async (req) => {
       });
     }
 
-    console.log('Token created successfully:', tokenRecord.id);
-    console.log('Stored hash:', tokenRecord.token_hash.substring(0, 8) + '...');
+    console.log('Token created successfully for user');
 
     // Verify the hash was stored correctly
     if (tokenRecord.token_hash !== tokenHash) {
-      console.error('Hash verification failed: stored hash does not match computed hash');
-      console.error('Computed:', tokenHash.substring(0, 16) + '...');
-      console.error('Stored:  ', tokenRecord.token_hash.substring(0, 16) + '...');
-    } else {
-      console.log('Hash verification successful: stored hash matches computed hash');
+      console.error('Hash verification failed');
     }
 
     // Test the token immediately after creation
-    console.log('Testing token validation immediately after creation...');
     const { data: testValidation, error: testError } = await serviceSupabase
       .rpc('validate_webdav_token', { token_text: tokenString });
 
     if (testError) {
-      console.error('Immediate validation test failed:', testError);
-    } else if (testValidation && testValidation.length > 0) {
-      const validation = testValidation[0];
-      console.log('Immediate validation successful:', {
-        is_valid: validation.is_valid,
-        user_id: validation.user_id,
-        token_id: validation.token_id
-      });
-    } else {
+      console.error('Immediate validation test failed');
+    } else if (!testValidation || testValidation.length === 0) {
       console.error('Immediate validation returned no results');
     }
 

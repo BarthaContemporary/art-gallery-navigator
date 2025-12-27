@@ -4346,6 +4346,10 @@ export type Database = {
           groups_processed: number
         }[]
       }
+      check_appointment_email_rate_limit: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
       check_appointment_rate_limit: {
         Args: { client_ip: unknown }
         Returns: boolean
