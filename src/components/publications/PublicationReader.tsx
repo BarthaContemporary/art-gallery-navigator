@@ -235,6 +235,29 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
   const seo = (publication.seo as Record<string, any>) || {};
   const metaTitle = seo.title || publication.title;
   const metaDescription = seo.description || publication.description || `Read ${publication.title}`;
+  
+  // Combine page text content for SEO (first ~10000 chars)
+  const pageTextContent = pages
+    ?.map((p: any) => p.text_content || '')
+    .join(' ')
+    .substring(0, 10000) || '';
+  
+  // JSON-LD structured data for search engines and AI
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'DigitalDocument',
+    name: publication.title,
+    description: metaDescription,
+    author: publication.author ? { '@type': 'Person', name: publication.author } : undefined,
+    datePublished: publication.created_at,
+    dateModified: publication.updated_at,
+    url: `${window.location.origin}/p/${publication.slug}`,
+    image: publication.og_image_url || undefined,
+    numberOfPages: publication.page_count,
+    text: pageTextContent.substring(0, 5000), // Excerpt for structured data
+    inLanguage: 'en',
+    isAccessibleForFree: !publication.download_gate_enabled,
+  };
 
   return (
     <>
@@ -246,11 +269,26 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
         )}
         <meta property="og:title" content={metaTitle} />
         <meta property="og:description" content={metaDescription} />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={`${window.location.origin}/p/${publication.slug}`} />
         {publication.og_image_url && (
           <meta property="og:image" content={publication.og_image_url} />
         )}
-        <link rel="canonical" href={`/p/${publication.slug}`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        <link rel="canonical" href={`${window.location.origin}/p/${publication.slug}`} />
+        <script type="application/ld+json">
+          {JSON.stringify(jsonLd)}
+        </script>
       </Helmet>
+      
+      {/* Hidden SEO content for crawlers */}
+      <div className="sr-only" aria-hidden="true">
+        <h1>{publication.title}</h1>
+        {publication.author && <p>By {publication.author}</p>}
+        <article>{pageTextContent}</article>
+      </div>
 
       <div className="publication-reader-container max-w-6xl mx-auto px-4 py-6 min-h-screen bg-muted/30">
         {/* Controls */}
