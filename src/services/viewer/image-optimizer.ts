@@ -68,23 +68,47 @@ export class ViewerImageOptimizer {
 
   /**
    * Get optimized image URL for a specific tier
-   * Currently returns original URL (transformations disabled)
+   * Uses pre-processed URLs from database if available, falls back to original
    */
   static getOptimizedUrl(image: ViewerArtworkImage | null, tier: ImageTier): string {
     if (!image) return '/placeholder.svg';
     
-    const config = TIER_CONFIGS[tier];
-    const sourceUrl = image.original_url || '/placeholder.svg';
+    // Use stored optimized URLs if available
+    switch (tier) {
+      case 'thumbnail':
+      case 'small':
+        if (image.small_url) return image.small_url;
+        break;
+      case 'medium':
+        if (image.medium_url) return image.medium_url;
+        break;
+      case 'large':
+      case 'xlarge':
+      case 'xxlarge':
+        if (image.large_url) return image.large_url;
+        break;
+      case 'original':
+        return image.original_url || '/placeholder.svg';
+    }
     
+    // Fallback: try larger tiers if requested tier unavailable
+    if (image.large_url) return image.large_url;
+    if (image.medium_url) return image.medium_url;
+    if (image.small_url) return image.small_url;
+    
+    // Ultimate fallback: original URL with optional transformation
+    const sourceUrl = image.original_url || '/placeholder.svg';
+    const config = TIER_CONFIGS[tier];
     return this.getTransformedUrl(sourceUrl, config.width, config.quality);
   }
 
   /**
-   * Get the best available URL (original)
+   * Get the best available URL - prefers highest quality available
    */
   static getBestAvailableUrl(image: ViewerArtworkImage | null): string {
     if (!image) return '/placeholder.svg';
-    return image.original_url || '/placeholder.svg';
+    // Prefer processed URLs for faster loading, fallback to original
+    return image.large_url || image.medium_url || image.original_url || '/placeholder.svg';
   }
 
   /**
