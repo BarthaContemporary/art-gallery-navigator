@@ -83,7 +83,15 @@ export function LeadCaptureModal({
     if (!downloadToken) return;
     
     const downloadUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/publication-download?token=${downloadToken}`;
-    window.open(downloadUrl, '_blank');
+    
+    // Use anchor element instead of window.open to avoid Chrome popup blocker
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     // Close modal after a short delay
     setTimeout(() => {
