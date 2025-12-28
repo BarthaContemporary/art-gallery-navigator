@@ -3,17 +3,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Filter } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ListsGridProps { lists: CRMList[]; isLoading: boolean; }
 
 export function ListsGrid({ lists, isLoading }: ListsGridProps) {
+  const navigate = useNavigate();
+  
   if (isLoading) return <div className="grid grid-cols-3 gap-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32" />)}</div>;
   if (lists.length === 0) return <div className="text-center py-12 text-muted-foreground">No lists yet</div>;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {lists.map((list) => (
-        <Card key={list.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+        <Card 
+          key={list.id} 
+          className="cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => navigate(`/crm/lists/${list.id}`)}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{list.name}</CardTitle>

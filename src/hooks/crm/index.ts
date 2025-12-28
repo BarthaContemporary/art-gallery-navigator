@@ -13,3 +13,4 @@ export * from './use-address-validation';
 export * from './use-sanctions-check';
 export * from './use-email-enrichment';
 export * from './use-whatsapp-check';
+export * from './use-crm-deal-items';
