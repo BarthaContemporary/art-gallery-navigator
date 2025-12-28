@@ -13,16 +13,14 @@ interface ProcessPublicationRequest {
   pdfUrl: string;
 }
 
-// OCR a page using OpenAI GPT-4 Vision
+// OCR text from a page image using OpenAI GPT-4 Vision
 async function ocrPageWithOpenAI(
-  pdfData: Uint8Array,
+  imageBase64: string,
   pageNumber: number,
   openAIApiKey: string
 ): Promise<string> {
   try {
-    // For now, we'll use a simpler approach - send the page context to GPT-4
-    // In a full implementation, you'd render the PDF page to an image first
-    console.log(`[OCR] Attempting AI text extraction for page ${pageNumber}`);
+    console.log(`[OCR] Sending page ${pageNumber} to GPT-4 Vision for OCR...`);
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -35,28 +33,89 @@ async function ocrPageWithOpenAI(
         messages: [
           {
             role: 'system',
-            content: 'You are an OCR assistant. Extract and return ONLY the text content from the provided page. Return plain text, no formatting or explanations.'
+            content: 'You are an OCR assistant. Extract and return ONLY the text content from the provided image. Return plain text, preserving paragraph structure. No formatting markers, no explanations, just the text.'
           },
           {
             role: 'user',
-            content: `This is page ${pageNumber} of a PDF document. The native text extraction returned very little content, suggesting this might be a scanned or image-heavy page. Please help identify any text that might be present on this type of page.`
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/png;base64,${imageBase64}`,
+                  detail: 'high'
+                }
+              },
+              {
+                type: 'text',
+                text: 'Extract all text from this page image.'
+              }
+            ]
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.1,
+        max_tokens: 4000,
+        temperature: 0,
       }),
     });
 
     if (!response.ok) {
-      console.warn(`[OCR] OpenAI API error for page ${pageNumber}:`, response.status);
+      const errorText = await response.text();
+      console.warn(`[OCR] OpenAI API error for page ${pageNumber}:`, response.status, errorText);
       return '';
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
+    const extractedText = data.choices?.[0]?.message?.content || '';
+    console.log(`[OCR] Extracted ${extractedText.length} characters from page ${pageNumber}`);
+    return extractedText;
   } catch (error) {
     console.warn(`[OCR] Error processing page ${pageNumber}:`, error);
     return '';
+  }
+}
+
+// Render a PDF page to an image using pdf.js canvas rendering
+async function renderPageToImage(
+  pdfData: Uint8Array,
+  pageNumber: number,
+  scale: number = 1.0
+): Promise<{ base64: string; width: number; height: number } | null> {
+  try {
+    // Import pdf.js for canvas rendering
+    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
+    
+    // Set worker source
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
+    
+    // Load the document
+    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(pageNumber);
+    
+    const viewport = page.getViewport({ scale });
+    
+    // Create a canvas (using Deno's canvas support via offscreen canvas)
+    const { createCanvas } = await import('https://deno.land/x/canvas@v1.4.2/mod.ts');
+    const canvas = createCanvas(Math.floor(viewport.width), Math.floor(viewport.height));
+    const context = canvas.getContext('2d');
+    
+    // Render the page
+    await page.render({
+      canvasContext: context,
+      viewport: viewport
+    }).promise;
+    
+    // Convert to base64 PNG
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64 = dataUrl.replace('data:image/png;base64,', '');
+    
+    return {
+      base64,
+      width: Math.floor(viewport.width),
+      height: Math.floor(viewport.height)
+    };
+  } catch (error) {
+    console.warn(`[Render] Failed to render page ${pageNumber}:`, error);
+    return null;
   }
 }
 
@@ -80,13 +139,12 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       })
       .eq('id', publicationId);
 
-    // STEP 1: Delete existing page records FIRST (before any other operations)
+    // STEP 1: Delete existing page records FIRST
     console.log('[Background] Deleting existing page records...');
-    const { error: deleteError, count: deletedCount } = await supabase
+    const { error: deleteError } = await supabase
       .from('publication_pages')
       .delete()
-      .eq('publication_id', publicationId)
-      .select('id', { count: 'exact', head: true });
+      .eq('publication_id', publicationId);
 
     if (deleteError) {
       console.error('[Background] CRITICAL: Failed to delete existing pages:', deleteError);
@@ -133,22 +191,13 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       allPageTexts = new Array(pageCount).fill('');
     }
 
-    // STEP 5: Create page records with text (and OCR enhancement for sparse pages)
+    // STEP 5: Create page records (text only first, thumbnails later)
     const pageRecords = [];
+    const MIN_TEXT_THRESHOLD = 50;
     let totalTextLength = 0;
-    let pagesNeedingOCR = 0;
-    const MIN_TEXT_THRESHOLD = 50; // Pages with less than 50 chars may need OCR
 
     for (let i = 1; i <= pageCount; i++) {
-      let pageText = (allPageTexts[i - 1] || '').trim();
-      
-      // If page has very little text and we have OpenAI key, try OCR
-      if (pageText.length < MIN_TEXT_THRESHOLD && openAIApiKey) {
-        pagesNeedingOCR++;
-        // For now, just log - full image OCR would require PDF-to-image conversion
-        console.log(`[Background] Page ${i} has sparse text (${pageText.length} chars), would benefit from OCR`);
-      }
-      
+      const pageText = (allPageTexts[i - 1] || '').trim();
       totalTextLength += pageText.length;
 
       pageRecords.push({
@@ -161,9 +210,6 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     }
 
     console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
-    if (pagesNeedingOCR > 0) {
-      console.log(`[Background] ${pagesNeedingOCR} pages have sparse text and could benefit from OCR`);
-    }
 
     // STEP 6: Insert pages in batches
     const BATCH_SIZE = 50;
@@ -182,12 +228,96 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 
     console.log(`[Background] Created ${pageCount} page records (${Date.now() - startTime}ms)`);
 
-    // STEP 7: Update publication as completed
+    // STEP 7: Try to generate thumbnails for first few pages (for preview)
+    // This is optional and we'll try our best, but won't fail the whole process
+    console.log('[Background] Attempting to generate page thumbnails...');
+    const MAX_THUMBNAIL_PAGES = Math.min(pageCount, 10); // First 10 pages for thumbnails
+    
+    for (let pageNum = 1; pageNum <= MAX_THUMBNAIL_PAGES; pageNum++) {
+      try {
+        // Try rendering the page to image
+        const rendered = await renderPageToImage(pdfData, pageNum, 0.5); // Low res for thumbnails
+        
+        if (rendered && rendered.base64) {
+          // Upload to storage
+          const thumbnailPath = `${publicationId}/thumbnails/page-${pageNum}.png`;
+          const imageBytes = Uint8Array.from(atob(rendered.base64), c => c.charCodeAt(0));
+          
+          const { error: uploadError } = await supabase.storage
+            .from('publications')
+            .upload(thumbnailPath, imageBytes, {
+              contentType: 'image/png',
+              upsert: true
+            });
+
+          if (!uploadError) {
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('publications')
+              .getPublicUrl(thumbnailPath);
+
+            // Update the page record with thumbnail URL
+            if (urlData?.publicUrl) {
+              await supabase
+                .from('publication_pages')
+                .update({ render_low_url: urlData.publicUrl })
+                .eq('publication_id', publicationId)
+                .eq('page_number', pageNum);
+              
+              console.log(`[Background] Generated thumbnail for page ${pageNum}`);
+            }
+          } else {
+            console.warn(`[Background] Failed to upload thumbnail for page ${pageNum}:`, uploadError);
+          }
+        }
+      } catch (thumbError) {
+        console.warn(`[Background] Could not generate thumbnail for page ${pageNum}:`, thumbError);
+        // Continue with other pages
+      }
+    }
+
+    // STEP 8: OCR for pages with sparse text (if OpenAI key available)
+    if (openAIApiKey) {
+      const sparseTextPages = pageRecords.filter(p => (p.text_content?.length || 0) < MIN_TEXT_THRESHOLD);
+      
+      if (sparseTextPages.length > 0) {
+        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR...`);
+        
+        // OCR first 5 sparse pages max to avoid timeout
+        const pagesToOCR = sparseTextPages.slice(0, 5);
+        
+        for (const page of pagesToOCR) {
+          try {
+            // First try to render the page to an image
+            const rendered = await renderPageToImage(pdfData, page.page_number, 1.5);
+            
+            if (rendered && rendered.base64) {
+              const ocrText = await ocrPageWithOpenAI(rendered.base64, page.page_number, openAIApiKey);
+              
+              if (ocrText && ocrText.length > 10) {
+                // Update the page with OCR text
+                await supabase
+                  .from('publication_pages')
+                  .update({ text_content: ocrText })
+                  .eq('publication_id', publicationId)
+                  .eq('page_number', page.page_number);
+                
+                console.log(`[Background] Updated page ${page.page_number} with OCR text (${ocrText.length} chars)`);
+              }
+            }
+          } catch (ocrError) {
+            console.warn(`[Background] OCR failed for page ${page.page_number}:`, ocrError);
+          }
+        }
+      }
+    }
+
+    // STEP 9: Update publication as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
         processing_status: 'completed',
-        og_image_url: null,
+        processing_error: null
       })
       .eq('id', publicationId);
 
