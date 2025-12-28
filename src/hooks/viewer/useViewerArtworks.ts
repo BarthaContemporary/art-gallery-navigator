@@ -17,7 +17,16 @@ export function useViewerArtworks() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as unknown as ViewerArtwork[];
+      
+      // Sort images by position for each artwork
+      const artworks = (data || []) as unknown as ViewerArtwork[];
+      artworks.forEach(artwork => {
+        if (artwork.images) {
+          artwork.images.sort((a, b) => a.position - b.position);
+        }
+      });
+      
+      return artworks;
     },
   });
 }
