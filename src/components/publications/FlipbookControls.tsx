@@ -437,8 +437,8 @@ export function FlipbookControls({
           )}
           
           {searchResults.length > 0 && (
-            <ScrollArea className="max-h-60">
-              <div className="space-y-2">
+            <ScrollArea className="h-auto max-h-[50vh] overflow-auto">
+              <div className="space-y-2 pr-4">
                 {searchResults.map((result, idx) => (
                   <button
                     key={idx}
