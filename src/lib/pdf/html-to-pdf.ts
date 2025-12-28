@@ -2,6 +2,7 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
 
 interface HTMLToPDFOptions {
   html: string;
@@ -33,6 +34,13 @@ export async function convertHTMLToPDF({
   document.body.appendChild(container);
 
   try {
+    // Sanitize HTML content to prevent XSS
+    const sanitizedHtml = DOMPurify.sanitize(html, {
+      ADD_TAGS: ['style'],
+      ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height'],
+      ALLOW_DATA_ATTR: true,
+    });
+    
     // Add the HTML content to the container
     onProgress("Setting up content...");
     container.innerHTML = `
@@ -53,7 +61,7 @@ export async function convertHTMLToPDF({
             }
           </style>
         </head>
-        <body>${html}</body>
+        <body>${sanitizedHtml}</body>
       </html>
     `;
     

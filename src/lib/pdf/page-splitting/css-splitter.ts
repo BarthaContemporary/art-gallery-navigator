@@ -1,6 +1,7 @@
 
 import { extractCommonHTMLParts, reconstructPageHTML } from './html-utils';
 import { hasPageBreakBefore, hasPageBreakAfter } from './css-break-detectors';
+import DOMPurify from "dompurify";
 
 /**
  * Splits HTML into separate pages based on CSS page-break markers.
@@ -10,8 +11,15 @@ export function splitByCSSPageBreaks(html: string): string[] {
   
   const { headContent, bodyAttributes, stationeryHTML } = extractCommonHTMLParts(html);
 
+  // Sanitize HTML before DOM parsing
+  const sanitizedHtml = DOMPurify.sanitize(html, {
+    ADD_TAGS: ['style'],
+    ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height', 'data-page-break'],
+    ALLOW_DATA_ATTR: true,
+  });
+
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
+  tempDiv.innerHTML = sanitizedHtml;
   
   const pagesContents: string[] = [];
   let currentPageAccumulator = document.createElement('div'); // Accumulates elements for the current page
