@@ -23,9 +23,36 @@ interface KeywordEntry {
   pages: number[];
 }
 
+// Generate Cloudinary URL for a specific PDF page
+function getCloudinaryPageUrl(
+  pdfUrl: string, 
+  pageNumber: number, 
+  cloudName: string,
+  size: 'thumbnail' | 'full' = 'thumbnail'
+): string {
+  // Cloudinary PDF page transformation
+  // Format: /image/upload/pg_{page},w_{width},f_auto,q_auto/{source_url}
+  const width = size === 'thumbnail' ? 400 : 1200;
+  const quality = size === 'thumbnail' ? 'auto:low' : 'auto:good';
+  
+  // Use Cloudinary fetch to transform the remote PDF
+  const encodedUrl = encodeURIComponent(pdfUrl);
+  return `https://res.cloudinary.com/${cloudName}/image/fetch/pg_${pageNumber},w_${width},f_jpg,q_${quality}/${encodedUrl}`;
+}
+
+// Verify that a Cloudinary URL is accessible
+async function verifyCloudinaryUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 // OCR text from a page image using OpenAI GPT-4 Vision
 async function ocrPageWithOpenAI(
-  imageBase64: string,
+  imageUrl: string,
   pageNumber: number,
   openAIApiKey: string
 ): Promise<string> {
@@ -51,7 +78,7 @@ async function ocrPageWithOpenAI(
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/png;base64,${imageBase64}`,
+                  url: imageUrl,
                   detail: 'high'
                 }
               },
@@ -91,7 +118,7 @@ async function generateTOC(
   try {
     console.log('[TOC] Generating table of contents...');
     
-    // Prepare a summary of each page (first 500 chars per page, max 20 pages)
+    // Prepare a summary of each page (first 500 chars per page, max 30 pages)
     const pageSummaries = pageTexts
       .slice(0, 30)
       .map(p => `Page ${p.pageNumber}: ${p.text.substring(0, 500)}`)
@@ -274,61 +301,17 @@ ${contentForSummary}`
   }
 }
 
-// Render a PDF page to an image using pdf.js canvas rendering
-async function renderPageToImage(
-  pdfData: Uint8Array,
-  pageNumber: number,
-  scale: number = 1.0
-): Promise<{ base64: string; width: number; height: number } | null> {
-  try {
-    // Import pdf.js for canvas rendering
-    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
-    
-    // Set worker source
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
-    
-    // Load the document
-    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(pageNumber);
-    
-    const viewport = page.getViewport({ scale });
-    
-    // Create a canvas (using Deno's canvas support via offscreen canvas)
-    const { createCanvas } = await import('https://deno.land/x/canvas@v1.4.2/mod.ts');
-    const canvas = createCanvas(Math.floor(viewport.width), Math.floor(viewport.height));
-    const context = canvas.getContext('2d');
-    
-    // Render the page
-    await page.render({
-      canvasContext: context,
-      viewport: viewport
-    }).promise;
-    
-    // Convert to base64 PNG
-    const dataUrl = canvas.toDataURL('image/png');
-    const base64 = dataUrl.replace('data:image/png;base64,', '');
-    
-    return {
-      base64,
-      width: Math.floor(viewport.width),
-      height: Math.floor(viewport.height)
-    };
-  } catch (error) {
-    console.warn(`[Render] Failed to render page ${pageNumber}:`, error);
-    return null;
-  }
-}
-
 // Background processing function
 async function processPublicationInBackground(publicationId: string, pdfUrl: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  const cloudinaryCloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     console.log(`[Background] Starting processing for publication ${publicationId}`);
+    console.log(`[Background] Cloudinary cloud name: ${cloudinaryCloudName ? 'configured' : 'MISSING'}`);
     const startTime = Date.now();
 
     // Update status to processing
@@ -392,7 +375,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       allPageTexts = new Array(pageCount).fill('');
     }
 
-    // STEP 5: Create page records (text only first, thumbnails later)
+    // STEP 5: Generate Cloudinary thumbnail URLs for all pages
+    console.log('[Background] Generating Cloudinary page thumbnail URLs...');
     const pageRecords = [];
     const MIN_TEXT_THRESHOLD = 50;
     let totalTextLength = 0;
@@ -402,18 +386,38 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       const pageText = (allPageTexts[i - 1] || '').trim();
       totalTextLength += pageText.length;
 
+      // Generate Cloudinary URLs for this page
+      let thumbnailUrl: string | null = null;
+      let fullUrl: string | null = null;
+      
+      if (cloudinaryCloudName) {
+        thumbnailUrl = getCloudinaryPageUrl(pdfUrl, i, cloudinaryCloudName, 'thumbnail');
+        fullUrl = getCloudinaryPageUrl(pdfUrl, i, cloudinaryCloudName, 'full');
+      }
+
       pageRecords.push({
         publication_id: publicationId,
         page_number: i,
         text_content: pageText,
-        render_low_url: null,
-        render_high_url: null,
+        render_low_url: thumbnailUrl,
+        render_high_url: fullUrl,
       });
       
       pageTextsForAI.push({ pageNumber: i, text: pageText });
     }
 
     console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
+    
+    // Verify first page thumbnail is accessible
+    if (cloudinaryCloudName && pageRecords.length > 0 && pageRecords[0].render_low_url) {
+      console.log('[Background] Verifying Cloudinary thumbnail generation...');
+      const isValid = await verifyCloudinaryUrl(pageRecords[0].render_low_url);
+      if (isValid) {
+        console.log('[Background] ✓ Cloudinary thumbnails verified working');
+      } else {
+        console.warn('[Background] ⚠ Cloudinary thumbnail verification failed - URLs may not work');
+      }
+    }
 
     // STEP 6: Insert pages in batches
     const BATCH_SIZE = 50;
@@ -430,69 +434,30 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       console.log(`[Background] Inserted pages ${i + 1}-${i + batch.length} of ${pageRecords.length}`);
     }
 
-    console.log(`[Background] Created ${pageCount} page records (${Date.now() - startTime}ms)`);
+    console.log(`[Background] Created ${pageCount} page records with Cloudinary URLs (${Date.now() - startTime}ms)`);
 
-    // STEP 7: Try to generate thumbnails for first few pages (for preview)
-    console.log('[Background] Attempting to generate page thumbnails...');
-    const MAX_THUMBNAIL_PAGES = Math.min(pageCount, 10);
-    
-    for (let pageNum = 1; pageNum <= MAX_THUMBNAIL_PAGES; pageNum++) {
-      try {
-        const rendered = await renderPageToImage(pdfData, pageNum, 0.5);
-        
-        if (rendered && rendered.base64) {
-          const thumbnailPath = `${publicationId}/thumbnails/page-${pageNum}.png`;
-          const imageBytes = Uint8Array.from(atob(rendered.base64), c => c.charCodeAt(0));
-          
-          const { error: uploadError } = await supabase.storage
-            .from('publications')
-            .upload(thumbnailPath, imageBytes, {
-              contentType: 'image/png',
-              upsert: true
-            });
-
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage
-              .from('publications')
-              .getPublicUrl(thumbnailPath);
-
-            if (urlData?.publicUrl) {
-              await supabase
-                .from('publication_pages')
-                .update({ render_low_url: urlData.publicUrl })
-                .eq('publication_id', publicationId)
-                .eq('page_number', pageNum);
-              
-              console.log(`[Background] Generated thumbnail for page ${pageNum}`);
-            }
-          } else {
-            console.warn(`[Background] Failed to upload thumbnail for page ${pageNum}:`, uploadError);
-          }
-        }
-      } catch (thumbError) {
-        console.warn(`[Background] Could not generate thumbnail for page ${pageNum}:`, thumbError);
-      }
-    }
-
-    // STEP 8: OCR for ALL pages with sparse text (if OpenAI key available)
-    if (openAIApiKey) {
+    // STEP 7: OCR for pages with sparse text (if OpenAI key available)
+    if (openAIApiKey && cloudinaryCloudName) {
       const sparseTextPages = pageRecords.filter(p => (p.text_content?.length || 0) < MIN_TEXT_THRESHOLD);
       
       if (sparseTextPages.length > 0) {
-        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR for all...`);
+        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR...`);
         
         // Process in batches of 10 to avoid timeout
         const OCR_BATCH_SIZE = 10;
-        for (let batchStart = 0; batchStart < sparseTextPages.length; batchStart += OCR_BATCH_SIZE) {
-          const batch = sparseTextPages.slice(batchStart, batchStart + OCR_BATCH_SIZE);
-          console.log(`[Background] Processing OCR batch ${batchStart + 1}-${batchStart + batch.length} of ${sparseTextPages.length}`);
+        const maxOcrPages = Math.min(sparseTextPages.length, 30); // Limit OCR to 30 pages max
+        
+        for (let batchStart = 0; batchStart < maxOcrPages; batchStart += OCR_BATCH_SIZE) {
+          const batch = sparseTextPages.slice(batchStart, Math.min(batchStart + OCR_BATCH_SIZE, maxOcrPages));
+          console.log(`[Background] Processing OCR batch ${batchStart + 1}-${batchStart + batch.length} of ${maxOcrPages}`);
           
           for (const page of batch) {
             try {
-              const rendered = await renderPageToImage(pdfData, page.page_number, 1.5);
+              // Use the Cloudinary full-res URL for OCR (better quality)
+              const ocrImageUrl = page.render_high_url || page.render_low_url;
               
-              if (rendered && rendered.base64) {
-                const ocrText = await ocrPageWithOpenAI(rendered.base64, page.page_number, openAIApiKey);
+              if (ocrImageUrl) {
+                const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
                 
                 if (ocrText && ocrText.length > 10) {
                   await supabase
@@ -517,7 +482,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         }
       }
 
-      // STEP 9: Generate TOC, Keyword Index, and Summary
+      // STEP 8: Generate TOC, Keyword Index, and Summary
       console.log('[Background] Generating AI content (TOC, Index, Summary)...');
       
       // Run all AI generation in parallel
@@ -548,7 +513,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       }
     }
 
-    // STEP 10: Update publication as completed
+    // STEP 9: Update publication as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
