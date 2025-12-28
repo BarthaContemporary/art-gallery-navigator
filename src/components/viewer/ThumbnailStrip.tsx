@@ -47,8 +47,8 @@ const Thumbnail = memo(function Thumbnail({ image, isActive, onClick, index }: T
     <button
       onClick={onClick}
       className={cn(
-        // Larger touch targets on mobile (56x56), smaller on desktop (48x48)
-        "flex-shrink-0 w-14 h-14 sm:w-12 sm:h-12 rounded overflow-hidden transition-all",
+        // Larger touch targets: 72x72 mobile, 64x64 desktop
+        "flex-shrink-0 w-[72px] h-[72px] sm:w-16 sm:h-16 rounded-lg overflow-hidden transition-all",
         "ring-2 ring-offset-2 ring-offset-transparent",
         // Active state feedback
         isActive
@@ -84,7 +84,7 @@ function ThumbnailStripComponent({ images, activeIndex, onSelect, visible }: Thu
   useEffect(() => {
     if (containerRef.current) {
       const container = containerRef.current;
-      const thumbnailWidth = window.innerWidth < 640 ? 56 : 48; // Match CSS sizes
+      const thumbnailWidth = window.innerWidth < 640 ? 72 : 64; // Match new CSS sizes
       const gap = 8;
       const targetScroll = activeIndex * (thumbnailWidth + gap) - container.clientWidth / 2 + thumbnailWidth / 2;
       
