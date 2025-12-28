@@ -12,24 +12,15 @@ interface ProcessPublicationRequest {
   pdfUrl: string;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Background processing function
+async function processPublicationInBackground(publicationId: string, pdfUrl: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { publicationId, pdfUrl }: ProcessPublicationRequest = await req.json();
-
-    if (!pdfUrl) {
-      throw new Error(`Invalid URL: '${pdfUrl}'`);
-    }
-
-    console.log(`Processing publication ${publicationId} from PDF: ${pdfUrl}`);
+    console.log(`[Background] Starting processing for publication ${publicationId}`);
+    const startTime = Date.now();
 
     // Update status to processing
     await supabase
@@ -41,7 +32,7 @@ serve(async (req) => {
       .eq('id', publicationId);
 
     // Fetch the PDF
-    console.log('Fetching PDF from URL...');
+    console.log('[Background] Fetching PDF from URL...');
     const pdfResponse = await fetch(pdfUrl);
     if (!pdfResponse.ok) {
       throw new Error(`Failed to fetch PDF: ${pdfResponse.statusText}`);
@@ -49,30 +40,30 @@ serve(async (req) => {
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
     const pdfData = new Uint8Array(pdfBuffer);
-    console.log(`PDF fetched, size: ${pdfBuffer.byteLength} bytes`);
+    console.log(`[Background] PDF fetched, size: ${pdfBuffer.byteLength} bytes (${Date.now() - startTime}ms)`);
 
     // Load PDF using unpdf for text extraction
-    console.log('Loading PDF document for text extraction...');
+    console.log('[Background] Loading PDF document for text extraction...');
     const pdf = await getDocumentProxy(pdfData);
     const pageCount = pdf.numPages;
     
-    console.log(`PDF has ${pageCount} pages, extracting text from each page...`);
+    console.log(`[Background] PDF has ${pageCount} pages (${Date.now() - startTime}ms)`);
 
-    // Update publication with page count
+    // Update publication with page count immediately
     await supabase
       .from('publications')
       .update({ page_count: pageCount })
       .eq('id', publicationId);
 
-    // Extract all text in a single call (much more efficient than per-page)
-    console.log('Extracting text from all pages...');
+    // Extract all text in a single call
+    console.log('[Background] Extracting text from all pages...');
     let allPageTexts: string[] = [];
     try {
       const { text } = await extractText(pdfData, { mergePages: false });
       allPageTexts = text || [];
-      console.log(`Text extraction complete for ${allPageTexts.length} pages`);
+      console.log(`[Background] Text extraction complete for ${allPageTexts.length} pages (${Date.now() - startTime}ms)`);
     } catch (textError) {
-      console.warn('Warning: Could not extract text from PDF:', textError);
+      console.warn('[Background] Warning: Could not extract text from PDF:', textError);
       allPageTexts = new Array(pageCount).fill('');
     }
 
@@ -93,31 +84,31 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Text extraction complete. Total characters extracted: ${totalTextLength}`);
+    console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
 
-    // Insert all pages (the trigger will automatically populate text_tokens)
-    const { error: pagesError } = await supabase
-      .from('publication_pages')
-      .insert(pageRecords);
+    // Insert pages in batches to avoid timeout issues with large PDFs
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < pageRecords.length; i += BATCH_SIZE) {
+      const batch = pageRecords.slice(i, i + BATCH_SIZE);
+      const { error: pagesError } = await supabase
+        .from('publication_pages')
+        .insert(batch);
 
-    if (pagesError) {
-      console.error('Error inserting pages:', pagesError);
-      throw new Error(`Failed to create page records: ${pagesError.message}`);
+      if (pagesError) {
+        console.error(`[Background] Error inserting pages batch ${i}-${i + batch.length}:`, pagesError);
+        throw new Error(`Failed to create page records: ${pagesError.message}`);
+      }
+      console.log(`[Background] Inserted pages ${i + 1}-${i + batch.length} of ${pageRecords.length}`);
     }
 
-    console.log(`Created ${pageCount} page records with text content`);
+    console.log(`[Background] Created ${pageCount} page records (${Date.now() - startTime}ms)`);
 
-    // Generate full document text for SEO metadata
-    const fullText = pageRecords.map(p => p.text_content).join(' ').substring(0, 5000);
-    
-    // Update publication as completed with text excerpt for SEO
-    let ogImageUrl = null;
-    
+    // Update publication as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
         processing_status: 'completed',
-        og_image_url: ogImageUrl,
+        og_image_url: null,
       })
       .eq('id', publicationId);
 
@@ -125,43 +116,64 @@ serve(async (req) => {
       throw new Error(`Failed to update publication status: ${updateError.message}`);
     }
 
-    console.log('Publication processing completed successfully with full-text indexing');
+    console.log(`[Background] Publication processing completed in ${Date.now() - startTime}ms`);
 
+  } catch (error) {
+    console.error('[Background] Error processing publication:', error);
+
+    // Update status to failed
+    try {
+      await supabase
+        .from('publications')
+        .update({ 
+          processing_status: 'failed',
+          processing_error: error.message 
+        })
+        .eq('id', publicationId);
+    } catch (e) {
+      console.error('[Background] Failed to update error status:', e);
+    }
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { publicationId, pdfUrl }: ProcessPublicationRequest = await req.json();
+
+    if (!pdfUrl) {
+      throw new Error(`Invalid URL: '${pdfUrl}'`);
+    }
+
+    if (!publicationId) {
+      throw new Error('Missing publicationId');
+    }
+
+    console.log(`Received request to process publication ${publicationId}`);
+
+    // Start background processing using EdgeRuntime.waitUntil
+    // This returns immediately while processing continues in the background
+    EdgeRuntime.waitUntil(processPublicationInBackground(publicationId, pdfUrl));
+
+    // Return immediate response - processing continues in background
     return new Response(
       JSON.stringify({ 
         success: true, 
-        pageCount,
-        totalTextLength,
-        message: 'Publication processed successfully with text extraction' 
+        message: 'PDF processing started in background',
+        publicationId
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 202 // Accepted - processing started
       }
     );
 
   } catch (error) {
-    console.error('Error processing publication:', error);
-
-    // Try to update status to failed
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
-      const { publicationId } = await req.clone().json();
-      if (publicationId) {
-        await supabase
-          .from('publications')
-          .update({ 
-            processing_status: 'failed',
-            processing_error: error.message 
-          })
-          .eq('id', publicationId);
-      }
-    } catch (e) {
-      console.error('Failed to update error status:', e);
-    }
+    console.error('Error starting publication processing:', error);
 
     return new Response(
       JSON.stringify({ 
