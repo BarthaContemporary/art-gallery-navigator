@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, ExternalLink, Trash2, Image as ImageIcon, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { SyncViewerToArtworks } from '@/components/viewer/SyncViewerToArtworks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -115,13 +116,14 @@ export default function ViewerArtworksPage() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex flex-col items-start gap-1">
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <PlusCircle className="h-4 w-4 mr-2" />
-              New Artwork
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <PlusCircle className="h-4 w-4 mr-2" />
+                New Artwork
+              </Button>
+            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Artwork</DialogTitle>
@@ -168,6 +170,8 @@ export default function ViewerArtworksPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <SyncViewerToArtworks />
+        </div>
         <p className="text-muted-foreground text-xs">
           {artworks?.length || 0} artworks
         </p>
