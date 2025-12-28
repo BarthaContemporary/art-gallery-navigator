@@ -154,7 +154,7 @@ function ProgressiveImageComponent({
       sizes={loadStage !== 'placeholder' ? sizes : undefined}
       alt={alt}
       className={cn(
-        "max-w-none",
+        "object-contain",
         isTransitioning && "transition-all duration-300",
         className
       )}
@@ -162,6 +162,8 @@ function ProgressiveImageComponent({
         ...style,
         filter: blurAmount > 0 ? `blur(${blurAmount}px)` : undefined,
         transform: style?.transform,
+        width: '100%',
+        height: '100%',
       }}
       draggable={draggable}
       decoding="async"
