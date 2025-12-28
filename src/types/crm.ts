@@ -250,3 +250,33 @@ export interface FilterGroup {
   logic: 'and' | 'or';
   rules: (FilterRule | FilterGroup)[];
 }
+
+// Contact-Organization many-to-many relationship
+export interface CRMContactOrganization {
+  id: string;
+  contact_id: string;
+  organization_id: string;
+  organization?: CRMOrganization;
+  contact?: CRMContact;
+  role?: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+// Deal-specific interaction/touchpoint
+export type CRMDealInteractionType = 'email' | 'call' | 'meeting' | 'note' | 'other';
+
+export interface CRMDealInteraction {
+  id: string;
+  deal_id: string;
+  contact_id?: string;
+  contact?: CRMContact;
+  type: CRMDealInteractionType;
+  direction?: CRMInteractionDirection;
+  subject?: string;
+  summary?: string;
+  interaction_date: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
