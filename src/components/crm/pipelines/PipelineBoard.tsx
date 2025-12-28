@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { CRMPipeline, CRMDeal } from "@/types/crm";
+import { CRMPipeline, CRMDeal, CRMPipelineStage } from "@/types/crm";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useMoveDealToStage } from "@/hooks/crm";
 import { DealCard } from "./DealCard";
@@ -11,6 +11,42 @@ import { DealDialog } from "./DealDialog";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface PipelineBoardProps { pipeline: CRMPipeline; deals: CRMDeal[]; isLoading: boolean; }
+
+interface StageColumnProps {
+  stage: CRMPipelineStage;
+  deals: CRMDeal[];
+  onDealClick: (deal: CRMDeal) => void;
+}
+
+function StageColumn({ stage, deals, onDealClick }: StageColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  
+  return (
+    <div key={stage.id} className="w-72 flex-shrink-0">
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
+        <h3 className="font-medium">{stage.name}</h3>
+        <Badge variant="secondary" className="ml-auto">{deals.length}</Badge>
+      </div>
+      <SortableContext items={deals.map(d => d.id)} strategy={verticalListSortingStrategy}>
+        <div 
+          ref={setNodeRef}
+          className={`space-y-2 min-h-[200px] p-2 rounded-lg border border-dashed transition-colors ${
+            isOver ? 'bg-primary/10 border-primary' : 'bg-muted/30'
+          }`}
+          data-stage-id={stage.id}
+        >
+          {deals.map((deal) => (
+            <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
+          ))}
+          {deals.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-8">Drop deals here</p>
+          )}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
 
 export function PipelineBoard({ pipeline, deals, isLoading }: PipelineBoardProps) {
   const [selectedDeal, setSelectedDeal] = useState<CRMDeal | null>(null);
@@ -50,9 +86,20 @@ export function PipelineBoard({ pipeline, deals, isLoading }: PipelineBoardProps
     const deal = deals.find(d => d.id === dealId);
     if (!deal) return;
 
-    // Check if dropped on a stage column
-    const targetStageId = stages.find(s => s.id === over.id)?.id || 
-      deals.find(d => d.id === over.id)?.stage_id;
+    // Check if dropped on a stage column (droppable) or another deal
+    let targetStageId: string | undefined;
+    
+    // First check if it's a stage
+    const droppedOnStage = stages.find(s => s.id === over.id);
+    if (droppedOnStage) {
+      targetStageId = droppedOnStage.id;
+    } else {
+      // Check if dropped on another deal, get that deal's stage
+      const droppedOnDeal = deals.find(d => d.id === over.id);
+      if (droppedOnDeal) {
+        targetStageId = droppedOnDeal.stage_id;
+      }
+    }
     
     if (targetStageId && targetStageId !== deal.stage_id) {
       moveDeal.mutate({ dealId, stageId: targetStageId, displayOrder: 0 });
@@ -90,23 +137,12 @@ export function PipelineBoard({ pipeline, deals, isLoading }: PipelineBoardProps
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {stages.map((stage) => (
-            <div key={stage.id} className="w-72 flex-shrink-0">
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
-                <h3 className="font-medium">{stage.name}</h3>
-                <Badge variant="secondary" className="ml-auto">{dealsByStage[stage.id]?.length || 0}</Badge>
-              </div>
-              <SortableContext items={dealsByStage[stage.id]?.map(d => d.id) || []} strategy={verticalListSortingStrategy}>
-                <div className="space-y-2 min-h-[200px] bg-muted/30 p-2 rounded-lg border border-dashed" data-stage-id={stage.id}>
-                  {dealsByStage[stage.id]?.map((deal) => (
-                    <DealCard key={deal.id} deal={deal} onClick={() => handleDealClick(deal)} />
-                  ))}
-                  {(!dealsByStage[stage.id] || dealsByStage[stage.id].length === 0) && (
-                    <p className="text-xs text-muted-foreground text-center py-8">Drop deals here</p>
-                  )}
-                </div>
-              </SortableContext>
-            </div>
+            <StageColumn
+              key={stage.id}
+              stage={stage}
+              deals={dealsByStage[stage.id] || []}
+              onDealClick={handleDealClick}
+            />
           ))}
         </div>
         <DragOverlay>
