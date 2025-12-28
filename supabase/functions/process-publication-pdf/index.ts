@@ -86,6 +86,18 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 
     console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
 
+    // Delete existing page records for this publication (for reprocessing)
+    const { error: deleteError } = await supabase
+      .from('publication_pages')
+      .delete()
+      .eq('publication_id', publicationId);
+
+    if (deleteError) {
+      console.warn('[Background] Warning: Could not delete existing pages:', deleteError);
+    } else {
+      console.log('[Background] Deleted existing page records for reprocessing');
+    }
+
     // Insert pages in batches to avoid timeout issues with large PDFs
     const BATCH_SIZE = 50;
     for (let i = 0; i < pageRecords.length; i += BATCH_SIZE) {
