@@ -1476,6 +1476,48 @@ export type Database = {
           },
         ]
       }
+      crm_contact_organizations: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          organization_id: string
+          role: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          organization_id: string
+          role?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          organization_id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contact_organizations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contact_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_contacts: {
         Row: {
           address_line1: string | null
@@ -1615,6 +1657,63 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_interactions: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          deal_id: string
+          direction: string | null
+          id: string
+          interaction_date: string | null
+          subject: string | null
+          summary: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id: string
+          direction?: string | null
+          id?: string
+          interaction_date?: string | null
+          subject?: string | null
+          summary?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string
+          direction?: string | null
+          id?: string
+          interaction_date?: string | null
+          subject?: string | null
+          summary?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_interactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
             referencedColumns: ["id"]
           },
         ]

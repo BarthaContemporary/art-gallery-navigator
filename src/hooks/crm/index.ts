@@ -14,3 +14,5 @@ export * from './use-sanctions-check';
 export * from './use-email-enrichment';
 export * from './use-whatsapp-check';
 export * from './use-crm-deal-items';
+export * from './use-crm-contact-organizations';
+export * from './use-crm-deal-interactions';

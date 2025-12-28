@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Edit, Trash2, Mail, Phone, Building2, MapPin, ExternalLink, User } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, ExternalLink } from "lucide-react";
 import { useCRMContact, useDeleteCRMContact } from "@/hooks/crm";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
 import { SanctionsCheckCard } from "@/components/crm/contacts/SanctionsCheckCard";
+import { ContactOrganizationsSection } from "@/components/crm/contacts/ContactOrganizationsSection";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,19 +89,13 @@ export default function ContactDetailPage() {
           
           <div>
             <h1 className="text-2xl font-semibold">{contact.full_name}</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant="outline">
                 {contactTypeLabels[contact.contact_type] || contact.contact_type}
               </Badge>
-              {contact.organization && (
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  {contact.organization.name}
-                </span>
-              )}
               {contact.job_title && (
                 <span className="text-sm text-muted-foreground">
-                  • {contact.job_title}
+                  {contact.job_title}
                 </span>
               )}
             </div>
@@ -188,7 +183,8 @@ export default function ContactDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Social Channels */}
+          {/* Organizations - Multiple */}
+          <ContactOrganizationsSection contactId={contact.id} />
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Social Channels</CardTitle>

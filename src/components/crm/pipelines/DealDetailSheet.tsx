@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CRMDeal, CRMPipelineStage } from "@/types/crm";
-import { useDeleteCRMDeal } from "@/hooks/crm";
+import { useDeleteCRMDeal, useUpdateCRMDeal } from "@/hooks/crm";
 import { useCRMDealItems, calculateDealTotal, calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
 import { DealLineItems } from "./DealLineItems";
+import { DealInteractionsTimeline } from "./DealInteractionsTimeline";
+import { DealArtworksSection } from "./DealArtworksSection";
 import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
 import { toast } from "sonner";
 
 interface DealDetailSheetProps {
@@ -21,6 +22,7 @@ interface DealDetailSheetProps {
 
 export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: DealDetailSheetProps) {
   const deleteDeal = useDeleteCRMDeal();
+  const updateDeal = useUpdateCRMDeal();
   const { data: items = [] } = useCRMDealItems(deal?.id);
 
   const handleDelete = async () => {
@@ -142,6 +144,22 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{deal.notes}</p>
             </div>
           )}
+
+          <Separator />
+
+          {/* Artworks */}
+          <DealArtworksSection 
+            dealId={deal.id} 
+            relatedArtworks={deal.related_artworks || []}
+            onUpdateArtworks={(artworkIds) => {
+              updateDeal.mutate({ id: deal.id, related_artworks: artworkIds });
+            }}
+          />
+
+          <Separator />
+
+          {/* Interactions Timeline */}
+          <DealInteractionsTimeline dealId={deal.id} />
 
           <Separator />
 
