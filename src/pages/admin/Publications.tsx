@@ -134,69 +134,107 @@ export default function Publications() {
               </Link>
             </Button>
           </CardContent>
-        </Card> : <div className="grid gap-4">
-          {publications?.map(pub => <Card key={pub.id} className="overflow-hidden">
-              <CardContent className="px-4 py-4 flex items-center min-h-[100px]">
-                <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-                  {/* Title Page Thumbnail */}
-                  <div className="w-full md:w-24 h-32 md:h-24 bg-muted rounded-md flex items-center justify-center shrink-0 overflow-hidden">
-                    {(pub.title_page_url || pub.og_image_url) ? (
-                      <img 
-                        src={pub.title_page_url || pub.og_image_url} 
-                        alt={pub.title} 
-                        className="w-full h-full object-cover rounded-md"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <FileText className={`h-8 w-8 text-muted-foreground ${(pub.title_page_url || pub.og_image_url) ? 'hidden' : ''}`} />
-                  </div>
+        </Card> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {publications?.map(pub => (
+            <Card 
+              key={pub.id} 
+              className="group overflow-hidden hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/30"
+            >
+              {/* Title Page Thumbnail */}
+              <div className="relative aspect-[3/4] bg-muted overflow-hidden">
+                {(pub.title_page_url || pub.og_image_url) ? (
+                  <img 
+                    src={pub.title_page_url || pub.og_image_url} 
+                    alt={pub.title} 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/80 ${(pub.title_page_url || pub.og_image_url) ? 'hidden' : ''}`}>
+                  <FileText className="h-16 w-16 text-muted-foreground/40" />
+                </div>
+                
+                {/* Status badges overlay */}
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                  <Badge 
+                    variant={getStatusColor(pub.processing_status || 'pending')}
+                    className="text-xs shadow-sm backdrop-blur-sm"
+                  >
+                    {pub.processing_status || 'pending'}
+                  </Badge>
+                  <Badge 
+                    variant={getVisibilityColor(pub.visibility || 'private')}
+                    className="text-xs shadow-sm backdrop-blur-sm"
+                  >
+                    {pub.visibility || 'private'}
+                  </Badge>
+                </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 py-1">
-                    <h3 className="text-sm font-semibold truncate">{pub.title}</h3>
-                    {pub.author && <p className="text-sm text-muted-foreground mt-1">By {pub.author}</p>}
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-muted-foreground">
-                          {pub.page_count || 0} pages • Created {format(new Date(pub.created_at), 'MMM d, yyyy')}
-                        </p>
-                        {pub.slug && <span className="text-xs text-muted-foreground font-mono">
-                          /p/{pub.slug}
-                        </span>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getStatusColor(pub.processing_status || 'pending')}>
-                          {pub.processing_status || 'pending'}
-                        </Badge>
-                        <Badge variant={getVisibilityColor(pub.visibility || 'private')}>
-                          {pub.visibility || 'private'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {pub.processing_status === 'completed' && <Button variant="ghost" size="icon" asChild>
-                        <Link to={`/p/${pub.slug || pub.id}`} target="_blank">
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      </Button>}
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/admin/publications/${pub.id}`}>
-                        <Pencil className="h-4 w-4" />
+                {/* Quick actions overlay */}
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {pub.processing_status === 'completed' && (
+                    <Button 
+                      variant="secondary" 
+                      size="icon" 
+                      className="h-8 w-8 shadow-md backdrop-blur-sm bg-background/80 hover:bg-background"
+                      asChild
+                    >
+                      <Link to={`/p/${pub.slug || pub.id}`} target="_blank">
+                        <ExternalLink className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(pub.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  )}
+                </div>
+              </div>
+
+              {/* Content */}
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                    {pub.title}
+                  </h3>
+                  {pub.author && (
+                    <p className="text-sm text-muted-foreground">
+                      {pub.author}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                    <span>{pub.page_count || 0} pages</span>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span>{format(new Date(pub.created_at), 'MMM d, yyyy')}</span>
+                  </div>
+                </div>
+
+                {/* Actions footer */}
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
+                  {pub.slug && (
+                    <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px]">
+                      /p/{pub.slug}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1 ml-auto">
+                    <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
+                      <Link to={`/admin/publications/${pub.id}`}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteId(pub.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
               </CardContent>
-            </Card>)}
+            </Card>
+          ))}
         </div>}
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
