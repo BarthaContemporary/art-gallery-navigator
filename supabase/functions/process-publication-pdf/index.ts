@@ -13,6 +13,16 @@ interface ProcessPublicationRequest {
   pdfUrl: string;
 }
 
+interface TOCSection {
+  title: string;
+  pageNumber: number;
+}
+
+interface KeywordEntry {
+  term: string;
+  pages: number[];
+}
+
 // OCR text from a page image using OpenAI GPT-4 Vision
 async function ocrPageWithOpenAI(
   imageBase64: string,
@@ -69,6 +79,197 @@ async function ocrPageWithOpenAI(
     return extractedText;
   } catch (error) {
     console.warn(`[OCR] Error processing page ${pageNumber}:`, error);
+    return '';
+  }
+}
+
+// Generate TOC using OpenAI
+async function generateTOC(
+  pageTexts: { pageNumber: number; text: string }[],
+  openAIApiKey: string
+): Promise<TOCSection[]> {
+  try {
+    console.log('[TOC] Generating table of contents...');
+    
+    // Prepare a summary of each page (first 500 chars per page, max 20 pages)
+    const pageSummaries = pageTexts
+      .slice(0, 30)
+      .map(p => `Page ${p.pageNumber}: ${p.text.substring(0, 500)}`)
+      .join('\n\n');
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You analyze document content and create structured tables of contents. Return valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: `Analyze this publication content and create a table of contents. Identify major sections, chapters, or topics and their starting page numbers.
+
+Return JSON format: {"sections": [{"title": "Section Title", "pageNumber": 1}, ...]}
+
+If you cannot identify clear sections, create logical groupings based on content themes.
+
+Content:
+${pageSummaries}`
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[TOC] OpenAI API error:', await response.text());
+      return [];
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`[TOC] Generated ${parsed.sections?.length || 0} sections`);
+      return parsed.sections || [];
+    }
+    return [];
+  } catch (error) {
+    console.warn('[TOC] Error generating TOC:', error);
+    return [];
+  }
+}
+
+// Generate keyword index using OpenAI
+async function generateKeywordIndex(
+  pageTexts: { pageNumber: number; text: string }[],
+  openAIApiKey: string
+): Promise<KeywordEntry[]> {
+  try {
+    console.log('[INDEX] Generating keyword index...');
+    
+    // Combine all text with page markers
+    const allText = pageTexts
+      .map(p => `[PAGE ${p.pageNumber}]\n${p.text.substring(0, 1000)}`)
+      .join('\n\n');
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You extract key terms, names, and concepts from documents for indexing. Return valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: `Extract the most important keywords, names, places, and concepts from this publication for search indexing and SEO.
+
+For each term, list all page numbers where it appears.
+
+Return JSON format: {"terms": [{"term": "Keyword", "pages": [1, 5, 12]}, ...]}
+
+Focus on: proper nouns, technical terms, key concepts, important dates, locations, and recurring themes.
+Limit to the 50 most important terms.
+
+Content:
+${allText.substring(0, 15000)}`
+          }
+        ],
+        max_tokens: 3000,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[INDEX] OpenAI API error:', await response.text());
+      return [];
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`[INDEX] Generated ${parsed.terms?.length || 0} keyword entries`);
+      return parsed.terms || [];
+    }
+    return [];
+  } catch (error) {
+    console.warn('[INDEX] Error generating index:', error);
+    return [];
+  }
+}
+
+// Generate summary using OpenAI
+async function generateSummary(
+  pageTexts: { pageNumber: number; text: string }[],
+  openAIApiKey: string
+): Promise<string> {
+  try {
+    console.log('[SUMMARY] Generating publication summary...');
+    
+    // Combine first few pages for summary
+    const contentForSummary = pageTexts
+      .slice(0, 10)
+      .map(p => p.text)
+      .join('\n\n')
+      .substring(0, 10000);
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You create concise, SEO-friendly summaries of documents.'
+          },
+          {
+            role: 'user',
+            content: `Create a concise summary of this publication for use as a meta description. 
+The summary should be 150-200 characters, engaging, and include key topics.
+
+Content:
+${contentForSummary}`
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.5,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[SUMMARY] OpenAI API error:', await response.text());
+      return '';
+    }
+
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content?.trim() || '';
+    console.log(`[SUMMARY] Generated summary: ${summary.length} chars`);
+    return summary;
+  } catch (error) {
+    console.warn('[SUMMARY] Error generating summary:', error);
     return '';
   }
 }
@@ -195,6 +396,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     const pageRecords = [];
     const MIN_TEXT_THRESHOLD = 50;
     let totalTextLength = 0;
+    const pageTextsForAI: { pageNumber: number; text: string }[] = [];
 
     for (let i = 1; i <= pageCount; i++) {
       const pageText = (allPageTexts[i - 1] || '').trim();
@@ -207,6 +409,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         render_low_url: null,
         render_high_url: null,
       });
+      
+      pageTextsForAI.push({ pageNumber: i, text: pageText });
     }
 
     console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
@@ -229,17 +433,14 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     console.log(`[Background] Created ${pageCount} page records (${Date.now() - startTime}ms)`);
 
     // STEP 7: Try to generate thumbnails for first few pages (for preview)
-    // This is optional and we'll try our best, but won't fail the whole process
     console.log('[Background] Attempting to generate page thumbnails...');
-    const MAX_THUMBNAIL_PAGES = Math.min(pageCount, 10); // First 10 pages for thumbnails
+    const MAX_THUMBNAIL_PAGES = Math.min(pageCount, 10);
     
     for (let pageNum = 1; pageNum <= MAX_THUMBNAIL_PAGES; pageNum++) {
       try {
-        // Try rendering the page to image
-        const rendered = await renderPageToImage(pdfData, pageNum, 0.5); // Low res for thumbnails
+        const rendered = await renderPageToImage(pdfData, pageNum, 0.5);
         
         if (rendered && rendered.base64) {
-          // Upload to storage
           const thumbnailPath = `${publicationId}/thumbnails/page-${pageNum}.png`;
           const imageBytes = Uint8Array.from(atob(rendered.base64), c => c.charCodeAt(0));
           
@@ -251,12 +452,10 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
             });
 
           if (!uploadError) {
-            // Get public URL
             const { data: urlData } = supabase.storage
               .from('publications')
               .getPublicUrl(thumbnailPath);
 
-            // Update the page record with thumbnail URL
             if (urlData?.publicUrl) {
               await supabase
                 .from('publication_pages')
@@ -272,47 +471,84 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         }
       } catch (thumbError) {
         console.warn(`[Background] Could not generate thumbnail for page ${pageNum}:`, thumbError);
-        // Continue with other pages
       }
     }
 
-    // STEP 8: OCR for pages with sparse text (if OpenAI key available)
+    // STEP 8: OCR for ALL pages with sparse text (if OpenAI key available)
     if (openAIApiKey) {
       const sparseTextPages = pageRecords.filter(p => (p.text_content?.length || 0) < MIN_TEXT_THRESHOLD);
       
       if (sparseTextPages.length > 0) {
-        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR...`);
+        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR for all...`);
         
-        // OCR first 5 sparse pages max to avoid timeout
-        const pagesToOCR = sparseTextPages.slice(0, 5);
-        
-        for (const page of pagesToOCR) {
-          try {
-            // First try to render the page to an image
-            const rendered = await renderPageToImage(pdfData, page.page_number, 1.5);
-            
-            if (rendered && rendered.base64) {
-              const ocrText = await ocrPageWithOpenAI(rendered.base64, page.page_number, openAIApiKey);
+        // Process in batches of 10 to avoid timeout
+        const OCR_BATCH_SIZE = 10;
+        for (let batchStart = 0; batchStart < sparseTextPages.length; batchStart += OCR_BATCH_SIZE) {
+          const batch = sparseTextPages.slice(batchStart, batchStart + OCR_BATCH_SIZE);
+          console.log(`[Background] Processing OCR batch ${batchStart + 1}-${batchStart + batch.length} of ${sparseTextPages.length}`);
+          
+          for (const page of batch) {
+            try {
+              const rendered = await renderPageToImage(pdfData, page.page_number, 1.5);
               
-              if (ocrText && ocrText.length > 10) {
-                // Update the page with OCR text
-                await supabase
-                  .from('publication_pages')
-                  .update({ text_content: ocrText })
-                  .eq('publication_id', publicationId)
-                  .eq('page_number', page.page_number);
+              if (rendered && rendered.base64) {
+                const ocrText = await ocrPageWithOpenAI(rendered.base64, page.page_number, openAIApiKey);
                 
-                console.log(`[Background] Updated page ${page.page_number} with OCR text (${ocrText.length} chars)`);
+                if (ocrText && ocrText.length > 10) {
+                  await supabase
+                    .from('publication_pages')
+                    .update({ text_content: ocrText })
+                    .eq('publication_id', publicationId)
+                    .eq('page_number', page.page_number);
+                  
+                  // Update local record for AI processing
+                  const idx = pageTextsForAI.findIndex(p => p.pageNumber === page.page_number);
+                  if (idx !== -1) {
+                    pageTextsForAI[idx].text = ocrText;
+                  }
+                  
+                  console.log(`[Background] Updated page ${page.page_number} with OCR text (${ocrText.length} chars)`);
+                }
               }
+            } catch (ocrError) {
+              console.warn(`[Background] OCR failed for page ${page.page_number}:`, ocrError);
             }
-          } catch (ocrError) {
-            console.warn(`[Background] OCR failed for page ${page.page_number}:`, ocrError);
           }
         }
       }
+
+      // STEP 9: Generate TOC, Keyword Index, and Summary
+      console.log('[Background] Generating AI content (TOC, Index, Summary)...');
+      
+      // Run all AI generation in parallel
+      const [toc, keywordIndex, summary] = await Promise.all([
+        generateTOC(pageTextsForAI, openAIApiKey),
+        generateKeywordIndex(pageTextsForAI, openAIApiKey),
+        generateSummary(pageTextsForAI, openAIApiKey),
+      ]);
+      
+      // Update publication with AI-generated content
+      const aiUpdateData: Record<string, any> = {};
+      if (toc && toc.length > 0) {
+        aiUpdateData.toc = { sections: toc };
+      }
+      if (keywordIndex && keywordIndex.length > 0) {
+        aiUpdateData.keyword_index = { terms: keywordIndex };
+      }
+      if (summary) {
+        aiUpdateData.full_text_summary = summary;
+      }
+      
+      if (Object.keys(aiUpdateData).length > 0) {
+        await supabase
+          .from('publications')
+          .update(aiUpdateData)
+          .eq('id', publicationId);
+        console.log(`[Background] Saved AI content: TOC=${toc?.length || 0} sections, Index=${keywordIndex?.length || 0} terms, Summary=${summary?.length || 0} chars`);
+      }
     }
 
-    // STEP 9: Update publication as completed
+    // STEP 10: Update publication as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 

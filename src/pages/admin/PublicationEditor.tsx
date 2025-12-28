@@ -26,7 +26,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDropzone } from 'react-dropzone';
@@ -73,6 +74,7 @@ export default function PublicationEditor() {
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [reprocessing, setReprocessing] = useState(false);
 
   // Fetch existing publication
   const { data: publication, isLoading } = useQuery({
@@ -459,11 +461,43 @@ export default function PublicationEditor() {
                       {publication.pdf_url}
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={publication.pdf_url} target="_blank" rel="noopener noreferrer">
-                      Download
-                    </a>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        if (!publication?.id || !publication?.pdf_url) return;
+                        setReprocessing(true);
+                        try {
+                          const { error } = await supabase.functions.invoke('process-publication-pdf', {
+                            body: { publicationId: publication.id, pdfUrl: publication.pdf_url },
+                          });
+                          if (error) throw error;
+                          toast.success('PDF reprocessing started');
+                          queryClient.invalidateQueries({ queryKey: ['publication-edit'] });
+                          queryClient.invalidateQueries({ queryKey: ['publication-pages-edit'] });
+                        } catch (err) {
+                          console.error('Reprocess error:', err);
+                          toast.error('Failed to start reprocessing');
+                        } finally {
+                          setReprocessing(false);
+                        }
+                      }}
+                      disabled={reprocessing || publication.processing_status === 'processing'}
+                    >
+                      {reprocessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                      )}
+                      Reprocess
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={publication.pdf_url} target="_blank" rel="noopener noreferrer">
+                        Download
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               )}
 

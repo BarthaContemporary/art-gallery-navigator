@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useDebounce } from '@/hooks/use-debounce';
 
 // Helper function to safely parse search highlights without dangerouslySetInnerHTML
 function parseSearchHighlight(text: string): ReactNode[] {
@@ -195,10 +196,28 @@ export function FlipbookControls({
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // Debounce search query for live search
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Live search effect - triggers search as user types
+  useEffect(() => {
+    const trimmedQuery = debouncedSearchQuery.trim();
+    if (trimmedQuery.length >= 2) {
+      setLastSearchQuery(trimmedQuery);
+      setHasSearched(true);
+      onSearch(trimmedQuery);
+    } else if (trimmedQuery === '' && hasSearched) {
+      setLastSearchQuery('');
+      setHasSearched(false);
+      onSearch('');
+    }
+  }, [debouncedSearchQuery, onSearch, hasSearched]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
+    // Optional: still allow form submission for accessibility
+    if (searchQuery.trim().length >= 2) {
       setLastSearchQuery(searchQuery.trim());
       setHasSearched(true);
       onSearch(searchQuery.trim());
@@ -289,21 +308,21 @@ export function FlipbookControls({
           </Button>
         </div>
 
-        {/* Search */}
+        {/* Search - Live search as you type */}
         <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search in document..."
+              placeholder="Search (min 2 chars)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-48 h-8"
+              className="pl-9 w-48 sm:w-56 h-8"
             />
+            {isSearching && (
+              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
           </div>
-          <Button type="submit" size="sm" variant="secondary" disabled={isSearching}>
-            {isSearching ? 'Searching...' : 'Search'}
-          </Button>
         </form>
 
         {/* Tools */}
