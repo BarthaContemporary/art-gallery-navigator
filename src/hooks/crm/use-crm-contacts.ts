@@ -147,9 +147,15 @@ export function useUpdateCRMContact() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<CRMContact> & { id: string }) => {
+      // Sanitize empty strings to null for UUID fields
+      const sanitizedUpdates = {
+        ...updates,
+        organization_id: updates.organization_id || null,
+      };
+      
       const { data, error } = await supabase
         .from('crm_contacts')
-        .update(updates)
+        .update(sanitizedUpdates)
         .eq('id', id)
         .select()
         .single();
