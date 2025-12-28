@@ -10,6 +10,20 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+
+interface PublicationWithTitlePage {
+  id: string;
+  title: string;
+  author: string | null;
+  slug: string | null;
+  page_count: number | null;
+  processing_status: string | null;
+  visibility: string | null;
+  created_at: string;
+  og_image_url: string | null;
+  title_page_url?: string | null;
+}
+
 export default function Publications() {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -17,21 +31,33 @@ export default function Publications() {
   const {
     data: publications,
     isLoading
-  } = useQuery({
+  } = useQuery<PublicationWithTitlePage[]>({
     queryKey: ['admin-publications', searchQuery],
     queryFn: async () => {
-      let query = supabase.from('publications').select('*').order('created_at', {
-        ascending: false
-      });
+      // First get publications
+      let pubQuery = supabase.from('publications').select('*').order('created_at', { ascending: false });
       if (searchQuery) {
-        query = query.or(`title.ilike.%${searchQuery}%,author.ilike.%${searchQuery}%`);
+        pubQuery = pubQuery.or(`title.ilike.%${searchQuery}%,author.ilike.%${searchQuery}%`);
       }
-      const {
-        data,
-        error
-      } = await query;
-      if (error) throw error;
-      return data;
+      const { data: pubs, error: pubError } = await pubQuery;
+      if (pubError) throw pubError;
+      
+      if (!pubs?.length) return [];
+      
+      // Get title pages (page 1) for all publications
+      const { data: titlePages } = await supabase
+        .from('publication_pages')
+        .select('publication_id, render_low_url')
+        .in('publication_id', pubs.map(p => p.id))
+        .eq('page_number', 1);
+      
+      // Map title page URLs to publications
+      const titlePageMap = new Map(titlePages?.map(tp => [tp.publication_id, tp.render_low_url]) || []);
+      
+      return pubs.map(pub => ({
+        ...pub,
+        title_page_url: titlePageMap.get(pub.id) || null
+      }));
     }
   });
   const deleteMutation = useMutation({
@@ -112,21 +138,20 @@ export default function Publications() {
           {publications?.map(pub => <Card key={pub.id} className="overflow-hidden">
               <CardContent className="px-4 py-4 flex items-center min-h-[100px]">
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-                  {/* Thumbnail */}
+                  {/* Title Page Thumbnail */}
                   <div className="w-full md:w-24 h-32 md:h-24 bg-muted rounded-md flex items-center justify-center shrink-0 overflow-hidden">
-                    {pub.og_image_url ? (
+                    {(pub.title_page_url || pub.og_image_url) ? (
                       <img 
-                        src={pub.og_image_url} 
+                        src={pub.title_page_url || pub.og_image_url} 
                         alt={pub.title} 
                         className="w-full h-full object-cover rounded-md"
                         onError={(e) => {
-                          // Hide broken image and show fallback
                           e.currentTarget.style.display = 'none';
                           e.currentTarget.nextElementSibling?.classList.remove('hidden');
                         }}
                       />
                     ) : null}
-                    <FileText className={`h-8 w-8 text-muted-foreground ${pub.og_image_url ? 'hidden' : ''}`} />
+                    <FileText className={`h-8 w-8 text-muted-foreground ${(pub.title_page_url || pub.og_image_url) ? 'hidden' : ''}`} />
                   </div>
 
                   {/* Info */}
