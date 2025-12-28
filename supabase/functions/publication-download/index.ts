@@ -77,8 +77,15 @@ serve(async (req) => {
 
     console.log(`Download initiated for publication: ${publication.title}`);
 
-    // Redirect to the PDF URL (or serve it directly if in storage)
-    // For signed URLs from storage:
+    // Generate safe filename from publication title
+    const safeFilename = publication.title
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 100) + '.pdf';
+
+    let pdfUrl: string;
+
+    // Get the PDF URL - either from storage or direct URL
     if (publication.pdf_storage_path) {
       const { data: signedUrl, error: signError } = await supabase
         .storage
@@ -92,23 +99,38 @@ serve(async (req) => {
           headers: corsHeaders 
         });
       }
+      pdfUrl = signedUrl.signedUrl;
+    } else {
+      pdfUrl = publication.pdf_url;
+    }
 
-      // Redirect to signed URL
-      return new Response(null, {
-        status: 302,
-        headers: {
-          ...corsHeaders,
-          'Location': signedUrl.signedUrl,
-        }
+    // Fetch the PDF content directly and stream it back
+    // This avoids redirect-based downloads that get blocked by ad blockers
+    console.log(`Fetching PDF from: ${pdfUrl}`);
+    
+    const pdfResponse = await fetch(pdfUrl);
+    
+    if (!pdfResponse.ok) {
+      console.error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      return new Response('Failed to retrieve PDF file', { 
+        status: 502, 
+        headers: corsHeaders 
       });
     }
 
-    // Fallback: redirect to public PDF URL
-    return new Response(null, {
-      status: 302,
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    
+    console.log(`Successfully fetched PDF, size: ${pdfBuffer.byteLength} bytes`);
+
+    // Return the PDF directly with proper headers for download
+    return new Response(pdfBuffer, {
+      status: 200,
       headers: {
         ...corsHeaders,
-        'Location': publication.pdf_url,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${safeFilename}"`,
+        'Content-Length': pdfBuffer.byteLength.toString(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       }
     });
 

@@ -20,6 +20,131 @@ function generateSecureToken(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function syncLeadToCRM(
+  supabase: any,
+  email: string,
+  name: string,
+  publicationTitle: string,
+  mailingListOptIn: boolean
+): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const trimmedName = name.trim();
+  
+  console.log(`Syncing lead to CRM: ${normalizedEmail} for publication "${publicationTitle}"`);
+
+  // Check if contact already exists
+  const { data: existingContact, error: lookupError } = await supabase
+    .from('crm_contacts')
+    .select('id, tags, custom_fields, marketing_consent')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error('Error looking up CRM contact:', lookupError);
+    throw lookupError;
+  }
+
+  const downloadTag = `Downloaded: ${publicationTitle}`;
+  const downloadRecord = {
+    publication_title: publicationTitle,
+    downloaded_at: new Date().toISOString(),
+  };
+
+  if (existingContact) {
+    // Update existing contact
+    console.log(`Found existing CRM contact: ${existingContact.id}`);
+    
+    // Update tags array - add new tag if not present
+    const currentTags = existingContact.tags || [];
+    const updatedTags = currentTags.includes(downloadTag) 
+      ? currentTags 
+      : [...currentTags, downloadTag];
+    
+    // Ensure "Publication Lead" tag exists
+    if (!updatedTags.includes('Publication Lead')) {
+      updatedTags.push('Publication Lead');
+    }
+
+    // Update custom_fields with download history
+    const currentCustomFields = existingContact.custom_fields || {};
+    const downloadHistory = currentCustomFields.downloaded_publications || [];
+    downloadHistory.push(downloadRecord);
+
+    const updatedCustomFields = {
+      ...currentCustomFields,
+      downloaded_publications: downloadHistory,
+    };
+
+    // Build update object
+    const updateData: Record<string, any> = {
+      tags: updatedTags,
+      custom_fields: updatedCustomFields,
+      updated_at: new Date().toISOString(),
+      last_interaction_date: new Date().toISOString(),
+    };
+
+    // Update marketing consent if opted in and not already consented
+    if (mailingListOptIn && !existingContact.marketing_consent) {
+      updateData.marketing_consent = true;
+      updateData.consent_date = new Date().toISOString();
+      updateData.consent_source = 'publication_download_gate';
+    }
+
+    const { error: updateError } = await supabase
+      .from('crm_contacts')
+      .update(updateData)
+      .eq('id', existingContact.id);
+
+    if (updateError) {
+      console.error('Error updating CRM contact:', updateError);
+      throw updateError;
+    }
+
+    console.log(`Updated CRM contact ${existingContact.id} with publication download`);
+  } else {
+    // Create new contact
+    console.log(`Creating new CRM contact for: ${normalizedEmail}`);
+
+    // Parse name into first/last
+    const nameParts = trimmedName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const newContact = {
+      full_name: trimmedName,
+      first_name: firstName,
+      last_name: lastName,
+      email: normalizedEmail,
+      source: 'publication_download',
+      contact_type: 'prospect',
+      status: 'active',
+      tags: ['Publication Lead', downloadTag],
+      marketing_consent: mailingListOptIn,
+      consent_date: mailingListOptIn ? new Date().toISOString() : null,
+      consent_source: mailingListOptIn ? 'publication_download_gate' : null,
+      custom_fields: {
+        downloaded_publications: [downloadRecord],
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_interaction_date: new Date().toISOString(),
+    };
+
+    const { data: createdContact, error: createError } = await supabase
+      .from('crm_contacts')
+      .insert(newContact)
+      .select('id')
+      .single();
+
+    if (createError) {
+      console.error('Error creating CRM contact:', createError);
+      throw createError;
+    }
+
+    console.log(`Created new CRM contact: ${createdContact.id}`);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -103,6 +228,22 @@ serve(async (req) => {
     }
 
     console.log(`Lead created: ${lead.id} for publication ${publicationId}`);
+
+    // Sync lead to CRM (create or update contact)
+    try {
+      await syncLeadToCRM(supabase, email, name, publication.title, mailingListOptIn);
+      
+      // Mark lead as synced to CRM
+      await supabase
+        .from('publication_leads')
+        .update({ synced_to_crm: true })
+        .eq('id', lead.id);
+      
+      console.log('Lead synced to CRM successfully');
+    } catch (crmError) {
+      console.error('CRM sync error (non-fatal):', crmError);
+      // Don't fail the request, just log it
+    }
 
     // If opted in, sync to Campaign Monitor
     if (mailingListOptIn && publication.mailing_list_config) {
