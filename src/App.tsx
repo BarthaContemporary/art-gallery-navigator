@@ -36,6 +36,7 @@ import CRMLayout from "@/pages/crm/CRMLayout";
 import ContactsPage from "@/pages/crm/ContactsPage";
 import OrganizationsPage from "@/pages/crm/OrganizationsPage";
 import ListsPage from "@/pages/crm/ListsPage";
+import ListDetailPage from "@/pages/crm/ListDetailPage";
 import CampaignsPage from "@/pages/crm/CampaignsPage";
 import PipelinesPage from "@/pages/crm/PipelinesPage";
 import ContactDetailPage from "@/pages/crm/ContactDetailPage";
