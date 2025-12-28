@@ -234,13 +234,24 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
 
   const seo = (publication.seo as Record<string, any>) || {};
   const metaTitle = seo.title || publication.title;
-  const metaDescription = seo.description || publication.description || `Read ${publication.title}`;
+  // Use AI-generated summary if available, fall back to description
+  const metaDescription = seo.description || (publication as any).full_text_summary || publication.description || `Read ${publication.title}`;
+  
+  // Parse TOC and keyword index if available
+  const toc = (publication as any).toc as { sections?: Array<{ title: string; pageNumber: number }> } | null;
+  const keywordIndex = (publication as any).keyword_index as { terms?: Array<{ term: string; pages: number[] }> } | null;
   
   // Combine page text content for SEO (first ~10000 chars)
   const pageTextContent = pages
     ?.map((p: any) => p.text_content || '')
     .join(' ')
     .substring(0, 10000) || '';
+  
+  // Generate keywords from index
+  const metaKeywords = keywordIndex?.terms?.slice(0, 20).map(t => t.term).join(', ') || '';
+  
+  // Generate TOC string for structured data
+  const tocString = toc?.sections?.map(s => s.title).join(', ') || '';
   
   // JSON-LD structured data for search engines and AI
   const jsonLd = {
@@ -254,7 +265,9 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
     url: `${window.location.origin}/p/${publication.slug}`,
     image: publication.og_image_url || undefined,
     numberOfPages: publication.page_count,
-    text: pageTextContent.substring(0, 5000), // Excerpt for structured data
+    text: pageTextContent.substring(0, 5000),
+    tableOfContents: tocString || undefined,
+    keywords: metaKeywords || undefined,
     inLanguage: 'en',
     isAccessibleForFree: !publication.download_gate_enabled,
   };
@@ -264,6 +277,7 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
       <Helmet>
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
+        {metaKeywords && <meta name="keywords" content={metaKeywords} />}
         {publication.visibility === 'unlisted' && (
           <meta name="robots" content="noindex, nofollow" />
         )}

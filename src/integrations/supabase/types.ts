@@ -3080,7 +3080,9 @@ export type Database = {
           created_by: string | null
           description: string | null
           download_gate_enabled: boolean | null
+          full_text_summary: string | null
           id: string
+          keyword_index: Json | null
           mailing_list_config: Json | null
           mailing_list_default_opt_in: boolean | null
           og_image_url: string | null
@@ -3096,6 +3098,7 @@ export type Database = {
           subtitle: string | null
           theme: Database["public"]["Enums"]["publication_theme"] | null
           title: string
+          toc: Json | null
           updated_at: string | null
           visibility:
             | Database["public"]["Enums"]["publication_visibility"]
@@ -3108,7 +3111,9 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           download_gate_enabled?: boolean | null
+          full_text_summary?: string | null
           id?: string
+          keyword_index?: Json | null
           mailing_list_config?: Json | null
           mailing_list_default_opt_in?: boolean | null
           og_image_url?: string | null
@@ -3124,6 +3129,7 @@ export type Database = {
           subtitle?: string | null
           theme?: Database["public"]["Enums"]["publication_theme"] | null
           title: string
+          toc?: Json | null
           updated_at?: string | null
           visibility?:
             | Database["public"]["Enums"]["publication_visibility"]
@@ -3136,7 +3142,9 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           download_gate_enabled?: boolean | null
+          full_text_summary?: string | null
           id?: string
+          keyword_index?: Json | null
           mailing_list_config?: Json | null
           mailing_list_default_opt_in?: boolean | null
           og_image_url?: string | null
@@ -3152,6 +3160,7 @@ export type Database = {
           subtitle?: string | null
           theme?: Database["public"]["Enums"]["publication_theme"] | null
           title?: string
+          toc?: Json | null
           updated_at?: string | null
           visibility?:
             | Database["public"]["Enums"]["publication_visibility"]
