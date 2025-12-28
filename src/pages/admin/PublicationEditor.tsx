@@ -453,51 +453,52 @@ export default function PublicationEditor() {
               </div>
 
               {publication?.pdf_url && (
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Current PDF</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {publication.pdf_url}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={async () => {
-                        if (!publication?.id || !publication?.pdf_url) return;
-                        setReprocessing(true);
-                        try {
-                          const { error } = await supabase.functions.invoke('process-publication-pdf', {
-                            body: { publicationId: publication.id, pdfUrl: publication.pdf_url },
-                          });
-                          if (error) throw error;
-                          toast.success('PDF reprocessing started');
-                          queryClient.invalidateQueries({ queryKey: ['publication-edit'] });
-                          queryClient.invalidateQueries({ queryKey: ['publication-pages-edit'] });
-                        } catch (err) {
-                          console.error('Reprocess error:', err);
-                          toast.error('Failed to start reprocessing');
-                        } finally {
-                          setReprocessing(false);
-                        }
-                      }}
-                      disabled={reprocessing || publication.processing_status === 'processing'}
-                    >
-                      {reprocessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                      )}
-                      Reprocess
-                    </Button>
+                <div className="p-3 bg-muted rounded-lg space-y-3">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">Current PDF</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {publication.pdf_url}
+                      </p>
+                    </div>
                     <Button variant="outline" size="sm" asChild>
                       <a href={publication.pdf_url} target="_blank" rel="noopener noreferrer">
                         Download
                       </a>
                     </Button>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full"
+                    onClick={async () => {
+                      if (!publication?.id || !publication?.pdf_url) return;
+                      setReprocessing(true);
+                      try {
+                        const { error } = await supabase.functions.invoke('process-publication-pdf', {
+                          body: { publicationId: publication.id, pdfUrl: publication.pdf_url },
+                        });
+                        if (error) throw error;
+                        toast.success('PDF reprocessing started');
+                        queryClient.invalidateQueries({ queryKey: ['publication-edit'] });
+                        queryClient.invalidateQueries({ queryKey: ['publication-pages-edit'] });
+                      } catch (err) {
+                        console.error('Reprocess error:', err);
+                        toast.error('Failed to start reprocessing');
+                      } finally {
+                        setReprocessing(false);
+                      }
+                    }}
+                    disabled={reprocessing || publication.processing_status === 'processing'}
+                  >
+                    {reprocessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                    )}
+                    Reprocess
+                  </Button>
                 </div>
               )}
 
