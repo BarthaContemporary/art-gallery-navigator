@@ -1,0 +1,154 @@
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { CRMDeal, CRMPipelineStage } from "@/types/crm";
+import { useDeleteCRMDeal } from "@/hooks/crm";
+import { useCRMDealItems, calculateDealTotal, calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
+import { DealLineItems } from "./DealLineItems";
+import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent } from "lucide-react";
+import { format } from "date-fns";
+import { useState } from "react";
+import { toast } from "sonner";
+
+interface DealDetailSheetProps {
+  deal: CRMDeal | null;
+  stages: CRMPipelineStage[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: () => void;
+}
+
+export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: DealDetailSheetProps) {
+  const deleteDeal = useDeleteCRMDeal();
+  const { data: items = [] } = useCRMDealItems(deal?.id);
+
+  const handleDelete = async () => {
+    if (!deal) return;
+    if (!confirm(`Are you sure you want to delete "${deal.name}"?`)) return;
+    
+    await deleteDeal.mutateAsync(deal.id);
+    onOpenChange(false);
+    toast.success("Deal deleted");
+  };
+
+  if (!deal) return null;
+
+  const stage = stages.find(s => s.id === deal.stage_id);
+  const itemsTotal = calculateDealTotal(items);
+  const displayValue = items.length > 0 ? itemsTotal : (deal.value || 0);
+  const weightedValue = calculateWeightedValue(displayValue, deal.probability || 0);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: deal.currency || 'GBP',
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-xl">{deal.name}</SheetTitle>
+              {stage && (
+                <Badge 
+                  variant="outline" 
+                  className="mt-2"
+                  style={{ borderColor: stage.color, color: stage.color }}
+                >
+                  {stage.name}
+                </Badge>
+              )}
+            </div>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" onClick={onEdit}>
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleDelete} disabled={deleteDeal.isPending}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        </SheetHeader>
+
+        <div className="space-y-6">
+          {/* Value Summary */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+            <div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />Deal Value
+              </p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(displayValue)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Percent className="h-3 w-3" />Weighted ({deal.probability || 0}%)
+              </p>
+              <p className="text-xl font-semibold">{formatCurrency(weightedValue)}</p>
+            </div>
+          </div>
+
+          {/* Contact & Organization */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Contact Details</h3>
+            {deal.contact && (
+              <div className="flex items-center gap-3 p-3 border rounded-lg">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">{deal.contact.full_name}</p>
+                  {deal.contact.email && (
+                    <p className="text-sm text-muted-foreground">{deal.contact.email}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {deal.organization && (
+              <div className="flex items-center gap-3 p-3 border rounded-lg">
+                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">{deal.organization.name}</p>
+                  {deal.organization.type && (
+                    <p className="text-sm text-muted-foreground capitalize">{deal.organization.type}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {!deal.contact && !deal.organization && (
+              <p className="text-sm text-muted-foreground">No contact or organization assigned</p>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Expected Close Date */}
+          {deal.expected_close_date && (
+            <div>
+              <h3 className="text-sm font-medium mb-2">Expected Close Date</h3>
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                {format(new Date(deal.expected_close_date), 'MMMM d, yyyy')}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {deal.notes && (
+            <div>
+              <h3 className="text-sm font-medium mb-2">Notes</h3>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{deal.notes}</p>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Line Items */}
+          <DealLineItems dealId={deal.id} currency={deal.currency || 'GBP'} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

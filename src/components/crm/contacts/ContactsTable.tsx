@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
+import { Building2 } from "lucide-react";
 
 interface ContactsTableProps {
   contacts: CRMContact[];
@@ -47,6 +48,7 @@ export function ContactsTable({ contacts, isLoading, selectedContacts, onSelecti
             <Checkbox checked={selectedContacts.length === contacts.length && contacts.length > 0} onCheckedChange={toggleAll} />
           </TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Organization</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Phone</TableHead>
           <TableHead>Type</TableHead>
@@ -60,11 +62,19 @@ export function ContactsTable({ contacts, isLoading, selectedContacts, onSelecti
               <Checkbox checked={selectedContacts.includes(contact.id)} onCheckedChange={() => toggleOne(contact.id)} />
             </TableCell>
             <TableCell className="font-medium">{contact.full_name}</TableCell>
+            <TableCell>
+              {contact.organization ? (
+                <Badge variant="outline" className="text-xs">
+                  <Building2 className="h-2.5 w-2.5 mr-1" />
+                  {contact.organization.name}
+                </Badge>
+              ) : "-"}
+            </TableCell>
             <TableCell>{contact.email || "-"}</TableCell>
             <TableCell>{contact.phone || "-"}</TableCell>
-            <TableCell><Badge variant="outline">{contact.contact_type}</Badge></TableCell>
+            <TableCell><Badge variant="secondary">{contact.contact_type}</Badge></TableCell>
             <TableCell>
-              <div className="flex gap-1">{contact.tags?.slice(0, 2).map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}</div>
+              <div className="flex gap-1">{contact.tags?.slice(0, 2).map(t => <Badge key={t} variant="outline" className="text-xs">{t}</Badge>)}</div>
             </TableCell>
           </TableRow>
         ))}

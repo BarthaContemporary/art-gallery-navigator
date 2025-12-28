@@ -1619,6 +1619,70 @@ export type Database = {
           },
         ]
       }
+      crm_deal_items: {
+        Row: {
+          artwork_id: string | null
+          created_at: string
+          deal_id: string
+          description: string
+          discount_percent: number | null
+          display_order: number | null
+          id: string
+          quantity: number
+          tax_percent: number | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          artwork_id?: string | null
+          created_at?: string
+          deal_id: string
+          description: string
+          discount_percent?: number | null
+          display_order?: number | null
+          id?: string
+          quantity?: number
+          tax_percent?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          artwork_id?: string | null
+          created_at?: string
+          deal_id?: string
+          description?: string
+          discount_percent?: number | null
+          display_order?: number | null
+          id?: string
+          quantity?: number
+          tax_percent?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_items_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_items_artwork_id_fkey"
+            columns: ["artwork_id"]
+            isOneToOne: false
+            referencedRelation: "artworks_public_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_deals: {
         Row: {
           contact_id: string | null
