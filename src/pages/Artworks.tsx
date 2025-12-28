@@ -14,6 +14,7 @@ import { ArtworkSelectionToolbar } from "@/components/artworks/selection/Artwork
 import { BulkDeleteDialog } from "@/components/artworks/dialogs/BulkDeleteDialog";
 import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
 import { CreateArtworkDialog } from "@/components/artworks/CreateArtworkDialog";
+import { QuickImageUploader } from "@/components/artworks/QuickImageUploader";
 import { ImportCSVDialog } from "@/components/artworks/ImportCSVDialog";
 import { ExportToGoogleSheetsButton } from "@/components/artworks/ExportToGoogleSheetsButton";
 import { NewCollectionFromArtworksButton } from "@/components/artworks/NewCollectionFromArtworksButton";
@@ -179,6 +180,7 @@ function Artworks() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CreateArtworkDialog />
+            <QuickImageUploader onArtworkCreated={() => refetchArtworks()} />
             <NewCollectionFromArtworksButton filteredArtworks={filteredArtworks} />
             {isAdmin && (
               <>
