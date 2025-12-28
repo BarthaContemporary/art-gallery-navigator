@@ -84,11 +84,12 @@ export function LeadCaptureModal({
     
     const downloadUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/publication-download?token=${downloadToken}`;
     
-    // Use anchor element instead of window.open to avoid Chrome popup blocker
+    // Use anchor element with download attribute for direct download
+    // The edge function now streams the PDF with Content-Disposition: attachment
+    // so we don't need target="_blank" which can trigger popup blockers
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    link.download = ''; // Browser will use Content-Disposition filename
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
