@@ -1,8 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { Plus, Upload, Download, Settings, ArrowDown } from "lucide-react";
 import { CreateArtworkDialog } from "./CreateArtworkDialog";
 import { ImportCSVDialog } from "./ImportCSVDialog";
+import { ImportExcelImagesDialog } from "./ImportExcelImagesDialog";
 import { ExportToGoogleDocsButton } from "./ExportToGoogleDocsButton";
 import { ExportToGoogleSheetsButton } from "./ExportToGoogleSheetsButton";
 import { BulkImageOptimizer } from "./BulkImageOptimizer";
@@ -64,6 +64,8 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               <ExportToGoogleSheetsButton artworks={artworks} />
               
               <ImportCSVDialog />
+              
+              <ImportExcelImagesDialog />
             </>
           )}
         </div>
