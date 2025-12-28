@@ -1,5 +1,6 @@
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
+import DOMPurify from "dompurify"
 
 import { cn } from "@/lib/utils"
 
@@ -74,25 +75,51 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+  // Sanitize CSS variable names and values to prevent injection attacks
+  const sanitizeCSSValue = (value: string): string => {
+    // Only allow valid CSS color values (hex, rgb, hsl, named colors)
+    const validColorPattern = /^(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\)|hsl\([^)]+\)|hsla\([^)]+\)|[a-zA-Z]+)$/
+    if (validColorPattern.test(value.trim())) {
+      return value.trim()
+    }
+    return ''
+  }
+
+  const sanitizeCSSKey = (key: string): string => {
+    // Only allow alphanumeric characters and hyphens in CSS variable names
+    return key.replace(/[^a-zA-Z0-9-]/g, '')
+  }
+
+  const rawCSS = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
+${prefix} [data-chart=${sanitizeCSSKey(id)}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    const sanitizedKey = sanitizeCSSKey(key)
+    const sanitizedColor = color ? sanitizeCSSValue(color) : null
+    return sanitizedColor ? `  --color-${sanitizedKey}: ${sanitizedColor};` : null
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `
-          )
-          .join("\n"),
+    )
+    .join("\n")
+
+  // Use DOMPurify to sanitize the CSS as an extra layer of security
+  const sanitizedCSS = DOMPurify.sanitize(rawCSS, { 
+    ALLOWED_TAGS: [], 
+    KEEP_CONTENT: true 
+  })
+
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        __html: sanitizedCSS,
       }}
     />
   )
