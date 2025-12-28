@@ -264,9 +264,25 @@ export function FlipbookControls({
     }
   };
 
-  const handleZoomIn = () => onZoomChange(Math.min(zoom + 0.25, 2));
-  const handleZoomOut = () => onZoomChange(Math.max(zoom - 0.25, 0.5));
+  // Zoom levels: 50%, 75%, 100%, 125%, 150%, 200%, 250%, 300%, 400%
+  const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
+  
+  const handleZoomIn = () => {
+    const currentIdx = zoomLevels.findIndex(z => z >= zoom);
+    const nextIdx = currentIdx < zoomLevels.length - 1 ? currentIdx + 1 : currentIdx;
+    onZoomChange(zoomLevels[nextIdx]);
+  };
+  
+  const handleZoomOut = () => {
+    const currentIdx = zoomLevels.findIndex(z => z >= zoom);
+    const prevIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+    onZoomChange(zoomLevels[prevIdx]);
+  };
+  
   const handleZoomReset = () => onZoomChange(1);
+  
+  // Pan mode indicator (above 150%)
+  const isPanMode = zoom > 1.5;
 
   return (
     <div className="flipbook-controls space-y-4">
@@ -328,13 +344,20 @@ export function FlipbookControls({
         {/* Tools */}
         <div className="flex items-center gap-1">
           {/* Zoom controls */}
-          <Button variant="ghost" size="icon" onClick={handleZoomOut} aria-label="Zoom out">
+          <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoom <= 0.5} aria-label="Zoom out">
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleZoomReset} className="text-xs px-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleZoomReset} 
+            className={cn("text-xs px-2", isPanMode && "text-primary font-medium")}
+            title={isPanMode ? "Pan mode active - drag to navigate" : "Click to reset zoom"}
+          >
             {Math.round(zoom * 100)}%
+            {isPanMode && <span className="ml-1 text-[10px] opacity-70">Pan</span>}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleZoomIn} aria-label="Zoom in">
+          <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoom >= 4} aria-label="Zoom in">
             <ZoomIn className="h-4 w-4" />
           </Button>
 

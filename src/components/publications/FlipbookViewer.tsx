@@ -1,6 +1,17 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, MouseEvent, TouchEvent } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 import { cn } from '@/lib/utils';
+
+// Pan state interface
+interface PanState {
+  isPanning: boolean;
+  startX: number;
+  startY: number;
+  translateX: number;
+  translateY: number;
+  lastTranslateX: number;
+  lastTranslateY: number;
+}
 
 // PDF.js types for dynamic loading
 interface PDFDocumentProxy {
@@ -229,6 +240,110 @@ export function FlipbookViewer({
   const [pdfError, setPdfError] = useState(false);
   const coverCapturedRef = useRef(false);
   const flipbookInstanceRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Pan state for zoom > 150%
+  const [panState, setPanState] = useState<PanState>({
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    translateX: 0,
+    translateY: 0,
+    lastTranslateX: 0,
+    lastTranslateY: 0,
+  });
+  
+  // Check if pan mode is active (zoom > 150%)
+  const isPanMode = zoom > 1.5;
+  
+  // Reset pan when zoom changes to 100% or below
+  useEffect(() => {
+    if (zoom <= 1) {
+      setPanState({
+        isPanning: false,
+        startX: 0,
+        startY: 0,
+        translateX: 0,
+        translateY: 0,
+        lastTranslateX: 0,
+        lastTranslateY: 0,
+      });
+    }
+  }, [zoom]);
+  
+  // Pan handlers
+  const handlePanStart = useCallback((clientX: number, clientY: number) => {
+    if (!isPanMode) return;
+    setPanState(prev => ({
+      ...prev,
+      isPanning: true,
+      startX: clientX - prev.translateX,
+      startY: clientY - prev.translateY,
+    }));
+  }, [isPanMode]);
+  
+  const handlePanMove = useCallback((clientX: number, clientY: number) => {
+    if (!panState.isPanning || !isPanMode) return;
+    
+    const newTranslateX = clientX - panState.startX;
+    const newTranslateY = clientY - panState.startY;
+    
+    // Calculate max pan based on zoom level
+    const maxPan = 200 * (zoom - 1);
+    
+    setPanState(prev => ({
+      ...prev,
+      translateX: Math.max(-maxPan, Math.min(maxPan, newTranslateX)),
+      translateY: Math.max(-maxPan, Math.min(maxPan, newTranslateY)),
+    }));
+  }, [panState.isPanning, panState.startX, panState.startY, isPanMode, zoom]);
+  
+  const handlePanEnd = useCallback(() => {
+    setPanState(prev => ({
+      ...prev,
+      isPanning: false,
+      lastTranslateX: prev.translateX,
+      lastTranslateY: prev.translateY,
+    }));
+  }, []);
+  
+  // Mouse event handlers
+  const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    if (!isPanMode) return;
+    e.preventDefault();
+    handlePanStart(e.clientX, e.clientY);
+  }, [isPanMode, handlePanStart]);
+  
+  const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    handlePanMove(e.clientX, e.clientY);
+  }, [handlePanMove]);
+  
+  const handleMouseUp = useCallback(() => {
+    handlePanEnd();
+  }, [handlePanEnd]);
+  
+  const handleMouseLeave = useCallback(() => {
+    if (panState.isPanning) {
+      handlePanEnd();
+    }
+  }, [panState.isPanning, handlePanEnd]);
+  
+  // Touch event handlers
+  const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    if (!isPanMode || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    handlePanStart(touch.clientX, touch.clientY);
+  }, [isPanMode, handlePanStart]);
+  
+  const handleTouchMove = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    if (!isPanMode || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    handlePanMove(touch.clientX, touch.clientY);
+  }, [isPanMode, handlePanMove]);
+  
+  const handleTouchEnd = useCallback(() => {
+    handlePanEnd();
+  }, [handlePanEnd]);
 
   // Check if any page has a pre-rendered image
   const hasPreRenderedImages = pages.some(p => p.imageUrl);
@@ -351,8 +466,24 @@ export function FlipbookViewer({
 
   return (
     <div 
-      className={cn("flipbook-container flex items-center justify-center transition-transform duration-200", className)}
-      style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+      ref={containerRef}
+      className={cn(
+        "flipbook-container flex items-center justify-center transition-transform duration-200",
+        isPanMode && "cursor-grab",
+        isPanMode && panState.isPanning && "cursor-grabbing",
+        className
+      )}
+      style={{ 
+        transform: `scale(${zoom}) translate(${panState.translateX / zoom}px, ${panState.translateY / zoom}px)`, 
+        transformOrigin: 'center center',
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <HTMLFlipBook
         ref={flipbookRef}
@@ -365,7 +496,7 @@ export function FlipbookViewer({
         maxHeight={850}
         maxShadowOpacity={0.5}
         showCover={true}
-        mobileScrollSupport={true}
+        mobileScrollSupport={!isPanMode}
         onFlip={handleFlip}
         className="flipbook-book"
         style={{}}
@@ -375,11 +506,11 @@ export function FlipbookViewer({
         usePortrait={false}
         startZIndex={0}
         autoSize={false}
-        clickEventForward={true}
-        useMouseEvents={true}
-        swipeDistance={30}
-        showPageCorners={true}
-        disableFlipByClick={false}
+        clickEventForward={!isPanMode}
+        useMouseEvents={!isPanMode}
+        swipeDistance={isPanMode ? 9999 : 30}
+        showPageCorners={!isPanMode}
+        disableFlipByClick={isPanMode}
       >
         {renderedPages}
       </HTMLFlipBook>
