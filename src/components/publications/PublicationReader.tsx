@@ -118,12 +118,14 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
 
       if (error) throw error;
 
-      setSearchResults(
-        (data || []).map((result: any) => ({
+      const results = (data || [])
+        .map((result: any) => ({
           pageNumber: result.page_number,
           headline: result.headline,
         }))
-      );
+        .sort((a, b) => a.pageNumber - b.pageNumber);
+      
+      setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
