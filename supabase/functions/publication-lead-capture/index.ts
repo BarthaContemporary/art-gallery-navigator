@@ -12,12 +12,75 @@ interface LeadCaptureRequest {
   email: string;
   mailingListOptIn: boolean;
   userAgent?: string;
+  turnstileToken?: string;
 }
+
+// List of known disposable email domains to block
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', 'throwaway.email', 'guerrillamail.com', 'mailinator.com',
+  'temp-mail.org', '10minutemail.com', 'fakemailgenerator.com', 'yopmail.com',
+  'trashmail.com', 'sharklasers.com', 'guerrillamail.info', 'grr.la',
+  'maildrop.cc', 'dispostable.com', 'mohmal.com', 'tempail.com',
+  'mytemp.email', 'emailondeck.com', 'throwawaymail.com', 'getnada.com',
+  'dropmail.me', 'mintemail.com', 'mailnesia.com', 'harakirimail.com',
+  'jetable.org', 'spamgourmet.com', 'mailexpire.com', 'inboxalias.com',
+  'mailcatch.com', 'meltmail.com', 'emailsensei.com', 'tempmailaddress.com',
+  'fakeinbox.com', 'emailfake.com', 'emailtemporar.ro', 'crazymailing.com'
+]);
 
 function generateSecureToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function getClientIP(req: Request): string {
+  // Check various headers for client IP
+  const forwardedFor = req.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  const realIP = req.headers.get('x-real-ip');
+  if (realIP) {
+    return realIP;
+  }
+  const cfConnectingIP = req.headers.get('cf-connecting-ip');
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+  return 'unknown';
+}
+
+function isDisposableEmail(email: string): boolean {
+  const domain = email.toLowerCase().split('@')[1];
+  if (!domain) return false;
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+}
+
+async function verifyTurnstileToken(token: string): Promise<boolean> {
+  try {
+    const turnstileSecretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
+    if (!turnstileSecretKey) {
+      console.warn('TURNSTILE_SECRET_KEY not configured, skipping verification');
+      return true; // Gracefully degrade if not configured
+    }
+
+    const formData = new FormData();
+    formData.append('secret', turnstileSecretKey);
+    formData.append('response', token);
+
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+    console.log('Turnstile verification result:', { success: result.success });
+    return result.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
 }
 
 async function syncLeadToCRM(
@@ -156,10 +219,15 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { publicationId, name, email, mailingListOptIn, userAgent }: LeadCaptureRequest = await req.json();
+    const { publicationId, name, email, mailingListOptIn, userAgent, turnstileToken }: LeadCaptureRequest = await req.json();
+
+    // Get client IP for rate limiting
+    const clientIP = getClientIP(req);
+    console.log(`Lead capture request from IP: ${clientIP}, email: ${email?.substring(0, 3)}***`);
 
     // Validate inputs
     if (!publicationId || !name || !email) {
+      console.warn('Missing required fields', { publicationId: !!publicationId, name: !!name, email: !!email });
       return new Response(
         JSON.stringify({ error: 'Publication ID, name, and email are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -169,10 +237,34 @@ serve(async (req) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.warn('Invalid email format');
       return new Response(
         JSON.stringify({ error: 'Invalid email format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Block disposable email addresses
+    if (isDisposableEmail(email)) {
+      console.warn('Disposable email blocked:', email.split('@')[1]);
+      return new Response(
+        JSON.stringify({ error: 'Please use a valid business or personal email address' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify Turnstile CAPTCHA token (bot protection)
+    if (turnstileToken) {
+      const isValidCaptcha = await verifyTurnstileToken(turnstileToken);
+      if (!isValidCaptcha) {
+        console.warn('Turnstile verification failed');
+        return new Response(
+          JSON.stringify({ error: 'Bot verification failed. Please try again.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      console.warn('No Turnstile token provided - consider requiring CAPTCHA');
     }
 
     // Check publication exists and has download gate enabled
@@ -183,6 +275,7 @@ serve(async (req) => {
       .single();
 
     if (pubError || !publication) {
+      console.warn('Publication not found:', publicationId);
       return new Response(
         JSON.stringify({ error: 'Publication not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -191,21 +284,56 @@ serve(async (req) => {
 
     // Rate limiting: check recent leads from this email for this publication
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentLeadCount } = await supabase
+    
+    // Rate limit 1: Per email + publication (3 per hour)
+    const { count: recentEmailLeadCount } = await supabase
       .from('publication_leads')
       .select('*', { count: 'exact', head: true })
       .eq('publication_id', publicationId)
-      .eq('email', email)
+      .eq('email', email.toLowerCase().trim())
       .gte('created_at', oneHourAgo);
 
-    if ((recentLeadCount || 0) >= 3) {
+    if ((recentEmailLeadCount || 0) >= 3) {
+      console.warn('Email rate limit exceeded:', email.substring(0, 3) + '***');
       return new Response(
         JSON.stringify({ error: 'Too many download requests. Please try again later.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create lead record
+    // Rate limit 2: Per IP address (10 downloads per hour across all publications)
+    if (clientIP !== 'unknown') {
+      const { count: recentIPLeadCount } = await supabase
+        .from('publication_leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('ip_address', clientIP)
+        .gte('created_at', oneHourAgo);
+
+      if ((recentIPLeadCount || 0) >= 10) {
+        console.warn('IP rate limit exceeded:', clientIP);
+        return new Response(
+          JSON.stringify({ error: 'Too many download requests from your location. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Rate limit 3: Global per publication (100 new leads per hour)
+    const { count: recentPublicationLeadCount } = await supabase
+      .from('publication_leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('publication_id', publicationId)
+      .gte('created_at', oneHourAgo);
+
+    if ((recentPublicationLeadCount || 0) >= 100) {
+      console.warn('Publication rate limit exceeded:', publicationId);
+      return new Response(
+        JSON.stringify({ error: 'This publication is experiencing high demand. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create lead record with IP tracking
     const { data: lead, error: leadError } = await supabase
       .from('publication_leads')
       .insert({
@@ -215,6 +343,7 @@ serve(async (req) => {
         mailing_list_opt_in: mailingListOptIn,
         consent_timestamp: new Date().toISOString(),
         user_agent: userAgent || null,
+        ip_address: clientIP !== 'unknown' ? clientIP : null,
       })
       .select()
       .single();

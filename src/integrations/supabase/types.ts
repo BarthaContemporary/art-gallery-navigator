@@ -3045,6 +3045,7 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          ip_address: string | null
           ip_hash: string | null
           mailing_list_opt_in: boolean | null
           name: string
@@ -3058,6 +3059,7 @@ export type Database = {
           created_at?: string | null
           email: string
           id?: string
+          ip_address?: string | null
           ip_hash?: string | null
           mailing_list_opt_in?: boolean | null
           name: string
@@ -3071,6 +3073,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
+          ip_address?: string | null
           ip_hash?: string | null
           mailing_list_opt_in?: boolean | null
           name?: string
