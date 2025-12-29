@@ -13,6 +13,7 @@ const contactTypes: { value: CRMContactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All Types' },
   { value: 'collector', label: 'Collector' },
   { value: 'curator', label: 'Curator' },
+  { value: 'gallerist', label: 'Gallerist' },
   { value: 'press', label: 'Press' },
   { value: 'institution', label: 'Institution' },
   { value: 'vip', label: 'VIP' },

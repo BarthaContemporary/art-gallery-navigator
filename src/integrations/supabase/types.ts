@@ -5033,6 +5033,7 @@ export type Database = {
         | "vip"
         | "prospect"
         | "other"
+        | "gallerist"
       crm_deal_status: "open" | "won" | "lost"
       crm_interaction_direction: "inbound" | "outbound" | "internal"
       crm_interaction_type:
@@ -5217,6 +5218,7 @@ export const Constants = {
         "vip",
         "prospect",
         "other",
+        "gallerist",
       ],
       crm_deal_status: ["open", "won", "lost"],
       crm_interaction_direction: ["inbound", "outbound", "internal"],

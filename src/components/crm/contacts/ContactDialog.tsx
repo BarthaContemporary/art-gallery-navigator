@@ -199,6 +199,7 @@ export function ContactDialog({ open, onOpenChange, contact }: ContactDialogProp
                 <SelectContent>
                   <SelectItem value="collector">Collector</SelectItem>
                   <SelectItem value="curator">Curator</SelectItem>
+                  <SelectItem value="gallerist">Gallerist</SelectItem>
                   <SelectItem value="press">Press</SelectItem>
                   <SelectItem value="institution">Institution</SelectItem>
                   <SelectItem value="vip">VIP</SelectItem>

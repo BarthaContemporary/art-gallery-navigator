@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, ExternalLink } from "lucide-react";
-import { useCRMContact, useDeleteCRMContact } from "@/hooks/crm";
+import { useCRMContact, useDeleteCRMContact, useUpdateCRMContact } from "@/hooks/crm";
 import { ContactDialog } from "@/components/crm/contacts/ContactDialog";
 import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
@@ -13,6 +14,8 @@ import { ContactOrganizationsSection } from "@/components/crm/contacts/ContactOr
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CRMContactType } from "@/types/crm";
+import { toast } from "sonner";
 export default function ContactDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -20,6 +23,15 @@ export default function ContactDetailPage() {
 
   const { data: contact, isLoading } = useCRMContact(id);
   const deleteContact = useDeleteCRMContact();
+  const updateContact = useUpdateCRMContact();
+
+  const handleTypeChange = (newType: CRMContactType) => {
+    if (contact) {
+      updateContact.mutate({ id: contact.id, contact_type: newType }, {
+        onSuccess: () => toast.success("Contact type updated"),
+      });
+    }
+  };
 
   const handleDelete = () => {
     if (contact && confirm("Delete this contact?")) {
@@ -52,6 +64,7 @@ export default function ContactDetailPage() {
   const contactTypeLabels: Record<string, string> = {
     collector: "Collector",
     curator: "Curator",
+    gallerist: "Gallerist",
     press: "Press",
     institution: "Institution",
     artist: "Artist",
@@ -90,9 +103,23 @@ export default function ContactDetailPage() {
           <div>
             <h1 className="text-2xl font-semibold">{contact.full_name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="outline">
-                {contactTypeLabels[contact.contact_type] || contact.contact_type}
-              </Badge>
+              <Select value={contact.contact_type} onValueChange={(v) => handleTypeChange(v as CRMContactType)}>
+                <SelectTrigger className="w-auto h-7 text-xs px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="collector">Collector</SelectItem>
+                  <SelectItem value="curator">Curator</SelectItem>
+                  <SelectItem value="gallerist">Gallerist</SelectItem>
+                  <SelectItem value="press">Press</SelectItem>
+                  <SelectItem value="institution">Institution</SelectItem>
+                  <SelectItem value="artist">Artist</SelectItem>
+                  <SelectItem value="advisor">Advisor</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
               {contact.job_title && (
                 <span className="text-sm text-muted-foreground">
                   {contact.job_title}

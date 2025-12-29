@@ -9,6 +9,7 @@ export type CRMContactType =
   | 'advisor' 
   | 'vip' 
   | 'prospect' 
+  | 'gallerist'
   | 'other';
 
 export type CRMOrganizationType = 
