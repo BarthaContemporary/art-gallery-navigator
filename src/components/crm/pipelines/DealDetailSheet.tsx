@@ -6,8 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { CRMDeal, CRMPipelineStage } from "@/types/crm";
 import { useDeleteCRMDeal, useUpdateCRMDeal } from "@/hooks/crm";
-import { useCRMDealItems, calculateDealTotal, calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
-import { DealLineItems } from "./DealLineItems";
+import { calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
 import { DealInteractionsTimeline } from "./DealInteractionsTimeline";
 import { DealArtworksSection } from "./DealArtworksSection";
 import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent, Check, X } from "lucide-react";
@@ -25,7 +24,6 @@ interface DealDetailSheetProps {
 export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: DealDetailSheetProps) {
   const deleteDeal = useDeleteCRMDeal();
   const updateDeal = useUpdateCRMDeal();
-  const { data: items = [] } = useCRMDealItems(deal?.id);
   
   const [isEditingProbability, setIsEditingProbability] = useState(false);
   const [probabilityValue, setProbabilityValue] = useState("");
@@ -59,8 +57,7 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
   if (!deal) return null;
 
   const stage = stages.find(s => s.id === deal.stage_id);
-  const itemsTotal = calculateDealTotal(items);
-  const displayValue = items.length > 0 ? itemsTotal : (deal.value || 0);
+  const displayValue = deal.value || 0;
   const weightedValue = calculateWeightedValue(displayValue, deal.probability || 0);
 
   const formatCurrency = (value: number) => {
@@ -238,11 +235,6 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
 
           {/* Interactions Timeline */}
           <DealInteractionsTimeline dealId={deal.id} />
-
-          <Separator />
-
-          {/* Line Items */}
-          <DealLineItems dealId={deal.id} currency={deal.currency || 'GBP'} />
         </div>
       </SheetContent>
     </Sheet>
