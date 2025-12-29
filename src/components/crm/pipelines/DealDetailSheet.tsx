@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,12 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
   
   const [isEditingProbability, setIsEditingProbability] = useState(false);
   const [probabilityValue, setProbabilityValue] = useState("");
+  const [currentProbability, setCurrentProbability] = useState(deal?.probability || 0);
+
+  // Sync local probability state when deal prop changes
+  useEffect(() => {
+    setCurrentProbability(deal?.probability || 0);
+  }, [deal?.probability, deal?.id]);
 
   const handleDelete = async () => {
     if (!deal) return;
@@ -38,13 +44,14 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
   };
 
   const handleEditProbability = () => {
-    setProbabilityValue(String(deal?.probability || 0));
+    setProbabilityValue(String(currentProbability));
     setIsEditingProbability(true);
   };
 
   const handleSaveProbability = async () => {
     if (!deal) return;
     const newProbability = Math.min(100, Math.max(0, parseInt(probabilityValue) || 0));
+    setCurrentProbability(newProbability); // Update local state immediately
     await updateDeal.mutateAsync({ id: deal.id, probability: newProbability });
     setIsEditingProbability(false);
     toast.success("Probability updated");
@@ -58,7 +65,7 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
 
   const stage = stages.find(s => s.id === deal.stage_id);
   const displayValue = deal.value || 0;
-  const weightedValue = calculateWeightedValue(displayValue, deal.probability || 0);
+  const weightedValue = calculateWeightedValue(displayValue, currentProbability);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-GB', {
@@ -138,7 +145,7 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
                   className="text-left hover:bg-muted/50 rounded px-1 -ml-1 transition-colors"
                 >
                   <span className="text-xl font-semibold">{formatCurrency(weightedValue)}</span>
-                  <span className="text-sm text-muted-foreground ml-1">({deal.probability || 0}%)</span>
+                  <span className="text-sm text-muted-foreground ml-1">({currentProbability}%)</span>
                 </button>
               )}
             </div>
