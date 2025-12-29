@@ -12,8 +12,10 @@ import {
   useAddContactOrganization, 
   useRemoveContactOrganization,
   useUpdateContactOrganization,
-  useCRMOrganizations 
+  useCRMOrganizations,
+  useCreateCRMOrganization
 } from "@/hooks/crm";
+import { toast } from "sonner";
 
 interface ContactOrganizationsSectionProps {
   contactId: string;
@@ -21,14 +23,17 @@ interface ContactOrganizationsSectionProps {
 
 export function ContactOrganizationsSection({ contactId }: ContactOrganizationsSectionProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState("");
   const [role, setRole] = useState("");
+  const [newOrgName, setNewOrgName] = useState("");
 
   const { data: contactOrgs = [], isLoading } = useContactOrganizations(contactId);
   const { data: allOrganizations = [] } = useCRMOrganizations();
   const addOrg = useAddContactOrganization();
   const removeOrg = useRemoveContactOrganization();
   const updateOrg = useUpdateContactOrganization();
+  const createOrg = useCreateCRMOrganization();
 
   // Filter out already-linked organizations
   const availableOrgs = allOrganizations.filter(
@@ -49,8 +54,33 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
     );
   };
 
+  const handleCreateAndAdd = async () => {
+    if (!newOrgName.trim()) return;
+    
+    createOrg.mutate(
+      { name: newOrgName.trim() },
+      {
+        onSuccess: (newOrg) => {
+          // Now link the new org to the contact
+          addOrg.mutate(
+            { contact_id: contactId, organization_id: newOrg.id, role: role || undefined },
+            {
+              onSuccess: () => {
+                setIsAddDialogOpen(false);
+                setIsCreateMode(false);
+                setNewOrgName("");
+                setRole("");
+                toast.success("Organisation created and linked");
+              }
+            }
+          );
+        }
+      }
+    );
+  };
+
   const handleRemove = (id: string, organizationId: string) => {
-    if (!confirm("Remove this organization?")) return;
+    if (!confirm("Remove this organisation?")) return;
     removeOrg.mutate({ id, contact_id: contactId, organization_id: organizationId });
   };
 
@@ -63,8 +93,18 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
     });
   };
 
+  const handleDialogClose = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (!open) {
+      setIsCreateMode(false);
+      setSelectedOrgId("");
+      setNewOrgName("");
+      setRole("");
+    }
+  };
+
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading organizations...</div>;
+    return <div className="text-sm text-muted-foreground">Loading organisations...</div>;
   }
 
   return (
@@ -78,7 +118,7 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
       </CardHeader>
       <CardContent className="space-y-2">
         {contactOrgs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No organizations linked</p>
+          <p className="text-sm text-muted-foreground">No organisations linked</p>
         ) : (
           contactOrgs.map((co) => (
             <div 
@@ -128,35 +168,56 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
       </CardContent>
 
       {/* Add Organisation Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Add Organisation</DialogTitle>
+            <DialogTitle>{isCreateMode ? "Create New Organisation" : "Add Organisation"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Organisation</Label>
-              <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select organisation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableOrgs.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      <span className="flex items-center gap-2">
-                        <Building2 className="h-3 w-3 text-muted-foreground" />
-                        {org.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  {availableOrgs.length === 0 && (
-                    <div className="py-2 px-2 text-sm text-muted-foreground">
-                      No organizations available
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            {isCreateMode ? (
+              <div>
+                <Label>Organisation Name</Label>
+                <Input 
+                  placeholder="Enter organisation name" 
+                  value={newOrgName} 
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div>
+                <Label>Organisation</Label>
+                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select organisation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableOrgs.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        <span className="flex items-center gap-2">
+                          <Building2 className="h-3 w-3 text-muted-foreground" />
+                          {org.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    {availableOrgs.length === 0 && (
+                      <div className="py-2 px-2 text-sm text-muted-foreground">
+                        No organisations available
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-1 h-auto p-0 text-xs"
+                  onClick={() => setIsCreateMode(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Create new organisation
+                </Button>
+              </div>
+            )}
             <div>
               <Label>Role (optional)</Label>
               <Input 
@@ -167,10 +228,24 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!selectedOrgId || addOrg.isPending}>
-              Add
-            </Button>
+            {isCreateMode ? (
+              <>
+                <Button variant="outline" onClick={() => setIsCreateMode(false)}>Back</Button>
+                <Button 
+                  onClick={handleCreateAndAdd} 
+                  disabled={!newOrgName.trim() || createOrg.isPending || addOrg.isPending}
+                >
+                  Create & Add
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+                <Button onClick={handleAdd} disabled={!selectedOrgId || addOrg.isPending}>
+                  Add
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
