@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, FileText, Eye, Pencil, Trash2, Loader2, ExternalLink } from 'lucide-react';
+import { Plus, Search, FileText, Eye, Pencil, Trash2, Loader2, ExternalLink, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -103,6 +103,16 @@ export default function Publications() {
         return 'outline';
     }
   };
+  
+  const handleCopyUrl = (slug: string) => {
+    const url = `${window.location.origin}/p/${slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('URL copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy URL');
+    });
+  };
+  
   return <div className="container mx-auto py-6 px-4 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-start items-start sm:items-center gap-4 mb-6">
         <Button asChild>
@@ -216,6 +226,15 @@ export default function Publications() {
                     </span>
                   )}
                   <div className="flex items-center gap-1 ml-auto">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => handleCopyUrl(pub.slug || pub.id)}
+                      title="Copy URL"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
                     <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
                       <Link to={`/admin/publications/${pub.id}`}>
                         <Pencil className="h-3.5 w-3.5 mr-1.5" />
