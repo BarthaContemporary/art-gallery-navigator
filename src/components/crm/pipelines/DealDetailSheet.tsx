@@ -88,7 +88,7 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
                 </Badge>
               )}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 mr-6">
               <Button variant="ghost" size="icon" onClick={onEdit}>
                 <Edit className="h-4 w-4" />
               </Button>
