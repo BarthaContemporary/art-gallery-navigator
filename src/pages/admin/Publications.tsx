@@ -202,7 +202,7 @@ export default function Publications() {
 
               {/* Content */}
               <CardContent className="p-4">
-                <div className="space-y-2">
+                <div className="space-y-2 mt-1">
                   <h3 className="font-semibold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                     {pub.title}
                   </h3>
