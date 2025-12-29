@@ -1661,6 +1661,51 @@ export type Database = {
           },
         ]
       }
+      crm_deal_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          deal_id: string
+          display_order: number | null
+          id: string
+          is_primary: boolean | null
+          role: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          deal_id: string
+          display_order?: number | null
+          id?: string
+          is_primary?: boolean | null
+          role?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          deal_id?: string
+          display_order?: number | null
+          id?: string
+          is_primary?: boolean | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_deal_interactions: {
         Row: {
           contact_id: string | null

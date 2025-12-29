@@ -66,7 +66,16 @@ export function useCRMDeals(pipelineId?: string) {
           *,
           stage:crm_pipeline_stages(*),
           contact:crm_contacts(id, full_name, email),
-          organization:crm_organizations(id, name)
+          organization:crm_organizations(id, name),
+          contacts:crm_deal_contacts(
+            id,
+            contact_id,
+            role,
+            is_primary,
+            display_order,
+            created_at,
+            contact:crm_contacts(id, full_name, email, phone)
+          )
         `)
         .order('display_order', { ascending: true });
 
@@ -76,7 +85,12 @@ export function useCRMDeals(pipelineId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as CRMDeal[];
+      
+      // Sort contacts by display_order
+      return (data || []).map(deal => ({
+        ...deal,
+        contacts: deal.contacts?.sort((a: any, b: any) => a.display_order - b.display_order)
+      })) as CRMDeal[];
     },
   });
 }
@@ -85,14 +99,14 @@ export function useCreateCRMDeal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (deal: Partial<CRMDeal>) => {
+    mutationFn: async (deal: Partial<CRMDeal> & { contact_ids?: string[] }) => {
       const { data: userData } = await supabase.auth.getUser();
       
       const insertData = {
         name: deal.name || '',
         pipeline_id: deal.pipeline_id || '',
         stage_id: deal.stage_id,
-        contact_id: deal.contact_id,
+        contact_id: deal.contact_id, // Keep for backward compat
         organization_id: deal.organization_id,
         value: deal.value,
         currency: deal.currency,
@@ -111,6 +125,19 @@ export function useCreateCRMDeal() {
         .single();
 
       if (error) throw error;
+      
+      // Insert deal contacts if provided
+      if (deal.contact_ids && deal.contact_ids.length > 0) {
+        const dealContacts = deal.contact_ids.map((contactId, index) => ({
+          deal_id: data.id,
+          contact_id: contactId,
+          is_primary: index === 0,
+          display_order: index,
+        }));
+        
+        await supabase.from('crm_deal_contacts').insert(dealContacts);
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -127,7 +154,7 @@ export function useUpdateCRMDeal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<CRMDeal> & { id: string }) => {
+    mutationFn: async ({ id, contact_ids, contacts, ...updates }: Partial<CRMDeal> & { id: string; contact_ids?: string[] }) => {
       const { data, error } = await supabase
         .from('crm_deals')
         .update(updates)
@@ -136,6 +163,25 @@ export function useUpdateCRMDeal() {
         .single();
 
       if (error) throw error;
+      
+      // Update deal contacts if provided
+      if (contact_ids !== undefined) {
+        // Delete existing contacts
+        await supabase.from('crm_deal_contacts').delete().eq('deal_id', id);
+        
+        // Insert new contacts
+        if (contact_ids.length > 0) {
+          const dealContacts = contact_ids.map((contactId, index) => ({
+            deal_id: id,
+            contact_id: contactId,
+            is_primary: index === 0,
+            display_order: index,
+          }));
+          
+          await supabase.from('crm_deal_contacts').insert(dealContacts);
+        }
+      }
+      
       return data;
     },
     onSuccess: () => {

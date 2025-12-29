@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 import { useCreateCRMDeal, useUpdateCRMDeal, useCRMContacts, useCRMOrganizations, useCreateCRMContact } from "@/hooks/crm";
 import { CRMPipelineStage, CRMDeal } from "@/types/crm";
 import { useState, useEffect } from "react";
-import { Building2, User, Percent, Check, ChevronsUpDown, UserPlus } from "lucide-react";
+import { Building2, User, Percent, Check, ChevronsUpDown, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -28,12 +29,12 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
   const [contactSearch, setContactSearch] = useState("");
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
   const [newContactName, setNewContactName] = useState<string | null>(null);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({ 
     name: "", 
     stage_id: "", 
     value: "", 
     currency: "GBP",
-    contact_id: "",
     organization_id: "",
     probability: 0,
     expected_close_date: "",
@@ -53,16 +54,20 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
         stage_id: deal.stage_id || "",
         value: deal.value?.toString() || "",
         currency: deal.currency || "GBP",
-        contact_id: deal.contact_id || "",
         organization_id: deal.organization_id || "",
         probability: deal.probability || 0,
         expected_close_date: deal.expected_close_date || "",
         notes: deal.notes || "",
       });
+      // Load existing contacts from deal
+      const existingContactIds = deal.contacts?.map(dc => dc.contact_id) || 
+        (deal.contact_id ? [deal.contact_id] : []);
+      setSelectedContactIds(existingContactIds);
       setNewContactName(null);
       setContactSearch("");
     } else {
-      setFormData({ name: "", stage_id: stages[0]?.id || "", value: "", currency: "GBP", contact_id: "", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      setFormData({ name: "", stage_id: stages[0]?.id || "", value: "", currency: "GBP", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      setSelectedContactIds([]);
       setNewContactName(null);
       setContactSearch("");
     }
@@ -71,18 +76,18 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    let contactId = formData.contact_id;
+    let contactIds = [...selectedContactIds];
     let createdContactId: string | null = null;
     
     // If we have a new contact name, create the contact first
-    if (newContactName && !contactId) {
+    if (newContactName) {
       try {
         const newContact = await createContact.mutateAsync({
           full_name: newContactName.trim(),
           contact_type: 'prospect',
           status: 'active',
         });
-        contactId = newContact.id;
+        contactIds.push(newContact.id);
         createdContactId = newContact.id;
       } catch (error) {
         toast.error("Failed to create contact");
@@ -96,7 +101,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
       stage_id: formData.stage_id || stages[0]?.id,
       value: formData.value ? parseFloat(formData.value) : undefined,
       currency: formData.currency,
-      contact_id: contactId || undefined,
+      contact_ids: contactIds,
       organization_id: formData.organization_id || undefined,
       probability: formData.probability,
       expected_close_date: formData.expected_close_date || undefined,
@@ -105,7 +110,8 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
 
     const onSuccess = () => {
       onOpenChange(false);
-      setFormData({ name: "", stage_id: "", value: "", currency: "GBP", contact_id: "", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      setFormData({ name: "", stage_id: "", value: "", currency: "GBP", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      setSelectedContactIds([]);
       setNewContactName(null);
       setContactSearch("");
       
@@ -130,9 +136,10 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
 
   const contacts = contactsResult?.contacts || [];
   
-  // Filter contacts based on search
+  // Filter contacts based on search, excluding already selected
   const filteredContacts = contacts.filter(c => 
-    c.full_name.toLowerCase().includes(contactSearch.toLowerCase())
+    c.full_name.toLowerCase().includes(contactSearch.toLowerCase()) &&
+    !selectedContactIds.includes(c.id)
   );
   
   // Check if search matches any existing contact
@@ -140,27 +147,30 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
     c.full_name.toLowerCase() === contactSearch.toLowerCase()
   );
   
-  const selectedContact = contacts.find(c => c.id === formData.contact_id);
-  const displayContactName = newContactName || selectedContact?.full_name;
+  const selectedContacts = contacts.filter(c => selectedContactIds.includes(c.id));
 
   const handleSelectContact = (contactId: string) => {
-    setFormData({ ...formData, contact_id: contactId });
-    setNewContactName(null);
+    if (!selectedContactIds.includes(contactId)) {
+      setSelectedContactIds([...selectedContactIds, contactId]);
+    }
+    setContactSearch("");
     setContactPopoverOpen(false);
+  };
+
+  const handleRemoveContact = (contactId: string) => {
+    setSelectedContactIds(selectedContactIds.filter(id => id !== contactId));
   };
 
   const handleCreateNewContact = () => {
     if (contactSearch.trim()) {
       setNewContactName(contactSearch.trim());
-      setFormData({ ...formData, contact_id: "" });
+      setContactSearch("");
       setContactPopoverOpen(false);
     }
   };
 
-  const handleClearContact = () => {
-    setFormData({ ...formData, contact_id: "" });
+  const handleClearNewContact = () => {
     setNewContactName(null);
-    setContactSearch("");
   };
 
   return (
@@ -193,24 +203,49 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
           </div>
 
           <div>
-            <Label className="flex items-center gap-2"><User className="h-3 w-3" />Contact</Label>
+            <Label className="flex items-center gap-2"><User className="h-3 w-3" />Contacts</Label>
+            
+            {/* Selected contacts badges */}
+            {(selectedContacts.length > 0 || newContactName) && (
+              <div className="flex flex-wrap gap-1.5 mt-2 mb-2">
+                {selectedContacts.map((contact) => (
+                  <Badge key={contact.id} variant="secondary" className="gap-1 pr-1">
+                    {contact.full_name}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveContact(contact.id)}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                {newContactName && (
+                  <Badge variant="outline" className="gap-1 pr-1 border-primary text-primary">
+                    <UserPlus className="h-3 w-3" />
+                    {newContactName} (new)
+                    <button
+                      type="button"
+                      onClick={handleClearNewContact}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
+            
             <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  type="button"
                   variant="outline"
                   role="combobox"
                   aria-expanded={contactPopoverOpen}
                   className="w-full justify-between font-normal"
                 >
-                  {displayContactName ? (
-                    <span className="flex items-center gap-2">
-                      {newContactName && <UserPlus className="h-3 w-3 text-primary" />}
-                      {displayContactName}
-                      {newContactName && <span className="text-xs text-muted-foreground">(new)</span>}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">Search or add contact...</span>
-                  )}
+                  <span className="text-muted-foreground">Add contact...</span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -223,7 +258,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
                   />
                   <CommandList>
                     {filteredContacts.length === 0 && !contactSearch && (
-                      <CommandEmpty>No contacts found.</CommandEmpty>
+                      <CommandEmpty>No more contacts to add.</CommandEmpty>
                     )}
                     
                     {/* Show option to create new contact if search doesn't match */}
@@ -245,12 +280,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
                             value={contact.id}
                             onSelect={() => handleSelectContact(contact.id)}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.contact_id === contact.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
+                            <Check className="mr-2 h-4 w-4 opacity-0" />
                             <div className="flex flex-col">
                               <span>{contact.full_name}</span>
                               {contact.email && (
@@ -259,15 +289,6 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
                             </div>
                           </CommandItem>
                         ))}
-                      </CommandGroup>
-                    )}
-                    
-                    {/* Clear selection option */}
-                    {(formData.contact_id || newContactName) && (
-                      <CommandGroup>
-                        <CommandItem onSelect={handleClearContact} className="text-muted-foreground">
-                          Clear selection
-                        </CommandItem>
                       </CommandGroup>
                     )}
                   </CommandList>
