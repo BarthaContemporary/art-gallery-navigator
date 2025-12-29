@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 const crmNavItems = [
+  { href: "/crm/pipelines", icon: Kanban, label: "Pipelines" },
   { href: "/crm", icon: Users, label: "Contacts", end: true },
   { href: "/crm/organizations", icon: Building2, label: "Organisations" },
   { href: "/crm/lists", icon: ListChecks, label: "Lists & Segments" },
   { href: "/crm/campaigns", icon: Mail, label: "Campaigns" },
-  { href: "/crm/pipelines", icon: Kanban, label: "Pipelines" },
 ];
 
 export default function CRMLayout() {
