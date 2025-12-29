@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { useCreateCRMDeal, useUpdateCRMDeal, useCRMContacts, useCRMOrganizations, useCreateCRMContact, useCreateCRMOrganization } from "@/hooks/crm";
 import { CRMPipelineStage, CRMDeal } from "@/types/crm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Building2, User, Percent, Check, ChevronsUpDown, UserPlus, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ interface DealDialogProps {
 export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: DealDialogProps) {
   const navigate = useNavigate();
   const [contactSearch, setContactSearch] = useState("");
+  const [debouncedContactSearch, setDebouncedContactSearch] = useState("");
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
   const [orgSearch, setOrgSearch] = useState("");
   const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
@@ -60,7 +61,26 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
   const updateDeal = useUpdateCRMDeal();
   const createContact = useCreateCRMContact();
   const createOrganization = useCreateCRMOrganization();
-  const { data: contactsResult } = useCRMContacts({ pageSize: 100 });
+  
+  // Debounce the contact search for server-side filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContactSearch(contactSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [contactSearch]);
+  
+  // Fetch contacts with server-side search - only when there's a search term
+  const { data: searchContactsResult } = useCRMContacts({ 
+    searchTerm: debouncedContactSearch || undefined,
+    pageSize: 50 
+  });
+  
+  // Fetch selected contacts separately to ensure they're always available
+  const { data: selectedContactsResult } = useCRMContacts({ 
+    pageSize: 1000 
+  });
+  
   const { data: organizations = [] } = useCRMOrganizations();
 
   useEffect(() => {
@@ -172,20 +192,24 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
     }
   };
 
-  const contacts = contactsResult?.contacts || [];
+  // Contacts from search results
+  const searchContacts = searchContactsResult?.contacts || [];
+  const allContactsForSelection = selectedContactsResult?.contacts || [];
   
-  // Filter contacts based on search, excluding already selected
-  const filteredContacts = contacts.filter(c => 
-    c.full_name.toLowerCase().includes(contactSearch.toLowerCase()) &&
+  // Filter search results, excluding already selected
+  const filteredContacts = searchContacts.filter(c => 
     !selectedContactIds.includes(c.id)
   );
   
   // Check if search matches any existing contact
-  const exactMatch = contacts.find(c => 
+  const exactMatch = searchContacts.find(c => 
     c.full_name.toLowerCase() === contactSearch.toLowerCase()
   );
   
-  const selectedContacts = contacts.filter(c => selectedContactIds.includes(c.id));
+  // Get full contact objects for selected contacts
+  const selectedContacts = useMemo(() => {
+    return allContactsForSelection.filter(c => selectedContactIds.includes(c.id));
+  }, [allContactsForSelection, selectedContactIds]);
 
   const handleSelectContact = (contactId: string) => {
     if (!selectedContactIds.includes(contactId)) {
