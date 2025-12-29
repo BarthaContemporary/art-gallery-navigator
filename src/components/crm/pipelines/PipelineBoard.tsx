@@ -125,7 +125,7 @@ export function PipelineBoard({ pipeline, deals, isLoading }: PipelineBoardProps
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Weighted Forecast</p>
-          <p className="text-lg font-semibold">{formatCurrency(weightedValue)}</p>
+          <p className="text-lg font-semibold text-muted-foreground">{formatCurrency(weightedValue)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Deals</p>
