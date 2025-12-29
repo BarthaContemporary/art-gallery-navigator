@@ -88,11 +88,11 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2 mr-4">
-              <Button variant="ghost" size="icon" onClick={onEdit}>
+            <div className="flex items-center gap-2 mr-12">
+              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full opacity-70 hover:opacity-100" onClick={onEdit}>
                 <Edit className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleDelete} disabled={deleteDeal.isPending}>
+              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full opacity-70 hover:opacity-100" onClick={handleDelete} disabled={deleteDeal.isPending}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
