@@ -66,10 +66,16 @@ export function useCreateCRMOrganization() {
         phone: org.phone,
         email: org.email,
         address_line1: org.address_line1,
+        address_line2: org.address_line2,
         city: org.city,
+        state: org.state,
+        postal_code: org.postal_code,
         country: org.country,
         notes: org.notes,
         tags: org.tags,
+        vat_number: org.vat_number,
+        eori_number: org.eori_number,
+        company_number: org.company_number,
       };
       
       const { data, error } = await supabase
