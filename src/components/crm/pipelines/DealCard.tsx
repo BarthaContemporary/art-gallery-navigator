@@ -55,9 +55,18 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           )}
         </div>
 
-        {/* Contact & Organization */}
+        {/* Contacts & Organization */}
         <div className="space-y-1">
-          {deal.contact && (
+          {/* Show multiple contacts */}
+          {deal.contacts && deal.contacts.length > 0 ? (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {deal.contacts.slice(0, 2).map(dc => dc.contact?.full_name).join(', ')}
+                {deal.contacts.length > 2 && ` +${deal.contacts.length - 2}`}
+              </span>
+            </div>
+          ) : deal.contact && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <User className="h-3 w-3" />
               <span className="truncate">{deal.contact.full_name}</span>

@@ -94,10 +94,34 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
             </div>
           </div>
 
-          {/* Contact & Organization */}
+          {/* Contacts & Organization */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Contact Details</h3>
-            {deal.contact && (
+            
+            {/* Multiple contacts */}
+            {deal.contacts && deal.contacts.length > 0 ? (
+              <div className="space-y-2">
+                {deal.contacts.map((dealContact) => (
+                  <div key={dealContact.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{dealContact.contact?.full_name}</p>
+                        {dealContact.is_primary && (
+                          <Badge variant="secondary" className="text-xs">Primary</Badge>
+                        )}
+                      </div>
+                      {dealContact.contact?.email && (
+                        <p className="text-sm text-muted-foreground">{dealContact.contact.email}</p>
+                      )}
+                      {dealContact.role && (
+                        <p className="text-xs text-muted-foreground">{dealContact.role}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : deal.contact ? (
               <div className="flex items-center gap-3 p-3 border rounded-lg">
                 <User className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
@@ -107,7 +131,8 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
                   )}
                 </div>
               </div>
-            )}
+            ) : null}
+            
             {deal.organization && (
               <div className="flex items-center gap-3 p-3 border rounded-lg">
                 <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -119,7 +144,7 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
                 </div>
               </div>
             )}
-            {!deal.contact && !deal.organization && (
+            {(!deal.contacts || deal.contacts.length === 0) && !deal.contact && !deal.organization && (
               <p className="text-sm text-muted-foreground">No contact or organization assigned</p>
             )}
           </div>

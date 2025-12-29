@@ -203,14 +203,27 @@ export interface CRMPipelineStage {
   created_at: string;
 }
 
+// Deal-Contact junction for many-to-many relationship
+export interface CRMDealContact {
+  id: string;
+  deal_id: string;
+  contact_id: string;
+  contact?: CRMContact;
+  role?: string;
+  is_primary: boolean;
+  display_order: number;
+  created_at: string;
+}
+
 export interface CRMDeal {
   id: string;
   name: string;
   pipeline_id: string;
   stage_id?: string;
   stage?: CRMPipelineStage;
-  contact_id?: string;
-  contact?: CRMContact;
+  contact_id?: string; // Deprecated: kept for backward compatibility
+  contact?: CRMContact; // Deprecated: kept for backward compatibility  
+  contacts?: CRMDealContact[]; // New: multiple contacts
   organization_id?: string;
   organization?: CRMOrganization;
   value?: number;
