@@ -104,7 +104,7 @@ export function OrganizationDialog({ open, onOpenChange, organization }: Organiz
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Organization" : "New Organization"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Organisation" : "New Organisation"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

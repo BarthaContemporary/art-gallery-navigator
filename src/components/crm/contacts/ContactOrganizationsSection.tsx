@@ -70,7 +70,7 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base">Organizations</CardTitle>
+        <CardTitle className="text-base">Organisations</CardTitle>
         <Button variant="ghost" size="sm" onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />
           Add
@@ -127,18 +127,18 @@ export function ContactOrganizationsSection({ contactId }: ContactOrganizationsS
         )}
       </CardContent>
 
-      {/* Add Organization Dialog */}
+      {/* Add Organisation Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Add Organization</DialogTitle>
+            <DialogTitle>Add Organisation</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Organization</Label>
+              <Label>Organisation</Label>
               <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select organization" />
+                  <SelectValue placeholder="Select organisation" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableOrgs.map((org) => (

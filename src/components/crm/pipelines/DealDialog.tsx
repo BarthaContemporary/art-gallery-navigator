@@ -297,9 +297,9 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
             </Popover>
           </div>
 
-          <div><Label className="flex items-center gap-2"><Building2 className="h-3 w-3" />Organization</Label>
+          <div><Label className="flex items-center gap-2"><Building2 className="h-3 w-3" />Organisation</Label>
             <Select value={formData.organization_id || "none"} onValueChange={(v) => setFormData({ ...formData, organization_id: v === "none" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="Select organization" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select organisation" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {organizations.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}

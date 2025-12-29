@@ -220,7 +220,7 @@ export default function ListDetailPage() {
                   </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Organization</TableHead>
+                  <TableHead>Organisation</TableHead>
                   <TableHead>Type</TableHead>
                 </TableRow>
               </TableHeader>
