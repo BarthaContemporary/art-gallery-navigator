@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 
 const crmNavItems = [
   { href: "/crm", icon: Users, label: "Contacts", end: true },
-  { href: "/crm/organizations", icon: Building2, label: "Organizations" },
+  { href: "/crm/organizations", icon: Building2, label: "Organisations" },
   { href: "/crm/lists", icon: ListChecks, label: "Lists & Segments" },
   { href: "/crm/campaigns", icon: Mail, label: "Campaigns" },
   { href: "/crm/pipelines", icon: Kanban, label: "Pipelines" },

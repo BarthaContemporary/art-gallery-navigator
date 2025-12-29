@@ -60,10 +60,10 @@ export default function OrganizationsPage() {
       <div className="flex flex-col items-start gap-1">
         <Button onClick={handleAddNew} size="sm">
           <PlusCircle className="h-4 w-4 mr-2" />
-          Add Organization
+          Add Organisation
         </Button>
         <p className="text-muted-foreground text-xs">
-          {organizations?.length || 0} organizations
+          {organizations?.length || 0} organisations
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default function OrganizationsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search organizations..."
+            placeholder="Search organisations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"

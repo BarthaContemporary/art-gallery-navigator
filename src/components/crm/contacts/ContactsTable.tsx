@@ -48,7 +48,7 @@ export function ContactsTable({ contacts, isLoading, selectedContacts, onSelecti
             <Checkbox checked={selectedContacts.length === contacts.length && contacts.length > 0} onCheckedChange={toggleAll} />
           </TableHead>
           <TableHead>Name</TableHead>
-          <TableHead>Organization</TableHead>
+          <TableHead>Organisation</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Phone</TableHead>
           <TableHead>Type</TableHead>
