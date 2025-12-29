@@ -144,6 +144,9 @@ export default function PublicationEditor() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (data: PublicationFormData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const payload = {
         title: data.title,
         subtitle: data.subtitle || null,
@@ -161,7 +164,7 @@ export default function PublicationEditor() {
       if (isNew) {
         const { data: created, error } = await supabase
           .from('publications')
-          .insert(payload)
+          .insert({ ...payload, created_by: user.id })
           .select()
           .single();
         if (error) throw error;
@@ -205,6 +208,13 @@ export default function PublicationEditor() {
     setUploadProgress(0);
 
     try {
+      // Get current user for RLS
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Not authenticated');
+        return;
+      }
+
       // First save the publication if new
       let publicationId = id;
       if (isNew) {
@@ -213,6 +223,7 @@ export default function PublicationEditor() {
           .insert({
             title: formData.title || 'Untitled Publication',
             processing_status: 'pending',
+            created_by: user.id,
           })
           .select()
           .single();
