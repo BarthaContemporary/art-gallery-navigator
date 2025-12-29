@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { CRMDeal, CRMPipelineStage } from "@/types/crm";
 import { useDeleteCRMDeal, useUpdateCRMDeal } from "@/hooks/crm";
 import { useCRMDealItems, calculateDealTotal, calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
 import { DealLineItems } from "./DealLineItems";
 import { DealInteractionsTimeline } from "./DealInteractionsTimeline";
 import { DealArtworksSection } from "./DealArtworksSection";
-import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent } from "lucide-react";
+import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -24,6 +26,9 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
   const deleteDeal = useDeleteCRMDeal();
   const updateDeal = useUpdateCRMDeal();
   const { data: items = [] } = useCRMDealItems(deal?.id);
+  
+  const [isEditingProbability, setIsEditingProbability] = useState(false);
+  const [probabilityValue, setProbabilityValue] = useState("");
 
   const handleDelete = async () => {
     if (!deal) return;
@@ -32,6 +37,23 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
     await deleteDeal.mutateAsync(deal.id);
     onOpenChange(false);
     toast.success("Deal deleted");
+  };
+
+  const handleEditProbability = () => {
+    setProbabilityValue(String(deal?.probability || 0));
+    setIsEditingProbability(true);
+  };
+
+  const handleSaveProbability = async () => {
+    if (!deal) return;
+    const newProbability = Math.min(100, Math.max(0, parseInt(probabilityValue) || 0));
+    await updateDeal.mutateAsync({ id: deal.id, probability: newProbability });
+    setIsEditingProbability(false);
+    toast.success("Probability updated");
+  };
+
+  const handleCancelProbability = () => {
+    setIsEditingProbability(false);
   };
 
   if (!deal) return null;
@@ -87,10 +109,41 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
               <p className="text-2xl font-bold text-primary">{formatCurrency(displayValue)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Percent className="h-3 w-3" />Weighted ({deal.probability || 0}%)
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                <Percent className="h-3 w-3" />Weighted Value
               </p>
-              <p className="text-xl font-semibold">{formatCurrency(weightedValue)}</p>
+              {isEditingProbability ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={probabilityValue}
+                    onChange={(e) => setProbabilityValue(e.target.value)}
+                    className="w-16 h-8 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveProbability();
+                      if (e.key === 'Escape') handleCancelProbability();
+                    }}
+                  />
+                  <span className="text-sm">%</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleSaveProbability}>
+                    <Check className="h-3 w-3 text-green-600" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCancelProbability}>
+                    <X className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleEditProbability}
+                  className="text-left hover:bg-muted/50 rounded px-1 -ml-1 transition-colors"
+                >
+                  <span className="text-xl font-semibold">{formatCurrency(weightedValue)}</span>
+                  <span className="text-sm text-muted-foreground ml-1">({deal.probability || 0}%)</span>
+                </button>
+              )}
             </div>
           </div>
 
