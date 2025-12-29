@@ -8,13 +8,21 @@ import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { useCreateCRMDeal, useUpdateCRMDeal, useCRMContacts, useCRMOrganizations, useCreateCRMContact } from "@/hooks/crm";
+import { useCreateCRMDeal, useUpdateCRMDeal, useCRMContacts, useCRMOrganizations, useCreateCRMContact, useCreateCRMOrganization } from "@/hooks/crm";
 import { CRMPipelineStage, CRMDeal } from "@/types/crm";
 import { useState, useEffect } from "react";
-import { Building2, User, Percent, Check, ChevronsUpDown, UserPlus, X } from "lucide-react";
+import { Building2, User, Percent, Check, ChevronsUpDown, UserPlus, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { addMonths, format } from "date-fns";
+
+const CURRENCIES = [
+  { value: "EUR", label: "EUR - Euro" },
+  { value: "GBP", label: "GBP - British Pound" },
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "CHF", label: "CHF - Swiss Franc" },
+];
 
 interface DealDialogProps { 
   open: boolean; 
@@ -28,22 +36,30 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
   const navigate = useNavigate();
   const [contactSearch, setContactSearch] = useState("");
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
+  const [orgSearch, setOrgSearch] = useState("");
+  const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
   const [newContactName, setNewContactName] = useState<string | null>(null);
+  const [newOrgName, setNewOrgName] = useState<string | null>(null);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  
+  // Default expected close date to one month from now
+  const defaultCloseDate = format(addMonths(new Date(), 1), "yyyy-MM-dd");
+  
   const [formData, setFormData] = useState({ 
     name: "", 
     stage_id: "", 
     value: "", 
-    currency: "GBP",
+    currency: "EUR",
     organization_id: "",
     probability: 0,
-    expected_close_date: "",
+    expected_close_date: defaultCloseDate,
     notes: "",
   });
   
   const createDeal = useCreateCRMDeal();
   const updateDeal = useUpdateCRMDeal();
   const createContact = useCreateCRMContact();
+  const createOrganization = useCreateCRMOrganization();
   const { data: contactsResult } = useCRMContacts({ pageSize: 100 });
   const { data: organizations = [] } = useCRMOrganizations();
 
@@ -53,7 +69,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
         name: deal.name,
         stage_id: deal.stage_id || "",
         value: deal.value?.toString() || "",
-        currency: deal.currency || "GBP",
+        currency: deal.currency || "EUR",
         organization_id: deal.organization_id || "",
         probability: deal.probability || 0,
         expected_close_date: deal.expected_close_date || "",
@@ -64,12 +80,17 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
         (deal.contact_id ? [deal.contact_id] : []);
       setSelectedContactIds(existingContactIds);
       setNewContactName(null);
+      setNewOrgName(null);
       setContactSearch("");
+      setOrgSearch("");
     } else {
-      setFormData({ name: "", stage_id: stages[0]?.id || "", value: "", currency: "GBP", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      const newCloseDate = format(addMonths(new Date(), 1), "yyyy-MM-dd");
+      setFormData({ name: "", stage_id: stages[0]?.id || "", value: "", currency: "EUR", organization_id: "", probability: 0, expected_close_date: newCloseDate, notes: "" });
       setSelectedContactIds([]);
       setNewContactName(null);
+      setNewOrgName(null);
       setContactSearch("");
+      setOrgSearch("");
     }
   }, [deal, stages, open]);
 
@@ -78,6 +99,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
     
     let contactIds = [...selectedContactIds];
     let createdContactId: string | null = null;
+    let organizationId = formData.organization_id;
     
     // If we have a new contact name, create the contact first
     if (newContactName) {
@@ -95,6 +117,19 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
       }
     }
     
+    // If we have a new org name, create the organisation first
+    if (newOrgName) {
+      try {
+        const newOrg = await createOrganization.mutateAsync({
+          name: newOrgName.trim(),
+        });
+        organizationId = newOrg.id;
+      } catch (error) {
+        toast.error("Failed to create organisation");
+        return;
+      }
+    }
+    
     const data = {
       name: formData.name,
       pipeline_id: pipelineId,
@@ -102,7 +137,7 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
       value: formData.value ? parseFloat(formData.value) : undefined,
       currency: formData.currency,
       contact_ids: contactIds,
-      organization_id: formData.organization_id || undefined,
+      organization_id: organizationId || undefined,
       probability: formData.probability,
       expected_close_date: formData.expected_close_date || undefined,
       notes: formData.notes || undefined,
@@ -110,10 +145,13 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
 
     const onSuccess = () => {
       onOpenChange(false);
-      setFormData({ name: "", stage_id: "", value: "", currency: "GBP", organization_id: "", probability: 0, expected_close_date: "", notes: "" });
+      const newCloseDate = format(addMonths(new Date(), 1), "yyyy-MM-dd");
+      setFormData({ name: "", stage_id: "", value: "", currency: "EUR", organization_id: "", probability: 0, expected_close_date: newCloseDate, notes: "" });
       setSelectedContactIds([]);
       setNewContactName(null);
+      setNewOrgName(null);
       setContactSearch("");
+      setOrgSearch("");
       
       // If we created a new contact, prompt user to add more details
       if (createdContactId) {
@@ -173,6 +211,42 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
     setNewContactName(null);
   };
 
+  // Organisation search and filtering
+  const filteredOrgs = organizations.filter(o => 
+    o.name.toLowerCase().includes(orgSearch.toLowerCase())
+  );
+  
+  const exactOrgMatch = organizations.find(o => 
+    o.name.toLowerCase() === orgSearch.toLowerCase()
+  );
+  
+  const selectedOrg = organizations.find(o => o.id === formData.organization_id);
+
+  const handleSelectOrg = (orgId: string) => {
+    setFormData({ ...formData, organization_id: orgId });
+    setNewOrgName(null);
+    setOrgSearch("");
+    setOrgPopoverOpen(false);
+  };
+
+  const handleCreateNewOrg = () => {
+    if (orgSearch.trim()) {
+      setNewOrgName(orgSearch.trim());
+      setFormData({ ...formData, organization_id: "" });
+      setOrgSearch("");
+      setOrgPopoverOpen(false);
+    }
+  };
+
+  const handleClearNewOrg = () => {
+    setNewOrgName(null);
+  };
+
+  const handleClearOrg = () => {
+    setFormData({ ...formData, organization_id: "" });
+    setNewOrgName(null);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -194,7 +268,14 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
 
           <div className="grid grid-cols-2 gap-4">
             <div><Label>Value</Label><Input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: e.target.value })} /></div>
-            <div><Label>Currency</Label><Input value={formData.currency} onChange={(e) => setFormData({ ...formData, currency: e.target.value })} /></div>
+            <div><Label>Currency</Label>
+              <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                <SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
@@ -297,21 +378,103 @@ export function DealDialog({ open, onOpenChange, pipelineId, stages, deal }: Dea
             </Popover>
           </div>
 
-          <div><Label className="flex items-center gap-2"><Building2 className="h-3 w-3" />Organisation</Label>
-            <Select value={formData.organization_id || "none"} onValueChange={(v) => setFormData({ ...formData, organization_id: v === "none" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="Select organisation" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {organizations.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div>
+            <Label className="flex items-center gap-2"><Building2 className="h-3 w-3" />Organisation</Label>
+            
+            {/* Selected organisation or new org badge */}
+            {(selectedOrg || newOrgName) && (
+              <div className="flex flex-wrap gap-1.5 mt-2 mb-2">
+                {selectedOrg && !newOrgName && (
+                  <Badge variant="secondary" className="gap-1 pr-1">
+                    {selectedOrg.name}
+                    <button
+                      type="button"
+                      onClick={handleClearOrg}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {newOrgName && (
+                  <Badge variant="outline" className="gap-1 pr-1 border-primary text-primary">
+                    <Plus className="h-3 w-3" />
+                    {newOrgName} (new)
+                    <button
+                      type="button"
+                      onClick={handleClearNewOrg}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
+            
+            <Popover open={orgPopoverOpen} onOpenChange={setOrgPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={orgPopoverOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="text-muted-foreground">
+                    {selectedOrg || newOrgName ? "Change organisation..." : "Select organisation..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Type to search or add..." 
+                    value={orgSearch}
+                    onValueChange={setOrgSearch}
+                  />
+                  <CommandList>
+                    {filteredOrgs.length === 0 && !orgSearch && (
+                      <CommandEmpty>No organisations found.</CommandEmpty>
+                    )}
+                    
+                    {/* Show option to create new organisation if search doesn't match */}
+                    {orgSearch.trim() && !exactOrgMatch && (
+                      <CommandGroup heading="Create new">
+                        <CommandItem onSelect={handleCreateNewOrg} className="text-primary">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add "{orgSearch.trim()}" as new organisation
+                        </CommandItem>
+                      </CommandGroup>
+                    )}
+                    
+                    {/* Existing organisations */}
+                    {filteredOrgs.length > 0 && (
+                      <CommandGroup heading="Existing organisations">
+                        {filteredOrgs.map((org) => (
+                          <CommandItem
+                            key={org.id}
+                            value={org.id}
+                            onSelect={() => handleSelectOrg(org.id)}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", formData.organization_id === org.id ? "opacity-100" : "opacity-0")} />
+                            <span>{org.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div><Label>Notes</Label><Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} /></div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={createDeal.isPending || updateDeal.isPending || createContact.isPending}>
+            <Button type="submit" disabled={createDeal.isPending || updateDeal.isPending || createContact.isPending || createOrganization.isPending}>
               {deal ? "Save" : "Create"}
             </Button>
           </div>
