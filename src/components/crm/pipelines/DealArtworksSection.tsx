@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Palette, Search, Plus, X, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Palette, Search, Plus, X, Eye } from "lucide-react";
+import { useDialogManager } from "@/hooks/use-dialog-manager";
+import { Artwork as FullArtwork } from "@/types/artwork";
 
 interface DealArtworksSectionProps {
   dealId: string;
@@ -27,6 +28,7 @@ interface Artwork {
 export function DealArtworksSection({ dealId, relatedArtworks, onUpdateArtworks }: DealArtworksSectionProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { showArtworkOverview } = useDialogManager();
 
   // Fetch linked artworks details
   const { data: linkedArtworks = [] } = useQuery({
@@ -52,6 +54,36 @@ export function DealArtworksSection({ dealId, relatedArtworks, onUpdateArtworks 
     },
     enabled: relatedArtworks.length > 0,
   });
+
+  const handleViewArtwork = async (artworkId: string) => {
+    // Fetch full artwork data for the overview panel
+    const { data, error } = await supabase
+      .from('artworks')
+      .select(`
+        *,
+        artists(full_name, surname_first_letter),
+        artwork_images(*)
+      `)
+      .eq('id', artworkId)
+      .single();
+    
+    if (error || !data) return;
+    
+    const fullArtwork: FullArtwork = {
+      ...data,
+      artist_id: data.artist_id || '',
+      medium_type: data.medium_type || '',
+      classification: data.classification || '',
+      currency: data.currency || 'GBP',
+      status: data.status || 'available',
+      created_at: data.created_at || '',
+      updated_at: data.updated_at || '',
+      artists: data.artists as FullArtwork['artists'],
+      artwork_images: data.artwork_images as FullArtwork['artwork_images'],
+    };
+    
+    showArtworkOverview(fullArtwork);
+  };
 
   // Search artworks for picker
   const { data: searchResults = [] } = useQuery({
@@ -144,11 +176,14 @@ export function DealArtworksSection({ dealId, relatedArtworks, onUpdateArtworks 
                 )}
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Link to={`/artworks/${artwork.id}`}>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7"
+                  onClick={() => handleViewArtwork(artwork.id)}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
