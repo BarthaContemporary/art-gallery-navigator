@@ -23,23 +23,24 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// Upload PDF to Cloudinary and return the public_id
+// Upload PDF to Cloudinary and return the public_id and page count
 async function uploadPdfToCloudinary(
   pdfUrl: string, 
   cloudName: string,
   apiKey: string,
   apiSecret: string,
   publicationId: string
-): Promise<string | null> {
+): Promise<{ publicId: string; pages: number } | null> {
   try {
     console.log('[Cloudinary] Uploading PDF to Cloudinary...');
+    console.log('[Cloudinary] PDF URL:', pdfUrl);
     
-    // Create the upload URL
+    // Use the raw upload endpoint for PDFs (allows page extraction)
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
     
     // Generate timestamp and signature
     const timestamp = Math.floor(Date.now() / 1000);
-    const publicId = `publications/${publicationId}`;
+    const publicId = `publications/pub_${publicationId}`;
     
     // Create signature string (alphabetically sorted params)
     const paramsToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
@@ -51,6 +52,8 @@ async function uploadPdfToCloudinary(
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
+    console.log('[Cloudinary] Signature params:', `public_id=${publicId}&timestamp=${timestamp}`);
+    
     // Create form data
     const formData = new FormData();
     formData.append('file', pdfUrl);
@@ -58,22 +61,31 @@ async function uploadPdfToCloudinary(
     formData.append('timestamp', timestamp.toString());
     formData.append('api_key', apiKey);
     formData.append('signature', signature);
-    formData.append('resource_type', 'image'); // Use image to enable transformations
     
+    console.log('[Cloudinary] Sending upload request...');
     const response = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });
     
+    const responseText = await response.text();
+    console.log('[Cloudinary] Response status:', response.status);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Cloudinary] Upload failed:', response.status, errorText);
+      console.error('[Cloudinary] Upload failed:', response.status, responseText);
       return null;
     }
     
-    const result = await response.json();
-    console.log('[Cloudinary] Upload successful, public_id:', result.public_id);
-    return result.public_id;
+    const result = JSON.parse(responseText);
+    console.log('[Cloudinary] Upload successful!');
+    console.log('[Cloudinary] Public ID:', result.public_id);
+    console.log('[Cloudinary] Pages:', result.pages);
+    console.log('[Cloudinary] Format:', result.format);
+    
+    return {
+      publicId: result.public_id,
+      pages: result.pages || 1
+    };
   } catch (error) {
     console.error('[Cloudinary] Upload error:', error);
     return null;
@@ -438,8 +450,11 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 
     // STEP 3: Upload PDF to Cloudinary for page extraction
     let cloudinaryPublicId: string | null = null;
+    let cloudinaryPageCount = 0;
+    
     if (cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret) {
-      cloudinaryPublicId = await uploadPdfToCloudinary(
+      console.log('[Background] Attempting Cloudinary upload...');
+      const uploadResult = await uploadPdfToCloudinary(
         pdfUrl,
         cloudinaryCloudName,
         cloudinaryApiKey,
@@ -447,19 +462,30 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         publicationId
       );
       
-      if (cloudinaryPublicId) {
-        console.log(`[Background] PDF uploaded to Cloudinary with public_id: ${cloudinaryPublicId}`);
+      if (uploadResult) {
+        cloudinaryPublicId = uploadResult.publicId;
+        cloudinaryPageCount = uploadResult.pages;
+        console.log(`[Background] PDF uploaded to Cloudinary: ${cloudinaryPublicId} (${cloudinaryPageCount} pages)`);
+        
+        // Save cloudinary_public_id to the publication
+        await supabase
+          .from('publications')
+          .update({ cloudinary_public_id: cloudinaryPublicId })
+          .eq('id', publicationId);
       } else {
         console.warn('[Background] Failed to upload PDF to Cloudinary, will proceed without page images');
       }
     } else {
-      console.warn('[Background] Cloudinary credentials not configured, skipping PDF upload');
+      console.warn('[Background] Cloudinary credentials not configured:');
+      console.warn(`  - CLOUDINARY_CLOUD_NAME: ${cloudinaryCloudName ? 'set' : 'MISSING'}`);
+      console.warn(`  - CLOUDINARY_API_KEY: ${cloudinaryApiKey ? 'set' : 'MISSING'}`);
+      console.warn(`  - CLOUDINARY_API_SECRET: ${cloudinaryApiSecret ? 'set' : 'MISSING'}`);
     }
 
     // STEP 4: Load PDF using unpdf for text extraction
     console.log('[Background] Loading PDF document for text extraction...');
     const pdf = await getDocumentProxy(pdfData);
-    const pageCount = pdf.numPages;
+    const pageCount = cloudinaryPageCount > 0 ? cloudinaryPageCount : pdf.numPages;
     
     console.log(`[Background] PDF has ${pageCount} pages (${Date.now() - startTime}ms)`);
 
