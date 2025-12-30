@@ -19,54 +19,65 @@ export function ImageLoader({ className, dark = false, size = "md" }: ImageLoade
   };
 
   const ringSize = {
-    sm: "w-8 h-8",
-    md: "w-12 h-12",
-    lg: "w-16 h-16",
+    sm: 32,
+    md: 48,
+    lg: 64,
   };
 
   const strokeWidth = {
-    sm: 1.5,
-    md: 2,
-    lg: 2.5,
+    sm: 2,
+    md: 2.5,
+    lg: 3,
   };
+
+  const radius = {
+    sm: 12,
+    md: 18,
+    lg: 24,
+  };
+
+  const circumference = 2 * Math.PI * radius[size];
+  const dashLength = circumference * 0.25;
 
   return (
     <div className={cn("flex items-center justify-center", className)}>
       <div className={cn("relative flex items-center justify-center", sizeClasses[size])}>
-        {/* Outer breathing ring */}
-        <div
-          className={cn(
-            "absolute rounded-full border animate-elegant-breathe",
-            ringSize[size],
-            dark ? "border-white/30" : "border-foreground/20"
-          )}
-        />
-        
-        {/* Orbiting arc */}
+        {/* Static track ring */}
         <svg
-          className={cn("absolute animate-elegant-orbit", ringSize[size])}
-          viewBox="0 0 50 50"
+          className="absolute"
+          width={ringSize[size]}
+          height={ringSize[size]}
+          viewBox={`0 0 ${ringSize[size]} ${ringSize[size]}`}
         >
           <circle
-            cx="25"
-            cy="25"
-            r="20"
+            cx={ringSize[size] / 2}
+            cy={ringSize[size] / 2}
+            r={radius[size]}
             fill="none"
-            stroke={dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)"}
+            stroke={dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"}
             strokeWidth={strokeWidth[size]}
-            strokeLinecap="round"
-            strokeDasharray="30 100"
           />
         </svg>
 
-        {/* Center dot */}
-        <div
-          className={cn(
-            "rounded-full animate-elegant-fade",
-            size === "sm" ? "w-1.5 h-1.5" : size === "md" ? "w-2 h-2" : "w-2.5 h-2.5",
-            dark ? "bg-white" : "bg-foreground"
-          )}
-        />
+        {/* Animated arc */}
+        <svg
+          className="absolute animate-elegant-orbit"
+          width={ringSize[size]}
+          height={ringSize[size]}
+          viewBox={`0 0 ${ringSize[size]} ${ringSize[size]}`}
+          style={{ transform: 'rotate(-90deg)' }}
+        >
+          <circle
+            cx={ringSize[size] / 2}
+            cy={ringSize[size] / 2}
+            r={radius[size]}
+            fill="none"
+            stroke={dark ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.6)"}
+            strokeWidth={strokeWidth[size]}
+            strokeLinecap="round"
+            strokeDasharray={`${dashLength} ${circumference - dashLength}`}
+          />
+        </svg>
       </div>
     </div>
   );
