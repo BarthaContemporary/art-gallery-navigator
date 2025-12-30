@@ -10,32 +10,38 @@
   }
 }
 
-/* Image loader animations */
-@keyframes loader-spin {
+/* Elegant image loader animations */
+@keyframes elegant-breathe {
+  0%, 100% { 
+    transform: scale(1); 
+    opacity: 0.4; 
+  }
+  50% { 
+    transform: scale(1.15); 
+    opacity: 0.8; 
+  }
+}
+
+@keyframes elegant-orbit {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes loader-ping {
-  0%, 100% { transform: scale(1); opacity: 0.2; }
-  50% { transform: scale(1.1); opacity: 0.1; }
+@keyframes elegant-fade {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.6; }
 }
 
-@keyframes bar-pulse {
-  0%, 100% { transform: scaleY(0.6); opacity: 0.5; }
-  50% { transform: scaleY(1); opacity: 1; }
+.animate-elegant-breathe {
+  animation: elegant-breathe 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-.animate-loader-spin {
-  animation: loader-spin 1.5s linear infinite;
+.animate-elegant-orbit {
+  animation: elegant-orbit 3s linear infinite;
 }
 
-.animate-loader-ping {
-  animation: loader-ping 2s ease-in-out infinite;
-}
-
-.animate-bar-pulse {
-  animation: bar-pulse 0.8s ease-in-out infinite;
+.animate-elegant-fade {
+  animation: elegant-fade 1.8s ease-in-out infinite;
 }
 @tailwind components;
 @tailwind utilities;
