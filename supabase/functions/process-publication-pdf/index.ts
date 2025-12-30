@@ -23,21 +23,75 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// Generate Cloudinary URL for a specific PDF page
-function getCloudinaryPageUrl(
+// Upload PDF to Cloudinary and return the public_id
+async function uploadPdfToCloudinary(
   pdfUrl: string, 
+  cloudName: string,
+  apiKey: string,
+  apiSecret: string,
+  publicationId: string
+): Promise<string | null> {
+  try {
+    console.log('[Cloudinary] Uploading PDF to Cloudinary...');
+    
+    // Create the upload URL
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    
+    // Generate timestamp and signature
+    const timestamp = Math.floor(Date.now() / 1000);
+    const publicId = `publications/${publicationId}`;
+    
+    // Create signature string (alphabetically sorted params)
+    const paramsToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+    
+    // Generate SHA-1 signature
+    const encoder = new TextEncoder();
+    const data = encoder.encode(paramsToSign);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', pdfUrl);
+    formData.append('public_id', publicId);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('api_key', apiKey);
+    formData.append('signature', signature);
+    formData.append('resource_type', 'image'); // Use image to enable transformations
+    
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Cloudinary] Upload failed:', response.status, errorText);
+      return null;
+    }
+    
+    const result = await response.json();
+    console.log('[Cloudinary] Upload successful, public_id:', result.public_id);
+    return result.public_id;
+  } catch (error) {
+    console.error('[Cloudinary] Upload error:', error);
+    return null;
+  }
+}
+
+// Generate Cloudinary URL for a specific page of an UPLOADED PDF
+function getCloudinaryPageUrl(
+  publicId: string, 
   pageNumber: number, 
   cloudName: string,
   size: 'thumbnail' | 'full' = 'thumbnail'
 ): string {
-  // Cloudinary PDF page transformation
-  // Format: /image/upload/pg_{page},w_{width},f_auto,q_auto/{source_url}
   const width = size === 'thumbnail' ? 400 : 1200;
   const quality = size === 'thumbnail' ? 'auto:low' : 'auto:good';
   
-  // Use Cloudinary fetch to transform the remote PDF
-  const encodedUrl = encodeURIComponent(pdfUrl);
-  return `https://res.cloudinary.com/${cloudName}/image/fetch/pg_${pageNumber},w_${width},f_jpg,q_${quality}/${encodedUrl}`;
+  // For uploaded PDFs, we use the public_id directly with pg_ transformation
+  return `https://res.cloudinary.com/${cloudName}/image/upload/pg_${pageNumber},w_${width},f_jpg,q_${quality}/${publicId}.pdf`;
 }
 
 // Verify and pre-warm a Cloudinary URL (forces generation)
@@ -65,23 +119,19 @@ async function verifyCloudinaryUrl(url: string, retries = 3): Promise<boolean> {
 }
 
 // Pre-warm Cloudinary URL for OCR (ensures image is ready before sending to OpenAI)
-// Includes robust retry logic with exponential backoff for ALL error types
 async function prewarmCloudinaryImage(url: string, maxRetries = 8): Promise<boolean> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Fetch the full image to force Cloudinary to generate it
       const response = await fetch(url);
       if (response.ok) {
         await response.arrayBuffer();
         return true;
       }
       
-      // All non-OK responses get exponential backoff (400, 404, 420, 423, 5xx, etc.)
-      const delay = Math.min(1000 * Math.pow(2, attempt), 15000); // 1s, 2s, 4s, 8s, 15s, 15s...
+      const delay = Math.min(1000 * Math.pow(2, attempt), 15000);
       console.log(`[Prewarm] Fetch returned ${response.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, delay));
     } catch (error) {
-      // Network error - retry with backoff
       const delay = Math.min(1000 * Math.pow(2, attempt), 15000);
       console.warn(`[Prewarm] Network error, waiting ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -158,7 +208,6 @@ async function generateTOC(
   try {
     console.log('[TOC] Generating table of contents...');
     
-    // Prepare a summary of each page (first 500 chars per page, max 30 pages)
     const pageSummaries = pageTexts
       .slice(0, 30)
       .map(p => `Page ${p.pageNumber}: ${p.text.substring(0, 500)}`)
@@ -202,7 +251,6 @@ ${pageSummaries}`
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     
-    // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -224,7 +272,6 @@ async function generateKeywordIndex(
   try {
     console.log('[INDEX] Generating keyword index...');
     
-    // Combine all text with page markers
     const allText = pageTexts
       .map(p => `[PAGE ${p.pageNumber}]\n${p.text.substring(0, 1000)}`)
       .join('\n\n');
@@ -270,7 +317,6 @@ ${allText.substring(0, 15000)}`
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     
-    // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -292,7 +338,6 @@ async function generateSummary(
   try {
     console.log('[SUMMARY] Generating publication summary...');
     
-    // Combine first few pages for summary
     const contentForSummary = pageTexts
       .slice(0, 10)
       .map(p => p.text)
@@ -347,11 +392,13 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   const cloudinaryCloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
+  const cloudinaryApiKey = Deno.env.get('CLOUDINARY_API_KEY');
+  const cloudinaryApiSecret = Deno.env.get('CLOUDINARY_API_SECRET');
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     console.log(`[Background] Starting processing for publication ${publicationId}`);
-    console.log(`[Background] Cloudinary cloud name: ${cloudinaryCloudName ? 'configured' : 'MISSING'}`);
+    console.log(`[Background] Cloudinary configured: ${cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret ? 'yes' : 'no'}`);
     const startTime = Date.now();
 
     // Update status to processing
@@ -376,7 +423,6 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     }
     console.log(`[Background] Successfully deleted existing page records (${Date.now() - startTime}ms)`);
 
-    // Small delay to ensure database consistency
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // STEP 2: Fetch the PDF
@@ -390,7 +436,27 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     const pdfData = new Uint8Array(pdfBuffer);
     console.log(`[Background] PDF fetched, size: ${pdfBuffer.byteLength} bytes (${Date.now() - startTime}ms)`);
 
-    // STEP 3: Load PDF using unpdf for text extraction
+    // STEP 3: Upload PDF to Cloudinary for page extraction
+    let cloudinaryPublicId: string | null = null;
+    if (cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret) {
+      cloudinaryPublicId = await uploadPdfToCloudinary(
+        pdfUrl,
+        cloudinaryCloudName,
+        cloudinaryApiKey,
+        cloudinaryApiSecret,
+        publicationId
+      );
+      
+      if (cloudinaryPublicId) {
+        console.log(`[Background] PDF uploaded to Cloudinary with public_id: ${cloudinaryPublicId}`);
+      } else {
+        console.warn('[Background] Failed to upload PDF to Cloudinary, will proceed without page images');
+      }
+    } else {
+      console.warn('[Background] Cloudinary credentials not configured, skipping PDF upload');
+    }
+
+    // STEP 4: Load PDF using unpdf for text extraction
     console.log('[Background] Loading PDF document for text extraction...');
     const pdf = await getDocumentProxy(pdfData);
     const pageCount = pdf.numPages;
@@ -403,7 +469,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       .update({ page_count: pageCount })
       .eq('id', publicationId);
 
-    // STEP 4: Extract all text using unpdf
+    // STEP 5: Extract all text using unpdf
     console.log('[Background] Extracting text from all pages...');
     let allPageTexts: string[] = [];
     try {
@@ -415,8 +481,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       allPageTexts = new Array(pageCount).fill('');
     }
 
-    // STEP 5: Generate Cloudinary thumbnail URLs for all pages
-    console.log('[Background] Generating Cloudinary page thumbnail URLs...');
+    // STEP 6: Generate page URLs using uploaded PDF
+    console.log('[Background] Generating page URLs...');
     const pageRecords = [];
     const MIN_TEXT_THRESHOLD = 50;
     let totalTextLength = 0;
@@ -426,13 +492,13 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       const pageText = (allPageTexts[i - 1] || '').trim();
       totalTextLength += pageText.length;
 
-      // Generate Cloudinary URLs for this page
       let thumbnailUrl: string | null = null;
       let fullUrl: string | null = null;
       
-      if (cloudinaryCloudName) {
-        thumbnailUrl = getCloudinaryPageUrl(pdfUrl, i, cloudinaryCloudName, 'thumbnail');
-        fullUrl = getCloudinaryPageUrl(pdfUrl, i, cloudinaryCloudName, 'full');
+      if (cloudinaryPublicId && cloudinaryCloudName) {
+        // Use the uploaded PDF's public_id for page extraction
+        thumbnailUrl = getCloudinaryPageUrl(cloudinaryPublicId, i, cloudinaryCloudName, 'thumbnail');
+        fullUrl = getCloudinaryPageUrl(cloudinaryPublicId, i, cloudinaryCloudName, 'full');
       }
 
       pageRecords.push({
@@ -449,7 +515,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     console.log(`[Background] Total characters extracted: ${totalTextLength} (${Date.now() - startTime}ms)`);
     
     // Verify first page thumbnail is accessible
-    if (cloudinaryCloudName && pageRecords.length > 0 && pageRecords[0].render_low_url) {
+    if (cloudinaryPublicId && pageRecords.length > 0 && pageRecords[0].render_low_url) {
       console.log('[Background] Verifying Cloudinary thumbnail generation...');
       const isValid = await verifyCloudinaryUrl(pageRecords[0].render_low_url);
       if (isValid) {
@@ -459,7 +525,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       }
     }
 
-    // STEP 6: Insert pages in batches
+    // STEP 7: Insert pages in batches
     const BATCH_SIZE = 50;
     for (let i = 0; i < pageRecords.length; i += BATCH_SIZE) {
       const batch = pageRecords.slice(i, i + BATCH_SIZE);
@@ -476,32 +542,27 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 
     console.log(`[Background] Created ${pageCount} page records with Cloudinary URLs (${Date.now() - startTime}ms)`);
 
-    // STEP 7: OCR for pages with sparse text (if OpenAI key available)
-    // Now processes ALL sparse pages in parallel batches (no 30-page limit)
-    if (openAIApiKey && cloudinaryCloudName) {
+    // STEP 8: OCR for pages with sparse text (if OpenAI key available)
+    if (openAIApiKey && cloudinaryPublicId && cloudinaryCloudName) {
       const sparseTextPages = pageRecords.filter(p => (p.text_content?.length || 0) < MIN_TEXT_THRESHOLD);
       
       if (sparseTextPages.length > 0) {
         console.log(`[Background] ${sparseTextPages.length} pages have sparse text, processing ALL with OCR...`);
         
-        // Process 5 pages concurrently for speed (parallel OCR)
         const OCR_CONCURRENCY = 5;
         let processedCount = 0;
         
-        // Helper function to process a single page with OCR
         const processPageOCR = async (page: typeof pageRecords[0]): Promise<void> => {
           try {
             const ocrImageUrl = page.render_high_url || page.render_low_url;
             if (!ocrImageUrl) return;
             
-            // Pre-warm the Cloudinary image before sending to OpenAI
             const prewarmed = await prewarmCloudinaryImage(ocrImageUrl);
             if (!prewarmed) {
               console.warn(`[OCR] Failed to pre-warm image for page ${page.page_number}, skipping`);
               return;
             }
             
-            // Small delay to ensure Cloudinary has cached the image (reduced from 500ms)
             await new Promise(resolve => setTimeout(resolve, 200));
             
             const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
@@ -512,7 +573,6 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
                 .eq('publication_id', publicationId)
                 .eq('page_number', page.page_number);
               
-              // Update local record for AI processing
               const idx = pageTextsForAI.findIndex(p => p.pageNumber === page.page_number);
               if (idx !== -1) {
                 pageTextsForAI[idx].text = ocrText;
@@ -525,17 +585,14 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
           }
         };
         
-        // Process pages in parallel batches
         for (let i = 0; i < sparseTextPages.length; i += OCR_CONCURRENCY) {
           const batch = sparseTextPages.slice(i, i + OCR_CONCURRENCY);
           console.log(`[Background] OCR batch ${i + 1}-${i + batch.length} of ${sparseTextPages.length}`);
           
-          // Process batch in parallel
           await Promise.all(batch.map(page => processPageOCR(page)));
           
           processedCount += batch.length;
           
-          // Update progress every batch (percentage of OCR phase)
           const ocrProgress = Math.round((processedCount / sparseTextPages.length) * 100);
           console.log(`[Background] OCR progress: ${ocrProgress}% (${processedCount}/${sparseTextPages.length} pages)`);
         }
@@ -543,17 +600,15 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         console.log(`[Background] OCR complete: processed ${processedCount} pages`);
       }
 
-      // STEP 8: Generate TOC, Keyword Index, and Summary
+      // STEP 9: Generate TOC, Keyword Index, and Summary
       console.log('[Background] Generating AI content (TOC, Index, Summary)...');
       
-      // Run all AI generation in parallel
       const [toc, keywordIndex, summary] = await Promise.all([
         generateTOC(pageTextsForAI, openAIApiKey),
         generateKeywordIndex(pageTextsForAI, openAIApiKey),
         generateSummary(pageTextsForAI, openAIApiKey),
       ]);
       
-      // Update publication with AI-generated content
       const aiUpdateData: Record<string, any> = {};
       if (toc && toc.length > 0) {
         aiUpdateData.toc = { sections: toc };
@@ -574,7 +629,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       }
     }
 
-    // STEP 9: Update publication as completed
+    // STEP 10: Update publication as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
@@ -592,7 +647,6 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   } catch (error) {
     console.error('[Background] Error processing publication:', error);
 
-    // Update status to failed
     try {
       await supabase
         .from('publications')
@@ -608,7 +662,6 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -626,10 +679,8 @@ serve(async (req) => {
 
     console.log(`Received request to process publication ${publicationId}`);
 
-    // Start background processing using EdgeRuntime.waitUntil
     EdgeRuntime.waitUntil(processPublicationInBackground(publicationId, pdfUrl));
 
-    // Return immediate response - processing continues in background
     return new Response(
       JSON.stringify({ 
         success: true, 
