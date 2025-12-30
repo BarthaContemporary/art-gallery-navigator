@@ -65,8 +65,8 @@ async function verifyCloudinaryUrl(url: string, retries = 3): Promise<boolean> {
 }
 
 // Pre-warm Cloudinary URL for OCR (ensures image is ready before sending to OpenAI)
-// Includes robust retry logic with exponential backoff
-async function prewarmCloudinaryImage(url: string, maxRetries = 5): Promise<boolean> {
+// Includes robust retry logic with exponential backoff for ALL error types
+async function prewarmCloudinaryImage(url: string, maxRetries = 8): Promise<boolean> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       // Fetch the full image to force Cloudinary to generate it
@@ -76,21 +76,14 @@ async function prewarmCloudinaryImage(url: string, maxRetries = 5): Promise<bool
         return true;
       }
       
-      // If Cloudinary returns 404 or 423 (still generating), wait and retry
-      if (response.status === 404 || response.status === 423 || response.status === 420) {
-        const delay = Math.min(1000 * Math.pow(2, attempt), 8000); // 1s, 2s, 4s, 8s, 8s
-        console.log(`[Prewarm] Page fetch returned ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      
-      // Other errors - log and retry with shorter delay
-      console.warn(`[Prewarm] Fetch returned ${response.status}, retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // All non-OK responses get exponential backoff (400, 404, 420, 423, 5xx, etc.)
+      const delay = Math.min(1000 * Math.pow(2, attempt), 15000); // 1s, 2s, 4s, 8s, 15s, 15s...
+      console.log(`[Prewarm] Fetch returned ${response.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     } catch (error) {
       // Network error - retry with backoff
-      const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
-      console.warn(`[Prewarm] Network error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      const delay = Math.min(1000 * Math.pow(2, attempt), 15000);
+      console.warn(`[Prewarm] Network error, waiting ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
