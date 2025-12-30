@@ -466,60 +466,70 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
     console.log(`[Background] Created ${pageCount} page records with Cloudinary URLs (${Date.now() - startTime}ms)`);
 
     // STEP 7: OCR for pages with sparse text (if OpenAI key available)
+    // Now processes ALL sparse pages in parallel batches (no 30-page limit)
     if (openAIApiKey && cloudinaryCloudName) {
       const sparseTextPages = pageRecords.filter(p => (p.text_content?.length || 0) < MIN_TEXT_THRESHOLD);
       
       if (sparseTextPages.length > 0) {
-        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, attempting OCR...`);
+        console.log(`[Background] ${sparseTextPages.length} pages have sparse text, processing ALL with OCR...`);
         
-        // Process in batches of 10 to avoid timeout
-        const OCR_BATCH_SIZE = 10;
-        const maxOcrPages = Math.min(sparseTextPages.length, 30); // Limit OCR to 30 pages max
+        // Process 5 pages concurrently for speed (parallel OCR)
+        const OCR_CONCURRENCY = 5;
+        let processedCount = 0;
         
-        for (let batchStart = 0; batchStart < maxOcrPages; batchStart += OCR_BATCH_SIZE) {
-          const batch = sparseTextPages.slice(batchStart, Math.min(batchStart + OCR_BATCH_SIZE, maxOcrPages));
-          console.log(`[Background] Processing OCR batch ${batchStart + 1}-${batchStart + batch.length} of ${maxOcrPages}`);
-          
-          for (const page of batch) {
-            try {
-              // Use the Cloudinary full-res URL for OCR (better quality)
-              const ocrImageUrl = page.render_high_url || page.render_low_url;
-              
-              if (ocrImageUrl) {
-                // Pre-warm the Cloudinary image before sending to OpenAI
-                console.log(`[OCR] Pre-warming Cloudinary image for page ${page.page_number}...`);
-                const prewarmed = await prewarmCloudinaryImage(ocrImageUrl);
-                
-                if (!prewarmed) {
-                  console.warn(`[OCR] Failed to pre-warm image for page ${page.page_number}, skipping OCR`);
-                  continue;
-                }
-                
-                // Small delay to ensure Cloudinary has cached the image
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
-                if (ocrText && ocrText.length > 10) {
-                  await supabase
-                    .from('publication_pages')
-                    .update({ text_content: ocrText })
-                    .eq('publication_id', publicationId)
-                    .eq('page_number', page.page_number);
-                  
-                  // Update local record for AI processing
-                  const idx = pageTextsForAI.findIndex(p => p.pageNumber === page.page_number);
-                  if (idx !== -1) {
-                    pageTextsForAI[idx].text = ocrText;
-                  }
-                  
-                  console.log(`[Background] Updated page ${page.page_number} with OCR text (${ocrText.length} chars)`);
-                }
-              }
-            } catch (ocrError) {
-              console.warn(`[Background] OCR failed for page ${page.page_number}:`, ocrError);
+        // Helper function to process a single page with OCR
+        const processPageOCR = async (page: typeof pageRecords[0]): Promise<void> => {
+          try {
+            const ocrImageUrl = page.render_high_url || page.render_low_url;
+            if (!ocrImageUrl) return;
+            
+            // Pre-warm the Cloudinary image before sending to OpenAI
+            const prewarmed = await prewarmCloudinaryImage(ocrImageUrl);
+            if (!prewarmed) {
+              console.warn(`[OCR] Failed to pre-warm image for page ${page.page_number}, skipping`);
+              return;
             }
+            
+            // Small delay to ensure Cloudinary has cached the image (reduced from 500ms)
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
+            if (ocrText && ocrText.length > 10) {
+              await supabase
+                .from('publication_pages')
+                .update({ text_content: ocrText })
+                .eq('publication_id', publicationId)
+                .eq('page_number', page.page_number);
+              
+              // Update local record for AI processing
+              const idx = pageTextsForAI.findIndex(p => p.pageNumber === page.page_number);
+              if (idx !== -1) {
+                pageTextsForAI[idx].text = ocrText;
+              }
+              
+              console.log(`[OCR] Page ${page.page_number}: ${ocrText.length} chars extracted`);
+            }
+          } catch (ocrError) {
+            console.warn(`[OCR] Failed for page ${page.page_number}:`, ocrError);
           }
+        };
+        
+        // Process pages in parallel batches
+        for (let i = 0; i < sparseTextPages.length; i += OCR_CONCURRENCY) {
+          const batch = sparseTextPages.slice(i, i + OCR_CONCURRENCY);
+          console.log(`[Background] OCR batch ${i + 1}-${i + batch.length} of ${sparseTextPages.length}`);
+          
+          // Process batch in parallel
+          await Promise.all(batch.map(page => processPageOCR(page)));
+          
+          processedCount += batch.length;
+          
+          // Update progress every batch (percentage of OCR phase)
+          const ocrProgress = Math.round((processedCount / sparseTextPages.length) * 100);
+          console.log(`[Background] OCR progress: ${ocrProgress}% (${processedCount}/${sparseTextPages.length} pages)`);
         }
+        
+        console.log(`[Background] OCR complete: processed ${processedCount} pages`);
       }
 
       // STEP 8: Generate TOC, Keyword Index, and Summary
