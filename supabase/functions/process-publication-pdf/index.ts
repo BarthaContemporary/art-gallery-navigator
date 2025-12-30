@@ -65,18 +65,36 @@ async function verifyCloudinaryUrl(url: string, retries = 3): Promise<boolean> {
 }
 
 // Pre-warm Cloudinary URL for OCR (ensures image is ready before sending to OpenAI)
-async function prewarmCloudinaryImage(url: string): Promise<boolean> {
-  try {
-    // Fetch the full image to force Cloudinary to generate it
-    const response = await fetch(url);
-    if (response.ok) {
-      await response.arrayBuffer();
-      return true;
+// Includes robust retry logic with exponential backoff
+async function prewarmCloudinaryImage(url: string, maxRetries = 5): Promise<boolean> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Fetch the full image to force Cloudinary to generate it
+      const response = await fetch(url);
+      if (response.ok) {
+        await response.arrayBuffer();
+        return true;
+      }
+      
+      // If Cloudinary returns 404 or 423 (still generating), wait and retry
+      if (response.status === 404 || response.status === 423 || response.status === 420) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000); // 1s, 2s, 4s, 8s, 8s
+        console.log(`[Prewarm] Page fetch returned ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Other errors - log and retry with shorter delay
+      console.warn(`[Prewarm] Fetch returned ${response.status}, retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      // Network error - retry with backoff
+      const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+      console.warn(`[Prewarm] Network error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-    return false;
-  } catch {
-    return false;
   }
+  return false;
 }
 
 // OCR text from a page image using OpenAI GPT-4 Vision
