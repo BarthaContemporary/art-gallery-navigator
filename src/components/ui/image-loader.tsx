@@ -1,6 +1,6 @@
 /**
- * Modern Minimalist Image Loading Animation
- * Clean, elegant loading indicator for image viewers
+ * Elegant Minimalist Image Loading Animation
+ * Refined, subtle loading indicator for image viewers
  */
 
 import { cn } from "@/lib/utils";
@@ -13,60 +13,58 @@ interface ImageLoaderProps {
 
 export function ImageLoader({ className, dark = false, size = "md" }: ImageLoaderProps) {
   const sizeClasses = {
+    sm: "w-10 h-10",
+    md: "w-14 h-14",
+    lg: "w-20 h-20",
+  };
+
+  const ringSize = {
     sm: "w-8 h-8",
     md: "w-12 h-12",
     lg: "w-16 h-16",
   };
 
-  const dotSizes = {
-    sm: "w-1.5 h-1.5",
-    md: "w-2 h-2",
-    lg: "w-2.5 h-2.5",
-  };
-
-  const distances = {
-    sm: 12,
-    md: 18,
-    lg: 24,
+  const strokeWidth = {
+    sm: 1.5,
+    md: 2,
+    lg: 2.5,
   };
 
   return (
     <div className={cn("flex items-center justify-center", className)}>
-      <div className={cn("relative", sizeClasses[size])}>
-        {/* Pulsing ring */}
+      <div className={cn("relative flex items-center justify-center", sizeClasses[size])}>
+        {/* Outer breathing ring */}
         <div
           className={cn(
-            "absolute inset-0 rounded-full animate-loader-ping",
-            dark ? "bg-white" : "bg-foreground"
+            "absolute rounded-full border animate-elegant-breathe",
+            ringSize[size],
+            dark ? "border-white/30" : "border-foreground/20"
           )}
         />
         
-        {/* Rotating dots */}
-        <div className="absolute inset-0 animate-loader-spin">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className={cn(
-                "absolute rounded-full",
-                dotSizes[size],
-                dark ? "bg-white" : "bg-foreground"
-              )}
-              style={{
-                top: "50%",
-                left: "50%",
-                transform: `rotate(${i * 90}deg) translateY(-${distances[size]}px) translateX(-50%)`,
-                opacity: 0.3 + (i * 0.2),
-              }}
-            />
-          ))}
-        </div>
+        {/* Orbiting arc */}
+        <svg
+          className={cn("absolute animate-elegant-orbit", ringSize[size])}
+          viewBox="0 0 50 50"
+        >
+          <circle
+            cx="25"
+            cy="25"
+            r="20"
+            fill="none"
+            stroke={dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)"}
+            strokeWidth={strokeWidth[size]}
+            strokeLinecap="round"
+            strokeDasharray="30 100"
+          />
+        </svg>
 
-        {/* Center dot with pulse */}
+        {/* Center dot */}
         <div
           className={cn(
-            "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full animate-pulse",
-            size === "sm" ? "w-2 h-2" : size === "md" ? "w-3 h-3" : "w-4 h-4",
-            dark ? "bg-white/80" : "bg-foreground/80"
+            "rounded-full animate-elegant-fade",
+            size === "sm" ? "w-1.5 h-1.5" : size === "md" ? "w-2 h-2" : "w-2.5 h-2.5",
+            dark ? "bg-white" : "bg-foreground"
           )}
         />
       </div>
