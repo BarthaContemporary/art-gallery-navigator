@@ -9,6 +9,34 @@
     transform: translateX(100%);
   }
 }
+
+/* Image loader animations */
+@keyframes loader-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loader-ping {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.1); opacity: 0.1; }
+}
+
+@keyframes bar-pulse {
+  0%, 100% { transform: scaleY(0.6); opacity: 0.5; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+.animate-loader-spin {
+  animation: loader-spin 1.5s linear infinite;
+}
+
+.animate-loader-ping {
+  animation: loader-ping 2s ease-in-out infinite;
+}
+
+.animate-bar-pulse {
+  animation: bar-pulse 0.8s ease-in-out infinite;
+}
 @tailwind components;
 @tailwind utilities;
 
