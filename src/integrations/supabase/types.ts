@@ -3286,6 +3286,7 @@ export type Database = {
       publications: {
         Row: {
           author: string | null
+          cloudinary_public_id: string | null
           cover_page: number | null
           created_at: string | null
           created_by: string | null
@@ -3317,6 +3318,7 @@ export type Database = {
         }
         Insert: {
           author?: string | null
+          cloudinary_public_id?: string | null
           cover_page?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -3348,6 +3350,7 @@ export type Database = {
         }
         Update: {
           author?: string | null
+          cloudinary_public_id?: string | null
           cover_page?: number | null
           created_at?: string | null
           created_by?: string | null
