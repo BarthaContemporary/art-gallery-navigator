@@ -24,20 +24,25 @@ export function ImageLoader({ className, dark = false, size = "md" }: ImageLoade
     lg: "w-2.5 h-2.5",
   };
 
+  const distances = {
+    sm: 12,
+    md: 18,
+    lg: 24,
+  };
+
   return (
     <div className={cn("flex items-center justify-center", className)}>
       <div className={cn("relative", sizeClasses[size])}>
         {/* Pulsing ring */}
         <div
           className={cn(
-            "absolute inset-0 rounded-full animate-ping opacity-20",
+            "absolute inset-0 rounded-full animate-loader-ping",
             dark ? "bg-white" : "bg-foreground"
           )}
-          style={{ animationDuration: "2s" }}
         />
         
         {/* Rotating dots */}
-        <div className="absolute inset-0 animate-spin" style={{ animationDuration: "1.5s" }}>
+        <div className="absolute inset-0 animate-loader-spin">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
@@ -49,7 +54,7 @@ export function ImageLoader({ className, dark = false, size = "md" }: ImageLoade
               style={{
                 top: "50%",
                 left: "50%",
-                transform: `rotate(${i * 90}deg) translateY(-${size === "sm" ? 12 : size === "md" ? 18 : 24}px) translateX(-50%)`,
+                transform: `rotate(${i * 90}deg) translateY(-${distances[size]}px) translateX(-50%)`,
                 opacity: 0.3 + (i * 0.2),
               }}
             />
@@ -103,13 +108,11 @@ export function BarLoader({ className, dark = false }: { className?: string; dar
         <div
           key={i}
           className={cn(
-            "w-1 rounded-full animate-pulse",
+            "w-1 h-3 rounded-full animate-bar-pulse",
             dark ? "bg-white" : "bg-foreground"
           )}
           style={{
-            height: `${12 + Math.sin(i * 0.8) * 8}px`,
             animationDelay: `${i * 0.15}s`,
-            animationDuration: "0.8s",
           }}
         />
       ))}
