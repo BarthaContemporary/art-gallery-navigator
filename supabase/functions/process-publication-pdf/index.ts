@@ -40,11 +40,40 @@ function getCloudinaryPageUrl(
   return `https://res.cloudinary.com/${cloudName}/image/fetch/pg_${pageNumber},w_${width},f_jpg,q_${quality}/${encodedUrl}`;
 }
 
-// Verify that a Cloudinary URL is accessible
-async function verifyCloudinaryUrl(url: string): Promise<boolean> {
+// Verify and pre-warm a Cloudinary URL (forces generation)
+async function verifyCloudinaryUrl(url: string, retries = 3): Promise<boolean> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Use GET instead of HEAD to force Cloudinary to actually generate the image
+      const response = await fetch(url, { method: 'GET' });
+      if (response.ok) {
+        // Consume the body to complete the request
+        await response.arrayBuffer();
+        return true;
+      }
+      // Wait before retry
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch {
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  return false;
+}
+
+// Pre-warm Cloudinary URL for OCR (ensures image is ready before sending to OpenAI)
+async function prewarmCloudinaryImage(url: string): Promise<boolean> {
   try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
+    // Fetch the full image to force Cloudinary to generate it
+    const response = await fetch(url);
+    if (response.ok) {
+      await response.arrayBuffer();
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -457,8 +486,19 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
               const ocrImageUrl = page.render_high_url || page.render_low_url;
               
               if (ocrImageUrl) {
-                const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
+                // Pre-warm the Cloudinary image before sending to OpenAI
+                console.log(`[OCR] Pre-warming Cloudinary image for page ${page.page_number}...`);
+                const prewarmed = await prewarmCloudinaryImage(ocrImageUrl);
                 
+                if (!prewarmed) {
+                  console.warn(`[OCR] Failed to pre-warm image for page ${page.page_number}, skipping OCR`);
+                  continue;
+                }
+                
+                // Small delay to ensure Cloudinary has cached the image
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const ocrText = await ocrPageWithOpenAI(ocrImageUrl, page.page_number, openAIApiKey);
                 if (ocrText && ocrText.length > 10) {
                   await supabase
                     .from('publication_pages')
