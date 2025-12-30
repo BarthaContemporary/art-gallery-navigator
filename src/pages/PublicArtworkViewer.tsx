@@ -13,6 +13,7 @@ import { ProgressiveImage } from '@/components/viewer/ProgressiveImage';
 import { ThumbnailStrip } from '@/components/viewer/ThumbnailStrip';
 import { ViewerImageOptimizer } from '@/services/viewer/image-optimizer';
 import { useViewerGestures } from '@/hooks/viewer/useViewerGestures';
+import { ImageLoader } from '@/components/ui/image-loader';
 
 export default function PublicArtworkViewer() {
   const { slug } = useParams<{ slug: string }>();
@@ -99,7 +100,7 @@ export default function PublicArtworkViewer() {
         "fixed inset-0 flex items-center justify-center",
         forceDark ? "bg-black" : "bg-neutral-200"
       )}>
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <ImageLoader dark={forceDark} size="lg" />
       </div>
     );
   }

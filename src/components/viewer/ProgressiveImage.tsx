@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { ViewerImageOptimizer, type ImageTier } from '@/services/viewer/image-optimizer';
 import type { ViewerArtworkImage } from '@/types/viewer';
+import { ImageLoader } from '@/components/ui/image-loader';
 
 interface ProgressiveImageProps {
   image: ViewerArtworkImage | null;
@@ -142,7 +143,7 @@ function ProgressiveImageComponent({
   if (!image) {
     return (
       <div className={cn("flex items-center justify-center bg-neutral-300", className)}>
-        <span className="text-muted-foreground">No image</span>
+        <ImageLoader size="md" />
       </div>
     );
   }
