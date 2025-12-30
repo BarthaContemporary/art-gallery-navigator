@@ -3239,6 +3239,7 @@ export type Database = {
       publication_pages: {
         Row: {
           created_at: string | null
+          height: number | null
           id: string
           page_number: number
           publication_id: string
@@ -3248,9 +3249,11 @@ export type Database = {
           render_storage_path_low: string | null
           text_content: string | null
           text_tokens: unknown
+          width: number | null
         }
         Insert: {
           created_at?: string | null
+          height?: number | null
           id?: string
           page_number: number
           publication_id: string
@@ -3260,9 +3263,11 @@ export type Database = {
           render_storage_path_low?: string | null
           text_content?: string | null
           text_tokens?: unknown
+          width?: number | null
         }
         Update: {
           created_at?: string | null
+          height?: number | null
           id?: string
           page_number?: number
           publication_id?: string
@@ -3272,6 +3277,7 @@ export type Database = {
           render_storage_path_low?: string | null
           text_content?: string | null
           text_tokens?: unknown
+          width?: number | null
         }
         Relationships: [
           {
