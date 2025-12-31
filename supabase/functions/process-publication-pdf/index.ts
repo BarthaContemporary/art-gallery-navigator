@@ -22,206 +22,130 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// Upload PDF to Cloudinary using chunked upload for large files
-async function uploadPdfToCloudinary(
-  pdfUrl: string,
-  publicationId: string,
+// Use Cloudinary's fetch feature to access PDF pages without uploading
+// This bypasses the upload size limit by having Cloudinary fetch directly from URL
+function getCloudinaryFetchUrl(
   cloudName: string,
-  apiKey: string,
-  apiSecret: string
-): Promise<{ publicId: string; pageCount: number; width: number; height: number } | null> {
-  try {
-    console.log('[Cloudinary] Downloading PDF from source...');
-    
-    // First, download the PDF as binary data
-    const pdfResponse = await fetch(pdfUrl);
-    if (!pdfResponse.ok) {
-      console.error('[Cloudinary] Failed to download PDF:', pdfResponse.status);
-      return null;
-    }
-    
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfSize = pdfBuffer.byteLength;
-    console.log(`[Cloudinary] PDF downloaded: ${(pdfSize / 1024 / 1024).toFixed(2)} MB`);
-    
-    // Generate signature for signed upload
-    const timestamp = Math.floor(Date.now() / 1000);
-    const publicId = `publications/${publicationId}`;
-    
-    // For large files (>10MB), we need to use chunked upload
-    const CHUNK_SIZE = 6 * 1024 * 1024; // 6MB chunks (under 10MB limit)
-    const isLargeFile = pdfSize > 10 * 1024 * 1024;
-    
-    if (isLargeFile) {
-      console.log('[Cloudinary] Using chunked upload for large file...');
-      return await uploadChunked(pdfBuffer, publicId, cloudName, apiKey, apiSecret, timestamp);
-    }
-    
-    // For smaller files, use direct upload
-    console.log('[Cloudinary] Using direct upload...');
-    const paramsToSign = `public_id=${publicId}&timestamp=${timestamp}`;
-    
-    // Create signature
-    const encoder = new TextEncoder();
-    const data = encoder.encode(paramsToSign + apiSecret);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    // Create blob from buffer
-    const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
-    
-    // Upload using signed upload with actual file data
-    const formData = new FormData();
-    formData.append('file', pdfBlob, `${publicationId}.pdf`);
-    formData.append('public_id', publicId);
-    formData.append('timestamp', timestamp.toString());
-    formData.append('api_key', apiKey);
-    formData.append('signature', signature);
-    
-    const uploadResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-    
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('[Cloudinary] Upload failed:', uploadResponse.status, errorText);
-      return null;
-    }
-    
-    const result = await uploadResponse.json();
-    console.log('[Cloudinary] Upload successful:', {
-      publicId: result.public_id,
-      pages: result.pages,
-      width: result.width,
-      height: result.height,
-    });
-    
-    return {
-      publicId: result.public_id,
-      pageCount: result.pages || 1,
-      width: result.width || 612,
-      height: result.height || 792,
-    };
-  } catch (error) {
-    console.error('[Cloudinary] Error uploading PDF:', error);
-    return null;
+  pdfUrl: string,
+  pageNumber: number,
+  options: { width?: number; quality?: number; format?: string } = {}
+): string {
+  const { width, quality = 85, format = 'jpg' } = options;
+  
+  // Encode the PDF URL for use in Cloudinary fetch
+  const encodedUrl = encodeURIComponent(pdfUrl);
+  
+  let transformations = `pg_${pageNumber},q_${quality}`;
+  if (width) {
+    transformations += `,w_${width}`;
   }
+  
+  // Use Cloudinary's fetch feature - no upload required!
+  return `https://res.cloudinary.com/${cloudName}/image/fetch/${transformations}/${encodedUrl}`;
 }
 
-// Chunked upload for large PDFs
-async function uploadChunked(
-  pdfBuffer: ArrayBuffer,
-  publicId: string,
+// Get page count by probing Cloudinary fetch URLs
+async function getPdfPageCountViaFetch(
   cloudName: string,
-  apiKey: string,
-  apiSecret: string,
-  timestamp: number
-): Promise<{ publicId: string; pageCount: number; width: number; height: number } | null> {
+  pdfUrl: string
+): Promise<{ pageCount: number; width: number; height: number }> {
+  console.log('[PageCount] Probing PDF pages via Cloudinary fetch...');
+  
+  // First check if page 1 works
+  const page1Url = getCloudinaryFetchUrl(cloudName, pdfUrl, 1);
+  console.log('[PageCount] Testing page 1:', page1Url.substring(0, 100) + '...');
+  
+  const page1Response = await fetch(page1Url, { method: 'HEAD' });
+  if (!page1Response.ok) {
+    console.error('[PageCount] Could not access page 1:', page1Response.status);
+    throw new Error('Could not access PDF via Cloudinary fetch');
+  }
+  
+  // Try to get dimensions from first page
+  let width = 612;
+  let height = 792;
+  
   try {
-    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-    const totalSize = pdfBuffer.byteLength;
-    const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
-    const uniqueUploadId = `${publicId}_${Date.now()}`;
-    
-    console.log(`[Cloudinary] Chunked upload: ${totalChunks} chunks of ${(CHUNK_SIZE / 1024 / 1024).toFixed(1)}MB`);
-    
-    let lastResult: any = null;
-    
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-      const start = chunkIndex * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, totalSize);
-      const chunk = pdfBuffer.slice(start, end);
-      const isLastChunk = chunkIndex === totalChunks - 1;
-      
-      console.log(`[Cloudinary] Uploading chunk ${chunkIndex + 1}/${totalChunks} (${start}-${end}/${totalSize})`);
-      
-      // For chunked uploads, we use different parameters
-      const paramsToSign = isLastChunk 
-        ? `public_id=${publicId}&timestamp=${timestamp}`
-        : `timestamp=${timestamp}`;
-      
-      const encoder = new TextEncoder();
-      const data = encoder.encode(paramsToSign + apiSecret);
-      const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      const chunkBlob = new Blob([chunk], { type: 'application/pdf' });
-      
-      const formData = new FormData();
-      formData.append('file', chunkBlob, `${publicId}.pdf`);
-      formData.append('timestamp', timestamp.toString());
-      formData.append('api_key', apiKey);
-      formData.append('signature', signature);
-      formData.append('upload_preset', ''); // Empty for signed upload
-      
-      // Required headers for chunked upload
-      const headers: Record<string, string> = {
-        'X-Unique-Upload-Id': uniqueUploadId,
-        'Content-Range': `bytes ${start}-${end - 1}/${totalSize}`,
-      };
-      
-      if (isLastChunk) {
-        formData.append('public_id', publicId);
+    // Fetch page 1 to get dimensions via fl_getinfo
+    const infoUrl = `https://res.cloudinary.com/${cloudName}/image/fetch/pg_1,fl_getinfo/${encodeURIComponent(pdfUrl)}`;
+    const infoResponse = await fetch(infoUrl);
+    if (infoResponse.ok) {
+      const infoData = await infoResponse.json();
+      if (infoData.input?.width && infoData.input?.height) {
+        width = infoData.input.width;
+        height = infoData.input.height;
+        console.log(`[PageCount] Page dimensions: ${width}x${height}`);
       }
-      
-      const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: 'POST',
-          headers,
-          body: formData,
-        }
-      );
-      
-      const responseText = await uploadResponse.text();
-      
-      if (!uploadResponse.ok && !responseText.includes('"done":true')) {
-        console.error(`[Cloudinary] Chunk ${chunkIndex + 1} failed:`, uploadResponse.status, responseText);
-        
-        // For non-final chunks, 200 with partial response is expected
-        if (!isLastChunk && uploadResponse.status === 200) {
-          continue;
-        }
-        return null;
-      }
-      
-      if (isLastChunk || responseText.includes('"public_id"')) {
-        try {
-          lastResult = JSON.parse(responseText);
-        } catch (e) {
-          // Not JSON yet, continue
-        }
+    }
+  } catch (e) {
+    console.warn('[PageCount] Could not get dimensions, using defaults');
+  }
+  
+  // Binary search for page count
+  let low = 1;
+  let high = 500;
+  let lastValid = 1;
+  
+  // Quick probes at common page counts
+  for (const checkpoint of [10, 25, 50, 100, 200, 300]) {
+    const url = getCloudinaryFetchUrl(cloudName, pdfUrl, checkpoint);
+    const response = await fetch(url, { method: 'HEAD' });
+    if (response.ok) {
+      lastValid = checkpoint;
+      low = checkpoint;
+      console.log(`[PageCount] Page ${checkpoint} exists`);
+    } else {
+      high = checkpoint;
+      console.log(`[PageCount] Page ${checkpoint} doesn't exist, narrowing search`);
+      break;
+    }
+  }
+  
+  // Binary search between low and high
+  while (low < high - 1) {
+    const mid = Math.floor((low + high) / 2);
+    const url = getCloudinaryFetchUrl(cloudName, pdfUrl, mid);
+    const response = await fetch(url, { method: 'HEAD' });
+    
+    if (response.ok) {
+      lastValid = mid;
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  
+  // Check high one more time
+  const highUrl = getCloudinaryFetchUrl(cloudName, pdfUrl, high);
+  const highResponse = await fetch(highUrl, { method: 'HEAD' });
+  if (highResponse.ok) {
+    lastValid = high;
+  }
+  
+  console.log(`[PageCount] Found ${lastValid} pages`);
+  return { pageCount: lastValid, width, height };
+}
+
+// Get page dimensions from Cloudinary fetch
+async function getPageDimensionsViaFetch(
+  cloudName: string,
+  pdfUrl: string,
+  pageNumber: number
+): Promise<{ width: number; height: number }> {
+  try {
+    const infoUrl = `https://res.cloudinary.com/${cloudName}/image/fetch/pg_${pageNumber},fl_getinfo/${encodeURIComponent(pdfUrl)}`;
+    const response = await fetch(infoUrl);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.input?.width && data.input?.height) {
+        return { width: data.input.width, height: data.input.height };
       }
     }
     
-    if (lastResult && lastResult.public_id) {
-      console.log('[Cloudinary] Chunked upload successful:', {
-        publicId: lastResult.public_id,
-        pages: lastResult.pages,
-        width: lastResult.width,
-        height: lastResult.height,
-      });
-      
-      return {
-        publicId: lastResult.public_id,
-        pageCount: lastResult.pages || 1,
-        width: lastResult.width || 612,
-        height: lastResult.height || 792,
-      };
-    }
-    
-    // If chunked upload didn't return page info, try to probe
-    console.log('[Cloudinary] Chunked upload completed, probing for page count...');
-    return null;
-  } catch (error) {
-    console.error('[Cloudinary] Chunked upload error:', error);
-    return null;
+    return { width: 612, height: 792 };
+  } catch (e) {
+    return { width: 612, height: 792 };
   }
 }
 
@@ -615,8 +539,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       throw new Error('OPENAI_API_KEY is not configured');
     }
     
-    if (!cloudName || !cloudinaryApiKey || !cloudinaryApiSecret) {
-      throw new Error('Cloudinary credentials are not configured');
+    if (!cloudName) {
+      throw new Error('Cloudinary cloud name is not configured');
     }
 
     // Update status to processing
@@ -639,56 +563,36 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       console.error('[Process] Failed to delete existing pages:', deleteError);
     }
 
-    // Step 2: Upload PDF to Cloudinary
-    console.log('[Process] Uploading PDF to Cloudinary...');
-    const uploadResult = await uploadPdfToCloudinary(
-      pdfUrl,
-      publicationId,
-      cloudName,
-      cloudinaryApiKey,
-      cloudinaryApiSecret
-    );
+    // Step 2: Use Cloudinary FETCH to access PDF pages (no upload required!)
+    // This bypasses the 10MB upload limit by having Cloudinary fetch directly from URL
+    console.log('[Process] Using Cloudinary fetch to access PDF pages (no upload needed)...');
     
-    let cloudinaryPublicId: string;
     let pageCount: number;
     let defaultWidth = 612;
     let defaultHeight = 792;
     
-    if (uploadResult) {
-      cloudinaryPublicId = uploadResult.publicId;
-      pageCount = uploadResult.pageCount;
-      defaultWidth = uploadResult.width;
-      defaultHeight = uploadResult.height;
-      console.log(`[Process] Cloudinary upload successful: ${pageCount} pages, ${defaultWidth}x${defaultHeight}`);
-    } else {
-      // Fallback: try to use existing Cloudinary public ID or probe for pages
-      const existingPublicId = `publications/${publicationId}`;
-      console.log('[Process] Trying to probe existing Cloudinary resource...');
-      
-      const probeUrl = getCloudinaryPageUrl(cloudName, existingPublicId, 1);
-      const probeResponse = await fetch(probeUrl, { method: 'HEAD' });
-      
-      if (probeResponse.ok) {
-        cloudinaryPublicId = existingPublicId;
-        pageCount = await getPdfPageCount(cloudName, cloudinaryPublicId);
-        console.log(`[Process] Found existing Cloudinary resource with ${pageCount} pages`);
-      } else {
-        throw new Error('Failed to upload PDF to Cloudinary and no existing resource found');
-      }
+    try {
+      const pdfInfo = await getPdfPageCountViaFetch(cloudName, pdfUrl);
+      pageCount = pdfInfo.pageCount;
+      defaultWidth = pdfInfo.width;
+      defaultHeight = pdfInfo.height;
+      console.log(`[Process] PDF accessible via Cloudinary fetch: ${pageCount} pages, ${defaultWidth}x${defaultHeight}`);
+    } catch (error) {
+      console.error('[Process] Cloudinary fetch failed:', error);
+      throw new Error(`Could not access PDF via Cloudinary: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Save Cloudinary public ID
+    // Save page count (no cloudinary public ID needed for fetch)
     await supabase
       .from('publications')
       .update({ 
-        cloudinary_public_id: cloudinaryPublicId,
         page_count: pageCount
       })
       .eq('id', publicationId);
 
     console.log(`[Process] Processing ${pageCount} pages... (${Date.now() - startTime}ms)`);
 
-    // Step 3: Process each page - OCR with OpenAI Vision
+    // Step 3: Process each page - OCR with OpenAI Vision using Cloudinary fetch URLs
     const pageTextsForAI: { pageNumber: number; text: string }[] = [];
     const pageRecords: any[] = [];
     
@@ -706,14 +610,14 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
         const pageNumber = i + 1;
         
         batchPromises.push((async () => {
-          // Get Cloudinary URLs for this page
-          const thumbnailUrl = getCloudinaryPageUrl(cloudName, cloudinaryPublicId, pageNumber, { width: 300, quality: 70 });
-          const fullUrl = getCloudinaryPageUrl(cloudName, cloudinaryPublicId, pageNumber, { quality: 90 });
+          // Get Cloudinary FETCH URLs for this page (no upload required!)
+          const thumbnailUrl = getCloudinaryFetchUrl(cloudName, pdfUrl, pageNumber, { width: 300, quality: 70 });
+          const fullUrl = getCloudinaryFetchUrl(cloudName, pdfUrl, pageNumber, { quality: 90 });
           
           // Get page dimensions
-          const dimensions = await getPageDimensions(cloudName, cloudinaryPublicId, pageNumber);
-          const width = dimensions?.width || defaultWidth;
-          const height = dimensions?.height || defaultHeight;
+          const dimensions = await getPageDimensionsViaFetch(cloudName, pdfUrl, pageNumber);
+          const width = dimensions.width || defaultWidth;
+          const height = dimensions.height || defaultHeight;
           
           // OCR the page using OpenAI Vision
           const textContent = await ocrPageWithOpenAI(fullUrl, pageNumber, openAIApiKey);
