@@ -22,7 +22,7 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// Upload PDF to Cloudinary and get page count
+// Upload PDF to Cloudinary using chunked upload for large files
 async function uploadPdfToCloudinary(
   pdfUrl: string,
   publicationId: string,
@@ -31,11 +31,34 @@ async function uploadPdfToCloudinary(
   apiSecret: string
 ): Promise<{ publicId: string; pageCount: number; width: number; height: number } | null> {
   try {
-    console.log('[Cloudinary] Uploading PDF...');
+    console.log('[Cloudinary] Downloading PDF from source...');
+    
+    // First, download the PDF as binary data
+    const pdfResponse = await fetch(pdfUrl);
+    if (!pdfResponse.ok) {
+      console.error('[Cloudinary] Failed to download PDF:', pdfResponse.status);
+      return null;
+    }
+    
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfSize = pdfBuffer.byteLength;
+    console.log(`[Cloudinary] PDF downloaded: ${(pdfSize / 1024 / 1024).toFixed(2)} MB`);
     
     // Generate signature for signed upload
     const timestamp = Math.floor(Date.now() / 1000);
     const publicId = `publications/${publicationId}`;
+    
+    // For large files (>10MB), we need to use chunked upload
+    const CHUNK_SIZE = 6 * 1024 * 1024; // 6MB chunks (under 10MB limit)
+    const isLargeFile = pdfSize > 10 * 1024 * 1024;
+    
+    if (isLargeFile) {
+      console.log('[Cloudinary] Using chunked upload for large file...');
+      return await uploadChunked(pdfBuffer, publicId, cloudName, apiKey, apiSecret, timestamp);
+    }
+    
+    // For smaller files, use direct upload
+    console.log('[Cloudinary] Using direct upload...');
     const paramsToSign = `public_id=${publicId}&timestamp=${timestamp}`;
     
     // Create signature
@@ -45,14 +68,16 @@ async function uploadPdfToCloudinary(
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    // Upload using signed upload
+    // Create blob from buffer
+    const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
+    
+    // Upload using signed upload with actual file data
     const formData = new FormData();
-    formData.append('file', pdfUrl);
+    formData.append('file', pdfBlob, `${publicationId}.pdf`);
     formData.append('public_id', publicId);
     formData.append('timestamp', timestamp.toString());
     formData.append('api_key', apiKey);
     formData.append('signature', signature);
-    formData.append('resource_type', 'image'); // PDFs should be uploaded as 'image' for page rendering
     
     const uploadResponse = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -65,28 +90,6 @@ async function uploadPdfToCloudinary(
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
       console.error('[Cloudinary] Upload failed:', uploadResponse.status, errorText);
-      
-      // Try raw upload for large PDFs
-      console.log('[Cloudinary] Trying raw resource type...');
-      formData.set('resource_type', 'raw');
-      
-      const rawUploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-      
-      if (!rawUploadResponse.ok) {
-        const rawErrorText = await rawUploadResponse.text();
-        console.error('[Cloudinary] Raw upload also failed:', rawErrorText);
-        return null;
-      }
-      
-      const rawResult = await rawUploadResponse.json();
-      console.log('[Cloudinary] Raw upload successful, but cannot get page info');
-      // For raw uploads, we can't get page count from Cloudinary
       return null;
     }
     
@@ -106,6 +109,118 @@ async function uploadPdfToCloudinary(
     };
   } catch (error) {
     console.error('[Cloudinary] Error uploading PDF:', error);
+    return null;
+  }
+}
+
+// Chunked upload for large PDFs
+async function uploadChunked(
+  pdfBuffer: ArrayBuffer,
+  publicId: string,
+  cloudName: string,
+  apiKey: string,
+  apiSecret: string,
+  timestamp: number
+): Promise<{ publicId: string; pageCount: number; width: number; height: number } | null> {
+  try {
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+    const totalSize = pdfBuffer.byteLength;
+    const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+    const uniqueUploadId = `${publicId}_${Date.now()}`;
+    
+    console.log(`[Cloudinary] Chunked upload: ${totalChunks} chunks of ${(CHUNK_SIZE / 1024 / 1024).toFixed(1)}MB`);
+    
+    let lastResult: any = null;
+    
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, totalSize);
+      const chunk = pdfBuffer.slice(start, end);
+      const isLastChunk = chunkIndex === totalChunks - 1;
+      
+      console.log(`[Cloudinary] Uploading chunk ${chunkIndex + 1}/${totalChunks} (${start}-${end}/${totalSize})`);
+      
+      // For chunked uploads, we use different parameters
+      const paramsToSign = isLastChunk 
+        ? `public_id=${publicId}&timestamp=${timestamp}`
+        : `timestamp=${timestamp}`;
+      
+      const encoder = new TextEncoder();
+      const data = encoder.encode(paramsToSign + apiSecret);
+      const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      const chunkBlob = new Blob([chunk], { type: 'application/pdf' });
+      
+      const formData = new FormData();
+      formData.append('file', chunkBlob, `${publicId}.pdf`);
+      formData.append('timestamp', timestamp.toString());
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
+      formData.append('upload_preset', ''); // Empty for signed upload
+      
+      // Required headers for chunked upload
+      const headers: Record<string, string> = {
+        'X-Unique-Upload-Id': uniqueUploadId,
+        'Content-Range': `bytes ${start}-${end - 1}/${totalSize}`,
+      };
+      
+      if (isLastChunk) {
+        formData.append('public_id', publicId);
+      }
+      
+      const uploadResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          headers,
+          body: formData,
+        }
+      );
+      
+      const responseText = await uploadResponse.text();
+      
+      if (!uploadResponse.ok && !responseText.includes('"done":true')) {
+        console.error(`[Cloudinary] Chunk ${chunkIndex + 1} failed:`, uploadResponse.status, responseText);
+        
+        // For non-final chunks, 200 with partial response is expected
+        if (!isLastChunk && uploadResponse.status === 200) {
+          continue;
+        }
+        return null;
+      }
+      
+      if (isLastChunk || responseText.includes('"public_id"')) {
+        try {
+          lastResult = JSON.parse(responseText);
+        } catch (e) {
+          // Not JSON yet, continue
+        }
+      }
+    }
+    
+    if (lastResult && lastResult.public_id) {
+      console.log('[Cloudinary] Chunked upload successful:', {
+        publicId: lastResult.public_id,
+        pages: lastResult.pages,
+        width: lastResult.width,
+        height: lastResult.height,
+      });
+      
+      return {
+        publicId: lastResult.public_id,
+        pageCount: lastResult.pages || 1,
+        width: lastResult.width || 612,
+        height: lastResult.height || 792,
+      };
+    }
+    
+    // If chunked upload didn't return page info, try to probe
+    console.log('[Cloudinary] Chunked upload completed, probing for page count...');
+    return null;
+  } catch (error) {
+    console.error('[Cloudinary] Chunked upload error:', error);
     return null;
   }
 }
