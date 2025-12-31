@@ -1,33 +1,29 @@
 
-import { Calendar, Users, Home, PaintBucket, Share2, MapPin, FolderOpen, Building2, UserCheck, Settings, Image, BookOpen } from "lucide-react";
+import { Calendar, Users, PaintBucket, Share2, MapPin, FolderOpen, Building2, UserCheck, Settings, Image, BookOpen } from "lucide-react";
 import { useAuth } from "./use-auth";
 
 export const useNavItems = () => {
-  const { isAdmin, isArtist } = useAuth();
+  const { isAdmin } = useAuth();
 
-  const mainItems = [
-    // Dashboard - only for admin users
-    ...(isAdmin ? [{ title: "Dashboard", href: "/", icon: Home }] : []),
+  const baseItems = [
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
-    // Artists - only for admin users
-    ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    ...(isAdmin ? [
+      { title: "CRM", href: "/crm", icon: UserCheck },
+      { title: "Projects", href: "/projects", icon: Building2 },
+      { title: "Image Viewer", href: "/viewer", icon: Image },
+      { title: "Publications", href: "/admin/publications", icon: BookOpen },
+    ] : []),
     { title: "File Sharing", href: "/file-sharing", icon: Share2 },
-    { title: "Locations", href: "/locations", icon: MapPin },
-    // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },
+    ...(isAdmin ? [
+      { title: "Artists", href: "/artists", icon: Users },
+    ] : []),
+    { title: "Locations", href: "/locations", icon: MapPin },
+    ...(isAdmin ? [
+      { title: "Admin", href: "/admin", icon: Settings },
+    ] : []),
   ];
-
-  const adminItems = isAdmin ? [
-    { title: "CRM", href: "/crm", icon: UserCheck },
-    { title: "Projects", href: "/projects", icon: Building2 },
-    { title: "Publications", href: "/admin/publications", icon: BookOpen },
-    { title: "Image Viewer", href: "/viewer", icon: Image },
-    { title: "Admin", href: "/admin", icon: Settings }
-  ] : [];
-
-  // For backward compatibility, return flat array
-  const baseItems = [...mainItems, ...adminItems];
 
   return baseItems;
 };
@@ -36,23 +32,23 @@ export const useNavItemsGrouped = () => {
   const { isAdmin } = useAuth();
 
   const mainItems = [
-    // Dashboard - only for admin users
-    ...(isAdmin ? [{ title: "Dashboard", href: "/", icon: Home }] : []),
     { title: "Artworks", href: "/artworks", icon: PaintBucket },
-    // Artists - only for admin users
-    ...(isAdmin ? [{ title: "Artists", href: "/artists", icon: Users }] : []),
     { title: "Collections", href: "/collections", icon: FolderOpen },
+    ...(isAdmin ? [
+      { title: "CRM", href: "/crm", icon: UserCheck },
+      { title: "Projects", href: "/projects", icon: Building2 },
+      { title: "Image Viewer", href: "/viewer", icon: Image },
+      { title: "Publications", href: "/admin/publications", icon: BookOpen },
+    ] : []),
     { title: "File Sharing", href: "/file-sharing", icon: Share2 },
-    { title: "Locations", href: "/locations", icon: MapPin },
-    // Appointments - available to all users
     { title: "Appointments", href: "/appointments", icon: Calendar },
+    ...(isAdmin ? [
+      { title: "Artists", href: "/artists", icon: Users },
+    ] : []),
+    { title: "Locations", href: "/locations", icon: MapPin },
   ];
 
   const adminItems = isAdmin ? [
-    { title: "CRM", href: "/crm", icon: UserCheck },
-    { title: "Projects", href: "/projects", icon: Building2 },
-    { title: "Publications", href: "/admin/publications", icon: BookOpen },
-    { title: "Image Viewer", href: "/viewer", icon: Image },
     { title: "Admin", href: "/admin", icon: Settings }
   ] : [];
 
