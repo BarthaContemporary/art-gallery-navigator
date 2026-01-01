@@ -13,7 +13,7 @@ export default function PublicationViewer() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted/30">
       <PublicationReader publicationSlug={slug} />
     </div>
   );
