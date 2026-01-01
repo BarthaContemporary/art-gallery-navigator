@@ -34,42 +34,50 @@ interface KeywordEntry {
 
 // ============= ADOBE PDF SERVICES API FUNCTIONS =============
 
-// Get Adobe access token using OAuth 2.0 client credentials
+// Get Adobe access token using PDF Services API token endpoint
 async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
-  console.log('[Adobe] Getting access token via OAuth 2.0...');
+  console.log('[Adobe] Getting access token via PDF Services API...');
   
   // Trim credentials to remove any whitespace/newlines
   const trimmedClientId = clientId.trim();
   const trimmedClientSecret = clientSecret.trim();
   
-  // Adobe PDF Services API uses IMS token endpoint
-  const tokenUrl = 'https://ims-na1.adobelogin.com/ims/token/v3';
+  // Adobe PDF Services API uses its own token endpoint (NOT the IMS endpoint)
+  const tokenUrl = 'https://pdf-services.adobe.io/token';
   
-  // Build body exactly as Adobe's curl example - don't use URLSearchParams as it encodes commas
-  const body = `grant_type=client_credentials&client_id=${trimmedClientId}&client_secret=${trimmedClientSecret}&scope=openid,AdobeID,DCAPI`;
+  // Per Adobe docs: only client_id and client_secret in body, no grant_type or scope
+  const body = new URLSearchParams({
+    'client_id': trimmedClientId,
+    'client_secret': trimmedClientSecret,
+  });
   
-  console.log('[Adobe] Requesting token with exact curl format...');
-  console.log('[Adobe] Client ID length:', trimmedClientId.length);
-  console.log('[Adobe] Request body (redacted):', body.replace(trimmedClientSecret, '***'));
+  console.log('[Adobe] Requesting token from pdf-services.adobe.io/token...');
+  console.log('[Adobe] Client ID:', trimmedClientId.substring(0, 8) + '...');
+  console.log('[Adobe] Client Secret length:', trimmedClientSecret.length);
   
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: body,
+    body: body.toString(),
   });
   
   const responseText = await response.text();
   console.log('[Adobe] Token response status:', response.status);
   
   if (!response.ok) {
-    console.error('[Adobe] Token error:', responseText);
+    console.error('[Adobe] Token error response:', responseText);
+    // Try to parse error for more detail
+    try {
+      const errorData = JSON.parse(responseText);
+      console.error('[Adobe] Error details:', JSON.stringify(errorData, null, 2));
+    } catch {}
     throw new Error(`Failed to get Adobe access token: ${response.status} - ${responseText}`);
   }
   
   const data = JSON.parse(responseText);
-  console.log('[Adobe] Access token obtained successfully');
+  console.log('[Adobe] Access token obtained successfully, expires in:', data.expires_in);
   return data.access_token;
 }
 
@@ -550,8 +558,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-  const adobeClientId = Deno.env.get('ADOBE_PDF_CLIENT_ID');
-  const adobeClientSecret = Deno.env.get('ADOBE_PDF_CLIENT_SECRET');
+  const adobeClientId = Deno.env.get('ADOBE_CLIENT_ID');
+  const adobeClientSecret = Deno.env.get('ADOBE_CLIENT_SECRET');
   const cloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
   const cloudinaryApiKey = Deno.env.get('CLOUDINARY_API_KEY');
   const cloudinaryApiSecret = Deno.env.get('CLOUDINARY_API_SECRET');
