@@ -1,8 +1,11 @@
 /**
  * Publication PDF Processing Edge Function
  * 
- * NOTE: Maximum PDF file size is 10MB due to Cloudinary free tier limits.
- * This uses direct upload to Cloudinary for reliable PDF processing.
+ * Uses Adobe PDF Services API for PDF processing:
+ * - PDF to images conversion with accurate page dimensions
+ * - OCR text extraction
+ * 
+ * NOTE: Maximum PDF file size is 10MB
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
@@ -29,16 +32,190 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// Upload PDF to Cloudinary (max 10MB)
-async function uploadPdfToCloudinary(
+// ============= ADOBE PDF SERVICES API FUNCTIONS =============
+
+// Get Adobe access token
+async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
+  console.log('[Adobe] Getting access token...');
+  
+  const response = await fetch('https://pdf-services.adobe.io/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      'client_id': clientId,
+      'client_secret': clientSecret,
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[Adobe] Token error:', errorText);
+    throw new Error(`Failed to get Adobe access token: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('[Adobe] Access token obtained');
+  return data.access_token;
+}
+
+// Upload PDF to Adobe and get assetID
+async function uploadPdfToAdobe(
   pdfUrl: string,
+  accessToken: string,
+  clientId: string
+): Promise<string> {
+  console.log('[Adobe] Uploading PDF...');
+  
+  // Step 1: Get upload pre-signed URI
+  const presignResponse = await fetch('https://pdf-services.adobe.io/assets', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': clientId,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      mediaType: 'application/pdf',
+    }),
+  });
+  
+  if (!presignResponse.ok) {
+    const errorText = await presignResponse.text();
+    console.error('[Adobe] Pre-sign error:', errorText);
+    throw new Error(`Failed to get upload URI: ${presignResponse.status}`);
+  }
+  
+  const presignData = await presignResponse.json();
+  const uploadUri = presignData.uploadUri;
+  const assetID = presignData.assetID;
+  
+  console.log('[Adobe] Got upload URI, downloading PDF...');
+  
+  // Download the PDF from source URL
+  const pdfResponse = await fetch(pdfUrl);
+  if (!pdfResponse.ok) {
+    throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
+  }
+  const pdfBytes = await pdfResponse.arrayBuffer();
+  console.log(`[Adobe] Downloaded PDF: ${pdfBytes.byteLength} bytes`);
+  
+  // Step 2: Upload PDF to pre-signed URI
+  const uploadResponse = await fetch(uploadUri, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/pdf',
+    },
+    body: pdfBytes,
+  });
+  
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    console.error('[Adobe] Upload error:', errorText);
+    throw new Error(`Failed to upload PDF: ${uploadResponse.status}`);
+  }
+  
+  console.log('[Adobe] PDF uploaded, assetID:', assetID);
+  return assetID;
+}
+
+// Export PDF to images using Adobe
+async function exportPdfToImages(
+  assetID: string,
+  accessToken: string,
+  clientId: string
+): Promise<{ downloadUris: string[]; pageCount: number }> {
+  console.log('[Adobe] Starting PDF to images conversion...');
+  
+  // Create the job
+  const jobResponse = await fetch('https://pdf-services.adobe.io/operation/pdftoimages', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': clientId,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      assetID: assetID,
+      targetFormat: 'jpeg',
+      outputType: 'listOfPageImages',
+    }),
+  });
+  
+  if (!jobResponse.ok) {
+    const errorText = await jobResponse.text();
+    console.error('[Adobe] Job creation error:', errorText);
+    throw new Error(`Failed to create PDF to images job: ${jobResponse.status}`);
+  }
+  
+  const jobLocation = jobResponse.headers.get('location');
+  if (!jobLocation) {
+    throw new Error('No job location returned');
+  }
+  
+  console.log('[Adobe] Job created, polling for completion...');
+  
+  // Poll for job completion
+  let attempts = 0;
+  const maxAttempts = 120; // 10 minutes max
+  
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+    
+    const statusResponse = await fetch(jobLocation, {
+      headers: {
+        'X-API-Key': clientId,
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+    
+    if (!statusResponse.ok) {
+      console.warn(`[Adobe] Status check failed: ${statusResponse.status}`);
+      attempts++;
+      continue;
+    }
+    
+    const statusData = await statusResponse.json();
+    console.log(`[Adobe] Job status: ${statusData.status}`);
+    
+    if (statusData.status === 'done') {
+      const assets = statusData.asset || statusData.assets || [];
+      const downloadUris: string[] = [];
+      
+      // Handle both single asset and array of assets
+      if (Array.isArray(assets)) {
+        for (const asset of assets) {
+          if (asset.downloadUri) {
+            downloadUris.push(asset.downloadUri);
+          }
+        }
+      } else if (assets.downloadUri) {
+        downloadUris.push(assets.downloadUri);
+      }
+      
+      console.log(`[Adobe] Job completed, ${downloadUris.length} page images`);
+      return { downloadUris, pageCount: downloadUris.length };
+    }
+    
+    if (statusData.status === 'failed') {
+      throw new Error(`Adobe job failed: ${JSON.stringify(statusData.error || statusData)}`);
+    }
+    
+    attempts++;
+  }
+  
+  throw new Error('Adobe job timed out');
+}
+
+// Upload image to Cloudinary for permanent storage
+async function uploadImageToCloudinary(
+  imageUrl: string,
   publicId: string,
   cloudName: string,
   apiKey: string,
   apiSecret: string
-): Promise<{ public_id: string; pages: number; width: number; height: number }> {
-  console.log('[Upload] Uploading PDF to Cloudinary...');
-  
+): Promise<{ url: string; width: number; height: number }> {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   
   // Create signature
@@ -50,12 +227,11 @@ async function uploadPdfToCloudinary(
   const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   const formData = new FormData();
-  formData.append('file', pdfUrl);
+  formData.append('file', imageUrl);
   formData.append('public_id', publicId);
   formData.append('timestamp', timestamp);
   formData.append('api_key', apiKey);
   formData.append('signature', signature);
-  formData.append('resource_type', 'image');
   
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -64,130 +240,34 @@ async function uploadPdfToCloudinary(
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('[Upload] Cloudinary error:', errorText);
     throw new Error(`Cloudinary upload failed: ${response.status} - ${errorText}`);
   }
   
   const result = await response.json();
-  console.log('[Upload] Cloudinary result:', JSON.stringify({
-    public_id: result.public_id,
-    pages: result.pages,
+  return {
+    url: result.secure_url,
     width: result.width,
     height: result.height,
-    bytes: result.bytes
-  }));
-  
-  return {
-    public_id: result.public_id,
-    pages: result.pages || 1,
-    width: result.width || 612,
-    height: result.height || 792
   };
 }
 
-// Get Cloudinary URL for a specific PDF page
-function getCloudinaryPageUrl(
+// Get Cloudinary URL with transformations
+function getCloudinaryTransformedUrl(
   cloudName: string,
   publicId: string,
-  pageNumber: number,
-  options: { width?: number; quality?: number; format?: string } = {}
+  options: { width?: number; quality?: number } = {}
 ): string {
-  const { width, quality = 80, format = 'jpg' } = options;
-  
-  let transformations = `pg_${pageNumber},q_${quality}`;
+  const { width, quality = 80 } = options;
+  let transformations = `q_${quality}`;
   if (width) {
     transformations += `,w_${width}`;
   }
-  
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${publicId}.${format}`;
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${publicId}`;
 }
 
-// Get PDF page count by probing Cloudinary
-async function getPdfPageCount(
-  cloudName: string,
-  publicId: string
-): Promise<number> {
-  console.log('[PageCount] Probing Cloudinary for page count...');
-  
-  // Binary search to find the page count
-  let low = 1;
-  let high = 500;
-  let lastValid = 1;
-  
-  // First check if page 1 exists
-  const page1Url = getCloudinaryPageUrl(cloudName, publicId, 1);
-  const page1Response = await fetch(page1Url, { method: 'HEAD' });
-  if (!page1Response.ok) {
-    console.log('[PageCount] Could not access page 1');
-    return 0;
-  }
-  
-  // Check checkpoints to narrow down quickly
-  for (const checkpoint of [10, 50, 100, 200, 300, 500]) {
-    const url = getCloudinaryPageUrl(cloudName, publicId, checkpoint);
-    const response = await fetch(url, { method: 'HEAD' });
-    if (response.ok) {
-      lastValid = checkpoint;
-      low = checkpoint;
-      console.log(`[PageCount] Page ${checkpoint} exists`);
-    } else {
-      high = checkpoint;
-      console.log(`[PageCount] Page ${checkpoint} doesn't exist`);
-      break;
-    }
-  }
-  
-  // Binary search between low and high
-  while (low < high - 1) {
-    const mid = Math.floor((low + high) / 2);
-    const url = getCloudinaryPageUrl(cloudName, publicId, mid);
-    const response = await fetch(url, { method: 'HEAD' });
-    
-    if (response.ok) {
-      lastValid = mid;
-      low = mid;
-    } else {
-      high = mid;
-    }
-  }
-  
-  // Check high one more time
-  const highUrl = getCloudinaryPageUrl(cloudName, publicId, high);
-  const highResponse = await fetch(highUrl, { method: 'HEAD' });
-  if (highResponse.ok) {
-    lastValid = high;
-  }
-  
-  console.log(`[PageCount] Found ${lastValid} pages`);
-  return lastValid;
-}
+// ============= OPENAI FUNCTIONS =============
 
-// Get page dimensions from Cloudinary
-async function getPageDimensions(
-  cloudName: string,
-  publicId: string,
-  pageNumber: number
-): Promise<{ width: number; height: number }> {
-  try {
-    // Use Cloudinary's fl_getinfo to get dimensions
-    const infoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/pg_${pageNumber},fl_getinfo/${publicId}.jpg`;
-    const response = await fetch(infoUrl);
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.input?.width && data.input?.height) {
-        return { width: data.input.width, height: data.input.height };
-      }
-    }
-    
-    return { width: 612, height: 792 };
-  } catch (error) {
-    console.warn(`[Dimensions] Error for page ${pageNumber}:`, error);
-    return { width: 612, height: 792 };
-  }
-}
-
-// OCR a page image using OpenAI GPT-4 Vision
+// OCR a page image using OpenAI GPT-4 Vision (fallback if needed)
 async function ocrPageWithOpenAI(
   imageUrl: string,
   pageNumber: number,
@@ -451,11 +531,14 @@ ${contentForSummary}`
   }
 }
 
-// Background processing function
+// ============= MAIN PROCESSING =============
+
 async function processPublicationInBackground(publicationId: string, pdfUrl: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  const adobeClientId = Deno.env.get('ADOBE_PDF_CLIENT_ID');
+  const adobeClientSecret = Deno.env.get('ADOBE_PDF_CLIENT_SECRET');
   const cloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
   const cloudinaryApiKey = Deno.env.get('CLOUDINARY_API_KEY');
   const cloudinaryApiSecret = Deno.env.get('CLOUDINARY_API_SECRET');
@@ -465,11 +548,16 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   try {
     console.log(`[Process] Starting for publication ${publicationId}`);
     console.log(`[Process] PDF URL: ${pdfUrl}`);
-    console.log(`[Process] OpenAI API Key: ${openAIApiKey ? 'Present' : 'Missing'}`);
+    console.log(`[Process] Adobe: ${adobeClientId && adobeClientSecret ? 'Configured' : 'Missing'}`);
+    console.log(`[Process] OpenAI: ${openAIApiKey ? 'Present' : 'Missing'}`);
     console.log(`[Process] Cloudinary: ${cloudName && cloudinaryApiKey && cloudinaryApiSecret ? 'Configured' : 'Missing'}`);
     const startTime = Date.now();
 
     // Validate required secrets
+    if (!adobeClientId || !adobeClientSecret) {
+      throw new Error('Adobe PDF Services credentials are not configured');
+    }
+    
     if (!openAIApiKey) {
       throw new Error('OPENAI_API_KEY is not configured');
     }
@@ -494,76 +582,60 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       .delete()
       .eq('publication_id', publicationId);
 
-    // Step 2: Upload PDF to Cloudinary (direct upload - requires PDF < 10MB)
-    const cloudinaryPublicId = `publications/${publicationId}`;
-    let uploadResult;
-    
-    try {
-      uploadResult = await uploadPdfToCloudinary(
-        pdfUrl,
-        cloudinaryPublicId,
-        cloudName,
-        cloudinaryApiKey,
-        cloudinaryApiSecret
-      );
-    } catch (error) {
-      console.error('[Process] Cloudinary upload failed:', error);
-      throw new Error(`Failed to upload PDF to Cloudinary. Ensure PDF is under 10MB. Error: ${error instanceof Error ? error.message : String(error)}`);
+    // Step 2: Get Adobe access token
+    const accessToken = await getAdobeAccessToken(adobeClientId, adobeClientSecret);
+
+    // Step 3: Upload PDF to Adobe
+    const assetID = await uploadPdfToAdobe(pdfUrl, accessToken, adobeClientId);
+
+    // Step 4: Export PDF to images using Adobe
+    const { downloadUris, pageCount } = await exportPdfToImages(assetID, accessToken, adobeClientId);
+
+    if (pageCount === 0) {
+      throw new Error('No pages extracted from PDF');
     }
 
-    let pageCount = uploadResult.pages;
-    const defaultWidth = uploadResult.width;
-    const defaultHeight = uploadResult.height;
-    
-    console.log(`[Process] Upload successful: ${pageCount} pages, ${defaultWidth}x${defaultHeight}`);
-
-    // If Cloudinary didn't return page count, probe for it
-    if (!pageCount || pageCount <= 0) {
-      console.log('[Process] Page count not in upload response, probing...');
-      pageCount = await getPdfPageCount(cloudName, uploadResult.public_id);
-    }
-
-    if (pageCount <= 0) {
-      throw new Error('Could not determine page count from PDF');
-    }
-
-    // Save page count and cloudinary ID
+    // Save page count
     await supabase
       .from('publications')
       .update({ 
         page_count: pageCount,
-        cloudinary_public_id: uploadResult.public_id
       })
       .eq('id', publicationId);
 
     console.log(`[Process] Processing ${pageCount} pages... (${Date.now() - startTime}ms)`);
 
-    // Step 3: Process each page - OCR with OpenAI Vision
+    // Step 5: Upload each page image to Cloudinary and OCR
     const pageTextsForAI: { pageNumber: number; text: string }[] = [];
     const pageRecords: any[] = [];
     
-    // Process in batches to avoid rate limits
-    const OCR_BATCH_SIZE = 5;
+    const BATCH_SIZE = 3;
     const BATCH_DELAY_MS = 1000;
     
-    for (let batchStart = 0; batchStart < pageCount; batchStart += OCR_BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + OCR_BATCH_SIZE, pageCount);
-      console.log(`[Process] OCR batch: pages ${batchStart + 1}-${batchEnd} of ${pageCount}`);
+    for (let batchStart = 0; batchStart < downloadUris.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, downloadUris.length);
+      console.log(`[Process] Batch: pages ${batchStart + 1}-${batchEnd} of ${pageCount}`);
       
       const batchPromises = [];
       
       for (let i = batchStart; i < batchEnd; i++) {
         const pageNumber = i + 1;
+        const adobeImageUrl = downloadUris[i];
         
         batchPromises.push((async () => {
-          // Get Cloudinary URLs for this page
-          const thumbnailUrl = getCloudinaryPageUrl(cloudName, uploadResult.public_id, pageNumber, { width: 300, quality: 70 });
-          const fullUrl = getCloudinaryPageUrl(cloudName, uploadResult.public_id, pageNumber, { quality: 90 });
+          // Upload to Cloudinary for permanent storage
+          const cloudinaryPublicId = `publications/${publicationId}/page_${pageNumber}`;
           
-          // Get page dimensions
-          const dimensions = await getPageDimensions(cloudName, uploadResult.public_id, pageNumber);
-          const width = dimensions.width || defaultWidth;
-          const height = dimensions.height || defaultHeight;
+          const cloudinaryResult = await uploadImageToCloudinary(
+            adobeImageUrl,
+            cloudinaryPublicId,
+            cloudName,
+            cloudinaryApiKey,
+            cloudinaryApiSecret
+          );
+          
+          const thumbnailUrl = getCloudinaryTransformedUrl(cloudName, cloudinaryPublicId, { width: 300, quality: 70 });
+          const fullUrl = cloudinaryResult.url;
           
           // OCR the page using OpenAI Vision
           const textContent = await ocrPageWithOpenAI(fullUrl, pageNumber, openAIApiKey);
@@ -574,8 +646,8 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
             text_content: textContent,
             render_low_url: thumbnailUrl,
             render_high_url: fullUrl,
-            width: width,
-            height: height,
+            width: cloudinaryResult.width,
+            height: cloudinaryResult.height,
           };
         })());
       }
@@ -589,7 +661,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       
       // Progress update
       const progress = Math.round((batchEnd / pageCount) * 100);
-      console.log(`[Process] OCR progress: ${progress}% (${batchEnd}/${pageCount})`);
+      console.log(`[Process] Progress: ${progress}% (${batchEnd}/${pageCount})`);
       
       // Delay between batches
       if (batchEnd < pageCount) {
@@ -597,9 +669,9 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       }
     }
 
-    console.log(`[Process] OCR complete for all ${pageCount} pages (${Date.now() - startTime}ms)`);
+    console.log(`[Process] All pages processed (${Date.now() - startTime}ms)`);
 
-    // Step 4: Insert page records in batches
+    // Step 6: Insert page records in batches
     const INSERT_BATCH_SIZE = 50;
     for (let i = 0; i < pageRecords.length; i += INSERT_BATCH_SIZE) {
       const batch = pageRecords.slice(i, i + INSERT_BATCH_SIZE);
@@ -614,7 +686,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       console.log(`[Process] Inserted pages ${i + 1}-${i + batch.length}`);
     }
 
-    // Step 5: Generate AI content (TOC, Index, Summary)
+    // Step 7: Generate AI content (TOC, Index, Summary)
     console.log('[Process] Generating AI content...');
     
     const [toc, keywordIndex, summary] = await Promise.all([
@@ -642,7 +714,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       console.log(`[Process] Saved AI content: TOC=${toc?.length || 0}, Index=${keywordIndex?.length || 0}, Summary=${summary?.length || 0} chars`);
     }
 
-    // Step 6: Mark as completed
+    // Step 8: Mark as completed
     const { error: updateError } = await supabase
       .from('publications')
       .update({ 
@@ -701,7 +773,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'PDF processing started',
+        message: 'PDF processing started (using Adobe PDF Services)',
         publicationId
       }),
       { 
