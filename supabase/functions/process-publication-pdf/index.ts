@@ -43,25 +43,21 @@ async function getAdobeAccessToken(clientId: string, clientSecret: string): Prom
   const trimmedClientSecret = clientSecret.trim();
   
   // Adobe PDF Services API uses IMS token endpoint
-  // Credentials go in the body, not Basic Auth header
   const tokenUrl = 'https://ims-na1.adobelogin.com/ims/token/v3';
   
-  const params = new URLSearchParams({
-    'grant_type': 'client_credentials',
-    'client_id': trimmedClientId,
-    'client_secret': trimmedClientSecret,
-    'scope': 'openid,AdobeID,DCAPI',
-  });
+  // Build body exactly as Adobe's curl example - don't use URLSearchParams as it encodes commas
+  const body = `grant_type=client_credentials&client_id=${trimmedClientId}&client_secret=${trimmedClientSecret}&scope=openid,AdobeID,DCAPI`;
   
-  console.log('[Adobe] Requesting token with credentials in body...');
+  console.log('[Adobe] Requesting token with exact curl format...');
   console.log('[Adobe] Client ID length:', trimmedClientId.length);
+  console.log('[Adobe] Request body (redacted):', body.replace(trimmedClientSecret, '***'));
   
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: params.toString(),
+    body: body,
   });
   
   const responseText = await response.text();
