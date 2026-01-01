@@ -37,53 +37,38 @@ interface KeywordEntry {
 // Get Adobe access token using OAuth 2.0 client credentials
 async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
   console.log('[Adobe] Getting access token via OAuth 2.0...');
+  console.log('[Adobe] Client ID length:', clientId?.length || 0);
   
-  // Adobe PDF Services uses the IMS (Identity Management System) endpoint
-  const response = await fetch('https://pdf-services-ue1.adobe.io/token', {
+  // Adobe PDF Services API uses IMS token endpoint with DCAPI scope
+  const tokenUrl = 'https://ims-na1.adobelogin.com/ims/token/v3';
+  
+  const params = new URLSearchParams({
+    'grant_type': 'client_credentials',
+    'client_id': clientId,
+    'client_secret': clientSecret,
+    'scope': 'openid,AdobeID,DCAPI',
+  });
+  
+  console.log('[Adobe] Requesting token from:', tokenUrl);
+  
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams({
-      'grant_type': 'client_credentials',
-      'client_id': clientId,
-      'client_secret': clientSecret,
-      'scope': 'openid,AdobeID,read_organizations,additional_info.projectedProductContext',
-    }),
+    body: params.toString(),
   });
   
+  const responseText = await response.text();
+  console.log('[Adobe] Token response status:', response.status);
+  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[Adobe] Token error:', errorText);
-    
-    // Try alternate endpoint if first fails
-    console.log('[Adobe] Trying alternate IMS endpoint...');
-    const altResponse = await fetch('https://ims-na1.adobelogin.com/ims/token/v3', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        'grant_type': 'client_credentials',
-        'client_id': clientId,
-        'client_secret': clientSecret,
-        'scope': 'openid,AdobeID,read_organizations',
-      }),
-    });
-    
-    if (!altResponse.ok) {
-      const altErrorText = await altResponse.text();
-      console.error('[Adobe] Alt token error:', altErrorText);
-      throw new Error(`Failed to get Adobe access token: ${response.status} / ${altResponse.status}`);
-    }
-    
-    const altData = await altResponse.json();
-    console.log('[Adobe] Access token obtained via alt endpoint');
-    return altData.access_token;
+    console.error('[Adobe] Token error:', responseText);
+    throw new Error(`Failed to get Adobe access token: ${response.status} - ${responseText}`);
   }
   
-  const data = await response.json();
-  console.log('[Adobe] Access token obtained');
+  const data = JSON.parse(responseText);
+  console.log('[Adobe] Access token obtained successfully');
   return data.access_token;
 }
 
