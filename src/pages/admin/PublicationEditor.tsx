@@ -616,12 +616,12 @@ export default function PublicationEditor() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="page_width">Page Width (px)</Label>
+                  <Label htmlFor="page_width">Page Width (mm)</Label>
                   <Input
                     id="page_width"
                     type="number"
-                    min={100}
-                    placeholder="e.g. 800"
+                    min={10}
+                    placeholder="e.g. 210"
                     value={formData.page_width ?? ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
@@ -630,12 +630,12 @@ export default function PublicationEditor() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="page_height">Page Height (px)</Label>
+                  <Label htmlFor="page_height">Page Height (mm)</Label>
                   <Input
                     id="page_height"
                     type="number"
-                    min={100}
-                    placeholder="e.g. 1100"
+                    min={10}
+                    placeholder="e.g. 297"
                     value={formData.page_height ?? ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
@@ -645,7 +645,7 @@ export default function PublicationEditor() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Set custom page dimensions for flipbook rendering. Leave empty to auto-detect from PDF.
+                Set custom page dimensions in millimeters for flipbook rendering (e.g. A4 is 210×297mm). Leave empty to auto-detect from PDF.
               </p>
             </CardContent>
           </Card>
