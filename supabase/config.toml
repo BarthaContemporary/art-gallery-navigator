@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.publication-lead-capture]
 verify_jwt = false
+
+[functions.convert-image-format]
+verify_jwt = true

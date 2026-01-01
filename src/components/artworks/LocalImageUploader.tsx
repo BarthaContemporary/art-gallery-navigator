@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { LocalImageService } from "@/services/local-image-service";
+import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
 interface LocalImageUploaderProps {
@@ -17,16 +18,21 @@ interface UploadProgressItem {
   name: string;
   size: number;
   progress: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
+  status: 'uploading' | 'converting' | 'processing' | 'completed' | 'error';
   error?: string;
   imageId?: string;
 }
+
+// HEIC/HEIF formats that need conversion
+const CONVERTIBLE_FORMATS = ['image/heic', 'image/heif'];
+const WEB_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALL_ACCEPTED_FORMATS = [...WEB_FORMATS, ...CONVERTIBLE_FORMATS];
 
 export function LocalImageUploader({
   artworkId,
   onUploadComplete,
   maxFiles = 50,
-  acceptedFileTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  acceptedFileTypes = ALL_ACCEPTED_FORMATS
 }: LocalImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -40,9 +46,67 @@ export function LocalImageUploader({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Check if file needs conversion (HEIC/HEIF)
+  const needsConversion = (file: File): boolean => {
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    return CONVERTIBLE_FORMATS.includes(file.type) || 
+           extension === 'heic' || 
+           extension === 'heif';
+  };
+
+  // Convert HEIC/HEIF to JPEG using CloudConvert
+  const convertImage = async (file: File): Promise<File> => {
+    logger.log(`[LocalImageUploader] Converting ${file.name} from HEIC/HEIF to JPEG`);
+    
+    // Read file as base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix to get pure base64
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // Call the conversion edge function
+    const { data, error } = await supabase.functions.invoke('convert-image-format', {
+      body: {
+        fileName: file.name,
+        fileBase64: base64,
+        outputFormat: 'jpeg'
+      }
+    });
+
+    if (error || !data?.success) {
+      throw new Error(data?.error || 'Image conversion failed');
+    }
+
+    // Convert base64 back to File
+    const binaryString = atob(data.convertedFileBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    const convertedBlob = new Blob([bytes], { type: data.mimeType });
+    const convertedFile = new File([convertedBlob], data.convertedFileName, { 
+      type: data.mimeType 
+    });
+    
+    logger.log(`[LocalImageUploader] Converted ${file.name} -> ${data.convertedFileName} (${formatFileSize(data.size)})`);
+    return convertedFile;
+  };
+
   const validateFile = (file: File): string | null => {
-    if (!acceptedFileTypes.includes(file.type)) {
-      return `${file.name} is not a supported image format. Please use JPG, PNG, WebP, or GIF.`;
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    const isHeicHeif = extension === 'heic' || extension === 'heif';
+    
+    // Accept HEIC/HEIF by extension even if MIME type is wrong
+    if (!acceptedFileTypes.includes(file.type) && !isHeicHeif) {
+      return `${file.name} is not a supported image format. Please use JPG, PNG, WebP, GIF, HEIC, or HEIF.`;
     }
     if (file.size > 100 * 1024 * 1024) { // 100MB limit
       return `${file.name} is too large. Maximum file size is 100MB.`;
@@ -92,7 +156,32 @@ export function LocalImageUploader({
 
     try {
       for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
+        let file = validFiles[i];
+        
+        // Check if file needs HEIC/HEIF conversion
+        if (needsConversion(file)) {
+          setUploadProgress(prev => prev.map((item, index) => 
+            index === i ? { ...item, progress: 5, status: 'converting' } : item
+          ));
+          
+          try {
+            file = await convertImage(file);
+            toast.success(`Converted ${validFiles[i].name} to JPEG`);
+          } catch (convError) {
+            logger.error(`[LocalImageUploader] Conversion failed for ${file.name}:`, convError);
+            setUploadProgress(prev => prev.map((item, index) => 
+              index === i ? { 
+                ...item, 
+                progress: 0, 
+                status: 'error',
+                error: 'Failed to convert HEIC/HEIF image'
+              } : item
+            ));
+            errorCount++;
+            toast.error(`Failed to convert ${file.name}. Please try a different format.`);
+            continue;
+          }
+        }
         
         // Update progress to show upload starting
         setUploadProgress(prev => prev.map((item, index) => 
@@ -236,6 +325,8 @@ export function LocalImageUploader({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'converting':
+        return <Loader2 className="w-4 h-4 animate-spin text-amber-500" />;
       case 'uploading':
         return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
       case 'processing':
@@ -285,7 +376,7 @@ export function LocalImageUploader({
               {uploading ? 'Uploading images...' : 'Drop images here or click to browse'}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Supports JPG, PNG, WebP, GIF up to 100MB each (max {maxFiles} files)
+              Supports JPG, PNG, WebP, GIF, HEIC, HEIF up to 100MB each (max {maxFiles} files)
             </p>
           </div>
         </div>
@@ -329,6 +420,12 @@ export function LocalImageUploader({
                       className="bg-primary h-1.5 rounded-full transition-all duration-300"
                       style={{ width: `${item.progress}%` }}
                     />
+                  </div>
+                )}
+
+                {item.status === 'converting' && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-amber-600">Converting HEIC/HEIF to JPEG...</span>
                   </div>
                 )}
                 
