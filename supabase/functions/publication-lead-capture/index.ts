@@ -446,7 +446,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing lead capture:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'An unexpected error occurred. Please try again.' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 

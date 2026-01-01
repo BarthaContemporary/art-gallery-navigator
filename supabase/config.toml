@@ -106,7 +106,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.check-sanctions]
-verify_jwt = true
+verify_jwt = false
 
 [functions.enrich-email]
 verify_jwt = true

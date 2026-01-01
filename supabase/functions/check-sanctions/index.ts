@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,11 @@ interface SanctionsMatch {
   datasets: string[];
   properties: Record<string, string[]>;
 }
+
+// Input validation constants
+const MAX_NAME_LENGTH = 200;
+const MAX_FIELD_LENGTH = 100;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 // Function to get the appropriate API key based on date
 // Key 1 expires January 11, 2026 - Key 2 activates January 12, 2026
@@ -41,11 +47,68 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication check
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message || 'Invalid token');
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
+
     const { name, birthDate, nationality, country } = await req.json();
 
+    // Input validation
     if (!name) {
       return new Response(
         JSON.stringify({ error: 'Name is required for sanctions check' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (typeof name !== 'string' || name.length > MAX_NAME_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid name format or length' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (birthDate && (typeof birthDate !== 'string' || !DATE_REGEX.test(birthDate))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid birth date format. Use YYYY-MM-DD' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (nationality && (typeof nationality !== 'string' || nationality.length > MAX_FIELD_LENGTH)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid nationality format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (country && (typeof country !== 'string' || country.length > MAX_FIELD_LENGTH)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid country format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -55,7 +118,7 @@ serve(async (req) => {
       console.error(`${keyName} not configured`);
       return new Response(
         JSON.stringify({ 
-          error: 'Sanctions check API not configured',
+          error: 'Sanctions check service not configured',
           checked: false 
         }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -67,17 +130,17 @@ serve(async (req) => {
     // Build the query for OpenSanctions matching API
     const matchQuery: Record<string, string[]> = {
       schema: ['Person'],
-      name: [name],
+      name: [name.trim()],
     };
 
     if (birthDate) {
       matchQuery.birthDate = [birthDate];
     }
     if (nationality) {
-      matchQuery.nationality = [nationality];
+      matchQuery.nationality = [nationality.trim()];
     }
     if (country) {
-      matchQuery.country = [country];
+      matchQuery.country = [country.trim()];
     }
 
     const controller = new AbortController();
@@ -112,26 +175,26 @@ serve(async (req) => {
       if (response.status === 401 || response.status === 403) {
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid API key or insufficient permissions',
+            error: 'Sanctions check service authentication failed',
             checked: false,
             api_error: true 
           }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       return new Response(
         JSON.stringify({ 
-          error: `Sanctions API returned status ${response.status}`,
+          error: 'Sanctions check service temporarily unavailable',
           checked: false,
           api_error: true 
         }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    console.log('OpenSanctions response:', JSON.stringify(data));
+    console.log('OpenSanctions response received');
 
     // Process the results
     const results = data.responses?.contact_check?.results || [];
@@ -180,7 +243,7 @@ serve(async (req) => {
     console.error('Error in check-sanctions:', error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'An unexpected error occurred',
         checked: false 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
