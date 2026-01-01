@@ -34,25 +34,52 @@ interface KeywordEntry {
 
 // ============= ADOBE PDF SERVICES API FUNCTIONS =============
 
-// Get Adobe access token
+// Get Adobe access token using OAuth 2.0 client credentials
 async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
-  console.log('[Adobe] Getting access token...');
+  console.log('[Adobe] Getting access token via OAuth 2.0...');
   
-  const response = await fetch('https://pdf-services.adobe.io/token', {
+  // Adobe PDF Services uses the IMS (Identity Management System) endpoint
+  const response = await fetch('https://pdf-services-ue1.adobe.io/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
+      'grant_type': 'client_credentials',
       'client_id': clientId,
       'client_secret': clientSecret,
+      'scope': 'openid,AdobeID,read_organizations,additional_info.projectedProductContext',
     }),
   });
   
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[Adobe] Token error:', errorText);
-    throw new Error(`Failed to get Adobe access token: ${response.status}`);
+    
+    // Try alternate endpoint if first fails
+    console.log('[Adobe] Trying alternate IMS endpoint...');
+    const altResponse = await fetch('https://ims-na1.adobelogin.com/ims/token/v3', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'grant_type': 'client_credentials',
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'scope': 'openid,AdobeID,read_organizations',
+      }),
+    });
+    
+    if (!altResponse.ok) {
+      const altErrorText = await altResponse.text();
+      console.error('[Adobe] Alt token error:', altErrorText);
+      throw new Error(`Failed to get Adobe access token: ${response.status} / ${altResponse.status}`);
+    }
+    
+    const altData = await altResponse.json();
+    console.log('[Adobe] Access token obtained via alt endpoint');
+    return altData.access_token;
   }
   
   const data = await response.json();
