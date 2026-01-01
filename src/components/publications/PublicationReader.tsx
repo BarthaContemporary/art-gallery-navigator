@@ -201,15 +201,6 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
     textContent: page.text_content,
   }));
 
-  // Calculate flipbook dimensions from stored mm values
-  // Default to A4 ratio (210x297mm) if not specified
-  const baseWidth = 450; // Base width in pixels
-  const pageWidthMm = (publication as any).page_width || 210;
-  const pageHeightMm = (publication as any).page_height || 297;
-  const aspectRatio = pageHeightMm / pageWidthMm;
-  const flipbookWidth = baseWidth;
-  const flipbookHeight = Math.round(baseWidth * aspectRatio);
-
   if (loadingPublication || loadingPages) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -242,6 +233,15 @@ export function PublicationReader({ publicationSlug }: PublicationReaderProps) {
       </Alert>
     );
   }
+
+  // Calculate flipbook dimensions from stored mm values
+  // Default to A4 ratio (210x297mm) if not specified
+  const baseWidth = 450; // Base width in pixels
+  const pageWidthMm = (publication as any).page_width || 210;
+  const pageHeightMm = (publication as any).page_height || 297;
+  const aspectRatio = pageHeightMm / pageWidthMm;
+  const flipbookWidth = baseWidth;
+  const flipbookHeight = Math.round(baseWidth * aspectRatio);
 
   const seo = (publication.seo as Record<string, any>) || {};
   const metaTitle = seo.title || publication.title;
