@@ -48,6 +48,21 @@ serve(async (req) => {
 
     const { action, contactId, listId } = await req.json()
 
+    // Input validation for UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (contactId && !uuidRegex.test(contactId)) {
+      return new Response(JSON.stringify({ error: 'Invalid contact ID format' }), { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    if (listId && typeof listId === 'string' && listId.length > 100) {
+      return new Response(JSON.stringify({ error: 'Invalid list ID format' }), { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     // Get Campaign Monitor credentials from env
     const apiKey = Deno.env.get('CAMPAIGN_MONITOR_API_KEY')
     const clientId = Deno.env.get('CAMPAIGN_MONITOR_CLIENT_ID')
@@ -295,12 +310,12 @@ async function syncContact(supabaseClient: any, authString: string, contactId: s
           custom_fields: {
             ...contact.custom_fields,
             cm_sync_status: 'error',
-            cm_sync_error: errorData
+            cm_sync_error: 'Sync failed'
           }
         })
         .eq('id', contactId)
 
-      return new Response(JSON.stringify({ error: errorData }), {
+      return new Response(JSON.stringify({ error: 'Email service sync failed' }), {
         status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
