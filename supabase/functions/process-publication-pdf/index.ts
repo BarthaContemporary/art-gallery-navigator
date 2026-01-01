@@ -37,24 +37,26 @@ interface KeywordEntry {
 // Get Adobe access token using OAuth 2.0 client credentials
 async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
   console.log('[Adobe] Getting access token via OAuth 2.0...');
-  console.log('[Adobe] Client ID length:', clientId?.length || 0);
   
-  // Adobe PDF Services API uses IMS token endpoint with DCAPI scope
+  // Adobe PDF Services API uses IMS token endpoint
+  // For OAuth Server-to-Server, use Basic Auth header
   const tokenUrl = 'https://ims-na1.adobelogin.com/ims/token/v3';
+  
+  // Encode credentials for Basic Auth
+  const credentials = btoa(`${clientId}:${clientSecret}`);
   
   const params = new URLSearchParams({
     'grant_type': 'client_credentials',
-    'client_id': clientId,
-    'client_secret': clientSecret,
     'scope': 'openid,AdobeID,DCAPI',
   });
   
-  console.log('[Adobe] Requesting token from:', tokenUrl);
+  console.log('[Adobe] Requesting token with Basic Auth...');
   
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentials}`,
     },
     body: params.toString(),
   });
