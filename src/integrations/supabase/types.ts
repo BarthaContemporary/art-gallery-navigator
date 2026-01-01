@@ -3305,6 +3305,8 @@ export type Database = {
           mailing_list_default_opt_in: boolean | null
           og_image_url: string | null
           page_count: number | null
+          page_height: number | null
+          page_width: number | null
           pdf_storage_path: string | null
           pdf_url: string | null
           processing_error: string | null
@@ -3337,6 +3339,8 @@ export type Database = {
           mailing_list_default_opt_in?: boolean | null
           og_image_url?: string | null
           page_count?: number | null
+          page_height?: number | null
+          page_width?: number | null
           pdf_storage_path?: string | null
           pdf_url?: string | null
           processing_error?: string | null
@@ -3369,6 +3373,8 @@ export type Database = {
           mailing_list_default_opt_in?: boolean | null
           og_image_url?: string | null
           page_count?: number | null
+          page_height?: number | null
+          page_width?: number | null
           pdf_storage_path?: string | null
           pdf_url?: string | null
           processing_error?: string | null

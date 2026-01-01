@@ -42,6 +42,8 @@ interface PublicationFormData {
   visibility: 'public' | 'unlisted' | 'private';
   theme: 'light' | 'dark' | 'auto';
   cover_page: number;
+  page_width: number | null;
+  page_height: number | null;
   download_gate_enabled: boolean;
   mailing_list_default_opt_in: boolean;
   seo: {
@@ -67,6 +69,8 @@ export default function PublicationEditor() {
     visibility: 'private',
     theme: 'auto',
     cover_page: 1,
+    page_width: null,
+    page_height: null,
     download_gate_enabled: true,
     mailing_list_default_opt_in: false,
     seo: {},
@@ -134,6 +138,8 @@ export default function PublicationEditor() {
         visibility: (publication.visibility as any) || 'private',
         theme: (publication.theme as any) || 'auto',
         cover_page: publication.cover_page || 1,
+        page_width: (publication as any).page_width || null,
+        page_height: (publication as any).page_height || null,
         download_gate_enabled: publication.download_gate_enabled ?? true,
         mailing_list_default_opt_in: publication.mailing_list_default_opt_in ?? false,
         seo: (publication.seo as any) || {},
@@ -156,6 +162,8 @@ export default function PublicationEditor() {
         visibility: data.visibility,
         theme: data.theme,
         cover_page: data.cover_page,
+        page_width: data.page_width,
+        page_height: data.page_height,
         download_gate_enabled: data.download_gate_enabled,
         mailing_list_default_opt_in: data.mailing_list_default_opt_in,
         seo: data.seo,
@@ -605,6 +613,40 @@ export default function PublicationEditor() {
                   Which page to use as the cover/thumbnail
                 </p>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="page_width">Page Width (px)</Label>
+                  <Input
+                    id="page_width"
+                    type="number"
+                    min={100}
+                    placeholder="e.g. 800"
+                    value={formData.page_width ?? ''}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      page_width: e.target.value ? parseInt(e.target.value) : null 
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="page_height">Page Height (px)</Label>
+                  <Input
+                    id="page_height"
+                    type="number"
+                    min={100}
+                    placeholder="e.g. 1100"
+                    value={formData.page_height ?? ''}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      page_height: e.target.value ? parseInt(e.target.value) : null 
+                    }))}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Set custom page dimensions for flipbook rendering. Leave empty to auto-detect from PDF.
+              </p>
             </CardContent>
           </Card>
 
