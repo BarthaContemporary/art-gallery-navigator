@@ -1,11 +1,10 @@
 /**
  * Publication PDF Processing Edge Function
  * 
- * Uses Adobe PDF Services API for PDF processing:
+ * Uses CloudConvert API for PDF processing:
  * - PDF to images conversion with accurate page dimensions
- * - OCR text extraction
  * 
- * NOTE: Maximum PDF file size is 10MB
+ * NOTE: Maximum PDF file size is 100MB with CloudConvert
  */
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
@@ -32,201 +31,138 @@ interface KeywordEntry {
   pages: number[];
 }
 
-// ============= ADOBE PDF SERVICES API FUNCTIONS =============
+// ============= CLOUDCONVERT API FUNCTIONS =============
 
-// Get Adobe access token using PDF Services API token endpoint
-async function getAdobeAccessToken(clientId: string, clientSecret: string): Promise<string> {
-  console.log('[Adobe] Getting access token via PDF Services API...');
-  
-  // Trim credentials to remove any whitespace/newlines
-  const trimmedClientId = clientId.trim();
-  const trimmedClientSecret = clientSecret.trim();
-  
-  // Adobe PDF Services API uses its own token endpoint (NOT the IMS endpoint)
-  const tokenUrl = 'https://pdf-services.adobe.io/token';
-  
-  // Per Adobe docs: only client_id and client_secret in body, no grant_type or scope
-  const body = new URLSearchParams({
-    'client_id': trimmedClientId,
-    'client_secret': trimmedClientSecret,
-  });
-  
-  console.log('[Adobe] Requesting token from pdf-services.adobe.io/token...');
-  console.log('[Adobe] Client ID:', trimmedClientId.substring(0, 8) + '...');
-  console.log('[Adobe] Client Secret length:', trimmedClientSecret.length);
-  
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  });
-  
-  const responseText = await response.text();
-  console.log('[Adobe] Token response status:', response.status);
-  
-  if (!response.ok) {
-    console.error('[Adobe] Token error response:', responseText);
-    // Try to parse error for more detail
-    try {
-      const errorData = JSON.parse(responseText);
-      console.error('[Adobe] Error details:', JSON.stringify(errorData, null, 2));
-    } catch {}
-    throw new Error(`Failed to get Adobe access token: ${response.status} - ${responseText}`);
-  }
-  
-  const data = JSON.parse(responseText);
-  console.log('[Adobe] Access token obtained successfully, expires in:', data.expires_in);
-  return data.access_token;
+interface CloudConvertJob {
+  id: string;
+  status: string;
+  tasks: CloudConvertTask[];
 }
 
-// Upload PDF to Adobe and get assetID
-async function uploadPdfToAdobe(
+interface CloudConvertTask {
+  id: string;
+  name: string;
+  operation: string;
+  status: string;
+  result?: {
+    files?: Array<{
+      filename: string;
+      url: string;
+    }>;
+  };
+}
+
+// Create CloudConvert job to convert PDF to JPEG images
+async function createCloudConvertJob(
   pdfUrl: string,
-  accessToken: string,
-  clientId: string
-): Promise<string> {
-  console.log('[Adobe] Uploading PDF...');
+  apiKey: string
+): Promise<CloudConvertJob> {
+  console.log('[CloudConvert] Creating PDF to images job...');
   
-  // Step 1: Get upload pre-signed URI
-  const presignResponse = await fetch('https://pdf-services.adobe.io/assets', {
+  const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
     method: 'POST',
     headers: {
-      'X-API-Key': clientId,
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      mediaType: 'application/pdf',
+      tasks: {
+        'import-pdf': {
+          operation: 'import/url',
+          url: pdfUrl,
+        },
+        'convert-to-jpg': {
+          operation: 'convert',
+          input: 'import-pdf',
+          input_format: 'pdf',
+          output_format: 'jpg',
+          all_pages: true,
+          pixel_density: 150,  // DPI - good balance between quality and size
+          quality: 90,
+        },
+        'export-result': {
+          operation: 'export/url',
+          input: 'convert-to-jpg',
+        },
+      },
     }),
   });
-  
-  if (!presignResponse.ok) {
-    const errorText = await presignResponse.text();
-    console.error('[Adobe] Pre-sign error:', errorText);
-    throw new Error(`Failed to get upload URI: ${presignResponse.status}`);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[CloudConvert] Job creation error:', errorText);
+    throw new Error(`CloudConvert job creation failed: ${response.status} - ${errorText}`);
   }
-  
-  const presignData = await presignResponse.json();
-  const uploadUri = presignData.uploadUri;
-  const assetID = presignData.assetID;
-  
-  console.log('[Adobe] Got upload URI, downloading PDF...');
-  
-  // Download the PDF from source URL
-  const pdfResponse = await fetch(pdfUrl);
-  if (!pdfResponse.ok) {
-    throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
-  }
-  const pdfBytes = await pdfResponse.arrayBuffer();
-  console.log(`[Adobe] Downloaded PDF: ${pdfBytes.byteLength} bytes`);
-  
-  // Step 2: Upload PDF to pre-signed URI
-  const uploadResponse = await fetch(uploadUri, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/pdf',
-    },
-    body: pdfBytes,
-  });
-  
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    console.error('[Adobe] Upload error:', errorText);
-    throw new Error(`Failed to upload PDF: ${uploadResponse.status}`);
-  }
-  
-  console.log('[Adobe] PDF uploaded, assetID:', assetID);
-  return assetID;
+
+  const job = await response.json();
+  console.log('[CloudConvert] Job created:', job.data.id);
+  return job.data;
 }
 
-// Export PDF to images using Adobe
-async function exportPdfToImages(
-  assetID: string,
-  accessToken: string,
-  clientId: string
-): Promise<{ downloadUris: string[]; pageCount: number }> {
-  console.log('[Adobe] Starting PDF to images conversion...');
+// Wait for CloudConvert job to complete and return image URLs
+async function waitForCloudConvertJob(
+  jobId: string,
+  apiKey: string
+): Promise<string[]> {
+  console.log('[CloudConvert] Waiting for job completion...');
   
-  // Create the job
-  const jobResponse = await fetch('https://pdf-services.adobe.io/operation/pdftoimages', {
-    method: 'POST',
-    headers: {
-      'X-API-Key': clientId,
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      assetID: assetID,
-      targetFormat: 'jpeg',
-      outputType: 'listOfPageImages',
-    }),
-  });
-  
-  if (!jobResponse.ok) {
-    const errorText = await jobResponse.text();
-    console.error('[Adobe] Job creation error:', errorText);
-    throw new Error(`Failed to create PDF to images job: ${jobResponse.status}`);
-  }
-  
-  const jobLocation = jobResponse.headers.get('location');
-  if (!jobLocation) {
-    throw new Error('No job location returned');
-  }
-  
-  console.log('[Adobe] Job created, polling for completion...');
-  
-  // Poll for job completion
-  let attempts = 0;
   const maxAttempts = 120; // 10 minutes max
+  let attempts = 0;
   
   while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
     
-    const statusResponse = await fetch(jobLocation, {
+    const response = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
       headers: {
-        'X-API-Key': clientId,
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
     });
-    
-    if (!statusResponse.ok) {
-      console.warn(`[Adobe] Status check failed: ${statusResponse.status}`);
+
+    if (!response.ok) {
+      console.warn(`[CloudConvert] Status check failed: ${response.status}`);
       attempts++;
       continue;
     }
+
+    const jobData = await response.json();
+    const job: CloudConvertJob = jobData.data;
     
-    const statusData = await statusResponse.json();
-    console.log(`[Adobe] Job status: ${statusData.status}`);
-    
-    if (statusData.status === 'done') {
-      const assets = statusData.asset || statusData.assets || [];
-      const downloadUris: string[] = [];
+    console.log(`[CloudConvert] Job status: ${job.status}`);
+
+    if (job.status === 'finished') {
+      // Find the export task and get the URLs
+      const exportTask = job.tasks.find(t => t.operation === 'export/url');
       
-      // Handle both single asset and array of assets
-      if (Array.isArray(assets)) {
-        for (const asset of assets) {
-          if (asset.downloadUri) {
-            downloadUris.push(asset.downloadUri);
-          }
-        }
-      } else if (assets.downloadUri) {
-        downloadUris.push(assets.downloadUri);
+      if (!exportTask?.result?.files) {
+        throw new Error('No files in export task result');
       }
-      
-      console.log(`[Adobe] Job completed, ${downloadUris.length} page images`);
-      return { downloadUris, pageCount: downloadUris.length };
+
+      const imageUrls = exportTask.result.files
+        .filter(f => f.filename.endsWith('.jpg'))
+        .sort((a, b) => {
+          // Sort by page number (extract from filename like page-1.jpg)
+          const aMatch = a.filename.match(/(\d+)/);
+          const bMatch = b.filename.match(/(\d+)/);
+          const aNum = aMatch ? parseInt(aMatch[1]) : 0;
+          const bNum = bMatch ? parseInt(bMatch[1]) : 0;
+          return aNum - bNum;
+        })
+        .map(f => f.url);
+
+      console.log(`[CloudConvert] Job completed, ${imageUrls.length} page images`);
+      return imageUrls;
     }
-    
-    if (statusData.status === 'failed') {
-      throw new Error(`Adobe job failed: ${JSON.stringify(statusData.error || statusData)}`);
+
+    if (job.status === 'error') {
+      const errorTask = job.tasks.find(t => t.status === 'error');
+      const errorMsg = errorTask ? JSON.stringify(errorTask) : 'Unknown error';
+      throw new Error(`CloudConvert job failed: ${errorMsg}`);
     }
-    
+
     attempts++;
   }
-  
-  throw new Error('Adobe job timed out');
+
+  throw new Error('CloudConvert job timed out');
 }
 
 // Upload image to Cloudinary for permanent storage
@@ -558,8 +494,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-  const adobeClientId = Deno.env.get('ADOBE_CLIENT_ID');
-  const adobeClientSecret = Deno.env.get('ADOBE_CLIENT_SECRET');
+  const cloudConvertApiKey = Deno.env.get('CLOUDCONVERT_API_KEY');
   const cloudName = Deno.env.get('CLOUDINARY_CLOUD_NAME');
   const cloudinaryApiKey = Deno.env.get('CLOUDINARY_API_KEY');
   const cloudinaryApiSecret = Deno.env.get('CLOUDINARY_API_SECRET');
@@ -569,14 +504,14 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
   try {
     console.log(`[Process] Starting for publication ${publicationId}`);
     console.log(`[Process] PDF URL: ${pdfUrl}`);
-    console.log(`[Process] Adobe: ${adobeClientId && adobeClientSecret ? 'Configured' : 'Missing'}`);
+    console.log(`[Process] CloudConvert: ${cloudConvertApiKey ? 'Configured' : 'Missing'}`);
     console.log(`[Process] OpenAI: ${openAIApiKey ? 'Present' : 'Missing'}`);
     console.log(`[Process] Cloudinary: ${cloudName && cloudinaryApiKey && cloudinaryApiSecret ? 'Configured' : 'Missing'}`);
     const startTime = Date.now();
 
     // Validate required secrets
-    if (!adobeClientId || !adobeClientSecret) {
-      throw new Error('Adobe PDF Services credentials are not configured');
+    if (!cloudConvertApiKey) {
+      throw new Error('CLOUDCONVERT_API_KEY is not configured');
     }
     
     if (!openAIApiKey) {
@@ -603,14 +538,12 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       .delete()
       .eq('publication_id', publicationId);
 
-    // Step 2: Get Adobe access token
-    const accessToken = await getAdobeAccessToken(adobeClientId, adobeClientSecret);
+    // Step 2: Create CloudConvert job to convert PDF to images
+    const job = await createCloudConvertJob(pdfUrl, cloudConvertApiKey);
 
-    // Step 3: Upload PDF to Adobe
-    const assetID = await uploadPdfToAdobe(pdfUrl, accessToken, adobeClientId);
-
-    // Step 4: Export PDF to images using Adobe
-    const { downloadUris, pageCount } = await exportPdfToImages(assetID, accessToken, adobeClientId);
+    // Step 3: Wait for job completion and get image URLs
+    const downloadUris = await waitForCloudConvertJob(job.id, cloudConvertApiKey);
+    const pageCount = downloadUris.length;
 
     if (pageCount === 0) {
       throw new Error('No pages extracted from PDF');
@@ -626,7 +559,7 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
 
     console.log(`[Process] Processing ${pageCount} pages... (${Date.now() - startTime}ms)`);
 
-    // Step 5: Upload each page image to Cloudinary and OCR
+    // Step 4: Upload each page image to Cloudinary and OCR
     const pageTextsForAI: { pageNumber: number; text: string }[] = [];
     const pageRecords: any[] = [];
     
@@ -641,14 +574,14 @@ async function processPublicationInBackground(publicationId: string, pdfUrl: str
       
       for (let i = batchStart; i < batchEnd; i++) {
         const pageNumber = i + 1;
-        const adobeImageUrl = downloadUris[i];
+        const imageUrl = downloadUris[i];
         
         batchPromises.push((async () => {
           // Upload to Cloudinary for permanent storage
           const cloudinaryPublicId = `publications/${publicationId}/page_${pageNumber}`;
           
           const cloudinaryResult = await uploadImageToCloudinary(
-            adobeImageUrl,
+            imageUrl,
             cloudinaryPublicId,
             cloudName,
             cloudinaryApiKey,
@@ -794,7 +727,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'PDF processing started (using Adobe PDF Services)',
+        message: 'PDF processing started (using CloudConvert)',
         publicationId
       }),
       { 
