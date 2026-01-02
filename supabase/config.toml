@@ -185,3 +185,6 @@ verify_jwt = true
 
 [functions.dpla-search]
 verify_jwt = true
+
+[functions.smithsonian-search]
+verify_jwt = true
