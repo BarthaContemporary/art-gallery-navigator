@@ -32,23 +32,39 @@ serve(async (req) => {
 
     console.log(`Searching DPLA for artist: ${artistName}`);
 
-    // Search DPLA API - searching in creator field
+    // Search DPLA API - searching in creator field with timeout
     const searchUrl = `https://api.dp.la/v2/items?sourceResource.creator=${encodeURIComponent(artistName)}&page_size=${limit}&api_key=${apiKey}`;
     
     console.log(`DPLA API URL: ${searchUrl.replace(apiKey, 'REDACTED')}`);
 
-    const response = await fetch(searchUrl);
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`DPLA API error: ${response.status} - ${errorText}`);
+    let data;
+    try {
+      const response = await fetch(searchUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`DPLA API error: ${response.status} - ${errorText}`);
+        return new Response(
+          JSON.stringify({ results: [], totalResults: 0, source: 'Digital Public Library of America' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      data = await response.json();
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.log('DPLA API timeout or unavailable - returning empty results');
       return new Response(
-        JSON.stringify({ error: `DPLA API error: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ results: [], totalResults: 0, source: 'Digital Public Library of America' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const data = await response.json();
+    
     console.log(`DPLA returned ${data.count || 0} total results`);
 
     // Transform DPLA results to a consistent format
@@ -89,9 +105,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in DPLA search:', error);
+    // Return empty results instead of error to prevent client crashes
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ results: [], totalResults: 0, source: 'Digital Public Library of America' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
