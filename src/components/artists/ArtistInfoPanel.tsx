@@ -45,11 +45,13 @@ import { useNGASearch } from "@/hooks/useNGASearch";
 import { useEuropeanaSearch } from "@/hooks/useEuropeanaSearch";
 import { useDPLASearch } from "@/hooks/useDPLASearch";
 import { useSMKSearch } from "@/hooks/useSMKSearch";
+import { useNeubergerMuseumSearch } from "@/hooks/useNeubergerMuseumSearch";
+import { useAlbrightKnoxSearch } from "@/hooks/useAlbrightKnoxSearch";
 import { format } from "date-fns";
 import { SearchProgressIndicator, SearchSource, createMediaSources, createCollectionSources } from "./SearchProgressIndicator";
 
 // Institution filter options
-type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney' | 'british-museum' | 'va' | 'cleveland' | 'getty' | 'walters' | 'smithsonian' | 'nga' | 'europeana' | 'dpla' | 'smk';
+type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney' | 'british-museum' | 'va' | 'cleveland' | 'getty' | 'walters' | 'smithsonian' | 'nga' | 'europeana' | 'dpla' | 'smk' | 'neuberger' | 'akg';
 
 const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.ReactNode }[] = [
   { id: 'harvard', name: 'Harvard Art Museums', icon: <Building2 className="h-4 w-4" /> },
@@ -71,6 +73,8 @@ const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.Re
   { id: 'europeana', name: 'Europeana', icon: <Globe className="h-4 w-4" /> },
   { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-4 w-4" /> },
   { id: 'smk', name: 'SMK Denmark', icon: <Crown className="h-4 w-4" /> },
+  { id: 'neuberger', name: 'Neuberger Museum', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'akg', name: 'Buffalo AKG', icon: <GalleryHorizontal className="h-4 w-4" /> },
 ];
 
 interface ArtistInfoPanelProps {
@@ -287,6 +291,8 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   const { searchArtist: searchEuropeana, objects: europeanaObjects, totalObjects: europeanaTotal, isLoading: europeanaLoading } = useEuropeanaSearch();
   const { searchByArtist: searchDPLA, results: dplaResults, totalResults: dplaTotal, isLoading: dplaLoading } = useDPLASearch();
   const { searchArtist: searchSMK, objects: smkObjects, totalObjects: smkTotal, isLoading: smkLoading } = useSMKSearch();
+  const { searchArtist: searchNeuberger, objects: neubergerObjects, totalObjects: neubergerTotal, isLoading: neubergerLoading } = useNeubergerMuseumSearch();
+  const { searchArtist: searchAKG, objects: akgObjects, totalObjects: akgTotal, isLoading: akgLoading } = useAlbrightKnoxSearch();
   
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
@@ -410,6 +416,12 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       
       setCollectionSources(prev => prev.map(s => s.id === 'smk' ? { ...s, status: 'searching' as const } : s));
       await searchSMK(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'neuberger' ? { ...s, status: 'searching' as const } : s));
+      await searchNeuberger(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'akg' ? { ...s, status: 'searching' as const } : s));
+      await searchAKG(artistName);
     } finally {
       searchInProgressRef.current = false;
     }
@@ -504,6 +516,14 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   useEffect(() => {
     if (!smkLoading) updateCollectionSource('smk', 'complete', smkTotal);
   }, [smkLoading, smkTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!neubergerLoading) updateCollectionSource('neuberger', 'complete', neubergerTotal);
+  }, [neubergerLoading, neubergerTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!akgLoading) updateCollectionSource('akg', 'complete', akgTotal);
+  }, [akgLoading, akgTotal, updateCollectionSource]);
 
   // Track the last searched artist to prevent duplicate searches
   const lastSearchedArtistRef = useRef<string | null>(null);
@@ -763,6 +783,28 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       sourceName: 'SMK Denmark',
       collection: obj.collection,
     })),
+    ...neubergerObjects.map((obj): CollectionItem => ({
+      id: obj.id,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'neuberger',
+      sourceName: 'Neuberger Museum',
+      location: obj.location,
+    })),
+    ...akgObjects.map((obj): CollectionItem => ({
+      id: obj.id,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'akg',
+      sourceName: 'Buffalo AKG',
+      location: obj.location,
+    })),
   ];
 
   // Filter collection items by selected institutions
@@ -770,9 +812,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     return allCollectionItems.filter(item => selectedInstitutions.has(item.source));
   }, [allCollectionItems, selectedInstitutions]);
 
-  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal + britishMuseumTotal + vaTotal + clevelandTotal + gettyTotal + waltersTotal + smithsonianTotal + ngaTotal + europeanaTotal + dplaTotal + smkTotal;
+  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal + britishMuseumTotal + vaTotal + clevelandTotal + gettyTotal + waltersTotal + smithsonianTotal + ngaTotal + europeanaTotal + dplaTotal + smkTotal + neubergerTotal + akgTotal;
   const filteredCollectionCount = filteredCollectionItems.length;
-  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading || britishMuseumLoading || vaLoading || clevelandLoading || gettyLoading || waltersLoading || smithsonianLoading || ngaLoading || europeanaLoading || dplaLoading || smkLoading;
+  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading || britishMuseumLoading || vaLoading || clevelandLoading || gettyLoading || waltersLoading || smithsonianLoading || ngaLoading || europeanaLoading || dplaLoading || smkLoading || neubergerLoading || akgLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -135,5 +135,7 @@ export function createCollectionSources(): SearchSource[] {
     { id: 'europeana', name: 'Europeana', icon: <Globe className="h-3 w-3" />, status: 'pending' },
     { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-3 w-3" />, status: 'pending' },
     { id: 'smk', name: 'SMK', icon: <Crown className="h-3 w-3" />, status: 'pending' },
+    { id: 'neuberger', name: 'Neuberger', icon: <Building2 className="h-3 w-3" />, status: 'pending' },
+    { id: 'akg', name: 'Buffalo AKG', icon: <GalleryHorizontal className="h-3 w-3" />, status: 'pending' },
   ];
 }
