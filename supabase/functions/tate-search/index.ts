@@ -27,13 +27,27 @@ serve(async (req) => {
     // Tate collection CSV is hosted on GitHub
     const csvUrl = 'https://raw.githubusercontent.com/tategallery/collection/master/artwork_data.csv';
     
-    const response = await fetch(csvUrl);
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch Tate data: ${response.status}`);
+    let csvText;
+    try {
+      const response = await fetch(csvUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Tate data: ${response.status}`);
+      }
+      csvText = await response.text();
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.log('Tate data timeout or unavailable - returning empty results');
+      return new Response(
+        JSON.stringify({ objects: [], totalObjects: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    const csvText = await response.text();
     
     // Parse CSV and search for artist
     const lines = csvText.split('\n');
@@ -52,7 +66,13 @@ serve(async (req) => {
     const thumbnailUrlIndex = headers.findIndex(h => h.toLowerCase() === 'thumbnailurl');
     const urlIndex = headers.findIndex(h => h.toLowerCase() === 'url');
     
-    const searchTerm = artistName.toLowerCase();
+    // Create search variations (handle "Last, First" format in CSV)
+    const searchTermLower = artistName.toLowerCase();
+    const nameParts = artistName.split(' ').filter((p: string) => p.length > 0);
+    const lastFirstVariation = nameParts.length >= 2 
+      ? `${nameParts[nameParts.length - 1]}, ${nameParts.slice(0, -1).join(' ')}`.toLowerCase()
+      : null;
+    
     const foundObjects: any[] = [];
     
     // Search through artworks (limit to first 50 matches for performance)
@@ -62,8 +82,13 @@ serve(async (req) => {
       
       const values = parseCSVLine(line);
       const artistValue = values[artistIndex] || '';
+      const artistLower = artistValue.toLowerCase();
       
-      if (artistValue.toLowerCase().includes(searchTerm)) {
+      // Match against both "First Last" and "Last, First" formats
+      const matches = artistLower.includes(searchTermLower) || 
+        (lastFirstVariation && artistLower.includes(lastFirstVariation));
+      
+      if (matches) {
         const accessionNumber = values[accessionIndex] || '';
         
         foundObjects.push({
@@ -94,8 +119,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Tate search error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ objects: [], totalObjects: 0 }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

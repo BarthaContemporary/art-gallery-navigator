@@ -25,16 +25,29 @@ serve(async (req) => {
     console.log(`MoMA search for artist: ${artistName}`);
 
     // MoMA collection CSV is hosted on GitHub
-    // We'll fetch the artworks CSV and search for the artist
     const csvUrl = 'https://raw.githubusercontent.com/MuseumofModernArt/collection/main/Artworks.csv';
     
-    const response = await fetch(csvUrl);
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch MoMA data: ${response.status}`);
+    let csvText;
+    try {
+      const response = await fetch(csvUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch MoMA data: ${response.status}`);
+      }
+      csvText = await response.text();
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.log('MoMA data timeout or unavailable - returning empty results');
+      return new Response(
+        JSON.stringify({ objects: [], totalObjects: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    const csvText = await response.text();
     
     // Parse CSV and search for artist
     const lines = csvText.split('\n');
@@ -49,7 +62,14 @@ serve(async (req) => {
     const thumbnailUrlIndex = headers.findIndex(h => h.toLowerCase() === 'thumbnailurl');
     const urlIndex = headers.findIndex(h => h.toLowerCase() === 'url');
     
-    const searchTerm = artistName.toLowerCase();
+    // Create search variations (handle "Last, First" format in CSV)
+    const searchTermLower = artistName.toLowerCase();
+    const nameParts = artistName.split(' ').filter(p => p.length > 0);
+    // Create "Last, First" variation if we have at least 2 parts
+    const lastFirstVariation = nameParts.length >= 2 
+      ? `${nameParts[nameParts.length - 1]}, ${nameParts.slice(0, -1).join(' ')}`.toLowerCase()
+      : null;
+    
     const foundObjects: any[] = [];
     
     // Search through artworks (limit to first 50 matches for performance)
@@ -59,8 +79,13 @@ serve(async (req) => {
       
       const values = parseCSVLine(line);
       const artistValue = values[artistIndex] || '';
+      const artistLower = artistValue.toLowerCase();
       
-      if (artistValue.toLowerCase().includes(searchTerm)) {
+      // Match against both "First Last" and "Last, First" formats
+      const matches = artistLower.includes(searchTermLower) || 
+        (lastFirstVariation && artistLower.includes(lastFirstVariation));
+      
+      if (matches) {
         foundObjects.push({
           objectId: values[objectIdIndex] || '',
           title: values[titleIndex] || 'Untitled',
@@ -86,8 +111,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('MoMA search error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ objects: [], totalObjects: 0 }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
