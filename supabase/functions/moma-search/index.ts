@@ -24,78 +24,129 @@ serve(async (req) => {
 
     console.log(`MoMA search for artist: ${artistName}`);
 
-    // MoMA collection CSV is hosted on GitHub
-    const csvUrl = 'https://raw.githubusercontent.com/MuseumofModernArt/collection/main/Artworks.csv';
+    // Try MoMA's collection search with JSON response
+    // MoMA uses a format=json parameter for their collection searches
+    const searchUrl = `https://www.moma.org/collection/?utf8=%E2%9C%93&q=${encodeURIComponent(artistName)}&classifications=any&date_begin=Pre-1850&date_end=2025&geo=any&with_images=1&page=1`;
     
-    // Fetch with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     
-    let csvText;
+    let html;
     try {
-      const response = await fetch(csvUrl, { signal: controller.signal });
+      const response = await fetch(searchUrl, { 
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+        }
+      });
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch MoMA data: ${response.status}`);
+        console.log(`MoMA returned ${response.status} - returning empty results`);
+        return new Response(
+          JSON.stringify({ objects: [], totalObjects: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      csvText = await response.text();
+      html = await response.text();
+      console.log(`Received ${html.length} bytes from MoMA`);
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      console.log('MoMA data timeout or unavailable - returning empty results');
+      console.log('MoMA timeout or unavailable - returning empty results');
       return new Response(
         JSON.stringify({ objects: [], totalObjects: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Parse CSV and search for artist
-    const lines = csvText.split('\n');
-    const headers = parseCSVLine(lines[0]);
-    
-    const artistIndex = headers.findIndex(h => h.toLowerCase() === 'artist');
-    const titleIndex = headers.findIndex(h => h.toLowerCase() === 'title');
-    const dateIndex = headers.findIndex(h => h.toLowerCase() === 'date');
-    const mediumIndex = headers.findIndex(h => h.toLowerCase() === 'medium');
-    const departmentIndex = headers.findIndex(h => h.toLowerCase() === 'department');
-    const objectIdIndex = headers.findIndex(h => h.toLowerCase() === 'objectid');
-    const thumbnailUrlIndex = headers.findIndex(h => h.toLowerCase() === 'thumbnailurl');
-    const urlIndex = headers.findIndex(h => h.toLowerCase() === 'url');
-    
-    // Create search variations (handle "Last, First" format in CSV)
-    const searchTermLower = artistName.toLowerCase();
-    const nameParts = artistName.split(' ').filter(p => p.length > 0);
-    // Create "Last, First" variation if we have at least 2 parts
-    const lastFirstVariation = nameParts.length >= 2 
-      ? `${nameParts[nameParts.length - 1]}, ${nameParts.slice(0, -1).join(' ')}`.toLowerCase()
-      : null;
-    
     const foundObjects: any[] = [];
     
-    // Search through artworks (limit to first 50 matches for performance)
-    for (let i = 1; i < lines.length && foundObjects.length < 50; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
+    // MoMA uses Next.js - look for __NEXT_DATA__ script tag with initial props
+    const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    
+    if (nextDataMatch) {
+      try {
+        const nextData = JSON.parse(nextDataMatch[1]);
+        console.log('Found __NEXT_DATA__, parsing...');
+        
+        // Navigate the Next.js data structure
+        const pageProps = nextData?.props?.pageProps;
+        const works = pageProps?.works || pageProps?.results?.works || pageProps?.initialWorks || [];
+        
+        for (const work of works.slice(0, 50)) {
+          foundObjects.push({
+            objectId: work.id || work.objectId || '',
+            title: work.title || work.name || 'Untitled',
+            artist: work.artistName || work.artist || artistName,
+            date: work.date || work.year || work.dateText || '',
+            medium: work.medium || work.materials || '',
+            department: work.department || work.classification || '',
+            thumbnailUrl: work.image?.url || work.imageUrl || work.thumbnail || '',
+            url: work.url || (work.id ? `https://www.moma.org/collection/works/${work.id}` : '')
+          });
+        }
+        console.log(`Parsed ${foundObjects.length} works from Next.js data`);
+      } catch (e) {
+        console.log('Failed to parse __NEXT_DATA__:', e);
+      }
+    }
+    
+    // If no Next.js data, try parsing HTML directly
+    if (foundObjects.length === 0) {
+      console.log('No Next.js data found, parsing HTML...');
       
-      const values = parseCSVLine(line);
-      const artistValue = values[artistIndex] || '';
-      const artistLower = artistValue.toLowerCase();
+      // Look for work links in the HTML
+      // Pattern: /collection/works/123456
+      const workLinkRegex = /\/collection\/works\/(\d+)/g;
+      const workIds = new Set<string>();
+      let match;
       
-      // Match against both "First Last" and "Last, First" formats
-      const matches = artistLower.includes(searchTermLower) || 
-        (lastFirstVariation && artistLower.includes(lastFirstVariation));
+      while ((match = workLinkRegex.exec(html)) !== null) {
+        workIds.add(match[1]);
+      }
       
-      if (matches) {
+      console.log(`Found ${workIds.size} unique work IDs in HTML`);
+      
+      // For each work ID, create an entry
+      for (const workId of Array.from(workIds).slice(0, 30)) {
         foundObjects.push({
-          objectId: values[objectIdIndex] || '',
-          title: values[titleIndex] || 'Untitled',
-          artist: artistValue,
-          date: values[dateIndex] || '',
-          medium: values[mediumIndex] || '',
-          department: values[departmentIndex] || '',
-          thumbnailUrl: values[thumbnailUrlIndex] || '',
-          url: values[urlIndex] || ''
+          objectId: workId,
+          title: 'View artwork on MoMA',
+          artist: artistName,
+          date: '',
+          medium: '',
+          department: '',
+          thumbnailUrl: '',
+          url: `https://www.moma.org/collection/works/${workId}`
         });
+      }
+    }
+    
+    // Try to extract image URLs if we have work IDs
+    if (foundObjects.length > 0) {
+      // Look for image patterns
+      const imagePatterns = [
+        /https:\/\/www\.moma\.org\/media\/[^"'\s]+/g,
+        /https:\/\/[^"'\s]*moma[^"'\s]*\.jpg/gi,
+        /src="([^"]*\/collection\/[^"]*\.jpg)"/gi
+      ];
+      
+      const images: string[] = [];
+      for (const pattern of imagePatterns) {
+        let imgMatch;
+        while ((imgMatch = pattern.exec(html)) !== null) {
+          images.push(imgMatch[1] || imgMatch[0]);
+        }
+      }
+      
+      // Assign images to objects if we found any
+      for (let i = 0; i < Math.min(images.length, foundObjects.length); i++) {
+        if (!foundObjects[i].thumbnailUrl) {
+          foundObjects[i].thumbnailUrl = images[i];
+        }
       }
     }
 
@@ -116,31 +167,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Simple CSV line parser that handles quoted fields
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  
-  result.push(current.trim());
-  return result;
-}
