@@ -155,3 +155,27 @@ verify_jwt = true
 
 [functions.newsapi-search]
 verify_jwt = true
+
+[functions.va-museum-search]
+verify_jwt = true
+
+[functions.cleveland-museum-search]
+verify_jwt = true
+
+[functions.walters-museum-search]
+verify_jwt = true
+
+[functions.getty-museum-search]
+verify_jwt = true
+
+[functions.smk-search]
+verify_jwt = true
+
+[functions.finna-search]
+verify_jwt = true
+
+[functions.british-museum-search]
+verify_jwt = true
+
+[functions.nga-search]
+verify_jwt = true
