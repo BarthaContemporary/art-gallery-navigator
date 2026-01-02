@@ -23,7 +23,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal, Filter, Library, Archive, BookOpen, Palette } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal, Filter, Library, Archive, BookOpen, Palette, Crown } from "lucide-react";
 import { useGuardianSearch } from "@/hooks/useGuardianSearch";
 import { useNewsAPISearch } from "@/hooks/useNewsAPISearch";
 import { useHarvardMuseumSearch } from "@/hooks/useHarvardMuseumSearch";
@@ -44,11 +44,12 @@ import { useSmithsonianSearch } from "@/hooks/useSmithsonianSearch";
 import { useNGASearch } from "@/hooks/useNGASearch";
 import { useEuropeanaSearch } from "@/hooks/useEuropeanaSearch";
 import { useDPLASearch } from "@/hooks/useDPLASearch";
+import { useSMKSearch } from "@/hooks/useSMKSearch";
 import { format } from "date-fns";
 import { SearchProgressIndicator, SearchSource, createMediaSources, createCollectionSources } from "./SearchProgressIndicator";
 
 // Institution filter options
-type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney' | 'british-museum' | 'va' | 'cleveland' | 'getty' | 'walters' | 'smithsonian' | 'nga' | 'europeana' | 'dpla';
+type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney' | 'british-museum' | 'va' | 'cleveland' | 'getty' | 'walters' | 'smithsonian' | 'nga' | 'europeana' | 'dpla' | 'smk';
 
 const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.ReactNode }[] = [
   { id: 'harvard', name: 'Harvard Art Museums', icon: <Building2 className="h-4 w-4" /> },
@@ -69,6 +70,7 @@ const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.Re
   { id: 'nga', name: 'National Gallery of Art', icon: <Columns className="h-4 w-4" /> },
   { id: 'europeana', name: 'Europeana', icon: <Globe className="h-4 w-4" /> },
   { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-4 w-4" /> },
+  { id: 'smk', name: 'SMK Denmark', icon: <Crown className="h-4 w-4" /> },
 ];
 
 interface ArtistInfoPanelProps {
@@ -99,6 +101,9 @@ interface CollectionItem {
   source: InstitutionSource;
   sourceName: string;
   extra?: string;
+  location?: string;
+  dimensions?: string;
+  collection?: string;
 }
 
 // Unified media article type combining Guardian and NewsAPI
@@ -162,6 +167,17 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
       case 'national-gallery': return <Castle className="h-3 w-3" />;
       case 'guggenheim': return <Building className="h-3 w-3" />;
       case 'whitney': return <GalleryHorizontal className="h-3 w-3" />;
+      case 'british-museum': return <Library className="h-3 w-3" />;
+      case 'va': return <Palette className="h-3 w-3" />;
+      case 'cleveland': return <Building2 className="h-3 w-3" />;
+      case 'getty': return <Landmark className="h-3 w-3" />;
+      case 'walters': return <Castle className="h-3 w-3" />;
+      case 'smithsonian': return <Archive className="h-3 w-3" />;
+      case 'nga': return <Columns className="h-3 w-3" />;
+      case 'europeana': return <Globe className="h-3 w-3" />;
+      case 'dpla': return <BookOpen className="h-3 w-3" />;
+      case 'smk': return <Crown className="h-3 w-3" />;
+      default: return <Building2 className="h-3 w-3" />;
     }
   };
 
@@ -171,32 +187,61 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
         <img
           src={item.imageUrl}
           alt=""
-          className="w-16 h-16 object-cover rounded flex-shrink-0"
+          className="w-20 h-20 object-cover rounded flex-shrink-0"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
         />
       ) : (
-        <div className="w-16 h-16 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+        <div className="w-20 h-20 bg-muted rounded flex-shrink-0 flex items-center justify-center">
           {getSourceIcon()}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <h4 className="font-medium text-sm line-clamp-2 mb-1">{item.title}</h4>
-        {item.date && (
-          <p className="text-xs text-muted-foreground mb-1">{item.date}</p>
-        )}
+        
+        {/* Date and dimensions row */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          {item.date && (
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {item.date}
+            </span>
+          )}
+          {item.dimensions && (
+            <span className="truncate">{item.dimensions}</span>
+          )}
+        </div>
+        
+        {/* Medium */}
         {item.medium && (
           <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
             {item.medium}
           </p>
         )}
+        
+        {/* Extra info (department/classification/collection) */}
+        {(item.extra || item.collection) && (
+          <p className="text-xs text-muted-foreground/70 line-clamp-1 mb-1">
+            {item.extra || item.collection}
+          </p>
+        )}
+        
+        {/* Location badge if present */}
+        {item.location && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            <MapPin className="h-3 w-3" />
+            <span className="truncate">{item.location}</span>
+          </div>
+        )}
+        
+        {/* Source badge */}
         <Badge variant="outline" className="text-xs px-1.5 py-0">
           {getSourceIcon()}
           <span className="ml-1">{item.sourceName}</span>
         </Badge>
       </div>
-      {item.url && <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+      {item.url && <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />}
     </>
   );
 
@@ -206,7 +251,7 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+        className="flex gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors items-start"
       >
         {content}
       </a>
@@ -214,7 +259,7 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
   }
 
   return (
-    <div className="flex gap-3 p-3 border rounded-lg">
+    <div className="flex gap-3 p-3 border rounded-lg items-start">
       {content}
     </div>
   );
@@ -241,6 +286,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   const { searchArtist: searchNGA, objects: ngaObjects, totalObjects: ngaTotal, isLoading: ngaLoading } = useNGASearch();
   const { searchArtist: searchEuropeana, objects: europeanaObjects, totalObjects: europeanaTotal, isLoading: europeanaLoading } = useEuropeanaSearch();
   const { searchByArtist: searchDPLA, results: dplaResults, totalResults: dplaTotal, isLoading: dplaLoading } = useDPLASearch();
+  const { searchArtist: searchSMK, objects: smkObjects, totalObjects: smkTotal, isLoading: smkLoading } = useSMKSearch();
   
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
@@ -361,6 +407,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       
       setCollectionSources(prev => prev.map(s => s.id === 'dpla' ? { ...s, status: 'searching' as const } : s));
       await searchDPLA(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'smk' ? { ...s, status: 'searching' as const } : s));
+      await searchSMK(artistName);
     } finally {
       searchInProgressRef.current = false;
     }
@@ -451,6 +500,10 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   useEffect(() => {
     if (!dplaLoading) updateCollectionSource('dpla', 'complete', dplaTotal);
   }, [dplaLoading, dplaTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!smkLoading) updateCollectionSource('smk', 'complete', smkTotal);
+  }, [smkLoading, smkTotal, updateCollectionSource]);
 
   // Track the last searched artist to prevent duplicate searches
   const lastSearchedArtistRef = useRef<string | null>(null);
@@ -699,6 +752,17 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       source: 'dpla',
       sourceName: 'DPLA',
     })),
+    ...smkObjects.map((obj): CollectionItem => ({
+      id: `smk-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'smk',
+      sourceName: 'SMK Denmark',
+      collection: obj.collection,
+    })),
   ];
 
   // Filter collection items by selected institutions
@@ -706,9 +770,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     return allCollectionItems.filter(item => selectedInstitutions.has(item.source));
   }, [allCollectionItems, selectedInstitutions]);
 
-  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal + britishMuseumTotal + vaTotal + clevelandTotal + gettyTotal + waltersTotal + smithsonianTotal + ngaTotal + europeanaTotal + dplaTotal;
+  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal + britishMuseumTotal + vaTotal + clevelandTotal + gettyTotal + waltersTotal + smithsonianTotal + ngaTotal + europeanaTotal + dplaTotal + smkTotal;
   const filteredCollectionCount = filteredCollectionItems.length;
-  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading || britishMuseumLoading || vaLoading || clevelandLoading || gettyLoading || waltersLoading || smithsonianLoading || ngaLoading || europeanaLoading || dplaLoading;
+  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading || britishMuseumLoading || vaLoading || clevelandLoading || gettyLoading || waltersLoading || smithsonianLoading || ngaLoading || europeanaLoading || dplaLoading || smkLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
