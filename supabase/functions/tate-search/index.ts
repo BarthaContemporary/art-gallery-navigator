@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,90 +23,121 @@ serve(async (req) => {
 
     console.log(`Tate search for artist: ${artistName}`);
 
-    // Tate collection CSV is hosted on GitHub
-    const csvUrl = 'https://raw.githubusercontent.com/tategallery/collection/master/artwork_data.csv';
+    const searchUrl = `https://www.tate.org.uk/search?q=${encodeURIComponent(artistName)}&type=artwork`;
     
-    // Fetch with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
-    let csvText;
+    let htmlText;
     try {
-      const response = await fetch(csvUrl, { signal: controller.signal });
+      const response = await fetch(searchUrl, { 
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+      });
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch Tate data: ${response.status}`);
+        console.log(`Tate search returned ${response.status}`);
+        return new Response(
+          JSON.stringify({ objects: [], totalObjects: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      csvText = await response.text();
+      htmlText = await response.text();
+      console.log(`Tate HTML length: ${htmlText.length}`);
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      console.log('Tate data timeout or unavailable - returning empty results');
+      console.log('Tate search timeout or unavailable');
       return new Response(
         JSON.stringify({ objects: [], totalObjects: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    // Parse CSV and search for artist
-    const lines = csvText.split('\n');
-    const headers = parseCSVLine(lines[0]);
-    
-    // Find column indices
-    const idIndex = headers.findIndex(h => h.toLowerCase() === 'id');
-    const accessionIndex = headers.findIndex(h => h.toLowerCase() === 'accession_number');
-    const artistIndex = headers.findIndex(h => h.toLowerCase() === 'artist');
-    const artistIdIndex = headers.findIndex(h => h.toLowerCase() === 'artistid');
-    const titleIndex = headers.findIndex(h => h.toLowerCase() === 'title');
-    const dateIndex = headers.findIndex(h => h.toLowerCase() === 'datetext');
-    const mediumIndex = headers.findIndex(h => h.toLowerCase() === 'medium');
-    const creditLineIndex = headers.findIndex(h => h.toLowerCase() === 'creditline');
-    const yearIndex = headers.findIndex(h => h.toLowerCase() === 'year');
-    const thumbnailUrlIndex = headers.findIndex(h => h.toLowerCase() === 'thumbnailurl');
-    const urlIndex = headers.findIndex(h => h.toLowerCase() === 'url');
-    
-    // Create search variations (handle "Last, First" format in CSV)
-    const searchTermLower = artistName.toLowerCase();
-    const nameParts = artistName.split(' ').filter((p: string) => p.length > 0);
-    const lastFirstVariation = nameParts.length >= 2 
-      ? `${nameParts[nameParts.length - 1]}, ${nameParts.slice(0, -1).join(' ')}`.toLowerCase()
-      : null;
-    
+
     const foundObjects: any[] = [];
+    const artistNameLower = artistName.toLowerCase();
+    const artistParts = artistNameLower.split(' ').filter(p => p.length > 2);
     
-    // Search through artworks (limit to first 50 matches for performance)
-    for (let i = 1; i < lines.length && foundObjects.length < 50; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
-      
-      const values = parseCSVLine(line);
-      const artistValue = values[artistIndex] || '';
-      const artistLower = artistValue.toLowerCase();
-      
-      // Match against both "First Last" and "Last, First" formats
-      const matches = artistLower.includes(searchTermLower) || 
-        (lastFirstVariation && artistLower.includes(lastFirstVariation));
-      
-      if (matches) {
-        const accessionNumber = values[accessionIndex] || '';
-        
-        foundObjects.push({
-          id: values[idIndex] || '',
-          accessionNumber: accessionNumber,
-          title: values[titleIndex] || 'Untitled',
-          artist: artistValue,
-          artistId: values[artistIdIndex] || '',
-          date: values[dateIndex] || '',
-          year: values[yearIndex] || '',
-          medium: values[mediumIndex] || '',
-          creditLine: values[creditLineIndex] || '',
-          thumbnailUrl: values[thumbnailUrlIndex] || `https://www.tate.org.uk/art/images/work/${accessionNumber.replace(/\s/g, '')}/2.jpg`,
-          url: values[urlIndex] || `https://www.tate.org.uk/art/artworks/${accessionNumber.toLowerCase().replace(/\s/g, '-')}`
-        });
+    // Extract all artwork URLs
+    const artworkUrls: string[] = [];
+    const urlRegex = /href="(https:\/\/www\.tate\.org\.uk\/art\/artworks\/[^"]+)"/g;
+    let match;
+    while ((match = urlRegex.exec(htmlText)) !== null) {
+      if (!artworkUrls.includes(match[1])) {
+        artworkUrls.push(match[1]);
       }
     }
+    
+    console.log(`Tate: Found ${artworkUrls.length} artwork URLs`);
 
-    console.log(`Found ${foundObjects.length} Tate objects for artist: ${artistName}`);
+    for (const url of artworkUrls) {
+      if (foundObjects.length >= 50) break;
+      
+      const slug = url.split('/').pop() || '';
+      
+      // Check if URL contains artist name
+      const slugLower = slug.toLowerCase();
+      const matchesArtist = artistParts.some(part => slugLower.startsWith(part) || slugLower.includes(`-${part}-`) || slugLower.includes(`${part}-`));
+      
+      if (!matchesArtist) continue;
+      
+      // Extract accession number (e.g., t14292)
+      const accessionMatch = slug.match(/-([a-z]\d+)$/i);
+      const accession = accessionMatch ? accessionMatch[1].toUpperCase() : '';
+      
+      if (!accession) continue;
+      
+      // Extract title from slug (remove artist name prefix and accession suffix)
+      let titleSlug = slug;
+      // Remove accession
+      titleSlug = titleSlug.replace(/-[a-z]\d+$/i, '');
+      // Remove common artist name patterns at start
+      for (const part of artistParts) {
+        if (titleSlug.toLowerCase().startsWith(part + '-')) {
+          titleSlug = titleSlug.substring(part.length + 1);
+        }
+      }
+      
+      // Convert slug to title
+      const title = titleSlug
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      // Try to extract year from HTML near this URL
+      const urlIndex = htmlText.indexOf(url);
+      let year = '';
+      if (urlIndex > -1) {
+        // Look for year pattern after URL in nearby HTML (within 1000 chars)
+        const nearbyHtml = htmlText.substring(urlIndex, urlIndex + 1000);
+        const yearMatch = nearbyHtml.match(/card__when--artwork-date[^>]*>(\d{4})</);
+        if (yearMatch) {
+          year = yearMatch[1];
+        }
+      }
+      
+      foundObjects.push({
+        id: accession,
+        accessionNumber: accession,
+        title: title || 'Untitled',
+        artist: artistName,
+        artistId: '',
+        date: year,
+        year: year,
+        medium: '',
+        creditLine: 'Tate Collection',
+        thumbnailUrl: `https://www.tate.org.uk/art/images/work/${accession}/1.jpg`,
+        url: url,
+        location: 'Tate, London',
+        dimensions: '',
+        collection: 'Tate'
+      });
+    }
+
+    console.log(`Tate: Found ${foundObjects.length} objects for artist: ${artistName}`);
 
     return new Response(
       JSON.stringify({
@@ -124,31 +154,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Simple CSV line parser that handles quoted fields
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  
-  result.push(current.trim());
-  return result;
-}
