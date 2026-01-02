@@ -221,54 +221,46 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     setMediaSources(createMediaSources());
     setCollectionSources(createCollectionSources());
 
-    // Media searches
-    updateMediaSource('guardian', 'searching');
-    await searchGuardian(artistName);
-    updateMediaSource('guardian', 'complete', guardianArticles.length);
-    
-    updateMediaSource('newsapi', 'searching');
-    await searchNewsAPI(artistName);
-    updateMediaSource('newsapi', 'complete', newsApiArticles.length);
-    
-    // Collection searches
-    updateCollectionSource('harvard', 'searching');
-    await searchHarvard(artistName);
-    updateCollectionSource('harvard', 'complete', harvardTotal);
-    
-    updateCollectionSource('rijksmuseum', 'searching');
-    await searchRijks(artistName);
-    updateCollectionSource('rijksmuseum', 'complete', rijksTotal);
-    
-    updateCollectionSource('met', 'searching');
-    await searchMet(artistName);
-    updateCollectionSource('met', 'complete', metTotal);
-    
-    updateCollectionSource('moma', 'searching');
-    await searchMoma(artistName);
-    updateCollectionSource('moma', 'complete', momaTotal);
-    
-    updateCollectionSource('tate', 'searching');
-    await searchTate(artistName);
-    updateCollectionSource('tate', 'complete', tateTotal);
-    
-    updateCollectionSource('aic', 'searching');
-    await searchAIC(artistName);
-    updateCollectionSource('aic', 'complete', aicTotal);
-    
-    updateCollectionSource('national-gallery', 'searching');
-    await searchNationalGallery(artistName);
-    updateCollectionSource('national-gallery', 'complete', ngTotal);
-    
-    updateCollectionSource('guggenheim', 'searching');
-    await searchGuggenheim(artistName);
-    updateCollectionSource('guggenheim', 'complete', guggenheimTotal);
-    
-    updateCollectionSource('whitney', 'searching');
-    await searchWhitney(artistName);
-    updateCollectionSource('whitney', 'complete', whitneyTotal);
-
-    searchInProgressRef.current = false;
-  }, [searchGuardian, searchNewsAPI, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney, updateMediaSource, updateCollectionSource]);
+    try {
+      // Media searches
+      setMediaSources(prev => prev.map(s => s.id === 'guardian' ? { ...s, status: 'searching' as const } : s));
+      await searchGuardian(artistName);
+      
+      setMediaSources(prev => prev.map(s => s.id === 'newsapi' ? { ...s, status: 'searching' as const } : s));
+      await searchNewsAPI(artistName);
+      
+      // Collection searches
+      setCollectionSources(prev => prev.map(s => s.id === 'harvard' ? { ...s, status: 'searching' as const } : s));
+      await searchHarvard(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'rijksmuseum' ? { ...s, status: 'searching' as const } : s));
+      await searchRijks(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'met' ? { ...s, status: 'searching' as const } : s));
+      await searchMet(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'moma' ? { ...s, status: 'searching' as const } : s));
+      await searchMoma(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'tate' ? { ...s, status: 'searching' as const } : s));
+      await searchTate(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'aic' ? { ...s, status: 'searching' as const } : s));
+      await searchAIC(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'national-gallery' ? { ...s, status: 'searching' as const } : s));
+      await searchNationalGallery(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'guggenheim' ? { ...s, status: 'searching' as const } : s));
+      await searchGuggenheim(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'whitney' ? { ...s, status: 'searching' as const } : s));
+      await searchWhitney(artistName);
+    } finally {
+      searchInProgressRef.current = false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Effect to update counts after searches complete
   useEffect(() => {
@@ -319,9 +311,16 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     if (!whitneyLoading) updateCollectionSource('whitney', 'complete', whitneyTotal);
   }, [whitneyLoading, whitneyTotal, updateCollectionSource]);
 
+  // Track the last searched artist to prevent duplicate searches
+  const lastSearchedArtistRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (open && artist.full_name) {
+    if (open && artist.full_name && artist.full_name !== lastSearchedArtistRef.current) {
+      lastSearchedArtistRef.current = artist.full_name;
       runSequentialSearches(artist.full_name);
+    }
+    if (!open) {
+      lastSearchedArtistRef.current = null;
     }
   }, [open, artist.full_name, runSequentialSearches]);
 
