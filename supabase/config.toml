@@ -182,3 +182,6 @@ verify_jwt = true
 
 [functions.europeana-search]
 verify_jwt = true
+
+[functions.dpla-search]
+verify_jwt = true
