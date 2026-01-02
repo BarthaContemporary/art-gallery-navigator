@@ -31,33 +31,53 @@ serve(async (req) => {
 
     console.log("Searching Harvard Art Museums for:", artistName);
 
+    // Helper function to fetch with timeout and error handling
+    const fetchWithTimeout = async (url: string, timeoutMs: number = 8000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    };
+
+    let personData = { records: [], info: { totalrecords: 0 } };
+    let objectData = { records: [], info: { totalrecords: 0 } };
+
     // First, search for the person/artist
-    const personUrl = `https://api.harvardartmuseums.org/person?apikey=${HARVARD_API_KEY}&q=${encodeURIComponent(artistName)}&size=5`;
-    
-    const personResponse = await fetch(personUrl);
-    if (!personResponse.ok) {
-      console.error("Harvard Person API error:", personResponse.status);
-      return new Response(
-        JSON.stringify({ success: false, error: `Harvard API error: ${personResponse.status}` }),
-        { status: personResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    try {
+      const personUrl = `https://api.harvardartmuseums.org/person?apikey=${HARVARD_API_KEY}&q=${encodeURIComponent(artistName)}&size=5`;
+      const personResponse = await fetchWithTimeout(personUrl);
+      
+      if (personResponse.ok) {
+        personData = await personResponse.json();
+        console.log("Found", personData.info?.totalrecords || 0, "matching artists");
+      } else {
+        console.error("Harvard Person API error:", personResponse.status);
+      }
+    } catch (error) {
+      console.log("Harvard Person API timeout or unavailable - continuing with empty results");
     }
-
-    const personData = await personResponse.json();
-    console.log("Found", personData.info?.totalrecords || 0, "matching artists");
-
-    // Get person IDs to search for their objects
-    const personIds = personData.records?.map((p: any) => p.personid) || [];
 
     // Search for objects by this artist
-    const objectUrl = `https://api.harvardartmuseums.org/object?apikey=${HARVARD_API_KEY}&person=${encodeURIComponent(artistName)}&size=20&sort=rank&sortorder=desc&hasimage=1`;
-    
-    const objectResponse = await fetch(objectUrl);
-    if (!objectResponse.ok) {
-      console.error("Harvard Object API error:", objectResponse.status);
+    try {
+      const objectUrl = `https://api.harvardartmuseums.org/object?apikey=${HARVARD_API_KEY}&person=${encodeURIComponent(artistName)}&size=20&sort=rank&sortorder=desc&hasimage=1`;
+      const objectResponse = await fetchWithTimeout(objectUrl);
+      
+      if (objectResponse.ok) {
+        objectData = await objectResponse.json();
+        console.log("Found", objectData.info?.totalrecords || 0, "objects");
+      } else {
+        console.error("Harvard Object API error:", objectResponse.status);
+      }
+    } catch (error) {
+      console.log("Harvard Object API timeout or unavailable - continuing with empty results");
     }
-
-    const objectData = objectResponse.ok ? await objectResponse.json() : { records: [], info: { totalrecords: 0 } };
     console.log("Found", objectData.info?.totalrecords || 0, "objects");
 
     const objects = objectData.records?.map((obj: any) => ({
