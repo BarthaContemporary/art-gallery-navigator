@@ -5,6 +5,7 @@ import { ImportCSVDialog } from "./ImportCSVDialog";
 import { ImportExcelImagesDialog } from "./ImportExcelImagesDialog";
 import { ExportToGoogleDocsButton } from "./ExportToGoogleDocsButton";
 import { ExportToGoogleSheetsButton } from "./ExportToGoogleSheetsButton";
+import { ExportToDocxButton } from "./ExportToDocxButton";
 import { BulkImageOptimizer } from "./BulkImageOptimizer";
 import { ImageReprocessingButton } from "./ImageReprocessingButton";
 import { useAuth } from "@/hooks/use-auth";
@@ -51,6 +52,7 @@ export function ArtworksHeader({ artworks, filteredArtworks }: ArtworksHeaderPro
               
               <ExportToGoogleDocsButton artworks={artworks} />
               
+              <ExportToDocxButton artworks={artworks} />
               <Button 
                 variant="outline" 
                 size="icon"

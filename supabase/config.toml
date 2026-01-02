@@ -149,3 +149,6 @@ verify_jwt = true
 
 [functions.generate-document-preview]
 verify_jwt = true
+
+[functions.export-to-docx]
+verify_jwt = true
