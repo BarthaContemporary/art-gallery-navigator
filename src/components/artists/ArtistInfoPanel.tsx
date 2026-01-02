@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal, Filter, Check } from "lucide-react";
 import { useGuardianSearch } from "@/hooks/useGuardianSearch";
 import { useNewsAPISearch } from "@/hooks/useNewsAPISearch";
 import { useHarvardMuseumSearch } from "@/hooks/useHarvardMuseumSearch";
@@ -28,6 +37,21 @@ import { useGuggenheimSearch } from "@/hooks/useGuggenheimSearch";
 import { useWhitneySearch } from "@/hooks/useWhitneySearch";
 import { format } from "date-fns";
 import { SearchProgressIndicator, SearchSource, createMediaSources, createCollectionSources } from "./SearchProgressIndicator";
+
+// Institution filter options
+type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney';
+
+const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.ReactNode }[] = [
+  { id: 'harvard', name: 'Harvard Art Museums', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'rijksmuseum', name: 'Rijksmuseum', icon: <Landmark className="h-4 w-4" /> },
+  { id: 'met', name: 'Metropolitan Museum', icon: <Columns className="h-4 w-4" /> },
+  { id: 'moma', name: 'MoMA', icon: <Square className="h-4 w-4" /> },
+  { id: 'tate', name: 'Tate', icon: <Frame className="h-4 w-4" /> },
+  { id: 'aic', name: 'Art Institute Chicago', icon: <Home className="h-4 w-4" /> },
+  { id: 'national-gallery', name: 'National Gallery', icon: <Castle className="h-4 w-4" /> },
+  { id: 'guggenheim', name: 'Guggenheim', icon: <Building className="h-4 w-4" /> },
+  { id: 'whitney', name: 'Whitney', icon: <GalleryHorizontal className="h-4 w-4" /> },
+];
 
 interface ArtistInfoPanelProps {
   artist: {
@@ -194,10 +218,37 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   
+  // Institution filter state - all selected by default
+  const [selectedInstitutions, setSelectedInstitutions] = useState<Set<InstitutionSource>>(
+    new Set(INSTITUTION_OPTIONS.map(opt => opt.id))
+  );
+  
   // Progress tracking state
   const [mediaSources, setMediaSources] = useState<SearchSource[]>(createMediaSources());
   const [collectionSources, setCollectionSources] = useState<SearchSource[]>(createCollectionSources());
   const searchInProgressRef = useRef(false);
+  
+  // Toggle institution selection
+  const toggleInstitution = useCallback((id: InstitutionSource) => {
+    setSelectedInstitutions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+  
+  // Select/deselect all
+  const selectAllInstitutions = useCallback(() => {
+    setSelectedInstitutions(new Set(INSTITUTION_OPTIONS.map(opt => opt.id)));
+  }, []);
+  
+  const deselectAllInstitutions = useCallback(() => {
+    setSelectedInstitutions(new Set());
+  }, []);
 
   // Update a source's status
   const updateMediaSource = useCallback((id: string, status: SearchSource['status'], resultCount?: number) => {
@@ -470,7 +521,13 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     })),
   ];
 
+  // Filter collection items by selected institutions
+  const filteredCollectionItems = useMemo(() => {
+    return allCollectionItems.filter(item => selectedInstitutions.has(item.source));
+  }, [allCollectionItems, selectedInstitutions]);
+
   const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal;
+  const filteredCollectionCount = filteredCollectionItems.length;
   const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading;
 
   return (
@@ -635,64 +692,92 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                     </div>
                   )}
 
-                  {/* Source summary badges after loading */}
+                  {/* Filter dropdown and source summary */}
                   {!isCollectionsLoading && totalCollectionCount > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {harvardTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Building2 className="h-3 w-3 mr-1" />
-                          Harvard: {harvardTotal}
-                        </Badge>
-                      )}
-                      {rijksTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Landmark className="h-3 w-3 mr-1" />
-                          Rijksmuseum: {rijksTotal}
-                        </Badge>
-                      )}
-                      {metTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Columns className="h-3 w-3 mr-1" />
-                          MET: {metTotal}
-                        </Badge>
-                      )}
-                      {momaTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Square className="h-3 w-3 mr-1" />
-                          MoMA: {momaTotal}
-                        </Badge>
-                      )}
-                      {tateTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Frame className="h-3 w-3 mr-1" />
-                          Tate: {tateTotal}
-                        </Badge>
-                      )}
-                      {aicTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Home className="h-3 w-3 mr-1" />
-                          AIC: {aicTotal}
-                        </Badge>
-                      )}
-                      {ngTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Castle className="h-3 w-3 mr-1" />
-                          National Gallery: {ngTotal}
-                        </Badge>
-                      )}
-                      {guggenheimTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <Building className="h-3 w-3 mr-1" />
-                          Guggenheim: {guggenheimTotal}
-                        </Badge>
-                      )}
-                      {whitneyTotal > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          <GalleryHorizontal className="h-3 w-3 mr-1" />
-                          Whitney: {whitneyTotal}
-                        </Badge>
-                      )}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {INSTITUTION_OPTIONS.map(inst => {
+                          const count = allCollectionItems.filter(item => item.source === inst.id).length;
+                          if (count === 0) return null;
+                          const isSelected = selectedInstitutions.has(inst.id);
+                          return (
+                            <Badge 
+                              key={inst.id}
+                              variant={isSelected ? "default" : "outline"}
+                              className={`text-xs cursor-pointer transition-all ${!isSelected ? 'opacity-50' : ''}`}
+                              onClick={() => toggleInstitution(inst.id)}
+                            >
+                              {inst.icon}
+                              <span className="ml-1">{inst.name.split(' ')[0]}: {count}</span>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 gap-1">
+                            <Filter className="h-3 w-3" />
+                            <span className="text-xs">Filter</span>
+                            {selectedInstitutions.size < INSTITUTION_OPTIONS.length && (
+                              <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
+                                {selectedInstitutions.size}
+                              </Badge>
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg z-50">
+                          <DropdownMenuLabel className="text-xs">Filter by Institution</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <div className="flex gap-1 px-2 py-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs flex-1"
+                              onClick={selectAllInstitutions}
+                            >
+                              Select All
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs flex-1"
+                              onClick={deselectAllInstitutions}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+                          <DropdownMenuSeparator />
+                          {INSTITUTION_OPTIONS.map(inst => {
+                            const count = allCollectionItems.filter(item => item.source === inst.id).length;
+                            return (
+                              <DropdownMenuCheckboxItem
+                                key={inst.id}
+                                checked={selectedInstitutions.has(inst.id)}
+                                onCheckedChange={() => toggleInstitution(inst.id)}
+                                disabled={count === 0}
+                                className="text-xs"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {inst.icon}
+                                  {inst.name}
+                                  {count > 0 && (
+                                    <span className="ml-auto text-muted-foreground">({count})</span>
+                                  )}
+                                </span>
+                              </DropdownMenuCheckboxItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
+                  )}
+                  
+                  {/* Showing filtered count */}
+                  {!isCollectionsLoading && totalCollectionCount > 0 && filteredCollectionCount !== totalCollectionCount && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Showing {filteredCollectionCount} of {totalCollectionCount} works
+                    </p>
                   )}
                   
                   {isCollectionsLoading ? (
@@ -708,14 +793,18 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                         </div>
                       ))}
                     </div>
-                  ) : allCollectionItems.length > 0 ? (
+                  ) : filteredCollectionItems.length > 0 ? (
                     <ScrollArea className="h-[350px]">
                       <div className="space-y-2 pr-4">
-                        {allCollectionItems.map((item) => (
+                        {filteredCollectionItems.map((item) => (
                           <CollectionItemCard key={item.id} item={item} />
                         ))}
                       </div>
                     </ScrollArea>
+                  ) : totalCollectionCount > 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      No works match the selected filters. Click the badges above or use the filter menu to adjust.
+                    </p>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">
                       No works found in public collections.
