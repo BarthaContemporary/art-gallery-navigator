@@ -31,23 +31,39 @@ serve(async (req) => {
 
     console.log(`Searching Smithsonian for artist: ${artistName}`);
 
-    // Search Smithsonian Open Access API
+    // Search Smithsonian Open Access API with timeout
     const searchUrl = `https://api.si.edu/openaccess/api/v1.0/search?q=name:${encodeURIComponent(artistName)}&rows=${limit}&api_key=${apiKey}`;
     
     console.log(`Smithsonian API URL: ${searchUrl.replace(apiKey, 'REDACTED')}`);
 
-    const response = await fetch(searchUrl);
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Smithsonian API error: ${response.status} - ${errorText}`);
+    let data;
+    try {
+      const response = await fetch(searchUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Smithsonian API error: ${response.status} - ${errorText}`);
+        return new Response(
+          JSON.stringify({ results: [], totalResults: 0, source: 'Smithsonian Institution', error: `API error: ${response.status}` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      data = await response.json();
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.log('Smithsonian API timeout or unavailable - returning empty results');
       return new Response(
-        JSON.stringify({ error: `Smithsonian API error: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ results: [], totalResults: 0, source: 'Smithsonian Institution' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const data = await response.json();
+    
     console.log(`Smithsonian returned ${data.response?.rowCount || 0} total results`);
 
     // Transform results to a consistent format
@@ -95,9 +111,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in Smithsonian search:', error);
+    // Return empty results instead of error to prevent client crashes
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ results: [], totalResults: 0, source: 'Smithsonian Institution' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
