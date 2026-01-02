@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.convert-image-format]
 verify_jwt = true
+
+[functions.generate-document-preview]
+verify_jwt = true
