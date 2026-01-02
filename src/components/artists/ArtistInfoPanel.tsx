@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,18 +15,19 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal } from "lucide-react";
-import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
-import { useNewsAPISearch, NewsAPIArticle } from "@/hooks/useNewsAPISearch";
-import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
-import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
-import { useMetMuseumSearch, MetObject } from "@/hooks/useMetMuseumSearch";
-import { useMomaSearch, MomaObject } from "@/hooks/useMomaSearch";
-import { useTateSearch, TateObject } from "@/hooks/useTateSearch";
-import { useArtInstituteChicagoSearch, AICObject } from "@/hooks/useArtInstituteChicagoSearch";
-import { useNationalGallerySearch, NationalGalleryObject } from "@/hooks/useNationalGallerySearch";
-import { useGuggenheimSearch, GuggenheimObject } from "@/hooks/useGuggenheimSearch";
-import { useWhitneySearch, WhitneyObject } from "@/hooks/useWhitneySearch";
+import { useGuardianSearch } from "@/hooks/useGuardianSearch";
+import { useNewsAPISearch } from "@/hooks/useNewsAPISearch";
+import { useHarvardMuseumSearch } from "@/hooks/useHarvardMuseumSearch";
+import { useRijksmuseumSearch } from "@/hooks/useRijksmuseumSearch";
+import { useMetMuseumSearch } from "@/hooks/useMetMuseumSearch";
+import { useMomaSearch } from "@/hooks/useMomaSearch";
+import { useTateSearch } from "@/hooks/useTateSearch";
+import { useArtInstituteChicagoSearch } from "@/hooks/useArtInstituteChicagoSearch";
+import { useNationalGallerySearch } from "@/hooks/useNationalGallerySearch";
+import { useGuggenheimSearch } from "@/hooks/useGuggenheimSearch";
+import { useWhitneySearch } from "@/hooks/useWhitneySearch";
 import { format } from "date-fns";
+import { SearchProgressIndicator, SearchSource, createMediaSources, createCollectionSources } from "./SearchProgressIndicator";
 
 interface ArtistInfoPanelProps {
   artist: {
@@ -192,24 +193,131 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
+  
+  // Progress tracking state
+  const [mediaSources, setMediaSources] = useState<SearchSource[]>(createMediaSources());
+  const [collectionSources, setCollectionSources] = useState<SearchSource[]>(createCollectionSources());
+  const searchInProgressRef = useRef(false);
 
-  // Sequential search function for stability - all museums searched consecutively
+  // Update a source's status
+  const updateMediaSource = useCallback((id: string, status: SearchSource['status'], resultCount?: number) => {
+    setMediaSources(prev => prev.map(s => 
+      s.id === id ? { ...s, status, resultCount } : s
+    ));
+  }, []);
+
+  const updateCollectionSource = useCallback((id: string, status: SearchSource['status'], resultCount?: number) => {
+    setCollectionSources(prev => prev.map(s => 
+      s.id === id ? { ...s, status, resultCount } : s
+    ));
+  }, []);
+
+  // Sequential search function with progress tracking
   const runSequentialSearches = useCallback(async (artistName: string) => {
-    // Media searches first (both Guardian and NewsAPI)
+    if (searchInProgressRef.current) return;
+    searchInProgressRef.current = true;
+
+    // Reset all sources
+    setMediaSources(createMediaSources());
+    setCollectionSources(createCollectionSources());
+
+    // Media searches
+    updateMediaSource('guardian', 'searching');
     await searchGuardian(artistName);
-    await searchNewsAPI(artistName);
+    updateMediaSource('guardian', 'complete', guardianArticles.length);
     
-    // Then museum searches sequentially to avoid data stream issues
+    updateMediaSource('newsapi', 'searching');
+    await searchNewsAPI(artistName);
+    updateMediaSource('newsapi', 'complete', newsApiArticles.length);
+    
+    // Collection searches
+    updateCollectionSource('harvard', 'searching');
     await searchHarvard(artistName);
+    updateCollectionSource('harvard', 'complete', harvardTotal);
+    
+    updateCollectionSource('rijksmuseum', 'searching');
     await searchRijks(artistName);
+    updateCollectionSource('rijksmuseum', 'complete', rijksTotal);
+    
+    updateCollectionSource('met', 'searching');
     await searchMet(artistName);
+    updateCollectionSource('met', 'complete', metTotal);
+    
+    updateCollectionSource('moma', 'searching');
     await searchMoma(artistName);
+    updateCollectionSource('moma', 'complete', momaTotal);
+    
+    updateCollectionSource('tate', 'searching');
     await searchTate(artistName);
+    updateCollectionSource('tate', 'complete', tateTotal);
+    
+    updateCollectionSource('aic', 'searching');
     await searchAIC(artistName);
+    updateCollectionSource('aic', 'complete', aicTotal);
+    
+    updateCollectionSource('national-gallery', 'searching');
     await searchNationalGallery(artistName);
+    updateCollectionSource('national-gallery', 'complete', ngTotal);
+    
+    updateCollectionSource('guggenheim', 'searching');
     await searchGuggenheim(artistName);
+    updateCollectionSource('guggenheim', 'complete', guggenheimTotal);
+    
+    updateCollectionSource('whitney', 'searching');
     await searchWhitney(artistName);
-  }, [searchGuardian, searchNewsAPI, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney]);
+    updateCollectionSource('whitney', 'complete', whitneyTotal);
+
+    searchInProgressRef.current = false;
+  }, [searchGuardian, searchNewsAPI, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney, updateMediaSource, updateCollectionSource]);
+
+  // Effect to update counts after searches complete
+  useEffect(() => {
+    if (!guardianLoading) {
+      updateMediaSource('guardian', 'complete', guardianArticles.length);
+    }
+  }, [guardianLoading, guardianArticles.length, updateMediaSource]);
+
+  useEffect(() => {
+    if (!newsApiLoading) {
+      updateMediaSource('newsapi', 'complete', newsApiArticles.length);
+    }
+  }, [newsApiLoading, newsApiArticles.length, updateMediaSource]);
+
+  useEffect(() => {
+    if (!harvardLoading) updateCollectionSource('harvard', 'complete', harvardTotal);
+  }, [harvardLoading, harvardTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!rijksLoading) updateCollectionSource('rijksmuseum', 'complete', rijksTotal);
+  }, [rijksLoading, rijksTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!metLoading) updateCollectionSource('met', 'complete', metTotal);
+  }, [metLoading, metTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!momaLoading) updateCollectionSource('moma', 'complete', momaTotal);
+  }, [momaLoading, momaTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!tateLoading) updateCollectionSource('tate', 'complete', tateTotal);
+  }, [tateLoading, tateTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!aicLoading) updateCollectionSource('aic', 'complete', aicTotal);
+  }, [aicLoading, aicTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!ngLoading) updateCollectionSource('national-gallery', 'complete', ngTotal);
+  }, [ngLoading, ngTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!guggenheimLoading) updateCollectionSource('guggenheim', 'complete', guggenheimTotal);
+  }, [guggenheimLoading, guggenheimTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!whitneyLoading) updateCollectionSource('whitney', 'complete', whitneyTotal);
+  }, [whitneyLoading, whitneyTotal, updateCollectionSource]);
 
   useEffect(() => {
     if (open && artist.full_name) {
@@ -463,17 +571,20 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                 
                 <CollapsibleContent className="pt-3">
                   {isMediaLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3 p-3 border rounded-lg">
-                          <Skeleton className="w-20 h-20 rounded" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-3 w-1/2" />
+                    <div className="space-y-4">
+                      <SearchProgressIndicator sources={mediaSources} variant="media" />
+                      <div className="space-y-2">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="flex gap-3 p-3 border rounded-lg">
+                            <Skeleton className="w-20 h-20 rounded" />
+                            <div className="flex-1 space-y-2">
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-3 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   ) : allMediaArticles.length > 0 ? (
                     <ScrollArea className="h-[280px]">
@@ -518,7 +629,14 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent className="pt-3">
-                  {/* Source summary badges */}
+                  {/* Progress indicator during loading */}
+                  {isCollectionsLoading && (
+                    <div className="mb-4">
+                      <SearchProgressIndicator sources={collectionSources} variant="collections" />
+                    </div>
+                  )}
+
+                  {/* Source summary badges after loading */}
                   {!isCollectionsLoading && totalCollectionCount > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {harvardTotal > 0 && (
@@ -580,7 +698,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   
                   {isCollectionsLoading ? (
                     <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
+                      {[1, 2].map((i) => (
                         <div key={i} className="flex gap-3 p-3 border rounded-lg">
                           <Skeleton className="w-16 h-16 rounded" />
                           <div className="flex-1 space-y-2">
