@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal } from "lucide-react";
 import { useGuardianSearch, GuardianArticle } from "@/hooks/useGuardianSearch";
+import { useNewsAPISearch, NewsAPIArticle } from "@/hooks/useNewsAPISearch";
 import { useHarvardMuseumSearch, HarvardObject } from "@/hooks/useHarvardMuseumSearch";
 import { useRijksmuseumSearch, RijksmuseumObject } from "@/hooks/useRijksmuseumSearch";
 import { useMetMuseumSearch, MetObject } from "@/hooks/useMetMuseumSearch";
@@ -57,7 +58,18 @@ interface CollectionItem {
   extra?: string;
 }
 
-function ArticleCard({ article }: { article: GuardianArticle }) {
+// Unified media article type combining Guardian and NewsAPI
+interface MediaArticle {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnail?: string;
+  url: string;
+  sourceName?: string;
+  publishedDate?: string;
+}
+
+function ArticleCard({ article }: { article: MediaArticle }) {
   return (
     <a
       href={article.url}
@@ -80,9 +92,9 @@ function ArticleCard({ article }: { article: GuardianArticle }) {
           </p>
         )}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {article.sectionName && (
+          {article.sourceName && (
             <Badge variant="secondary" className="text-xs px-1.5 py-0">
-              {article.sectionName}
+              {article.sourceName}
             </Badge>
           )}
           {article.publishedDate && (
@@ -166,7 +178,8 @@ function CollectionItemCard({ item }: { item: CollectionItem }) {
 }
 
 export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelProps) {
-  const { searchArtist: searchGuardian, articles, isLoading: guardianLoading } = useGuardianSearch();
+  const { searchArtist: searchGuardian, articles: guardianArticles, isLoading: guardianLoading } = useGuardianSearch();
+  const { searchArtist: searchNewsAPI, articles: newsApiArticles, isLoading: newsApiLoading } = useNewsAPISearch();
   const { searchArtist: searchHarvard, objects: harvardObjects, totalObjects: harvardTotal, isLoading: harvardLoading } = useHarvardMuseumSearch();
   const { searchArtist: searchRijks, objects: rijksObjects, totalObjects: rijksTotal, isLoading: rijksLoading } = useRijksmuseumSearch();
   const { searchArtist: searchMet, objects: metObjects, totalObjects: metTotal, isLoading: metLoading } = useMetMuseumSearch();
@@ -182,8 +195,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
 
   // Sequential search function for stability - all museums searched consecutively
   const runSequentialSearches = useCallback(async (artistName: string) => {
-    // Media searches first
+    // Media searches first (both Guardian and NewsAPI)
     await searchGuardian(artistName);
+    await searchNewsAPI(artistName);
     
     // Then museum searches sequentially to avoid data stream issues
     await searchHarvard(artistName);
@@ -195,13 +209,60 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     await searchNationalGallery(artistName);
     await searchGuggenheim(artistName);
     await searchWhitney(artistName);
-  }, [searchGuardian, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney]);
+  }, [searchGuardian, searchNewsAPI, searchHarvard, searchRijks, searchMet, searchMoma, searchTate, searchAIC, searchNationalGallery, searchGuggenheim, searchWhitney]);
 
   useEffect(() => {
     if (open && artist.full_name) {
       runSequentialSearches(artist.full_name);
     }
   }, [open, artist.full_name, runSequentialSearches]);
+
+  // Combine all media articles from Guardian and NewsAPI, deduplicated by URL
+  const allMediaArticles: MediaArticle[] = (() => {
+    const seenUrls = new Set<string>();
+    const combined: MediaArticle[] = [];
+    
+    // Add Guardian articles first
+    guardianArticles.forEach(article => {
+      if (!seenUrls.has(article.url)) {
+        seenUrls.add(article.url);
+        combined.push({
+          id: article.id,
+          title: article.title,
+          description: article.description,
+          thumbnail: article.thumbnail,
+          url: article.url,
+          sourceName: article.sectionName || 'The Guardian',
+          publishedDate: article.publishedDate,
+        });
+      }
+    });
+    
+    // Add NewsAPI articles
+    newsApiArticles.forEach(article => {
+      if (!seenUrls.has(article.url)) {
+        seenUrls.add(article.url);
+        combined.push({
+          id: article.id,
+          title: article.title,
+          description: article.description,
+          thumbnail: article.thumbnail,
+          url: article.url,
+          sourceName: article.sourceName,
+          publishedDate: article.publishedDate,
+        });
+      }
+    });
+    
+    // Sort by date (newest first)
+    return combined.sort((a, b) => {
+      if (!a.publishedDate) return 1;
+      if (!b.publishedDate) return -1;
+      return new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime();
+    });
+  })();
+
+  const isMediaLoading = guardianLoading || newsApiLoading;
 
   // Combine all collection items
   const allCollectionItems: CollectionItem[] = [
@@ -388,9 +449,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                     Media
                   </h3>
-                  {!guardianLoading && articles.length > 0 && (
+                  {!isMediaLoading && allMediaArticles.length > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1">
-                      {articles.length}
+                      {allMediaArticles.length}
                     </Badge>
                   )}
                   <ChevronDown 
@@ -401,7 +462,7 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent className="pt-3">
-                  {guardianLoading ? (
+                  {isMediaLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="flex gap-3 p-3 border rounded-lg">
@@ -414,10 +475,10 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
                         </div>
                       ))}
                     </div>
-                  ) : articles.length > 0 ? (
+                  ) : allMediaArticles.length > 0 ? (
                     <ScrollArea className="h-[280px]">
                       <div className="space-y-2 pr-4">
-                        {articles.map((article) => (
+                        {allMediaArticles.map((article) => (
                           <ArticleCard key={article.id} article={article} />
                         ))}
                       </div>
