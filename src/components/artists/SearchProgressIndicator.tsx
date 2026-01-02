@@ -19,7 +19,8 @@ import {
   Globe,
   Archive,
   BookOpen,
-  Palette
+  Palette,
+  Crown
 } from "lucide-react";
 
 export interface SearchSource {
@@ -133,5 +134,6 @@ export function createCollectionSources(): SearchSource[] {
     { id: 'nga', name: 'NGA', icon: <Columns className="h-3 w-3" />, status: 'pending' },
     { id: 'europeana', name: 'Europeana', icon: <Globe className="h-3 w-3" />, status: 'pending' },
     { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-3 w-3" />, status: 'pending' },
+    { id: 'smk', name: 'SMK', icon: <Crown className="h-3 w-3" />, status: 'pending' },
   ];
 }
