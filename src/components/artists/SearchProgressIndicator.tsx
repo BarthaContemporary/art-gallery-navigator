@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,12 @@ import {
   Newspaper,
   CheckCircle2,
   Loader2,
-  Clock
+  Clock,
+  Library,
+  Globe,
+  Archive,
+  BookOpen,
+  Palette
 } from "lucide-react";
 
 export interface SearchSource {
@@ -120,5 +124,14 @@ export function createCollectionSources(): SearchSource[] {
     { id: 'national-gallery', name: 'National Gallery', icon: <Castle className="h-3 w-3" />, status: 'pending' },
     { id: 'guggenheim', name: 'Guggenheim', icon: <Building className="h-3 w-3" />, status: 'pending' },
     { id: 'whitney', name: 'Whitney', icon: <GalleryHorizontal className="h-3 w-3" />, status: 'pending' },
+    { id: 'british-museum', name: 'British Museum', icon: <Library className="h-3 w-3" />, status: 'pending' },
+    { id: 'va', name: 'V&A', icon: <Palette className="h-3 w-3" />, status: 'pending' },
+    { id: 'cleveland', name: 'Cleveland', icon: <Building2 className="h-3 w-3" />, status: 'pending' },
+    { id: 'getty', name: 'Getty', icon: <Landmark className="h-3 w-3" />, status: 'pending' },
+    { id: 'walters', name: 'Walters', icon: <Castle className="h-3 w-3" />, status: 'pending' },
+    { id: 'smithsonian', name: 'Smithsonian', icon: <Archive className="h-3 w-3" />, status: 'pending' },
+    { id: 'nga', name: 'NGA', icon: <Columns className="h-3 w-3" />, status: 'pending' },
+    { id: 'europeana', name: 'Europeana', icon: <Globe className="h-3 w-3" />, status: 'pending' },
+    { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-3 w-3" />, status: 'pending' },
   ];
 }

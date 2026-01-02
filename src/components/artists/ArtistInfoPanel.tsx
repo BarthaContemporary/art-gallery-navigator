@@ -23,7 +23,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal, Filter, Check } from "lucide-react";
+import { ExternalLink, Calendar, MapPin, Globe, Newspaper, ChevronDown, Building2, Landmark, Columns, Square, Frame, Home, Building, Castle, GalleryHorizontal, Filter, Library, Archive, BookOpen, Palette } from "lucide-react";
 import { useGuardianSearch } from "@/hooks/useGuardianSearch";
 import { useNewsAPISearch } from "@/hooks/useNewsAPISearch";
 import { useHarvardMuseumSearch } from "@/hooks/useHarvardMuseumSearch";
@@ -35,11 +35,20 @@ import { useArtInstituteChicagoSearch } from "@/hooks/useArtInstituteChicagoSear
 import { useNationalGallerySearch } from "@/hooks/useNationalGallerySearch";
 import { useGuggenheimSearch } from "@/hooks/useGuggenheimSearch";
 import { useWhitneySearch } from "@/hooks/useWhitneySearch";
+import { useBritishMuseumSearch } from "@/hooks/useBritishMuseumSearch";
+import { useVAMuseumSearch } from "@/hooks/useVAMuseumSearch";
+import { useClevelandMuseumSearch } from "@/hooks/useClevelandMuseumSearch";
+import { useGettyMuseumSearch } from "@/hooks/useGettyMuseumSearch";
+import { useWaltersMuseumSearch } from "@/hooks/useWaltersMuseumSearch";
+import { useSmithsonianSearch } from "@/hooks/useSmithsonianSearch";
+import { useNGASearch } from "@/hooks/useNGASearch";
+import { useEuropeanaSearch } from "@/hooks/useEuropeanaSearch";
+import { useDPLASearch } from "@/hooks/useDPLASearch";
 import { format } from "date-fns";
 import { SearchProgressIndicator, SearchSource, createMediaSources, createCollectionSources } from "./SearchProgressIndicator";
 
 // Institution filter options
-type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney';
+type InstitutionSource = 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney' | 'british-museum' | 'va' | 'cleveland' | 'getty' | 'walters' | 'smithsonian' | 'nga' | 'europeana' | 'dpla';
 
 const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.ReactNode }[] = [
   { id: 'harvard', name: 'Harvard Art Museums', icon: <Building2 className="h-4 w-4" /> },
@@ -51,6 +60,15 @@ const INSTITUTION_OPTIONS: { id: InstitutionSource; name: string; icon: React.Re
   { id: 'national-gallery', name: 'National Gallery', icon: <Castle className="h-4 w-4" /> },
   { id: 'guggenheim', name: 'Guggenheim', icon: <Building className="h-4 w-4" /> },
   { id: 'whitney', name: 'Whitney', icon: <GalleryHorizontal className="h-4 w-4" /> },
+  { id: 'british-museum', name: 'British Museum', icon: <Library className="h-4 w-4" /> },
+  { id: 'va', name: 'V&A Museum', icon: <Palette className="h-4 w-4" /> },
+  { id: 'cleveland', name: 'Cleveland', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'getty', name: 'Getty', icon: <Landmark className="h-4 w-4" /> },
+  { id: 'walters', name: 'Walters', icon: <Castle className="h-4 w-4" /> },
+  { id: 'smithsonian', name: 'Smithsonian', icon: <Archive className="h-4 w-4" /> },
+  { id: 'nga', name: 'National Gallery of Art', icon: <Columns className="h-4 w-4" /> },
+  { id: 'europeana', name: 'Europeana', icon: <Globe className="h-4 w-4" /> },
+  { id: 'dpla', name: 'DPLA', icon: <BookOpen className="h-4 w-4" /> },
 ];
 
 interface ArtistInfoPanelProps {
@@ -78,7 +96,7 @@ interface CollectionItem {
   medium?: string;
   url?: string;
   imageUrl?: string;
-  source: 'harvard' | 'rijksmuseum' | 'met' | 'moma' | 'tate' | 'aic' | 'national-gallery' | 'guggenheim' | 'whitney';
+  source: InstitutionSource;
   sourceName: string;
   extra?: string;
 }
@@ -214,6 +232,15 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   const { searchArtist: searchNationalGallery, objects: ngObjects, totalObjects: ngTotal, isLoading: ngLoading } = useNationalGallerySearch();
   const { searchArtist: searchGuggenheim, objects: guggenheimObjects, totalObjects: guggenheimTotal, isLoading: guggenheimLoading } = useGuggenheimSearch();
   const { searchArtist: searchWhitney, objects: whitneyObjects, totalObjects: whitneyTotal, isLoading: whitneyLoading } = useWhitneySearch();
+  const { searchArtist: searchBritishMuseum, objects: britishMuseumObjects, totalObjects: britishMuseumTotal, isLoading: britishMuseumLoading } = useBritishMuseumSearch();
+  const { searchArtist: searchVA, objects: vaObjects, totalObjects: vaTotal, isLoading: vaLoading } = useVAMuseumSearch();
+  const { searchArtist: searchCleveland, objects: clevelandObjects, totalObjects: clevelandTotal, isLoading: clevelandLoading } = useClevelandMuseumSearch();
+  const { searchArtist: searchGetty, objects: gettyObjects, totalObjects: gettyTotal, isLoading: gettyLoading } = useGettyMuseumSearch();
+  const { searchArtist: searchWalters, objects: waltersObjects, totalObjects: waltersTotal, isLoading: waltersLoading } = useWaltersMuseumSearch();
+  const { searchByArtist: searchSmithsonian, results: smithsonianResults, totalResults: smithsonianTotal, isLoading: smithsonianLoading } = useSmithsonianSearch();
+  const { searchArtist: searchNGA, objects: ngaObjects, totalObjects: ngaTotal, isLoading: ngaLoading } = useNGASearch();
+  const { searchArtist: searchEuropeana, objects: europeanaObjects, totalObjects: europeanaTotal, isLoading: europeanaLoading } = useEuropeanaSearch();
+  const { searchByArtist: searchDPLA, results: dplaResults, totalResults: dplaTotal, isLoading: dplaLoading } = useDPLASearch();
   
   const [mediaOpen, setMediaOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
@@ -307,6 +334,33 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       
       setCollectionSources(prev => prev.map(s => s.id === 'whitney' ? { ...s, status: 'searching' as const } : s));
       await searchWhitney(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'british-museum' ? { ...s, status: 'searching' as const } : s));
+      await searchBritishMuseum(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'va' ? { ...s, status: 'searching' as const } : s));
+      await searchVA(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'cleveland' ? { ...s, status: 'searching' as const } : s));
+      await searchCleveland(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'getty' ? { ...s, status: 'searching' as const } : s));
+      await searchGetty(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'walters' ? { ...s, status: 'searching' as const } : s));
+      await searchWalters(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'smithsonian' ? { ...s, status: 'searching' as const } : s));
+      await searchSmithsonian(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'nga' ? { ...s, status: 'searching' as const } : s));
+      await searchNGA(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'europeana' ? { ...s, status: 'searching' as const } : s));
+      await searchEuropeana(artistName);
+      
+      setCollectionSources(prev => prev.map(s => s.id === 'dpla' ? { ...s, status: 'searching' as const } : s));
+      await searchDPLA(artistName);
     } finally {
       searchInProgressRef.current = false;
     }
@@ -361,6 +415,42 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
   useEffect(() => {
     if (!whitneyLoading) updateCollectionSource('whitney', 'complete', whitneyTotal);
   }, [whitneyLoading, whitneyTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!britishMuseumLoading) updateCollectionSource('british-museum', 'complete', britishMuseumTotal);
+  }, [britishMuseumLoading, britishMuseumTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!vaLoading) updateCollectionSource('va', 'complete', vaTotal);
+  }, [vaLoading, vaTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!clevelandLoading) updateCollectionSource('cleveland', 'complete', clevelandTotal);
+  }, [clevelandLoading, clevelandTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!gettyLoading) updateCollectionSource('getty', 'complete', gettyTotal);
+  }, [gettyLoading, gettyTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!waltersLoading) updateCollectionSource('walters', 'complete', waltersTotal);
+  }, [waltersLoading, waltersTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!smithsonianLoading) updateCollectionSource('smithsonian', 'complete', smithsonianTotal);
+  }, [smithsonianLoading, smithsonianTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!ngaLoading) updateCollectionSource('nga', 'complete', ngaTotal);
+  }, [ngaLoading, ngaTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!europeanaLoading) updateCollectionSource('europeana', 'complete', europeanaTotal);
+  }, [europeanaLoading, europeanaTotal, updateCollectionSource]);
+
+  useEffect(() => {
+    if (!dplaLoading) updateCollectionSource('dpla', 'complete', dplaTotal);
+  }, [dplaLoading, dplaTotal, updateCollectionSource]);
 
   // Track the last searched artist to prevent duplicate searches
   const lastSearchedArtistRef = useRef<string | null>(null);
@@ -519,6 +609,96 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
       source: 'whitney',
       sourceName: 'Whitney',
     })),
+    ...britishMuseumObjects.map((obj): CollectionItem => ({
+      id: `bm-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'british-museum',
+      sourceName: 'British Museum',
+    })),
+    ...vaObjects.map((obj): CollectionItem => ({
+      id: `va-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'va',
+      sourceName: 'V&A',
+    })),
+    ...clevelandObjects.map((obj): CollectionItem => ({
+      id: `cleveland-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'cleveland',
+      sourceName: 'Cleveland',
+    })),
+    ...gettyObjects.map((obj): CollectionItem => ({
+      id: `getty-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'getty',
+      sourceName: 'Getty',
+    })),
+    ...waltersObjects.map((obj): CollectionItem => ({
+      id: `walters-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'walters',
+      sourceName: 'Walters',
+    })),
+    ...smithsonianResults.map((obj): CollectionItem => ({
+      id: `smithsonian-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.sourceUrl || undefined,
+      imageUrl: obj.imageUrl || obj.thumbnailUrl || undefined,
+      source: 'smithsonian',
+      sourceName: 'Smithsonian',
+    })),
+    ...ngaObjects.map((obj): CollectionItem => ({
+      id: `nga-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'nga',
+      sourceName: 'NGA',
+    })),
+    ...europeanaObjects.map((obj): CollectionItem => ({
+      id: `europeana-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.url,
+      imageUrl: obj.imageUrl || undefined,
+      source: 'europeana',
+      sourceName: 'Europeana',
+    })),
+    ...dplaResults.map((obj): CollectionItem => ({
+      id: `dpla-${obj.id}`,
+      title: obj.title,
+      date: obj.date,
+      medium: obj.medium,
+      url: obj.sourceUrl || undefined,
+      imageUrl: obj.imageUrl || obj.thumbnailUrl || undefined,
+      source: 'dpla',
+      sourceName: 'DPLA',
+    })),
   ];
 
   // Filter collection items by selected institutions
@@ -526,9 +706,9 @@ export function ArtistInfoPanel({ artist, open, onOpenChange }: ArtistInfoPanelP
     return allCollectionItems.filter(item => selectedInstitutions.has(item.source));
   }, [allCollectionItems, selectedInstitutions]);
 
-  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal;
+  const totalCollectionCount = harvardTotal + rijksTotal + metTotal + momaTotal + tateTotal + aicTotal + ngTotal + guggenheimTotal + whitneyTotal + britishMuseumTotal + vaTotal + clevelandTotal + gettyTotal + waltersTotal + smithsonianTotal + ngaTotal + europeanaTotal + dplaTotal;
   const filteredCollectionCount = filteredCollectionItems.length;
-  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading;
+  const isCollectionsLoading = harvardLoading || rijksLoading || metLoading || momaLoading || tateLoading || aicLoading || ngLoading || guggenheimLoading || whitneyLoading || britishMuseumLoading || vaLoading || clevelandLoading || gettyLoading || waltersLoading || smithsonianLoading || ngaLoading || europeanaLoading || dplaLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
