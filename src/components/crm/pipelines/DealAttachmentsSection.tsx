@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Paperclip, Upload, Download, Trash2, FileText, Image, File, Loader2 } from "lucide-react";
 import { useDealAttachments, useUploadDealAttachment, useDeleteDealAttachment } from "@/hooks/crm/use-deal-attachments";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ interface DealAttachmentsSectionProps {
 
 export function DealAttachmentsSection({ dealId }: DealAttachmentsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { data: attachments, isLoading } = useDealAttachments(dealId);
   const uploadAttachment = useUploadDealAttachment();
   const deleteAttachment = useDeleteDealAttachment();
@@ -19,17 +21,24 @@ export function DealAttachmentsSection({ dealId }: DealAttachmentsSectionProps) 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Max 10MB
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be less than 10MB");
+    // Max 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File size must be less than 50MB");
       return;
     }
 
     try {
-      await uploadAttachment.mutateAsync({ deal_id: dealId, file });
+      setUploadProgress(0);
+      await uploadAttachment.mutateAsync({ 
+        deal_id: dealId, 
+        file,
+        onProgress: setUploadProgress
+      });
       toast.success("File uploaded successfully");
     } catch (error) {
       toast.error("Failed to upload file");
+    } finally {
+      setUploadProgress(null);
     }
 
     if (fileInputRef.current) {
@@ -94,6 +103,16 @@ export function DealAttachmentsSection({ dealId }: DealAttachmentsSectionProps) 
           Upload
         </Button>
       </div>
+
+      {uploadProgress !== null && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <Progress value={uploadProgress} className="h-1.5" />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-4">
