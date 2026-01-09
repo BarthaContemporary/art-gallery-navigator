@@ -35,6 +35,7 @@ import PublicCollectionView from "@/pages/PublicCollectionView";
 import CRMLayout from "@/pages/crm/CRMLayout";
 import ContactsPage from "@/pages/crm/ContactsPage";
 import OrganizationsPage from "@/pages/crm/OrganizationsPage";
+import OrganizationDetailPage from "@/pages/crm/OrganizationDetailPage";
 import ListsPage from "@/pages/crm/ListsPage";
 import ListDetailPage from "@/pages/crm/ListDetailPage";
 import CampaignsPage from "@/pages/crm/CampaignsPage";
@@ -98,6 +99,7 @@ function App() {
                       <Route index element={<ContactsPage />} />
                       <Route path="contacts/:id" element={<ContactDetailPage />} />
                       <Route path="organizations" element={<OrganizationsPage />} />
+                      <Route path="organizations/:id" element={<OrganizationDetailPage />} />
                       <Route path="lists" element={<ListsPage />} />
                       <Route path="lists/:id" element={<ListDetailPage />} />
                       <Route path="campaigns" element={<CampaignsPage />} />
