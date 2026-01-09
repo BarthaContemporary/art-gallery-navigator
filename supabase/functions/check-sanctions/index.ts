@@ -21,6 +21,20 @@ const MAX_NAME_LENGTH = 200;
 const MAX_FIELD_LENGTH = 100;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+// Dataset switch date: gb_hmt_sanctions -> gb_fcdo_sanctions on January 28, 2026
+const DATASET_SWITCH_DATE = new Date('2026-01-28T00:00:00Z');
+
+// Function to get the current dataset name
+function getDataset(): string {
+  const now = new Date();
+  if (now >= DATASET_SWITCH_DATE) {
+    console.log('Using gb_fcdo_sanctions dataset (activated Jan 28, 2026)');
+    return 'gb_fcdo_sanctions';
+  }
+  console.log('Using gb_hmt_sanctions dataset (until Jan 27, 2026)');
+  return 'gb_hmt_sanctions';
+}
+
 // Function to get the appropriate API key based on date
 // Key 1 expires January 11, 2026 - Key 2 activates January 12, 2026
 function getApiKey(): { key: string | null; keyName: string } {
@@ -146,7 +160,12 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const response = await fetch('https://api.opensanctions.org/match/default', {
+    // Use the appropriate dataset based on date
+    const dataset = getDataset();
+    const apiUrl = `https://api.opensanctions.org/match/${dataset}`;
+    console.log(`Using OpenSanctions API endpoint: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `ApiKey ${apiKey}`,
