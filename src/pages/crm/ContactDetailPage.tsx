@@ -11,6 +11,7 @@ import { ContactTimeline } from "@/components/crm/contacts/ContactTimeline";
 import { SocialChannelLinks } from "@/components/crm/contacts/SocialChannelLinks";
 import { SanctionsCheckCard } from "@/components/crm/contacts/SanctionsCheckCard";
 import { ContactOrganizationsSection } from "@/components/crm/contacts/ContactOrganizationsSection";
+import { ContactDealsSection } from "@/components/crm/contacts/ContactDealsSection";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -212,6 +213,10 @@ export default function ContactDetailPage() {
 
           {/* Organizations - Multiple */}
           <ContactOrganizationsSection contactId={contact.id} />
+
+          {/* Deals */}
+          <ContactDealsSection contactId={contact.id} />
+          
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Social Channels</CardTitle>

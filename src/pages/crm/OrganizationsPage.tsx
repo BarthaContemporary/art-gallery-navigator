@@ -5,7 +5,7 @@ import { PlusCircle, Search, Building2 } from "lucide-react";
 import { useCRMOrganizations } from "@/hooks/crm";
 import { OrganizationDialog } from "@/components/crm/organizations/OrganizationDialog";
 import { OrganizationsTable } from "@/components/crm/organizations/OrganizationsTable";
-import { CRMOrganization, CRMOrganizationType } from "@/types/crm";
+import { CRMOrganizationType } from "@/types/crm";
 import {
   Select,
   SelectContent,
@@ -31,27 +31,12 @@ export default function OrganizationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [type, setType] = useState<CRMOrganizationType | "all">("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedOrganization, setSelectedOrganization] = useState<CRMOrganization | null>(null);
 
   const { data: organizations, isLoading } = useCRMOrganizations({
     searchTerm,
     type,
   });
-
-  const handleRowClick = (org: CRMOrganization) => {
-    setSelectedOrganization(org);
-    setIsDialogOpen(true);
-  };
-
-  const handleDialogClose = (open: boolean) => {
-    setIsDialogOpen(open);
-    if (!open) {
-      setSelectedOrganization(null);
-    }
-  };
-
   const handleAddNew = () => {
-    setSelectedOrganization(null);
     setIsDialogOpen(true);
   };
 
@@ -98,14 +83,13 @@ export default function OrganizationsPage() {
       <OrganizationsTable
         organizations={organizations || []}
         isLoading={isLoading}
-        onRowClick={handleRowClick}
       />
 
-      {/* Dialog */}
+      {/* Dialog for adding new organizations */}
       <OrganizationDialog
         open={isDialogOpen}
-        onOpenChange={handleDialogClose}
-        organization={selectedOrganization}
+        onOpenChange={setIsDialogOpen}
+        organization={null}
       />
     </div>
   );
