@@ -5113,6 +5113,7 @@ export type Database = {
         | "corporation"
         | "auction_house"
         | "other"
+        | "interior_designer"
       deletion_request_status: "pending" | "approved" | "rejected"
       message_type: "text" | "file" | "image"
       project_status: "active" | "scheduled" | "completed" | "abandoned"
@@ -5300,6 +5301,7 @@ export const Constants = {
         "corporation",
         "auction_house",
         "other",
+        "interior_designer",
       ],
       deletion_request_status: ["pending", "approved", "rejected"],
       message_type: ["text", "file", "image"],
