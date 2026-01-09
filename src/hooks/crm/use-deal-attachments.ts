@@ -34,19 +34,54 @@ export function useUploadDealAttachment() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ deal_id, file }: { deal_id: string; file: File }) => {
+    mutationFn: async ({ 
+      deal_id, 
+      file, 
+      onProgress 
+    }: { 
+      deal_id: string; 
+      file: File; 
+      onProgress?: (percent: number) => void;
+    }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
       
-      // Upload file to storage
+      // Upload file to storage with progress tracking
       const fileExt = file.name.split('.').pop();
       const fileName = `${deal_id}/${crypto.randomUUID()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
-        .from('deal-attachments')
-        .upload(fileName, file);
+      // Use XMLHttpRequest for progress tracking
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
       
-      if (uploadError) throw uploadError;
+      const uploadUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/deal-attachments/${fileName}`;
+      
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable && onProgress) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        });
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+        
+        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+        
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        xhr.setRequestHeader('x-upsert', 'false');
+        xhr.send(file);
+      });
       
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
