@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CRMContact, CRMContactType } from "@/types/crm";
 import { toast } from "sonner";
+import { findOrganizationByEmailDomain } from "./use-auto-match-organization";
 
 interface UseContactsOptions {
   searchTerm?: string;
@@ -130,10 +131,43 @@ export function useCreateCRMContact() {
         .single();
 
       if (error) throw error;
+      
+      // Auto-match organization based on email domain (only for new contacts)
+      if (data && contact.email && !contact.organization_id) {
+        try {
+          const matchedOrg = await findOrganizationByEmailDomain(contact.email);
+          if (matchedOrg) {
+            // Check if already linked
+            const { data: existing } = await supabase
+              .from('crm_contact_organizations')
+              .select('id')
+              .eq('contact_id', data.id)
+              .eq('organization_id', matchedOrg.id)
+              .maybeSingle();
+
+            if (!existing) {
+              await supabase
+                .from('crm_contact_organizations')
+                .insert({
+                  contact_id: data.id,
+                  organization_id: matchedOrg.id,
+                  is_primary: true,
+                });
+              toast.info(`Auto-linked to ${matchedOrg.name} based on email domain`);
+            }
+          }
+        } catch (e) {
+          // Silently fail auto-matching - don't block contact creation
+          console.error('Auto-match organization failed:', e);
+        }
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm-contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['crm-contact-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['crm-organization-contacts'] });
       toast.success('Contact created');
     },
     onError: (error) => {

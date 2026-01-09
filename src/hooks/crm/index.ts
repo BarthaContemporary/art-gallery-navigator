@@ -16,3 +16,4 @@ export * from './use-whatsapp-check';
 export * from './use-crm-deal-items';
 export * from './use-crm-contact-organizations';
 export * from './use-crm-deal-interactions';
+export * from './use-auto-match-organization';

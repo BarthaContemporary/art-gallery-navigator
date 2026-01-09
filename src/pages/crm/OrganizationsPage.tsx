@@ -23,6 +23,7 @@ const organizationTypes: { value: CRMOrganizationType | 'all'; label: string }[]
   { value: 'press', label: 'Press' },
   { value: 'corporation', label: 'Corporation' },
   { value: 'auction_house', label: 'Auction House' },
+  { value: 'interior_designer', label: 'Interior Designer' },
   { value: 'other', label: 'Other' },
 ];
 

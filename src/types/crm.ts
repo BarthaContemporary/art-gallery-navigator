@@ -20,6 +20,7 @@ export type CRMOrganizationType =
   | 'press' 
   | 'corporation' 
   | 'auction_house' 
+  | 'interior_designer'
   | 'other';
 
 export type CRMInteractionType = 
