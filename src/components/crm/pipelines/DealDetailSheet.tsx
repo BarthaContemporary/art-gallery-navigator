@@ -10,6 +10,7 @@ import { calculateWeightedValue } from "@/hooks/crm/use-crm-deal-items";
 import { DealInteractionsTimeline } from "./DealInteractionsTimeline";
 import { DealArtworksSection } from "./DealArtworksSection";
 import { Building2, User, Calendar, Trash2, Edit, DollarSign, Percent, Check, X } from "lucide-react";
+import { DealAttachmentsSection } from "./DealAttachmentsSection";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -237,6 +238,11 @@ export function DealDetailSheet({ deal, stages, open, onOpenChange, onEdit }: De
               updateDeal.mutate({ id: deal.id, related_artworks: artworkIds });
             }}
           />
+
+          <Separator />
+
+          {/* Attachments */}
+          <DealAttachmentsSection dealId={deal.id} />
 
           <Separator />
 
