@@ -29,6 +29,15 @@ import {
 
 type Step = 'upload' | 'mapping' | 'preview' | 'importing' | 'complete';
 
+function isArtsyUrl(url: string | null | number): boolean {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('artsy.net/artwork/');
+}
+
+function hasArtsyUrls(matches: ArtworkMatch[]): boolean {
+  return matches.some(m => isArtsyUrl(m.imageUrl));
+}
+
 export function ImportExcelImagesDialog() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>('upload');
@@ -44,6 +53,7 @@ export function ImportExcelImagesDialog() {
   const [importResult, setImportResult] = useState<{ success: number; failed: number; skipped: number } | null>(null);
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchResult, setBatchResult] = useState<{ processedCount: number; failedCount: number } | null>(null);
+  const [scrapeMode, setScrapeMode] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -71,7 +81,8 @@ export function ImportExcelImagesDialog() {
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
+      'application/vnd.ms-excel': ['.xls'],
+      'text/csv': ['.csv']
     },
     maxFiles: 1
   });
@@ -91,6 +102,8 @@ export function ImportExcelImagesDialog() {
         imageUrlColumn
       );
       setMatchResult(result);
+      // Detect if we're dealing with Artsy URLs
+      setScrapeMode(hasArtsyUrls(result.matches));
       setStep('preview');
     } catch (error) {
       toast.error('Failed to match artworks');
@@ -106,26 +119,72 @@ export function ImportExcelImagesDialog() {
     setImportProgress(0);
 
     try {
-      const result = await importImageUrlsForArtworks(matchResult.matches, onlyMissing);
-      setImportResult(result);
-      setStep('complete');
-      toast.success(`Imported ${result.success} images successfully`);
+      if (scrapeMode) {
+        // Artsy URL mode: use scraping edge function
+        const itemsToScrape = matchResult.matches
+          .filter(m => m.artworkId && m.matchConfidence !== 'none' && isArtsyUrl(m.imageUrl) && (!onlyMissing || !m.hasExistingImages))
+          .map(m => ({ artwork_id: m.artworkId!, artsy_url: m.imageUrl! }));
 
-      // Auto-trigger batch processing if any images were imported
-      if (result.success > 0) {
-        setBatchProcessing(true);
-        try {
-          const { data, error } = await supabase.functions.invoke(
-            'batch-process-unprocessed-images',
-            { body: { limit: result.success } }
-          );
-          if (!error && data) {
-            setBatchResult(data);
+        if (itemsToScrape.length === 0) {
+          toast.error('No valid Artsy URLs to scrape');
+          setImporting(false);
+          setStep('preview');
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('scrape-artsy-images', {
+          body: { items: itemsToScrape }
+        });
+
+        if (error) throw error;
+
+        setImportResult({
+          success: data.processed || 0,
+          failed: data.failed || 0,
+          skipped: data.skipped || 0
+        });
+        setStep('complete');
+        toast.success(`Scraped ${data.processed} images from Artsy`);
+
+        // Auto-trigger batch processing
+        if (data.processed > 0) {
+          setBatchProcessing(true);
+          try {
+            const { data: batchData, error: batchError } = await supabase.functions.invoke(
+              'batch-process-unprocessed-images',
+              { body: { limit: data.processed } }
+            );
+            if (!batchError && batchData) {
+              setBatchResult(batchData);
+            }
+          } catch (e) {
+            console.warn('Batch thumbnail processing failed:', e);
+          } finally {
+            setBatchProcessing(false);
           }
-        } catch (e) {
-          console.warn('Batch thumbnail processing failed:', e);
-        } finally {
-          setBatchProcessing(false);
+        }
+      } else {
+        // Direct image URL mode
+        const result = await importImageUrlsForArtworks(matchResult.matches, onlyMissing);
+        setImportResult(result);
+        setStep('complete');
+        toast.success(`Imported ${result.success} images successfully`);
+
+        if (result.success > 0) {
+          setBatchProcessing(true);
+          try {
+            const { data, error } = await supabase.functions.invoke(
+              'batch-process-unprocessed-images',
+              { body: { limit: result.success } }
+            );
+            if (!error && data) {
+              setBatchResult(data);
+            }
+          } catch (e) {
+            console.warn('Batch thumbnail processing failed:', e);
+          } finally {
+            setBatchProcessing(false);
+          }
         }
       }
     } catch (error) {
@@ -145,6 +204,7 @@ export function ImportExcelImagesDialog() {
       setImportResult(null);
       setBatchProcessing(false);
       setBatchResult(null);
+      setScrapeMode(false);
       setTitleColumn('');
       setArtistColumn('');
       setYearColumn('');
@@ -168,7 +228,7 @@ export function ImportExcelImagesDialog() {
   };
 
   const validImageCount = matchResult?.matches.filter(
-    m => m.matchConfidence !== 'none' && isValidImageUrl(m.imageUrl) && (!onlyMissing || !m.hasExistingImages)
+    m => m.matchConfidence !== 'none' && (isValidImageUrl(m.imageUrl) || isArtsyUrl(m.imageUrl)) && (!onlyMissing || !m.hasExistingImages)
   ).length || 0;
 
   return (
@@ -198,10 +258,13 @@ export function ImportExcelImagesDialog() {
             <input {...getInputProps()} />
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg font-medium">
-              {isDragActive ? 'Drop the Excel file here' : 'Drag & drop an Excel file here'}
+              {isDragActive ? 'Drop the file here' : 'Drag & drop an Excel or CSV file here'}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              or click to select a file (.xlsx, .xls)
+              or click to select a file (.xlsx, .xls, .csv)
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Supports direct image URLs or Artsy artwork page URLs
             </p>
           </div>
         )}
@@ -228,7 +291,7 @@ export function ImportExcelImagesDialog() {
               </div>
 
               <div className="space-y-2">
-                <Label>Image URL Column *</Label>
+                <Label>Image / Artwork URL Column *</Label>
                 <Select value={imageUrlColumn} onValueChange={setImageUrlColumn}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select image URL column" />
@@ -315,6 +378,12 @@ export function ImportExcelImagesDialog() {
               </Label>
             </div>
 
+            {scrapeMode && (
+              <div className="p-3 bg-blue-500/10 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                <strong>Artsy scraping mode:</strong> Images will be extracted from Artsy artwork pages. This may take a few minutes.
+              </div>
+            )}
+
             <ScrollArea className="flex-1 border rounded-lg">
               <div className="p-2 space-y-2">
                 {matchResult.matches.slice(0, 100).map((match, index) => (
@@ -364,7 +433,7 @@ export function ImportExcelImagesDialog() {
                 Back
               </Button>
               <Button onClick={handleImport} disabled={validImageCount === 0}>
-                Import {validImageCount} Images
+                {scrapeMode ? `Scrape & Import ${validImageCount} Images` : `Import ${validImageCount} Images`}
               </Button>
             </div>
           </div>
@@ -375,7 +444,9 @@ export function ImportExcelImagesDialog() {
             <div className="animate-pulse">
               <Upload className="h-12 w-12 mx-auto text-primary" />
             </div>
-            <p className="text-lg font-medium">Importing images...</p>
+            <p className="text-lg font-medium">
+              {scrapeMode ? 'Scraping images from Artsy...' : 'Importing images...'}
+            </p>
             <Progress value={importProgress} className="max-w-md mx-auto" />
           </div>
         )}
