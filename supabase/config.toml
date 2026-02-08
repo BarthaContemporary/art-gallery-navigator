@@ -188,3 +188,6 @@ verify_jwt = true
 
 [functions.smithsonian-search]
 verify_jwt = true
+
+[functions.scrape-artsy-images]
+verify_jwt = true
