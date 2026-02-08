@@ -7,9 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileSpreadsheet, Upload, Check, X, AlertCircle, Image } from "lucide-react";
+import { FileSpreadsheet, Upload, Check, X, AlertCircle, Image, Loader2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   parseExcelFile, 
   ExcelParseResult, 
@@ -41,6 +42,8 @@ export function ImportExcelImagesDialog() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; skipped: number } | null>(null);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ processedCount: number; failedCount: number } | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -107,6 +110,24 @@ export function ImportExcelImagesDialog() {
       setImportResult(result);
       setStep('complete');
       toast.success(`Imported ${result.success} images successfully`);
+
+      // Auto-trigger batch processing if any images were imported
+      if (result.success > 0) {
+        setBatchProcessing(true);
+        try {
+          const { data, error } = await supabase.functions.invoke(
+            'batch-process-unprocessed-images',
+            { body: { limit: result.success } }
+          );
+          if (!error && data) {
+            setBatchResult(data);
+          }
+        } catch (e) {
+          console.warn('Batch thumbnail processing failed:', e);
+        } finally {
+          setBatchProcessing(false);
+        }
+      }
     } catch (error) {
       toast.error('Import failed');
       console.error(error);
@@ -117,12 +138,13 @@ export function ImportExcelImagesDialog() {
 
   const handleClose = () => {
     setOpen(false);
-    // Reset state after animation
     setTimeout(() => {
       setStep('upload');
       setExcelData(null);
       setMatchResult(null);
       setImportResult(null);
+      setBatchProcessing(false);
+      setBatchResult(null);
       setTitleColumn('');
       setArtistColumn('');
       setYearColumn('');
@@ -385,7 +407,26 @@ export function ImportExcelImagesDialog() {
               </div>
             </div>
 
-            <Button onClick={handleClose}>
+            {/* Batch thumbnail processing status */}
+            {batchProcessing && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating thumbnails...
+              </div>
+            )}
+            {batchResult && !batchProcessing && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p className="text-green-600">{batchResult.processedCount} thumbnails generated</p>
+                {batchResult.failedCount > 0 && (
+                  <p className="text-yellow-600">{batchResult.failedCount} failed (will be retried later)</p>
+                )}
+              </div>
+            )}
+            {!batchProcessing && !batchResult && importResult.success > 0 && (
+              <p className="text-xs text-muted-foreground">Thumbnail generation will be retried later</p>
+            )}
+
+            <Button onClick={handleClose} disabled={batchProcessing}>
               Done
             </Button>
           </div>
