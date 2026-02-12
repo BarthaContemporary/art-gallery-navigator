@@ -38,8 +38,10 @@ export class SecurityMonitor {
       this.events = this.events.slice(-this.MAX_EVENTS);
     }
 
-    // Log to console for development
-    console.log('Security Event:', securityEvent);
+    // Log to console only in development
+    if (import.meta.env.DEV) {
+      console.log('Security Event:', securityEvent);
+    }
 
     // Send critical events to monitoring service immediately
     if (event.severity === 'critical') {

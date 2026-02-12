@@ -26,8 +26,8 @@ export function ArtworkGrid({
   onToggleSelection,
   onEnterSelectionMode 
 }: ArtworkGridProps) {
-  // Temporarily disable performance optimization to show all artworks
-  const shouldUseOptimizedGrid = false; // artworks.length > 100;
+  // Enable virtualized grid for large collections
+  const shouldUseOptimizedGrid = artworks.length > 50;
 
   if (shouldUseOptimizedGrid) {
     return (

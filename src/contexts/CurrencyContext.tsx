@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
 interface CurrencyContextType {
   selectedCurrency: string;
@@ -14,7 +14,6 @@ interface CurrencyProviderProps {
 export function CurrencyProvider({ children }: CurrencyProviderProps) {
   const [selectedCurrency, setSelectedCurrencyState] = useState<string>('USD');
 
-  // Load saved currency preference from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('display-currency');
     if (saved) {
@@ -27,8 +26,10 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     localStorage.setItem('display-currency', currency);
   };
 
+  const value = useMemo(() => ({ selectedCurrency, setSelectedCurrency }), [selectedCurrency]);
+
   return (
-    <CurrencyContext.Provider value={{ selectedCurrency, setSelectedCurrency }}>
+    <CurrencyContext.Provider value={value}>
       {children}
     </CurrencyContext.Provider>
   );
