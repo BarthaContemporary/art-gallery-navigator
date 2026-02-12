@@ -1,4 +1,5 @@
 
+import React, { Suspense, lazy } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -11,56 +12,70 @@ import { HelmetProvider } from "react-helmet-async";
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { RequireAuth } from "@/components/auth/RequireAuth";
-import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AuthProvider } from "@/providers/auth-provider";
 import { LoadingProvider } from "@/contexts/loading-context";
 import { SecurityProvider } from "@/components/security/SecurityProvider";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
-import Dashboard from "@/pages/Dashboard";
-import Artists from "@/pages/Artists";
-import Artworks from "@/pages/Artworks";
-import Collections from "@/pages/Collections";
-import Documents from "@/pages/Documents";
-import FileSharing from "@/pages/FileSharing";
-import Projects from "@/pages/Projects";
-import ProjectDetail from "@/pages/ProjectDetail";
-import Locations from "@/pages/Locations";
-import Profile from "@/pages/Profile";
-import Auth from "@/pages/Auth";
-import GoogleCalendarAppointments from "@/pages/GoogleCalendarAppointments";
-import BookAppointment from "@/pages/BookAppointment";
-import ManageWebsites from "@/pages/ManageWebsites";
-import EditCollectionWebsite from "@/pages/EditCollectionWebsite";
-import PublicCollectionView from "@/pages/PublicCollectionView";
-import CRMLayout from "@/pages/crm/CRMLayout";
-import ContactsPage from "@/pages/crm/ContactsPage";
-import OrganizationsPage from "@/pages/crm/OrganizationsPage";
-import OrganizationDetailPage from "@/pages/crm/OrganizationDetailPage";
-import ListsPage from "@/pages/crm/ListsPage";
-import ListDetailPage from "@/pages/crm/ListDetailPage";
-import CampaignsPage from "@/pages/crm/CampaignsPage";
-import PipelinesPage from "@/pages/crm/PipelinesPage";
-import ContactDetailPage from "@/pages/crm/ContactDetailPage";
-import Chat from "@/pages/Chat";
 import { GlobalDialogRenderer } from "@/components/artworks/dialogs/GlobalDialogRenderer";
-import {
-  AdminLayout,
-  OverviewPage as AdminOverviewPage,
-  UsersPage as AdminUsersPage,
-  IntegrationsPage as AdminIntegrationsPage,
-  SettingsPage as AdminSettingsPage,
-  LogsPage as AdminLogsPage
-} from "@/pages/admin";
-import ViewerLayout from "@/pages/viewer/ViewerLayout";
-import ViewerArtworksPage from "@/pages/viewer/ViewerArtworksPage";
-import ViewerArtworkDetailPage from "@/pages/viewer/ViewerArtworkDetailPage";
-import PublicArtworkViewer from "@/pages/PublicArtworkViewer";
-import PublicationViewer from "@/pages/PublicationViewer";
-import Publications from "@/pages/admin/Publications";
-import PublicationEditor from "@/pages/admin/PublicationEditor";
-import PublicationLeads from "@/pages/admin/PublicationLeads";
+import { Loader2 } from "lucide-react";
+
+// Lazy-loaded pages
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Artists = lazy(() => import("@/pages/Artists"));
+const Artworks = lazy(() => import("@/pages/Artworks"));
+const Collections = lazy(() => import("@/pages/Collections"));
+const Documents = lazy(() => import("@/pages/Documents"));
+const FileSharing = lazy(() => import("@/pages/FileSharing"));
+const Projects = lazy(() => import("@/pages/Projects"));
+const ProjectDetail = lazy(() => import("@/pages/ProjectDetail"));
+const Locations = lazy(() => import("@/pages/Locations"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Auth = lazy(() => import("@/pages/Auth"));
+const GoogleCalendarAppointments = lazy(() => import("@/pages/GoogleCalendarAppointments"));
+const BookAppointment = lazy(() => import("@/pages/BookAppointment"));
+const ManageWebsites = lazy(() => import("@/pages/ManageWebsites"));
+const EditCollectionWebsite = lazy(() => import("@/pages/EditCollectionWebsite"));
+const PublicCollectionView = lazy(() => import("@/pages/PublicCollectionView"));
+const Chat = lazy(() => import("@/pages/Chat"));
+const PublicArtworkViewer = lazy(() => import("@/pages/PublicArtworkViewer"));
+const PublicationViewer = lazy(() => import("@/pages/PublicationViewer"));
+
+// CRM pages
+const CRMLayout = lazy(() => import("@/pages/crm/CRMLayout"));
+const ContactsPage = lazy(() => import("@/pages/crm/ContactsPage"));
+const OrganizationsPage = lazy(() => import("@/pages/crm/OrganizationsPage"));
+const OrganizationDetailPage = lazy(() => import("@/pages/crm/OrganizationDetailPage"));
+const ListsPage = lazy(() => import("@/pages/crm/ListsPage"));
+const ListDetailPage = lazy(() => import("@/pages/crm/ListDetailPage"));
+const CampaignsPage = lazy(() => import("@/pages/crm/CampaignsPage"));
+const PipelinesPage = lazy(() => import("@/pages/crm/PipelinesPage"));
+const ContactDetailPage = lazy(() => import("@/pages/crm/ContactDetailPage"));
+
+// Admin pages
+const AdminLayout = lazy(() => import("@/pages/admin").then(m => ({ default: m.AdminLayout })));
+const AdminOverviewPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.OverviewPage })));
+const AdminUsersPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.UsersPage })));
+const AdminIntegrationsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.IntegrationsPage })));
+const AdminSettingsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.SettingsPage })));
+const AdminLogsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.LogsPage })));
+const Publications = lazy(() => import("@/pages/admin/Publications"));
+const PublicationEditor = lazy(() => import("@/pages/admin/PublicationEditor"));
+const PublicationLeads = lazy(() => import("@/pages/admin/PublicationLeads"));
+
+// Viewer pages
+const ViewerLayout = lazy(() => import("@/pages/viewer/ViewerLayout"));
+const ViewerArtworksPage = lazy(() => import("@/pages/viewer/ViewerArtworksPage"));
+const ViewerArtworkDetailPage = lazy(() => import("@/pages/viewer/ViewerArtworkDetailPage"));
 
 const queryClient = new QueryClient();
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -73,6 +88,7 @@ function App() {
                 <SecurityProvider>
                   <Toaster />
                   <GlobalDialogRenderer />
+                <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/book-appointment" element={<BookAppointment />} />
@@ -125,6 +141,7 @@ function App() {
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                </Suspense>
                 </SecurityProvider>
               </CurrencyProvider>
             </AuthProvider>

@@ -116,19 +116,22 @@ export function useDashboardStats() {
         }));
       }
 
-      // Fetch recent user logins from security events
-      const { data: recentLogins } = await supabase
-        .from('security_events')
-        .select('user_id, created_at, details')
-        .ilike('event_type', '%login%')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Fetch remaining data in parallel
+      const [loginsResult, inventoryResult] = await Promise.allSettled([
+        supabase
+          .from('security_events')
+          .select('user_id, created_at, details')
+          .ilike('event_type', '%login%')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('artworks')
+          .select('status')
+          .not('status', 'eq', 'sold'),
+      ]);
 
-      // Fetch inventory statuses
-      const { data: inventoryStatus } = await supabase
-        .from('artworks')
-        .select('status')
-        .not('status', 'eq', 'sold');
+      const recentLogins = loginsResult.status === 'fulfilled' ? loginsResult.value.data : [];
+      const inventoryStatus = inventoryResult.status === 'fulfilled' ? inventoryResult.value.data : [];
 
       // Tally count for each distinct artwork status
       const statuses: Record<string, number> = {};
@@ -141,10 +144,9 @@ export function useDashboardStats() {
 
       // Get user profiles for recent logins to show user names
       const loginUserIds = [...new Set((recentLogins || []).map(login => login.user_id).filter(id => id))];
-      const { data: userProfiles } = await supabase
-        .from('profiles')
-        .select('id, display_name, email')
-        .in('id', loginUserIds);
+      const { data: userProfiles } = loginUserIds.length > 0
+        ? await supabase.from('profiles').select('id, display_name, email').in('id', loginUserIds)
+        : { data: [] };
 
       // Create a map for quick lookup
       const userMap = new Map((userProfiles || []).map(user => [user.id, user]));

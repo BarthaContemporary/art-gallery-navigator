@@ -5,16 +5,12 @@
 
 import React from "react";
 import { useDialogManager } from "@/hooks/use-dialog-manager";
-import { useArtworkActions } from "@/hooks/use-artwork-actions";
 import { ArtworkOverviewDialog } from "../overview/ArtworkOverviewDialog";
 import { EditArtworkDialog } from "../EditArtworkDialog";
-import { ArtworkDeleteDialogHandler } from "./ArtworkDeleteDialogHandler";
+import { DeleteDialogWithActions } from "./DeleteDialogWithActions";
 
 export function GlobalDialogRenderer() {
   const { type, artwork, isOpen, isDeleting, closeDialog, setDeleting } = useDialogManager();
-  
-  // Always call hooks unconditionally - React hooks rule
-  const artworkActions = useArtworkActions(artwork || {} as any);
 
   if (!isOpen || !artwork) {
     return null;
@@ -42,24 +38,16 @@ export function GlobalDialogRenderer() {
         />
       )}
       
-      {type === 'delete' && artworkActions && artwork && (
-        <ArtworkDeleteDialogHandler
+      {type === 'delete' && (
+        <DeleteDialogWithActions
           artwork={artwork}
           open={isOpen}
           onOpenChange={(open) => {
             if (!open) closeDialog();
           }}
           isDeleting={isDeleting || false}
-          confirmDelete={async () => {
-            setDeleting(true);
-            try {
-              await artworkActions.handleDelete();
-              closeDialog();
-            } catch (error) {
-              setDeleting(false);
-              throw error;
-            }
-          }}
+          setDeleting={setDeleting}
+          closeDialog={closeDialog}
         />
       )}
     </>

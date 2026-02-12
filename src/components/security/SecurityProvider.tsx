@@ -1,11 +1,8 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { SecurityMonitor } from '@/utils/security-monitoring';
-import { applyEnhancedSecurityHeaders } from '@/lib/security/security-headers';
 import { SECURITY_EVENT_TYPES } from '@/utils/security-headers';
 import { EnhancedSecurity } from '@/utils/enhanced-security';
-import { securityValidator } from '@/lib/security/security-validator';
-import { securityDashboard } from '@/lib/security/security-dashboard';
 
 interface SecurityProviderProps {
   children: React.ReactNode;
@@ -15,16 +12,12 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
   const { user, session } = useAuth();
 
   useEffect(() => {
-    // Apply enhanced security headers to all requests
-    const originalFetch = window.fetch;
-    window.fetch = function(input: RequestInfo | URL, init?: RequestInit) {
-      const headers = applyEnhancedSecurityHeaders(init?.headers);
-      return originalFetch(input, { ...init, headers });
-    };
-
-    // Validate security configuration on mount
-    const validateSecurity = async () => {
+    // Defer heavy security validation to after app is interactive
+    const timerId = setTimeout(async () => {
       try {
+        const { securityValidator } = await import('@/lib/security/security-validator');
+        const { securityDashboard } = await import('@/lib/security/security-dashboard');
+        
         const validation = await securityValidator.validateSystemSecurity();
         const dashboard = await securityDashboard.generateDashboard();
         
@@ -41,18 +34,13 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
       } catch (error) {
         console.error('Security validation failed:', error);
       }
-    };
+    }, 5000);
 
-    validateSecurity();
-
-    return () => {
-      window.fetch = originalFetch;
-    };
+    return () => clearTimeout(timerId);
   }, []);
 
   useEffect(() => {
     if (user && session) {
-      // Log successful authentication
       SecurityMonitor.getInstance().logSecurityEvent({
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'low',
@@ -63,7 +51,6 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
         }
       });
 
-      // Enhanced security monitoring for authenticated users
       EnhancedSecurity.getInstance().logAuthEvent('login_success', user.id, {
         accessToken: session.access_token ? 'present' : 'missing',
         loginTime: new Date().toISOString()
@@ -72,7 +59,6 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
   }, [user, session]);
 
   useEffect(() => {
-    // Monitor for suspicious activity patterns
     if (user) {
       const checkSuspiciousActivity = () => {
         const isSuspicious = EnhancedSecurity.getInstance().checkSuspiciousActivity(user.id);
@@ -90,7 +76,6 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
         }
       };
 
-      // Check for suspicious activity every 5 minutes
       const suspiciousActivityInterval = setInterval(checkSuspiciousActivity, 5 * 60 * 1000);
       
       return () => clearInterval(suspiciousActivityInterval);
