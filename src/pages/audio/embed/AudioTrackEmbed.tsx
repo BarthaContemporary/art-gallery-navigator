@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAudioTrackBySlug, getAudioPublicUrl } from "@/hooks/use-audio-tracks";
 import { MicroPlayer } from "@/components/audio/MicroPlayer";
@@ -6,7 +7,13 @@ export default function AudioTrackEmbed() {
   const { slug } = useParams<{ slug: string }>();
   const { data: track } = useAudioTrackBySlug(slug);
 
-  if (!track) return <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#888" }}>Loading...</div>;
+  useEffect(() => {
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden";
+  }, []);
+
+  if (!track) return <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#888" }}>Loading...</div>;
 
   const audioUrl = track.storage_key ? getAudioPublicUrl(track.storage_key) : undefined;
 

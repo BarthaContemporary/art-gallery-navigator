@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useAudioCollectionBySlug, useAudioCollectionItems } from "@/hooks/use-audio-collections";
 import { getAudioPublicUrl } from "@/hooks/use-audio-tracks";
 import { MicroPlayer } from "@/components/audio/MicroPlayer";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AudioCollectionEmbed() {
   const { slug } = useParams<{ slug: string }>();
@@ -10,6 +10,12 @@ export default function AudioCollectionEmbed() {
   const { data: items } = useAudioCollectionItems(collection?.id);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showList, setShowList] = useState(false);
+
+  useEffect(() => {
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden";
+  }, []);
 
   if (!collection) return <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#888" }}>Loading...</div>;
 
