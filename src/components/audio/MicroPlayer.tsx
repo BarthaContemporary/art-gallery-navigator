@@ -53,7 +53,7 @@ export function MicroPlayer({ src, title, artist, coverUrl }: MicroPlayerProps) 
         style={{
           background: "none",
           border: "none",
-          color: "var(--audio-player-accent, #4f9eff)",
+          color: "var(--audio-player-accent, #455118)",
           cursor: "pointer",
           padding: 4,
           borderRadius: 4,
@@ -81,9 +81,9 @@ export function MicroPlayer({ src, title, artist, coverUrl }: MicroPlayerProps) 
           aria-label="Seek"
           style={{
             width: "100%",
-            height: 4,
+            height: 3,
             cursor: "pointer",
-            accentColor: "var(--audio-player-accent, #4f9eff)",
+            accentColor: "var(--audio-player-accent, #455118)",
           }}
         />
       </div>
