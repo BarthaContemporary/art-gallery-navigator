@@ -4,7 +4,7 @@ import { AudioUploadForm } from "@/components/audio/AudioUploadForm";
 import { AudioCollectionManager } from "@/components/audio/AudioCollectionManager";
 import { MicroPlayer } from "@/components/audio/MicroPlayer";
 import { Button } from "@/components/ui/button";
-import { Trash2, Music, FolderOpen, Plus } from "lucide-react";
+import { Trash2, Music, FolderOpen, Plus, Copy, Check } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 export default function AdminAudioPage() {
@@ -12,9 +12,21 @@ export default function AdminAudioPage() {
   const deleteTrack = useDeleteAudioTrack();
   const [tab, setTab] = useState<"tracks" | "upload" | "collections">("tracks");
   const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const previewTrack = tracks?.find((t) => t.id === previewTrackId);
   const previewUrl = previewTrack?.storage_key ? getAudioPublicUrl(previewTrack.storage_key) : undefined;
+
+  const baseUrl = window.location.origin;
+
+  const getEmbedCode = (slug: string) =>
+    `<iframe src="${baseUrl}/embed/audio/track/${slug}" width="100%" height="44" frameborder="0" allow="autoplay" style="border:none;border-radius:8px;max-width:600px;"></iframe>`;
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
     <>
@@ -35,8 +47,21 @@ export default function AdminAudioPage() {
         </div>
 
         {previewTrack && (
-          <div className="mb-6">
+          <div className="mb-6 space-y-2">
             <MicroPlayer src={previewUrl} title={previewTrack.title} artist={previewTrack.artist || undefined} />
+            <div className="relative">
+              <pre className="text-[11px] bg-muted text-muted-foreground p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                {getEmbedCode(previewTrack.slug || previewTrack.id)}
+              </pre>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-1.5 right-1.5 h-7 w-7"
+                onClick={() => copyToClipboard(getEmbedCode(previewTrack.slug || previewTrack.id), previewTrack.id)}
+              >
+                {copiedId === previewTrack.id ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
           </div>
         )}
 
