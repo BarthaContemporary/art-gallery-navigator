@@ -19,6 +19,9 @@ export default function AdminAudioPage() {
 
   const baseUrl = window.location.origin;
 
+  const getDivCode = (slug: string) =>
+    `<div data-audio-embed="${slug}"></div>`;
+
   const getEmbedCode = (slug: string) =>
     `<iframe src="${baseUrl}/embed/audio/track/${slug}" width="100%" height="44" frameborder="0" allow="autoplay" style="border:none;border-radius:8px;max-width:600px;"></iframe>`;
 
@@ -51,13 +54,13 @@ export default function AdminAudioPage() {
             <MicroPlayer src={previewUrl} title={previewTrack.title} artist={previewTrack.artist || undefined} />
             <div className="relative">
               <pre className="text-[11px] bg-muted text-muted-foreground p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono">
-                {getEmbedCode(previewTrack.slug || previewTrack.id)}
+                {getDivCode(previewTrack.slug || previewTrack.id)}
               </pre>
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute top-1.5 right-1.5 h-7 w-7"
-                onClick={() => copyToClipboard(getEmbedCode(previewTrack.slug || previewTrack.id), previewTrack.id)}
+                onClick={() => copyToClipboard(getDivCode(previewTrack.slug || previewTrack.id), previewTrack.id)}
               >
                 {copiedId === previewTrack.id ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
               </Button>
