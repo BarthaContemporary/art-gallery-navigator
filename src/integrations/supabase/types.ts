@@ -865,6 +865,132 @@ export type Database = {
           },
         ]
       }
+      audio_collection_items: {
+        Row: {
+          collection_id: string
+          id: string
+          position: number
+          track_id: string
+        }
+        Insert: {
+          collection_id: string
+          id?: string
+          position?: number
+          track_id: string
+        }
+        Update: {
+          collection_id?: string
+          id?: string
+          position?: number
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "audio_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_collection_items_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "audio_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audio_collections: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          slug: string | null
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          slug?: string | null
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          slug?: string | null
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
+      audio_tracks: {
+        Row: {
+          artist: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          date_published: string | null
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          series: string | null
+          slug: string | null
+          storage_key: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          artist?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_published?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          series?: string | null
+          slug?: string | null
+          storage_key?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          artist?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_published?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          series?: string | null
+          slug?: string | null
+          storage_key?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       booking_settings: {
         Row: {
           admin_notifications: boolean | null
