@@ -1,90 +1,138 @@
 
 
-# Performance Optimization Plan
+# Audio Library Module Plan
 
-## Issues Identified
+## Overview
 
-### 1. SecurityProvider runs heavy validation on every app load
-The `SecurityProvider` runs `securityValidator.validateSystemSecurity()` and `securityDashboard.generateDashboard()` on mount. These make **multiple Supabase queries** (checking RLS, scanning tables, validating data exposure, checking encryption) -- all blocking the initial render pipeline. The security dashboard internally calls the validator **again**, doubling the work.
+Add an Issuu-style audio library with public browsing, admin management, embeddable micro-players, and Supabase Storage for MP3 files. The embed pages will be ultra-lightweight standalone routes outside the main app shell.
 
-### 2. SecurityProvider monkey-patches `window.fetch` with security headers
-Every single `fetch` call goes through `applyEnhancedSecurityHeaders()`, which adds headers like `Cross-Origin-Embedder-Policy: require-corp` and `Cache-Control: no-cache, no-store`. These headers:
-- **Break caching entirely** (`Cache-Control: no-cache, no-store, must-revalidate, private`) for all requests including images and static assets
-- `Cross-Origin-Embedder-Policy: require-corp` can block cross-origin resources (images from Supabase storage)
+## Database Schema
 
-### 3. Dashboard makes 7+ sequential Supabase queries
-`useDashboardStats` runs two batches of `Promise.allSettled` calls, then **three more sequential queries** (security_events, artworks status, profiles). These should all be parallelized.
+### New Tables
 
-### 4. No route-level code splitting
-All 30+ pages are eagerly imported in `App.tsx`. Every page's JavaScript loads on initial app startup regardless of which route the user visits.
+**`audio_tracks`**
+- `id` (uuid, PK)
+- `slug` (text, unique, auto-generated)
+- `title` (text, not null)
+- `artist` (text)
+- `series` (text)
+- `description` (text)
+- `tags` (text[])
+- `duration_seconds` (integer)
+- `date_published` (date)
+- `cover_image_url` (text)
+- `storage_key` (text) -- path in Supabase Storage `audio` bucket
+- `visibility` (text, default 'public') -- 'public' or 'private'
+- `created_by` (uuid, references auth.users)
+- `created_at`, `updated_at` (timestamptz)
 
-### 5. `useArtworkActions` hook called per card AND in GlobalDialogRenderer
-Every `ArtworkCard` calls `useDialogManager()` and `useArtworkActions(artwork)`, which creates state and a `useQueryClient()` call per card. The `GlobalDialogRenderer` also always calls `useArtworkActions` even when no dialog is open.
+**`audio_collections`**
+- `id` (uuid, PK)
+- `slug` (text, unique, auto-generated)
+- `title` (text, not null)
+- `description` (text)
+- `cover_image_url` (text)
+- `visibility` (text, default 'public')
+- `created_by` (uuid)
+- `created_at`, `updated_at`
 
-### 6. `useUserRoles` wraps role checks in `enhancedSecurity.secureDataAccess`
-This generates security log events (including `console.log`) for every role check, adding overhead to every login.
+**`audio_collection_items`**
+- `id` (uuid, PK)
+- `collection_id` (uuid, FK -> audio_collections)
+- `track_id` (uuid, FK -> audio_tracks)
+- `position` (integer, not null)
+- unique constraint on (collection_id, track_id)
 
-### 7. Virtualized grid is disabled
-`ArtworkGrid` has `shouldUseOptimizedGrid = false` hardcoded, meaning all artwork cards render at once regardless of count.
+### Storage Bucket
 
----
+- Create `audio` bucket (public for public tracks, signed URLs for private)
 
-## Proposed Changes
+### RLS Policies
 
-### Phase 1: High-Impact, Low-Risk
+- Public SELECT on tracks/collections where `visibility = 'public'`
+- Authenticated SELECT for all tracks (admin sees private too)
+- Admin-only INSERT/UPDATE/DELETE on all three tables
 
-**1a. Lazy-load routes in `App.tsx`**
-- Wrap all page imports with `React.lazy()` and `Suspense`
-- Group related pages (CRM, admin, viewer) for shared chunks
-- Estimated impact: 50-70% reduction in initial bundle size
+### Slug Generation Trigger
 
-**1b. Defer SecurityProvider validation**
-- Move `validateSecurity()` call behind a `setTimeout(..., 5000)` so it runs after the app is interactive
-- Remove the `window.fetch` monkey-patch -- these headers are not effective on client-side fetched requests (they're response headers, not request headers) and the `Cache-Control: no-store` actively hurts performance
-- Estimated impact: Eliminates 4-6 Supabase queries from startup
+- Reuse the pattern from `generate_publication_slug()` to auto-generate slugs on insert
 
-**1c. Parallelize dashboard queries**
-- Combine the second batch of admin queries and the subsequent sequential queries into a single `Promise.allSettled` call
-- Estimated impact: Reduces dashboard load time by ~40%
+## Edge Function
 
-### Phase 2: Medium Impact
+**`audio-signed-url`** -- generates short-lived signed URLs for private tracks. Validates auth, checks track visibility, returns a signed Supabase Storage URL.
 
-**2a. Re-enable virtualized grid with a threshold**
-- Change `shouldUseOptimizedGrid` to `artworks.length > 50` so large collections use virtualization
-- Estimated impact: Major improvement for users with 100+ artworks
+## Routes
 
-**2b. Remove `useArtworkActions` from `GlobalDialogRenderer` when no dialog is open**
-- Only instantiate the hook when `isOpen && artwork` is truthy, or restructure to avoid the hook call
-- Move `useArtworkActions` into the delete handler component only
+### Public Routes (no auth required)
 
-**2c. Simplify `useUserRoles`**
-- Remove the `enhancedSecurity.secureDataAccess` wrapper around role checking -- it adds logging overhead with no security value for an RPC call
-- Call `supabase.rpc('has_role', ...)` directly
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/audio` | `AudioLibrary` | Browse tracks with search, tag filter, sort |
+| `/audio/tracks/:slug` | `AudioTrackDetail` | Track page with player + embed code snippet |
+| `/audio/collections/:slug` | `AudioCollectionPage` | Collection with playlist |
+| `/embed/audio/track/:slug` | `AudioTrackEmbed` | Minimal 48-64px micro-player |
+| `/embed/audio/collection/:slug` | `AudioCollectionEmbed` | Micro-player + playlist drawer |
 
-### Phase 3: Lower Priority
+### Admin Route (auth + admin required)
 
-**3a. Remove `console.log` from SecurityMonitor in production**
-- The `logSecurityEvent` method always logs to console (`console.log('Security Event:', securityEvent)`), adding noise and minor overhead
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/admin/audio` | `AdminAudioPage` | Upload MP3, edit metadata, manage collections |
 
-**3b. Add `loading="lazy"` to off-screen images**
-- The `UnifiedImage` component should pass `loading="lazy"` to the img element for non-priority images
+## Files to Create
 
-**3c. Memoize `CurrencyContext` value**
-- Wrap the context value object in `useMemo` to prevent unnecessary re-renders of all consumers
+### Pages
+- `src/pages/audio/AudioLibrary.tsx` -- search, tags, grid of tracks/collections
+- `src/pages/audio/AudioTrackDetail.tsx` -- full track view with embed code
+- `src/pages/audio/AudioCollectionPage.tsx` -- collection playlist view
+- `src/pages/audio/embed/AudioTrackEmbed.tsx` -- standalone minimal player
+- `src/pages/audio/embed/AudioCollectionEmbed.tsx` -- minimal player + playlist
+- `src/pages/admin/AdminAudioPage.tsx` -- upload, metadata form, collection manager
 
-## Technical Details
+### Components
+- `src/components/audio/MicroPlayer.tsx` -- 48-64px player: play/pause, scrubber, time display. CSS variables for theming, ARIA labels, keyboard support
+- `src/components/audio/AudioTrackCard.tsx` -- card for library grid
+- `src/components/audio/AudioUploadForm.tsx` -- MP3 upload + metadata fields
+- `src/components/audio/AudioCollectionManager.tsx` -- drag-to-reorder collection items
 
-### Files to modify:
-1. **`src/App.tsx`** -- Add `React.lazy` + `Suspense` for all route pages
-2. **`src/components/security/SecurityProvider.tsx`** -- Defer validation, remove fetch monkey-patch
-3. **`src/hooks/use-dashboard-stats.ts`** -- Parallelize all queries into one batch
-4. **`src/components/artworks/ArtworkGrid.tsx`** -- Re-enable virtualized grid for large datasets
-5. **`src/components/artworks/dialogs/GlobalDialogRenderer.tsx`** -- Restructure to avoid unnecessary hook calls
-6. **`src/hooks/use-user-roles.ts`** -- Remove `enhancedSecurity.secureDataAccess` wrapper
-7. **`src/utils/security-monitoring.ts`** -- Guard `console.log` behind dev check
-8. **`src/components/ui/unified-image.tsx`** -- Add `loading="lazy"` attribute
-9. **`src/contexts/CurrencyContext.tsx`** -- Memoize context value
+### Hooks
+- `src/hooks/use-audio-tracks.ts` -- CRUD queries for tracks
+- `src/hooks/use-audio-collections.ts` -- CRUD queries for collections
+- `src/hooks/use-audio-player.ts` -- shared playback state (play/pause/seek/time)
 
-### No database changes required
-### No edge function changes required
+### Edge Function
+- `supabase/functions/audio-signed-url/index.ts`
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add lazy imports for 6 new pages; add routes (public `/audio/*`, `/embed/audio/*`, admin `/admin/audio`) |
+| `src/components/layout/sidebar/Navigation.tsx` | Add "Audio" nav item with `Music` icon (admin-only) |
+| `src/hooks/use-nav-items.ts` | Add "Audio" to `baseItems` and `mainItems` |
+| `src/pages/admin/AdminLayout.tsx` | Add "Audio Library" to `adminNavItems` |
+| `supabase/config.toml` | Register `audio-signed-url` function |
+
+## Player UI Details
+
+The `MicroPlayer` component:
+- Height: 48-64px, flex row layout
+- Controls: play/pause button, range input scrubber, current time / duration
+- Uses native `<audio>` element (hidden), controlled via ref
+- CSS variables: `--audio-player-bg`, `--audio-player-fg`, `--audio-player-accent` with sensible defaults
+- Scoped styles using CSS modules or inline styles (no global CSS leakage)
+- ARIA: `role="region"`, `aria-label="Audio player"`, button labels, keyboard Enter/Space for play/pause
+- Focus ring on interactive elements
+
+## Embed Page Strategy
+
+The embed routes (`/embed/audio/*`) render **outside** the `MainLayout` and `RequireAuth` wrappers -- just like `/auth` and `/book-appointment`. They load only the `MicroPlayer` component with minimal dependencies (no sidebar, no providers beyond QueryClient). This keeps the iframe payload small.
+
+## Performance Considerations
+
+- All new pages lazy-loaded via `React.lazy`
+- Embed pages import only MicroPlayer + Supabase client (tiny bundle)
+- Audio files streamed directly from Supabase Storage (no buffering through edge functions for public tracks)
+- Signed URLs only generated on-demand for private tracks
+- `loading="lazy"` on cover images
 
