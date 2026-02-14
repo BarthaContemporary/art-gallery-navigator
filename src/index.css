@@ -481,3 +481,38 @@
     width: 100%;
   }
 }
+
+/* Micro-player scrubber thumb – scoped to .micro-player */
+.micro-player input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.micro-player input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: hsl(0 0% 72%);
+  border-radius: 2px;
+}
+.micro-player input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--audio-player-accent, #455118);
+  margin-top: -2.5px;
+  cursor: pointer;
+}
+.micro-player input[type="range"]::-moz-range-track {
+  height: 3px;
+  background: hsl(0 0% 72%);
+  border-radius: 2px;
+}
+.micro-player input[type="range"]::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--audio-player-accent, #455118);
+  cursor: pointer;
+}
