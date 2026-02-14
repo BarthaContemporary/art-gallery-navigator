@@ -67,6 +67,14 @@ const ViewerLayout = lazy(() => import("@/pages/viewer/ViewerLayout"));
 const ViewerArtworksPage = lazy(() => import("@/pages/viewer/ViewerArtworksPage"));
 const ViewerArtworkDetailPage = lazy(() => import("@/pages/viewer/ViewerArtworkDetailPage"));
 
+// Audio pages
+const AudioLibrary = lazy(() => import("@/pages/audio/AudioLibrary"));
+const AudioTrackDetail = lazy(() => import("@/pages/audio/AudioTrackDetail"));
+const AudioCollectionPage = lazy(() => import("@/pages/audio/AudioCollectionPage"));
+const AudioTrackEmbed = lazy(() => import("@/pages/audio/embed/AudioTrackEmbed"));
+const AudioCollectionEmbed = lazy(() => import("@/pages/audio/embed/AudioCollectionEmbed"));
+const AdminAudioPage = lazy(() => import("@/pages/admin/AdminAudioPage"));
+
 const queryClient = new QueryClient();
 
 function PageLoader() {
@@ -95,6 +103,11 @@ function App() {
                   <Route path="/w/:slug" element={<PublicArtworkViewer />} />
                   <Route path="/view-collection/:slug" element={<PublicCollectionView />} />
                   <Route path="/p/:slug" element={<PublicationViewer />} />
+                  <Route path="/audio" element={<AudioLibrary />} />
+                  <Route path="/audio/tracks/:slug" element={<AudioTrackDetail />} />
+                  <Route path="/audio/collections/:slug" element={<AudioCollectionPage />} />
+                  <Route path="/embed/audio/track/:slug" element={<AudioTrackEmbed />} />
+                  <Route path="/embed/audio/collection/:slug" element={<AudioCollectionEmbed />} />
                   <Route path="/" element={
                     <RequireAuth>
                       <MainLayout />
@@ -130,6 +143,7 @@ function App() {
                       <Route path="logs" element={<AdminLogsPage />} />
                     </Route>
                     <Route path="admin/publications" element={<Publications />} />
+                    <Route path="admin/audio" element={<AdminAudioPage />} />
                     <Route path="admin/publications/:id" element={<PublicationEditor />} />
                     <Route path="admin/publications/:id/leads" element={<PublicationLeads />} />
                     <Route path="viewer" element={<ViewerLayout />}>

@@ -191,3 +191,6 @@ verify_jwt = true
 
 [functions.scrape-artsy-images]
 verify_jwt = true
+
+[functions.audio-signed-url]
+verify_jwt = false
