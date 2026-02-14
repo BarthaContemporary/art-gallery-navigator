@@ -11,6 +11,8 @@ export default function AudioTrackEmbed() {
     document.body.style.margin = "0";
     document.body.style.padding = "0";
     document.body.style.overflow = "hidden";
+    document.body.style.background = "transparent";
+    document.documentElement.style.background = "transparent";
   }, []);
 
   if (!track) return <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#888" }}>Loading...</div>;
