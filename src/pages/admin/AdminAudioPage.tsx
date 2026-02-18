@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useAudioTracks, useDeleteAudioTrack, getAudioPublicUrl } from "@/hooks/use-audio-tracks";
 import { AudioUploadForm } from "@/components/audio/AudioUploadForm";
 import { AudioCollectionManager } from "@/components/audio/AudioCollectionManager";
+import { AudioEditDialog } from "@/components/audio/AudioEditDialog";
 import { MicroPlayer } from "@/components/audio/MicroPlayer";
 import { Button } from "@/components/ui/button";
-import { Trash2, Music, FolderOpen, Plus, Copy, Check } from "lucide-react";
+import { Trash2, Music, FolderOpen, Plus, Copy, Check, Pencil } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 export default function AdminAudioPage() {
@@ -13,6 +14,7 @@ export default function AdminAudioPage() {
   const [tab, setTab] = useState<"tracks" | "upload" | "collections">("tracks");
   const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [editTrack, setEditTrack] = useState<any>(null);
 
   const previewTrack = tracks?.find((t) => t.id === previewTrackId);
   const previewUrl = previewTrack?.storage_key ? getAudioPublicUrl(previewTrack.storage_key) : undefined;
@@ -86,6 +88,9 @@ export default function AdminAudioPage() {
                   </button>
                   <p className="text-xs text-muted-foreground truncate">{track.artist || "—"} · {track.visibility}</p>
                 </div>
+                <Button variant="ghost" size="icon" onClick={() => setEditTrack(track)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -98,6 +103,12 @@ export default function AdminAudioPage() {
           </div>
         )}
       </div>
+
+        <AudioEditDialog
+          track={editTrack}
+          open={!!editTrack}
+          onOpenChange={(open) => { if (!open) setEditTrack(null); }}
+        />
     </>
   );
 }
