@@ -173,9 +173,9 @@ export function useArtworkFilters(artworks: Artwork[], artists: Artist[]) {
     filterOptions,
     updateFilter,
     clearFilters,
-    hasActiveFilters: Object.values(filters).some(value => 
-      value !== null && value !== '' && 
-      (Array.isArray(value) ? value.length > 0 : true)
+    hasActiveFilters: Boolean(
+      filters.search || filters.artist || filters.status || 
+      filters.mediumType || filters.yearRange || filters.priceRange
     )
   };
 }
