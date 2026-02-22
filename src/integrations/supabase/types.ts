@@ -4052,6 +4052,69 @@ export type Database = {
           },
         ]
       }
+      tour_annotations: {
+        Row: {
+          annotation_type: string
+          content: Json | null
+          created_at: string
+          created_by: string | null
+          display_order: number
+          id: string
+          label: string
+          node_image_id: string
+          project_id: string
+          updated_at: string
+          visible_to: string
+          x: number
+          y: number
+        }
+        Insert: {
+          annotation_type?: string
+          content?: Json | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          id?: string
+          label?: string
+          node_image_id: string
+          project_id: string
+          updated_at?: string
+          visible_to?: string
+          x?: number
+          y?: number
+        }
+        Update: {
+          annotation_type?: string
+          content?: Json | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          id?: string
+          label?: string
+          node_image_id?: string
+          project_id?: string
+          updated_at?: string
+          visible_to?: string
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_annotations_node_image_id_fkey"
+            columns: ["node_image_id"]
+            isOneToOne: false
+            referencedRelation: "tour_node_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_annotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tour_collaborators: {
         Row: {
           created_at: string
