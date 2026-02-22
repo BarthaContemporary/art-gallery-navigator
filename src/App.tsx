@@ -79,6 +79,7 @@ const AdminAudioPage = lazy(() => import("@/pages/admin/AdminAudioPage"));
 const ToursPage = lazy(() => import("@/pages/tours/ToursPage"));
 const TourDetailPage = lazy(() => import("@/pages/tours/TourDetailPage"));
 const TourNodeEditorPage = lazy(() => import("@/pages/tours/TourNodeEditorPage"));
+const TourViewerPage = lazy(() => import("@/pages/tours/TourViewerPage"));
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,7 @@ function App() {
                   <Route path="/audio/collections/:slug" element={<AudioCollectionPage />} />
                   <Route path="/embed/audio/track/:slug" element={<AudioTrackEmbed />} />
                   <Route path="/embed/audio/collection/:slug" element={<AudioCollectionEmbed />} />
+                  <Route path="/tour-viewer/:projectId" element={<TourViewerPage />} />
                   <Route path="/" element={
                     <RequireAuth>
                       <MainLayout />

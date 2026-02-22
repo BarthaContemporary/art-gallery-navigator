@@ -1,6 +1,6 @@
 
 import { SidebarNavItem } from "./components/SidebarNavItem";
-import { Palette, Users, Calendar, MapPin, FolderOpen, Share2, Settings, Archive, Image, Contact, BookOpen, Music } from "lucide-react";
+import { Palette, Users, Calendar, MapPin, FolderOpen, Share2, Settings, Archive, Image, Contact, BookOpen, Music, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Navigation() {
@@ -23,6 +23,7 @@ export function Navigation() {
     ] : []),
     { href: "/locations", icon: MapPin, name: "Locations" },
     ...(isAdmin ? [
+      { href: "/tours", icon: Camera, name: "Tours" },
       { href: "/admin", icon: Settings, name: "Admin", end: true },
     ] : []),
   ];
