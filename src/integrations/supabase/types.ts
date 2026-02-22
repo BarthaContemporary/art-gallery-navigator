@@ -5627,6 +5627,8 @@ export type Database = {
         Args: { _document_id: string }
         Returns: boolean
       }
+      is_tour_collaborator: { Args: { _project_id: string }; Returns: boolean }
+      is_tour_project_owner: { Args: { _project_id: string }; Returns: boolean }
       is_user_admin: { Args: never; Returns: boolean }
       is_workspace_member: { Args: { _workspace_id: string }; Returns: boolean }
       link_artist_to_user: {
