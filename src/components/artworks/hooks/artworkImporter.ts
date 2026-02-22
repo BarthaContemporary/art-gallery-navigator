@@ -157,8 +157,12 @@ export async function performArtworkImport(
 
       console.log("Inserting artwork data:", dataToInsert);
 
-      const { error } = await supabase.from("artworks").insert(dataToInsert as any); 
-                                                                                      
+      const { data: insertedArtwork, error } = await supabase
+        .from("artworks")
+        .insert(dataToInsert as any)
+        .select("id, image_url")
+        .single();
+                                                                                       
       if (error) {
         console.error("Error importing artwork:", resolvedArtwork.title, error.message, error.details, error.hint);
         toast.error(`Failed to import ${resolvedArtwork.title}: ${error.message}`);
@@ -166,6 +170,23 @@ export async function performArtworkImport(
       } else {
         console.log("Successfully imported artwork:", resolvedArtwork.title);
         successful++;
+
+        // If artwork has an image_url, also create an artwork_images record so it displays in the UI
+        if (insertedArtwork?.image_url) {
+          const { error: imageError } = await supabase
+            .from("artwork_images")
+            .insert({
+              artwork_id: insertedArtwork.id,
+              image_url: insertedArtwork.image_url,
+              is_primary: true,
+              display_order: 0,
+            });
+          if (imageError) {
+            console.warn("Artwork imported but failed to create image record:", imageError.message);
+          } else {
+            console.log("Created artwork_images record for:", resolvedArtwork.title);
+          }
+        }
       }
 
     } catch (dbError: any) {
