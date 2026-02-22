@@ -75,6 +75,11 @@ const AudioTrackEmbed = lazy(() => import("@/pages/audio/embed/AudioTrackEmbed")
 const AudioCollectionEmbed = lazy(() => import("@/pages/audio/embed/AudioCollectionEmbed"));
 const AdminAudioPage = lazy(() => import("@/pages/admin/AdminAudioPage"));
 
+// Tour pages
+const ToursPage = lazy(() => import("@/pages/tours/ToursPage"));
+const TourDetailPage = lazy(() => import("@/pages/tours/TourDetailPage"));
+const TourNodeEditorPage = lazy(() => import("@/pages/tours/TourNodeEditorPage"));
+
 const queryClient = new QueryClient();
 
 function PageLoader() {
@@ -152,6 +157,9 @@ function App() {
                     </Route>
                     <Route path="manage-websites" element={<ManageWebsites />} />
                     <Route path="manage-websites/:websiteId/edit" element={<EditCollectionWebsite />} />
+                    <Route path="tours" element={<ToursPage />} />
+                    <Route path="tours/:id" element={<TourDetailPage />} />
+                    <Route path="tours/:id/nodes/:nodeId" element={<TourNodeEditorPage />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

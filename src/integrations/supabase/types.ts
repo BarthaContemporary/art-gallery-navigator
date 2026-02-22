@@ -4052,6 +4052,431 @@ export type Database = {
           },
         ]
       }
+      tour_collaborators: {
+        Row: {
+          created_at: string
+          id: string
+          invited_email: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["tour_collaborator_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_email?: string | null
+          project_id: string
+          role?: Database["public"]["Enums"]["tour_collaborator_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_email?: string | null
+          project_id?: string
+          role?: Database["public"]["Enums"]["tour_collaborator_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_collaborators_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_floorplans: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          height: number | null
+          id: string
+          image_url: string
+          label: string | null
+          project_id: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          height?: number | null
+          id?: string
+          image_url: string
+          label?: string | null
+          project_id: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          height?: number | null
+          id?: string
+          image_url?: string
+          label?: string | null
+          project_id?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_floorplans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_hotspots: {
+        Row: {
+          coord_x: number | null
+          coord_y: number | null
+          created_at: string
+          icon: string | null
+          id: string
+          info_content: string | null
+          info_media_url: string | null
+          info_title: string | null
+          label: string | null
+          pitch: number | null
+          source_node_id: string
+          target_node_id: string | null
+          updated_at: string
+          yaw: number | null
+        }
+        Insert: {
+          coord_x?: number | null
+          coord_y?: number | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          info_content?: string | null
+          info_media_url?: string | null
+          info_title?: string | null
+          label?: string | null
+          pitch?: number | null
+          source_node_id: string
+          target_node_id?: string | null
+          updated_at?: string
+          yaw?: number | null
+        }
+        Update: {
+          coord_x?: number | null
+          coord_y?: number | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          info_content?: string | null
+          info_media_url?: string | null
+          info_title?: string | null
+          label?: string | null
+          pitch?: number | null
+          source_node_id?: string
+          target_node_id?: string | null
+          updated_at?: string
+          yaw?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_hotspots_source_node_id_fkey"
+            columns: ["source_node_id"]
+            isOneToOne: false
+            referencedRelation: "tour_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_hotspots_target_node_id_fkey"
+            columns: ["target_node_id"]
+            isOneToOne: false
+            referencedRelation: "tour_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_node_images: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          exif_data: Json | null
+          file_size: number | null
+          id: string
+          is_primary: boolean | null
+          large_url: string | null
+          medium_url: string | null
+          mime_type: string | null
+          node_id: string
+          original_height: number | null
+          original_url: string
+          original_width: number | null
+          processing_error: string | null
+          processing_status:
+            | Database["public"]["Enums"]["tour_job_status"]
+            | null
+          thumbnail_url: string | null
+          tile_base_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          exif_data?: Json | null
+          file_size?: number | null
+          id?: string
+          is_primary?: boolean | null
+          large_url?: string | null
+          medium_url?: string | null
+          mime_type?: string | null
+          node_id: string
+          original_height?: number | null
+          original_url: string
+          original_width?: number | null
+          processing_error?: string | null
+          processing_status?:
+            | Database["public"]["Enums"]["tour_job_status"]
+            | null
+          thumbnail_url?: string | null
+          tile_base_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          exif_data?: Json | null
+          file_size?: number | null
+          id?: string
+          is_primary?: boolean | null
+          large_url?: string | null
+          medium_url?: string | null
+          mime_type?: string | null
+          node_id?: string
+          original_height?: number | null
+          original_url?: string
+          original_width?: number | null
+          processing_error?: string | null
+          processing_status?:
+            | Database["public"]["Enums"]["tour_job_status"]
+            | null
+          thumbnail_url?: string | null
+          tile_base_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_node_images_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "tour_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_nodes: {
+        Row: {
+          created_at: string
+          floorplan_id: string | null
+          floorplan_x: number | null
+          floorplan_y: number | null
+          id: string
+          initial_heading: number | null
+          name: string
+          node_type: Database["public"]["Enums"]["tour_node_type"]
+          panorama_url: string | null
+          position_index: number
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          floorplan_id?: string | null
+          floorplan_x?: number | null
+          floorplan_y?: number | null
+          id?: string
+          initial_heading?: number | null
+          name: string
+          node_type?: Database["public"]["Enums"]["tour_node_type"]
+          panorama_url?: string | null
+          position_index?: number
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          floorplan_id?: string | null
+          floorplan_x?: number | null
+          floorplan_y?: number | null
+          id?: string
+          initial_heading?: number | null
+          name?: string
+          node_type?: Database["public"]["Enums"]["tour_node_type"]
+          panorama_url?: string | null
+          position_index?: number
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_nodes_floorplan_id_fkey"
+            columns: ["floorplan_id"]
+            isOneToOne: false
+            referencedRelation: "tour_floorplans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_nodes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_processing_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["tour_job_type"]
+          max_retries: number | null
+          node_id: string | null
+          node_image_id: string | null
+          result_data: Json | null
+          retry_count: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["tour_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type: Database["public"]["Enums"]["tour_job_type"]
+          max_retries?: number | null
+          node_id?: string | null
+          node_image_id?: string | null
+          result_data?: Json | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["tour_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["tour_job_type"]
+          max_retries?: number | null
+          node_id?: string | null
+          node_image_id?: string | null
+          result_data?: Json | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["tour_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_processing_jobs_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "tour_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_processing_jobs_node_image_id_fkey"
+            columns: ["node_image_id"]
+            isOneToOne: false
+            referencedRelation: "tour_node_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_projects: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          location: string | null
+          owner_id: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["tour_visibility"]
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          owner_id: string
+          title: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["tour_visibility"]
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          owner_id?: string
+          title?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["tour_visibility"]
+        }
+        Relationships: []
+      }
+      tour_share_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          password_hash: string | null
+          project_id: string
+          slug: string
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string | null
+          project_id: string
+          slug: string
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string | null
+          project_id?: string
+          slug?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_share_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       uploads: {
         Row: {
           created_at: string
@@ -4748,6 +5173,11 @@ export type Database = {
           groups_processed: number
         }[]
       }
+      can_access_tour_node: { Args: { _node_id: string }; Returns: boolean }
+      can_access_tour_project: {
+        Args: { _project_id: string }
+        Returns: boolean
+      }
       check_appointment_email_rate_limit: {
         Args: { p_email: string }
         Returns: boolean
@@ -5252,6 +5682,15 @@ export type Database = {
       publication_theme: "light" | "dark" | "auto"
       publication_visibility: "public" | "unlisted" | "private"
       reference_type: "document" | "collection" | "artwork" | "artist"
+      tour_collaborator_role: "editor" | "viewer"
+      tour_job_status: "queued" | "processing" | "done" | "failed"
+      tour_job_type:
+        | "thumbnail"
+        | "responsive"
+        | "tile_pyramid"
+        | "panorama_stitch"
+      tour_node_type: "panorama" | "image_set"
+      tour_visibility: "private" | "unlisted" | "public"
       user_role: "gallery_admin" | "artist" | "external"
     }
     CompositeTypes: {
@@ -5442,6 +5881,16 @@ export const Constants = {
       publication_theme: ["light", "dark", "auto"],
       publication_visibility: ["public", "unlisted", "private"],
       reference_type: ["document", "collection", "artwork", "artist"],
+      tour_collaborator_role: ["editor", "viewer"],
+      tour_job_status: ["queued", "processing", "done", "failed"],
+      tour_job_type: [
+        "thumbnail",
+        "responsive",
+        "tile_pyramid",
+        "panorama_stitch",
+      ],
+      tour_node_type: ["panorama", "image_set"],
+      tour_visibility: ["private", "unlisted", "public"],
       user_role: ["gallery_admin", "artist", "external"],
     },
   },
