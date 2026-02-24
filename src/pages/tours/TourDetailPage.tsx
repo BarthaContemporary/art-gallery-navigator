@@ -7,6 +7,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,6 +51,8 @@ export default function TourDetailPage() {
   const [nodeType, setNodeType] = useState<NodeType>("image_set");
   const isMobile = useIsMobile();
   const [showFloorplan, setShowFloorplan] = useState(false);
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ["tour-project", projectId],
@@ -103,6 +115,41 @@ export default function TourDetailPage() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const handleDeleteProject = async () => {
+    if (!projectId) return;
+    setIsDeletingProject(true);
+    try {
+      const { data: nodeIds } = await supabase
+        .from("tour_nodes")
+        .select("id")
+        .eq("project_id", projectId);
+
+      if (nodeIds && nodeIds.length > 0) {
+        const ids = nodeIds.map(n => n.id);
+        await (supabase.from("tour_processing_jobs").delete() as any).in("node_id", ids);
+        await (supabase.from("tour_node_images").delete() as any).in("node_id", ids);
+        await (supabase.from("tour_hotspots").delete() as any).in("source_node_id", ids);
+        await (supabase.from("tour_hotspots").delete() as any).in("target_node_id", ids);
+      }
+
+      await supabase.from("tour_nodes").delete().eq("project_id", projectId);
+      await supabase.from("tour_collaborators").delete().eq("project_id", projectId);
+      await supabase.from("tour_share_links").delete().eq("project_id", projectId);
+      await supabase.from("tour_floorplans").delete().eq("project_id", projectId);
+
+      const { error } = await supabase.from("tour_projects").delete().eq("id", projectId);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["tour-projects"] });
+      toast.success("Tour project deleted");
+      navigate("/tours");
+    } catch (err: any) {
+      toast.error("Failed to delete: " + err.message);
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
   if (projectLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -163,6 +210,14 @@ export default function TourDetailPage() {
           <Button variant="outline" size="sm">
             <Settings className="h-4 w-4 mr-1.5" />
             Settings
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => setDeleteProjectOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -312,6 +367,27 @@ export default function TourDetailPage() {
           )}
         </div>
       )}
+      {/* Delete Project Dialog */}
+      <AlertDialog open={deleteProjectOpen} onOpenChange={setDeleteProjectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this tour project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{project.title}" and all its scan positions, images, hotspots, and share links. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingProject}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              disabled={isDeletingProject}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingProject ? "Deleting..." : "Delete Tour"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
