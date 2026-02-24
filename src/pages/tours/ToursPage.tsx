@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Plus, Camera, Globe, Lock, Eye } from "lucide-react";
+import { Plus, Camera, Globe, Lock, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,6 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -36,6 +46,8 @@ export default function ToursPage() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [visibility, setVisibility] = useState<TourVisibility>("private");
+  const [deleteTarget, setDeleteTarget] = useState<TourProject | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: tours = [], isLoading } = useQuery({
     queryKey: ["tour-projects"],
@@ -78,6 +90,43 @@ export default function ToursPage() {
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  const handleDeleteTour = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      // Delete related data in order: images → nodes → hotspots → collaborators → share links → floorplans → processing jobs → project
+      const { data: nodeIds } = await supabase
+        .from("tour_nodes")
+        .select("id")
+        .eq("project_id", deleteTarget.id);
+
+      if (nodeIds && nodeIds.length > 0) {
+        const ids = nodeIds.map(n => n.id);
+        // Delete processing jobs linked to nodes
+        await (supabase.from("tour_processing_jobs").delete() as any).in("node_id", ids);
+        await (supabase.from("tour_node_images").delete() as any).in("node_id", ids);
+        await (supabase.from("tour_hotspots").delete() as any).in("source_node_id", ids);
+        await (supabase.from("tour_hotspots").delete() as any).in("target_node_id", ids);
+      }
+
+      await supabase.from("tour_nodes").delete().eq("project_id", deleteTarget.id);
+      await supabase.from("tour_collaborators").delete().eq("project_id", deleteTarget.id);
+      await supabase.from("tour_share_links").delete().eq("project_id", deleteTarget.id);
+      await supabase.from("tour_floorplans").delete().eq("project_id", deleteTarget.id);
+
+      const { error } = await supabase.from("tour_projects").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["tour-projects"] });
+      toast.success(`"${deleteTarget.title}" deleted`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error("Failed to delete tour: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const visibilityIcon = (v: TourVisibility) => {
     if (v === "public") return <Globe className="h-3.5 w-3.5" />;
@@ -182,19 +231,53 @@ export default function ToursPage() {
                   {tour.visibility}
                 </div>
               </div>
-              <CardContent className="p-4">
-                <h3 className="font-medium truncate">{tour.title}</h3>
-                {tour.location && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{tour.location}</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Updated {format(new Date(tour.updated_at), "MMM d, yyyy")}
-                </p>
+              <CardContent className="p-4 flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium truncate">{tour.title}</h3>
+                  {tour.location && (
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{tour.location}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Updated {format(new Date(tour.updated_at), "MMM d, yyyy")}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(tour);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete tour project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteTarget?.title}" and all its scan positions, images, hotspots, and share links. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTour}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Tour"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
