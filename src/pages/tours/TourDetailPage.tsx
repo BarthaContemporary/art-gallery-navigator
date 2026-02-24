@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Image, MapPin, Settings, Eye, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, Image, MapPin, Settings, Eye, Trash2, GripVertical, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { MobileCaptureWizard } from "@/components/tours/MobileCaptureWizard";
 
 type NodeType = "panorama" | "image_set";
 
@@ -31,8 +33,10 @@ export default function TourDetailPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [createNodeOpen, setCreateNodeOpen] = useState(false);
+  const [captureMode, setCaptureMode] = useState(false);
   const [nodeName, setNodeName] = useState("");
   const [nodeType, setNodeType] = useState<NodeType>("image_set");
+  const isMobile = useIsMobile();
 
   const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ["tour-project", projectId],
@@ -114,6 +118,18 @@ export default function TourDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Mobile Capture Wizard */}
+      {captureMode && projectId && (
+        <MobileCaptureWizard
+          projectId={projectId}
+          onComplete={() => {
+            setCaptureMode(false);
+            queryClient.invalidateQueries({ queryKey: ["tour-nodes", projectId] });
+          }}
+          onClose={() => setCaptureMode(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -146,6 +162,18 @@ export default function TourDetailPage() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile Capture Mode Button */}
+      {isMobile && (
+        <Button
+          onClick={() => setCaptureMode(true)}
+          className="w-full h-14 text-base"
+          size="xl"
+        >
+          <Camera className="h-5 w-5 mr-2" />
+          Start Capture Mode
+        </Button>
+      )}
 
       {/* Nodes Section */}
       <div className="flex items-center justify-between">
