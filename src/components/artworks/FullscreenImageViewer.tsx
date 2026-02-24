@@ -1,4 +1,5 @@
 import React from "react";
+import { getStoragePublicUrl } from '@/lib/supabase-url';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -145,15 +146,15 @@ export function FullscreenImageViewer({
                 imageRecord={{
                   id: currentImage.id,
                   image_url: currentImage.large_storage_path 
-                    ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.large_storage_path}`
+                    ? getStoragePublicUrl('artwork-images-processed', currentImage.large_storage_path)
                     : currentImage.medium_storage_path 
-                      ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.medium_storage_path}`
+                      ? getStoragePublicUrl('artwork-images-processed', currentImage.medium_storage_path)
                       : '/placeholder.svg',
                   medium_url: currentImage.medium_storage_path 
-                    ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.medium_storage_path}`
+                    ? getStoragePublicUrl('artwork-images-processed', currentImage.medium_storage_path)
                     : undefined,
                   thumbnail_url: currentImage.thumbnail_storage_path
-                    ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${currentImage.thumbnail_storage_path}`
+                    ? getStoragePublicUrl('artwork-images-processed', currentImage.thumbnail_storage_path)
                     : undefined,
                 } as ImageRecord}
                 title={artworkTitle}

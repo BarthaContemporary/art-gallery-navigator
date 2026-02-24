@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +33,8 @@ export function WebDAVDebugPanel() {
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
-  const webdavDebugUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/debug-token";
-  const webdavBaseUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  const webdavDebugUrl = getEdgeFunctionUrl('webdav') + '/debug-token';
+  const webdavBaseUrl = getEdgeFunctionUrl('webdav') + '/';
 
   const testBasicConnectivity = async () => {
     setConnectionStatus('testing');

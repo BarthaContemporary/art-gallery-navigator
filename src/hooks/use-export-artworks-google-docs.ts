@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getStoragePublicUrl } from '@/lib/supabase-url';
 import { useToast } from "@/hooks/use-toast";
 import { Artwork } from "@/hooks/use-artworks";
 
@@ -100,7 +101,7 @@ export function useExportArtworksToGoogleDocs() {
         if (primaryImage) {
           // Try to get the best available URL
           if (primaryImage.medium_storage_path) {
-            primaryImageUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${primaryImage.medium_storage_path}`;
+            primaryImageUrl = getStoragePublicUrl('artwork-images-processed', primaryImage.medium_storage_path);
           } else if (primaryImage.image_url && !primaryImage.image_url.includes('/processing')) {
             primaryImageUrl = primaryImage.image_url;
           }

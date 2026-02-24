@@ -1,4 +1,5 @@
 import { useRef, useCallback } from 'react';
+import { getRestUrl, getSupabaseAnonKey } from '@/lib/supabase-url';
 
 export function useCleanupManager(currentUserId?: string) {
   const beforeUnloadListener = useRef<((event: BeforeUnloadEvent) => void) | null>(null);
@@ -16,10 +17,10 @@ export function useCleanupManager(currentUserId?: string) {
 
         // Try sendBeacon first, fallback to fetch with keepalive
         if (navigator.sendBeacon) {
-          const url = 'https://cvhdspyugfcvkrufqzrq.supabase.co/rest/v1/user_presence';
+          const url = getRestUrl('user_presence');
           const headers = {
             'Content-Type': 'application/json',
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y',
+            'apikey': getSupabaseAnonKey(),
             'Prefer': 'resolution=merge-duplicates'
           };
           
@@ -27,11 +28,11 @@ export function useCleanupManager(currentUserId?: string) {
           navigator.sendBeacon(url, blob);
         } else {
           // Fallback to fetch with keepalive
-          fetch('https://cvhdspyugfcvkrufqzrq.supabase.co/rest/v1/user_presence', {
+          fetch(getRestUrl('user_presence'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2aGRzcHl1Z2ZjdmtydWZxenJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5ODkxOTIsImV4cCI6MjA2MDU2NTE5Mn0.NT2RKvxlHAuzTDXg9u2K4zq65dNnqfnKTxjpeMDeN6Y',
+              'apikey': getSupabaseAnonKey(),
               'Prefer': 'resolution=merge-duplicates'
             },
             body: payload,

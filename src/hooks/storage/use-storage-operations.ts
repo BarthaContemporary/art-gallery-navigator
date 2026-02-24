@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { toast } from 'sonner';
 import type { BucketInfo, StorageItem } from '@/types/storage';
 
@@ -243,7 +244,7 @@ export function useStorageOperations() {
 
     const key = currentPath ? `${currentPath}/${folderName}/` : `${folderName}/`;
     
-    const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${key}?bucket=${bucket.credentials.bucket_name}`, {
+    const response = await fetch(`${getEdgeFunctionUrl('idrive-proxy')}/${key}?bucket=${bucket.credentials.bucket_name}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -266,7 +267,7 @@ export function useStorageOperations() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const response = await fetch(`https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/idrive-proxy/${key}?bucket=${bucket.credentials.bucket_name}`, {
+    const response = await fetch(`${getEdgeFunctionUrl('idrive-proxy')}/${key}?bucket=${bucket.credentials.bucket_name}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,

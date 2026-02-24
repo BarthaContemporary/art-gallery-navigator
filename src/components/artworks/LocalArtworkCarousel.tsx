@@ -1,5 +1,6 @@
 
 import React from "react";
+import { getStoragePublicUrl } from '@/lib/supabase-url';
 import { useLocalArtworkImages } from "@/hooks/use-local-artwork-images";
 import { ZoomControls } from "./carousel/ZoomControls";
 import { NavigationArrows } from "./carousel/NavigationArrows";
@@ -148,13 +149,13 @@ export function LocalArtworkCarousel({ artworkId, artworkTitle }: LocalArtworkCa
             imageRecord={{
               id: sortedImages[currentIndex].id,
               image_url: sortedImages[currentIndex].medium_storage_path 
-                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
+                ? getStoragePublicUrl('artwork-images-processed', sortedImages[currentIndex].medium_storage_path)
                 : '/placeholder.svg',
               medium_url: sortedImages[currentIndex].medium_storage_path 
-                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].medium_storage_path}`
+                ? getStoragePublicUrl('artwork-images-processed', sortedImages[currentIndex].medium_storage_path)
                 : undefined,
               thumbnail_url: sortedImages[currentIndex].thumbnail_storage_path
-                ? `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/public/artwork-images-processed/${sortedImages[currentIndex].thumbnail_storage_path}`
+                ? getStoragePublicUrl('artwork-images-processed', sortedImages[currentIndex].thumbnail_storage_path)
                 : undefined,
             } as ImageRecord}
             title={artworkTitle}
