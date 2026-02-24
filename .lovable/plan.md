@@ -1,43 +1,96 @@
 
 
-## Artist Selection Landing Page for Artworks
+# Guided Mobile Capture Wizard for PhotoTour Studio
 
-### Overview
-Add an artist selection layer to the Artworks page. When you first visit `/artworks`, you'll see a clean list of artist names arranged in three columns. Clicking an artist name filters the inventory to show only their works. The existing toolbar (create, upload, import, etc.) and filters remain at the top throughout.
+## Overview
 
-### How It Will Work
+When a user creates or opens a tour project on a mobile device, a "Capture Mode" button launches a step-by-step wizard that guides them through photographing a space. The wizard uses the device camera via `<input type="file" capture="environment">` (no native app required), walks them through creating scan positions one by one, and auto-uploads each photo as it's taken.
 
-1. **Default state (no artist selected):** The artworks page shows the artist name list in a three-column layout, sorted alphabetically by surname. Each name is clickable.
+## User Flow
 
-2. **After selecting an artist:** The artist list is replaced by the artwork grid showing only that artist's works. A clear indicator shows which artist is selected, with a "Back to all artists" / "Show all" button to return to the selection view.
+```text
+┌──────────────────────────────┐
+│  Tour Detail Page (mobile)   │
+│                              │
+│  [📷 Start Capture Mode]     │  ← Only shown on mobile
+│                              │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│  Step 1: Position Setup      │
+│                              │
+│  "Name this position"        │
+│  [Entrance Hall        ]     │
+│  Type: ○ Image Set ○ Pano    │
+│                              │
+│  [📷 Take Photo]             │
+└──────────┬───────────────────┘
+           │  photo taken
+           ▼
+┌──────────────────────────────┐
+│  Step 2: Review & Continue   │
+│                              │
+│  ┌────────────────────┐      │
+│  │   captured image    │      │
+│  └────────────────────┘      │
+│  ✓ 1 photo captured          │
+│                              │
+│  [📷 Add Another Photo]      │
+│  [✓ Done with this spot]     │
+└──────────┬───────────────────┘
+           │  done
+           ▼
+┌──────────────────────────────┐
+│  Step 3: Next Position?      │
+│                              │
+│  ✓ Entrance Hall (3 photos)  │
+│                              │
+│  [📷 Add Next Position]      │
+│  [✓ Finish Capture]          │
+└──────────────────────────────┘
+```
 
-3. **URL integration:** Selecting an artist sets the `?artist=id` URL parameter (already supported by the existing filter system). Arriving at `/artworks?artist=xxx` goes straight to that artist's works.
+## What Gets Built
 
-4. **Existing navigation preserved:** The top bar with Create, Quick Upload, New Collection, Export, Import buttons stays visible at all times.
+### 1. New component: `src/components/tours/MobileCaptureWizard.tsx`
 
----
+A full-screen mobile wizard with these states:
+- **Position naming**: Text input for the scan position name + type selector (image set / panorama)
+- **Camera capture**: Uses `<input type="file" accept="image/*" capture="environment">` to open the native camera. Each photo auto-uploads to the `tour-uploads` bucket and creates a `tour_node_images` record
+- **Review**: Shows thumbnails of captured photos for the current position, with options to retake/delete or add more
+- **Summary between positions**: Shows completed positions with photo counts, option to add another position or finish
+- Progress indicator at top (position count)
+- Tips overlay for each step (e.g. "Stand in the centre of the room", "Overlap photos by 30%", "Keep the camera level")
 
-### Technical Details
+Key implementation details:
+- Uses existing upload logic from `TourNodeEditorPage.tsx` (upload to `tour-uploads` bucket, insert into `tour_node_images`)
+- Creates `tour_nodes` records as the user names each position
+- Haptic feedback via `navigator.vibrate()` on capture success
+- Large, thumb-friendly touch targets (min 48px)
+- Landscape orientation hint when appropriate
 
-**New component: `src/components/artworks/ArtistSelectionGrid.tsx`**
-- Receives the artists list and an `onSelectArtist` callback
-- Renders a responsive three-column grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) of artist names
-- Groups by surname first letter with letter headers (A, B, C...)
-- Each name is a clickable button/link that calls `onSelectArtist(artistId)`
-- Mobile-optimised with appropriate touch targets and spacing
+### 2. Modified: `src/pages/tours/TourDetailPage.tsx`
 
-**Modified: `src/pages/Artworks.tsx`**
-- When `filters.artist` is `null` (no artist selected), render `ArtistSelectionGrid` instead of the `ArtworkFilters` + `ArtworkGrid` section
-- When an artist is selected, show the existing filtered grid view with a "Back to artists" button
-- The header toolbar (Create, Upload, etc.) always remains visible above both views
-- The search bar remains visible in both states (searching in the artist list view filters the artist names; in artwork view it filters artworks as before)
+- Import `useIsMobile` hook
+- When on mobile, show a prominent "Start Capture Mode" button at the top of the page (below header, above nodes list)
+- When capture mode is active, render `MobileCaptureWizard` as a full-screen overlay
+- On wizard completion, invalidate queries to refresh the node list
 
-**Modified: `src/hooks/use-artwork-filters.ts`**
-- Minor adjustment: ensure `hasActiveFilters` accounts for the `sortBy` default so the artist selection view isn't incorrectly flagged as "filtered"
+### 3. New component: `src/components/tours/CaptureGuidanceOverlay.tsx`
 
-### User Flow
-1. Navigate to Artworks
-2. See the top toolbar + a three-column alphabetical artist name list
-3. Tap an artist name -> URL updates to `?artist=id`, grid shows that artist's works with all existing filters available
-4. Tap "Show all artists" or clear the artist filter -> return to the artist selection list
+A small helper that shows contextual tips during capture:
+- For image sets: "Take 8-12 overlapping photos around the room"
+- For panoramas: "Hold phone upright and rotate slowly"
+- Shows a shot counter ("Photo 3 of ~10")
+- Dismissable, remembers dismissal in localStorage
+
+## Technical Details
+
+- No new dependencies required. The `capture="environment"` HTML attribute opens the native camera on mobile browsers (iOS Safari, Chrome Android) without needing any camera API
+- Uses the existing `useIsMobile()` hook to conditionally show the capture button
+- All uploads go through the existing `tour-uploads` storage bucket with the same path convention: `tours/{projectId}/{nodeId}/{uuid}.{ext}`
+- Node and image creation reuses the same Supabase insert patterns already in `TourNodeEditorPage.tsx`
+- The wizard is a controlled component receiving `projectId` and `onComplete` callback
+- No database changes needed -- uses existing `tour_nodes` and `tour_node_images` tables
 
