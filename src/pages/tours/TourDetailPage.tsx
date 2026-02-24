@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Image, MapPin, Settings, Eye, Trash2, GripVertical, Camera } from "lucide-react";
+import { ArrowLeft, Plus, Image, MapPin, Settings, Eye, Trash2, GripVertical, Camera, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
 import { MobileCaptureWizard } from "@/components/tours/MobileCaptureWizard";
+import { FloorplanSketchTool } from "@/components/tours/FloorplanSketchTool";
 
 type NodeType = "panorama" | "image_set";
 
@@ -23,6 +24,8 @@ interface TourNode {
   node_type: NodeType;
   position_index: number;
   panorama_url: string | null;
+  floorplan_x: number | null;
+  floorplan_y: number | null;
   created_at: string;
   tour_node_images: { id: string }[];
 }
@@ -37,6 +40,7 @@ export default function TourDetailPage() {
   const [nodeName, setNodeName] = useState("");
   const [nodeType, setNodeType] = useState<NodeType>("image_set");
   const isMobile = useIsMobile();
+  const [showFloorplan, setShowFloorplan] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ["tour-project", projectId],
@@ -284,6 +288,28 @@ export default function TourDetailPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Floorplan Section */}
+      {nodes.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium flex items-center gap-2">
+              <Grid3X3 className="h-5 w-5 text-muted-foreground" />
+              Floorplan
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFloorplan(!showFloorplan)}
+            >
+              {showFloorplan ? "Hide" : "Show"} Map
+            </Button>
+          </div>
+          {showFloorplan && (
+            <FloorplanSketchTool projectId={projectId!} nodes={nodes as any} />
+          )}
         </div>
       )}
     </div>
