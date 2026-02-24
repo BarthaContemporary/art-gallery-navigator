@@ -4468,6 +4468,7 @@ export type Database = {
           id: string
           location: string | null
           owner_id: string
+          room_scan_data: Json | null
           title: string
           updated_at: string
           visibility: Database["public"]["Enums"]["tour_visibility"]
@@ -4479,6 +4480,7 @@ export type Database = {
           id?: string
           location?: string | null
           owner_id: string
+          room_scan_data?: Json | null
           title: string
           updated_at?: string
           visibility?: Database["public"]["Enums"]["tour_visibility"]
@@ -4490,6 +4492,7 @@ export type Database = {
           id?: string
           location?: string | null
           owner_id?: string
+          room_scan_data?: Json | null
           title?: string
           updated_at?: string
           visibility?: Database["public"]["Enums"]["tour_visibility"]
