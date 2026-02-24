@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MapPin, Move, ZoomIn, ZoomOut, RotateCcw, Grid3X3 } from "lucide-react";
+import { RoomScannerButton } from "./RoomScannerButton";
+import { FloorplanOverlay } from "./FloorplanOverlay";
+import type { RoomScanResult } from "@/plugins/roomplan/definitions";
 
 interface TourNode {
   id: string;
@@ -29,6 +32,47 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [placingNodeId, setPlacingNodeId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [scanData, setScanData] = useState<RoomScanResult | null>(null);
+
+  // Load existing scan data from project
+  const { data: projectScanData } = useQuery({
+    queryKey: ["tour-project-scan", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tour_projects")
+        .select("room_scan_data")
+        .eq("id", projectId)
+        .single();
+      if (error) throw error;
+      return data?.room_scan_data as unknown as RoomScanResult | null;
+    },
+  });
+
+  useEffect(() => {
+    if (projectScanData) setScanData(projectScanData);
+  }, [projectScanData]);
+
+  // Save scan data to project
+  const saveScanMutation = useMutation({
+    mutationFn: async (result: RoomScanResult) => {
+      const { error } = await supabase
+        .from("tour_projects")
+        .update({ room_scan_data: result as any })
+        .eq("id", projectId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tour-project-scan", projectId] });
+    },
+  });
+
+  const handleScanComplete = useCallback(
+    (result: RoomScanResult) => {
+      setScanData(result);
+      saveScanMutation.mutate(result);
+    },
+    [saveScanMutation]
+  );
 
   // Nodes that have been placed on the grid
   const placedNodes = nodes.filter((n) => n.floorplan_x !== null && n.floorplan_y !== null);
@@ -118,6 +162,7 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
           <Badge variant="secondary" className="text-xs tabular-nums">
             {Math.round(zoom * 100)}%
           </Badge>
+          <RoomScannerButton onScanComplete={handleScanComplete} />
         </div>
 
         {placingNodeId && (
@@ -171,6 +216,16 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
               );
             })}
           </svg>
+
+          {/* LiDAR scan overlay */}
+          {scanData && (
+            <FloorplanOverlay
+              scanData={scanData}
+              gridSize={GRID_SIZE}
+              cellPx={CELL_PX}
+              zoom={zoom}
+            />
+          )}
 
           {/* Placed node markers */}
           {placedNodes.map((node) => {
