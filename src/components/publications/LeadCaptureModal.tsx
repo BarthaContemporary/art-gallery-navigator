@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -82,7 +83,7 @@ export function LeadCaptureModal({
   const handleDownload = () => {
     if (!downloadToken) return;
     
-    const downloadUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/publication-download?token=${downloadToken}`;
+    const downloadUrl = `${getEdgeFunctionUrl('publication-download')}?token=${downloadToken}`;
     
     // Use anchor element with download attribute for direct download
     // The edge function now streams the PDF with Content-Disposition: attachment

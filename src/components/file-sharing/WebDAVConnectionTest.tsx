@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ export function WebDAVConnectionTest() {
     }
     
     // Default to Supabase URL
-    return "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+    return getEdgeFunctionUrl('webdav') + '/';
   };
 
   const webdavUrl = getWebDAVUrl();

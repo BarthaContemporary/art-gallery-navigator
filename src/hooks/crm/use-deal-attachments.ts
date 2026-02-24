@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getStorageObjectUrl } from '@/lib/supabase-url';
 
 export interface DealAttachment {
   id: string;
@@ -54,7 +55,7 @@ export function useUploadDealAttachment() {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       
-      const uploadUrl = `https://cvhdspyugfcvkrufqzrq.supabase.co/storage/v1/object/deal-attachments/${fileName}`;
+      const uploadUrl = getStorageObjectUrl('deal-attachments', fileName);
       
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();

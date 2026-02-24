@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ export function WebDAVTokenManager() {
   const queryClient = useQueryClient();
 
   // Always use the Supabase edge function URL
-  const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  const webdavUrl = getEdgeFunctionUrl('webdav') + '/';
 
   const { data: tokens = [], isLoading } = useQuery({
     queryKey: ["webdav-tokens"],

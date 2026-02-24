@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getEdgeFunctionUrl } from '@/lib/supabase-url';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ export function WebDAVConnectionGuide() {
   const [isLoading, setIsLoading] = useState(false);
   const [userTokens, setUserTokens] = useState<any[]>([]);
 
-  const webdavUrl = "https://cvhdspyugfcvkrufqzrq.supabase.co/functions/v1/webdav/";
+  const webdavUrl = getEdgeFunctionUrl('webdav') + '/';
 
   useEffect(() => {
     fetchUserTokens();
