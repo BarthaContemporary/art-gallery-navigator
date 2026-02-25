@@ -194,3 +194,6 @@ verify_jwt = true
 
 [functions.audio-signed-url]
 verify_jwt = false
+
+[functions.analyze-tour-photogrammetry]
+verify_jwt = false

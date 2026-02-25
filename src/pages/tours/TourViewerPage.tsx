@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,13 @@ import {
   Lock,
   GalleryHorizontal,
   Image,
+  Box,
+  Loader2,
 } from "lucide-react";
 import OpenSeadragon from "openseadragon";
 import { ImmersiveStripViewer } from "@/components/tours/ImmersiveStripViewer";
+import { Tour3DViewer } from "@/components/tours/Tour3DViewer";
+import { toast } from "sonner";
 
 // Types
 interface TourProject {
@@ -80,12 +84,13 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "single" | "immersive";
+type ViewMode = "single" | "immersive" | "3d";
 
 export default function TourViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const viewerRef = useRef<HTMLDivElement>(null);
   const osdRef = useRef<OpenSeadragon.Viewer | null>(null);
 
@@ -146,14 +151,51 @@ export default function TourViewerPage() {
     enabled: !!currentNode?.id,
   });
 
+  // Fetch 3D reconstruction for current node
+  const { data: reconstruction } = useQuery({
+    queryKey: ["tour-3d-reconstruction", currentNode?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tour_3d_reconstructions")
+        .select("*")
+        .eq("node_id", currentNode!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentNode?.id,
+  });
+
+  // 3D reconstruction mutation
+  const reconstructMutation = useMutation({
+    mutationFn: async (nodeId: string) => {
+      const { data, error } = await supabase.functions.invoke("analyze-tour-photogrammetry", {
+        body: { node_id: nodeId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tour-3d-reconstruction", currentNode?.id] });
+      toast.success("3D reconstruction complete");
+      setViewMode("3d");
+    },
+    onError: (err) => {
+      toast.error("3D reconstruction failed", { description: err instanceof Error ? err.message : "Unknown error" });
+    },
+  });
+
   // Auto-select immersive mode when node has 3+ images
   useEffect(() => {
-    if (nodeImages.length >= 3) {
+    if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
+      setViewMode("3d");
+    } else if (nodeImages.length >= 3) {
       setViewMode("immersive");
     } else {
       setViewMode("single");
     }
-  }, [currentNode?.id, nodeImages.length]);
+  }, [currentNode?.id, nodeImages.length, reconstruction?.status]);
 
   // Fetch hotspots for current node
   const { data: hotspots = [] } = useQuery({
@@ -379,6 +421,7 @@ export default function TourViewerPage() {
   }
 
   const showImmersive = viewMode === "immersive" && !isPanorama && nodeImages.length >= 2;
+  const show3D = viewMode === "3d" && reconstruction?.status === "completed" && reconstruction.camera_poses;
 
   return (
     <div className="fixed inset-0 bg-black text-white flex overflow-hidden z-[100]">
@@ -443,25 +486,69 @@ export default function TourViewerPage() {
           <div className="flex items-center gap-1 pointer-events-auto">
             {/* View mode toggle (only for image_set with 2+ images) */}
             {!isPanorama && nodeImages.length >= 2 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-8 w-8 hover:bg-white/10 ${
-                        viewMode === "immersive" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
-                      }`}
-                      onClick={() => setViewMode(viewMode === "immersive" ? "single" : "immersive")}
-                    >
-                      {viewMode === "immersive" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="text-xs">{viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 hover:bg-white/10 ${
+                          viewMode === "immersive" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
+                        }`}
+                        onClick={() => setViewMode(viewMode === "immersive" ? "single" : "immersive")}
+                      >
+                        {viewMode === "immersive" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">{viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                {/* 3D Reconstruction toggle */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 hover:bg-white/10 ${
+                          viewMode === "3d" ? "text-emerald-400 bg-white/10" : "text-white/70 hover:text-white"
+                        }`}
+                        onClick={() => {
+                          if (viewMode === "3d") {
+                            setViewMode("single");
+                          } else if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
+                            setViewMode("3d");
+                          } else if (!reconstructMutation.isPending) {
+                            reconstructMutation.mutate(currentNode!.id);
+                          }
+                        }}
+                        disabled={reconstructMutation.isPending}
+                      >
+                        {reconstructMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Box className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">
+                        {viewMode === "3d"
+                          ? "Exit 3D View"
+                          : reconstruction?.status === "completed"
+                            ? "3D Model View"
+                            : reconstructMutation.isPending
+                              ? "Analyzing spatial layout..."
+                              : "Build 3D Model (AI)"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </>
             )}
 
             {/* Inspection Mode Toggle */}
@@ -533,7 +620,14 @@ export default function TourViewerPage() {
         )}
 
         {/* Viewer */}
-        {showImmersive ? (
+        {show3D ? (
+          <Tour3DViewer
+            cameraPoses={reconstruction!.camera_poses as any[]}
+            sceneConfig={(reconstruction!.scene_config as any) || { scene_type: "room", estimated_width_m: 10, estimated_depth_m: 10, camera_height_m: 1.6, description: "3D Reconstruction" }}
+            images={nodeImages}
+            className="flex-1"
+          />
+        ) : showImmersive ? (
           <ImmersiveStripViewer images={nodeImages} className="flex-1" />
         ) : isPanorama ? (
           // Panorama viewer
