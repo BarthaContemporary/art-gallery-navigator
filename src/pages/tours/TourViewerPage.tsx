@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   ChevronLeft,
@@ -16,15 +15,17 @@ import {
   ZoomOut,
   Maximize,
   MapPin,
-  Search,
   Eye,
   Crosshair,
   Info,
   Ruler,
   Layers,
   Lock,
+  GalleryHorizontal,
+  Image,
 } from "lucide-react";
 import OpenSeadragon from "openseadragon";
+import { ImmersiveStripViewer } from "@/components/tours/ImmersiveStripViewer";
 
 // Types
 interface TourProject {
@@ -79,13 +80,14 @@ interface Hotspot {
   label: string | null;
 }
 
+type ViewMode = "single" | "immersive";
+
 export default function TourViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const viewerRef = useRef<HTMLDivElement>(null);
   const osdRef = useRef<OpenSeadragon.Viewer | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   const [currentNodeIdx, setCurrentNodeIdx] = useState(0);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
@@ -93,24 +95,27 @@ export default function TourViewerPage() {
   const [inspectionMode, setInspectionMode] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("single");
+  const [osdFailed, setOsdFailed] = useState(false);
 
   // Fetch project
-  const { data: project } = useQuery({
+  const { data: project, isLoading: projectLoading, error: projectError } = useQuery({
     queryKey: ["tour-viewer-project", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tour_projects")
         .select("*")
         .eq("id", projectId!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data as TourProject;
+      return data as TourProject | null;
     },
     enabled: !!projectId,
+    retry: 2,
   });
 
   // Fetch nodes
-  const { data: nodes = [] } = useQuery({
+  const { data: nodes = [], isLoading: nodesLoading, error: nodesError } = useQuery({
     queryKey: ["tour-viewer-nodes", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -140,6 +145,15 @@ export default function TourViewerPage() {
     },
     enabled: !!currentNode?.id,
   });
+
+  // Auto-select immersive mode when node has 3+ images
+  useEffect(() => {
+    if (nodeImages.length >= 3) {
+      setViewMode("immersive");
+    } else {
+      setViewMode("single");
+    }
+  }, [currentNode?.id, nodeImages.length]);
 
   // Fetch hotspots for current node
   const { data: hotspots = [] } = useQuery({
@@ -183,13 +197,17 @@ export default function TourViewerPage() {
   // Reset image index when node changes
   useEffect(() => {
     setCurrentImageIdx(0);
+    setOsdFailed(false);
   }, [currentNodeIdx]);
 
-  // Initialize/update OpenSeadragon for image-set nodes
+  // Initialize/update OpenSeadragon for image-set nodes (single mode only)
   useEffect(() => {
+    if (viewMode !== "single") return;
     if (!viewerRef.current) return;
     if (!currentNode || currentNode.node_type !== "image_set") return;
     if (!currentImage) return;
+
+    setOsdFailed(false);
 
     const imageUrl = inspectionMode
       ? currentImage.original_url
@@ -201,37 +219,47 @@ export default function TourViewerPage() {
       osdRef.current = null;
     }
 
-    const viewer = OpenSeadragon({
-      element: viewerRef.current,
-      tileSources: {
-        type: "image",
-        url: imageUrl,
-      },
-      prefixUrl: "",
-      showNavigationControl: false,
-      showNavigator: inspectionMode,
-      navigatorPosition: "BOTTOM_RIGHT",
-      navigatorSizeRatio: 0.15,
-      minZoomLevel: 0.5,
-      maxZoomLevel: inspectionMode ? 10 : 4,
-      visibilityRatio: 0.5,
-      constrainDuringPan: true,
-      animationTime: 0.3,
-      gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true },
-      gestureSettingsTouch: { pinchToZoom: true, dblClickToZoom: true },
-      zoomPerScroll: 1.2,
-    });
+    try {
+      const viewer = OpenSeadragon({
+        element: viewerRef.current,
+        tileSources: {
+          type: "image",
+          url: imageUrl,
+        },
+        prefixUrl: "",
+        showNavigationControl: false,
+        showNavigator: inspectionMode,
+        navigatorPosition: "BOTTOM_RIGHT",
+        navigatorSizeRatio: 0.15,
+        minZoomLevel: 0.5,
+        maxZoomLevel: inspectionMode ? 10 : 4,
+        visibilityRatio: 0.5,
+        constrainDuringPan: true,
+        animationTime: 0.3,
+        gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true },
+        gestureSettingsTouch: { pinchToZoom: true, dblClickToZoom: true },
+        zoomPerScroll: 1.2,
+      });
 
-    osdRef.current = viewer;
+      // Handle open failure - fall back to plain img
+      viewer.addHandler("open-failed", () => {
+        setOsdFailed(true);
+        viewer.destroy();
+        osdRef.current = null;
+      });
 
-    return () => {
-      viewer.destroy();
-      osdRef.current = null;
-    };
-  }, [currentImage?.id, currentNode?.node_type, inspectionMode]);
+      osdRef.current = viewer;
 
-  // Panorama: use Marzipano via iframe or inline script
-  // For MVP, we'll render panoramas using CSS 3D or a simple equirectangular viewer
+      return () => {
+        viewer.destroy();
+        osdRef.current = null;
+      };
+    } catch {
+      setOsdFailed(true);
+    }
+  }, [currentImage?.id, currentNode?.node_type, inspectionMode, viewMode]);
+
+  // Panorama check
   const isPanorama = currentNode?.node_type === "panorama";
 
   // Navigation
@@ -291,7 +319,8 @@ export default function TourViewerPage() {
     }
   };
 
-  if (!project || nodes.length === 0) {
+  // Loading state
+  if (projectLoading || nodesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         <div className="text-center space-y-3">
@@ -301,6 +330,55 @@ export default function TourViewerPage() {
       </div>
     );
   }
+
+  // Error state
+  if (projectError || nodesError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black text-white">
+        <div className="text-center space-y-4">
+          <p className="text-lg font-medium">Unable to load tour</p>
+          <p className="text-sm text-white/50 max-w-sm">
+            {projectError ? "This tour may not exist or you don't have permission to view it." : "Failed to load tour data."}
+          </p>
+          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Not found state
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black text-white">
+        <div className="text-center space-y-4">
+          <p className="text-lg font-medium">Tour not found</p>
+          <p className="text-sm text-white/50">This tour doesn't exist or has been removed.</p>
+          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty nodes state
+  if (nodes.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-black text-white">
+        <div className="text-center space-y-4">
+          <p className="text-lg font-medium">{project.title}</p>
+          <p className="text-sm text-white/50">This tour has no scan positions yet.</p>
+          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const showImmersive = viewMode === "immersive" && !isPanorama && nodeImages.length >= 2;
 
   return (
     <div className="fixed inset-0 bg-black text-white flex overflow-hidden z-[100]">
@@ -355,7 +433,7 @@ export default function TourViewerPage() {
             </Button>
             <div className="text-sm">
               <span className="font-medium">{currentNode?.name}</span>
-              {nodeImages.length > 1 && (
+              {viewMode === "single" && nodeImages.length > 1 && (
                 <span className="text-white/50 ml-2 text-xs">
                   {currentImageIdx + 1} / {nodeImages.length}
                 </span>
@@ -363,29 +441,54 @@ export default function TourViewerPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 pointer-events-auto">
+            {/* View mode toggle (only for image_set with 2+ images) */}
+            {!isPanorama && nodeImages.length >= 2 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 hover:bg-white/10 ${
+                        viewMode === "immersive" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
+                      }`}
+                      onClick={() => setViewMode(viewMode === "immersive" ? "single" : "immersive")}
+                    >
+                      {viewMode === "immersive" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">{viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
             {/* Inspection Mode Toggle */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-8 w-8 hover:bg-white/10 ${
-                      inspectionMode ? "text-amber-400 bg-white/10" : "text-white/70 hover:text-white"
-                    }`}
-                    onClick={() => setInspectionMode(!inspectionMode)}
-                  >
-                    <Crosshair className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">{inspectionMode ? "Exit Inspection Mode" : "Inspection Mode (I)"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {viewMode === "single" && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 hover:bg-white/10 ${
+                        inspectionMode ? "text-amber-400 bg-white/10" : "text-white/70 hover:text-white"
+                      }`}
+                      onClick={() => setInspectionMode(!inspectionMode)}
+                    >
+                      <Crosshair className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">{inspectionMode ? "Exit Inspection Mode" : "Inspection Mode (I)"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
 
             {/* Annotation toggle */}
-            {inspectionMode && (
+            {inspectionMode && viewMode === "single" && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -417,7 +520,7 @@ export default function TourViewerPage() {
         </div>
 
         {/* Inspection Mode Banner */}
-        {inspectionMode && (
+        {inspectionMode && viewMode === "single" && (
           <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-amber-500/90 backdrop-blur-sm text-black px-4 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 shadow-lg">
             <Crosshair className="h-3.5 w-3.5" />
             Inspection Mode — Full Resolution Deep Zoom
@@ -430,8 +533,10 @@ export default function TourViewerPage() {
         )}
 
         {/* Viewer */}
-        {isPanorama ? (
-          // Panorama viewer - equirectangular CSS-based for MVP
+        {showImmersive ? (
+          <ImmersiveStripViewer images={nodeImages} className="flex-1" />
+        ) : isPanorama ? (
+          // Panorama viewer
           <div className="flex-1 relative overflow-hidden">
             {currentImage && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -449,12 +554,22 @@ export default function TourViewerPage() {
             </div>
           </div>
         ) : (
-          // Image Set - OpenSeadragon deep zoom
+          // Image Set - OpenSeadragon deep zoom or fallback
           <div className="flex-1 relative">
-            <div ref={viewerRef} className="absolute inset-0" />
+            {osdFailed && currentImage ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <img
+                  src={currentImage.large_url || currentImage.medium_url || currentImage.original_url}
+                  alt={currentNode?.name || "Tour image"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div ref={viewerRef} className="absolute inset-0" />
+            )}
 
             {/* Annotation Pins overlay */}
-            {inspectionMode && visibleAnnotations.length > 0 && osdRef.current && (
+            {inspectionMode && visibleAnnotations.length > 0 && osdRef.current && !osdFailed && (
               <AnnotationOverlay
                 viewer={osdRef.current}
                 annotations={visibleAnnotations}
@@ -489,8 +604,8 @@ export default function TourViewerPage() {
 
         {/* Bottom controls */}
         <div className="absolute bottom-0 left-0 right-0 z-40 flex items-center justify-between p-3 bg-gradient-to-t from-black/60 to-transparent pointer-events-none">
-          {/* Image thumbnails strip */}
-          {nodeImages.length > 1 && (
+          {/* Image thumbnails strip (only in single mode) */}
+          {viewMode === "single" && nodeImages.length > 1 && (
             <div className="flex items-center gap-2 pointer-events-auto mx-auto">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={prevImage} disabled={currentImageIdx === 0}>
                 <ChevronLeft className="h-4 w-4" />
@@ -565,7 +680,6 @@ function AnnotationOverlay({
 
     viewer.addHandler("animation", update);
     viewer.addHandler("open", update);
-    // Initial position
     setTimeout(update, 300);
 
     return () => {
@@ -598,7 +712,6 @@ function AnnotationOverlay({
               {annotationIcon(a.annotation_type)}
             </button>
 
-            {/* Expanded annotation card */}
             {isExpanded && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg p-3 min-w-[200px] max-w-[280px] text-left shadow-2xl z-50">
                 <div className="flex items-center justify-between mb-1.5">
