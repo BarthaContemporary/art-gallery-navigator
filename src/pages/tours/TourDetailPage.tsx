@@ -320,13 +320,18 @@ export default function TourDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium truncate">{node.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <Badge variant="secondary" className="text-xs capitalize">
                       {node.node_type === "panorama" ? "360° Panorama" : "Image Set"}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {node.tour_node_images?.length || 0} image{node.tour_node_images?.length !== 1 ? "s" : ""}
                     </span>
+                    {node.node_type === "image_set" && (node.tour_node_images?.length || 0) >= 3 && (
+                      <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                        Immersive view ready
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <Button
