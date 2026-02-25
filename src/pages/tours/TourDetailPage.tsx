@@ -363,7 +363,7 @@ export default function TourDetailPage() {
             </Button>
           </div>
           {showFloorplan && (
-            <FloorplanSketchTool projectId={projectId!} nodes={nodes as any} />
+            <FloorplanSketchTool projectId={projectId!} nodes={nodes as any} location={project?.location} />
           )}
         </div>
       )}

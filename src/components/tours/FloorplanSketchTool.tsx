@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { MapPin, Move, ZoomIn, ZoomOut, RotateCcw, Grid3X3 } from "lucide-react";
-import { RoomScannerButton } from "./RoomScannerButton";
+import { MapPin, Move, ZoomIn, ZoomOut, RotateCcw, Grid3X3, Upload, ImageIcon, X } from "lucide-react";
 import { FloorplanOverlay } from "./FloorplanOverlay";
 import type { RoomScanResult } from "@/plugins/roomplan/definitions";
 
@@ -21,18 +20,24 @@ interface TourNode {
 interface FloorplanSketchToolProps {
   projectId: string;
   nodes: TourNode[];
+  location?: string | null;
 }
 
-const GRID_SIZE = 20; // number of cells
-const CELL_PX = 32; // pixels per cell on base zoom
+const GRID_SIZE = 20;
+const CELL_PX = 32;
 
-export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolProps) {
+const DEFAULT_FLOORPLAN_LOCATION = "7 Ledbury Mews North";
+const DEFAULT_FLOORPLAN_URL = "/images/floorplan-default.jpg";
+
+export function FloorplanSketchTool({ projectId, nodes, location }: FloorplanSketchToolProps) {
   const queryClient = useQueryClient();
   const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [placingNodeId, setPlacingNodeId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [scanData, setScanData] = useState<RoomScanResult | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Load existing scan data from project
   const { data: projectScanData } = useQuery({
@@ -48,9 +53,29 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
     },
   });
 
+  // Load custom floorplan from tour_floorplans
+  const { data: customFloorplan } = useQuery({
+    queryKey: ["tour-floorplan", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tour_floorplans")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("display_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     if (projectScanData) setScanData(projectScanData);
   }, [projectScanData]);
+
+  // Determine which floorplan image to show
+  const floorplanImageUrl = customFloorplan?.image_url
+    || (location?.toLowerCase().includes(DEFAULT_FLOORPLAN_LOCATION.toLowerCase()) ? DEFAULT_FLOORPLAN_URL : null);
 
   // Save scan data to project
   const saveScanMutation = useMutation({
@@ -74,7 +99,67 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
     [saveScanMutation]
   );
 
-  // Nodes that have been placed on the grid
+  // Upload custom floorplan
+  const handleFloorplanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `floorplans/${projectId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("tour-uploads")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("tour-uploads")
+        .getPublicUrl(path);
+
+      // Delete existing floorplan if any
+      if (customFloorplan?.id) {
+        await supabase.from("tour_floorplans").delete().eq("id", customFloorplan.id);
+      }
+
+      const { error: insertError } = await supabase
+        .from("tour_floorplans")
+        .insert({
+          project_id: projectId,
+          image_url: urlData.publicUrl,
+          label: file.name,
+          display_order: 0,
+        });
+      if (insertError) throw insertError;
+
+      queryClient.invalidateQueries({ queryKey: ["tour-floorplan", projectId] });
+      toast.success("Floorplan uploaded");
+    } catch (err: any) {
+      toast.error("Upload failed: " + err.message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // Remove custom floorplan (revert to default)
+  const removeCustomFloorplan = async () => {
+    if (!customFloorplan?.id) return;
+    try {
+      await supabase.from("tour_floorplans").delete().eq("id", customFloorplan.id);
+      queryClient.invalidateQueries({ queryKey: ["tour-floorplan", projectId] });
+      toast.success("Custom floorplan removed");
+    } catch {
+      toast.error("Failed to remove floorplan");
+    }
+  };
+
   const placedNodes = nodes.filter((n) => n.floorplan_x !== null && n.floorplan_y !== null);
   const unplacedNodes = nodes.filter((n) => n.floorplan_x === null || n.floorplan_y === null);
 
@@ -162,11 +247,40 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
           <Badge variant="secondary" className="text-xs tabular-nums">
             {Math.round(zoom * 100)}%
           </Badge>
-          <RoomScannerButton onScanComplete={handleScanComplete} />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFloorplanUpload}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <Upload className="h-3.5 w-3.5 mr-1.5" />
+            {isUploading ? "Uploading..." : "Upload Floorplan"}
+          </Button>
+          {customFloorplan && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={removeCustomFloorplan}
+              className="text-destructive hover:text-destructive"
+            >
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Remove
+            </Button>
+          )}
         </div>
 
         {placingNodeId && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="text-xs text-primary font-medium animate-pulse">
               Tap grid to place position
             </span>
@@ -181,6 +295,16 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
         )}
       </div>
 
+      {/* Floorplan source indicator */}
+      {floorplanImageUrl && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ImageIcon className="h-3.5 w-3.5" />
+          <span>
+            {customFloorplan ? `Custom: ${customFloorplan.label || "Uploaded floorplan"}` : `Default: ${DEFAULT_FLOORPLAN_LOCATION}`}
+          </span>
+        </div>
+      )}
+
       {/* Grid canvas */}
       <div className="overflow-auto rounded-xl border border-border bg-secondary/30 touch-pan-x touch-pan-y">
         <div
@@ -190,6 +314,16 @@ export function FloorplanSketchTool({ projectId, nodes }: FloorplanSketchToolPro
           onClick={handleGridTap}
           onTouchStart={handleGridTap}
         >
+          {/* Floorplan background image */}
+          {floorplanImageUrl && (
+            <img
+              src={floorplanImageUrl}
+              alt="Floorplan"
+              className="absolute inset-0 w-full h-full object-contain opacity-40 pointer-events-none"
+              draggable={false}
+            />
+          )}
+
           {/* Grid lines */}
           <svg
             className="absolute inset-0 pointer-events-none"
