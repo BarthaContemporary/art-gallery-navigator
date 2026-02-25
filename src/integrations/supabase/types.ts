@@ -4052,6 +4052,47 @@ export type Database = {
           },
         ]
       }
+      tour_3d_reconstructions: {
+        Row: {
+          camera_poses: Json | null
+          created_at: string
+          error_message: string | null
+          id: string
+          node_id: string
+          scene_config: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          camera_poses?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          node_id: string
+          scene_config?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          camera_poses?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          node_id?: string
+          scene_config?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_3d_reconstructions_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: true
+            referencedRelation: "tour_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tour_annotations: {
         Row: {
           annotation_type: string
