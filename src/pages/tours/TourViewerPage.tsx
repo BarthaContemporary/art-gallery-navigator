@@ -109,6 +109,7 @@ export default function TourViewerPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [osdFailed, setOsdFailed] = useState(false);
+  const [reconstructionStarted, setReconstructionStarted] = useState(false);
 
   // Fetch project
   const { data: project, isLoading: projectLoading, error: projectError } = useQuery({
@@ -161,7 +162,7 @@ export default function TourViewerPage() {
     enabled: !!currentNode?.id,
   });
 
-  // Fetch 3D reconstruction for current node
+  // Fetch 3D reconstruction for current node (polls while processing)
   const { data: reconstruction } = useQuery({
     queryKey: ["tour-3d-reconstruction", currentNode?.id],
     queryFn: async () => {
@@ -174,9 +175,30 @@ export default function TourViewerPage() {
       return data;
     },
     enabled: !!currentNode?.id,
+    refetchInterval: (query) => {
+      // Poll every 3s while processing
+      const data = query.state.data;
+      if (data?.status === "processing") return 3000;
+      return false;
+    },
   });
 
-  // 3D reconstruction mutation
+  // Switch to 3D view when reconstruction completes
+  useEffect(() => {
+    if (reconstruction?.status === "completed" && reconstruction.camera_poses && viewMode !== "3d") {
+      // Only auto-switch if we were waiting for it (mutation was pending)
+      if (reconstructionStarted) {
+        setViewMode("3d");
+        toast.success("3D reconstruction complete");
+        setReconstructionStarted(false);
+      }
+    } else if (reconstruction?.status === "failed" && reconstructionStarted) {
+      toast.error("3D reconstruction failed", { description: reconstruction.error_message || "Unknown error" });
+      setReconstructionStarted(false);
+    }
+  }, [reconstruction?.status]);
+
+  // 3D reconstruction mutation (now returns immediately)
   const reconstructMutation = useMutation({
     mutationFn: async (nodeId: string) => {
       const { data, error } = await supabase.functions.invoke("analyze-tour-photogrammetry", {
@@ -187,9 +209,9 @@ export default function TourViewerPage() {
       return data;
     },
     onSuccess: () => {
+      setReconstructionStarted(true);
       queryClient.invalidateQueries({ queryKey: ["tour-3d-reconstruction", currentNode?.id] });
-      toast.success("3D reconstruction complete");
-      setViewMode("3d");
+      toast.info("3D reconstruction started...", { description: "This may take 15-30 seconds" });
     },
     onError: (err) => {
       toast.error("3D reconstruction failed", { description: err instanceof Error ? err.message : "Unknown error" });
@@ -568,13 +590,13 @@ export default function TourViewerPage() {
                             setViewMode("single");
                           } else if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
                             setViewMode("3d");
-                          } else if (!reconstructMutation.isPending) {
+                          } else if (!reconstructMutation.isPending && reconstruction?.status !== "processing") {
                             reconstructMutation.mutate(currentNode!.id);
                           }
                         }}
-                        disabled={reconstructMutation.isPending || !canUseAdvancedViews || nodeImagesLoading}
+                        disabled={reconstructMutation.isPending || reconstruction?.status === "processing" || !canUseAdvancedViews || nodeImagesLoading}
                       >
-                        {reconstructMutation.isPending ? (
+                        {reconstructMutation.isPending || reconstruction?.status === "processing" ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Box className="h-4 w-4" />
@@ -589,7 +611,7 @@ export default function TourViewerPage() {
                             ? "Exit 3D View"
                             : reconstruction?.status === "completed"
                               ? "3D Model View"
-                              : reconstructMutation.isPending
+                              : reconstruction?.status === "processing" || reconstructMutation.isPending
                                 ? "Analyzing spatial layout..."
                                 : "Build 3D Model (AI)"}
                       </p>
