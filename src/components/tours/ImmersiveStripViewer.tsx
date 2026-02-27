@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, ZoomIn, ZoomOut, Maximize, Minimize } from "lucide-react";
 
@@ -15,291 +15,172 @@ interface ImmersiveStripViewerProps {
   className?: string;
 }
 
-// Overlap percentage — each image overlaps the previous by this fraction of image width
-const OVERLAP_FRACTION = 0.3;
+const OVERLAP_FRACTION = 0.24;
+const BASE_WIDTH_VW = 72;
+
+const getCandidates = (img: StripImage) =>
+  [img.large_url, img.medium_url, img.thumbnail_url, img.original_url]
+    .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+    .filter((u, i, arr) => arr.indexOf(u) === i);
 
 export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number>(0);
-  const autoPanRef = useRef<number>(0);
+  const autoPanRafRef = useRef<number>(0);
 
-  const [offsetX, setOffsetX] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [autoPan, setAutoPan] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [isAutoPan, setIsAutoPan] = useState(false);
+  const [urlIndexes, setUrlIndexes] = useState<Record<string, number>>({});
 
-  const dragState = useRef({
-    startX: 0,
-    startOffset: 0,
-    lastX: 0,
-    lastTime: 0,
-    velocityX: 0,
-  });
+  const resolvedImages = useMemo(
+    () =>
+      images.map((img) => {
+        const candidates = getCandidates(img);
+        const activeIndex = Math.min(urlIndexes[img.id] ?? 0, Math.max(0, candidates.length - 1));
+        return {
+          id: img.id,
+          candidates,
+          src: candidates[activeIndex] || "",
+          hasFallback: activeIndex < candidates.length - 1,
+        };
+      }),
+    [images, urlIndexes]
+  );
 
-  // Each image is 60vw wide. With overlap, total strip width is:
-  // imageW + (n-1) * imageW * (1 - OVERLAP_FRACTION)
-  const IMAGE_VW = 60;
+  const [progress, setProgress] = useState(0);
 
-  const getContainerWidth = useCallback(() => {
-    return containerRef.current?.clientWidth || 0;
-  }, []);
-
-  const getImagePx = useCallback(() => {
-    return getContainerWidth() * IMAGE_VW / 100;
-  }, [getContainerWidth]);
-
-  const getStripWidth = useCallback(() => {
-    const imgW = getImagePx();
-    if (images.length <= 1) return imgW;
-    return imgW + (images.length - 1) * imgW * (1 - OVERLAP_FRACTION);
-  }, [images.length, getImagePx]);
-
-  const clampOffset = useCallback((x: number) => {
-    const containerW = getContainerWidth();
-    const stripW = getStripWidth() * zoom;
-    const minX = Math.min(0, containerW - stripW);
-    return Math.max(minX, Math.min(0, x));
-  }, [images.length, zoom, getContainerWidth, getStripWidth]);
-
-  // Progress (0..1)
-  const progress = (() => {
-    const containerW = getContainerWidth();
-    const stripW = getStripWidth() * zoom;
-    const maxScroll = Math.max(1, stripW - containerW);
-    return Math.min(1, Math.max(0, -offsetX / maxScroll));
-  })();
-
-  // Pointer handlers
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (autoPan) setAutoPan(false);
-    setIsDragging(true);
-    dragState.current = {
-      startX: e.clientX,
-      startOffset: offsetX,
-      lastX: e.clientX,
-      lastTime: Date.now(),
-      velocityX: 0,
-    };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [offsetX, autoPan]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging) return;
-    const now = Date.now();
-    const dt = now - dragState.current.lastTime;
-    const dx = e.clientX - dragState.current.lastX;
-    if (dt > 0) {
-      dragState.current.velocityX = dx / dt * 16;
-    }
-    dragState.current.lastX = e.clientX;
-    dragState.current.lastTime = now;
-
-    const totalDx = e.clientX - dragState.current.startX;
-    setOffsetX(clampOffset(dragState.current.startOffset + totalDx));
-  }, [isDragging, clampOffset]);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-
-    let velocity = dragState.current.velocityX;
-    const decay = 0.95;
-    let currentOffset = offsetX;
-
-    const animate = () => {
-      velocity *= decay;
-      if (Math.abs(velocity) < 0.5) return;
-      currentOffset += velocity;
-      currentOffset = clampOffset(currentOffset);
-      setOffsetX(currentOffset);
-      rafRef.current = requestAnimationFrame(animate);
-    };
-    rafRef.current = requestAnimationFrame(animate);
-  }, [isDragging, offsetX, clampOffset]);
-
-  // Auto-pan
   useEffect(() => {
-    if (!autoPan) {
-      cancelAnimationFrame(autoPanRef.current);
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const maxScroll = Math.max(1, el.scrollWidth - el.clientWidth);
+      setProgress(Math.min(1, Math.max(0, el.scrollLeft / maxScroll)));
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [zoom, images.length]);
+
+  useEffect(() => {
+    if (!isAutoPan) {
+      cancelAnimationFrame(autoPanRafRef.current);
       return;
     }
-    let current = offsetX;
-    const speed = -0.5;
+
+    const el = containerRef.current;
+    if (!el) return;
 
     const animate = () => {
-      current += speed;
-      current = clampOffset(current);
-      setOffsetX(current);
-
-      const containerW = getContainerWidth();
-      const stripW = getStripWidth() * zoom;
-      if (-current >= stripW - containerW) {
-        setAutoPan(false);
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (el.scrollLeft >= maxScroll) {
+        setIsAutoPan(false);
         return;
       }
-      autoPanRef.current = requestAnimationFrame(animate);
+      el.scrollLeft += 0.8;
+      autoPanRafRef.current = requestAnimationFrame(animate);
     };
-    autoPanRef.current = requestAnimationFrame(animate);
 
-    return () => cancelAnimationFrame(autoPanRef.current);
-  }, [autoPan, clampOffset, images.length, zoom, getContainerWidth, getStripWidth]);
+    autoPanRafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(autoPanRafRef.current);
+  }, [isAutoPan]);
 
-  // Cleanup
   useEffect(() => {
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      cancelAnimationFrame(autoPanRef.current);
-    };
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  // Zoom
-  const handleZoomIn = () => setZoom((z) => Math.min(3, z * 1.3));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.5, z / 1.3));
+  const handleImageError = (id: string) => {
+    setUrlIndexes((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+  };
 
-  useEffect(() => {
-    setOffsetX((prev) => clampOffset(prev));
-  }, [zoom, clampOffset]);
-
-  // Fullscreen
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
+  const toggleFullscreen = async () => {
+    const el = containerRef.current;
+    if (!el) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
+      await el.requestFullscreen();
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      await document.exitFullscreen();
     }
   };
 
-  useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
+  const imageWidthVw = BASE_WIDTH_VW * zoom;
+  const overlapMargin = `calc(-${imageWidthVw * OVERLAP_FRACTION}vw)`;
 
-  const handleImageLoad = (id: string) => {
-    setLoadedImages((prev) => new Set(prev).add(id));
-  };
-
-  if (images.length === 0) return null;
-
-  // Calculate CSS mask for each image to create smooth overlap blending
-  const getMaskStyle = (idx: number): React.CSSProperties => {
-    const overlapPx = OVERLAP_FRACTION * 100; // as percentage of the image width
-    const isFirst = idx === 0;
-    const isLast = idx === images.length - 1;
-
-    if (images.length === 1) return {};
-
-    // First image: fade out on the right edge
-    if (isFirst) {
-      return {
-        WebkitMaskImage: `linear-gradient(to right, black 0%, black ${100 - overlapPx}%, transparent 100%)`,
-        maskImage: `linear-gradient(to right, black 0%, black ${100 - overlapPx}%, transparent 100%)`,
-      };
-    }
-
-    // Last image: fade in on the left edge
-    if (isLast) {
-      return {
-        WebkitMaskImage: `linear-gradient(to right, transparent 0%, black ${overlapPx}%, black 100%)`,
-        maskImage: `linear-gradient(to right, transparent 0%, black ${overlapPx}%, black 100%)`,
-      };
-    }
-
-    // Middle images: fade in on left, fade out on right
-    return {
-      WebkitMaskImage: `linear-gradient(to right, transparent 0%, black ${overlapPx}%, black ${100 - overlapPx}%, transparent 100%)`,
-      maskImage: `linear-gradient(to right, transparent 0%, black ${overlapPx}%, black ${100 - overlapPx}%, transparent 100%)`,
-    };
-  };
-
-  const overlapMarginPx = `-${OVERLAP_FRACTION * IMAGE_VW}vw`;
+  if (!images.length) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative overflow-hidden bg-black select-none touch-none ${className || "flex-1"}`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      style={{ cursor: isDragging ? "grabbing" : "grab" }}
-    >
-      {/* Image strip */}
+    <div className={`relative bg-black ${className || "flex-1"}`}>
       <div
-        ref={stripRef}
-        className="flex items-center h-full will-change-transform"
+        ref={containerRef}
+        className="absolute inset-0 overflow-x-auto overflow-y-hidden cursor-grab active:cursor-grabbing"
         style={{
-          transform: `translateX(${offsetX}px) scale(${zoom})`,
-          transformOrigin: "left center",
-          transition: isDragging ? "none" : undefined,
+          WebkitOverflowScrolling: "touch",
+          scrollSnapType: "x proximity",
         }}
       >
-        {images.map((img, idx) => {
-          const url = img.large_url || img.medium_url || img.original_url;
-          return (
+        <div className="h-full flex items-center px-[8vw]">
+          {resolvedImages.map((img, idx) => (
             <div
               key={img.id}
-              className="relative flex-shrink-0 h-full"
+              className="relative h-full flex-shrink-0"
               style={{
-                width: `${IMAGE_VW}vw`,
-                marginLeft: idx > 0 ? overlapMarginPx : undefined,
-                zIndex: images.length - idx, // first images on top for natural layering
+                width: `${imageWidthVw}vw`,
+                marginLeft: idx > 0 ? overlapMargin : undefined,
+                zIndex: images.length - idx,
+                scrollSnapAlign: "center",
               }}
             >
               <img
-                src={url}
-                alt={`Image ${idx + 1}`}
-                className="h-full w-full object-cover pointer-events-none"
-                draggable={false}
+                src={img.src}
+                alt={`Immersive photo ${idx + 1}`}
                 loading="lazy"
-                onLoad={() => handleImageLoad(img.id)}
-                style={getMaskStyle(idx)}
+                draggable={false}
+                onError={() => img.hasFallback && handleImageError(img.id)}
+                className="h-full w-full object-cover pointer-events-none"
+                style={{
+                  WebkitMaskImage:
+                    idx === 0
+                      ? "linear-gradient(to right, black 0%, black 78%, transparent 100%)"
+                      : idx === resolvedImages.length - 1
+                        ? "linear-gradient(to right, transparent 0%, black 22%, black 100%)"
+                        : "linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)",
+                  maskImage:
+                    idx === 0
+                      ? "linear-gradient(to right, black 0%, black 78%, transparent 100%)"
+                      : idx === resolvedImages.length - 1
+                        ? "linear-gradient(to right, transparent 0%, black 22%, black 100%)"
+                        : "linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)",
+                }}
               />
-              {!loadedImages.has(img.id) && (
-                <div className="absolute inset-0 bg-white/5 animate-pulse flex items-center justify-center">
-                  <span className="text-white/30 text-sm">{idx + 1}</span>
-                </div>
-              )}
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-48 md:w-64">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-52 md:w-72">
         <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/70 rounded-full transition-all duration-100"
-            style={{ width: `${progress * 100}%` }}
-          />
+          <div className="h-full bg-white/80 rounded-full transition-all duration-100" style={{ width: `${progress * 100}%` }} />
         </div>
-        <div className="text-center text-[10px] text-white/40 mt-1">
-          {images.length} photos • Drag to explore
-        </div>
+        <p className="text-center text-[10px] text-white/50 mt-1">{images.length} photos • drag to move</p>
       </div>
 
-      {/* Controls */}
       <div className="absolute bottom-4 right-4 z-30 flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={(e) => { e.stopPropagation(); setAutoPan(!autoPan); }}
+          onClick={() => setIsAutoPan((v) => !v)}
         >
-          {autoPan ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {isAutoPan ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+          onClick={() => setZoom((z) => Math.max(0.75, z / 1.15))}
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
@@ -307,7 +188,7 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+          onClick={() => setZoom((z) => Math.min(1.8, z * 1.15))}
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
@@ -315,7 +196,7 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+          onClick={toggleFullscreen}
         >
           {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
         </Button>
