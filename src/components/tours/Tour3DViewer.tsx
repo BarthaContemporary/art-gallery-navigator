@@ -147,57 +147,52 @@ function ImagePlane({
 function CameraMarker({ pose, index, isActive }: { pose: CameraPose; index: number; isActive: boolean }) {
   const color = isActive ? "#3b82f6" : "#ffffff";
 
+  const lineGeometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array([
+      0, 0, 0,
+      Math.sin((pose.yaw * Math.PI) / 180) * 0.5,
+      0,
+      -Math.cos((pose.yaw * Math.PI) / 180) * 0.5,
+    ]);
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return geo;
+  }, [pose.yaw]);
+
   return (
     <group position={[pose.x, pose.y, pose.z]}>
-      {/* Camera icon (small box) */}
       <mesh>
         <boxGeometry args={[0.15, 0.1, 0.1]} />
         <meshBasicMaterial color={color} transparent opacity={isActive ? 1 : 0.4} />
       </mesh>
-      {/* View direction line */}
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([
-              0, 0, 0,
-              Math.sin((pose.yaw * Math.PI) / 180) * 0.5,
-              0,
-              -Math.cos((pose.yaw * Math.PI) / 180) * 0.5,
-            ])}
-            itemSize={3}
-          />
-        </bufferGeometry>
+      <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial color={color} transparent opacity={0.6} />
-      </line>
+      </lineSegments>
     </group>
   );
 }
 
 // Camera path line
 function CameraPath({ poses }: { poses: CameraPose[] }) {
-  const points = useMemo(() => {
-    return poses.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+  const lineGeometry = useMemo(() => {
+    const points = poses.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+    if (points.length < 2) return null;
+    const curve = new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.5);
+    const curvePoints = curve.getPoints(50);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(curvePoints.flatMap((p) => [p.x, p.y, p.z])), 3)
+    );
+    return geo;
   }, [poses]);
 
-  if (points.length < 2) return null;
-
-  const curve = new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.5);
-  const curvePoints = curve.getPoints(50);
+  if (!lineGeometry) return null;
 
   return (
-    <line>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={curvePoints.length}
-          array={new Float32Array(curvePoints.flatMap((p) => [p.x, p.y, p.z]))}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color="#3b82f6" transparent opacity={0.3} linewidth={1} />
-    </line>
+    <lineSegments geometry={lineGeometry}>
+      <lineBasicMaterial color="#3b82f6" transparent opacity={0.3} />
+    </lineSegments>
   );
 }
 
