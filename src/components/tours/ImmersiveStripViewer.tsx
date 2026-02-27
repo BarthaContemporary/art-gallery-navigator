@@ -20,19 +20,19 @@ const getCandidates = (img: StripImage) =>
     .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
     .filter((u, i, arr) => arr.indexOf(u) === i);
 
+// Overlap fraction — how much each image overlaps its neighbour (0–0.5)
+const OVERLAP_FRAC = 0.30;
+
 export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
-  // State
   const [offsetX, setOffsetX] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoPan, setIsAutoPan] = useState(false);
   const [urlIndexes, setUrlIndexes] = useState<Record<string, number>>({});
 
-  // Drag state refs (avoid re-renders during drag)
   const dragRef = useRef({
     isDragging: false,
     startX: 0,
@@ -52,25 +52,24 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
     [images, urlIndexes]
   );
 
-  // Each image takes 60% of container width at zoom=1, with 20% overlap
+  // Layout metrics — each image = 70% container width at zoom=1, overlap = OVERLAP_FRAC
   const getMetrics = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return { imgW: 400, totalW: 400, maxOffset: 0 };
+    if (!container) return { imgW: 400, step: 280, totalW: 400, maxOffset: 0 };
     const cw = container.clientWidth;
-    const imgW = cw * 0.6 * zoom;
-    const overlap = imgW * 0.2;
-    const totalW = images.length > 0 ? imgW * images.length - overlap * (images.length - 1) : 0;
+    const imgW = cw * 0.7 * zoom;
+    const step = imgW * (1 - OVERLAP_FRAC); // distance between image left-edges
+    const totalW = images.length > 0 ? step * (images.length - 1) + imgW : 0;
     const maxOffset = Math.max(0, totalW - cw);
-    return { imgW, totalW, maxOffset };
+    return { imgW, step, totalW, maxOffset };
   }, [images.length, zoom]);
 
-  // Clamp offset
   const clampOffset = useCallback((x: number) => {
     const { maxOffset } = getMetrics();
     return Math.max(0, Math.min(maxOffset, x));
   }, [getMetrics]);
 
-  // Mouse/touch drag handlers
+  // --- Pointer drag ---
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const d = dragRef.current;
@@ -100,9 +99,8 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
     const d = dragRef.current;
     d.isDragging = false;
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-
     // Momentum
-    let vel = d.velocity * 15; // px/frame
+    let vel = d.velocity * 15;
     const animate = () => {
       if (Math.abs(vel) < 0.5) return;
       vel *= 0.94;
@@ -113,7 +111,7 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
     rafRef.current = requestAnimationFrame(animate);
   }, [clampOffset]);
 
-  // Auto-pan
+  // --- Auto-pan ---
   useEffect(() => {
     if (!isAutoPan) { cancelAnimationFrame(rafRef.current); return; }
     const animate = () => {
@@ -147,14 +145,10 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
     setUrlIndexes((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
   };
 
-  // Progress
-  const { maxOffset } = getMetrics();
+  const { maxOffset, imgW, step } = getMetrics();
   const progress = maxOffset > 0 ? offsetX / maxOffset : 0;
 
   if (!images.length) return null;
-
-  const { imgW } = getMetrics();
-  const overlap = imgW * 0.2;
 
   return (
     <div
@@ -168,24 +162,25 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
     >
       {/* Strip */}
       <div
-        ref={stripRef}
-        className="absolute top-0 bottom-0 flex items-center"
+        className="absolute top-0 bottom-0"
         style={{
           transform: `translateX(${-offsetX}px)`,
           willChange: "transform",
         }}
       >
         {resolvedImages.map((img, idx) => {
-          const left = idx * (imgW - overlap);
+          const left = idx * step;
           const isFirst = idx === 0;
           const isLast = idx === resolvedImages.length - 1;
 
-          // Blend mask: fade edges for overlap blending
+          // Wider, softer gradient masks for smoother blending
+          // Each edge fades across the full overlap zone
+          const fadeWidth = Math.round(OVERLAP_FRAC * 100);
           const mask = isFirst
-            ? "linear-gradient(to right, black 0%, black 80%, transparent 100%)"
+            ? `linear-gradient(to right, black 0%, black ${100 - fadeWidth}%, transparent 100%)`
             : isLast
-              ? "linear-gradient(to right, transparent 0%, black 20%, black 100%)"
-              : "linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)";
+              ? `linear-gradient(to right, transparent 0%, black ${fadeWidth}%, black 100%)`
+              : `linear-gradient(to right, transparent 0%, black ${fadeWidth}%, black ${100 - fadeWidth}%, transparent 100%)`;
 
           return (
             <div
@@ -194,7 +189,8 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
               style={{
                 left: `${left}px`,
                 width: `${imgW}px`,
-                zIndex: images.length - idx,
+                // Layer images so earlier ones are behind later ones for natural overlap
+                zIndex: idx,
               }}
             >
               <img
