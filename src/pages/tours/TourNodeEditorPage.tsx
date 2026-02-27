@@ -8,9 +8,26 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Upload, Trash2, Star, Loader2, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Star, Loader2, CheckCircle, AlertCircle, Clock, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useDropzone } from "react-dropzone";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type NodeType = "panorama" | "image_set";
 type JobStatus = "queued" | "processing" | "done" | "failed";
@@ -29,12 +46,103 @@ interface NodeImage {
   file_size: number | null;
 }
 
+// --- Sortable image card ---
+function SortableImageCard({
+  img,
+  index,
+  onSetPrimary,
+  onDelete,
+  statusIcon,
+}: {
+  img: NodeImage;
+  index: number;
+  onSetPrimary: (id: string) => void;
+  onDelete: (id: string) => void;
+  statusIcon: (s: JobStatus) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.7 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="group relative aspect-square bg-muted rounded-lg overflow-hidden">
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute top-1.5 right-1.5 z-20 h-7 w-7 flex items-center justify-center rounded bg-black/50 text-white/80 hover:text-white hover:bg-black/70 cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      {/* Order badge */}
+      <div className="absolute top-1.5 left-1.5 z-20">
+        <span className="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-black/60 text-white text-[10px] font-bold px-1.5">
+          {index + 1}
+        </span>
+      </div>
+
+      <img
+        src={img.thumbnail_url || img.medium_url || img.original_url}
+        alt=""
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+
+      {/* Overlay controls */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end justify-between p-2 opacity-0 group-hover:opacity-100">
+        <div className="flex gap-1">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); onSetPrimary(img.id); }}
+          >
+            <Star className={`h-3.5 w-3.5 ${img.is_primary ? "fill-yellow-400 text-yellow-400" : ""}`} />
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm("Remove this image?")) onDelete(img.id);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          {statusIcon(img.processing_status)}
+        </div>
+      </div>
+
+      {/* Primary badge */}
+      {img.is_primary && (
+        <div className="absolute bottom-1.5 left-1.5 z-20">
+          <Badge className="text-[10px] px-1.5 py-0">Primary</Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TourNodeEditorPage() {
   const { id: projectId, nodeId } = useParams<{ id: string; nodeId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const { data: node } = useQuery({
     queryKey: ["tour-node", nodeId],
@@ -64,6 +172,40 @@ export default function TourNodeEditorPage() {
     enabled: !!nodeId,
   });
 
+  // --- Reorder mutation ---
+  const reorderMutation = useMutation({
+    mutationFn: async (reordered: NodeImage[]) => {
+      const updates = reordered.map((img, idx) =>
+        supabase.from("tour_node_images").update({ display_order: idx }).eq("id", img.id)
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tour-node-images", nodeId] });
+    },
+    onError: () => {
+      toast.error("Failed to reorder images");
+      queryClient.invalidateQueries({ queryKey: ["tour-node-images", nodeId] });
+    },
+  });
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = images.findIndex((img) => img.id === active.id);
+      const newIndex = images.findIndex((img) => img.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reordered = arrayMove(images, oldIndex, newIndex);
+      // Optimistic update
+      queryClient.setQueryData(["tour-node-images", nodeId], reordered);
+      reorderMutation.mutate(reordered);
+    },
+    [images, nodeId, queryClient, reorderMutation]
+  );
+
   const uploadFiles = useCallback(async (files: File[]) => {
     if (!nodeId) return;
     setUploading(true);
@@ -85,7 +227,6 @@ export default function TourNodeEditorPage() {
           .from("tour-uploads")
           .getPublicUrl(path);
 
-        // Extract basic metadata
         const img = new window.Image();
         const dimensions = await new Promise<{ w: number; h: number }>((resolve) => {
           img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
@@ -138,9 +279,7 @@ export default function TourNodeEditorPage() {
 
   const setPrimaryMutation = useMutation({
     mutationFn: async (imageId: string) => {
-      // Unset all primary
       await supabase.from("tour_node_images").update({ is_primary: false }).eq("node_id", nodeId!);
-      // Set new primary
       const { error } = await supabase.from("tour_node_images").update({ is_primary: true }).eq("id", imageId);
       if (error) throw error;
     },
@@ -257,7 +396,7 @@ export default function TourNodeEditorPage() {
         )}
       </div>
 
-      {/* Image Grid */}
+      {/* Image Grid with drag-to-reorder */}
       {imagesLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
@@ -266,52 +405,26 @@ export default function TourNodeEditorPage() {
         </div>
       ) : images.length > 0 ? (
         <div>
-          <h3 className="text-sm font-medium mb-3">Images ({images.length})</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {images.map((img) => (
-              <div key={img.id} className="group relative aspect-square bg-muted rounded-lg overflow-hidden">
-                <img
-                  src={img.thumbnail_url || img.medium_url || img.original_url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-                {/* Overlay controls */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end justify-between p-2 opacity-0 group-hover:opacity-100">
-                  <div className="flex gap-1">
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => { e.stopPropagation(); setPrimaryMutation.mutate(img.id); }}
-                    >
-                      <Star className={`h-3.5 w-3.5 ${img.is_primary ? "fill-yellow-400 text-yellow-400" : ""}`} />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm("Remove this image?")) deleteImageMutation.mutate(img.id);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {statusIcon(img.processing_status)}
-                  </div>
-                </div>
-                {/* Primary badge */}
-                {img.is_primary && (
-                  <div className="absolute top-1.5 left-1.5">
-                    <Badge className="text-[10px] px-1.5 py-0">Primary</Badge>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium">Images ({images.length})</h3>
+            <p className="text-xs text-muted-foreground">Drag to reorder • Order determines immersive strip sequence</p>
           </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={images.map((img) => img.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {images.map((img, idx) => (
+                  <SortableImageCard
+                    key={img.id}
+                    img={img}
+                    index={idx}
+                    onSetPrimary={(id) => setPrimaryMutation.mutate(id)}
+                    onDelete={(id) => deleteImageMutation.mutate(id)}
+                    statusIcon={statusIcon}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       ) : null}
     </div>
