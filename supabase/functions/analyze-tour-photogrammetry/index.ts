@@ -121,7 +121,7 @@ RESPOND WITH ONLY THE JSON OBJECT, no markdown, no code blocks.`;
           },
         ],
         temperature: 0.1,
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 
@@ -148,14 +148,34 @@ RESPOND WITH ONLY THE JSON OBJECT, no markdown, no code blocks.`;
 
     if (!content) throw new Error("No response from AI");
 
-    // Parse the JSON response (strip any markdown if present)
+    // Parse the JSON response robustly
     let parsed;
     try {
-      const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      let cleaned = content
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+
+      // Find JSON boundaries
+      const jsonStart = cleaned.search(/[\{\[]/);
+      const jsonEnd = cleaned.lastIndexOf(jsonStart !== -1 && cleaned[jsonStart] === '[' ? ']' : '}');
+
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("No JSON object found in response");
+      }
+
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+      // Fix common LLM JSON issues
+      cleaned = cleaned
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, "");
+
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("Failed to parse spatial analysis");
+      console.error("Failed to parse AI response:", content.substring(0, 500));
+      throw new Error("Failed to parse spatial analysis: " + (e instanceof Error ? e.message : "parse error"));
     }
 
     // Store results
