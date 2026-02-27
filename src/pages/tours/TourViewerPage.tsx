@@ -86,6 +86,13 @@ interface Hotspot {
 
 type ViewMode = "single" | "immersive" | "3d";
 
+const getImageUrlCandidates = (img?: NodeImage | null) => {
+  if (!img) return [] as string[];
+  return [img.large_url, img.medium_url, img.thumbnail_url, img.original_url]
+    .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+    .filter((u, i, arr) => arr.indexOf(u) === i);
+};
+
 export default function TourViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -136,8 +143,11 @@ export default function TourViewerPage() {
 
   const currentNode = nodes[currentNodeIdx] || null;
 
-  // Fetch images for current node
-  const { data: nodeImages = [] } = useQuery({
+  const {
+    data: nodeImages = [],
+    isLoading: nodeImagesLoading,
+    error: nodeImagesError,
+  } = useQuery({
     queryKey: ["tour-viewer-images", currentNode?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -211,8 +221,24 @@ export default function TourViewerPage() {
     enabled: !!currentNode?.id,
   });
 
-  // Fetch annotations for current image
+  // Current image + robust URL fallback list
   const currentImage = nodeImages[currentImageIdx] || null;
+  const currentImageCandidates = useMemo(() => getImageUrlCandidates(currentImage), [currentImage]);
+  const [currentImageUrlIndex, setCurrentImageUrlIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentImageUrlIndex(0);
+  }, [currentImage?.id]);
+
+  const currentImageUrl = currentImageCandidates[currentImageUrlIndex] || "";
+
+  const handleCurrentImageFallback = useCallback(() => {
+    setCurrentImageUrlIndex((prev) => {
+      const next = prev + 1;
+      return next < currentImageCandidates.length ? next : prev;
+    });
+  }, [currentImageCandidates.length]);
+
   const { data: annotations = [] } = useQuery({
     queryKey: ["tour-viewer-annotations", currentImage?.id],
     queryFn: async () => {
@@ -247,13 +273,12 @@ export default function TourViewerPage() {
     if (viewMode !== "single") return;
     if (!viewerRef.current) return;
     if (!currentNode || currentNode.node_type !== "image_set") return;
-    if (!currentImage) return;
+    if (!currentImageUrl) {
+      setOsdFailed(true);
+      return;
+    }
 
     setOsdFailed(false);
-
-    const imageUrl = inspectionMode
-      ? currentImage.original_url
-      : currentImage.large_url || currentImage.medium_url || currentImage.original_url;
 
     // Destroy previous viewer
     if (osdRef.current) {
@@ -266,7 +291,7 @@ export default function TourViewerPage() {
         element: viewerRef.current,
         tileSources: {
           type: "image",
-          url: imageUrl,
+          url: currentImageUrl,
         },
         prefixUrl: "",
         showNavigationControl: false,
@@ -283,11 +308,15 @@ export default function TourViewerPage() {
         zoomPerScroll: 1.2,
       });
 
-      // Handle open failure - fall back to plain img
+      // Handle open failure - try next URL candidate, then plain img fallback
       viewer.addHandler("open-failed", () => {
-        setOsdFailed(true);
         viewer.destroy();
         osdRef.current = null;
+        if (currentImageUrlIndex < currentImageCandidates.length - 1) {
+          handleCurrentImageFallback();
+        } else {
+          setOsdFailed(true);
+        }
       });
 
       osdRef.current = viewer;
@@ -297,9 +326,22 @@ export default function TourViewerPage() {
         osdRef.current = null;
       };
     } catch {
-      setOsdFailed(true);
+      if (currentImageUrlIndex < currentImageCandidates.length - 1) {
+        handleCurrentImageFallback();
+      } else {
+        setOsdFailed(true);
+      }
     }
-  }, [currentImage?.id, currentNode?.node_type, inspectionMode, viewMode]);
+  }, [
+    currentImage?.id,
+    currentImageUrl,
+    currentImageUrlIndex,
+    currentImageCandidates.length,
+    currentNode?.node_type,
+    handleCurrentImageFallback,
+    inspectionMode,
+    viewMode,
+  ]);
 
   // Panorama check
   const isPanorama = currentNode?.node_type === "panorama";
@@ -420,7 +462,8 @@ export default function TourViewerPage() {
     );
   }
 
-  const showImmersive = viewMode === "immersive" && !isPanorama && nodeImages.length >= 2;
+  const canUseAdvancedViews = !isPanorama && nodeImages.length >= 2;
+  const showImmersive = viewMode === "immersive" && canUseAdvancedViews;
   const show3D = viewMode === "3d" && reconstruction?.status === "completed" && reconstruction.camera_poses;
 
   return (
@@ -484,8 +527,8 @@ export default function TourViewerPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 pointer-events-auto">
-            {/* View mode toggle (only for image_set with 2+ images) */}
-            {!isPanorama && nodeImages.length >= 2 && (
+            {/* View mode + 3D controls for image sets */}
+            {!isPanorama && (
               <>
                 <TooltipProvider>
                   <Tooltip>
@@ -497,12 +540,15 @@ export default function TourViewerPage() {
                           viewMode === "immersive" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
                         }`}
                         onClick={() => setViewMode(viewMode === "immersive" ? "single" : "immersive")}
+                        disabled={!canUseAdvancedViews || nodeImagesLoading}
                       >
                         {viewMode === "immersive" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <p className="text-xs">{viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}</p>
+                      <p className="text-xs">
+                        {!canUseAdvancedViews ? "Need at least 2 photos" : viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -526,7 +572,7 @@ export default function TourViewerPage() {
                             reconstructMutation.mutate(currentNode!.id);
                           }
                         }}
-                        disabled={reconstructMutation.isPending}
+                        disabled={reconstructMutation.isPending || !canUseAdvancedViews || nodeImagesLoading}
                       >
                         {reconstructMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -537,13 +583,15 @@ export default function TourViewerPage() {
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
                       <p className="text-xs">
-                        {viewMode === "3d"
-                          ? "Exit 3D View"
-                          : reconstruction?.status === "completed"
-                            ? "3D Model View"
-                            : reconstructMutation.isPending
-                              ? "Analyzing spatial layout..."
-                              : "Build 3D Model (AI)"}
+                        {!canUseAdvancedViews
+                          ? "Need at least 2 photos"
+                          : viewMode === "3d"
+                            ? "Exit 3D View"
+                            : reconstruction?.status === "completed"
+                              ? "3D Model View"
+                              : reconstructMutation.isPending
+                                ? "Analyzing spatial layout..."
+                                : "Build 3D Model (AI)"}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -620,7 +668,28 @@ export default function TourViewerPage() {
         )}
 
         {/* Viewer */}
-        {show3D ? (
+        {nodeImagesLoading ? (
+          <div className="flex-1 flex items-center justify-center bg-black">
+            <div className="text-center space-y-3">
+              <Loader2 className="h-6 w-6 animate-spin text-white/70 mx-auto" />
+              <p className="text-sm text-white/60">Loading images...</p>
+            </div>
+          </div>
+        ) : nodeImagesError ? (
+          <div className="flex-1 flex items-center justify-center bg-black px-6">
+            <div className="text-center space-y-3">
+              <p className="text-sm text-white">Could not load this image set.</p>
+              <p className="text-xs text-white/50">Please refresh or try another scan position.</p>
+            </div>
+          </div>
+        ) : nodeImages.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center bg-black px-6">
+            <div className="text-center space-y-3">
+              <p className="text-sm text-white">No images found for this node.</p>
+              <p className="text-xs text-white/50">Upload photos to enable preview, immersive, and 3D reconstruction.</p>
+            </div>
+          </div>
+        ) : show3D ? (
           <Tour3DViewer
             cameraPoses={reconstruction!.camera_poses as any[]}
             sceneConfig={(reconstruction!.scene_config as any) || { scene_type: "room", estimated_width_m: 10, estimated_depth_m: 10, camera_height_m: 1.6, description: "3D Reconstruction" }}
@@ -632,14 +701,15 @@ export default function TourViewerPage() {
         ) : isPanorama ? (
           // Panorama viewer
           <div className="flex-1 relative overflow-hidden">
-            {currentImage && (
+            {currentImageUrl && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <img
-                  src={currentImage.large_url || currentImage.original_url}
+                  src={currentImageUrl}
                   alt={currentNode?.name}
                   className="max-w-none h-full object-cover"
                   style={{ minWidth: "200%" }}
                   draggable={false}
+                  onError={handleCurrentImageFallback}
                 />
               </div>
             )}
@@ -650,13 +720,18 @@ export default function TourViewerPage() {
         ) : (
           // Image Set - OpenSeadragon deep zoom or fallback
           <div className="flex-1 relative">
-            {osdFailed && currentImage ? (
+            {osdFailed ? (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <img
-                  src={currentImage.large_url || currentImage.medium_url || currentImage.original_url}
-                  alt={currentNode?.name || "Tour image"}
-                  className="max-h-full max-w-full object-contain"
-                />
+                {currentImageUrl ? (
+                  <img
+                    src={currentImageUrl}
+                    alt={currentNode?.name || "Tour image"}
+                    className="max-h-full max-w-full object-contain"
+                    onError={handleCurrentImageFallback}
+                  />
+                ) : (
+                  <p className="text-sm text-white/60">No valid image URL available.</p>
+                )}
               </div>
             ) : (
               <div ref={viewerRef} className="absolute inset-0" />
@@ -714,8 +789,8 @@ export default function TourViewerPage() {
                     }`}
                   >
                     <img
-                      src={img.thumbnail_url || img.medium_url || img.original_url}
-                      alt=""
+                      src={getImageUrlCandidates(img)[0] || ""}
+                      alt={`Thumbnail ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>

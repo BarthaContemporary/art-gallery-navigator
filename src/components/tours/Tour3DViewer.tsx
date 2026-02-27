@@ -284,7 +284,7 @@ export function Tour3DViewer({ cameraPoses, sceneConfig, images, className }: To
   const getImageUrl = (imageId: string) => {
     const img = imageMap.get(imageId);
     if (!img) return "";
-    return img.large_url || img.medium_url || img.original_url;
+    return img.large_url || img.medium_url || img.original_url || "";
   };
 
   // Calculate scene center for orbit
