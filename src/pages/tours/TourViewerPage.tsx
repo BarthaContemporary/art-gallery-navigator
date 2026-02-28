@@ -184,7 +184,7 @@ export default function TourViewerPage() {
   });
 
   // Poll nodes while stitching is in progress
-  const isStitching = currentNode?.stitch_status === "processing";
+  const isStitching = currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url;
   useEffect(() => {
     if (!isStitching) return;
     const interval = setInterval(() => {
@@ -599,7 +599,7 @@ export default function TourViewerPage() {
                           }`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (currentNode && currentNode.stitch_status !== "processing") {
+                            if (currentNode && !isStitching) {
                               if (!hasPanoramaStrip) {
                                 toast.error("Save the panorama strip first", { description: "Use the Save Strip button in the composer" });
                                 return;
@@ -607,11 +607,7 @@ export default function TourViewerPage() {
                               stitchMutation.mutate(currentNode.id);
                             }
                           }}
-                          disabled={
-                            stitchMutation.isPending ||
-                            currentNode?.stitch_status === "processing" ||
-                            nodeImagesLoading
-                          }
+                          disabled={stitchMutation.isPending || isStitching || nodeImagesLoading}
                         >
                           {stitchMutation.isPending || currentNode?.stitch_status === "processing" ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -730,10 +726,10 @@ export default function TourViewerPage() {
             nodeId={currentNode!.id}
             images={nodeImages}
             className="flex-1"
-            canProcess={hasPanoramaStrip && currentNode?.stitch_status !== "processing"}
-            processing={stitchMutation.isPending || currentNode?.stitch_status === "processing"}
+            canProcess={!isStitching}
+            processing={stitchMutation.isPending || isStitching}
             onProcess={() => {
-              if (!currentNode || currentNode.stitch_status === "processing") return;
+              if (!currentNode || isStitching) return;
               if (!hasPanoramaStrip) {
                 toast.error("Save the panorama strip first", { description: "Use Save Strip before Process 360°" });
                 return;
