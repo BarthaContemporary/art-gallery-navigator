@@ -1,61 +1,49 @@
 
 
-## Plan: Spherical Panorama Viewer from Multiple Images
+## Plan: Simplified 360° Panorama Stitching & Viewer
 
-### Problem
-Currently the 8 uploaded images are displayed as a flat horizontal strip (ImmersiveStripViewer) or as floating planes in 3D space (Tour3DViewer). Neither provides a true 360° immersive experience.
+### Root Cause
+The edge function's deployed version used `gemini-3-pro-image-preview`, which returns **text descriptions** instead of images. The `gemini-2.5-flash-image` model does return images, but asking it to stitch 6-8 photos in one shot overwhelms it. The client-side "sliced sphere" fallback also produces a poor visual result.
 
-### Approach
-Create a new **SphericalPanoramaViewer** component that stitches the 8 overlapping images onto the inside of a 3D sphere using Three.js (already installed), allowing the user to look around freely as if standing inside the scene.
+### New Approach: Pairwise Iterative Stitching
 
-### How It Works
+Instead of sending all images at once, stitch them **in pairs** iteratively:
 
 ```text
-┌─────────────────────────────────────────────┐
-│  8 images → painted onto inside of sphere   │
-│                                             │
-│   img1  img2  img3  img4  img5 ... img8     │
-│   ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐    ┌──┐    │
-│   │  │──│  │──│  │──│  │──│  │ .. │  │    │
-│   └──┘  └──┘  └──┘  └──┘  └──┘    └──┘    │
-│            ↓                                │
-│   Mapped as vertical slices on sphere       │
-│   Each image covers 360°/N of longitude     │
-│   with soft alpha-blended overlaps          │
-│            ↓                                │
-│   Camera at center, OrbitControls for       │
-│   free look (drag to rotate, scroll zoom)   │
-└─────────────────────────────────────────────┘
+Step 1:  img1 + img2 → merged_A
+Step 2:  merged_A + img3 → merged_B  
+Step 3:  merged_B + img4 → merged_C
+...until all images are combined into one panorama
 ```
 
-Each image becomes a curved "slice" on the inside of a sphere. The camera sits at the center. The user drags to look around — a true 360° experience.
+This keeps each AI call simple (merge 2 overlapping images), which the model handles reliably.
 
 ### Implementation Steps
 
-1. **Create `src/components/tours/SphericalPanoramaViewer.tsx`**
-   - React Three Fiber `<Canvas>` with a sphere (radius ~500, inverted normals so textures face inward)
-   - For each of the N images, create a partial-sphere mesh covering `360°/N` of longitude (with ~15% overlap on edges)
-   - Load each image as a Three.js texture, UV-mapped to its slice
-   - Apply alpha gradient at left/right edges of each slice for seamless blending
-   - Camera at center with `OrbitControls` (no pan, only rotate + zoom)
-   - Auto-rotate option, fullscreen toggle, gyroscope support on mobile
+1. **Rewrite `stitch-panorama` edge function**
+   - Use `google/gemini-2.5-flash-image` with `modalities: ["image", "text"]`
+   - Implement iterative pairwise stitching: merge image 1+2, then result+3, then result+4, etc.
+   - Each step sends only 2 images with a simple prompt: "Merge these two overlapping photographs into a single seamless wide panoramic image"
+   - Upload intermediate results to storage to pass URLs (not base64) between steps
+   - Final result stored as before in `tour-uploads/stitched/{node_id}/panorama.png`
+   - Add progress tracking: update `stitch_status` with step count
 
-2. **Update `TourViewerPage.tsx`**
-   - Add a new ViewMode `"spherical"` alongside existing `single`, `immersive`, `3d`
-   - When a node has 3+ images, show a "360° View" button in the toolbar
-   - Auto-select spherical mode when node has enough images for coverage
-   - Wire up the new component with the `nodeImages` data
+2. **Simplify `SphericalPanoramaViewer.tsx`**
+   - Remove the `SlicedScene` component entirely (broken approach)
+   - Keep only `EquirectangularScene` for displaying the AI-stitched panorama
+   - When no stitched panorama exists, show a prompt to trigger AI stitching instead of the broken sliced view
+   - Keep controls: auto-rotate, fullscreen, drag-to-look
 
-3. **Replace the current panorama viewer (for `node_type === "panorama"`)** 
-   - The existing panorama code (lines 723-741) is just a static `<img>` with `minWidth: 200%` — not interactive at all
-   - Replace with the same spherical viewer for single equirectangular images too
+3. **Simplify `TourViewerPage.tsx` viewer modes**
+   - Remove `"spherical"` as a separate view mode
+   - When a stitched panorama URL exists, show a "360°" button that renders `SphericalPanoramaViewer` in the main area
+   - The Wand button triggers stitching; once done, automatically switch to 360° view
+   - Default to `"single"` image view for nodes without a stitched panorama
 
 ### Technical Details
 
-- **Sphere geometry**: `SphereGeometry(500, 64, 32)` with `side: THREE.BackSide` (renders inside)
-- **Slice approach**: Each image maps to a `CylinderGeometry` or custom partial-sphere with UV coordinates covering its angular range. Simpler alternative: use N `PlaneGeometry` meshes arranged in a cylinder, which approximates a sphere well for 8+ images
-- **Blending**: Custom `ShaderMaterial` with alpha falloff at edges, or simpler `MeshBasicMaterial` with transparent textures where edges have gradient alpha baked via canvas
-- **Controls**: `OrbitControls` with `enablePan=false`, `enableZoom` limited, `autoRotate` option
-- **Mobile**: Touch drag to rotate, pinch to zoom. Optional DeviceOrientation for gyro look-around
-- **Performance**: Use `medium_url` textures (not originals) for fast load; lazy-load remaining slices after first 3
+- **Pairwise merge prompt**: Keep it minimal — "Seamlessly merge these two overlapping photographs into one wider panoramic image. Preserve all detail. Output a single photograph."
+- **Intermediate storage**: Upload each intermediate merge to `tour-uploads/stitched/{node_id}/step_{i}.png` so the next step can reference a URL rather than a huge base64 string
+- **Error handling**: If any step fails, retry that step once. If it fails again, save whatever was produced up to that point as the result
+- **Rate limiting**: Add a 2-second delay between AI calls to avoid 429 errors
 
