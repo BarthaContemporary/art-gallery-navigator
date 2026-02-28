@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut, GripVertical } from "lucide-react";
+import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut, GripVertical, Wand2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -19,6 +19,10 @@ interface PanoramaComposerProps {
   images: NodeImage[];
   className?: string;
   onSaved?: (stripUrl: string) => void;
+  onProcess?: () => void;
+  onExit?: () => void;
+  processing?: boolean;
+  canProcess?: boolean;
 }
 
 interface ImageState {
@@ -31,7 +35,16 @@ interface ImageState {
   loaded: boolean;
 }
 
-export function PanoramaComposer({ nodeId, images, className = "", onSaved }: PanoramaComposerProps) {
+export function PanoramaComposer({
+  nodeId,
+  images,
+  className = "",
+  onSaved,
+  onProcess,
+  onExit,
+  processing = false,
+  canProcess = false,
+}: PanoramaComposerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [imageStates, setImageStates] = useState<ImageState[]>([]);
@@ -371,6 +384,29 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onProcess?.();
+            }}
+            disabled={processing || !canProcess}
+          >
+            {processing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+            Process 360°
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-white/70 hover:text-white hover:bg-white/10 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onExit?.();
+            }}
+          >
+            <X className="h-3.5 w-3.5 mr-1" /> Exit
+          </Button>
           <Button
             variant="ghost"
             size="sm"

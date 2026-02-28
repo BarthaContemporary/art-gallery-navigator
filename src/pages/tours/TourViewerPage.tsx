@@ -730,9 +730,20 @@ export default function TourViewerPage() {
             nodeId={currentNode!.id}
             images={nodeImages}
             className="flex-1"
+            canProcess={hasPanoramaStrip && currentNode?.stitch_status !== "processing"}
+            processing={stitchMutation.isPending || currentNode?.stitch_status === "processing"}
+            onProcess={() => {
+              if (!currentNode || currentNode.stitch_status === "processing") return;
+              if (!hasPanoramaStrip) {
+                toast.error("Save the panorama strip first", { description: "Use Save Strip before Process 360°" });
+                return;
+              }
+              stitchMutation.mutate(currentNode.id);
+            }}
+            onExit={() => setViewMode("single")}
             onSaved={() => {
               queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
-              toast.success("Panorama strip saved! Use the ✨ button to convert to 360°.");
+              toast.success("Panorama strip saved! Use Process 360° to convert.");
             }}
           />
         ) : show360 ? (
