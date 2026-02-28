@@ -23,14 +23,12 @@ import {
   Lock,
   GalleryHorizontal,
   Image,
-  Box,
   Loader2,
   Wand2,
 } from "lucide-react";
 import OpenSeadragon from "openseadragon";
-import { ImmersiveStripViewer } from "@/components/tours/ImmersiveStripViewer";
-import { Tour3DViewer } from "@/components/tours/Tour3DViewer";
 import { SphericalPanoramaViewer } from "@/components/tours/SphericalPanoramaViewer";
+import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { toast } from "sonner";
 
 // Types
@@ -52,6 +50,7 @@ interface TourNode {
   floorplan_y: number | null;
   stitched_panorama_url: string | null;
   stitch_status: string | null;
+  panorama_strip_url: string | null;
 }
 
 interface NodeImage {
@@ -88,7 +87,7 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "single" | "immersive" | "3d" | "360";
+type ViewMode = "single" | "composer" | "360";
 
 const getImageUrlCandidates = (img?: NodeImage | null) => {
   if (!img) return [] as string[];
@@ -113,7 +112,6 @@ export default function TourViewerPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("single");
   const [osdFailed, setOsdFailed] = useState(false);
-  const [reconstructionStarted, setReconstructionStarted] = useState(false);
 
   // Fetch project
   const { data: project, isLoading: projectLoading, error: projectError } = useQuery({
@@ -166,62 +164,6 @@ export default function TourViewerPage() {
     enabled: !!currentNode?.id,
   });
 
-  // Fetch 3D reconstruction for current node (polls while processing)
-  const { data: reconstruction } = useQuery({
-    queryKey: ["tour-3d-reconstruction", currentNode?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tour_3d_reconstructions")
-        .select("*")
-        .eq("node_id", currentNode!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!currentNode?.id,
-    refetchInterval: (query) => {
-      // Poll every 3s while processing
-      const data = query.state.data;
-      if (data?.status === "processing") return 3000;
-      return false;
-    },
-  });
-
-  // Switch to 3D view when reconstruction completes
-  useEffect(() => {
-    if (reconstruction?.status === "completed" && reconstruction.camera_poses && viewMode !== "3d") {
-      // Only auto-switch if we were waiting for it (mutation was pending)
-      if (reconstructionStarted) {
-        setViewMode("3d");
-        toast.success("3D reconstruction complete");
-        setReconstructionStarted(false);
-      }
-    } else if (reconstruction?.status === "failed" && reconstructionStarted) {
-      toast.error("3D reconstruction failed", { description: reconstruction.error_message || "Unknown error" });
-      setReconstructionStarted(false);
-    }
-  }, [reconstruction?.status]);
-
-  // 3D reconstruction mutation (now returns immediately)
-  const reconstructMutation = useMutation({
-    mutationFn: async (nodeId: string) => {
-      const { data, error } = await supabase.functions.invoke("analyze-tour-photogrammetry", {
-        body: { node_id: nodeId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: () => {
-      setReconstructionStarted(true);
-      queryClient.invalidateQueries({ queryKey: ["tour-3d-reconstruction", currentNode?.id] });
-      toast.info("3D reconstruction started...", { description: "This may take 15-30 seconds" });
-    },
-    onError: (err) => {
-      toast.error("3D reconstruction failed", { description: err instanceof Error ? err.message : "Unknown error" });
-    },
-  });
-
   // AI panorama stitching mutation
   const stitchMutation = useMutation({
     mutationFn: async (nodeId: string) => {
@@ -233,11 +175,11 @@ export default function TourViewerPage() {
       return data;
     },
     onSuccess: () => {
-      toast.info("AI panorama stitching started...", { description: "This may take 30-60 seconds" });
+      toast.info("AI spherical conversion started…", { description: "This may take 30-60 seconds" });
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
     },
     onError: (err) => {
-      toast.error("Panorama stitching failed", { description: err instanceof Error ? err.message : "Unknown error" });
+      toast.error("Spherical conversion failed", { description: err instanceof Error ? err.message : "Unknown error" });
     },
   });
 
@@ -261,14 +203,12 @@ export default function TourViewerPage() {
 
   // Auto-select best view mode when node changes
   useEffect(() => {
-    if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
-      setViewMode("3d");
-    } else if (currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed") {
+    if (currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed") {
       setViewMode("360");
     } else {
       setViewMode("single");
     }
-  }, [currentNode?.id, reconstruction?.status, currentNode?.stitched_panorama_url, currentNode?.stitch_status]);
+  }, [currentNode?.id, currentNode?.stitched_panorama_url, currentNode?.stitch_status]);
 
   // Fetch hotspots for current node
   const { data: hotspots = [] } = useQuery({
@@ -525,12 +465,11 @@ export default function TourViewerPage() {
     );
   }
 
-  const canUseAdvancedViews = !isPanorama && nodeImages.length >= 2;
   const hasStitchedPanorama = !!currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed";
-  const canStitch = !isPanorama && nodeImages.length >= 2;
-  const showImmersive = viewMode === "immersive" && canUseAdvancedViews;
+  const hasPanoramaStrip = !!(currentNode as any)?.panorama_strip_url;
+  const canStitch = !isPanorama && hasPanoramaStrip;
+  const showComposer = viewMode === "composer" && !isPanorama && nodeImages.length >= 2;
   const show360 = viewMode === "360" && hasStitchedPanorama;
-  const show3D = viewMode === "3d" && reconstruction?.status === "completed" && reconstruction.camera_poses;
 
   return (
     <div className="fixed inset-0 bg-black text-white flex overflow-hidden z-[100]">
@@ -593,33 +532,36 @@ export default function TourViewerPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 pointer-events-auto">
-            {/* View mode + 3D controls for image sets */}
+            {/* View mode controls for image sets */}
             {!isPanorama && (
               <>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-8 w-8 hover:bg-white/10 ${
-                          viewMode === "immersive" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
-                        }`}
-                        onClick={() => setViewMode(viewMode === "immersive" ? "single" : "immersive")}
-                        disabled={!canUseAdvancedViews || nodeImagesLoading}
-                      >
-                        {viewMode === "immersive" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        {!canUseAdvancedViews ? "Need at least 2 photos" : viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {/* Composer toggle */}
+                {nodeImages.length >= 2 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 hover:bg-white/10 ${
+                            viewMode === "composer" ? "text-blue-400 bg-white/10" : "text-white/70 hover:text-white"
+                          }`}
+                          onClick={() => setViewMode(viewMode === "composer" ? "single" : "composer")}
+                          disabled={nodeImagesLoading}
+                        >
+                          {viewMode === "composer" ? <Image className="h-4 w-4" /> : <GalleryHorizontal className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">
+                          {viewMode === "composer" ? "Single Image View" : "Panorama Composer"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 360° View toggle (only when stitched panorama exists) */}
+                {/* 360° View toggle */}
                 {hasStitchedPanorama && (
                   <TooltipProvider>
                     <Tooltip>
@@ -642,7 +584,7 @@ export default function TourViewerPage() {
                   </TooltipProvider>
                 )}
 
-                {/* AI Stitch Panorama button */}
+                {/* AI Convert to Spherical button */}
                 {canStitch && (
                   <TooltipProvider>
                     <Tooltip>
@@ -676,59 +618,15 @@ export default function TourViewerPage() {
                       <TooltipContent side="bottom">
                         <p className="text-xs">
                           {currentNode?.stitch_status === "processing"
-                            ? "AI stitching in progress…"
+                            ? "AI conversion in progress…"
                             : currentNode?.stitch_status === "completed"
-                              ? "AI Panorama ready (click to re-stitch)"
-                              : "AI Stitch Panorama"}
+                              ? "Spherical panorama ready (click to re-convert)"
+                              : "Convert to 360° Sphere (AI)"}
                         </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
-
-                {/* 3D Reconstruction toggle */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-8 w-8 hover:bg-white/10 ${
-                          viewMode === "3d" ? "text-emerald-400 bg-white/10" : "text-white/70 hover:text-white"
-                        }`}
-                        onClick={() => {
-                          if (viewMode === "3d") {
-                            setViewMode("single");
-                          } else if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
-                            setViewMode("3d");
-                          } else if (!reconstructMutation.isPending && reconstruction?.status !== "processing") {
-                            reconstructMutation.mutate(currentNode!.id);
-                          }
-                        }}
-                        disabled={reconstructMutation.isPending || reconstruction?.status === "processing" || !canUseAdvancedViews || nodeImagesLoading}
-                      >
-                        {reconstructMutation.isPending || reconstruction?.status === "processing" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Box className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        {!canUseAdvancedViews
-                          ? "Need at least 2 photos"
-                          : viewMode === "3d"
-                            ? "Exit 3D View"
-                            : reconstruction?.status === "completed"
-                              ? "3D Model View"
-                              : reconstruction?.status === "processing" || reconstructMutation.isPending
-                                ? "Analyzing spatial layout..."
-                                : "Build 3D Model (AI)"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </>
             )}
 
@@ -822,20 +720,21 @@ export default function TourViewerPage() {
               <p className="text-xs text-white/50">Upload photos to enable preview, immersive, and 3D reconstruction.</p>
             </div>
           </div>
-        ) : show3D ? (
-          <Tour3DViewer
-            cameraPoses={reconstruction!.camera_poses as any[]}
-            sceneConfig={(reconstruction!.scene_config as any) || { scene_type: "room", estimated_width_m: 10, estimated_depth_m: 10, camera_height_m: 1.6, description: "3D Reconstruction" }}
+        ) : showComposer ? (
+          <PanoramaComposer
+            nodeId={currentNode!.id}
             images={nodeImages}
             className="flex-1"
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+              toast.success("Panorama strip saved! Use the ✨ button to convert to 360°.");
+            }}
           />
         ) : show360 ? (
           <SphericalPanoramaViewer
             stitchedPanoramaUrl={currentNode!.stitched_panorama_url!}
             className="flex-1"
           />
-        ) : showImmersive ? (
-          <ImmersiveStripViewer images={nodeImages} className="flex-1" />
         ) : isPanorama ? (
           // Panorama viewer
           <div className="flex-1 relative overflow-hidden">
