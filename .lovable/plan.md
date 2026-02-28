@@ -1,75 +1,61 @@
 
 
-# Fix Tour Preview + Auto-Stitch Immersive Viewer
+## Plan: Spherical Panorama Viewer from Multiple Images
 
-## Problem Analysis
+### Problem
+Currently the 8 uploaded images are displayed as a flat horizontal strip (ImmersiveStripViewer) or as floating planes in 3D space (Tour3DViewer). Neither provides a true 360° immersive experience.
 
-Two issues identified:
+### Approach
+Create a new **SphericalPanoramaViewer** component that stitches the 8 overlapping images onto the inside of a 3D sphere using Three.js (already installed), allowing the user to look around freely as if standing inside the scene.
 
-1. **Preview stuck on "Loading tour..."**: The viewer queries `tour_projects` with `.single()`, which returns a 406 error when RLS blocks access (e.g., unauthenticated users or when the auth token isn't properly forwarded). The viewer currently shows an infinite loading spinner instead of handling this gracefully. For your authenticated session, the query likely succeeds but the viewer may still fail to render images because all `thumbnail_url`, `medium_url`, and `large_url` fields are null -- it relies on `original_url` fallback but OpenSeadragon may fail to initialize if the image loading encounters CORS or timing issues.
-
-2. **No immersive experience**: The current viewer shows images one at a time with prev/next navigation. With 8 overlapping photos of the entrance, there's no way to experience them as a continuous, immersive walkthrough.
-
-## Plan
-
-### 1. Fix TourViewerPage Loading Issues
-
-**File: `src/pages/tours/TourViewerPage.tsx`**
-
-- Add proper error handling to the project query (show error state instead of infinite spinner)
-- Add `retry: 2` and error state UI with a "Go Back" button
-- Fix the loading condition: currently `!project || nodes.length === 0` shows spinner forever if project query fails or has no nodes. Separate these into: loading state, error state, and empty-nodes state
-- Ensure OpenSeadragon properly falls back to `original_url` and handles image load errors gracefully
-- Add an `onerror` handler that shows the image as a plain `<img>` tag if OpenSeadragon fails
-
-### 2. Build Immersive Panoramic Strip Viewer
-
-**New file: `src/components/tours/ImmersiveStripViewer.tsx`**
-
-When a node has multiple images (image_set type), add a new "Immersive" viewing mode that stitches all images into a continuous horizontal panoramic strip:
-
-- Places all images side by side in a wide horizontal canvas
-- Smooth drag-to-pan with momentum/inertia (using pointer events)
-- Touch and mouse support with momentum scrolling
-- Auto-pan option that slowly scrolls through the strip
-- Zoom in/out support
-- Smooth crossfade blending at image edges (CSS gradient masks on overlapping boundaries)
-- Progress indicator showing position in the strip
-- Fullscreen support
+### How It Works
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  ┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐...  │
-│  │ img1 ││ img2 ││ img3 ││ img4 ││ img5 ││ img6 │     │
-│  │      ││      ││      ││      ││      ││      │     │
-│  └──────┘└──────┘└──────┘└──────┘└──────┘└──────┘     │
-│  ◄═══════════════ drag to pan ═══════════════════►     │
-│                    ─────●──────                         │
-│                   progress bar                          │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  8 images → painted onto inside of sphere   │
+│                                             │
+│   img1  img2  img3  img4  img5 ... img8     │
+│   ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐    ┌──┐    │
+│   │  │──│  │──│  │──│  │──│  │ .. │  │    │
+│   └──┘  └──┘  └──┘  └──┘  └──┘    └──┘    │
+│            ↓                                │
+│   Mapped as vertical slices on sphere       │
+│   Each image covers 360°/N of longitude     │
+│   with soft alpha-blended overlaps          │
+│            ↓                                │
+│   Camera at center, OrbitControls for       │
+│   free look (drag to rotate, scroll zoom)   │
+└─────────────────────────────────────────────┘
 ```
 
-### 3. Integrate Immersive Mode into the Viewer
+Each image becomes a curved "slice" on the inside of a sphere. The camera sits at the center. The user drags to look around — a true 360° experience.
 
-**File: `src/pages/tours/TourViewerPage.tsx`**
+### Implementation Steps
 
-- Add a view mode toggle in the top bar: "Single" (existing OpenSeadragon) vs "Immersive" (panoramic strip)
-- Default to Immersive mode when a node has 3+ images
-- The toggle shows as an icon button in the toolbar (Layers icon for single, Panorama icon for immersive)
-- When in immersive mode, hide the bottom thumbnail strip (not needed since all images are visible)
-- Keep the sidebar, hotspots, and node navigation working in both modes
+1. **Create `src/components/tours/SphericalPanoramaViewer.tsx`**
+   - React Three Fiber `<Canvas>` with a sphere (radius ~500, inverted normals so textures face inward)
+   - For each of the N images, create a partial-sphere mesh covering `360°/N` of longitude (with ~15% overlap on edges)
+   - Load each image as a Three.js texture, UV-mapped to its slice
+   - Apply alpha gradient at left/right edges of each slice for seamless blending
+   - Camera at center with `OrbitControls` (no pan, only rotate + zoom)
+   - Auto-rotate option, fullscreen toggle, gyroscope support on mobile
 
-### 4. Add "Auto-Stitch" Button to Tour Detail Page
+2. **Update `TourViewerPage.tsx`**
+   - Add a new ViewMode `"spherical"` alongside existing `single`, `immersive`, `3d`
+   - When a node has 3+ images, show a "360° View" button in the toolbar
+   - Auto-select spherical mode when node has enough images for coverage
+   - Wire up the new component with the `nodeImages` data
 
-**File: `src/pages/tours/TourDetailPage.tsx`**
-
-- For image_set nodes with 3+ images, show a small indicator: "8 photos -- Immersive view ready"
-- The Preview button already links to the viewer; the immersive mode activates automatically
+3. **Replace the current panorama viewer (for `node_type === "panorama"`)** 
+   - The existing panorama code (lines 723-741) is just a static `<img>` with `minWidth: 200%` — not interactive at all
+   - Replace with the same spherical viewer for single equirectangular images too
 
 ### Technical Details
 
-- No new dependencies. Uses pointer events API for drag/pan, CSS transforms for positioning, and `requestAnimationFrame` for smooth momentum
-- Images load lazily as they scroll into view within the strip
-- Mobile-optimized: full touch support, momentum scrolling, snap-to-image optional
-- All existing viewer features (inspection mode, annotations, hotspots, keyboard nav) remain functional in single-image mode
+- **Sphere geometry**: `SphereGeometry(500, 64, 32)` with `side: THREE.BackSide` (renders inside)
+- **Slice approach**: Each image maps to a `CylinderGeometry` or custom partial-sphere with UV coordinates covering its angular range. Simpler alternative: use N `PlaneGeometry` meshes arranged in a cylinder, which approximates a sphere well for 8+ images
+- **Blending**: Custom `ShaderMaterial` with alpha falloff at edges, or simpler `MeshBasicMaterial` with transparent textures where edges have gradient alpha baked via canvas
+- **Controls**: `OrbitControls` with `enablePan=false`, `enableZoom` limited, `autoRotate` option
+- **Mobile**: Touch drag to rotate, pinch to zoom. Optional DeviceOrientation for gyro look-around
+- **Performance**: Use `medium_url` textures (not originals) for fast load; lazy-load remaining slices after first 3
 
