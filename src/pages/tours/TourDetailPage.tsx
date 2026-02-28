@@ -37,7 +37,7 @@ interface TourNode {
   floorplan_x: number | null;
   floorplan_y: number | null;
   created_at: string;
-  tour_node_images: { id: string }[];
+  tour_node_images: { id: string; thumbnail_url: string | null; medium_url: string | null; original_url: string; display_order: number }[];
 }
 
 export default function TourDetailPage() {
@@ -73,7 +73,7 @@ export default function TourDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tour_nodes")
-        .select("*, tour_node_images(id)")
+        .select("*, tour_node_images(id, thumbnail_url, medium_url, original_url, display_order)")
         .eq("project_id", projectId!)
         .order("position_index", { ascending: true });
       if (error) throw error;
@@ -311,12 +311,19 @@ export default function TourDetailPage() {
                 <div className="text-muted-foreground/40">
                   <GripVertical className="h-4 w-4" />
                 </div>
-                <div className="h-14 w-14 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                  {node.node_type === "panorama" ? (
-                    <span className="text-lg">🌐</span>
-                  ) : (
-                    <Image className="h-5 w-5 text-muted-foreground/50" />
-                  )}
+                <div className="h-14 w-14 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {(() => {
+                    const sorted = [...(node.tour_node_images || [])].sort((a, b) => a.display_order - b.display_order);
+                    const firstImg = sorted[0];
+                    const thumbUrl = firstImg ? (firstImg.thumbnail_url || firstImg.medium_url || firstImg.original_url) : null;
+                    if (thumbUrl) {
+                      return <img src={thumbUrl} alt={node.name} className="h-full w-full object-cover" />;
+                    }
+                    if (node.node_type === "panorama") {
+                      return <span className="text-lg">🌐</span>;
+                    }
+                    return <Image className="h-5 w-5 text-muted-foreground/50" />;
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium truncate">{node.name}</h3>
