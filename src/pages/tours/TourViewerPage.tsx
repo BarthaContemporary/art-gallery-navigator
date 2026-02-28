@@ -29,6 +29,7 @@ import {
 import OpenSeadragon from "openseadragon";
 import { ImmersiveStripViewer } from "@/components/tours/ImmersiveStripViewer";
 import { Tour3DViewer } from "@/components/tours/Tour3DViewer";
+import { SphericalPanoramaViewer } from "@/components/tours/SphericalPanoramaViewer";
 import { toast } from "sonner";
 
 // Types
@@ -84,7 +85,7 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "single" | "immersive" | "3d";
+type ViewMode = "single" | "immersive" | "3d" | "spherical";
 
 const getImageUrlCandidates = (img?: NodeImage | null) => {
   if (!img) return [] as string[];
@@ -218,12 +219,12 @@ export default function TourViewerPage() {
     },
   });
 
-  // Auto-select immersive mode when node has 3+ images
+  // Auto-select best view mode when node changes
   useEffect(() => {
     if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
       setViewMode("3d");
     } else if (nodeImages.length >= 3) {
-      setViewMode("immersive");
+      setViewMode("spherical");
     } else {
       setViewMode("single");
     }
@@ -485,7 +486,9 @@ export default function TourViewerPage() {
   }
 
   const canUseAdvancedViews = !isPanorama && nodeImages.length >= 2;
+  const canUseSpherical = !isPanorama && nodeImages.length >= 3;
   const showImmersive = viewMode === "immersive" && canUseAdvancedViews;
+  const showSpherical = viewMode === "spherical" && canUseSpherical;
   const show3D = viewMode === "3d" && reconstruction?.status === "completed" && reconstruction.camera_poses;
 
   return (
@@ -570,6 +573,30 @@ export default function TourViewerPage() {
                     <TooltipContent side="bottom">
                       <p className="text-xs">
                         {!canUseAdvancedViews ? "Need at least 2 photos" : viewMode === "immersive" ? "Single Image View" : "Immersive Strip View"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                {/* 360° Spherical View toggle */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 hover:bg-white/10 ${
+                          viewMode === "spherical" ? "text-cyan-400 bg-white/10" : "text-white/70 hover:text-white"
+                        }`}
+                        onClick={() => setViewMode(viewMode === "spherical" ? "single" : "spherical")}
+                        disabled={!canUseSpherical || nodeImagesLoading}
+                      >
+                        <span className="text-sm">360°</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">
+                        {!canUseSpherical ? "Need at least 3 photos" : viewMode === "spherical" ? "Exit 360° View" : "360° Spherical View"}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -718,6 +745,8 @@ export default function TourViewerPage() {
             images={nodeImages}
             className="flex-1"
           />
+        ) : showSpherical ? (
+          <SphericalPanoramaViewer images={nodeImages} className="flex-1" />
         ) : showImmersive ? (
           <ImmersiveStripViewer images={nodeImages} className="flex-1" />
         ) : isPanorama ? (
