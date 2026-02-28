@@ -363,13 +363,13 @@ export function PanoramaComposer({
   return (
     <div className={`flex-1 flex flex-col bg-black ${className}`}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-blue-400">
+      <div className="flex flex-col gap-2 px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20 sticky top-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
             <GripVertical className="h-3.5 w-3.5" />
             <span>Drag handles to adjust overlap</span>
           </div>
-          <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-center gap-2 md:ml-4">
             <ZoomOut className="h-3.5 w-3.5 text-white/50" />
             <Slider
               value={[zoom * 100]}
@@ -383,7 +383,7 @@ export function PanoramaComposer({
             <span className="text-xs text-white/40 min-w-[3ch]">{Math.round(zoom * 100)}%</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             className="h-8 text-xs"
