@@ -28,7 +28,7 @@ export function ImmersiveStripViewer({ images, className }: ImmersiveStripViewer
   const rafRef = useRef<number>(0);
 
   const [offsetX, setOffsetX] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1.4);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoPan, setIsAutoPan] = useState(false);
   const [urlIndexes, setUrlIndexes] = useState<Record<string, number>>({});
