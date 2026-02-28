@@ -44,33 +44,39 @@ serve(async (req) => {
     if (imgErr) throw imgErr;
     if (!images || images.length < 2) throw new Error("Need at least 2 images to stitch");
 
-    // Limit to 6 images for performance (base64 size constraints)
-    const selectedImages = images.slice(0, 6);
+    // Send all images (up to 10)
+    const selectedImages = images.slice(0, 10);
 
-    // Build multimodal message with image URLs
-    const imageContent: any[] = selectedImages.map((img: any) => ({
-      type: "image_url",
-      image_url: {
-        url: img.medium_url || img.original_url,
+    // Build multimodal message - put instruction FIRST, then images in order
+    const imageContent: any[] = [
+      {
+        type: "text",
+        text: `I have ${selectedImages.length} overlapping photographs taken from the SAME fixed position by rotating the camera clockwise to capture a full 360° panoramic view. The images are provided in sequential order (image 1 is the leftmost, image ${selectedImages.length} is the rightmost, and image ${selectedImages.length} overlaps back with image 1 to complete the 360° loop).
+
+YOUR TASK: Stitch ALL ${selectedImages.length} images together into ONE single wide seamless equirectangular panoramic image.
+
+CRITICAL REQUIREMENTS:
+1. Use EVERY image provided - do not skip any. Each image contributes a unique section of the panorama.
+2. Find the overlapping regions between consecutive images and blend them seamlessly.
+3. The output MUST be a single ultra-wide panoramic image in equirectangular projection (2:1 aspect ratio).
+4. Maintain photographic realism - do NOT generate new content, only merge what is in the photos.
+5. Match exposure, color balance, and white point across all images for a seamless result.
+6. The panorama should cover the full 360° horizontal field of view.
+7. Make the output as high resolution as possible.
+
+Generate the stitched panoramic image now.`,
       },
-    }));
+    ];
 
-    // Add the stitching instruction
-    imageContent.push({
-      type: "text",
-      text: `These ${selectedImages.length} overlapping photographs were taken from the same position, rotating around to capture a full 360° view of the space. 
-      
-Please merge and stitch these images together into a single seamless equirectangular panoramic image that covers the full 360° horizontal field of view. 
-
-Key requirements:
-- Create a wide equirectangular projection (2:1 aspect ratio)
-- Blend the overlapping regions seamlessly
-- Maintain consistent exposure and color across the stitch
-- The result should look like a single continuous panoramic photograph
-- Fill the full 360° horizontal range
-
-Generate the stitched panoramic image.`,
-    });
+    // Add all images in order
+    for (const img of selectedImages) {
+      imageContent.push({
+        type: "image_url",
+        image_url: {
+          url: img.medium_url || img.original_url,
+        },
+      });
+    }
 
     console.log(`Sending ${selectedImages.length} images to AI for stitching...`);
 
@@ -84,7 +90,7 @@ Generate the stitched panoramic image.`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: "google/gemini-3-pro-image-preview",
           messages: [
             {
               role: "user",
