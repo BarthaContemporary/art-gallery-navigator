@@ -4388,6 +4388,7 @@ export type Database = {
           initial_heading: number | null
           name: string
           node_type: Database["public"]["Enums"]["tour_node_type"]
+          panorama_strip_url: string | null
           panorama_url: string | null
           position_index: number
           project_id: string
@@ -4404,6 +4405,7 @@ export type Database = {
           initial_heading?: number | null
           name: string
           node_type?: Database["public"]["Enums"]["tour_node_type"]
+          panorama_strip_url?: string | null
           panorama_url?: string | null
           position_index?: number
           project_id: string
@@ -4420,6 +4422,7 @@ export type Database = {
           initial_heading?: number | null
           name?: string
           node_type?: Database["public"]["Enums"]["tour_node_type"]
+          panorama_strip_url?: string | null
           panorama_url?: string | null
           position_index?: number
           project_id?: string

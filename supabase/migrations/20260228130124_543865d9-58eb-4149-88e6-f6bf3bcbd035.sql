@@ -1,0 +1,1 @@
+ALTER TABLE public.tour_nodes ADD COLUMN IF NOT EXISTS panorama_strip_url TEXT;
