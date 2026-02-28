@@ -57,7 +57,57 @@ export default function ToursPage() {
         .select("*")
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      return data as TourProject[];
+      const projects = data as TourProject[];
+
+      // For projects without a cover image, fetch the first image from the first node
+      const needsCover = projects.filter((p) => !p.cover_image_url);
+      if (needsCover.length > 0) {
+        const projectIds = needsCover.map((p) => p.id);
+        // Get the first node per project (lowest display_order)
+        const { data: nodes } = await supabase
+          .from("tour_nodes")
+          .select("id, project_id, position_index")
+          .in("project_id", projectIds)
+          .order("position_index", { ascending: true });
+
+        if (nodes && nodes.length > 0) {
+          // Pick first node per project
+          const firstNodeByProject = new Map<string, string>();
+          for (const n of nodes) {
+            if (!firstNodeByProject.has(n.project_id)) {
+              firstNodeByProject.set(n.project_id, n.id);
+            }
+          }
+          const nodeIds = Array.from(firstNodeByProject.values());
+
+          // Get the first image per node (lowest display_order)
+          const { data: images } = await supabase
+            .from("tour_node_images")
+            .select("node_id, original_url, thumbnail_url, medium_url")
+            .in("node_id", nodeIds)
+            .order("display_order", { ascending: true });
+
+          if (images && images.length > 0) {
+            const firstImageByNode = new Map<string, string>();
+            for (const img of images) {
+              if (!firstImageByNode.has(img.node_id)) {
+                firstImageByNode.set(img.node_id, img.thumbnail_url || img.medium_url || img.original_url);
+              }
+            }
+            // Map back to projects
+            for (const p of projects) {
+              if (!p.cover_image_url) {
+                const nodeId = firstNodeByProject.get(p.id);
+                if (nodeId) {
+                  p.cover_image_url = firstImageByNode.get(nodeId) || null;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return projects;
     },
     enabled: !!user,
   });
