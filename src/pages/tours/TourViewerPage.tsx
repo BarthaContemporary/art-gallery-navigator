@@ -467,7 +467,7 @@ export default function TourViewerPage() {
 
   const hasStitchedPanorama = !!currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed";
   const hasPanoramaStrip = !!(currentNode as any)?.panorama_strip_url;
-  const canStitch = !isPanorama && hasPanoramaStrip;
+  const canStitch = !isPanorama && (hasPanoramaStrip || viewMode === "composer");
   const showComposer = viewMode === "composer" && !isPanorama && nodeImages.length >= 2;
   const show360 = viewMode === "360" && hasStitchedPanorama;
 
