@@ -41,10 +41,13 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
   const [zoom, setZoom] = useState(0.5);
   const [canvasHeight, setCanvasHeight] = useState(400);
 
-  // Load all images
+  // Load all images — duplicate first image at the end for 360° wrap
   useEffect(() => {
     const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
-    const states: ImageState[] = sorted.map((img) => ({
+    // Append a copy of the first image at the end for seamless 360° looping
+    const withWrap = sorted.length > 0 ? [...sorted, { ...sorted[0], id: sorted[0].id + "_wrap" }] : sorted;
+
+    const states: ImageState[] = withWrap.map((img) => ({
       id: img.id,
       url: img.medium_url || img.original_url,
       xOffset: 0,
@@ -57,7 +60,7 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     let loadedCount = 0;
     const targetHeight = 800;
 
-    sorted.forEach((img, i) => {
+    withWrap.forEach((img, i) => {
       const el = new Image();
       el.crossOrigin = "anonymous";
       el.onload = () => {
@@ -69,7 +72,7 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
         states[i].loaded = true;
         loadedCount++;
 
-        if (loadedCount === sorted.length) {
+        if (loadedCount === withWrap.length) {
           let x = 0;
           for (let j = 0; j < states.length; j++) {
             states[j].xOffset = x;
@@ -83,7 +86,7 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
       el.onerror = () => {
         states[i].loaded = true;
         loadedCount++;
-        if (loadedCount === sorted.length) {
+        if (loadedCount === withWrap.length) {
           setImageStates([...states]);
         }
       };
@@ -134,14 +137,16 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw images
+    // Draw images at 50% transparency for overlap visibility
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
       const dx = state.xOffset * zoom;
       const dw = state.width * zoom;
       const dh = canvasHeight * zoom;
+      ctx.globalAlpha = 0.5;
       ctx.drawImage(state.element, dx, 0, dw, dh);
     });
+    ctx.globalAlpha = 1.0;
 
     // Draw overlap zones and drag handles
     for (let i = 1; i < imageStates.length; i++) {
