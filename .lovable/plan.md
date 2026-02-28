@@ -1,49 +1,67 @@
 
 
-## Plan: Simplified 360° Panorama Stitching & Viewer
+## Plan: Two-Step Panorama Workflow with Manual Overlap Adjustment
 
-### Root Cause
-The edge function's deployed version used `gemini-3-pro-image-preview`, which returns **text descriptions** instead of images. The `gemini-2.5-flash-image` model does return images, but asking it to stitch 6-8 photos in one shot overwhelms it. The client-side "sliced sphere" fallback also produces a poor visual result.
-
-### New Approach: Pairwise Iterative Stitching
-
-Instead of sending all images at once, stitch them **in pairs** iteratively:
+### New Workflow
 
 ```text
-Step 1:  img1 + img2 → merged_A
-Step 2:  merged_A + img3 → merged_B  
-Step 3:  merged_B + img4 → merged_C
-...until all images are combined into one panorama
+Step 1: PANORAMA COMPOSER (Client-side)
+┌────────────────────────────────────────────────┐
+│  Images laid side-by-side on a canvas          │
+│  ┌──┐┌──┐┌──┐┌──┐┌──┐┌──┐┌──┐┌──┐            │
+│  │1 ││2 ││3 ││4 ││5 ││6 ││7 ││8 │            │
+│  └──┘└──┘└──┘└──┘└──┘└──┘└──┘└──┘            │
+│  ← drag images to adjust overlap →            │
+│  [Save Panorama Strip]                         │
+└────────────────────────────────────────────────┘
+              ↓ saved as flat wide image
+Step 2: AI SPHERICAL CONVERSION (Edge Function)
+┌────────────────────────────────────────────────┐
+│  Send panorama strip to Gemini 2.5 Flash Image │
+│  Prompt: "Convert this wide panoramic photo    │
+│  into a seamless 2:1 equirectangular           │
+│  projection suitable for 360° viewing"         │
+└────────────────────────────────────────────────┘
+              ↓ equirectangular image
+Step 3: SPHERICAL VIEWER (Existing)
+┌────────────────────────────────────────────────┐
+│  Three.js sphere with equirectangular texture  │
+│  Pan + zoom + auto-rotate                      │
+└────────────────────────────────────────────────┘
 ```
-
-This keeps each AI call simple (merge 2 overlapping images), which the model handles reliably.
 
 ### Implementation Steps
 
-1. **Rewrite `stitch-panorama` edge function**
-   - Use `google/gemini-2.5-flash-image` with `modalities: ["image", "text"]`
-   - Implement iterative pairwise stitching: merge image 1+2, then result+3, then result+4, etc.
-   - Each step sends only 2 images with a simple prompt: "Merge these two overlapping photographs into a single seamless wide panoramic image"
-   - Upload intermediate results to storage to pass URLs (not base64) between steps
-   - Final result stored as before in `tour-uploads/stitched/{node_id}/panorama.png`
-   - Add progress tracking: update `stitch_status` with step count
+1. **Create `PanoramaComposer.tsx` component**
+   - Displays all node images side-by-side horizontally in a scrollable canvas area
+   - Each image is draggable left/right to adjust overlap with neighbors (using mouse/touch drag)
+   - Overlap amount shown as a visual indicator (e.g. slider per image or direct drag handles)
+   - "Save Panorama" button that composites all images at their current positions into a single wide image using HTML Canvas, uploads to Supabase Storage as `panorama-strip/{node_id}.jpg`
+   - Saves the strip URL to `tour_nodes.panorama_strip_url` (new column)
 
-2. **Simplify `SphericalPanoramaViewer.tsx`**
-   - Remove the `SlicedScene` component entirely (broken approach)
-   - Keep only `EquirectangularScene` for displaying the AI-stitched panorama
-   - When no stitched panorama exists, show a prompt to trigger AI stitching instead of the broken sliced view
-   - Keep controls: auto-rotate, fullscreen, drag-to-look
+2. **Add `panorama_strip_url` column to `tour_nodes`**
+   - New nullable text column to store the manually composed panorama strip
 
-3. **Simplify `TourViewerPage.tsx` viewer modes**
-   - Remove `"spherical"` as a separate view mode
-   - When a stitched panorama URL exists, show a "360°" button that renders `SphericalPanoramaViewer` in the main area
-   - The Wand button triggers stitching; once done, automatically switch to 360° view
-   - Default to `"single"` image view for nodes without a stitched panorama
+3. **Update `stitch-panorama` edge function**
+   - Instead of pairwise merging multiple images, now accepts the single panorama strip URL
+   - Sends it to Gemini 2.5 Flash Image with prompt: "Convert this wide panoramic photograph into a seamless equirectangular (2:1 aspect ratio) projection for 360° spherical viewing. Fill in the top (sky/ceiling) and bottom (floor/ground) naturally."
+   - Single AI call instead of iterative — simpler and more reliable
+   - Stores result as before in `stitched_panorama_url`
+
+4. **Simplify `TourViewerPage.tsx`**
+   - Remove `immersive` and `3d` view modes — keep only `single`, `composer`, and `360`
+   - `single`: current image-by-image view with thumbnails
+   - `composer`: the new PanoramaComposer for arranging images
+   - `360`: spherical viewer (only available after AI conversion)
+   - Toolbar: Single | Composer | Wand (AI convert) | 360°
+
+5. **Keep `SphericalPanoramaViewer.tsx` as-is**
+   - Already works correctly for equirectangular images with pan/zoom/fullscreen
 
 ### Technical Details
 
-- **Pairwise merge prompt**: Keep it minimal — "Seamlessly merge these two overlapping photographs into one wider panoramic image. Preserve all detail. Output a single photograph."
-- **Intermediate storage**: Upload each intermediate merge to `tour-uploads/stitched/{node_id}/step_{i}.png` so the next step can reference a URL rather than a huge base64 string
-- **Error handling**: If any step fails, retry that step once. If it fails again, save whatever was produced up to that point as the result
-- **Rate limiting**: Add a 2-second delay between AI calls to avoid 429 errors
+- **Canvas compositing**: Use `document.createElement('canvas')`, draw each image at its computed x-offset, then `canvas.toBlob()` for upload
+- **Drag overlap**: Track each image's x-offset in state; constrain so images stay in order; allow negative overlap (gap) or positive overlap (blending)
+- **Mobile**: Horizontal scroll + pinch zoom on the composer; touch-drag for image repositioning
+- **AI prompt**: Single call with the pre-composed strip is far more reliable than multi-image merging
 
