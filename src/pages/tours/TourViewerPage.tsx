@@ -25,6 +25,7 @@ import {
   Image,
   Box,
   Loader2,
+  Wand2,
 } from "lucide-react";
 import OpenSeadragon from "openseadragon";
 import { ImmersiveStripViewer } from "@/components/tours/ImmersiveStripViewer";
@@ -49,6 +50,8 @@ interface TourNode {
   initial_heading: number | null;
   floorplan_x: number | null;
   floorplan_y: number | null;
+  stitched_panorama_url: string | null;
+  stitch_status: string | null;
 }
 
 interface NodeImage {
@@ -218,6 +221,42 @@ export default function TourViewerPage() {
       toast.error("3D reconstruction failed", { description: err instanceof Error ? err.message : "Unknown error" });
     },
   });
+
+  // AI panorama stitching mutation
+  const stitchMutation = useMutation({
+    mutationFn: async (nodeId: string) => {
+      const { data, error } = await supabase.functions.invoke("stitch-panorama", {
+        body: { node_id: nodeId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.info("AI panorama stitching started...", { description: "This may take 30-60 seconds" });
+      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+    },
+    onError: (err) => {
+      toast.error("Panorama stitching failed", { description: err instanceof Error ? err.message : "Unknown error" });
+    },
+  });
+
+  // Poll nodes while stitching is in progress
+  const isStitching = currentNode?.stitch_status === "processing";
+  useEffect(() => {
+    if (!isStitching) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isStitching, queryClient, projectId]);
+
+  // Notify on stitch completion
+  useEffect(() => {
+    if (currentNode?.stitch_status === "completed" && currentNode?.stitched_panorama_url) {
+      toast.success("AI panorama ready!");
+    }
+  }, [currentNode?.stitch_status]);
 
   // Auto-select best view mode when node changes
   useEffect(() => {
@@ -602,6 +641,50 @@ export default function TourViewerPage() {
                   </Tooltip>
                 </TooltipProvider>
 
+                {/* AI Stitch Panorama button */}
+                {canUseSpherical && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 hover:bg-white/10 ${
+                            currentNode?.stitch_status === "completed"
+                              ? "text-emerald-400 bg-white/10"
+                              : "text-white/70 hover:text-white"
+                          }`}
+                          onClick={() => {
+                            if (currentNode && currentNode.stitch_status !== "processing") {
+                              stitchMutation.mutate(currentNode.id);
+                            }
+                          }}
+                          disabled={
+                            stitchMutation.isPending ||
+                            currentNode?.stitch_status === "processing" ||
+                            nodeImagesLoading
+                          }
+                        >
+                          {stitchMutation.isPending || currentNode?.stitch_status === "processing" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Wand2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">
+                          {currentNode?.stitch_status === "processing"
+                            ? "AI stitching in progress…"
+                            : currentNode?.stitch_status === "completed"
+                              ? "AI Panorama ready (click to re-stitch)"
+                              : "AI Stitch Panorama"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
                 {/* 3D Reconstruction toggle */}
                 <TooltipProvider>
                   <Tooltip>
@@ -746,7 +829,11 @@ export default function TourViewerPage() {
             className="flex-1"
           />
         ) : showSpherical ? (
-          <SphericalPanoramaViewer images={nodeImages} className="flex-1" />
+          <SphericalPanoramaViewer
+            images={nodeImages}
+            stitchedPanoramaUrl={currentNode?.stitched_panorama_url}
+            className="flex-1"
+          />
         ) : showImmersive ? (
           <ImmersiveStripViewer images={nodeImages} className="flex-1" />
         ) : isPanorama ? (

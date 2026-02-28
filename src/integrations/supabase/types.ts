@@ -4391,6 +4391,8 @@ export type Database = {
           panorama_url: string | null
           position_index: number
           project_id: string
+          stitch_status: string | null
+          stitched_panorama_url: string | null
           updated_at: string
         }
         Insert: {
@@ -4405,6 +4407,8 @@ export type Database = {
           panorama_url?: string | null
           position_index?: number
           project_id: string
+          stitch_status?: string | null
+          stitched_panorama_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -4419,6 +4423,8 @@ export type Database = {
           panorama_url?: string | null
           position_index?: number
           project_id?: string
+          stitch_status?: string | null
+          stitched_panorama_url?: string | null
           updated_at?: string
         }
         Relationships: [

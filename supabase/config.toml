@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.analyze-tour-photogrammetry]
 verify_jwt = false
+
+[functions.stitch-panorama]
+verify_jwt = false
