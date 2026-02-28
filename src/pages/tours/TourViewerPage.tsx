@@ -88,7 +88,7 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "single" | "immersive" | "3d" | "spherical";
+type ViewMode = "single" | "immersive" | "3d" | "360";
 
 const getImageUrlCandidates = (img?: NodeImage | null) => {
   if (!img) return [] as string[];
@@ -251,23 +251,24 @@ export default function TourViewerPage() {
     return () => clearInterval(interval);
   }, [isStitching, queryClient, projectId]);
 
-  // Notify on stitch completion
+  // Switch to 360° view when stitch completes
   useEffect(() => {
     if (currentNode?.stitch_status === "completed" && currentNode?.stitched_panorama_url) {
       toast.success("AI panorama ready!");
+      setViewMode("360");
     }
-  }, [currentNode?.stitch_status]);
+  }, [currentNode?.stitch_status, currentNode?.stitched_panorama_url]);
 
   // Auto-select best view mode when node changes
   useEffect(() => {
     if (reconstruction?.status === "completed" && reconstruction.camera_poses) {
       setViewMode("3d");
-    } else if (nodeImages.length >= 3) {
-      setViewMode("spherical");
+    } else if (currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed") {
+      setViewMode("360");
     } else {
       setViewMode("single");
     }
-  }, [currentNode?.id, nodeImages.length, reconstruction?.status]);
+  }, [currentNode?.id, reconstruction?.status, currentNode?.stitched_panorama_url, currentNode?.stitch_status]);
 
   // Fetch hotspots for current node
   const { data: hotspots = [] } = useQuery({
@@ -525,9 +526,10 @@ export default function TourViewerPage() {
   }
 
   const canUseAdvancedViews = !isPanorama && nodeImages.length >= 2;
-  const canUseSpherical = !isPanorama && nodeImages.length >= 3;
+  const hasStitchedPanorama = !!currentNode?.stitched_panorama_url && currentNode?.stitch_status === "completed";
+  const canStitch = !isPanorama && nodeImages.length >= 2;
   const showImmersive = viewMode === "immersive" && canUseAdvancedViews;
-  const showSpherical = viewMode === "spherical" && canUseSpherical;
+  const show360 = viewMode === "360" && hasStitchedPanorama;
   const show3D = viewMode === "3d" && reconstruction?.status === "completed" && reconstruction.camera_poses;
 
   return (
@@ -617,32 +619,31 @@ export default function TourViewerPage() {
                   </Tooltip>
                 </TooltipProvider>
 
-                {/* 360° Spherical View toggle */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-8 w-8 hover:bg-white/10 ${
-                          viewMode === "spherical" ? "text-cyan-400 bg-white/10" : "text-white/70 hover:text-white"
-                        }`}
-                        onClick={() => setViewMode(viewMode === "spherical" ? "single" : "spherical")}
-                        disabled={!canUseSpherical || nodeImagesLoading}
-                      >
-                        <span className="text-sm">360°</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        {!canUseSpherical ? "Need at least 3 photos" : viewMode === "spherical" ? "Exit 360° View" : "360° Spherical View"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {/* 360° View toggle (only when stitched panorama exists) */}
+                {hasStitchedPanorama && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 hover:bg-white/10 ${
+                            viewMode === "360" ? "text-cyan-400 bg-white/10" : "text-white/70 hover:text-white"
+                          }`}
+                          onClick={() => setViewMode(viewMode === "360" ? "single" : "360")}
+                        >
+                          <span className="text-sm">360°</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">{viewMode === "360" ? "Exit 360° View" : "360° Panorama View"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* AI Stitch Panorama button */}
-                {canUseSpherical && (
+                {canStitch && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -828,10 +829,9 @@ export default function TourViewerPage() {
             images={nodeImages}
             className="flex-1"
           />
-        ) : showSpherical ? (
+        ) : show360 ? (
           <SphericalPanoramaViewer
-            images={nodeImages}
-            stitchedPanoramaUrl={currentNode?.stitched_panorama_url}
+            stitchedPanoramaUrl={currentNode!.stitched_panorama_url!}
             className="flex-1"
           />
         ) : showImmersive ? (
