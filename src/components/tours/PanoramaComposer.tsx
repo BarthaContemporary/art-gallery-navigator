@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut, GripVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -36,15 +36,15 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
   const containerRef = useRef<HTMLDivElement>(null);
   const [imageStates, setImageStates] = useState<ImageState[]>([]);
   const [dragging, setDragging] = useState<{ idx: number; startX: number; startOffset: number } | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [zoom, setZoom] = useState(0.3);
-  const [scrollX, setScrollX] = useState(0);
+  const [zoom, setZoom] = useState(0.5);
   const [canvasHeight, setCanvasHeight] = useState(400);
 
   // Load all images
   useEffect(() => {
     const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
-    const states: ImageState[] = sorted.map((img, i) => ({
+    const states: ImageState[] = sorted.map((img) => ({
       id: img.id,
       url: img.medium_url || img.original_url,
       xOffset: 0,
@@ -55,7 +55,7 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     }));
 
     let loadedCount = 0;
-    const targetHeight = 800; // normalize all images to this height
+    const targetHeight = 800;
 
     sorted.forEach((img, i) => {
       const el = new Image();
@@ -70,11 +70,10 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
         loadedCount++;
 
         if (loadedCount === sorted.length) {
-          // Calculate initial offsets: side by side with 10% overlap
           let x = 0;
           for (let j = 0; j < states.length; j++) {
             states[j].xOffset = x;
-            const overlap = j < states.length - 1 ? states[j].width * 0.1 : 0;
+            const overlap = j < states.length - 1 ? states[j].width * 0.15 : 0;
             x += states[j].width - overlap;
           }
           setImageStates([...states]);
@@ -92,6 +91,28 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     });
   }, [images]);
 
+  // Get canvas X from pointer event, accounting for scroll
+  const getCanvasX = useCallback((e: React.PointerEvent | PointerEvent) => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return 0;
+    const rect = canvas.getBoundingClientRect();
+    return (e.clientX - rect.left) / zoom;
+  }, [zoom]);
+
+  // Find which drag handle index is near x (in unzoomed coords)
+  const findHandleAt = useCallback((x: number): number | null => {
+    // Hit zone: 50px in unzoomed space (generous)
+    const hitZone = 50;
+    for (let i = 1; i < imageStates.length; i++) {
+      const handleX = imageStates[i].xOffset;
+      if (Math.abs(x - handleX) < hitZone) {
+        return i;
+      }
+    }
+    return null;
+  }, [imageStates]);
+
   // Draw canvas
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -108,94 +129,126 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     const displayHeight = canvasHeight * zoom;
 
     canvas.width = Math.max(displayWidth, containerRef.current?.clientWidth || 800);
-    canvas.height = displayHeight;
+    canvas.height = Math.max(displayHeight, containerRef.current?.clientHeight || 400);
 
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Draw images
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
       const dx = state.xOffset * zoom;
-      const dy = 0;
       const dw = state.width * zoom;
       const dh = canvasHeight * zoom;
-      ctx.globalAlpha = 0.85;
-      ctx.drawImage(state.element, dx, dy, dw, dh);
+      ctx.drawImage(state.element, dx, 0, dw, dh);
     });
-    ctx.globalAlpha = 1;
 
-    // Draw overlap indicators
+    // Draw overlap zones and drag handles
     for (let i = 1; i < imageStates.length; i++) {
       const prev = imageStates[i - 1];
       const curr = imageStates[i];
-      const overlapStart = curr.xOffset * zoom;
-      const overlapEnd = (prev.xOffset + prev.width) * zoom;
-      if (overlapEnd > overlapStart) {
-        ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-        ctx.fillRect(overlapStart, 0, overlapEnd - overlapStart, canvas.height);
-        // Drag handle line
-        ctx.strokeStyle = "rgba(59, 130, 246, 0.6)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(overlapStart, 0);
-        ctx.lineTo(overlapStart, canvas.height);
-        ctx.stroke();
-        ctx.setLineDash([]);
+      const overlapStartPx = curr.xOffset * zoom;
+      const overlapEndPx = (prev.xOffset + prev.width) * zoom;
+      const isHovered = hoveredIdx === i;
+      const isDragged = dragging?.idx === i;
+      const isActive = isHovered || isDragged;
+
+      // Overlap shading
+      if (overlapEndPx > overlapStartPx) {
+        ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.25)" : "rgba(59, 130, 246, 0.1)";
+        ctx.fillRect(overlapStartPx, 0, overlapEndPx - overlapStartPx, canvas.height);
+      }
+
+      // Drag handle line
+      const lineColor = isActive ? "rgba(59, 130, 246, 1)" : "rgba(59, 130, 246, 0.5)";
+      const lineWidth = isActive ? 3 : 2;
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = lineWidth;
+      ctx.setLineDash(isActive ? [] : [6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(overlapStartPx, 0);
+      ctx.lineTo(overlapStartPx, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw drag grip icon at handle center
+      const gripY = canvas.height / 2;
+      const gripSize = isActive ? 28 : 22;
+      ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.9)" : "rgba(59, 130, 246, 0.6)";
+      ctx.beginPath();
+      ctx.roundRect(overlapStartPx - gripSize / 2, gripY - gripSize / 2, gripSize, gripSize, 6);
+      ctx.fill();
+
+      // Grip dots
+      ctx.fillStyle = "#fff";
+      const dotR = 2;
+      for (let row = -1; row <= 1; row++) {
+        for (let col = -1; col <= 1; col += 2) {
+          ctx.beginPath();
+          ctx.arc(overlapStartPx + col * 4, gripY + row * 6, dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Overlap label
+      if (overlapEndPx > overlapStartPx) {
+        const overlapPx = overlapEndPx - overlapStartPx;
+        const overlapPct = Math.round((overlapPx / (prev.width * zoom)) * 100);
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        ctx.font = `${isActive ? "bold " : ""}11px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(`${overlapPct}%`, overlapStartPx + overlapPx / 2, 18);
       }
     }
-  }, [imageStates, zoom, canvasHeight]);
+  }, [imageStates, zoom, canvasHeight, hoveredIdx, dragging]);
 
   useEffect(() => {
     draw();
   }, [draw]);
 
-  // Mouse/touch drag handling
+  // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left + (containerRef.current?.scrollLeft || 0)) / zoom;
-
-    // Find which image boundary we're near (for images 1+)
-    for (let i = 1; i < imageStates.length; i++) {
-      const imgX = imageStates[i].xOffset;
-      if (Math.abs(x - imgX) < 30) {
-        setDragging({ idx: i, startX: e.clientX, startOffset: imageStates[i].xOffset });
-        canvas.setPointerCapture(e.pointerId);
-        return;
-      }
+    const x = getCanvasX(e);
+    const idx = findHandleAt(x);
+    if (idx !== null) {
+      e.preventDefault();
+      setDragging({ idx, startX: e.clientX, startOffset: imageStates[idx].xOffset });
+      canvasRef.current?.setPointerCapture(e.pointerId);
     }
-  }, [imageStates, zoom]);
+  }, [imageStates, getCanvasX, findHandleAt]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragging) return;
-    const dx = (e.clientX - dragging.startX) / zoom;
-    const newOffset = dragging.startOffset + dx;
+    if (dragging) {
+      e.preventDefault();
+      const dx = (e.clientX - dragging.startX) / zoom;
+      let newOffset = dragging.startOffset + dx;
 
-    // Constrain: can't go before previous image start, can't go past own width overlap
-    const prevState = imageStates[dragging.idx - 1];
-    const minOffset = prevState.xOffset + prevState.width * 0.3; // max 70% overlap
-    const maxOffset = prevState.xOffset + prevState.width; // no gap
+      const prevState = imageStates[dragging.idx - 1];
+      const minOffset = prevState.xOffset + prevState.width * 0.2; // max 80% overlap
+      const maxOffset = prevState.xOffset + prevState.width + 50; // allow small gap
 
-    setImageStates((prev) => {
-      const next = [...prev];
-      next[dragging.idx] = {
-        ...next[dragging.idx],
-        xOffset: Math.max(minOffset, Math.min(maxOffset, newOffset)),
-      };
-      // Push subsequent images
-      for (let j = dragging.idx + 1; j < next.length; j++) {
-        const gap = next[j].xOffset - prev[j].xOffset;
-        const prevImg = next[j - 1];
-        const minNext = prevImg.xOffset + prevImg.width * 0.3;
-        if (next[j].xOffset < minNext) {
-          next[j] = { ...next[j], xOffset: minNext };
+      newOffset = Math.max(minOffset, Math.min(maxOffset, newOffset));
+
+      setImageStates((prev) => {
+        const next = [...prev];
+        const delta = newOffset - next[dragging.idx].xOffset;
+        next[dragging.idx] = { ...next[dragging.idx], xOffset: newOffset };
+        // Push subsequent images by same delta
+        for (let j = dragging.idx + 1; j < next.length; j++) {
+          next[j] = { ...next[j], xOffset: next[j].xOffset + delta };
         }
+        return next;
+      });
+    } else {
+      // Hover detection for cursor
+      const x = getCanvasX(e);
+      const idx = findHandleAt(x);
+      setHoveredIdx(idx);
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = idx !== null ? "col-resize" : "default";
       }
-      return next;
-    });
-  }, [dragging, imageStates, zoom]);
+    }
+  }, [dragging, imageStates, zoom, getCanvasX, findHandleAt]);
 
   const handlePointerUp = useCallback(() => {
     setDragging(null);
@@ -208,7 +261,7 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
       let x = 0;
       for (let j = 0; j < next.length; j++) {
         next[j] = { ...next[j], xOffset: x };
-        const overlap = j < next.length - 1 ? next[j].width * 0.1 : 0;
+        const overlap = j < next.length - 1 ? next[j].width * 0.15 : 0;
         x += next[j].width - overlap;
       }
       return next;
@@ -221,7 +274,6 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
     setSaving(true);
 
     try {
-      // Create full-res canvas
       const totalWidth = Math.max(...imageStates.map((s) => s.xOffset + s.width));
       const offscreen = document.createElement("canvas");
       offscreen.width = totalWidth;
@@ -258,7 +310,6 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
 
       const publicUrl = urlData.publicUrl;
 
-      // Save URL to tour_nodes
       const { error: updateErr } = await supabase
         .from("tour_nodes")
         .update({ panorama_strip_url: publicUrl } as any)
@@ -296,18 +347,22 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-10">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-white/60">Drag blue lines to adjust overlap</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-blue-400">
+            <GripVertical className="h-3.5 w-3.5" />
+            <span>Drag handles to adjust overlap</span>
+          </div>
+          <div className="flex items-center gap-2 ml-4">
             <ZoomOut className="h-3.5 w-3.5 text-white/50" />
             <Slider
               value={[zoom * 100]}
               onValueChange={([v]) => setZoom(v / 100)}
-              min={10}
+              min={15}
               max={100}
               step={5}
-              className="w-24"
+              className="w-28"
             />
             <ZoomIn className="h-3.5 w-3.5 text-white/50" />
+            <span className="text-xs text-white/40 min-w-[3ch]">{Math.round(zoom * 100)}%</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -339,7 +394,6 @@ export function PanoramaComposer({ nodeId, images, className = "", onSaved }: Pa
       >
         <canvas
           ref={canvasRef}
-          className="cursor-col-resize"
           style={{ display: "block", minHeight: "100%" }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
