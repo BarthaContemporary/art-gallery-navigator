@@ -517,7 +517,7 @@ export default function TourViewerPage() {
       {/* Main viewer area */}
       <div className="flex-1 relative flex flex-col">
         {/* Top bar */}
-        <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between p-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
           <div className="flex items-center gap-2 pointer-events-auto">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={() => setSidebarOpen(!sidebarOpen)}>
               <List className="h-4 w-4" />
@@ -597,8 +597,13 @@ export default function TourViewerPage() {
                               ? "text-emerald-400 bg-white/10"
                               : "text-white/70 hover:text-white"
                           }`}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (currentNode && currentNode.stitch_status !== "processing") {
+                              if (!hasPanoramaStrip) {
+                                toast.error("Save the panorama strip first", { description: "Use the Save Strip button in the composer" });
+                                return;
+                              }
                               stitchMutation.mutate(currentNode.id);
                             }
                           }}
@@ -676,10 +681,10 @@ export default function TourViewerPage() {
               </TooltipProvider>
             )}
 
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={toggleFullscreen}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}>
               <Maximize className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); navigate(-1); }}>
               <X className="h-4 w-4" />
             </Button>
           </div>
