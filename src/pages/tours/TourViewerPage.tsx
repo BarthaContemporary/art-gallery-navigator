@@ -91,7 +91,8 @@ type ViewMode = "single" | "composer" | "360";
 
 const getImageUrlCandidates = (img?: NodeImage | null) => {
   if (!img) return [] as string[];
-  return [img.large_url, img.medium_url, img.thumbnail_url, img.original_url]
+  // Prioritize original_url (most reliable), then processed variants
+  return [img.original_url, img.large_url, img.medium_url, img.thumbnail_url]
     .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
     .filter((u, i, arr) => arr.indexOf(u) === i);
 };
@@ -183,15 +184,35 @@ export default function TourViewerPage() {
     },
   });
 
-  // Poll nodes while stitching is in progress
-  const isStitching = currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url;
+  // Poll nodes while stitching is in progress, with timeout recovery
+  const isStitching = (currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url) || stitchMutation.isPending;
+  const pollCountRef = useRef(0);
+
   useEffect(() => {
-    if (!isStitching) return;
-    const interval = setInterval(() => {
+    if (!currentNode?.stitch_status || currentNode.stitch_status !== "processing") {
+      pollCountRef.current = 0;
+      return;
+    }
+    if (!currentNode?.panorama_strip_url) return;
+
+    const interval = setInterval(async () => {
+      pollCountRef.current += 1;
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+
+      // After ~90 seconds (22 polls × 4s), reset stuck processing state
+      if (pollCountRef.current >= 22) {
+        clearInterval(interval);
+        await supabase
+          .from("tour_nodes")
+          .update({ stitch_status: "failed" })
+          .eq("id", currentNode.id);
+        queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+        toast.error("AI conversion timed out", { description: "The process took too long. Please try again." });
+        pollCountRef.current = 0;
+      }
     }, 4000);
     return () => clearInterval(interval);
-  }, [isStitching, queryClient, projectId]);
+  }, [currentNode?.stitch_status, currentNode?.panorama_strip_url, currentNode?.id, queryClient, projectId]);
 
   // Switch to 360° view when stitch completes
   useEffect(() => {
@@ -607,10 +628,12 @@ export default function TourViewerPage() {
                               stitchMutation.mutate(currentNode.id);
                             }
                           }}
-                          disabled={stitchMutation.isPending || isStitching || nodeImagesLoading}
+                          disabled={stitchMutation.isPending || (currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url) || nodeImagesLoading}
                         >
-                          {stitchMutation.isPending || currentNode?.stitch_status === "processing" ? (
+                          {stitchMutation.isPending || (currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url) ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : currentNode?.stitch_status === "failed" ? (
+                            <Wand2 className="h-4 w-4 text-red-400" />
                           ) : (
                             <Wand2 className="h-4 w-4" />
                           )}
@@ -622,7 +645,9 @@ export default function TourViewerPage() {
                             ? "AI conversion in progress…"
                             : currentNode?.stitch_status === "completed"
                               ? "Spherical panorama ready (click to re-convert)"
-                              : "Convert to 360° Sphere (AI)"}
+                              : currentNode?.stitch_status === "failed"
+                                ? "Previous conversion failed — click to retry"
+                                : "Convert to 360° Sphere (AI)"}
                         </p>
                       </TooltipContent>
                     </Tooltip>
