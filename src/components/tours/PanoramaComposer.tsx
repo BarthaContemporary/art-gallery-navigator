@@ -54,13 +54,11 @@ export function PanoramaComposer({
   const [zoom, setZoom] = useState(0.5);
   const [canvasHeight, setCanvasHeight] = useState(400);
 
-  // Load all images — duplicate first image at the end for 360° wrap
+  // Load all images in the exact order provided by parent/query (no synthetic wrap image)
   useEffect(() => {
-    const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
-    // Append a copy of the first image at the end for seamless 360° looping
-    const withWrap = sorted.length > 0 ? [...sorted, { ...sorted[0], id: sorted[0].id + "_wrap" }] : sorted;
+    const ordered = [...images];
 
-    const states: ImageState[] = withWrap.map((img) => ({
+    const states: ImageState[] = ordered.map((img) => ({
       id: img.id,
       url: img.medium_url || img.original_url,
       xOffset: 0,
@@ -73,7 +71,7 @@ export function PanoramaComposer({
     let loadedCount = 0;
     const targetHeight = 800;
 
-    withWrap.forEach((img, i) => {
+    ordered.forEach((img, i) => {
       const el = new Image();
       el.crossOrigin = "anonymous";
       el.onload = () => {
@@ -85,7 +83,7 @@ export function PanoramaComposer({
         states[i].loaded = true;
         loadedCount++;
 
-        if (loadedCount === withWrap.length) {
+        if (loadedCount === ordered.length) {
           let x = 0;
           for (let j = 0; j < states.length; j++) {
             states[j].xOffset = x;
@@ -99,7 +97,7 @@ export function PanoramaComposer({
       el.onerror = () => {
         states[i].loaded = true;
         loadedCount++;
-        if (loadedCount === withWrap.length) {
+        if (loadedCount === ordered.length) {
           setImageStates([...states]);
         }
       };
@@ -367,7 +365,7 @@ export function PanoramaComposer({
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
             <GripVertical className="h-3.5 w-3.5" />
-            <span>Drag handles to adjust overlap</span>
+            <span>{imageStates.length} image{imageStates.length === 1 ? "" : "s"} in sequence</span>
           </div>
           <div className="flex items-center gap-2 md:ml-4">
             <ZoomOut className="h-3.5 w-3.5 text-white/50" />
@@ -389,7 +387,12 @@ export function PanoramaComposer({
             className="h-8 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              onProcess?.();
+              Promise.resolve(onProcess?.()).catch((error) => {
+                console.error("Process 360° failed:", error);
+                toast.error("Failed to start 360° processing", {
+                  description: error instanceof Error ? error.message : "Please try again",
+                });
+              });
             }}
             disabled={processing || !canProcess}
           >
