@@ -37,19 +37,34 @@ serve(async (req) => {
       .update({ stitch_status: "processing" })
       .eq("id", nodeId);
 
-    // Fetch the node to get panorama_strip_url
-    const { data: node, error: nodeErr } = await supabase
-      .from("tour_nodes")
-      .select("panorama_strip_url")
-      .eq("id", nodeId)
-      .single();
+    // Fetch strip + source reference photos to reduce AI hallucination
+    const [{ data: node, error: nodeErr }, { data: sourceImages, error: sourceImagesErr }] = await Promise.all([
+      supabase
+        .from("tour_nodes")
+        .select("panorama_strip_url")
+        .eq("id", nodeId)
+        .single(),
+      supabase
+        .from("tour_node_images")
+        .select("original_url, display_order")
+        .eq("node_id", nodeId)
+        .order("display_order", { ascending: true })
+        .limit(8),
+    ]);
 
     if (nodeErr) throw nodeErr;
+    if (sourceImagesErr) {
+      console.warn("Could not load source reference images:", sourceImagesErr.message);
+    }
 
     const stripUrl = node?.panorama_strip_url;
     if (!stripUrl) {
       throw new Error("No panorama strip found. Please save one in the Composer first.");
     }
+
+    const referenceImageUrls = (sourceImages ?? [])
+      .map((img: { original_url: string | null }) => img.original_url)
+      .filter((url): url is string => !!url);
 
     console.log("Converting HD panorama strip to equirectangular:", stripUrl);
 
