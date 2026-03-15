@@ -19,7 +19,7 @@ export class GoogleMapCreator {
       );
     }
 
-    if (!window.google?.maps) {
+    if (!(window as any).google?.maps) {
       throw createMapError(
         MAP_ERROR_CODES.SCRIPT_LOAD_FAILED,
         'Google Maps API not available'

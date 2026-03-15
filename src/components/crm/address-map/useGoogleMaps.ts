@@ -101,7 +101,7 @@ export const useGoogleMaps = () => {
       }
 
       // Verify Google Maps is loaded
-      if (!window.google?.maps) {
+      if (!(window as any).google?.maps) {
         console.error('Google Maps API not loaded - createMap');
         throw new Error('Google Maps API not loaded');
       }
