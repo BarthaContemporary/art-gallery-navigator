@@ -249,14 +249,17 @@ export function PanoramaComposer({
     setStripSaved(false);
   }, []);
 
-  // Save strip at FULL RESOLUTION using PNG for lossless quality
+  // Save strip at full resolution with seam feathering for cleaner AI projection input
   const savePanoramaStrip = useCallback(async () => {
     if (imageStates.length === 0) return;
     setSaving(true);
     try {
       const totalWidth = Math.max(...imageStates.map((s) => s.xOffset + s.width));
+      const stripWidth = Math.max(4096, Math.round(totalWidth));
+      const contentOffsetX = Math.max(0, Math.round((stripWidth - totalWidth) / 2));
+
       const offscreen = document.createElement("canvas");
-      offscreen.width = Math.round(totalWidth);
+      offscreen.width = stripWidth;
       offscreen.height = canvasHeight;
       const ctx = offscreen.getContext("2d");
       if (!ctx) throw new Error("Canvas context unavailable");
@@ -264,15 +267,92 @@ export function PanoramaComposer({
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, offscreen.width, offscreen.height);
 
-      // Draw all images at full resolution with full opacity
-      imageStates.forEach((state) => {
+      const orderedStates = [...imageStates].sort((a, b) => a.xOffset - b.xOffset);
+      orderedStates.forEach((state, idx) => {
         if (!state.element) return;
-        ctx.drawImage(state.element, state.xOffset, 0, state.width, canvasHeight);
+
+        if (idx === 0) {
+          ctx.drawImage(
+            state.element,
+            Math.round(state.xOffset + contentOffsetX),
+            0,
+            Math.round(state.width),
+            canvasHeight
+          );
+          return;
+        }
+
+        const prev = orderedStates[idx - 1];
+        const overlapWidth = Math.max(0, Math.min(prev.xOffset + prev.width - state.xOffset, state.width));
+
+        if (overlapWidth <= 1) {
+          ctx.drawImage(
+            state.element,
+            Math.round(state.xOffset + contentOffsetX),
+            0,
+            Math.round(state.width),
+            canvasHeight
+          );
+          return;
+        }
+
+        const overlapPx = Math.round(overlapWidth);
+        const nonOverlapPx = Math.max(0, Math.round(state.width - overlapWidth));
+
+        if (nonOverlapPx > 0) {
+          ctx.drawImage(
+            state.element,
+            overlapPx,
+            0,
+            nonOverlapPx,
+            canvasHeight,
+            Math.round(state.xOffset + overlapWidth + contentOffsetX),
+            0,
+            nonOverlapPx,
+            canvasHeight
+          );
+        }
+
+        const blendCanvas = document.createElement("canvas");
+        blendCanvas.width = Math.max(1, overlapPx);
+        blendCanvas.height = canvasHeight;
+        const blendCtx = blendCanvas.getContext("2d");
+
+        if (blendCtx) {
+          blendCtx.drawImage(
+            state.element,
+            0,
+            0,
+            overlapPx,
+            canvasHeight,
+            0,
+            0,
+            overlapPx,
+            canvasHeight
+          );
+          blendCtx.globalCompositeOperation = "destination-in";
+          const gradient = blendCtx.createLinearGradient(0, 0, overlapPx, 0);
+          gradient.addColorStop(0, "rgba(0,0,0,0)");
+          gradient.addColorStop(1, "rgba(0,0,0,1)");
+          blendCtx.fillStyle = gradient;
+          blendCtx.fillRect(0, 0, overlapPx, canvasHeight);
+          blendCtx.globalCompositeOperation = "source-over";
+
+          ctx.drawImage(
+            blendCanvas,
+            Math.round(state.xOffset + contentOffsetX),
+            0
+          );
+        }
       });
 
-      // Save as high-quality JPEG (PNG would be too large for upload)
+      if (offscreen.width < 4096 || offscreen.height < 2048) {
+        throw new Error("Generated strip is below 4K base resolution");
+      }
+
+      // Save as very-high-quality JPEG (balanced quality/size for upload + AI input)
       const blob = await new Promise<Blob>((resolve, reject) => {
-        offscreen.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))), "image/jpeg", 0.97);
+        offscreen.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))), "image/jpeg", 0.99);
       });
 
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);

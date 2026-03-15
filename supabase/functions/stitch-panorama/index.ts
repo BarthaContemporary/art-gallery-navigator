@@ -153,28 +153,44 @@ serve(async (req) => {
       throw new Error("NO_IMAGE_IN_RESPONSE");
     }
 
-    // Upload the equirectangular result
+    // Persist image in project storage (including remote URL responses for reliability)
     let publicUrl: string;
+    let binaryData: Uint8Array;
+    let contentType = "image/png";
 
     if (imageData.startsWith("data:")) {
-      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-      const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-      const storagePath = `stitched/${nodeId}/panorama.png`;
-
-      const { error: uploadErr } = await supabase.storage
-        .from("tour-uploads")
-        .upload(storagePath, binaryData, { contentType: "image/png", upsert: true });
-
-      if (uploadErr) throw uploadErr;
-
-      const { data: urlData } = supabase.storage
-        .from("tour-uploads")
-        .getPublicUrl(storagePath);
-
-      publicUrl = urlData.publicUrl;
+      const mimeMatch = imageData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+      contentType = mimeMatch?.[1] || "image/png";
+      const base64Data = imageData.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, "");
+      binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
     } else {
-      publicUrl = imageData;
+      const imageResp = await fetch(imageData);
+      if (!imageResp.ok) {
+        throw new Error(`Failed to download generated panorama: ${imageResp.status}`);
+      }
+      contentType = imageResp.headers.get("content-type") || "image/png";
+      binaryData = new Uint8Array(await imageResp.arrayBuffer());
     }
+
+    const fileExt = contentType.includes("jpeg") || contentType.includes("jpg")
+      ? "jpg"
+      : contentType.includes("webp")
+        ? "webp"
+        : "png";
+
+    const storagePath = `stitched/${nodeId}/panorama.${fileExt}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from("tour-uploads")
+      .upload(storagePath, binaryData, { contentType, upsert: true });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: urlData } = supabase.storage
+      .from("tour-uploads")
+      .getPublicUrl(storagePath);
+
+    publicUrl = urlData.publicUrl;
 
     console.log("HD equirectangular conversion complete:", publicUrl);
 

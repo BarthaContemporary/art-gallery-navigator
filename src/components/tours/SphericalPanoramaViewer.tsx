@@ -152,7 +152,7 @@ export function SphericalPanoramaViewer({
       />
 
       <Canvas
-        camera={{ fov: 75, near: 0.1, far: 1100, position: [0, 0, 0.1] }}
+        camera={{ fov: 92, near: 0.01, far: 1100, position: [0, 0, 0.1] }}
         style={{ width: "100%", height: "100%" }}
         gl={{
           antialias: true,
