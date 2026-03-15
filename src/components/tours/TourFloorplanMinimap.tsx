@@ -36,10 +36,9 @@ export function TourFloorplanMinimap({
     [nodes]
   );
 
-  if (nodesWithCoords.length < 2) return null;
-
   // Calculate bounds for positioning dots
   const bounds = useMemo(() => {
+    if (nodesWithCoords.length < 2) return null;
     const xs = nodesWithCoords.map((n) => n.floorplan_x!);
     const ys = nodesWithCoords.map((n) => n.floorplan_y!);
     const minX = Math.min(...xs);
