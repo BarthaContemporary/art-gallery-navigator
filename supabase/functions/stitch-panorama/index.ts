@@ -37,59 +37,43 @@ serve(async (req) => {
       .update({ stitch_status: "processing" })
       .eq("id", nodeId);
 
-    // Fetch strip + source reference photos to reduce AI hallucination
-    const [{ data: node, error: nodeErr }, { data: sourceImages, error: sourceImagesErr }] = await Promise.all([
-      supabase
-        .from("tour_nodes")
-        .select("panorama_strip_url")
-        .eq("id", nodeId)
-        .single(),
-      supabase
-        .from("tour_node_images")
-        .select("original_url, display_order")
-        .eq("node_id", nodeId)
-        .order("display_order", { ascending: true })
-        .limit(8),
-    ]);
+    // Fetch the saved panorama strip
+    const { data: node, error: nodeErr } = await supabase
+      .from("tour_nodes")
+      .select("panorama_strip_url")
+      .eq("id", nodeId)
+      .single();
 
     if (nodeErr) throw nodeErr;
-    if (sourceImagesErr) {
-      console.warn("Could not load source reference images:", sourceImagesErr.message);
-    }
 
     const stripUrl = node?.panorama_strip_url;
     if (!stripUrl) {
       throw new Error("No panorama strip found. Please save one in the Composer first.");
     }
 
-    const referenceImageUrls = (sourceImages ?? [])
-      .map((img: { original_url: string | null }) => img.original_url)
-      .filter((url): url is string => !!url);
+    console.log("Processing panorama strip to equirectangular:", stripUrl);
 
-    console.log("Converting HD panorama strip to equirectangular:", stripUrl);
-
+    // The strip is already a wide horizontal panorama composed by the user.
+    // The AI's job is ONLY to:
+    // 1. Reproduce the strip content faithfully as the central horizon band
+    // 2. Extend vertically (add ceiling/sky above and floor below) to achieve 2:1 aspect ratio
+    // 3. Ensure left and right edges wrap seamlessly
+    // We do NOT send reference images — they confuse the model and cause hallucination.
     const prompt = [
-      "You are a professional 360 panorama projection engine.",
-      "Transform the provided stitched strip into ONE seamless equirectangular panorama with exact dimensions 4096x2048 (strict 2:1).",
-      "Hard constraints:",
-      "1) Preserve all visible geometry, materials, textures, and lighting from the strip exactly in the central horizon band.",
-      "2) Do not invent, remove, duplicate, or restyle objects, text, signage, architecture, furniture, people, or vehicles.",
-      "3) Keep a single fixed camera origin and ensure perfect left/right seam continuity for immersive spherical viewing.",
-      "4) Only extend missing zenith (top) and nadir (bottom) areas using realistic continuation inferred from source context.",
-      "5) Keep output photorealistic, sharp, and distortion-controlled with clean edges (no melting or warped structures).",
-      "Output only a single final image.",
+      "I need you to convert this wide panoramic photo strip into a standard equirectangular panorama image.",
+      "",
+      "CRITICAL RULES:",
+      "- The provided image IS the panoramic scene. It must appear as the central horizontal band of the output, EXACTLY as-is.",
+      "- DO NOT change, redraw, re-interpret, add, remove, or modify ANY objects, text, furniture, walls, colors, or details from the source.",
+      "- DO NOT hallucinate or invent new content in the central band. Copy it faithfully.",
+      "- ONLY generate new content for the TOP (ceiling/sky) and BOTTOM (floor/ground) areas that are not visible in the source strip.",
+      "- The top and bottom extensions should be realistic continuations based on the visible scene context (e.g., if indoors, add a ceiling; if outdoors, add sky above and ground below).",
+      "- The LEFT and RIGHT edges must connect seamlessly for 360° wrapping.",
+      "- Output must be exactly 2:1 aspect ratio (width = 2× height) for equirectangular projection.",
+      "- Make the output as high resolution as possible.",
+      "- Output a single image only.",
     ].join("\n");
 
-    const content = [
-      { type: "text", text: prompt },
-      { type: "image_url", image_url: { url: stripUrl } },
-      ...referenceImageUrls.map((url) => ({
-        type: "image_url",
-        image_url: { url },
-      })),
-    ];
-
-    // AI call to convert strip to 4K equirectangular projection with strict faithfulness
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -98,11 +82,14 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        temperature: 0.2,
+        temperature: 0.1,
         messages: [
           {
             role: "user",
-            content,
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: stripUrl } },
+            ],
           },
         ],
         modalities: ["image", "text"],
@@ -120,15 +107,13 @@ serve(async (req) => {
     const data = await resp.json();
     const msg = data.choices?.[0]?.message;
 
-    // Extract image from response
+    // Extract image from response — handle multiple response formats
     let imageData: string | null = null;
 
-    // Path 1: images array
     if (msg?.images?.[0]?.image_url?.url) {
       imageData = msg.images[0].image_url.url;
     }
 
-    // Path 2: inline_data in content array
     if (!imageData && Array.isArray(msg?.content)) {
       for (const part of msg.content) {
         if (part.type === "image_url" && part.image_url?.url) {
@@ -142,7 +127,6 @@ serve(async (req) => {
       }
     }
 
-    // Path 3: base64 in content string
     if (!imageData && typeof msg?.content === "string") {
       const b64Match = msg.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
       if (b64Match) imageData = b64Match[0];
@@ -153,8 +137,7 @@ serve(async (req) => {
       throw new Error("NO_IMAGE_IN_RESPONSE");
     }
 
-    // Persist image in project storage (including remote URL responses for reliability)
-    let publicUrl: string;
+    // Download/decode and persist to storage
     let binaryData: Uint8Array;
     let contentType = "image/png";
 
@@ -190,11 +173,10 @@ serve(async (req) => {
       .from("tour-uploads")
       .getPublicUrl(storagePath);
 
-    publicUrl = urlData.publicUrl;
+    const publicUrl = urlData.publicUrl;
 
-    console.log("HD equirectangular conversion complete:", publicUrl);
+    console.log("Equirectangular panorama complete:", publicUrl, `(${binaryData.length} bytes)`);
 
-    // Update the node
     await supabase
       .from("tour_nodes")
       .update({
@@ -204,16 +186,11 @@ serve(async (req) => {
       .eq("id", nodeId);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        panorama_url: publicUrl,
-        status: "completed",
-      }),
+      JSON.stringify({ success: true, panorama_url: publicUrl, status: "completed" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Stitch panorama error:", error);
-
     const errMsg = error instanceof Error ? error.message : "Unknown error";
 
     if (nodeId) {

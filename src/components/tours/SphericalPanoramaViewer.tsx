@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { Maximize, RotateCw, Pause } from "lucide-react";
+import { Maximize, RotateCw, Pause, Minimize } from "lucide-react";
 import { TourHotspot3D } from "./TourHotspot3D";
 
 interface Hotspot {
@@ -47,7 +47,6 @@ function EquirectangularScene({
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
-        // Enable high-quality filtering without exceeding device GPU limits
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         tex.magFilter = THREE.LinearFilter;
         tex.generateMipmaps = true;
@@ -93,7 +92,6 @@ function EquirectangularScene({
         dampingFactor={0.08}
         reverseOrbit
       />
-      {/* High-resolution sphere: 128×64 segments for smooth HD rendering */}
       <mesh>
         <sphereGeometry args={[500, 128, 64]} />
         <meshBasicMaterial map={texture} side={THREE.BackSide} />
@@ -123,12 +121,26 @@ export function SphericalPanoramaViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [fadeIn, setFadeIn] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setFadeIn(true);
     const t = setTimeout(() => setFadeIn(false), 600);
     return () => clearTimeout(t);
   }, [stitchedPanoramaUrl]);
+
+  // Auto-hide controls after 3 seconds of inactivity
+  const resetHideTimer = useCallback(() => {
+    setShowControls(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
+
+  useEffect(() => {
+    resetHideTimer();
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, [resetHideTimer]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -139,11 +151,20 @@ export function SphericalPanoramaViewer({
     }
   }, []);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className={`relative bg-black ${className}`}
       style={{ touchAction: "none" }}
+      onPointerMove={resetHideTimer}
+      onPointerDown={resetHideTimer}
     >
       {/* Fade-in overlay */}
       <div
@@ -152,13 +173,12 @@ export function SphericalPanoramaViewer({
       />
 
       <Canvas
-        camera={{ fov: 92, near: 0.01, far: 1100, position: [0, 0, 0.1] }}
+        camera={{ fov: 90, near: 0.01, far: 1100, position: [0, 0, 0.1] }}
         style={{ width: "100%", height: "100%" }}
         gl={{
           antialias: true,
           alpha: false,
           powerPreference: "high-performance",
-          // Request higher pixel ratio for crisp rendering
         }}
         dpr={[1, 2]}
       >
@@ -171,24 +191,32 @@ export function SphericalPanoramaViewer({
         />
       </Canvas>
 
-      {/* Minimal floating controls — bottom right */}
-      <div className="absolute bottom-4 right-4 z-30 flex items-center gap-1">
+      {/* Controls — auto-hide after 3s */}
+      <div
+        className={`absolute bottom-4 right-4 z-30 flex items-center gap-1 transition-opacity duration-300 ${
+          showControls ? "opacity-100" : "opacity-0"
+        }`}
+      >
         <button
-          onClick={() => setAutoRotate(!autoRotate)}
-          className="h-8 w-8 flex items-center justify-center text-white/60 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full transition-all"
+          onClick={() => { setAutoRotate(!autoRotate); resetHideTimer(); }}
+          className="h-9 w-9 flex items-center justify-center text-white/70 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full transition-all"
         >
-          {autoRotate ? <Pause className="h-3.5 w-3.5" /> : <RotateCw className="h-3.5 w-3.5" />}
+          {autoRotate ? <Pause className="h-4 w-4" /> : <RotateCw className="h-4 w-4" />}
         </button>
         <button
-          onClick={toggleFullscreen}
-          className="h-8 w-8 flex items-center justify-center text-white/60 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full transition-all"
+          onClick={() => { toggleFullscreen(); resetHideTimer(); }}
+          className="h-9 w-9 flex items-center justify-center text-white/70 hover:text-white bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full transition-all"
         >
-          <Maximize className="h-3.5 w-3.5" />
+          {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
         </button>
       </div>
 
-      {/* Subtle hint badge */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/40 backdrop-blur-sm text-white/50 px-3 py-1 rounded-full text-[10px] pointer-events-none">
+      {/* Subtle hint — fades out with controls */}
+      <div
+        className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/40 backdrop-blur-sm text-white/50 px-3 py-1 rounded-full text-[10px] pointer-events-none transition-opacity duration-500 ${
+          showControls ? "opacity-100" : "opacity-0"
+        }`}
+      >
         Drag to look around
       </div>
     </div>

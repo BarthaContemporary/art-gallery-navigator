@@ -390,8 +390,18 @@ export default function TourViewerPage() {
         style={{ opacity: transitioning ? 1 : 0 }}
       />
 
-      {/* Top bar — minimal, translucent */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+      {/* Top bar — auto-hide in 360 mode */}
+      <div
+        className={`absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-none transition-opacity duration-300 ${
+          show360 ? "opacity-0 hover:opacity-100" : ""
+        }`}
+        onPointerEnter={(e) => {
+          if (show360) (e.currentTarget as HTMLElement).style.opacity = "1";
+        }}
+        onPointerLeave={(e) => {
+          if (show360) (e.currentTarget as HTMLElement).style.opacity = "0";
+        }}
+      >
         {/* Left: title */}
         <div className="pointer-events-auto min-w-0">
           <h1 className="text-[13px] font-medium text-white/90 truncate">{project.title}</h1>
