@@ -30,14 +30,14 @@ export class GoogleMapCreator {
       console.log('Creating Google Maps instance');
       
       // Create map
-      const mapInstance = new google.maps.Map(containerRef.current, {
+      const mapInstance = new (window as any).google.maps.Map(containerRef.current, {
         center: { lat: location.lat, lng: location.lng },
         zoom: 16,
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
         zoomControl: true,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
+        mapTypeId: (window as any).google.maps.MapTypeId.ROADMAP
       });
 
       // Create marker
