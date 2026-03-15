@@ -1,63 +1,56 @@
 
 
-## Analysis: Gaussian Splatting vs Current Approach
+## Issues Identified
 
-### The core problem
-The AI image generation model is hallucinating — it changes, adds, or distorts content from the composer strip instead of faithfully preserving it. This is an inherent limitation of using generative AI for what should be a geometric transformation.
+### Issue 1: Node stuck in `stitch_status = "processing"` permanently
+The database shows the node is stuck in `processing` state. The edge function has no logs, meaning it either was never deployed or failed silently. This causes:
+- The "Process 360°" button to show a perpetual spinner (it checks `isStitching` which is `stitch_status === "processing" && !!panorama_strip_url`)
+- The polling interval runs endlessly every 4 seconds (visible in the network requests)
 
-### Gaussian Splatting: Not viable here
+### Issue 2: Images not loading in the viewer
+The `getImageUrlCandidates` function prioritizes `large_url`, `medium_url`, `thumbnail_url`, then `original_url`. If these processed URLs are null or broken (common with Cloudinary-processed images), OpenSeadragon tries them one by one via `open-failed` handler, but the fallback logic can leave the viewer blank if all fail or if OSD initialization races with URL index changes.
 
-Gaussian Splatting requires a **training pipeline** (COLMAP for camera pose estimation + GPU-intensive optimization) that takes minutes to hours on powerful hardware. It produces a 3D point cloud from dozens of overlapping photos with varying viewpoints. Your workflow captures a **single ring of photos at the same height** — this doesn't provide the multi-view parallax data that 3DGS needs. You'd need:
+### Issue 3: No way to reset a stuck processing state
+There's no UI mechanism to reset a failed/stuck stitch operation, leaving the user permanently stuck.
 
-1. A backend GPU server (not possible in edge functions)
-2. Many more photos from different heights/angles
-3. Minutes of processing time per scene
+---
 
-This is a fundamentally different capture methodology.
+## Plan
 
-### Better solution: Remove AI entirely, use geometric projection
+### 1. Deploy the stitch-panorama edge function
+The function exists in code but has no logs, suggesting it was never deployed. Deploy it so the Process 360° workflow actually works.
 
-The real issue is that we're using AI where math would suffice. The composer strip already covers 360° horizontally. To make it equirectangular, we only need to:
+### 2. Add stuck-processing recovery logic
+In `TourViewerPage.tsx`, add a timeout mechanism: if `stitch_status` has been `"processing"` for longer than ~90 seconds of polling without completing, automatically reset it to `"failed"` and show an error toast. Also add a "Retry" affordance on the Process 360° button when status is `"failed"`.
 
-1. **Stretch the strip to 2:1 aspect ratio** using canvas — no AI needed
-2. **Fill top/bottom bands** with a simple gradient sampled from the strip edges (ceiling/floor are rarely important for the immersive feel)
-3. **Apply cylindrical-to-equirectangular correction** so the projection maps correctly onto the sphere
+Immediately fix the current stuck node by resetting its `stitch_status` to `null` via a one-time DB update triggered from the UI (or just reset it now so the user can proceed).
 
-This approach is:
-- **Instant** (runs in-browser, no edge function call needed)
-- **100% faithful** to the composer output — zero hallucination
-- **Free** — no AI credits consumed
+### 3. Fix image loading reliability in single view mode
+In `TourViewerPage.tsx`, modify `getImageUrlCandidates` to prioritize `original_url` first (most reliable), then fall back to processed variants. This ensures the base image always loads even if Cloudinary processing hasn't completed.
 
-### Implementation plan
+### 4. Add error handling to Process 360° button in PanoramaComposer
+Wrap `onProcess` in `try/catch` within the composer. If the mutation fails, ensure the button re-enables properly. Currently `canProcess` depends on `isStitching` which stays true if the edge function never responds.
 
-1. **Create a client-side `stitchPanoramaLocally()` utility** in `src/lib/tours/panorama-stitcher.ts`:
-   - Takes the saved panorama strip URL
-   - Loads it onto a canvas
-   - Stretches to 2:1 ratio, filling top/bottom with edge-sampled gradients
-   - Applies cylindrical→equirectangular warp (pixel remapping)
-   - Exports as a high-quality JPEG blob
+### 5. Reset stuck DB state
+Reset the stuck node's `stitch_status` from `"processing"` to `null` so the user can re-trigger the process.
 
-2. **Upload the result to Supabase Storage** from the client side (same `tour-uploads` bucket, same path pattern)
+---
 
-3. **Update `TourViewerPage.tsx`** to call this local stitcher instead of invoking the edge function, updating `stitched_panorama_url` and `stitch_status` directly
+## Technical Details
 
-4. **Keep the edge function as fallback** but default to client-side processing
+**File changes:**
 
-5. **Update SphericalPanoramaViewer** — no changes needed, it already renders any equirectangular image
+1. **`src/pages/tours/TourViewerPage.tsx`**:
+   - Reorder `getImageUrlCandidates` to put `original_url` first: `[original_url, large_url, medium_url, thumbnail_url]`
+   - Add a polling timeout counter: after ~20 polls (80 seconds) with no status change, reset `stitch_status` to `failed` via DB update and show error toast
+   - When `stitch_status === "failed"`, show the Wand button as enabled (not spinning) so user can retry
+   - Fix `isStitching` to also consider `stitchMutation.isPending` to prevent double-clicks
 
-### Technical detail: cylindrical → equirectangular warp
+2. **`src/components/tours/PanoramaComposer.tsx`**:
+   - Wrap `onProcess` call in proper error boundary
+   - No major structural changes needed
 
-The strip is a cylindrical projection (constant vertical scale). Equirectangular requires latitude-based vertical compression toward the poles. The pixel remapping formula:
+3. **Deploy edge function**: Run deployment for `stitch-panorama`
 
-```text
-For each output pixel (x, y) in the 2:1 image:
-  longitude = (x / width) * 2π
-  latitude  = (y / height) * π - π/2
-  
-  // Map back to strip coordinates
-  strip_x = (longitude / 2π) * strip_width
-  strip_y = (latitude / vertical_fov) * strip_height + strip_center_y
-```
-
-The top ~20% and bottom ~20% will be gradient-filled (sky/ceiling and floor), and the middle 60% maps the strip content with the warp correction.
+4. **DB fix**: Reset the stuck node via SQL update
 

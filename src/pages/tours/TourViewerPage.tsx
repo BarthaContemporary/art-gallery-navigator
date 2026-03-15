@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { TourNodeStrip } from "@/components/tours/TourNodeStrip";
 import { TourFloorplanMinimap } from "@/components/tours/TourFloorplanMinimap";
 import { toast } from "sonner";
+import { stitchPanoramaLocally } from "@/lib/tours/panorama-stitcher";
 
 // Types
 interface TourProject {
@@ -139,20 +140,62 @@ export default function TourViewerPage() {
 
   // ── AI panorama stitching ─────────────────────────────────────
 
+  const [stitchProgress, setStitchProgress] = useState<number | null>(null);
+
   const stitchMutation = useMutation({
     mutationFn: async (nodeId: string) => {
-      const { data, error } = await supabase.functions.invoke("stitch-panorama", {
-        body: { node_id: nodeId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node?.panorama_strip_url) throw new Error("No panorama strip saved");
+
+      // Mark as processing
+      await supabase
+        .from("tour_nodes")
+        .update({ stitch_status: "processing" })
+        .eq("id", nodeId);
+      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+
+      // Run client-side geometric projection
+      const blob = await stitchPanoramaLocally(node.panorama_strip_url, (pct) =>
+        setStitchProgress(pct)
+      );
+
+      // Upload to Supabase Storage
+      const storagePath = `projects/${projectId}/nodes/${nodeId}/equirectangular_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("tour-uploads")
+        .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("tour-uploads")
+        .getPublicUrl(storagePath);
+
+      // Update node with the result
+      const { error: updateError } = await supabase
+        .from("tour_nodes")
+        .update({
+          stitched_panorama_url: `${urlData.publicUrl}?t=${Date.now()}`,
+          stitch_status: "completed",
+        })
+        .eq("id", nodeId);
+      if (updateError) throw updateError;
+
+      return { url: urlData.publicUrl };
     },
     onSuccess: () => {
-      toast.info("AI 360° generation started…", { description: "This may take 30-60 seconds" });
+      setStitchProgress(null);
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
     },
-    onError: (err) => {
+    onError: async (err) => {
+      setStitchProgress(null);
+      // Reset status on failure
+      if (currentNode) {
+        await supabase
+          .from("tour_nodes")
+          .update({ stitch_status: "failed" })
+          .eq("id", currentNode.id);
+        queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+      }
       toast.error("360° generation failed", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
@@ -163,32 +206,7 @@ export default function TourViewerPage() {
     (currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url) ||
     stitchMutation.isPending;
 
-  // Poll with timeout
-  const pollCountRef = useRef(0);
-  useEffect(() => {
-    if (!currentNode?.stitch_status || currentNode.stitch_status !== "processing") {
-      pollCountRef.current = 0;
-      return;
-    }
-    if (!currentNode?.panorama_strip_url) return;
-
-    const interval = setInterval(async () => {
-      pollCountRef.current += 1;
-      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
-
-      if (pollCountRef.current >= 22) {
-        clearInterval(interval);
-        await supabase
-          .from("tour_nodes")
-          .update({ stitch_status: "failed" })
-          .eq("id", currentNode.id);
-        queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
-        toast.error("AI conversion timed out", { description: "Please try again." });
-        pollCountRef.current = 0;
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [currentNode?.stitch_status, currentNode?.panorama_strip_url, currentNode?.id, queryClient, projectId]);
+  // No polling needed — processing is now client-side and synchronous within the mutation
 
   // Auto-switch to 360° when stitch completes
   useEffect(() => {
@@ -478,11 +496,11 @@ export default function TourViewerPage() {
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-black/90 text-white border-white/10">
                       <p className="text-xs">
-                        {currentNode?.stitch_status === "processing"
-                          ? "Generating 360°…"
+                        {stitchMutation.isPending
+                          ? `Generating 360°… ${stitchProgress != null ? `${Math.round(stitchProgress)}%` : ""}`
                           : currentNode?.stitch_status === "failed"
                             ? "Retry 360° generation"
-                            : "Generate 360° (AI)"}
+                            : "Generate 360°"}
                       </p>
                     </TooltipContent>
                   </Tooltip>
