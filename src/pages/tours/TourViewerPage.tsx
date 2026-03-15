@@ -496,11 +496,11 @@ export default function TourViewerPage() {
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="bg-black/90 text-white border-white/10">
                       <p className="text-xs">
-                        {currentNode?.stitch_status === "processing"
-                          ? "Generating 360°…"
+                        {stitchMutation.isPending
+                          ? `Generating 360°… ${stitchProgress != null ? `${Math.round(stitchProgress)}%` : ""}`
                           : currentNode?.stitch_status === "failed"
                             ? "Retry 360° generation"
-                            : "Generate 360° (AI)"}
+                            : "Generate 360°"}
                       </p>
                     </TooltipContent>
                   </Tooltip>
