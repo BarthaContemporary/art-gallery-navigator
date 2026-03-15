@@ -206,32 +206,7 @@ export default function TourViewerPage() {
     (currentNode?.stitch_status === "processing" && !!currentNode?.panorama_strip_url) ||
     stitchMutation.isPending;
 
-  // Poll with timeout
-  const pollCountRef = useRef(0);
-  useEffect(() => {
-    if (!currentNode?.stitch_status || currentNode.stitch_status !== "processing") {
-      pollCountRef.current = 0;
-      return;
-    }
-    if (!currentNode?.panorama_strip_url) return;
-
-    const interval = setInterval(async () => {
-      pollCountRef.current += 1;
-      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
-
-      if (pollCountRef.current >= 22) {
-        clearInterval(interval);
-        await supabase
-          .from("tour_nodes")
-          .update({ stitch_status: "failed" })
-          .eq("id", currentNode.id);
-        queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
-        toast.error("AI conversion timed out", { description: "Please try again." });
-        pollCountRef.current = 0;
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [currentNode?.stitch_status, currentNode?.panorama_strip_url, currentNode?.id, queryClient, projectId]);
+  // No polling needed — processing is now client-side and synchronous within the mutation
 
   // Auto-switch to 360° when stitch completes
   useEffect(() => {
