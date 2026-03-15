@@ -119,14 +119,14 @@ export const useGoogleMaps = () => {
       
       // Attempt to create the map - wrap in try/catch to get detailed errors
       try {
-        const mapInstance = new google.maps.Map(mapRef.current, {
+        const mapInstance = new (window as any).google.maps.Map(mapRef.current, {
           center: { lat: location.lat, lng: location.lng },
           zoom: 16,
           mapTypeControl: true,
           streetViewControl: true,
           fullscreenControl: true,
           zoomControl: true,
-          mapTypeId: google.maps.MapTypeId.ROADMAP
+          mapTypeId: (window as any).google.maps.MapTypeId.ROADMAP
         });
 
         mapInstanceRef.current = mapInstance;
