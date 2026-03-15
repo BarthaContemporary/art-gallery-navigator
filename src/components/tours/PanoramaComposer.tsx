@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut, GripVertical, Wand2, X } from "lucide-react";
+import { Save, RotateCcw, Loader2, ZoomIn, ZoomOut, Wand2, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -51,17 +50,17 @@ export function PanoramaComposer({
   const [dragging, setDragging] = useState<{ idx: number; startX: number; startOffset: number } | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [zoom, setZoom] = useState(0.5);
+  const [zoom, setZoom] = useState(0.35);
   const [canvasHeight, setCanvasHeight] = useState(400);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [stripSaved, setStripSaved] = useState(false);
 
-  // Load all images
+  // Load all images at FULL resolution for HD output
   useEffect(() => {
     const ordered = [...images];
     const states: ImageState[] = ordered.map((img) => ({
       id: img.id,
-      url: img.medium_url || img.original_url,
+      url: img.original_url, // Always use original for HD
       xOffset: 0,
       element: null,
       width: 0,
@@ -70,7 +69,8 @@ export function PanoramaComposer({
     }));
 
     let loadedCount = 0;
-    const targetHeight = 800;
+    // Use 2048px height for high-quality equirectangular output
+    const targetHeight = 2048;
 
     ordered.forEach((img, i) => {
       const el = new Image();
@@ -96,11 +96,12 @@ export function PanoramaComposer({
         }
       };
       el.onerror = () => {
+        console.error("Failed to load image:", img.original_url);
         states[i].loaded = true;
         loadedCount++;
         if (loadedCount === ordered.length) setImageStates([...states]);
       };
-      el.src = img.medium_url || img.original_url;
+      el.src = img.original_url;
     });
   }, [images]);
 
@@ -112,7 +113,7 @@ export function PanoramaComposer({
   }, [zoom]);
 
   const findHandleAt = useCallback((x: number): number | null => {
-    const hitZone = 50;
+    const hitZone = 60;
     for (let i = 1; i < imageStates.length; i++) {
       if (Math.abs(x - imageStates[i].xOffset) < hitZone) return i;
     }
@@ -130,12 +131,12 @@ export function PanoramaComposer({
     canvas.width = Math.max(totalWidth * zoom, containerRef.current?.clientWidth || 800);
     canvas.height = Math.max(canvasHeight * zoom, containerRef.current?.clientHeight || 400);
 
-    ctx.fillStyle = "#111";
+    ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
-      ctx.globalAlpha = 0.5;
+      ctx.globalAlpha = 0.55;
       ctx.drawImage(state.element, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
     });
     ctx.globalAlpha = 1.0;
@@ -148,32 +149,33 @@ export function PanoramaComposer({
       const isActive = hoveredIdx === i || dragging?.idx === i;
 
       if (overlapEndPx > overlapStartPx) {
-        ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.25)" : "rgba(59, 130, 246, 0.1)";
+        ctx.fillStyle = isActive ? "rgba(99, 179, 237, 0.2)" : "rgba(99, 179, 237, 0.08)";
         ctx.fillRect(overlapStartPx, 0, overlapEndPx - overlapStartPx, canvas.height);
       }
 
-      ctx.strokeStyle = isActive ? "rgba(59, 130, 246, 1)" : "rgba(59, 130, 246, 0.5)";
-      ctx.lineWidth = isActive ? 3 : 2;
-      ctx.setLineDash(isActive ? [] : [6, 4]);
+      ctx.strokeStyle = isActive ? "rgba(99, 179, 237, 1)" : "rgba(99, 179, 237, 0.4)";
+      ctx.lineWidth = isActive ? 3 : 1.5;
+      ctx.setLineDash(isActive ? [] : [8, 4]);
       ctx.beginPath();
       ctx.moveTo(overlapStartPx, 0);
       ctx.lineTo(overlapStartPx, canvas.height);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Grip icon
+      // Grip handle
       const gripY = canvas.height / 2;
-      const gripSize = isActive ? 28 : 22;
-      ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.9)" : "rgba(59, 130, 246, 0.6)";
+      const gripW = isActive ? 30 : 22;
+      const gripH = isActive ? 44 : 34;
+      ctx.fillStyle = isActive ? "rgba(99, 179, 237, 0.95)" : "rgba(99, 179, 237, 0.5)";
       ctx.beginPath();
-      ctx.roundRect(overlapStartPx - gripSize / 2, gripY - gripSize / 2, gripSize, gripSize, 6);
+      ctx.roundRect(overlapStartPx - gripW / 2, gripY - gripH / 2, gripW, gripH, 8);
       ctx.fill();
 
       ctx.fillStyle = "#fff";
-      for (let row = -1; row <= 1; row++) {
+      for (let row = -2; row <= 2; row++) {
         for (let col = -1; col <= 1; col += 2) {
           ctx.beginPath();
-          ctx.arc(overlapStartPx + col * 4, gripY + row * 6, 2, 0, Math.PI * 2);
+          ctx.arc(overlapStartPx + col * 4, gripY + row * 6, 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -181,7 +183,7 @@ export function PanoramaComposer({
       if (overlapEndPx > overlapStartPx) {
         const overlapPx = overlapEndPx - overlapStartPx;
         const overlapPct = Math.round((overlapPx / (prev.width * zoom)) * 100);
-        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
         ctx.font = `${isActive ? "bold " : ""}11px system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.fillText(`${overlapPct}%`, overlapStartPx + overlapPx / 2, 18);
@@ -247,27 +249,34 @@ export function PanoramaComposer({
     setStripSaved(false);
   }, []);
 
+  // Save strip at FULL RESOLUTION using PNG for lossless quality
   const savePanoramaStrip = useCallback(async () => {
     if (imageStates.length === 0) return;
     setSaving(true);
     try {
       const totalWidth = Math.max(...imageStates.map((s) => s.xOffset + s.width));
       const offscreen = document.createElement("canvas");
-      offscreen.width = totalWidth;
+      offscreen.width = Math.round(totalWidth);
       offscreen.height = canvasHeight;
       const ctx = offscreen.getContext("2d");
       if (!ctx) throw new Error("Canvas context unavailable");
 
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+      // Draw all images at full resolution with full opacity
       imageStates.forEach((state) => {
         if (!state.element) return;
         ctx.drawImage(state.element, state.xOffset, 0, state.width, canvasHeight);
       });
 
+      // Save as high-quality JPEG (PNG would be too large for upload)
       const blob = await new Promise<Blob>((resolve, reject) => {
-        offscreen.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))), "image/jpeg", 0.92);
+        offscreen.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))), "image/jpeg", 0.97);
       });
+
+      const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+      console.log(`Strip generated: ${offscreen.width}×${offscreen.height}px, ${sizeMB}MB`);
 
       const storagePath = `panorama-strips/${nodeId}/strip.jpg`;
       const { error: uploadErr } = await supabase.storage
@@ -284,7 +293,9 @@ export function PanoramaComposer({
         .eq("id", nodeId);
       if (updateErr) throw updateErr;
 
-      toast.success("Panorama strip saved!");
+      toast.success("HD panorama strip saved", {
+        description: `${offscreen.width}×${offscreen.height}px • ${sizeMB}MB`,
+      });
       setHasUnsavedChanges(false);
       setStripSaved(true);
       onSaved?.(publicUrl);
@@ -305,7 +316,7 @@ export function PanoramaComposer({
       <div className={`flex-1 flex items-center justify-center bg-black ${className}`}>
         <div className="text-center space-y-3">
           <Loader2 className="h-6 w-6 animate-spin text-white/70 mx-auto" />
-          <p className="text-sm text-white/60">Loading images for composer…</p>
+          <p className="text-sm text-white/60">Loading full-resolution images…</p>
         </div>
       </div>
     );
@@ -313,34 +324,57 @@ export function PanoramaComposer({
 
   return (
     <div className={`flex-1 flex flex-col bg-black ${className}`}>
-      {/* Single-row toolbar */}
-      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20 sticky top-0">
-        <div className="flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
-          <GripVertical className="h-3.5 w-3.5" />
-          <span>{imageStates.length} images</span>
+      {/* Toolbar — clean, minimal */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/8 bg-black/90 backdrop-blur-sm z-20">
+        {/* Left: back + info */}
+        <button
+          onClick={() => onExit?.()}
+          className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs shrink-0"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back</span>
+        </button>
+
+        <div className="w-px h-5 bg-white/10" />
+
+        <span className="text-xs text-white/40 shrink-0">
+          {imageStates.length} photos
           {hasUnsavedChanges && (
-            <span className="ml-1 w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Unsaved changes" />
+            <span className="ml-1.5 inline-flex items-center gap-1 text-amber-400/80">
+              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+              unsaved
+            </span>
           )}
+        </span>
+
+        {/* Center: zoom */}
+        <div className="flex items-center gap-2 ml-auto mr-auto">
+          <ZoomOut className="h-3 w-3 text-white/30" />
+          <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={10} max={80} step={5} className="w-28" />
+          <ZoomIn className="h-3 w-3 text-white/30" />
+          <span className="text-[10px] text-white/30 min-w-[3ch] tabular-nums">{Math.round(zoom * 100)}%</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ZoomOut className="h-3.5 w-3.5 text-white/50" />
-          <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={15} max={100} step={5} className="w-24" />
-          <ZoomIn className="h-3.5 w-3.5 text-white/50" />
-          <span className="text-xs text-white/40 min-w-[3ch]">{Math.round(zoom * 100)}%</span>
-        </div>
+        {/* Right: actions */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={resetOverlaps}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-white/50 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset
+          </button>
 
-        <div className="flex items-center gap-2 ml-auto">
-          <Button variant="ghost" size="sm" className="h-7 text-white/70 hover:text-white hover:bg-white/10 text-xs" onClick={resetOverlaps}>
-            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
-          </Button>
-          <Button size="sm" className="h-7 text-xs" onClick={savePanoramaStrip} disabled={saving}>
-            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+          <button
+            onClick={savePanoramaStrip}
+            disabled={saving}
+            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-white bg-white/10 hover:bg-white/15 rounded-md transition-colors disabled:opacity-40"
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             Save Strip
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 text-xs"
+          </button>
+
+          <button
             onClick={(e) => {
               e.stopPropagation();
               Promise.resolve(onProcess?.()).catch((error) => {
@@ -349,13 +383,11 @@ export function PanoramaComposer({
               });
             }}
             disabled={processing || !canProcess || !stripSaved}
+            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-white"
           >
-            {processing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-            Process 360°
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-white/70 hover:text-white hover:bg-white/10 text-xs" onClick={() => onExit?.()}>
-            <X className="h-3.5 w-3.5 mr-1" /> Exit
-          </Button>
+            {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+            Generate 360°
+          </button>
         </div>
       </div>
 
@@ -370,6 +402,19 @@ export function PanoramaComposer({
           onPointerCancel={handlePointerUp}
         />
       </div>
+
+      {/* Status bar */}
+      {stripSaved && !processing && (
+        <div className="px-4 py-1.5 bg-emerald-900/30 border-t border-emerald-500/20 text-emerald-400/80 text-[11px] text-center">
+          ✓ Strip saved — ready to generate 360°
+        </div>
+      )}
+      {processing && (
+        <div className="px-4 py-1.5 bg-blue-900/30 border-t border-blue-500/20 text-blue-400/80 text-[11px] text-center flex items-center justify-center gap-2">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          AI is generating your 360° panorama…
+        </div>
+      )}
     </div>
   );
 }
