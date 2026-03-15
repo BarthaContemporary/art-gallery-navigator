@@ -37,6 +37,7 @@ function EquirectangularScene({
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const controlsRef = useRef<any>(null);
   const initialHeadingApplied = useRef(false);
+  const { gl } = useThree();
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
@@ -46,11 +47,11 @@ function EquirectangularScene({
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
-        // Enable high-quality filtering
+        // Enable high-quality filtering without exceeding device GPU limits
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         tex.magFilter = THREE.LinearFilter;
         tex.generateMipmaps = true;
-        tex.anisotropy = 16;
+        tex.anisotropy = Math.min(16, gl.capabilities.getMaxAnisotropy());
         setTexture(tex);
       },
       undefined,
