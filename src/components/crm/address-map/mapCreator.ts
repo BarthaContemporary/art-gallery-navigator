@@ -8,9 +8,9 @@ export class GoogleMapCreator {
     location: LocationData,
     clientName: string
   ): Promise<{
-    mapInstance: google.maps.Map;
-    marker: google.maps.Marker;
-    infoWindow: google.maps.InfoWindow;
+    mapInstance: any;
+    marker: any;
+    infoWindow: any;
   }> {
     if (!containerRef.current) {
       throw createMapError(
