@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Maximize, RotateCw, Pause } from "lucide-react";
@@ -37,6 +37,7 @@ function EquirectangularScene({
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const controlsRef = useRef<any>(null);
   const initialHeadingApplied = useRef(false);
+  const { gl } = useThree();
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
@@ -46,11 +47,11 @@ function EquirectangularScene({
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
-        // Enable high-quality filtering
+        // Enable high-quality filtering without exceeding device GPU limits
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         tex.magFilter = THREE.LinearFilter;
         tex.generateMipmaps = true;
-        tex.anisotropy = 16;
+        tex.anisotropy = Math.min(16, gl.capabilities.getMaxAnisotropy());
         setTexture(tex);
       },
       undefined,
@@ -84,10 +85,10 @@ function EquirectangularScene({
         ref={controlsRef}
         enablePan={false}
         enableZoom={true}
-        minDistance={1}
-        maxDistance={450}
-        rotateSpeed={-0.3}
-        zoomSpeed={0.8}
+        minDistance={0.1}
+        maxDistance={1.4}
+        rotateSpeed={-0.26}
+        zoomSpeed={0.6}
         enableDamping
         dampingFactor={0.08}
         reverseOrbit
@@ -151,7 +152,7 @@ export function SphericalPanoramaViewer({
       />
 
       <Canvas
-        camera={{ fov: 75, near: 0.1, far: 1100, position: [0, 0, 0.1] }}
+        camera={{ fov: 92, near: 0.01, far: 1100, position: [0, 0, 0.1] }}
         style={{ width: "100%", height: "100%" }}
         gl={{
           antialias: true,

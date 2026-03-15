@@ -37,23 +37,59 @@ serve(async (req) => {
       .update({ stitch_status: "processing" })
       .eq("id", nodeId);
 
-    // Fetch the node to get panorama_strip_url
-    const { data: node, error: nodeErr } = await supabase
-      .from("tour_nodes")
-      .select("panorama_strip_url")
-      .eq("id", nodeId)
-      .single();
+    // Fetch strip + source reference photos to reduce AI hallucination
+    const [{ data: node, error: nodeErr }, { data: sourceImages, error: sourceImagesErr }] = await Promise.all([
+      supabase
+        .from("tour_nodes")
+        .select("panorama_strip_url")
+        .eq("id", nodeId)
+        .single(),
+      supabase
+        .from("tour_node_images")
+        .select("original_url, display_order")
+        .eq("node_id", nodeId)
+        .order("display_order", { ascending: true })
+        .limit(8),
+    ]);
 
     if (nodeErr) throw nodeErr;
+    if (sourceImagesErr) {
+      console.warn("Could not load source reference images:", sourceImagesErr.message);
+    }
 
     const stripUrl = node?.panorama_strip_url;
     if (!stripUrl) {
       throw new Error("No panorama strip found. Please save one in the Composer first.");
     }
 
+    const referenceImageUrls = (sourceImages ?? [])
+      .map((img: { original_url: string | null }) => img.original_url)
+      .filter((url): url is string => !!url);
+
     console.log("Converting HD panorama strip to equirectangular:", stripUrl);
 
-    // AI call to convert the strip into a high-quality equirectangular projection
+    const prompt = [
+      "You are a professional 360 panorama projection engine.",
+      "Transform the provided stitched strip into ONE seamless equirectangular panorama with exact dimensions 4096x2048 (strict 2:1).",
+      "Hard constraints:",
+      "1) Preserve all visible geometry, materials, textures, and lighting from the strip exactly in the central horizon band.",
+      "2) Do not invent, remove, duplicate, or restyle objects, text, signage, architecture, furniture, people, or vehicles.",
+      "3) Keep a single fixed camera origin and ensure perfect left/right seam continuity for immersive spherical viewing.",
+      "4) Only extend missing zenith (top) and nadir (bottom) areas using realistic continuation inferred from source context.",
+      "5) Keep output photorealistic, sharp, and distortion-controlled with clean edges (no melting or warped structures).",
+      "Output only a single final image.",
+    ].join("\n");
+
+    const content = [
+      { type: "text", text: prompt },
+      { type: "image_url", image_url: { url: stripUrl } },
+      ...referenceImageUrls.map((url) => ({
+        type: "image_url",
+        image_url: { url },
+      })),
+    ];
+
+    // AI call to convert strip to 4K equirectangular projection with strict faithfulness
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -62,19 +98,11 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
+        temperature: 0.2,
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Convert this wide panoramic photograph into a seamless, high-resolution equirectangular projection image with an exact 2:1 aspect ratio (e.g. 4096×2048 pixels), suitable for immersive 360° spherical viewing. Naturally and realistically fill in the top (sky/ceiling) and bottom (floor/ground) areas to complete the full sphere. Ensure smooth blending at all seams. Output a single high-quality, photorealistic image at the highest resolution possible.",
-              },
-              {
-                type: "image_url",
-                image_url: { url: stripUrl },
-              },
-            ],
+            content,
           },
         ],
         modalities: ["image", "text"],
@@ -125,28 +153,44 @@ serve(async (req) => {
       throw new Error("NO_IMAGE_IN_RESPONSE");
     }
 
-    // Upload the equirectangular result
+    // Persist image in project storage (including remote URL responses for reliability)
     let publicUrl: string;
+    let binaryData: Uint8Array;
+    let contentType = "image/png";
 
     if (imageData.startsWith("data:")) {
-      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-      const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-      const storagePath = `stitched/${nodeId}/panorama.png`;
-
-      const { error: uploadErr } = await supabase.storage
-        .from("tour-uploads")
-        .upload(storagePath, binaryData, { contentType: "image/png", upsert: true });
-
-      if (uploadErr) throw uploadErr;
-
-      const { data: urlData } = supabase.storage
-        .from("tour-uploads")
-        .getPublicUrl(storagePath);
-
-      publicUrl = urlData.publicUrl;
+      const mimeMatch = imageData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+      contentType = mimeMatch?.[1] || "image/png";
+      const base64Data = imageData.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, "");
+      binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
     } else {
-      publicUrl = imageData;
+      const imageResp = await fetch(imageData);
+      if (!imageResp.ok) {
+        throw new Error(`Failed to download generated panorama: ${imageResp.status}`);
+      }
+      contentType = imageResp.headers.get("content-type") || "image/png";
+      binaryData = new Uint8Array(await imageResp.arrayBuffer());
     }
+
+    const fileExt = contentType.includes("jpeg") || contentType.includes("jpg")
+      ? "jpg"
+      : contentType.includes("webp")
+        ? "webp"
+        : "png";
+
+    const storagePath = `stitched/${nodeId}/panorama.${fileExt}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from("tour-uploads")
+      .upload(storagePath, binaryData, { contentType, upsert: true });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: urlData } = supabase.storage
+      .from("tour-uploads")
+      .getPublicUrl(storagePath);
+
+    publicUrl = urlData.publicUrl;
 
     console.log("HD equirectangular conversion complete:", publicUrl);
 
