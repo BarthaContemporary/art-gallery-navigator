@@ -41,11 +41,11 @@ export class GoogleMapCreator {
       });
 
       // Create marker
-      const marker = new google.maps.Marker({
+      const marker = new (window as any).google.maps.Marker({
         position: { lat: location.lat, lng: location.lng },
         map: mapInstance,
         title: clientName,
-        animation: google.maps.Animation.DROP
+        animation: (window as any).google.maps.Animation.DROP
       });
 
       // Create info window
