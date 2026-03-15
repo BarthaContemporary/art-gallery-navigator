@@ -4,15 +4,40 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Maximize, RotateCw, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TourHotspot3D } from "./TourHotspot3D";
+
+interface Hotspot {
+  id: string;
+  target_node_id: string;
+  yaw: number;
+  pitch: number;
+  label: string | null;
+}
 
 interface SphericalPanoramaViewerProps {
   stitchedPanoramaUrl: string;
   className?: string;
+  hotspots?: Hotspot[];
+  onHotspotClick?: (targetNodeId: string) => void;
+  initialHeading?: number | null;
 }
 
-function EquirectangularScene({ url, autoRotate }: { url: string; autoRotate: boolean }) {
+function EquirectangularScene({
+  url,
+  autoRotate,
+  hotspots = [],
+  onHotspotClick,
+  initialHeading,
+}: {
+  url: string;
+  autoRotate: boolean;
+  hotspots: Hotspot[];
+  onHotspotClick?: (targetNodeId: string) => void;
+  initialHeading?: number | null;
+}) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const controlsRef = useRef<any>(null);
+  const initialHeadingApplied = useRef(false);
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
@@ -27,7 +52,19 @@ function EquirectangularScene({ url, autoRotate }: { url: string; autoRotate: bo
       undefined,
       (err) => console.error("Failed to load panorama texture:", err)
     );
+    // Reset heading tracking on URL change
+    initialHeadingApplied.current = false;
   }, [url]);
+
+  // Apply initial heading once controls are ready
+  useEffect(() => {
+    if (controlsRef.current && initialHeading != null && !initialHeadingApplied.current && texture) {
+      const azimuth = THREE.MathUtils.degToRad(initialHeading);
+      controlsRef.current.setAzimuthalAngle(azimuth);
+      controlsRef.current.update();
+      initialHeadingApplied.current = true;
+    }
+  }, [initialHeading, texture]);
 
   useFrame(() => {
     if (controlsRef.current) {
@@ -57,6 +94,18 @@ function EquirectangularScene({ url, autoRotate }: { url: string; autoRotate: bo
         <sphereGeometry args={[500, 64, 32]} />
         <meshBasicMaterial map={texture} side={THREE.BackSide} />
       </mesh>
+
+      {/* Render hotspots inside the sphere */}
+      {hotspots.map((hs) => (
+        <TourHotspot3D
+          key={hs.id}
+          yaw={hs.yaw}
+          pitch={hs.pitch}
+          label={hs.label}
+          targetNodeId={hs.target_node_id}
+          onNavigate={(id) => onHotspotClick?.(id)}
+        />
+      ))}
     </>
   );
 }
@@ -64,13 +113,18 @@ function EquirectangularScene({ url, autoRotate }: { url: string; autoRotate: bo
 export function SphericalPanoramaViewer({
   stitchedPanoramaUrl,
   className = "",
+  hotspots = [],
+  onHotspotClick,
+  initialHeading,
 }: SphericalPanoramaViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [fadeIn, setFadeIn] = useState(true);
 
+  // Fade in on mount / URL change
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 800);
+    setFadeIn(true);
+    const t = setTimeout(() => setFadeIn(false), 600);
     return () => clearTimeout(t);
   }, [stitchedPanoramaUrl]);
 
@@ -89,21 +143,24 @@ export function SphericalPanoramaViewer({
       className={`relative bg-black ${className}`}
       style={{ touchAction: "none" }}
     >
-      {loading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
-          <div className="text-center space-y-3">
-            <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full mx-auto" />
-            <p className="text-sm text-white/60">Loading panorama…</p>
-          </div>
-        </div>
-      )}
+      {/* Fade-in overlay */}
+      <div
+        className="absolute inset-0 z-20 bg-black pointer-events-none transition-opacity duration-500"
+        style={{ opacity: fadeIn ? 1 : 0 }}
+      />
 
       <Canvas
         camera={{ fov: 75, near: 0.1, far: 1100, position: [0, 0, 0.1] }}
         style={{ width: "100%", height: "100%" }}
         gl={{ antialias: true, alpha: false }}
       >
-        <EquirectangularScene url={stitchedPanoramaUrl} autoRotate={autoRotate} />
+        <EquirectangularScene
+          url={stitchedPanoramaUrl}
+          autoRotate={autoRotate}
+          hotspots={hotspots}
+          onHotspotClick={onHotspotClick}
+          initialHeading={initialHeading}
+        />
       </Canvas>
 
       {/* Controls overlay */}

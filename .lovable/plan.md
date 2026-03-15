@@ -1,108 +1,56 @@
 
 
-# Matterport-Style Tour Viewer — Full Rewrite Plan
+## Issues Identified
 
-## Overview
+### Issue 1: Node stuck in `stitch_status = "processing"` permanently
+The database shows the node is stuck in `processing` state. The edge function has no logs, meaning it either was never deployed or failed silently. This causes:
+- The "Process 360°" button to show a perpetual spinner (it checks `isStitching` which is `stitch_status === "processing" && !!panorama_strip_url`)
+- The polling interval runs endlessly every 4 seconds (visible in the network requests)
 
-Rewrite the tour viewer into a clean, Matterport-inspired experience with 6 components: a rewritten TourViewerPage, PanoramaComposer, enhanced SphericalPanoramaViewer, plus 3 new components (TourFloorplanMinimap, TourNodeStrip, TourHotspot3D).
+### Issue 2: Images not loading in the viewer
+The `getImageUrlCandidates` function prioritizes `large_url`, `medium_url`, `thumbnail_url`, then `original_url`. If these processed URLs are null or broken (common with Cloudinary-processed images), OpenSeadragon tries them one by one via `open-failed` handler, but the fallback logic can leave the viewer blank if all fail or if OSD initialization races with URL index changes.
 
-## Architecture
+### Issue 3: No way to reset a stuck processing state
+There's no UI mechanism to reset a failed/stuck stitch operation, leaving the user permanently stuck.
 
-```text
-TourViewerPage (full-screen layout)
-├── Top bar: project title, view mode toggle, close
-├── Main area:
-│   ├── SphericalPanoramaViewer (360° mode, with TourHotspot3D children)
-│   ├── Simple <img> viewer (single photo mode)
-│   └── PanoramaComposer (composer mode)
-├── TourNodeStrip (bottom center — horizontal thumbnail nav)
-└── TourFloorplanMinimap (bottom-left — interactive dot map)
-```
+---
 
-## File-by-File Plan
+## Plan
 
-### 1. `src/pages/tours/TourViewerPage.tsx` — REWRITE (~500 lines)
+### 1. Deploy the stitch-panorama edge function
+The function exists in code but has no logs, suggesting it was never deployed. Deploy it so the Process 360° workflow actually works.
 
-**Remove**: OpenSeadragon dependency, AnnotationOverlay component, complex URL fallback chains, osdFailed state.
+### 2. Add stuck-processing recovery logic
+In `TourViewerPage.tsx`, add a timeout mechanism: if `stitch_status` has been `"processing"` for longer than ~90 seconds of polling without completing, automatically reset it to `"failed"` and show an error toast. Also add a "Retry" affordance on the Process 360° button when status is `"failed"`.
 
-**Keep**: All data fetching (project, nodes, nodeImages, hotspots queries), stitch mutation + polling logic, keyboard navigation.
+Immediately fix the current stuck node by resetting its `stitch_status` to `null` via a one-time DB update triggered from the UI (or just reset it now so the user can proceed).
 
-**New structure**:
-- State machine: `viewMode: "photos" | "composer" | "360"`
-- Simple `<img>` tag for photo viewing with `onError` → placeholder. No OSD.
-- Fade transition state (`transitioning`) for node switches — 300ms black fade
-- Always render `TourNodeStrip` and `TourFloorplanMinimap` as overlays
-- Pass hotspots + `onNavigate` to SphericalPanoramaViewer
-- Clean top bar: project title (left), view mode pills (center), close button (right)
-- Remove inspection mode / annotation overlay (simplify for now)
+### 3. Fix image loading reliability in single view mode
+In `TourViewerPage.tsx`, modify `getImageUrlCandidates` to prioritize `original_url` first (most reliable), then fall back to processed variants. This ensures the base image always loads even if Cloudinary processing hasn't completed.
 
-### 2. `src/components/tours/SphericalPanoramaViewer.tsx` — ENHANCE
+### 4. Add error handling to Process 360° button in PanoramaComposer
+Wrap `onProcess` in `try/catch` within the composer. If the mutation fails, ensure the button re-enables properly. Currently `canProcess` depends on `isStitching` which stays true if the edge function never responds.
 
-**Add props**: `hotspots`, `onHotspotClick`, `initialHeading`, `onTransitionStart`
+### 5. Reset stuck DB state
+Reset the stuck node's `stitch_status` from `"processing"` to `null` so the user can re-trigger the process.
 
-**Changes**:
-- Accept `initialHeading` prop → set OrbitControls initial azimuthal angle
-- Render `TourHotspot3D` components inside the Three.js scene for each hotspot
-- Add fade-in effect: start with black overlay, fade to transparent over 500ms
-- Keep existing auto-rotate, fullscreen controls
+---
 
-### 3. `src/components/tours/TourHotspot3D.tsx` — NEW
+## Technical Details
 
-A React Three Fiber component rendered inside the Canvas:
-- Positioned on sphere interior using yaw/pitch → 3D coordinates
-- Renders as a `<sprite>` with a circular texture (white ring + arrow)
-- Pulses gently with animation
-- On click → calls `onNavigate(targetNodeId)`
-- Shows label on hover via HTML overlay (`<Html>` from drei)
+**File changes:**
 
-### 4. `src/components/tours/TourNodeStrip.tsx` — NEW
+1. **`src/pages/tours/TourViewerPage.tsx`**:
+   - Reorder `getImageUrlCandidates` to put `original_url` first: `[original_url, large_url, medium_url, thumbnail_url]`
+   - Add a polling timeout counter: after ~20 polls (80 seconds) with no status change, reset `stitch_status` to `failed` via DB update and show error toast
+   - When `stitch_status === "failed"`, show the Wand button as enabled (not spinning) so user can retry
+   - Fix `isStitching` to also consider `stitchMutation.isPending` to prevent double-clicks
 
-Horizontal scrollable thumbnail strip at the bottom of the viewer:
-- Shows one thumbnail per node (first image's `original_url`)
-- Current node highlighted with white border + scale
-- Click to navigate to node
-- Semi-transparent dark background
-- Auto-scrolls to keep current node visible
-- Shows node name on hover
+2. **`src/components/tours/PanoramaComposer.tsx`**:
+   - Wrap `onProcess` call in proper error boundary
+   - No major structural changes needed
 
-### 5. `src/components/tours/TourFloorplanMinimap.tsx` — NEW
+3. **Deploy edge function**: Run deployment for `stitch-panorama`
 
-Small interactive minimap (bottom-left corner, ~180×180px):
-- If nodes have `floorplan_x`/`floorplan_y`, render dots on a dark card
-- Current node = larger pulsing blue dot, others = smaller white dots
-- Click dot → navigate to that node
-- If floorplan image exists (from `tour_floorplans`), show as background
-- If no nodes have coordinates, hide entirely
-- Collapsible with a small map icon toggle
-
-### 6. `src/components/tours/PanoramaComposer.tsx` — SIMPLIFY
-
-**Keep**: Canvas-based overlap editor, drag handles, save strip, process 360° button.
-
-**Fix**:
-- Ensure `Save Strip` must be clicked before `Process 360°` — disable Process until strip is saved
-- Add clear visual state: unsaved changes indicator
-- Simplify toolbar to single row
-- Keep error handling from previous fixes
-
-## Data Flow
-
-- **TourViewerPage** fetches all data, passes down via props
-- **Node navigation**: `goToNode(idx)` triggers fade transition → updates `currentNodeIdx` → auto-selects best viewMode
-- **Hotspot navigation**: SphericalPanoramaViewer → `onHotspotClick(targetNodeId)` → `goToNodeById()` with fade
-- **Minimap navigation**: TourFloorplanMinimap → `onNodeSelect(idx)` → same flow
-- **Strip navigation**: TourNodeStrip → `onNodeSelect(idx)` → same flow
-
-## Key Decisions
-
-- **No OpenSeadragon** — replaced with simple `<img>` for photo mode (images only have `original_url` populated, deep zoom adds complexity with no benefit)
-- **No annotation overlay** in this rewrite (can be added back later)
-- **Hotspots use yaw/pitch** for 3D positioning inside the sphere, `coord_x/coord_y` for 2D fallback
-- **Smooth transitions**: CSS opacity transition on a black overlay div, toggled during node switches
-
-## Dependencies
-
-No new dependencies needed. Uses existing:
-- `@react-three/fiber@^8.18`, `@react-three/drei@^9.122.0`, `three`
-- `@tanstack/react-query`, `sonner`, `lucide-react`
+4. **DB fix**: Reset the stuck node via SQL update
 
