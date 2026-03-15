@@ -453,7 +453,7 @@ export default function TourViewerPage() {
 
             {/* Right: AI stitch + fullscreen + close */}
             <div className="pointer-events-auto flex items-center gap-1 ml-3 shrink-0">
-              {!isPanorama && hasPanoramaStrip && viewMode !== "composer" && (
+              {!isPanorama && hasPanoramaStrip && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
