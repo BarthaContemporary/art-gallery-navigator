@@ -53,6 +53,8 @@ export function TourFloorplanMinimap({
   const mapSize = 160;
   const padding = 20;
 
+  if (nodesWithCoords.length < 2 || !bounds) return null;
+
   if (collapsed) {
     return (
       <button
