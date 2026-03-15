@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   ChevronLeft,
@@ -150,11 +149,11 @@ export default function TourViewerPage() {
       return data;
     },
     onSuccess: () => {
-      toast.info("AI spherical conversion started…", { description: "This may take 30-60 seconds" });
+      toast.info("AI 360° generation started…", { description: "This may take 30-60 seconds" });
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
     },
     onError: (err) => {
-      toast.error("Spherical conversion failed", {
+      toast.error("360° generation failed", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
     },
@@ -194,7 +193,7 @@ export default function TourViewerPage() {
   // Auto-switch to 360° when stitch completes
   useEffect(() => {
     if (currentNode?.stitch_status === "completed" && currentNode?.stitched_panorama_url) {
-      toast.success("AI panorama ready!");
+      toast.success("360° panorama ready!");
       setViewMode("360");
     }
   }, [currentNode?.stitch_status, currentNode?.stitched_panorama_url]);
@@ -279,7 +278,7 @@ export default function TourViewerPage() {
       nodes.map((n) => ({
         id: n.id,
         name: n.name,
-        thumbnailUrl: null as string | null, // will be populated per-node
+        thumbnailUrl: null as string | null,
       })),
     [nodes]
   );
@@ -296,7 +295,6 @@ export default function TourViewerPage() {
         .in("node_id", nodeIds)
         .order("display_order", { ascending: true });
       if (error) throw error;
-      // Group by node_id, take first
       const map: Record<string, string> = {};
       (data || []).forEach((img: any) => {
         if (!map[img.node_id]) {
@@ -323,8 +321,8 @@ export default function TourViewerPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         <div className="text-center space-y-3">
-          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full mx-auto" />
-          <p className="text-sm text-white/60">Loading tour…</p>
+          <div className="animate-spin h-6 w-6 border-2 border-white/30 border-t-white rounded-full mx-auto" />
+          <p className="text-sm text-white/40">Loading tour…</p>
         </div>
       </div>
     );
@@ -334,13 +332,16 @@ export default function TourViewerPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         <div className="text-center space-y-4">
-          <p className="text-lg font-medium">Unable to load tour</p>
-          <p className="text-sm text-white/50 max-w-sm">
+          <p className="text-base font-medium">Unable to load tour</p>
+          <p className="text-sm text-white/40 max-w-sm">
             {projectError ? "This tour may not exist or you don't have permission." : "Failed to load tour data."}
           </p>
-          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+          <button
+            className="px-4 py-2 text-sm text-white/70 hover:text-white border border-white/15 hover:border-white/30 rounded-lg transition-colors"
+            onClick={() => navigate(-1)}
+          >
             Go Back
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -350,10 +351,13 @@ export default function TourViewerPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         <div className="text-center space-y-4">
-          <p className="text-lg font-medium">Tour not found</p>
-          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+          <p className="text-base font-medium">Tour not found</p>
+          <button
+            className="px-4 py-2 text-sm text-white/70 hover:text-white border border-white/15 hover:border-white/30 rounded-lg transition-colors"
+            onClick={() => navigate(-1)}
+          >
             Go Back
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -363,11 +367,14 @@ export default function TourViewerPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black text-white">
         <div className="text-center space-y-4">
-          <p className="text-lg font-medium">{project.title}</p>
-          <p className="text-sm text-white/50">No scan positions yet.</p>
-          <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+          <p className="text-base font-medium">{project.title}</p>
+          <p className="text-sm text-white/40">No scan positions yet.</p>
+          <button
+            className="px-4 py-2 text-sm text-white/70 hover:text-white border border-white/15 hover:border-white/30 rounded-lg transition-colors"
+            onClick={() => navigate(-1)}
+          >
             Go Back
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -383,44 +390,48 @@ export default function TourViewerPage() {
         style={{ opacity: transitioning ? 1 : 0 }}
       />
 
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+      {/* Top bar — minimal, translucent */}
+      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
         {/* Left: title */}
-        <div className="pointer-events-auto flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-sm font-semibold truncate">{project.title}</h1>
-            <p className="text-[11px] text-white/50 truncate">{currentNode?.name}</p>
-          </div>
+        <div className="pointer-events-auto min-w-0">
+          <h1 className="text-[13px] font-medium text-white/90 truncate">{project.title}</h1>
+          <p className="text-[11px] text-white/40 truncate">{currentNode?.name}</p>
         </div>
 
         {/* Center: view mode pills */}
         {!isPanorama && (
-          <div className="pointer-events-auto flex items-center gap-1 bg-white/10 backdrop-blur-sm rounded-lg p-0.5">
+          <div className="pointer-events-auto flex items-center gap-0.5 bg-white/8 backdrop-blur-md rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("photos")}
-              className={`px-3 py-1.5 text-xs rounded-md transition-all ${
-                viewMode === "photos" ? "bg-white/20 text-white font-medium" : "text-white/60 hover:text-white"
+              className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                viewMode === "photos"
+                  ? "bg-white/15 text-white font-medium"
+                  : "text-white/45 hover:text-white/70"
               }`}
             >
-              <Image className="h-3.5 w-3.5 inline mr-1" />
+              <Image className="h-3 w-3" />
               Photos
             </button>
             {nodeImages.length >= 2 && (
               <button
                 onClick={() => setViewMode("composer")}
-                className={`px-3 py-1.5 text-xs rounded-md transition-all ${
-                  viewMode === "composer" ? "bg-white/20 text-white font-medium" : "text-white/60 hover:text-white"
+                className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                  viewMode === "composer"
+                    ? "bg-white/15 text-white font-medium"
+                    : "text-white/45 hover:text-white/70"
                 }`}
               >
-                <GalleryHorizontal className="h-3.5 w-3.5 inline mr-1" />
-                Composer
+                <GalleryHorizontal className="h-3 w-3" />
+                Compose
               </button>
             )}
             {hasStitchedPanorama && (
               <button
                 onClick={() => setViewMode("360")}
-                className={`px-3 py-1.5 text-xs rounded-md transition-all ${
-                  viewMode === "360" ? "bg-white/20 text-white font-medium" : "text-white/60 hover:text-white"
+                className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                  viewMode === "360"
+                    ? "bg-white/15 text-white font-medium"
+                    : "text-white/45 hover:text-white/70"
                 }`}
               >
                 360°
@@ -431,21 +442,19 @@ export default function TourViewerPage() {
 
         {/* Right: actions */}
         <div className="pointer-events-auto flex items-center gap-1">
-          {/* AI stitch button */}
-          {!isPanorama && hasPanoramaStrip && (
+          {/* AI stitch button — only in photos mode when strip exists */}
+          {!isPanorama && hasPanoramaStrip && viewMode !== "composer" && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-8 w-8 hover:bg-white/10 ${
+                  <button
+                    className={`h-8 w-8 flex items-center justify-center rounded-full transition-all ${
                       currentNode?.stitch_status === "completed"
-                        ? "text-emerald-400"
+                        ? "text-emerald-400/80 hover:text-emerald-300"
                         : currentNode?.stitch_status === "failed"
-                          ? "text-red-400"
-                          : "text-white/70 hover:text-white"
-                    }`}
+                          ? "text-red-400/80 hover:text-red-300"
+                          : "text-white/40 hover:text-white/70"
+                    } hover:bg-white/10`}
                     onClick={() => {
                       if (currentNode && !isStitching) {
                         stitchMutation.mutate(currentNode.id);
@@ -454,40 +463,36 @@ export default function TourViewerPage() {
                     disabled={isStitching}
                   >
                     {isStitching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Wand2 className="h-4 w-4" />
+                      <Wand2 className="h-3.5 w-3.5" />
                     )}
-                  </Button>
+                  </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
+                <TooltipContent side="bottom" className="bg-black/90 text-white border-white/10">
                   <p className="text-xs">
                     {currentNode?.stitch_status === "processing"
-                      ? "AI conversion in progress…"
+                      ? "Generating 360°…"
                       : currentNode?.stitch_status === "failed"
-                        ? "Previous conversion failed — retry"
-                        : "Convert to 360° (AI)"}
+                        ? "Retry 360° generation"
+                        : "Generate 360° (AI)"}
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+          <button
+            className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
             onClick={toggleFullscreen}
           >
-            <Maximize className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+            <Maximize className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
             onClick={() => navigate(-1)}
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -495,15 +500,15 @@ export default function TourViewerPage() {
       <div className="flex-1 relative">
         {nodeImagesLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
-            <Loader2 className="h-6 w-6 animate-spin text-white/70" />
+            <Loader2 className="h-6 w-6 animate-spin text-white/30" />
           </div>
         ) : nodeImagesError ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
-            <p className="text-sm text-white/60">Could not load images.</p>
+            <p className="text-sm text-white/40">Could not load images.</p>
           </div>
         ) : nodeImages.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
-            <p className="text-sm text-white/60">No images for this node.</p>
+            <p className="text-sm text-white/40">No images for this node.</p>
           </div>
         ) : showComposer ? (
           <PanoramaComposer
@@ -534,7 +539,7 @@ export default function TourViewerPage() {
             initialHeading={currentNode?.initial_heading}
           />
         ) : (
-          /* Photos mode — simple <img> */
+          /* Photos mode — clean full-bleed image */
           <div className="absolute inset-0 flex items-center justify-center bg-black">
             {currentImageUrl ? (
               <img
@@ -547,27 +552,27 @@ export default function TourViewerPage() {
                 }}
               />
             ) : (
-              <p className="text-sm text-white/60">No image available</p>
+              <p className="text-sm text-white/40">No image available</p>
             )}
 
             {/* Image nav arrows (multi-image nodes) */}
             {nodeImages.length > 1 && (
               <>
                 <button
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-full text-white/70 hover:text-white hover:bg-black/60 transition-all disabled:opacity-30"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-full text-white/50 hover:text-white hover:bg-black/50 transition-all disabled:opacity-20"
                   onClick={() => setCurrentImageIdx((i) => Math.max(0, i - 1))}
                   disabled={currentImageIdx === 0}
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-full text-white/70 hover:text-white hover:bg-black/60 transition-all disabled:opacity-30"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-full text-white/50 hover:text-white hover:bg-black/50 transition-all disabled:opacity-20"
                   onClick={() => setCurrentImageIdx((i) => Math.min(nodeImages.length - 1, i + 1))}
                   disabled={currentImageIdx === nodeImages.length - 1}
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
-                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white/70 text-xs px-3 py-1 rounded-full">
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-sm text-white/50 text-[10px] px-3 py-1 rounded-full tabular-nums">
                   {currentImageIdx + 1} / {nodeImages.length}
                 </div>
               </>
@@ -583,11 +588,11 @@ export default function TourViewerPage() {
                     style={{ left: `${hs.coord_x * 100}%`, top: `${hs.coord_y * 100}%` }}
                     onClick={() => goToNodeById(hs.target_node_id)}
                   >
-                    <div className="w-8 h-8 mx-auto rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center group-hover:bg-white/40 group-hover:scale-110 transition-all shadow-lg">
-                      <ChevronRight className="h-4 w-4 text-white" />
+                    <div className="w-7 h-7 mx-auto rounded-full bg-white/15 backdrop-blur-sm border border-white/40 flex items-center justify-center group-hover:bg-white/30 group-hover:scale-110 transition-all">
+                      <ChevronRight className="h-3.5 w-3.5 text-white/80" />
                     </div>
                     {hs.label && (
-                      <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap text-[10px] bg-black/70 text-white px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap text-[9px] bg-black/70 text-white/80 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                         {hs.label}
                       </span>
                     )}
@@ -600,17 +605,20 @@ export default function TourViewerPage() {
       </div>
 
       {/* Bottom overlays — Node strip & Minimap */}
-      <TourNodeStrip
-        nodes={enrichedStripNodes}
-        currentIndex={currentNodeIdx}
-        onNodeSelect={goToNode}
-      />
-
-      <TourFloorplanMinimap
-        nodes={nodes}
-        currentIndex={currentNodeIdx}
-        onNodeSelect={goToNode}
-      />
+      {viewMode !== "composer" && (
+        <>
+          <TourNodeStrip
+            nodes={enrichedStripNodes}
+            currentIndex={currentNodeIdx}
+            onNodeSelect={goToNode}
+          />
+          <TourFloorplanMinimap
+            nodes={nodes}
+            currentIndex={currentNodeIdx}
+            onNodeSelect={goToNode}
+          />
+        </>
+      )}
     </div>
   );
 }

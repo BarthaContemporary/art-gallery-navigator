@@ -3,7 +3,6 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Maximize, RotateCw, Pause } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { TourHotspot3D } from "./TourHotspot3D";
 
 interface Hotspot {
@@ -47,16 +46,19 @@ function EquirectangularScene({
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
+        // Enable high-quality filtering
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = true;
+        tex.anisotropy = 16;
         setTexture(tex);
       },
       undefined,
       (err) => console.error("Failed to load panorama texture:", err)
     );
-    // Reset heading tracking on URL change
     initialHeadingApplied.current = false;
   }, [url]);
 
-  // Apply initial heading once controls are ready
   useEffect(() => {
     if (controlsRef.current && initialHeading != null && !initialHeadingApplied.current && texture) {
       const azimuth = THREE.MathUtils.degToRad(initialHeading);
@@ -69,7 +71,7 @@ function EquirectangularScene({
   useFrame(() => {
     if (controlsRef.current) {
       controlsRef.current.autoRotate = autoRotate;
-      controlsRef.current.autoRotateSpeed = 0.5;
+      controlsRef.current.autoRotateSpeed = 0.4;
       controlsRef.current.update();
     }
   });
@@ -87,15 +89,15 @@ function EquirectangularScene({
         rotateSpeed={-0.3}
         zoomSpeed={0.8}
         enableDamping
-        dampingFactor={0.1}
+        dampingFactor={0.08}
         reverseOrbit
       />
+      {/* High-resolution sphere: 128×64 segments for smooth HD rendering */}
       <mesh>
-        <sphereGeometry args={[500, 64, 32]} />
+        <sphereGeometry args={[500, 128, 64]} />
         <meshBasicMaterial map={texture} side={THREE.BackSide} />
       </mesh>
 
-      {/* Render hotspots inside the sphere */}
       {hotspots.map((hs) => (
         <TourHotspot3D
           key={hs.id}
@@ -121,7 +123,6 @@ export function SphericalPanoramaViewer({
   const [autoRotate, setAutoRotate] = useState(true);
   const [fadeIn, setFadeIn] = useState(true);
 
-  // Fade in on mount / URL change
   useEffect(() => {
     setFadeIn(true);
     const t = setTimeout(() => setFadeIn(false), 600);
@@ -152,7 +153,13 @@ export function SphericalPanoramaViewer({
       <Canvas
         camera={{ fov: 75, near: 0.1, far: 1100, position: [0, 0, 0.1] }}
         style={{ width: "100%", height: "100%" }}
-        gl={{ antialias: true, alpha: false }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+          // Request higher pixel ratio for crisp rendering
+        }}
+        dpr={[1, 2]}
       >
         <EquirectangularScene
           url={stitchedPanoramaUrl}
@@ -163,29 +170,25 @@ export function SphericalPanoramaViewer({
         />
       </Canvas>
 
-      {/* Controls overlay */}
+      {/* Minimal floating controls — bottom right */}
       <div className="absolute bottom-4 right-4 z-30 flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20 bg-black/40 backdrop-blur-sm"
+        <button
           onClick={() => setAutoRotate(!autoRotate)}
+          className="h-8 w-8 flex items-center justify-center text-white/60 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full transition-all"
         >
-          {autoRotate ? <Pause className="h-4 w-4" /> : <RotateCw className="h-4 w-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20 bg-black/40 backdrop-blur-sm"
+          {autoRotate ? <Pause className="h-3.5 w-3.5" /> : <RotateCw className="h-3.5 w-3.5" />}
+        </button>
+        <button
           onClick={toggleFullscreen}
+          className="h-8 w-8 flex items-center justify-center text-white/60 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full transition-all"
         >
-          <Maximize className="h-4 w-4" />
-        </Button>
+          <Maximize className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* Info badge */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/60 backdrop-blur-sm text-white/80 px-4 py-1.5 rounded-full text-xs pointer-events-none">
-        AI Panorama — Drag to look around
+      {/* Subtle hint badge */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-black/40 backdrop-blur-sm text-white/50 px-3 py-1 rounded-full text-[10px] pointer-events-none">
+        Drag to look around
       </div>
     </div>
   );

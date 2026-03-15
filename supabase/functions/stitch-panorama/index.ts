@@ -51,9 +51,9 @@ serve(async (req) => {
       throw new Error("No panorama strip found. Please save one in the Composer first.");
     }
 
-    console.log("Converting panorama strip to equirectangular:", stripUrl);
+    console.log("Converting HD panorama strip to equirectangular:", stripUrl);
 
-    // Single AI call to convert the strip into an equirectangular projection
+    // AI call to convert the strip into a high-quality equirectangular projection
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -68,7 +68,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Convert this wide panoramic photograph into a seamless equirectangular projection image with a 2:1 aspect ratio, suitable for 360° spherical viewing. Naturally fill in the top (sky/ceiling) and bottom (floor/ground) areas to complete the sphere. Output a single high-quality photograph.",
+                text: "Convert this wide panoramic photograph into a seamless, high-resolution equirectangular projection image with an exact 2:1 aspect ratio (e.g. 4096×2048 pixels), suitable for immersive 360° spherical viewing. Naturally and realistically fill in the top (sky/ceiling) and bottom (floor/ground) areas to complete the full sphere. Ensure smooth blending at all seams. Output a single high-quality, photorealistic image at the highest resolution possible.",
               },
               {
                 type: "image_url",
@@ -148,7 +148,7 @@ serve(async (req) => {
       publicUrl = imageData;
     }
 
-    console.log("Equirectangular conversion complete:", publicUrl);
+    console.log("HD equirectangular conversion complete:", publicUrl);
 
     // Update the node
     await supabase
