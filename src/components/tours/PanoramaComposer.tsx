@@ -404,39 +404,40 @@ export function PanoramaComposer({
 
   return (
     <div className={`flex-1 flex flex-col bg-black ${className}`}>
-      {/* Toolbar — clean, minimal */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/8 bg-black/90 backdrop-blur-sm z-20">
-        {/* Left: back + info */}
-        <button
-          onClick={() => onExit?.()}
-          className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs shrink-0"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back</span>
-        </button>
+      {/* Toolbar — two rows to avoid overlap with page chrome */}
+      <div className="border-b border-white/8 bg-black/90 backdrop-blur-sm z-20">
+        {/* Row 1: back, info, zoom */}
+        <div className="flex items-center gap-3 px-4 pt-2.5 pb-1">
+          <button
+            onClick={() => onExit?.()}
+            className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs shrink-0"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back</span>
+          </button>
 
-        <div className="w-px h-5 bg-white/10" />
+          <div className="w-px h-5 bg-white/10" />
 
-        <span className="text-xs text-white/40 shrink-0">
-          {imageStates.length} photos
-          {hasUnsavedChanges && (
-            <span className="ml-1.5 inline-flex items-center gap-1 text-amber-400/80">
-              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-              unsaved
-            </span>
-          )}
-        </span>
+          <span className="text-xs text-white/40 shrink-0">
+            {imageStates.length} photos
+            {hasUnsavedChanges && (
+              <span className="ml-1.5 inline-flex items-center gap-1 text-amber-400/80">
+                <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                unsaved
+              </span>
+            )}
+          </span>
 
-        {/* Center: zoom */}
-        <div className="flex items-center gap-2 ml-auto mr-auto">
-          <ZoomOut className="h-3 w-3 text-white/30" />
-          <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={10} max={80} step={5} className="w-28" />
-          <ZoomIn className="h-3 w-3 text-white/30" />
-          <span className="text-[10px] text-white/30 min-w-[3ch] tabular-nums">{Math.round(zoom * 100)}%</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <ZoomOut className="h-3 w-3 text-white/30" />
+            <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={10} max={80} step={5} className="w-28" />
+            <ZoomIn className="h-3 w-3 text-white/30" />
+            <span className="text-[10px] text-white/30 min-w-[3ch] tabular-nums">{Math.round(zoom * 100)}%</span>
+          </div>
         </div>
 
-        {/* Right: actions */}
-        <div className="flex items-center gap-1.5">
+        {/* Row 2: actions — all in a single accessible row */}
+        <div className="flex items-center gap-2 px-4 pb-2.5">
           <button
             onClick={resetOverlaps}
             className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-white/50 hover:text-white hover:bg-white/5 rounded-md transition-colors"
