@@ -68,7 +68,28 @@ serve(async (req) => {
 
     console.log("Converting HD panorama strip to equirectangular:", stripUrl);
 
-    // AI call to convert the strip into a high-quality equirectangular projection
+    const prompt = [
+      "You are a professional 360 panorama projection engine.",
+      "Transform the provided stitched strip into ONE seamless equirectangular panorama with exact dimensions 4096x2048 (strict 2:1).",
+      "Hard constraints:",
+      "1) Preserve all visible geometry, materials, textures, and lighting from the strip exactly in the central horizon band.",
+      "2) Do not invent, remove, duplicate, or restyle objects, text, signage, architecture, furniture, people, or vehicles.",
+      "3) Keep a single fixed camera origin and ensure perfect left/right seam continuity for immersive spherical viewing.",
+      "4) Only extend missing zenith (top) and nadir (bottom) areas using realistic continuation inferred from source context.",
+      "5) Keep output photorealistic, sharp, and distortion-controlled with clean edges (no melting or warped structures).",
+      "Output only a single final image.",
+    ].join("\n");
+
+    const content = [
+      { type: "text", text: prompt },
+      { type: "image_url", image_url: { url: stripUrl } },
+      ...referenceImageUrls.map((url) => ({
+        type: "image_url",
+        image_url: { url },
+      })),
+    ];
+
+    // AI call to convert strip to 4K equirectangular projection with strict faithfulness
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -77,19 +98,11 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
+        temperature: 0.2,
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Convert this wide panoramic photograph into a seamless, high-resolution equirectangular projection image with an exact 2:1 aspect ratio (e.g. 4096×2048 pixels), suitable for immersive 360° spherical viewing. Naturally and realistically fill in the top (sky/ceiling) and bottom (floor/ground) areas to complete the full sphere. Ensure smooth blending at all seams. Output a single high-quality, photorealistic image at the highest resolution possible.",
-              },
-              {
-                type: "image_url",
-                image_url: { url: stripUrl },
-              },
-            ],
+            content,
           },
         ],
         modalities: ["image", "text"],
