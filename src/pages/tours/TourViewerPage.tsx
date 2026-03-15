@@ -18,6 +18,7 @@ import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { TourNodeStrip } from "@/components/tours/TourNodeStrip";
 import { TourFloorplanMinimap } from "@/components/tours/TourFloorplanMinimap";
 import { toast } from "sonner";
+import { stitchPanoramaLocally } from "@/lib/tours/panorama-stitcher";
 
 // Types
 interface TourProject {
