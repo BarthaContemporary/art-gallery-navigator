@@ -85,10 +85,10 @@ function EquirectangularScene({
         ref={controlsRef}
         enablePan={false}
         enableZoom={true}
-        minDistance={1}
-        maxDistance={450}
-        rotateSpeed={-0.3}
-        zoomSpeed={0.8}
+        minDistance={0.1}
+        maxDistance={1.4}
+        rotateSpeed={-0.26}
+        zoomSpeed={0.6}
         enableDamping
         dampingFactor={0.08}
         reverseOrbit
