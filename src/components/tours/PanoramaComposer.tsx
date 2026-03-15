@@ -53,11 +53,12 @@ export function PanoramaComposer({
   const [saving, setSaving] = useState(false);
   const [zoom, setZoom] = useState(0.5);
   const [canvasHeight, setCanvasHeight] = useState(400);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [stripSaved, setStripSaved] = useState(false);
 
-  // Load all images in the exact order provided by parent/query (no synthetic wrap image)
+  // Load all images
   useEffect(() => {
     const ordered = [...images];
-
     const states: ImageState[] = ordered.map((img) => ({
       id: img.id,
       url: img.medium_url || img.original_url,
@@ -76,13 +77,11 @@ export function PanoramaComposer({
       el.crossOrigin = "anonymous";
       el.onload = () => {
         const scale = targetHeight / el.naturalHeight;
-        const scaledWidth = el.naturalWidth * scale;
         states[i].element = el;
-        states[i].width = scaledWidth;
+        states[i].width = el.naturalWidth * scale;
         states[i].height = targetHeight;
         states[i].loaded = true;
         loadedCount++;
-
         if (loadedCount === ordered.length) {
           let x = 0;
           for (let j = 0; j < states.length; j++) {
@@ -92,37 +91,30 @@ export function PanoramaComposer({
           }
           setImageStates([...states]);
           setCanvasHeight(targetHeight);
+          setHasUnsavedChanges(false);
+          setStripSaved(false);
         }
       };
       el.onerror = () => {
         states[i].loaded = true;
         loadedCount++;
-        if (loadedCount === ordered.length) {
-          setImageStates([...states]);
-        }
+        if (loadedCount === ordered.length) setImageStates([...states]);
       };
       el.src = img.medium_url || img.original_url;
     });
   }, [images]);
 
-  // Get canvas X from pointer event, accounting for scroll
   const getCanvasX = useCallback((e: React.PointerEvent | PointerEvent) => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return 0;
+    if (!canvas) return 0;
     const rect = canvas.getBoundingClientRect();
     return (e.clientX - rect.left) / zoom;
   }, [zoom]);
 
-  // Find which drag handle index is near x (in unzoomed coords)
   const findHandleAt = useCallback((x: number): number | null => {
-    // Hit zone: 50px in unzoomed space (generous)
     const hitZone = 50;
     for (let i = 1; i < imageStates.length; i++) {
-      const handleX = imageStates[i].xOffset;
-      if (Math.abs(x - handleX) < hitZone) {
-        return i;
-      }
+      if (Math.abs(x - imageStates[i].xOffset) < hitZone) return i;
     }
     return null;
   }, [imageStates]);
@@ -134,52 +126,34 @@ export function PanoramaComposer({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const totalWidth = Math.max(
-      ...imageStates.map((s) => s.xOffset + s.width),
-      1
-    );
-
-    const displayWidth = totalWidth * zoom;
-    const displayHeight = canvasHeight * zoom;
-
-    canvas.width = Math.max(displayWidth, containerRef.current?.clientWidth || 800);
-    canvas.height = Math.max(displayHeight, containerRef.current?.clientHeight || 400);
+    const totalWidth = Math.max(...imageStates.map((s) => s.xOffset + s.width), 1);
+    canvas.width = Math.max(totalWidth * zoom, containerRef.current?.clientWidth || 800);
+    canvas.height = Math.max(canvasHeight * zoom, containerRef.current?.clientHeight || 400);
 
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw images at 50% transparency for overlap visibility
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
-      const dx = state.xOffset * zoom;
-      const dw = state.width * zoom;
-      const dh = canvasHeight * zoom;
       ctx.globalAlpha = 0.5;
-      ctx.drawImage(state.element, dx, 0, dw, dh);
+      ctx.drawImage(state.element, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
     });
     ctx.globalAlpha = 1.0;
 
-    // Draw overlap zones and drag handles
     for (let i = 1; i < imageStates.length; i++) {
       const prev = imageStates[i - 1];
       const curr = imageStates[i];
       const overlapStartPx = curr.xOffset * zoom;
       const overlapEndPx = (prev.xOffset + prev.width) * zoom;
-      const isHovered = hoveredIdx === i;
-      const isDragged = dragging?.idx === i;
-      const isActive = isHovered || isDragged;
+      const isActive = hoveredIdx === i || dragging?.idx === i;
 
-      // Overlap shading
       if (overlapEndPx > overlapStartPx) {
         ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.25)" : "rgba(59, 130, 246, 0.1)";
         ctx.fillRect(overlapStartPx, 0, overlapEndPx - overlapStartPx, canvas.height);
       }
 
-      // Drag handle line
-      const lineColor = isActive ? "rgba(59, 130, 246, 1)" : "rgba(59, 130, 246, 0.5)";
-      const lineWidth = isActive ? 3 : 2;
-      ctx.strokeStyle = lineColor;
-      ctx.lineWidth = lineWidth;
+      ctx.strokeStyle = isActive ? "rgba(59, 130, 246, 1)" : "rgba(59, 130, 246, 0.5)";
+      ctx.lineWidth = isActive ? 3 : 2;
       ctx.setLineDash(isActive ? [] : [6, 4]);
       ctx.beginPath();
       ctx.moveTo(overlapStartPx, 0);
@@ -187,7 +161,7 @@ export function PanoramaComposer({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Draw drag grip icon at handle center
+      // Grip icon
       const gripY = canvas.height / 2;
       const gripSize = isActive ? 28 : 22;
       ctx.fillStyle = isActive ? "rgba(59, 130, 246, 0.9)" : "rgba(59, 130, 246, 0.6)";
@@ -195,18 +169,15 @@ export function PanoramaComposer({
       ctx.roundRect(overlapStartPx - gripSize / 2, gripY - gripSize / 2, gripSize, gripSize, 6);
       ctx.fill();
 
-      // Grip dots
       ctx.fillStyle = "#fff";
-      const dotR = 2;
       for (let row = -1; row <= 1; row++) {
         for (let col = -1; col <= 1; col += 2) {
           ctx.beginPath();
-          ctx.arc(overlapStartPx + col * 4, gripY + row * 6, dotR, 0, Math.PI * 2);
+          ctx.arc(overlapStartPx + col * 4, gripY + row * 6, 2, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      // Overlap label
       if (overlapEndPx > overlapStartPx) {
         const overlapPx = overlapEndPx - overlapStartPx;
         const overlapPct = Math.round((overlapPx / (prev.width * zoom)) * 100);
@@ -218,11 +189,8 @@ export function PanoramaComposer({
     }
   }, [imageStates, zoom, canvasHeight, hoveredIdx, dragging]);
 
-  useEffect(() => {
-    draw();
-  }, [draw]);
+  useEffect(() => { draw(); }, [draw]);
 
-  // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const x = getCanvasX(e);
     const idx = findHandleAt(x);
@@ -238,39 +206,32 @@ export function PanoramaComposer({
       e.preventDefault();
       const dx = (e.clientX - dragging.startX) / zoom;
       let newOffset = dragging.startOffset + dx;
-
       const prevState = imageStates[dragging.idx - 1];
-      const minOffset = prevState.xOffset + prevState.width * 0.2; // max 80% overlap
-      const maxOffset = prevState.xOffset + prevState.width + 50; // allow small gap
-
-      newOffset = Math.max(minOffset, Math.min(maxOffset, newOffset));
-
+      newOffset = Math.max(
+        prevState.xOffset + prevState.width * 0.2,
+        Math.min(prevState.xOffset + prevState.width + 50, newOffset)
+      );
       setImageStates((prev) => {
         const next = [...prev];
         const delta = newOffset - next[dragging.idx].xOffset;
         next[dragging.idx] = { ...next[dragging.idx], xOffset: newOffset };
-        // Push subsequent images by same delta
         for (let j = dragging.idx + 1; j < next.length; j++) {
           next[j] = { ...next[j], xOffset: next[j].xOffset + delta };
         }
         return next;
       });
+      setHasUnsavedChanges(true);
+      setStripSaved(false);
     } else {
-      // Hover detection for cursor
       const x = getCanvasX(e);
       const idx = findHandleAt(x);
       setHoveredIdx(idx);
-      if (canvasRef.current) {
-        canvasRef.current.style.cursor = idx !== null ? "col-resize" : "default";
-      }
+      if (canvasRef.current) canvasRef.current.style.cursor = idx !== null ? "col-resize" : "default";
     }
   }, [dragging, imageStates, zoom, getCanvasX, findHandleAt]);
 
-  const handlePointerUp = useCallback(() => {
-    setDragging(null);
-  }, []);
+  const handlePointerUp = useCallback(() => { setDragging(null); }, []);
 
-  // Reset overlaps
   const resetOverlaps = useCallback(() => {
     setImageStates((prev) => {
       const next = [...prev];
@@ -282,13 +243,13 @@ export function PanoramaComposer({
       }
       return next;
     });
+    setHasUnsavedChanges(true);
+    setStripSaved(false);
   }, []);
 
-  // Save panorama strip
   const savePanoramaStrip = useCallback(async () => {
     if (imageStates.length === 0) return;
     setSaving(true);
-
     try {
       const totalWidth = Math.max(...imageStates.map((s) => s.xOffset + s.width));
       const offscreen = document.createElement("canvas");
@@ -299,41 +260,33 @@ export function PanoramaComposer({
 
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, offscreen.width, offscreen.height);
-
       imageStates.forEach((state) => {
         if (!state.element) return;
         ctx.drawImage(state.element, state.xOffset, 0, state.width, canvasHeight);
       });
 
       const blob = await new Promise<Blob>((resolve, reject) => {
-        offscreen.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))),
-          "image/jpeg",
-          0.92
-        );
+        offscreen.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create blob"))), "image/jpeg", 0.92);
       });
 
       const storagePath = `panorama-strips/${nodeId}/strip.jpg`;
       const { error: uploadErr } = await supabase.storage
         .from("tour-uploads")
         .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
-
       if (uploadErr) throw uploadErr;
 
-      const { data: urlData } = supabase.storage
-        .from("tour-uploads")
-        .getPublicUrl(storagePath);
-
+      const { data: urlData } = supabase.storage.from("tour-uploads").getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
       const { error: updateErr } = await supabase
         .from("tour_nodes")
         .update({ panorama_strip_url: publicUrl } as any)
         .eq("id", nodeId);
-
       if (updateErr) throw updateErr;
 
       toast.success("Panorama strip saved!");
+      setHasUnsavedChanges(false);
+      setStripSaved(true);
       onSaved?.(publicUrl);
     } catch (err) {
       console.error("Save panorama strip error:", err);
@@ -360,82 +313,54 @@ export function PanoramaComposer({
 
   return (
     <div className={`flex-1 flex flex-col bg-black ${className}`}>
-      {/* Toolbar */}
-      <div className="flex flex-col gap-2 px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20 sticky top-0">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
-            <GripVertical className="h-3.5 w-3.5" />
-            <span>{imageStates.length} image{imageStates.length === 1 ? "" : "s"} in sequence</span>
-          </div>
-          <div className="flex items-center gap-2 md:ml-4">
-            <ZoomOut className="h-3.5 w-3.5 text-white/50" />
-            <Slider
-              value={[zoom * 100]}
-              onValueChange={([v]) => setZoom(v / 100)}
-              min={15}
-              max={100}
-              step={5}
-              className="w-28"
-            />
-            <ZoomIn className="h-3.5 w-3.5 text-white/50" />
-            <span className="text-xs text-white/40 min-w-[3ch]">{Math.round(zoom * 100)}%</span>
-          </div>
+      {/* Single-row toolbar */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20 sticky top-0">
+        <div className="flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
+          <GripVertical className="h-3.5 w-3.5" />
+          <span>{imageStates.length} images</span>
+          {hasUnsavedChanges && (
+            <span className="ml-1 w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Unsaved changes" />
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex items-center gap-2">
+          <ZoomOut className="h-3.5 w-3.5 text-white/50" />
+          <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={15} max={100} step={5} className="w-24" />
+          <ZoomIn className="h-3.5 w-3.5 text-white/50" />
+          <span className="text-xs text-white/40 min-w-[3ch]">{Math.round(zoom * 100)}%</span>
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <Button variant="ghost" size="sm" className="h-7 text-white/70 hover:text-white hover:bg-white/10 text-xs" onClick={resetOverlaps}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+          </Button>
+          <Button size="sm" className="h-7 text-xs" onClick={savePanoramaStrip} disabled={saving}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+            Save Strip
+          </Button>
           <Button
             size="sm"
-            className="h-8 text-xs"
+            className="h-7 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               Promise.resolve(onProcess?.()).catch((error) => {
                 console.error("Process 360° failed:", error);
-                toast.error("Failed to start 360° processing", {
-                  description: error instanceof Error ? error.message : "Please try again",
-                });
+                toast.error("Failed to start 360° processing");
               });
             }}
-            disabled={processing || !canProcess}
+            disabled={processing || !canProcess || !stripSaved}
           >
             {processing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
             Process 360°
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-white/70 hover:text-white hover:bg-white/10 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onExit?.();
-            }}
-          >
+          <Button variant="ghost" size="sm" className="h-7 text-white/70 hover:text-white hover:bg-white/10 text-xs" onClick={() => onExit?.()}>
             <X className="h-3.5 w-3.5 mr-1" /> Exit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-white/70 hover:text-white hover:bg-white/10 text-xs"
-            onClick={resetOverlaps}
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 text-xs"
-            onClick={savePanoramaStrip}
-            disabled={saving}
-          >
-            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-            Save Strip
           </Button>
         </div>
       </div>
 
-      {/* Canvas area */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-auto"
-        style={{ touchAction: "pan-x pan-y" }}
-      >
+      {/* Canvas */}
+      <div ref={containerRef} className="flex-1 overflow-auto" style={{ touchAction: "pan-x pan-y" }}>
         <canvas
           ref={canvasRef}
           style={{ display: "block", minHeight: "100%" }}
