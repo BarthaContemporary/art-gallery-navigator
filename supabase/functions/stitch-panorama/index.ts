@@ -173,7 +173,8 @@ serve(async (req) => {
       .from("tour-uploads")
       .getPublicUrl(storagePath);
 
-    const publicUrl = urlData.publicUrl;
+    // Append cache-busting timestamp so browsers/Three.js don't serve stale textures
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
     console.log("Equirectangular panorama complete:", publicUrl, `(${binaryData.length} bytes)`);
 
