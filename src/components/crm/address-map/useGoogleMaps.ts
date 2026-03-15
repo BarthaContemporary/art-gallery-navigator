@@ -4,8 +4,8 @@ import { LocationData } from "./types";
 
 export const useGoogleMaps = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const scriptLoadedRef = useRef(false);
