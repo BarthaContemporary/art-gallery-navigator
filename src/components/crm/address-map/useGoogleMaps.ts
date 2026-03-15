@@ -4,8 +4,8 @@ import { LocationData } from "./types";
 
 export const useGoogleMaps = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const scriptLoadedRef = useRef(false);
@@ -39,7 +39,7 @@ export const useGoogleMaps = () => {
   };
 
   const loadGoogleMapsScript = async () => {
-    if (window.google?.maps) {
+    if ((window as any).google?.maps) {
       console.log('Google Maps already loaded');
       scriptLoadedRef.current = true;
       return;
@@ -101,7 +101,7 @@ export const useGoogleMaps = () => {
       }
 
       // Verify Google Maps is loaded
-      if (!window.google?.maps) {
+      if (!(window as any).google?.maps) {
         console.error('Google Maps API not loaded - createMap');
         throw new Error('Google Maps API not loaded');
       }
@@ -119,14 +119,14 @@ export const useGoogleMaps = () => {
       
       // Attempt to create the map - wrap in try/catch to get detailed errors
       try {
-        const mapInstance = new google.maps.Map(mapRef.current, {
+        const mapInstance = new (window as any).google.maps.Map(mapRef.current, {
           center: { lat: location.lat, lng: location.lng },
           zoom: 16,
           mapTypeControl: true,
           streetViewControl: true,
           fullscreenControl: true,
           zoomControl: true,
-          mapTypeId: google.maps.MapTypeId.ROADMAP
+          mapTypeId: (window as any).google.maps.MapTypeId.ROADMAP
         });
 
         mapInstanceRef.current = mapInstance;
@@ -137,15 +137,15 @@ export const useGoogleMaps = () => {
       }
 
       // Add marker
-      const marker = new google.maps.Marker({
+      const marker = new (window as any).google.maps.Marker({
         position: { lat: location.lat, lng: location.lng },
         map: mapInstanceRef.current,
         title: clientName,
-        animation: google.maps.Animation.DROP
+        animation: (window as any).google.maps.Animation.DROP
       });
 
       // Create info window
-      const infoWindow = new google.maps.InfoWindow({
+      const infoWindow = new (window as any).google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; font-family: system-ui, sans-serif; max-width: 250px;">
             <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>

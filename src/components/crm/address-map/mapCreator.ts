@@ -8,9 +8,9 @@ export class GoogleMapCreator {
     location: LocationData,
     clientName: string
   ): Promise<{
-    mapInstance: google.maps.Map;
-    marker: google.maps.Marker;
-    infoWindow: google.maps.InfoWindow;
+    mapInstance: any;
+    marker: any;
+    infoWindow: any;
   }> {
     if (!containerRef.current) {
       throw createMapError(
@@ -19,7 +19,7 @@ export class GoogleMapCreator {
       );
     }
 
-    if (!window.google?.maps) {
+    if (!(window as any).google?.maps) {
       throw createMapError(
         MAP_ERROR_CODES.SCRIPT_LOAD_FAILED,
         'Google Maps API not available'
@@ -30,26 +30,26 @@ export class GoogleMapCreator {
       console.log('Creating Google Maps instance');
       
       // Create map
-      const mapInstance = new google.maps.Map(containerRef.current, {
+      const mapInstance = new (window as any).google.maps.Map(containerRef.current, {
         center: { lat: location.lat, lng: location.lng },
         zoom: 16,
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
         zoomControl: true,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
+        mapTypeId: (window as any).google.maps.MapTypeId.ROADMAP
       });
 
       // Create marker
-      const marker = new google.maps.Marker({
+      const marker = new (window as any).google.maps.Marker({
         position: { lat: location.lat, lng: location.lng },
         map: mapInstance,
         title: clientName,
-        animation: google.maps.Animation.DROP
+        animation: (window as any).google.maps.Animation.DROP
       });
 
       // Create info window
-      const infoWindow = new google.maps.InfoWindow({
+      const infoWindow = new (window as any).google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; font-family: system-ui, sans-serif; max-width: 250px;">
             <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>

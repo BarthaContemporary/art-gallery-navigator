@@ -11,9 +11,9 @@ export class MapManager {
   private error: string | null = null;
   private location: LocationData | null = null;
   private retryCount: number = 0;
-  private mapInstance: google.maps.Map | null = null;
-  private marker: google.maps.Marker | null = null;
-  private infoWindow: google.maps.InfoWindow | null = null;
+  private mapInstance: any = null;
+  private marker: any = null;
+  private infoWindow: any = null;
   private abortController: AbortController | null = null;
   private stateChangeCallback: ((state: MapManagerState) => void) | null = null;
 

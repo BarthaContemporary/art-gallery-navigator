@@ -5,7 +5,7 @@ export class GoogleMapsScriptLoader {
   private cleanupCallbacks: (() => void)[] = [];
 
   async loadGoogleMapsScript(): Promise<void> {
-    if (window.google?.maps) {
+    if ((window as any).google?.maps) {
       return;
     }
 
