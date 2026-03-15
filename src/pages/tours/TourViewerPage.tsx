@@ -390,124 +390,124 @@ export default function TourViewerPage() {
         style={{ opacity: transitioning ? 1 : 0 }}
       />
 
-      {/* Top bar — auto-hide in 360 mode */}
-      <div
-        className={`absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/60 to-transparent pointer-events-none transition-opacity duration-300 ${
-          show360 ? "opacity-0 hover:opacity-100" : ""
-        }`}
-        onPointerEnter={(e) => {
-          if (show360) (e.currentTarget as HTMLElement).style.opacity = "1";
-        }}
-        onPointerLeave={(e) => {
-          if (show360) (e.currentTarget as HTMLElement).style.opacity = "0";
-        }}
-      >
-        {/* Row 1: title + close/fullscreen */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-1">
-          <div className="pointer-events-auto min-w-0 flex-1">
-            <h1 className="text-[13px] font-medium text-white/90 truncate">{project.title}</h1>
-            <p className="text-[11px] text-white/40 truncate">{currentNode?.name}</p>
-          </div>
-          <div className="pointer-events-auto flex items-center gap-1 ml-3 shrink-0">
-            <button
-              className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
-              onClick={toggleFullscreen}
-            >
-              <Maximize className="h-3.5 w-3.5" />
-            </button>
-            <button
-              className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
-              onClick={() => navigate(-1)}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: view mode pills + AI stitch — left-aligned */}
-        {!isPanorama && (
-          <div className="flex items-center gap-2 px-4 pb-3">
-            <div className="pointer-events-auto flex items-center gap-0.5 bg-white/8 backdrop-blur-md rounded-lg p-0.5">
-              <button
-                onClick={() => setViewMode("photos")}
-                className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
-                  viewMode === "photos"
-                    ? "bg-white/15 text-white font-medium"
-                    : "text-white/45 hover:text-white/70"
-                }`}
-              >
-                <Image className="h-3 w-3" />
-                Photos
-              </button>
-              {nodeImages.length >= 2 && (
-                <button
-                  onClick={() => setViewMode("composer")}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
-                    viewMode === "composer"
-                      ? "bg-white/15 text-white font-medium"
-                      : "text-white/45 hover:text-white/70"
-                  }`}
-                >
-                  <GalleryHorizontal className="h-3 w-3" />
-                  Compose
-                </button>
-              )}
-              {hasStitchedPanorama && (
-                <button
-                  onClick={() => setViewMode("360")}
-                  className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
-                    viewMode === "360"
-                      ? "bg-white/15 text-white font-medium"
-                      : "text-white/45 hover:text-white/70"
-                  }`}
-                >
-                  360°
-                </button>
-              )}
+      {/* Top bar — hidden in composer mode (composer has its own toolbar), auto-hide in 360 */}
+      {viewMode !== "composer" && (
+        <div
+          className={`absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/60 to-transparent pointer-events-none transition-opacity duration-300 ${
+            show360 ? "opacity-0 hover:opacity-100" : ""
+          }`}
+          onPointerEnter={(e) => {
+            if (show360) (e.currentTarget as HTMLElement).style.opacity = "1";
+          }}
+          onPointerLeave={(e) => {
+            if (show360) (e.currentTarget as HTMLElement).style.opacity = "0";
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            {/* Left: title */}
+            <div className="pointer-events-auto min-w-0 flex-1">
+              <h1 className="text-[13px] font-medium text-white/90 truncate">{project.title}</h1>
+              <p className="text-[11px] text-white/40 truncate">{currentNode?.name}</p>
             </div>
 
-            {/* AI stitch button */}
-            {hasPanoramaStrip && viewMode !== "composer" && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      className={`pointer-events-auto h-8 w-8 flex items-center justify-center rounded-full transition-all ${
-                        currentNode?.stitch_status === "completed"
-                          ? "text-emerald-400/80 hover:text-emerald-300"
-                          : currentNode?.stitch_status === "failed"
-                            ? "text-red-400/80 hover:text-red-300"
-                            : "text-white/40 hover:text-white/70"
-                      } hover:bg-white/10`}
-                      onClick={() => {
-                        if (currentNode && !isStitching) {
-                          stitchMutation.mutate(currentNode.id);
-                        }
-                      }}
-                      disabled={isStitching}
-                    >
-                      {isStitching ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="bg-black/90 text-white border-white/10">
-                    <p className="text-xs">
-                      {currentNode?.stitch_status === "processing"
-                        ? "Generating 360°…"
-                        : currentNode?.stitch_status === "failed"
-                          ? "Retry 360° generation"
-                          : "Generate 360° (AI)"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {/* Center: view mode pills */}
+            {!isPanorama && (
+              <div className="pointer-events-auto flex items-center gap-0.5 bg-white/8 backdrop-blur-md rounded-lg p-0.5 mx-4">
+                <button
+                  onClick={() => setViewMode("photos")}
+                  className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                    viewMode === "photos"
+                      ? "bg-white/15 text-white font-medium"
+                      : "text-white/45 hover:text-white/70"
+                  }`}
+                >
+                  <Image className="h-3 w-3" />
+                  Photos
+                </button>
+                {nodeImages.length >= 2 && (
+                  <button
+                    onClick={() => setViewMode("composer")}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                      viewMode === "composer"
+                        ? "bg-white/15 text-white font-medium"
+                        : "text-white/45 hover:text-white/70"
+                    }`}
+                  >
+                    <GalleryHorizontal className="h-3 w-3" />
+                    Compose
+                  </button>
+                )}
+                {hasStitchedPanorama && (
+                  <button
+                    onClick={() => setViewMode("360")}
+                    className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                      viewMode === "360"
+                        ? "bg-white/15 text-white font-medium"
+                        : "text-white/45 hover:text-white/70"
+                    }`}
+                  >
+                    360°
+                  </button>
+                )}
+              </div>
             )}
+
+            {/* Right: AI stitch + fullscreen + close */}
+            <div className="pointer-events-auto flex items-center gap-1 ml-3 shrink-0">
+              {!isPanorama && hasPanoramaStrip && viewMode !== "composer" && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        className={`h-8 w-8 flex items-center justify-center rounded-full transition-all ${
+                          currentNode?.stitch_status === "completed"
+                            ? "text-emerald-400/80 hover:text-emerald-300"
+                            : currentNode?.stitch_status === "failed"
+                              ? "text-red-400/80 hover:text-red-300"
+                              : "text-white/40 hover:text-white/70"
+                        } hover:bg-white/10`}
+                        onClick={() => {
+                          if (currentNode && !isStitching) {
+                            stitchMutation.mutate(currentNode.id);
+                          }
+                        }}
+                        disabled={isStitching}
+                      >
+                        {isStitching ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-black/90 text-white border-white/10">
+                      <p className="text-xs">
+                        {currentNode?.stitch_status === "processing"
+                          ? "Generating 360°…"
+                          : currentNode?.stitch_status === "failed"
+                            ? "Retry 360° generation"
+                            : "Generate 360° (AI)"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              <button
+                className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
+                onClick={toggleFullscreen}
+              >
+                <Maximize className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className="h-8 w-8 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 rounded-full transition-all"
+                onClick={() => navigate(-1)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Main viewer area */}
       <div className="flex-1 relative">

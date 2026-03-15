@@ -404,72 +404,75 @@ export function PanoramaComposer({
 
   return (
     <div className={`flex-1 flex flex-col bg-black ${className}`}>
-      {/* Toolbar — two rows to avoid overlap with page chrome */}
-      <div className="border-b border-white/8 bg-black/90 backdrop-blur-sm z-20">
-        {/* Row 1: back, info, zoom */}
-        <div className="flex items-center gap-3 px-4 pt-2.5 pb-1">
-          <button
-            onClick={() => onExit?.()}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs shrink-0"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back</span>
-          </button>
+      {/* Single-row toolbar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/8 bg-black/90 backdrop-blur-sm z-20">
+        {/* Back */}
+        <button
+          onClick={() => onExit?.()}
+          className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-xs shrink-0"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
+        </button>
 
-          <div className="w-px h-5 bg-white/10" />
+        <div className="w-px h-5 bg-white/10 shrink-0" />
 
-          <span className="text-xs text-white/40 shrink-0">
-            {imageStates.length} photos
-            {hasUnsavedChanges && (
-              <span className="ml-1.5 inline-flex items-center gap-1 text-amber-400/80">
-                <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-                unsaved
-              </span>
-            )}
-          </span>
+        {/* Photo count + unsaved indicator */}
+        <span className="text-xs text-white/40 shrink-0">
+          {imageStates.length} photos
+          {hasUnsavedChanges && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-amber-400/80">
+              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+              unsaved
+            </span>
+          )}
+        </span>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <ZoomOut className="h-3 w-3 text-white/30" />
-            <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={10} max={80} step={5} className="w-28" />
-            <ZoomIn className="h-3 w-3 text-white/30" />
-            <span className="text-[10px] text-white/30 min-w-[3ch] tabular-nums">{Math.round(zoom * 100)}%</span>
-          </div>
+        <div className="w-px h-5 bg-white/10 shrink-0" />
+
+        {/* Zoom */}
+        <div className="flex items-center gap-2 shrink-0">
+          <ZoomOut className="h-3 w-3 text-white/30" />
+          <Slider value={[zoom * 100]} onValueChange={([v]) => setZoom(v / 100)} min={10} max={80} step={5} className="w-24" />
+          <ZoomIn className="h-3 w-3 text-white/30" />
+          <span className="text-[10px] text-white/30 min-w-[3ch] tabular-nums">{Math.round(zoom * 100)}%</span>
         </div>
 
-        {/* Row 2: actions — all in a single accessible row */}
-        <div className="flex items-center gap-2 px-4 pb-2.5">
-          <button
-            onClick={resetOverlaps}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-white/50 hover:text-white hover:bg-white/5 rounded-md transition-colors"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Reset
-          </button>
+        {/* Spacer */}
+        <div className="flex-1" />
 
-          <button
-            onClick={savePanoramaStrip}
-            disabled={saving}
-            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-white bg-white/10 hover:bg-white/15 rounded-md transition-colors disabled:opacity-40"
-          >
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-            Save Strip
-          </button>
+        {/* Actions: Reset → Save → Generate */}
+        <button
+          onClick={resetOverlaps}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-white/50 hover:text-white hover:bg-white/5 rounded-md transition-colors shrink-0"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Reset
+        </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              Promise.resolve(onProcess?.()).catch((error) => {
-                console.error("Process 360° failed:", error);
-                toast.error("Failed to start 360° processing");
-              });
-            }}
-            disabled={processing || !canProcess || !stripSaved}
-            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-white"
-          >
-            {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
-            Generate 360°
-          </button>
-        </div>
+        <button
+          onClick={savePanoramaStrip}
+          disabled={saving}
+          className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-white bg-white/10 hover:bg-white/15 rounded-md transition-colors disabled:opacity-40 shrink-0"
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Save Strip
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            Promise.resolve(onProcess?.()).catch((error) => {
+              console.error("Process 360° failed:", error);
+              toast.error("Failed to start 360° processing");
+            });
+          }}
+          disabled={processing || !canProcess || !stripSaved}
+          className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-white shrink-0"
+        >
+          {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+          Generate 360°
+        </button>
       </div>
 
       {/* Canvas */}
