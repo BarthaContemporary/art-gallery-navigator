@@ -145,7 +145,7 @@ export const useGoogleMaps = () => {
       });
 
       // Create info window
-      const infoWindow = new google.maps.InfoWindow({
+      const infoWindow = new (window as any).google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; font-family: system-ui, sans-serif; max-width: 250px;">
             <h3 style="margin: 0 0 4px 0; font-weight: 600; font-size: 14px; color: #1f2937;">${clientName}</h3>
