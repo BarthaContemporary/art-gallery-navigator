@@ -140,20 +140,62 @@ export default function TourViewerPage() {
 
   // ── AI panorama stitching ─────────────────────────────────────
 
+  const [stitchProgress, setStitchProgress] = useState<number | null>(null);
+
   const stitchMutation = useMutation({
     mutationFn: async (nodeId: string) => {
-      const { data, error } = await supabase.functions.invoke("stitch-panorama", {
-        body: { node_id: nodeId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node?.panorama_strip_url) throw new Error("No panorama strip saved");
+
+      // Mark as processing
+      await supabase
+        .from("tour_nodes")
+        .update({ stitch_status: "processing" })
+        .eq("id", nodeId);
+      queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+
+      // Run client-side geometric projection
+      const blob = await stitchPanoramaLocally(node.panorama_strip_url, (pct) =>
+        setStitchProgress(pct)
+      );
+
+      // Upload to Supabase Storage
+      const storagePath = `projects/${projectId}/nodes/${nodeId}/equirectangular_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("tour-uploads")
+        .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("tour-uploads")
+        .getPublicUrl(storagePath);
+
+      // Update node with the result
+      const { error: updateError } = await supabase
+        .from("tour_nodes")
+        .update({
+          stitched_panorama_url: `${urlData.publicUrl}?t=${Date.now()}`,
+          stitch_status: "completed",
+        })
+        .eq("id", nodeId);
+      if (updateError) throw updateError;
+
+      return { url: urlData.publicUrl };
     },
     onSuccess: () => {
-      toast.info("AI 360° generation started…", { description: "This may take 30-60 seconds" });
+      setStitchProgress(null);
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
     },
-    onError: (err) => {
+    onError: async (err) => {
+      setStitchProgress(null);
+      // Reset status on failure
+      if (currentNode) {
+        await supabase
+          .from("tour_nodes")
+          .update({ stitch_status: "failed" })
+          .eq("id", currentNode.id);
+        queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
+      }
       toast.error("360° generation failed", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
