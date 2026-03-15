@@ -39,7 +39,7 @@ export const useGoogleMaps = () => {
   };
 
   const loadGoogleMapsScript = async () => {
-    if (window.google?.maps) {
+    if ((window as any).google?.maps) {
       console.log('Google Maps already loaded');
       scriptLoadedRef.current = true;
       return;
