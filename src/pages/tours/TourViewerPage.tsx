@@ -427,10 +427,7 @@ export default function TourViewerPage() {
                 {nodeImages.length >= 2 && (
                   <button
                     onClick={() => setViewMode("composer")}
-                    className={`flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all text-white/45 hover:text-white/70`}
-                        ? "bg-white/15 text-white font-medium"
-                        : "text-white/45 hover:text-white/70"
-                    }`}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] rounded-md transition-all text-white/45 hover:text-white/70"
                   >
                     <GalleryHorizontal className="h-3 w-3" />
                     Compose
