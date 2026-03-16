@@ -234,6 +234,17 @@ export default function TourNodeEditorPage() {
           img.src = URL.createObjectURL(file);
         });
 
+        // Extract EXIF camera metadata for lens correction
+        let exifData: Record<string, unknown> | null = null;
+        try {
+          const { extractCameraMetadata } = await import("@/lib/tours/exif-utils");
+          const meta = await extractCameraMetadata(file);
+          exifData = meta as unknown as Record<string, unknown>;
+          console.log(`EXIF extracted for ${file.name}: FOV=${meta.horizontalFOV}°, focal=${meta.focalLength}mm`);
+        } catch (exifErr) {
+          console.warn("EXIF extraction skipped:", exifErr);
+        }
+
         const { error: insertError } = await supabase.from("tour_node_images").insert({
           node_id: nodeId,
           original_url: publicUrlData.publicUrl,
@@ -244,6 +255,7 @@ export default function TourNodeEditorPage() {
           is_primary: images.length === 0 && completed === 0,
           display_order: images.length + completed,
           processing_status: "queued" as JobStatus,
+          exif_data: exifData,
         });
 
         if (insertError) throw insertError;
