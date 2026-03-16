@@ -255,7 +255,7 @@ export default function TourNodeEditorPage() {
           is_primary: images.length === 0 && completed === 0,
           display_order: images.length + completed,
           processing_status: "queued" as JobStatus,
-          exif_data: exifData,
+          exif_data: exifData as any,
         });
 
         if (insertError) throw insertError;
