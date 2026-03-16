@@ -19,7 +19,7 @@ import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { TourNodeStrip } from "@/components/tours/TourNodeStrip";
 import { TourFloorplanMinimap } from "@/components/tours/TourFloorplanMinimap";
 import { toast } from "sonner";
-import { stitchPanoramaLocally } from "@/lib/tours/panorama-stitcher";
+import { stitchPanoramaLocally, type StitchOptions } from "@/lib/tours/panorama-stitcher";
 
 // Types
 interface TourProject {
@@ -53,6 +53,7 @@ interface NodeImage {
   display_order: number;
   original_width: number | null;
   original_height: number | null;
+  exif_data: Record<string, unknown> | null;
 }
 
 interface Hotspot {
@@ -155,9 +156,31 @@ export default function TourViewerPage() {
         .eq("id", nodeId);
       queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
 
-      // Run client-side geometric projection
+      // Compute stitch options from EXIF + spatial data
+      const stitchOptions: StitchOptions = {
+        photoCount: nodeImages.length,
+        initialHeading: node.initial_heading || 0,
+      };
+
+      // Extract average FOV from EXIF data
+      const fovValues = nodeImages
+        .map((img) => (img.exif_data as any)?.horizontalFOV)
+        .filter((v): v is number => typeof v === "number");
+      if (fovValues.length > 0) {
+        stitchOptions.cameraFOV = fovValues.reduce((a, b) => a + b, 0) / fovValues.length;
+        console.log(`Using camera FOV: ${stitchOptions.cameraFOV.toFixed(1)}° (from ${fovValues.length} images)`);
+      }
+
+      // Add spatial data if available
+      if (node.floorplan_x != null && node.floorplan_y != null) {
+        stitchOptions.cameraPosition = { x: node.floorplan_x, y: node.floorplan_y };
+        // Room scan data would be fetched from tour_nodes.room_scan_data if available
+      }
+
+      // Run client-side geometric projection with enhanced options
       const blob = await stitchPanoramaLocally(node.panorama_strip_url, (pct) =>
-        setStitchProgress(pct)
+        setStitchProgress(pct),
+        stitchOptions,
       );
 
       // Upload to Supabase Storage

@@ -11,6 +11,7 @@ interface NodeImage {
   medium_url: string | null;
   large_url: string | null;
   display_order: number;
+  exif_data: Record<string, unknown> | null;
 }
 
 interface PanoramaComposerProps {
@@ -75,12 +76,37 @@ export function PanoramaComposer({
     ordered.forEach((img, i) => {
       const el = new Image();
       el.crossOrigin = "anonymous";
-      el.onload = () => {
+      el.onload = async () => {
         const scale = targetHeight / el.naturalHeight;
+        
+        // Apply lens undistortion if EXIF data indicates wide-angle
+        let sourceElement: HTMLImageElement | HTMLCanvasElement = el;
+        const fov = (img.exif_data as any)?.horizontalFOV;
+        if (fov && fov > 70) {
+          try {
+            const { undistortImage } = await import("@/lib/tours/lens-correction");
+            const srcCanvas = document.createElement("canvas");
+            srcCanvas.width = Math.round(el.naturalWidth * scale);
+            srcCanvas.height = targetHeight;
+            const srcCtx = srcCanvas.getContext("2d")!;
+            srcCtx.drawImage(el, 0, 0, srcCanvas.width, srcCanvas.height);
+            sourceElement = undistortImage(srcCanvas, fov) as any;
+            console.log(`Lens correction applied: FOV=${fov.toFixed(0)}°`);
+          } catch (err) {
+            console.warn("Lens correction skipped:", err);
+          }
+        }
+
         states[i].element = el;
-        states[i].width = el.naturalWidth * scale;
+        states[i].width = (sourceElement as any).width || Math.round(el.naturalWidth * scale);
         states[i].height = targetHeight;
         states[i].loaded = true;
+        
+        // Store the corrected canvas if available
+        if (sourceElement !== el && sourceElement instanceof HTMLCanvasElement) {
+          (states[i] as any)._correctedCanvas = sourceElement;
+        }
+        
         loadedCount++;
         if (loadedCount === ordered.length) {
           let x = 0;
@@ -137,7 +163,8 @@ export function PanoramaComposer({
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
       ctx.globalAlpha = 0.55;
-      ctx.drawImage(state.element, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
+      const drawSource = (state as any)._correctedCanvas || state.element;
+      ctx.drawImage(drawSource, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
     });
     ctx.globalAlpha = 1.0;
 
@@ -269,11 +296,12 @@ export function PanoramaComposer({
 
       const orderedStates = [...imageStates].sort((a, b) => a.xOffset - b.xOffset);
       orderedStates.forEach((state, idx) => {
-        if (!state.element) return;
+        const drawSource = (state as any)._correctedCanvas || state.element;
+        if (!drawSource) return;
 
         if (idx === 0) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             Math.round(state.xOffset + contentOffsetX),
             0,
             Math.round(state.width),
@@ -287,7 +315,7 @@ export function PanoramaComposer({
 
         if (overlapWidth <= 1) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             Math.round(state.xOffset + contentOffsetX),
             0,
             Math.round(state.width),
@@ -301,7 +329,7 @@ export function PanoramaComposer({
 
         if (nonOverlapPx > 0) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             overlapPx,
             0,
             nonOverlapPx,
@@ -320,7 +348,7 @@ export function PanoramaComposer({
 
         if (blendCtx) {
           blendCtx.drawImage(
-            state.element,
+            drawSource,
             0,
             0,
             overlapPx,
