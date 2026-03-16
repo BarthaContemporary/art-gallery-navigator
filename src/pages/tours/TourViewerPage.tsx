@@ -653,7 +653,7 @@ export default function TourViewerPage() {
       </div>
 
       {/* Bottom overlays — Node strip & Minimap */}
-      {viewMode !== "composer" && viewMode !== "360" && (
+      {viewMode !== "composer" && viewMode !== "360" && viewMode !== "panorama" && (
         <>
           <TourNodeStrip
             nodes={enrichedStripNodes}
