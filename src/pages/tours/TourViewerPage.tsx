@@ -14,6 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { SphericalPanoramaViewer } from "@/components/tours/SphericalPanoramaViewer";
+import { PanoramaDiagnosticsViewer } from "@/components/tours/PanoramaDiagnosticsViewer";
 import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { TourNodeStrip } from "@/components/tours/TourNodeStrip";
 import { TourFloorplanMinimap } from "@/components/tours/TourFloorplanMinimap";
@@ -65,7 +66,7 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "photos" | "composer" | "360";
+type ViewMode = "photos" | "composer" | "panorama" | "360";
 
 export default function TourViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -288,6 +289,7 @@ export default function TourViewerPage() {
   const hasPanoramaStrip = !!currentNode?.panorama_strip_url;
   const isPanorama = currentNode?.node_type === "panorama";
   const showComposer = viewMode === "composer" && !isPanorama && nodeImages.length >= 2;
+  const showPanorama = viewMode === "panorama" && hasStitchedPanorama;
   const show360 = viewMode === "360" && hasStitchedPanorama;
 
   // Node strip data
@@ -452,16 +454,28 @@ export default function TourViewerPage() {
                   </button>
                 )}
                 {hasStitchedPanorama && (
-                  <button
-                    onClick={() => setViewMode("360")}
-                    className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
-                      viewMode === "360"
-                        ? "bg-white/15 text-white font-medium"
-                        : "text-white/45 hover:text-white/70"
-                    }`}
-                  >
-                    360°
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setViewMode("panorama")}
+                      className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                        viewMode === "panorama"
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-white/45 hover:text-white/70"
+                      }`}
+                    >
+                      Panorama
+                    </button>
+                    <button
+                      onClick={() => setViewMode("360")}
+                      className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                        viewMode === "360"
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-white/45 hover:text-white/70"
+                      }`}
+                    >
+                      360°
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -557,6 +571,13 @@ export default function TourViewerPage() {
               queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
             }}
           />
+        ) : showPanorama ? (
+          <PanoramaDiagnosticsViewer
+            panoramaUrl={currentNode!.stitched_panorama_url!}
+            stripUrl={currentNode?.panorama_strip_url}
+            imageCount={nodeImages.length}
+            className="absolute inset-0"
+          />
         ) : show360 ? (
           <SphericalPanoramaViewer
             stitchedPanoramaUrl={currentNode!.stitched_panorama_url!}
@@ -632,7 +653,7 @@ export default function TourViewerPage() {
       </div>
 
       {/* Bottom overlays — Node strip & Minimap */}
-      {viewMode !== "composer" && viewMode !== "360" && (
+      {viewMode !== "composer" && viewMode !== "360" && viewMode !== "panorama" && (
         <>
           <TourNodeStrip
             nodes={enrichedStripNodes}
