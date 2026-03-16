@@ -163,7 +163,8 @@ export function PanoramaComposer({
     imageStates.forEach((state) => {
       if (!state.element || !state.loaded) return;
       ctx.globalAlpha = 0.55;
-      ctx.drawImage(state.element, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
+      const drawSource = (state as any)._correctedCanvas || state.element;
+      ctx.drawImage(drawSource, state.xOffset * zoom, 0, state.width * zoom, canvasHeight * zoom);
     });
     ctx.globalAlpha = 1.0;
 
