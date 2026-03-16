@@ -144,8 +144,9 @@ export async function stitchPanoramaLocally(
     const srcY = Math.min(stripHeight - 1, Math.max(0, Math.round(stripYNorm * (stripHeight - 1))));
 
     for (let outX = 0; outX < OUTPUT_WIDTH; outX++) {
-      // Horizontal mapping is straightforward: linear longitude
-      const srcX = Math.round((outX / OUTPUT_WIDTH) * (stripWidth - 1));
+      // Horizontal mapping: flip horizontally because the texture is viewed
+      // from inside the sphere (BackSide), which mirrors the image
+      const srcX = Math.round((1 - outX / OUTPUT_WIDTH) * (stripWidth - 1));
 
       const srcIdx = (srcY * stripWidth + srcX) * 4;
       const dstIdx = (outY * OUTPUT_WIDTH + outX) * 4;
