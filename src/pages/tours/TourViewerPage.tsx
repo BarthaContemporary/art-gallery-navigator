@@ -14,6 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { SphericalPanoramaViewer } from "@/components/tours/SphericalPanoramaViewer";
+import { PanoramaDiagnosticsViewer } from "@/components/tours/PanoramaDiagnosticsViewer";
 import { PanoramaComposer } from "@/components/tours/PanoramaComposer";
 import { TourNodeStrip } from "@/components/tours/TourNodeStrip";
 import { TourFloorplanMinimap } from "@/components/tours/TourFloorplanMinimap";
