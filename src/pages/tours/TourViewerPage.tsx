@@ -66,7 +66,7 @@ interface Hotspot {
   label: string | null;
 }
 
-type ViewMode = "photos" | "composer" | "360";
+type ViewMode = "photos" | "composer" | "panorama" | "360";
 
 export default function TourViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
