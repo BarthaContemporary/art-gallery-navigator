@@ -53,6 +53,7 @@ interface NodeImage {
   display_order: number;
   original_width: number | null;
   original_height: number | null;
+  exif_data: Record<string, unknown> | null;
 }
 
 interface Hotspot {
