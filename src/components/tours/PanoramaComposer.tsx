@@ -11,6 +11,7 @@ interface NodeImage {
   medium_url: string | null;
   large_url: string | null;
   display_order: number;
+  exif_data: Record<string, unknown> | null;
 }
 
 interface PanoramaComposerProps {
