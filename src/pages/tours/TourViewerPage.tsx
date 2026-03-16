@@ -453,16 +453,28 @@ export default function TourViewerPage() {
                   </button>
                 )}
                 {hasStitchedPanorama && (
-                  <button
-                    onClick={() => setViewMode("360")}
-                    className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
-                      viewMode === "360"
-                        ? "bg-white/15 text-white font-medium"
-                        : "text-white/45 hover:text-white/70"
-                    }`}
-                  >
-                    360°
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setViewMode("panorama")}
+                      className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                        viewMode === "panorama"
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-white/45 hover:text-white/70"
+                      }`}
+                    >
+                      Panorama
+                    </button>
+                    <button
+                      onClick={() => setViewMode("360")}
+                      className={`px-3 py-1.5 text-[11px] rounded-md transition-all ${
+                        viewMode === "360"
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-white/45 hover:text-white/70"
+                      }`}
+                    >
+                      360°
+                    </button>
+                  </>
                 )}
               </div>
             )}
