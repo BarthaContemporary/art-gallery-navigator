@@ -315,7 +315,7 @@ export function PanoramaComposer({
 
         if (overlapWidth <= 1) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             Math.round(state.xOffset + contentOffsetX),
             0,
             Math.round(state.width),
@@ -329,7 +329,7 @@ export function PanoramaComposer({
 
         if (nonOverlapPx > 0) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             overlapPx,
             0,
             nonOverlapPx,
@@ -348,7 +348,7 @@ export function PanoramaComposer({
 
         if (blendCtx) {
           blendCtx.drawImage(
-            state.element,
+            drawSource,
             0,
             0,
             overlapPx,
