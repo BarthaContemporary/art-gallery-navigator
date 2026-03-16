@@ -289,6 +289,7 @@ export default function TourViewerPage() {
   const hasPanoramaStrip = !!currentNode?.panorama_strip_url;
   const isPanorama = currentNode?.node_type === "panorama";
   const showComposer = viewMode === "composer" && !isPanorama && nodeImages.length >= 2;
+  const showPanorama = viewMode === "panorama" && hasStitchedPanorama;
   const show360 = viewMode === "360" && hasStitchedPanorama;
 
   // Node strip data
