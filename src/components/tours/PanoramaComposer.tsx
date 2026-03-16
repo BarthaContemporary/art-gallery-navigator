@@ -296,11 +296,12 @@ export function PanoramaComposer({
 
       const orderedStates = [...imageStates].sort((a, b) => a.xOffset - b.xOffset);
       orderedStates.forEach((state, idx) => {
-        if (!state.element) return;
+        const drawSource = (state as any)._correctedCanvas || state.element;
+        if (!drawSource) return;
 
         if (idx === 0) {
           ctx.drawImage(
-            state.element,
+            drawSource,
             Math.round(state.xOffset + contentOffsetX),
             0,
             Math.round(state.width),
