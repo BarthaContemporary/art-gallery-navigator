@@ -571,6 +571,13 @@ export default function TourViewerPage() {
               queryClient.invalidateQueries({ queryKey: ["tour-viewer-nodes", projectId] });
             }}
           />
+        ) : showPanorama ? (
+          <PanoramaDiagnosticsViewer
+            panoramaUrl={currentNode!.stitched_panorama_url!}
+            stripUrl={currentNode?.panorama_strip_url}
+            imageCount={nodeImages.length}
+            className="absolute inset-0"
+          />
         ) : show360 ? (
           <SphericalPanoramaViewer
             stitchedPanoramaUrl={currentNode!.stitched_panorama_url!}
