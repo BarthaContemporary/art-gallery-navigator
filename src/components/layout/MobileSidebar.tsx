@@ -1,4 +1,5 @@
 import { useState } from "react";
+import bcLogo from "@/assets/bc-logo-blue.png";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Menu, X } from "lucide-react";
