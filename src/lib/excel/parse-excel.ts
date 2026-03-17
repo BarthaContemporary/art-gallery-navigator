@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import readXlsxFile from 'read-excel-file';
 
 export interface ExcelRow {
   [key: string]: string | number | null;
@@ -12,66 +12,46 @@ export interface ExcelParseResult {
 }
 
 export async function parseExcelFile(file: File): Promise<ExcelParseResult> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convert to JSON with header row - use unknown first for proper type handling
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-          header: 1,
-          defval: null,
-          raw: false // Convert everything to strings for easier handling
-        }) as unknown as (string | number | null)[][];
-        
-        if (jsonData.length === 0) {
-          resolve({
-            headers: [],
-            rows: [],
-            sheetNames: workbook.SheetNames,
-            totalRows: 0
-          });
-          return;
-        }
-        
-        // First row is headers
-        const headers = (jsonData[0] as (string | number | null)[])
-          .map(h => String(h || '').trim())
-          .filter(h => h !== '');
-        
-        // Convert remaining rows to objects
-        const rows: ExcelRow[] = [];
-        for (let i = 1; i < jsonData.length; i++) {
-          const rowData = jsonData[i] as (string | number | null)[];
-          if (!rowData || rowData.every(cell => cell === null || cell === '')) continue;
-          
-          const row: ExcelRow = {};
-          headers.forEach((header, index) => {
-            row[header] = rowData[index] ?? null;
-          });
-          rows.push(row);
-        }
-        
-        resolve({
-          headers,
-          rows,
-          sheetNames: workbook.SheetNames,
-          totalRows: rows.length
-        });
-      } catch (error) {
-        reject(error);
-      }
+  try {
+    const jsonData = await readXlsxFile(file);
+
+    if (jsonData.length === 0) {
+      return {
+        headers: [],
+        rows: [],
+        sheetNames: ['Sheet1'],
+        totalRows: 0
+      };
+    }
+
+    // First row is headers
+    const headers = jsonData[0]
+      .map(h => String(h ?? '').trim())
+      .filter(h => h !== '');
+
+    // Convert remaining rows to objects
+    const rows: ExcelRow[] = [];
+    for (let i = 1; i < jsonData.length; i++) {
+      const rowData = jsonData[i];
+      if (!rowData || rowData.every(cell => cell === null || cell === undefined || cell === '')) continue;
+
+      const row: ExcelRow = {};
+      headers.forEach((header, index) => {
+        const val = rowData[index];
+        row[header] = val != null ? (typeof val === 'object' ? String(val) : val as string | number) : null;
+      });
+      rows.push(row);
+    }
+
+    return {
+      headers,
+      rows,
+      sheetNames: ['Sheet1'],
+      totalRows: rows.length
     };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsArrayBuffer(file);
-  });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error('Failed to parse Excel file');
+  }
 }
 
 export function findImageUrlColumn(headers: string[]): string | null {
