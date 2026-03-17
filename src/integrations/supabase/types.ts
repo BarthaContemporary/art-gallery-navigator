@@ -5279,6 +5279,47 @@ export type Database = {
         }
         Relationships: []
       }
+      tour_share_links_public_safe: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string | null
+          is_active: boolean | null
+          project_id: string | null
+          slug: string | null
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          project_id?: string | null
+          slug?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          project_id?: string | null
+          slug?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_share_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tour_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auto_link_artist_to_user: { Args: never; Returns: undefined }
@@ -5740,6 +5781,10 @@ export type Database = {
           privilege_type: string
           table_name: string
         }[]
+      }
+      verify_tour_share_link_password: {
+        Args: { _password: string; _slug: string }
+        Returns: boolean
       }
     }
     Enums: {
