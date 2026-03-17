@@ -103,14 +103,22 @@ export default function TourDetailPage() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const [nodeToDelete, setNodeToDelete] = useState<{ id: string; name: string } | null>(null);
+
   const deleteNodeMutation = useMutation({
     mutationFn: async (nodeId: string) => {
+      // Cascade delete related records first
+      await supabase.from("tour_processing_jobs").delete().eq("node_id", nodeId);
+      await supabase.from("tour_node_images").delete().eq("node_id", nodeId);
+      await supabase.from("tour_hotspots").delete().eq("source_node_id", nodeId);
+      await supabase.from("tour_hotspots").delete().eq("target_node_id", nodeId);
       const { error } = await supabase.from("tour_nodes").delete().eq("id", nodeId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tour-nodes", projectId] });
-      toast.success("Node deleted");
+      toast.success("Scan position deleted");
+      setNodeToDelete(null);
     },
     onError: (err: any) => toast.error(err.message),
   });
