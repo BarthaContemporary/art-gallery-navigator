@@ -1,4 +1,5 @@
 import { useState } from "react";
+import bcLogo from "@/assets/bc-logo-blue.png";
 import { Link, useLocation } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { Menu, X } from "lucide-react";
@@ -18,9 +19,9 @@ export function MobileSidebar() {
       <div className="sm:hidden fixed top-0 left-0 right-0 h-12 z-50 flex items-center justify-between px-4 safe-area-top glass">
         <Link to="/" className="flex items-center">
           <img
-            src="https://cdn.prod.website-files.com/641c45e709414c1f712574c2/64242806807e29000ba8b7cc_bartha_logo.svg"
+            src={bcLogo}
             alt="Bartha Logo"
-            className="h-5 w-auto max-w-[100px]"
+            className="h-8 w-8 rounded-full object-cover"
           />
         </Link>
         
