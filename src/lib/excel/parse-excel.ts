@@ -1,4 +1,4 @@
-import readXlsxFile from 'read-excel-file';
+import readXlsxFile from 'read-excel-file/browser';
 
 export interface ExcelRow {
   [key: string]: string | number | null;
