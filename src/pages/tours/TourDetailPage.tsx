@@ -312,7 +312,7 @@ export default function TourDetailPage() {
           {nodes.map((node, idx) => (
             <Card
               key={node.id}
-              className="cursor-pointer hover:shadow-sm transition-shadow"
+              className="group cursor-pointer hover:shadow-sm transition-shadow"
               onClick={() => navigate(`/tours/${projectId}/nodes/${node.id}`)}
             >
               <CardContent className="p-4 flex items-center gap-4">
@@ -352,10 +352,10 @@ export default function TourDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="opacity-0 group-hover:opacity-100 text-destructive"
+                  className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm("Delete this node?")) deleteNodeMutation.mutate(node.id);
+                    setNodeToDelete({ id: node.id, name: node.name });
                   }}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -365,6 +365,31 @@ export default function TourDetailPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Scan Position Confirmation */}
+      <AlertDialog open={!!nodeToDelete} onOpenChange={(open) => !open && setNodeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete scan position?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{nodeToDelete?.name}" and all its images and hotspot connections. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteNodeMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (nodeToDelete) deleteNodeMutation.mutate(nodeToDelete.id);
+              }}
+              disabled={deleteNodeMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteNodeMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Floorplan Section */}
       {nodes.length > 0 && (
