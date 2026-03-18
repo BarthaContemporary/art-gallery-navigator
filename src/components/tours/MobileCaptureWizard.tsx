@@ -309,6 +309,12 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                 <p className="text-sm font-medium mb-2 flex items-center gap-2">
                   <Check className="h-4 w-4 text-primary" />
                   {photos.length} photo{photos.length !== 1 ? "s" : ""} captured
+                  {photos.some(p => p.hasSpatialDepth) && (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                      <Layers className="h-3 w-3" />
+                      {photos.filter(p => p.hasSpatialDepth).length} spatial
+                    </span>
+                  )}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.map((photo) => (
