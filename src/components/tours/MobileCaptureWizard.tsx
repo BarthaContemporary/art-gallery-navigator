@@ -180,6 +180,7 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
         name: positionName,
         nodeType: nodeType,
         photoCount: photos.length,
+        spatialPhotoCount: photos.filter(p => p.hasSpatialDepth).length,
       },
     ]);
     setStep("summary");
