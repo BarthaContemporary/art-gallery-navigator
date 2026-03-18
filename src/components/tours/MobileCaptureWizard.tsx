@@ -330,6 +330,11 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
+                      {photo.hasSpatialDepth && (
+                        <div className="absolute bottom-1 left-1 h-5 w-5 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center" title="Spatial photo with depth data">
+                          <Layers className="h-3 w-3" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
