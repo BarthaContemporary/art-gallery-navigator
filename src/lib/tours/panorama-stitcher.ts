@@ -162,7 +162,13 @@ export async function stitchPanoramaLocally(
 
   onProgress?.(10);
 
-  // 3. Apply exposure normalization across the strip
+  // 3. Check for depth data and apply depth-aware processing
+  const hasDepth = options?.depthMaps?.some(d => d?.hasDepth && d.depthMap);
+  if (hasDepth) {
+    console.log(`[Stitcher] Depth data available for ${options!.depthMaps!.filter(d => d?.hasDepth).length}/${photoCount} photos — using depth-aware blending`);
+  }
+
+  // 4. Apply exposure normalization across the strip
   const photoCount = options?.photoCount || Math.max(3, Math.round(stripWidth / (stripHeight * 1.3)));
   normalizeStripExposure(tempCtx, stripWidth, stripHeight, photoCount);
   onProgress?.(20);
