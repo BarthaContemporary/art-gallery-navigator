@@ -110,7 +110,19 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
           img.src = URL.createObjectURL(file);
         });
 
-        const { data: insertData, error: insertError } = await supabase
+        // Check for spatial photo depth data
+        let isSpatial = false;
+        try {
+          isSpatial = await checkForDepth(file);
+          if (isSpatial) {
+            await supabase
+              .from("tour_node_images")
+              .update({ is_spatial_photo: true, has_depth_data: true } as any)
+              .eq("id", insertData.id);
+          }
+        } catch {}
+
+        const { data: insertData2, error: insertError } = await supabase
           .from("tour_node_images")
           .insert({
             node_id: currentNodeId,
@@ -130,11 +142,11 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
 
         setPhotos((prev) => [
           ...prev,
-          { id: insertData.id, url: URL.createObjectURL(file), file },
+          { id: insertData2.id, url: URL.createObjectURL(file), file, hasSpatialDepth: isSpatial },
         ]);
 
         hapticFeedback();
-        toast.success("Photo captured!");
+        toast.success(isSpatial ? "Spatial photo captured! 🎯 Depth data detected." : "Photo captured!");
       } catch (err: any) {
         toast.error("Upload failed: " + err.message);
       } finally {
