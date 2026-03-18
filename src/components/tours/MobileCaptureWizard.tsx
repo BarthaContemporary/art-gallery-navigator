@@ -110,19 +110,7 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
           img.src = URL.createObjectURL(file);
         });
 
-        // Check for spatial photo depth data
-        let isSpatial = false;
-        try {
-          isSpatial = await checkForDepth(file);
-          if (isSpatial) {
-            await supabase
-              .from("tour_node_images")
-              .update({ is_spatial_photo: true, has_depth_data: true } as any)
-              .eq("id", insertData.id);
-          }
-        } catch {}
-
-        const { data: insertData2, error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await supabase
           .from("tour_node_images")
           .insert({
             node_id: currentNodeId,
@@ -139,6 +127,18 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
           .single();
 
         if (insertError) throw insertError;
+
+        // Check for spatial photo depth data
+        let isSpatial = false;
+        try {
+          isSpatial = await checkForDepth(file);
+          if (isSpatial) {
+            await supabase
+              .from("tour_node_images")
+              .update({ is_spatial_photo: true, has_depth_data: true } as any)
+              .eq("id", insertData.id);
+          }
+        } catch {}
 
         setPhotos((prev) => [
           ...prev,
