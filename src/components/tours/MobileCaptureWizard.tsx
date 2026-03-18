@@ -36,6 +36,7 @@ interface MobileCaptureWizardProps {
 export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCaptureWizardProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { checkForDepth } = useDepthExtraction();
 
   const [step, setStep] = useState<WizardStep>("name");
   const [positionName, setPositionName] = useState("");
