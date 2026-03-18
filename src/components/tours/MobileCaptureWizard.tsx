@@ -17,12 +17,14 @@ interface CompletedPosition {
   name: string;
   nodeType: NodeType;
   photoCount: number;
+  spatialPhotoCount: number;
 }
 
 interface CapturedPhoto {
   id: string;
   url: string;
   file: File;
+  hasSpatialDepth: boolean;
 }
 
 interface MobileCaptureWizardProps {
