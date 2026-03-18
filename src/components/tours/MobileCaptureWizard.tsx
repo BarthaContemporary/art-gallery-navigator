@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Camera, X, Check, Plus, ArrowRight, Loader2, Trash2, Image } from "lucide-react";
+import { Camera, X, Check, Plus, ArrowRight, Loader2, Trash2, Image, Layers } from "lucide-react";
 import { CaptureGuidanceOverlay } from "./CaptureGuidanceOverlay";
+import { useDepthExtraction } from "@/hooks/tours/useDepthExtraction";
 
 type NodeType = "panorama" | "image_set";
 type WizardStep = "name" | "capture" | "summary";
