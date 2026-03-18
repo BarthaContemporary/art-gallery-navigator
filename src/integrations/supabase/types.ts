@@ -4303,12 +4303,19 @@ export type Database = {
       }
       tour_node_images: {
         Row: {
+          camera_intrinsics: Json | null
           created_at: string
+          depth_far_plane_m: number | null
+          depth_map_url: string | null
+          depth_near_plane_m: number | null
+          depth_type: string | null
           display_order: number | null
           exif_data: Json | null
           file_size: number | null
+          has_depth_data: boolean | null
           id: string
           is_primary: boolean | null
+          is_spatial_photo: boolean | null
           large_url: string | null
           medium_url: string | null
           mime_type: string | null
@@ -4325,12 +4332,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          camera_intrinsics?: Json | null
           created_at?: string
+          depth_far_plane_m?: number | null
+          depth_map_url?: string | null
+          depth_near_plane_m?: number | null
+          depth_type?: string | null
           display_order?: number | null
           exif_data?: Json | null
           file_size?: number | null
+          has_depth_data?: boolean | null
           id?: string
           is_primary?: boolean | null
+          is_spatial_photo?: boolean | null
           large_url?: string | null
           medium_url?: string | null
           mime_type?: string | null
@@ -4347,12 +4361,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          camera_intrinsics?: Json | null
           created_at?: string
+          depth_far_plane_m?: number | null
+          depth_map_url?: string | null
+          depth_near_plane_m?: number | null
+          depth_type?: string | null
           display_order?: number | null
           exif_data?: Json | null
           file_size?: number | null
+          has_depth_data?: boolean | null
           id?: string
           is_primary?: boolean | null
+          is_spatial_photo?: boolean | null
           large_url?: string | null
           medium_url?: string | null
           mime_type?: string | null

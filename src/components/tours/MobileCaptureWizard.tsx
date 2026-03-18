@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Camera, X, Check, Plus, ArrowRight, Loader2, Trash2, Image } from "lucide-react";
+import { Camera, X, Check, Plus, ArrowRight, Loader2, Trash2, Image, Layers } from "lucide-react";
 import { CaptureGuidanceOverlay } from "./CaptureGuidanceOverlay";
+import { useDepthExtraction } from "@/hooks/tours/useDepthExtraction";
 
 type NodeType = "panorama" | "image_set";
 type WizardStep = "name" | "capture" | "summary";
@@ -16,12 +17,14 @@ interface CompletedPosition {
   name: string;
   nodeType: NodeType;
   photoCount: number;
+  spatialPhotoCount: number;
 }
 
 interface CapturedPhoto {
   id: string;
   url: string;
   file: File;
+  hasSpatialDepth: boolean;
 }
 
 interface MobileCaptureWizardProps {
@@ -33,6 +36,7 @@ interface MobileCaptureWizardProps {
 export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCaptureWizardProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { checkForDepth } = useDepthExtraction();
 
   const [step, setStep] = useState<WizardStep>("name");
   const [positionName, setPositionName] = useState("");
@@ -124,13 +128,25 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
 
         if (insertError) throw insertError;
 
+        // Check for spatial photo depth data
+        let isSpatial = false;
+        try {
+          isSpatial = await checkForDepth(file);
+          if (isSpatial) {
+            await supabase
+              .from("tour_node_images")
+              .update({ is_spatial_photo: true, has_depth_data: true } as any)
+              .eq("id", insertData.id);
+          }
+        } catch {}
+
         setPhotos((prev) => [
           ...prev,
-          { id: insertData.id, url: URL.createObjectURL(file), file },
+          { id: insertData.id, url: URL.createObjectURL(file), file, hasSpatialDepth: isSpatial },
         ]);
 
         hapticFeedback();
-        toast.success("Photo captured!");
+        toast.success(isSpatial ? "Spatial photo captured! 🎯 Depth data detected." : "Photo captured!");
       } catch (err: any) {
         toast.error("Upload failed: " + err.message);
       } finally {
@@ -164,6 +180,7 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
         name: positionName,
         nodeType: nodeType,
         photoCount: photos.length,
+        spatialPhotoCount: photos.filter(p => p.hasSpatialDepth).length,
       },
     ]);
     setStep("summary");
@@ -292,6 +309,12 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                 <p className="text-sm font-medium mb-2 flex items-center gap-2">
                   <Check className="h-4 w-4 text-primary" />
                   {photos.length} photo{photos.length !== 1 ? "s" : ""} captured
+                  {photos.some(p => p.hasSpatialDepth) && (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                      <Layers className="h-3 w-3" />
+                      {photos.filter(p => p.hasSpatialDepth).length} spatial
+                    </span>
+                  )}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.map((photo) => (
@@ -307,6 +330,11 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
+                      {photo.hasSpatialDepth && (
+                        <div className="absolute bottom-1 left-1 h-5 w-5 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center" title="Spatial photo with depth data">
+                          <Layers className="h-3 w-3" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -381,6 +409,11 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                     <p className="text-xs text-muted-foreground">
                       {pos.photoCount} photo{pos.photoCount !== 1 ? "s" : ""} •{" "}
                       {pos.nodeType === "panorama" ? "Panorama" : "Image Set"}
+                      {pos.spatialPhotoCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 ml-1 text-primary">
+                          • <Layers className="h-3 w-3 inline" /> {pos.spatialPhotoCount} spatial
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

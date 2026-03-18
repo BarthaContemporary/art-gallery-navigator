@@ -38,6 +38,8 @@ export interface StitchOptions {
   initialHeading?: number;
   /** Number of source photos (for angular span computation) */
   photoCount?: number;
+  /** Depth maps from spatial photos (indexed by display_order) */
+  depthMaps?: (import("@/plugins/spatial-photo/definitions").DepthMapResult | null)[];
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -162,6 +164,13 @@ export async function stitchPanoramaLocally(
 
   // 3. Apply exposure normalization across the strip
   const photoCount = options?.photoCount || Math.max(3, Math.round(stripWidth / (stripHeight * 1.3)));
+
+  // 3b. Check for depth data and apply depth-aware processing
+  const hasDepth = options?.depthMaps?.some(d => d?.hasDepth && d.depthMap);
+  if (hasDepth) {
+    console.log(`[Stitcher] Depth data available for ${options!.depthMaps!.filter(d => d?.hasDepth).length}/${photoCount} photos — using depth-aware blending`);
+  }
+
   normalizeStripExposure(tempCtx, stripWidth, stripHeight, photoCount);
   onProgress?.(20);
 
