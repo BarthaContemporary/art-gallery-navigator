@@ -98,7 +98,9 @@ export function PanoramaComposer({
         }
 
         states[i].element = el;
-        states[i].width = (sourceElement as any).width || Math.round(el.naturalWidth * scale);
+        states[i].width = sourceElement instanceof HTMLCanvasElement
+          ? sourceElement.width
+          : Math.round(el.naturalWidth * scale);
         states[i].height = targetHeight;
         states[i].loaded = true;
         
