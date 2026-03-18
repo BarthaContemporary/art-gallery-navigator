@@ -38,6 +38,8 @@ export interface StitchOptions {
   initialHeading?: number;
   /** Number of source photos (for angular span computation) */
   photoCount?: number;
+  /** Depth maps from spatial photos (indexed by display_order) */
+  depthMaps?: (import("@/plugins/spatial-photo/definitions").DepthMapResult | null)[];
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {

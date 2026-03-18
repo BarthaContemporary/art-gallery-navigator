@@ -409,6 +409,11 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
                     <p className="text-xs text-muted-foreground">
                       {pos.photoCount} photo{pos.photoCount !== 1 ? "s" : ""} •{" "}
                       {pos.nodeType === "panorama" ? "Panorama" : "Image Set"}
+                      {pos.spatialPhotoCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 ml-1 text-primary">
+                          • <Layers className="h-3 w-3 inline" /> {pos.spatialPhotoCount} spatial
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
