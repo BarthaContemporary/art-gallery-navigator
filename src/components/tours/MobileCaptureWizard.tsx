@@ -142,7 +142,7 @@ export function MobileCaptureWizard({ projectId, onComplete, onClose }: MobileCa
 
         setPhotos((prev) => [
           ...prev,
-          { id: insertData2.id, url: URL.createObjectURL(file), file, hasSpatialDepth: isSpatial },
+          { id: insertData.id, url: URL.createObjectURL(file), file, hasSpatialDepth: isSpatial },
         ]);
 
         hapticFeedback();
