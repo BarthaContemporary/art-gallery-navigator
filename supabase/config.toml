@@ -200,3 +200,6 @@ verify_jwt = false
 
 [functions.stitch-panorama]
 verify_jwt = false
+
+[functions.public-inventory-api]
+verify_jwt = false

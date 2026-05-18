@@ -391,6 +391,13 @@ export type Database = {
             foreignKeyName: "artist_storage_credentials_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: true
+            referencedRelation: "artists_public_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_storage_credentials_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
             referencedRelation: "artists_public_safe"
             referencedColumns: ["id"]
           },
@@ -854,6 +861,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_inventory"
             referencedColumns: ["id"]
           },
           {
@@ -2575,6 +2589,13 @@ export type Database = {
             foreignKeyName: "documents_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artists_public_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists_public_safe"
             referencedColumns: ["id"]
           },
@@ -2811,6 +2832,13 @@ export type Database = {
             foreignKeyName: "folders_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: false
+            referencedRelation: "artists_public_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "artists_public_safe"
             referencedColumns: ["id"]
           },
@@ -2859,6 +2887,45 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      inventory_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          request_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          request_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          request_count?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4931,6 +4998,48 @@ export type Database = {
       }
     }
     Views: {
+      artists_public_inventory: {
+        Row: {
+          biography: string | null
+          birth_year: number | null
+          created_at: string | null
+          death_year: number | null
+          full_name: string | null
+          id: string | null
+          image_url: string | null
+          nationality: string | null
+          place_of_birth: string | null
+          place_of_death: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          death_year?: number | null
+          full_name?: string | null
+          id?: string | null
+          image_url?: string | null
+          nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          biography?: string | null
+          birth_year?: number | null
+          created_at?: string | null
+          death_year?: number | null
+          full_name?: string | null
+          id?: string | null
+          image_url?: string | null
+          nationality?: string | null
+          place_of_birth?: string | null
+          place_of_death?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       artists_public_safe: {
         Row: {
           biography: string | null
@@ -5145,6 +5254,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artworks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists_public_inventory"
             referencedColumns: ["id"]
           },
           {
@@ -5785,6 +5901,13 @@ export type Database = {
           p_secret_key?: string
         }
         Returns: boolean
+      }
+      validate_inventory_api_key: {
+        Args: { _key_hash: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
       }
       validate_webdav_token: {
         Args: { token_text: string }

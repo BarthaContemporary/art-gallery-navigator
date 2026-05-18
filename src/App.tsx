@@ -58,6 +58,7 @@ const AdminUsersPage = lazy(() => import("@/pages/admin").then(m => ({ default: 
 const AdminIntegrationsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.IntegrationsPage })));
 const AdminSettingsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.SettingsPage })));
 const AdminLogsPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.LogsPage })));
+const AdminApiAccessPage = lazy(() => import("@/pages/admin").then(m => ({ default: m.ApiAccessPage })));
 const Publications = lazy(() => import("@/pages/admin/Publications"));
 const PublicationEditor = lazy(() => import("@/pages/admin/PublicationEditor"));
 const PublicationLeads = lazy(() => import("@/pages/admin/PublicationLeads"));
@@ -148,6 +149,7 @@ function App() {
                       <Route path="integrations" element={<AdminIntegrationsPage />} />
                       <Route path="settings" element={<AdminSettingsPage />} />
                       <Route path="logs" element={<AdminLogsPage />} />
+                      <Route path="api-access" element={<AdminApiAccessPage />} />
                     </Route>
                     <Route path="admin/publications" element={<Publications />} />
                     <Route path="admin/audio" element={<AdminAudioPage />} />
