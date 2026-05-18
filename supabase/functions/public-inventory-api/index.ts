@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       const medium = url.searchParams.get('medium_type');
 
       let q = admin
-        .from('artworks_public_safe')
+        .from('artworks')
         .select(`*, artists!inner(id, full_name), artwork_images(id, image_url, thumbnail_url, medium_url, is_primary, display_order)`, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     // GET /artworks/:id
     if (segments[0] === 'artworks' && segments.length === 2) {
       const { data, error } = await admin
-        .from('artworks_public_safe')
+        .from('artworks')
         .select(`*, artists!inner(id, full_name), artwork_images(id, image_url, thumbnail_url, medium_url, is_primary, display_order)`)
         .eq('id', segments[1])
         .maybeSingle();
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
       if (!artist) return err(404, 'Artist not found');
 
       const { data: works } = await admin
-        .from('artworks_public_safe')
+        .from('artworks')
         .select(`*, artists!inner(id, full_name), artwork_images(id, image_url, thumbnail_url, medium_url, is_primary, display_order)`)
         .eq('artist_id', segments[1])
         .order('year', { ascending: false });
