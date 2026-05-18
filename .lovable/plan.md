@@ -1,56 +1,62 @@
+## Goal
 
+Expose a public, read-only REST API so your Sanity-powered website can pull live inventory (artworks, prices/availability, artists) from this app.
 
-## Issues Identified
+## Approach
 
-### Issue 1: Node stuck in `stitch_status = "processing"` permanently
-The database shows the node is stuck in `processing` state. The edge function has no logs, meaning it either was never deployed or failed silently. This causes:
-- The "Process 360°" button to show a perpetual spinner (it checks `isStitching` which is `stitch_status === "processing" && !!panorama_strip_url`)
-- The polling interval runs endlessly every 4 seconds (visible in the network requests)
+Build a single Supabase Edge Function `public-inventory-api` that:
+- Runs without JWT (`verify_jwt = false`) — public.
+- Requires header `x-api-key` validated against a new `inventory_api_keys` table (hashed keys, revocable, last-used tracking).
+- Returns JSON only from public-safe views (`artworks_public_safe`, plus a new safe artist view) — never exposes private fields (cost, internal notes, contacts).
+- Supports CORS so Sanity / your site can call it from anywhere.
 
-### Issue 2: Images not loading in the viewer
-The `getImageUrlCandidates` function prioritizes `large_url`, `medium_url`, `thumbnail_url`, then `original_url`. If these processed URLs are null or broken (common with Cloudinary-processed images), OpenSeadragon tries them one by one via `open-failed` handler, but the fallback logic can leave the viewer blank if all fail or if OSD initialization races with URL index changes.
+## Endpoints (REST/JSON)
 
-### Issue 3: No way to reset a stuck processing state
-There's no UI mechanism to reset a failed/stuck stitch operation, leaving the user permanently stuck.
+```
+GET /artworks                  → list (paginated, filterable)
+   ?status=available&artist_id=…&limit=50&cursor=…
+GET /artworks/:id              → single artwork with images
+GET /artists                   → list of artists
+GET /artists/:id               → single artist + their artworks
+GET /collections               → published collections (optional)
+```
 
----
+Each artwork payload includes: id, title, artist (id + name), year, medium_type, materials, dimensions (h/w/d, framed dims), price, currency, status, images (thumbnail/medium/large URLs).
 
-## Plan
+## Database changes (one migration)
 
-### 1. Deploy the stitch-panorama edge function
-The function exists in code but has no logs, suggesting it was never deployed. Deploy it so the Process 360° workflow actually works.
+- New table `inventory_api_keys`: `id, name, key_hash, key_prefix, is_active, created_by, last_used_at, request_count, created_at`.
+- RLS: only `gallery_admin` can manage keys.
+- New view `artists_public_safe`: id, full_name, biography, nationality, birth/death year, image_url.
+- Helper SQL function `validate_inventory_api_key(key text)` (security definer) returning the key row if active.
 
-### 2. Add stuck-processing recovery logic
-In `TourViewerPage.tsx`, add a timeout mechanism: if `stitch_status` has been `"processing"` for longer than ~90 seconds of polling without completing, automatically reset it to `"failed"` and show an error toast. Also add a "Retry" affordance on the Process 360° button when status is `"failed"`.
+## Admin UI
 
-Immediately fix the current stuck node by resetting its `stitch_status` to `null` via a one-time DB update triggered from the UI (or just reset it now so the user can proceed).
+New page `/settings/api-access`:
+- List existing keys (name, prefix `inv_xxx…`, last used, request count, active toggle, revoke).
+- "Generate new key" → shows full key once, copy-to-clipboard, with usage snippet for Sanity.
+- Docs panel with example `fetch` calls for Sanity Studio / frontend.
 
-### 3. Fix image loading reliability in single view mode
-In `TourViewerPage.tsx`, modify `getImageUrlCandidates` to prioritize `original_url` first (most reliable), then fall back to processed variants. This ensures the base image always loads even if Cloudinary processing hasn't completed.
+## Security
 
-### 4. Add error handling to Process 360° button in PanoramaComposer
-Wrap `onProcess` in `try/catch` within the composer. If the mutation fails, ensure the button re-enables properly. Currently `canProcess` depends on `isStitching` which stays true if the edge function never responds.
+- Keys generated with `crypto.randomUUID()` + prefix; only SHA-256 hash stored.
+- Rate limit per key (simple in-memory counter; note for production upgrade).
+- CORS `*` allowed (public read-only).
+- No write endpoints. No price-hidden / unpublished artworks unless explicitly flagged.
 
-### 5. Reset stuck DB state
-Reset the stuck node's `stitch_status` from `"processing"` to `null` so the user can re-trigger the process.
+## Out of scope
 
----
+- GraphQL (chose REST).
+- Webhooks back into Sanity on inventory changes (can be added later).
+- Per-user OAuth.
 
-## Technical Details
+## Files to add/change
 
-**File changes:**
+- `supabase/migrations/<ts>_inventory_api.sql` (table, view, validator function, RLS).
+- `supabase/functions/public-inventory-api/index.ts` (router, auth, handlers).
+- `supabase/config.toml` → add `[functions.public-inventory-api] verify_jwt = false`.
+- `src/pages/settings/ApiAccess.tsx` + route entry.
+- `src/components/settings/ApiKeyManager.tsx` (list/create/revoke UI).
+- `src/hooks/useInventoryApiKeys.ts`.
 
-1. **`src/pages/tours/TourViewerPage.tsx`**:
-   - Reorder `getImageUrlCandidates` to put `original_url` first: `[original_url, large_url, medium_url, thumbnail_url]`
-   - Add a polling timeout counter: after ~20 polls (80 seconds) with no status change, reset `stitch_status` to `failed` via DB update and show error toast
-   - When `stitch_status === "failed"`, show the Wand button as enabled (not spinning) so user can retry
-   - Fix `isStitching` to also consider `stitchMutation.isPending` to prevent double-clicks
-
-2. **`src/components/tours/PanoramaComposer.tsx`**:
-   - Wrap `onProcess` call in proper error boundary
-   - No major structural changes needed
-
-3. **Deploy edge function**: Run deployment for `stitch-panorama`
-
-4. **DB fix**: Reset the stuck node via SQL update
-
+After approval I'll run the migration first, then add the function and UI.
