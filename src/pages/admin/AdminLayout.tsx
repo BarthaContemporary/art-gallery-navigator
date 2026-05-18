@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   BookOpen,
-  Music
+  Music,
+  KeyRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -23,6 +24,7 @@ const adminNavItems = [
   { href: "/admin/publications", icon: BookOpen, label: "Publications" },
   { href: "/admin/audio", icon: Music, label: "Audio Library" },
   { href: "/admin/integrations", icon: Plug, label: "Integrations" },
+  { href: "/admin/api-access", icon: KeyRound, label: "API Access" },
   { href: "/admin/settings", icon: Settings, label: "Settings" },
   { href: "/admin/logs", icon: ScrollText, label: "Logs & Audit" },
 ];

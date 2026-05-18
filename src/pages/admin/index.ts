@@ -4,3 +4,4 @@ export { default as UsersPage } from './UsersPage';
 export { default as IntegrationsPage } from './IntegrationsPage';
 export { default as SettingsPage } from './SettingsPage';
 export { default as LogsPage } from './LogsPage';
+export { default as ApiAccessPage } from './ApiAccessPage';
