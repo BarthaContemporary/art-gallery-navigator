@@ -1,11 +1,16 @@
 import Image from "next/image";
-import { imageDimensions, imageUrl, type PortableBlock, type SanityImage } from "@/lib/sanity";
+import {
+  imageDimensions,
+  imageUrl,
+  type PortableBlock,
+  type SanityImage,
+} from "@/lib/sanity";
 import type { ReactNode } from "react";
 
 /**
  * Minimal Portable Text renderer (no @portabletext/react dependency).
- * Handles block styles, ordered/unordered lists, strong/em/link marks
- * and inline image blocks — everything the journal/page schemas allow.
+ * Voice register: serif body at 17/1.65 on a 640px measure; sans headings.
+ * No italics anywhere — `em` is rendered upright.
  */
 
 interface Span {
@@ -33,9 +38,18 @@ function renderSpan(span: Span, markDefs: MarkDef[], key: number): ReactNode {
   let node: ReactNode = span.text ?? "";
   for (const mark of span.marks ?? []) {
     if (mark === "strong") {
-      node = <strong key={key}>{node}</strong>;
+      node = (
+        <strong key={key} className="font-medium text-sumi">
+          {node}
+        </strong>
+      );
     } else if (mark === "em") {
-      node = <em key={key}>{node}</em>;
+      // No italics — emphasise upright.
+      node = (
+        <em key={key} className="not-italic text-sumi">
+          {node}
+        </em>
+      );
     } else {
       const def = markDefs.find((d) => d._key === mark);
       if (def?._type === "link" && def.href) {
@@ -43,7 +57,7 @@ function renderSpan(span: Span, markDefs: MarkDef[], key: number): ReactNode {
           <a
             key={key}
             href={def.href}
-            className="underline decoration-ink-separator underline-offset-2 hover:text-ink-strong"
+            className="link-inline"
             rel="noopener noreferrer"
           >
             {node}
@@ -62,19 +76,33 @@ function BlockContent({ block }: { block: TextBlock }) {
 
   switch (block.style) {
     case "h2":
-      return <h2 className="mt-8 text-xl font-semibold text-ink-heading">{children}</h2>;
+      return (
+        <h2 className="mt-16 font-sans text-h2 font-medium tracking-tight text-sumi">
+          {children}
+        </h2>
+      );
     case "h3":
-      return <h3 className="mt-6 text-lg font-semibold text-ink-heading">{children}</h3>;
+      return (
+        <h3 className="mt-10 font-sans text-lead font-medium text-sumi">
+          {children}
+        </h3>
+      );
     case "h4":
-      return <h4 className="mt-5 font-semibold text-ink-heading">{children}</h4>;
+      return (
+        <h4 className="mt-8 font-sans text-ui font-medium uppercase tracking-[0.08em] text-ink-50">
+          {children}
+        </h4>
+      );
     case "blockquote":
       return (
-        <blockquote className="mt-4 border-l-2 border-line pl-4 text-ink-muted italic">
+        <blockquote className="mt-6 border-l border-sumi pl-6 font-serif text-lead font-light text-ink-70">
           {children}
         </blockquote>
       );
     default:
-      return <p className="mt-4 leading-relaxed text-ink-body">{children}</p>;
+      return (
+        <p className="mt-5 font-serif text-body text-ink-70">{children}</p>
+      );
   }
 }
 
@@ -84,23 +112,27 @@ function ImageBlock({ block }: { block: PortableBlock }) {
   const dims = imageDimensions(image);
   if (!src || !dims) return null;
   return (
-    <figure className="mt-6">
+    <figure className="mt-10">
       <Image
         src={src}
         alt={image.caption ?? ""}
         width={dims.width}
         height={dims.height}
         sizes="(min-width: 768px) 42rem, 100vw"
-        className="w-full rounded-hero bg-placeholder"
+        className="w-full bg-washi-2"
       />
       {image.caption ? (
-        <figcaption className="mt-2 text-xs text-ink-soft">{image.caption}</figcaption>
+        <figcaption className="label mt-3">{image.caption}</figcaption>
       ) : null}
     </figure>
   );
 }
 
-export function PortableText({ value }: { value: PortableBlock[] | null | undefined }) {
+export function PortableText({
+  value,
+}: {
+  value: PortableBlock[] | null | undefined;
+}) {
   if (!value || value.length === 0) return null;
 
   const output: ReactNode[] = [];
@@ -110,18 +142,20 @@ export function PortableText({ value }: { value: PortableBlock[] | null | undefi
   const flushList = () => {
     if (listBuffer.length === 0) return;
     const items = listBuffer.map((item) => (
-      <li key={item._key} className="leading-relaxed">
-        {(item.children ?? []).map((span, i) => renderSpan(span, item.markDefs ?? [], i))}
+      <li key={item._key} className="font-serif text-body text-ink-70">
+        {(item.children ?? []).map((span, i) =>
+          renderSpan(span, item.markDefs ?? [], i),
+        )}
       </li>
     ));
     const key = `list-${listBuffer[0]?._key ?? output.length}`;
     output.push(
       listType === "number" ? (
-        <ol key={key} className="mt-4 list-decimal space-y-1 pl-6 text-ink-body">
+        <ol key={key} className="mt-5 list-decimal space-y-2 pl-6">
           {items}
         </ol>
       ) : (
-        <ul key={key} className="mt-4 list-disc space-y-1 pl-6 text-ink-body">
+        <ul key={key} className="mt-5 list-disc space-y-2 pl-6">
           {items}
         </ul>
       ),
@@ -148,5 +182,5 @@ export function PortableText({ value }: { value: PortableBlock[] | null | undefi
   }
   flushList();
 
-  return <div className="max-w-2xl">{output}</div>;
+  return <div className="max-w-[var(--measure)]">{output}</div>;
 }

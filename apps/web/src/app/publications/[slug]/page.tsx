@@ -81,63 +81,58 @@ export default async function PublicationPage({
   );
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-ink-soft">
-        <ol className="flex flex-wrap items-center gap-1.5">
+    <article className="page py-10">
+      <nav aria-label="Breadcrumb" className="label mb-8">
+        <ol className="flex flex-wrap items-center gap-2">
           <li>
-            <Link href="/publications" className="hover:text-ink-strong">
+            <Link href="/publications" className="hover:text-oranje">
               Publications
             </Link>
           </li>
-          <li aria-hidden className="text-ink-separator">
-            /
-          </li>
-          <li aria-current="page" className="text-ink-mid">
-            {publication.title}
-          </li>
+          <li aria-hidden>/</li>
+          <li aria-current="page">{publication.title}</li>
         </ol>
       </nav>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div>
-          <figure className="overflow-hidden rounded-hero bg-placeholder">
-            {coverSrc && coverDims ? (
-              <Image
-                src={coverSrc}
-                alt={
-                  publication.coverImage?.caption ??
-                  publication.title ??
-                  "Publication cover"
-                }
-                width={coverDims.width}
-                height={coverDims.height}
-                priority
-                sizes="(min-width: 1024px) 40vw, 100vw"
-                className="h-auto w-full object-contain"
-              />
-            ) : (
-              <div className="flex aspect-[3/4] items-center justify-center text-sm text-ink-faint">
-                Cover in preparation
-              </div>
-            )}
+      <div className="grid12">
+        <div className="col-span-12 lg:col-span-5">
+          <figure>
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-washi-2">
+              {coverSrc && coverDims ? (
+                <Image
+                  src={coverSrc}
+                  alt={
+                    publication.coverImage?.caption ??
+                    publication.title ??
+                    "Publication cover"
+                  }
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 40vw, 100vw"
+                  className="object-cover"
+                />
+              ) : (
+                <span className="label absolute inset-0 flex items-center justify-center text-ink-50">
+                  Cover forthcoming
+                </span>
+              )}
+            </div>
           </figure>
         </div>
 
-        <div>
+        <div className="col-span-12 lg:col-span-6 lg:col-start-7">
           <header>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
+            <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
               {publication.title}
             </h1>
-            <p className="mt-2 flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
+            <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
               {publication.publishedYear ? (
-                <span className="font-mono text-xs tracking-tight text-ink-soft">
-                  {publication.publishedYear}
-                </span>
+                <span className="label">{publication.publishedYear}</span>
               ) : null}
               {publication.relatedExhibition?.slug ? (
                 <Link
                   href={`/exhibitions/${publication.relatedExhibition.slug}`}
-                  className="underline decoration-ink-separator underline-offset-4 hover:text-ink-strong"
+                  className="link-inline font-sans text-ui text-ink-70"
                 >
                   {publication.relatedExhibition.title ?? "Related exhibition"}
                 </Link>
@@ -146,7 +141,7 @@ export default async function PublicationPage({
           </header>
 
           {publication.description && publication.description.length > 0 ? (
-            <div className="mt-6">
+            <div className="mt-8">
               <PortableText value={publication.description} />
             </div>
           ) : null}
@@ -155,15 +150,12 @@ export default async function PublicationPage({
             {enquiryEmail ? (
               <a
                 href={`mailto:${enquiryEmail}?subject=${enquirySubject}`}
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
+                className="btn btn-filled"
               >
                 Enquire about this catalogue
               </a>
             ) : (
-              <Link
-                href="/contact"
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
-              >
+              <Link href="/contact" className="btn btn-filled">
                 Enquire about this catalogue
               </Link>
             )}
@@ -172,7 +164,7 @@ export default async function PublicationPage({
                 href={publication.externalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center rounded-control border border-line-control bg-control px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-control-active"
+                className="btn"
               >
                 View / download
               </a>

@@ -129,52 +129,49 @@ export default async function WorkPage({
   );
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <article className="page py-10">
       <JsonLd data={artworkJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
 
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-ink-soft">
-        <ol className="flex flex-wrap items-center gap-1.5">
+      <nav aria-label="Breadcrumb" className="label mb-8">
+        <ol className="flex flex-wrap items-center gap-2">
           <li>
-            <Link href="/works" className="hover:text-ink-strong">
+            <Link href="/works" className="hover:text-oranje">
               Works
             </Link>
           </li>
-          <li aria-hidden className="text-ink-separator">
-            /
-          </li>
-          <li aria-current="page" className="text-ink-mid">
-            {work.title ?? "Untitled"}
-          </li>
+          <li aria-hidden>/</li>
+          <li aria-current="page">{work.title ?? "Untitled"}</li>
         </ol>
       </nav>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        {/* Imagery */}
-        <div>
-          <figure className="overflow-hidden rounded-hero bg-placeholder">
-            {heroSrc && heroDims ? (
-              <Image
-                src={heroSrc}
-                alt={workImageAlt(work, hero?.caption)}
-                width={heroDims.width}
-                height={heroDims.height}
-                priority
-                sizes="(min-width: 1024px) 58vw, 100vw"
-                className="h-auto w-full object-contain"
-              />
-            ) : (
-              <div className="flex aspect-square items-center justify-center text-sm text-ink-faint">
-                Photography in preparation
-              </div>
-            )}
+      <div className="grid12">
+        {/* Imagery — catalogue plate on washi-2, object contained, generous pad. */}
+        <div className="col-span-12 lg:col-span-7">
+          <figure>
+            <div className="relative aspect-[4/5] w-full bg-washi-2">
+              {heroSrc && heroDims ? (
+                <Image
+                  src={heroSrc}
+                  alt={workImageAlt(work, hero?.caption)}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 58vw, 100vw"
+                  className="object-contain p-[clamp(40px,6vw,96px)]"
+                />
+              ) : (
+                <span className="label absolute inset-0 flex items-center justify-center text-ink-50">
+                  Image forthcoming
+                </span>
+              )}
+            </div>
             {hero?.caption ? (
-              <figcaption className="px-3 py-2 text-xs text-ink-soft">{hero.caption}</figcaption>
+              <figcaption className="label mt-3">{hero.caption}</figcaption>
             ) : null}
           </figure>
 
           {images.length > 1 ? (
-            <ul className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <ul className="mt-6 grid grid-cols-3 gap-6 sm:grid-cols-4">
               {images.slice(1).map((image) => {
                 const src = imageUrl(image, { width: 600 });
                 if (!src) return null;
@@ -182,17 +179,17 @@ export default async function WorkPage({
                 return (
                   <li key={image._key ?? src}>
                     <figure>
-                      <div className="relative aspect-square overflow-hidden rounded-thumb bg-placeholder">
+                      <div className="relative aspect-square w-full bg-washi-2">
                         <Image
                           src={src}
                           alt={image.caption ?? label ?? workImageAlt(work)}
                           fill
                           sizes="(min-width: 1024px) 14vw, 30vw"
-                          className="object-contain p-2"
+                          className="object-contain p-3"
                         />
                       </div>
                       {label || image.caption ? (
-                        <figcaption className="mt-1 text-[11px] text-ink-soft">
+                        <figcaption className="label mt-2">
                           {image.caption ?? label}
                         </figcaption>
                       ) : null}
@@ -204,85 +201,68 @@ export default async function WorkPage({
           ) : null}
         </div>
 
-        {/* Details */}
-        <div>
-          <header>
-            {work.maker ? (
-              <p className="text-sm font-medium text-ink-mid">
-                {work.maker}
-                {work.makerLifeDates ? (
-                  <span className="text-ink-soft"> ({work.makerLifeDates})</span>
-                ) : null}
+        {/* Meta rail — sticky, cols 9–12. */}
+        <div className="col-span-12 lg:col-span-3 lg:col-start-10">
+          <div className="lg:sticky lg:top-28">
+            <header>
+              {work.maker ? (
+                <p className="font-sans text-ui text-ink-70">
+                  {work.maker}
+                  {work.makerLifeDates ? (
+                    <span className="text-ink-50"> ({work.makerLifeDates})</span>
+                  ) : null}
+                </p>
+              ) : null}
+              <h1 className="mt-1 font-sans text-h2 font-medium tracking-tight text-sumi">
+                {work.title ?? "Untitled"}
+              </h1>
+              <p className="label mt-3">
+                {work.available === false ? "Sold" : "Available"}
+                {work.stockNumber ? ` · ${work.stockNumber}` : ""}
               </p>
-            ) : null}
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-strong">
-              {work.title ?? "Untitled"}
-            </h1>
-            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-              {work.available !== false ? (
-                <span className="inline-flex items-center gap-1.5 rounded-tag bg-pill px-2 py-0.5 text-xs text-ink-label">
-                  <span
-                    aria-hidden
-                    className="inline-block size-1.5 rounded-full bg-status-green"
-                  />
-                  Available
-                </span>
-              ) : (
-                <span className="inline-flex items-center rounded-tag bg-pill px-2 py-0.5 text-xs text-ink-label">
-                  Sold
-                </span>
+            </header>
+
+            {/* MetaTable — sumi top rule, label-caps keys, serif values. */}
+            <dl className="mt-8 border-t border-sumi">
+              {specs.map(([label, value]) =>
+                value ? (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3"
+                  >
+                    <dt className="label">{label}</dt>
+                    <dd className="font-serif text-ui text-ink-70">{value}</dd>
+                  </div>
+                ) : null,
               )}
-              <span className="font-mono text-xs text-ink-soft">{work.stockNumber}</span>
-            </p>
-          </header>
+            </dl>
 
-          {/* Semantic spec list — deliberately a <dl> so answer engines can lift facts. */}
-          <dl className="mt-8 divide-y divide-line-soft border-y border-line-soft">
-            {specs.map(([label, value, mono]) =>
-              value ? (
-                <div key={label} className="grid grid-cols-[8rem_1fr] gap-4 py-2.5 text-sm">
-                  <dt className="text-ink-label-soft">{label}</dt>
-                  <dd className={mono ? "font-mono text-[13px] text-ink-body" : "text-ink-body"}>
-                    {value}
-                  </dd>
-                </div>
-              ) : null,
-            )}
-          </dl>
+            {work.description ? (
+              <div className="mt-8">
+                <h2 className="label">Description</h2>
+                <p className="mt-3 whitespace-pre-line font-serif text-body text-ink-70">
+                  {work.description}
+                </p>
+              </div>
+            ) : null}
 
-          {work.description ? (
-            <div className="mt-8">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-ink-label-soft">
-                Description
-              </h2>
-              <p className="mt-3 whitespace-pre-line leading-relaxed text-ink-body">
-                {work.description}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            {enquiryEmail ? (
-              <a
-                href={`mailto:${enquiryEmail}?subject=${enquirySubject}`}
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
-              >
-                Enquire about this work
-              </a>
-            ) : (
-              <Link
-                href="/contact"
-                className="inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
-              >
-                Enquire about this work
+            <div className="mt-10 flex flex-wrap gap-3">
+              {enquiryEmail ? (
+                <a
+                  href={`mailto:${enquiryEmail}?subject=${enquirySubject}`}
+                  className="btn btn-filled"
+                >
+                  Enquire about this work
+                </a>
+              ) : (
+                <Link href="/contact" className="btn btn-filled">
+                  Enquire about this work
+                </Link>
+              )}
+              <Link href="/visit" className="btn">
+                View in person
               </Link>
-            )}
-            <Link
-              href="/visit"
-              className="inline-flex min-h-11 items-center rounded-control border border-line-control bg-control px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-control-active"
-            >
-              View in person
-            </Link>
+            </div>
           </div>
         </div>
       </div>

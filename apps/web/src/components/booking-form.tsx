@@ -10,7 +10,9 @@ const APPOINTMENT_TYPES = [
 type Status = "idle" | "submitting" | "success" | "error";
 
 const inputClasses =
-  "mt-1 w-full rounded-control border border-line-control bg-control px-3 py-2.5 text-sm text-ink-body placeholder:text-ink-faint focus:border-line-control-active";
+  "mt-2 w-full border border-hairline bg-washi px-3 py-2.5 font-serif text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi";
+
+const labelClasses = "label block";
 
 export function BookingForm() {
   const [status, setStatus] = useState<Status>("idle");
@@ -58,9 +60,9 @@ export function BookingForm() {
     return (
       <div
         role="status"
-        className="rounded-card border border-line-soft bg-cell p-6 text-sm leading-relaxed text-ink-body"
+        className="border border-hairline bg-washi-2 p-6 font-serif text-body text-ink-70"
       >
-        <p className="font-medium text-ink-strong">Thank you — your request has been received.</p>
+        <p className="font-sans text-ui font-medium text-sumi">Thank you — your request has been received.</p>
         <p className="mt-2">
           We will confirm your appointment by email shortly. A calendar invitation (.ics) is
           attached to the confirmation.
@@ -74,7 +76,7 @@ export function BookingForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       <div>
-        <label htmlFor="appointmentType" className="text-sm font-medium text-ink-label">
+        <label htmlFor="appointmentType" className={labelClasses}>
           Appointment type
         </label>
         <select
@@ -94,13 +96,13 @@ export function BookingForm() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="date" className="text-sm font-medium text-ink-label">
+          <label htmlFor="date" className={labelClasses}>
             Preferred date
           </label>
           <input id="date" name="date" type="date" required min={today} className={inputClasses} />
         </div>
         <div>
-          <label htmlFor="time" className="text-sm font-medium text-ink-label">
+          <label htmlFor="time" className={labelClasses}>
             Preferred time
           </label>
           <input id="time" name="time" type="time" required step={900} className={inputClasses} />
@@ -108,7 +110,7 @@ export function BookingForm() {
       </div>
 
       <div>
-        <label htmlFor="name" className="text-sm font-medium text-ink-label">
+        <label htmlFor="name" className={labelClasses}>
           Name
         </label>
         <input
@@ -123,7 +125,7 @@ export function BookingForm() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="email" className="text-sm font-medium text-ink-label">
+          <label htmlFor="email" className={labelClasses}>
             Email
           </label>
           <input
@@ -136,8 +138,8 @@ export function BookingForm() {
           />
         </div>
         <div>
-          <label htmlFor="phone" className="text-sm font-medium text-ink-label">
-            Phone <span className="font-normal text-ink-faint">(optional)</span>
+          <label htmlFor="phone" className={labelClasses}>
+            Phone (optional)
           </label>
           <input
             id="phone"
@@ -150,8 +152,8 @@ export function BookingForm() {
       </div>
 
       <div>
-        <label htmlFor="notes" className="text-sm font-medium text-ink-label">
-          Notes <span className="font-normal text-ink-faint">(optional)</span>
+        <label htmlFor="notes" className={labelClasses}>
+          Notes (optional)
         </label>
         <textarea
           id="notes"
@@ -163,7 +165,7 @@ export function BookingForm() {
       </div>
 
       {status === "error" && errorMessage ? (
-        <p role="alert" className="text-sm text-ink-strong">
+        <p role="alert" className="font-sans text-ui text-sumi">
           {errorMessage}
         </p>
       ) : null}
@@ -171,7 +173,7 @@ export function BookingForm() {
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="min-h-11 w-full rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
+        className="btn btn-filled w-full disabled:opacity-60 sm:w-auto"
       >
         {status === "submitting" ? "Sending…" : "Request appointment"}
       </button>

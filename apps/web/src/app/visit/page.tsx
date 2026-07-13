@@ -12,25 +12,44 @@ export default async function VisitPage() {
   const settings = await getSiteSettings();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">Visit</h1>
-      <p className="mt-4 max-w-2xl leading-relaxed text-ink-body">
-        The gallery is open by appointment. Choose a date and time that suits you and we will
-        confirm by email — the confirmation includes a calendar invitation you can add with one
-        click.
-      </p>
-      {settings?.address ? (
-        <p className="mt-3 whitespace-pre-line text-sm text-ink-muted">{settings.address}</p>
-      ) : null}
+    <>
+      {/* Dark band. */}
+      <section className="bg-sumi text-washi">
+        <div className="page grid12 py-[var(--section)]">
+          <div className="col-span-12 md:col-span-8">
+            <p className="label text-washi/70">Visit</p>
+            <h1 className="mt-4 font-sans text-h1 font-medium tracking-tight text-washi">
+              By appointment, in London.
+            </h1>
+            <p className="mt-5 max-w-[var(--measure)] font-serif text-lead font-light text-washi/80">
+              The gallery is open by appointment. Choose a date and time that suits
+              you and we will confirm by email — the confirmation includes a calendar
+              invitation you can add with one click.
+            </p>
+            {settings?.address ? (
+              <p className="mt-6 whitespace-pre-line font-serif text-ui text-washi/70">
+                {settings.address}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-10 rounded-card border border-line-soft bg-cell p-5 sm:p-8">
-        <BookingForm />
+      {/* Booking form. */}
+      <div className="page py-16">
+        <div className="grid12">
+          <div className="col-span-12 md:col-span-8 md:col-start-3">
+            <div className="border border-hairline bg-washi-2 p-6 sm:p-10">
+              <BookingForm />
+            </div>
+            <p className="mt-6 max-w-[var(--measure)] font-serif text-ui text-ink-50">
+              Your details are used only to arrange the appointment and are handled in
+              accordance with our privacy policy. If a time is unavailable we will
+              suggest an alternative.
+            </p>
+          </div>
+        </div>
       </div>
-
-      <p className="mt-6 text-xs leading-relaxed text-ink-soft">
-        Your details are used only to arrange the appointment and are handled in accordance with
-        our privacy policy. If a time is unavailable we will suggest an alternative.
-      </p>
-    </div>
+    </>
   );
 }

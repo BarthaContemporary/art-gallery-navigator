@@ -76,20 +76,31 @@ const terms: { term: string; definition: string }[] = [
 
 export default function GlossaryPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">Glossary</h1>
-      <p className="mt-3 max-w-2xl text-sm text-ink-muted">
-        Terms used in our catalogue descriptions, briefly explained.
-      </p>
+    <div className="page py-16">
+      <div className="grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
+            Glossary
+          </h1>
+          <p className="mt-4 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
+            Terms used in our catalogue descriptions, briefly explained.
+          </p>
 
-      <dl className="mt-8 divide-y divide-line-soft border-y border-line-soft">
-        {terms.map(({ term, definition }) => (
-          <div key={term} className="grid gap-1 py-5 sm:grid-cols-[11rem_1fr] sm:gap-6">
-            <dt className="font-medium text-ink-heading">{term}</dt>
-            <dd className="leading-relaxed text-ink-body">{definition}</dd>
-          </div>
-        ))}
-      </dl>
+          <dl className="mt-12 border-t border-sumi">
+            {terms.map(({ term, definition }) => (
+              <div
+                key={term}
+                className="grid gap-2 border-b border-hairline py-6 sm:grid-cols-[11rem_1fr] sm:gap-6"
+              >
+                <dt className="label pt-0.5">{term}</dt>
+                <dd className="max-w-[var(--measure)] font-serif text-body text-ink-70">
+                  {definition}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
     </div>
   );
 }

@@ -91,19 +91,16 @@ function primaryImage(piece: PieceRow): ImageRow | null {
 
 function UnavailableView() {
   return (
-    <div className="mx-auto flex max-w-2xl flex-col items-start px-4 py-24 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">
+    <div className="page flex flex-col items-start py-[var(--section)]">
+      <h1 className="max-w-[var(--measure)] font-sans text-h1 font-medium tracking-tight text-sumi">
         This private link is no longer available
       </h1>
-      <p className="mt-4 leading-relaxed text-ink-muted">
-        The selection you were sent has expired or the link is not recognised. We would be
-        delighted to show you what is currently available — please get in touch and we will send a
-        fresh selection.
+      <p className="mt-5 max-w-[var(--measure)] font-serif text-body text-ink-70">
+        The selection you were sent has expired or the link is not recognised. We
+        would be delighted to show you what is currently available — please get in
+        touch and we will send a fresh selection.
       </p>
-      <Link
-        href="/contact"
-        className="mt-8 inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
-      >
+      <Link href="/contact" className="btn btn-filled mt-10">
         Contact the gallery
       </Link>
     </div>
@@ -213,31 +210,31 @@ export default async function OfferPage({
     : null;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <header className="max-w-2xl">
-        <p className="font-mono text-[11px] uppercase tracking-wider text-ink-soft">
+    <div className="page py-16">
+      <header className="max-w-[var(--measure)]">
+        <p className="label">
           {offer.kind === "fair_preview"
             ? "Fair preview"
             : offer.kind === "viewing_room"
               ? "Private viewing room"
               : "Private offer"}
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink-strong">
+        <h1 className="mt-3 font-sans text-h1 font-medium tracking-tight text-sumi">
           {offer.title ?? "A selection of works"}
         </h1>
-        <p className="mt-5 leading-relaxed text-ink-body">
+        <p className="mt-5 font-serif text-body text-ink-70">
           {firstName ? `Dear ${firstName}, ` : ""}
           {offer.intro ??
             "we have set aside the following works, which we thought would be of particular interest to you."}
         </p>
         {expiryDate ? (
-          <p className="mt-3 text-sm text-ink-muted">
+          <p className="mt-3 font-serif text-ui text-ink-50">
             This selection is reserved for you until {expiryDate}.
           </p>
         ) : null}
       </header>
 
-      <ul className="mt-12 grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-[var(--section)] grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const piece = item.piece!;
           const hero = heroByPiece.get(piece.id) ?? null;
@@ -251,7 +248,7 @@ export default async function OfferPage({
           return (
             <li key={item.id}>
               <figure>
-                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-grid bg-placeholder">
+                <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-washi-2">
                   {src ? (
                     /* Signed URLs expire hourly — served directly, not through
                        the image optimizer cache. */
@@ -262,31 +259,33 @@ export default async function OfferPage({
                         hero?.caption ??
                         ([piece.title, piece.period].filter(Boolean).join(", ") || "Artwork")
                       }
-                      className="h-full w-full object-contain p-3"
+                      className="h-full w-full object-contain p-6"
                       loading="lazy"
                     />
                   ) : (
-                    <span className="text-xs text-ink-faint">Photography to follow</span>
+                    <span className="label text-ink-50">Photography to follow</span>
                   )}
                 </div>
-                <figcaption className="mt-3">
-                  <p className="font-medium text-ink-strong">{piece.title ?? "Untitled"}</p>
-                  <p className="mt-0.5 text-sm text-ink-muted">
+                <figcaption className="mt-4 space-y-1">
+                  <p className="font-sans text-ui font-medium text-sumi">
+                    {piece.title ?? "Untitled"}
+                  </p>
+                  <p className="font-serif text-ui text-ink-70">
                     {[piece.period, piece.origin_region, piece.medium]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
                   {piece.dimensions_display ? (
-                    <p className="mt-0.5 text-xs text-ink-soft">{piece.dimensions_display}</p>
+                    <p className="font-serif text-ui text-ink-50">
+                      {piece.dimensions_display}
+                    </p>
                   ) : null}
                   {item.note ? (
-                    <p className="mt-1.5 text-sm italic text-ink-muted">{item.note}</p>
+                    <p className="font-serif text-ui text-ink-70">{item.note}</p>
                   ) : null}
-                  <p className="mt-1.5 flex items-baseline justify-between gap-2">
-                    <span className="font-mono text-[11px] text-ink-soft">
-                      {piece.stock_number}
-                    </span>
-                    <span className="text-sm text-ink-body">
+                  <p className="flex items-baseline justify-between gap-2 pt-1">
+                    <span className="label">{piece.stock_number}</span>
+                    <span className="font-serif text-ui text-ink-70">
                       {offer.show_prices ? (price !== null ? gbp.format(price) : "POA") : ""}
                     </span>
                   </p>
@@ -297,13 +296,15 @@ export default async function OfferPage({
         })}
       </ul>
 
-      <section className="mt-16 max-w-xl border-t border-line-soft pt-10">
-        <h2 className="text-lg font-semibold text-ink-heading">Would you like to know more?</h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          Let us know and we will follow up personally with prices, further photography and
-          condition notes — or simply reply to our email.
+      <section className="mt-[var(--section)] max-w-[var(--measure)] border-t border-sumi pt-10">
+        <h2 className="font-sans text-h2 font-medium tracking-tight text-sumi">
+          Would you like to know more?
+        </h2>
+        <p className="mt-3 font-serif text-body text-ink-70">
+          Let us know and we will follow up personally with prices, further
+          photography and condition notes — or simply reply to our email.
         </p>
-        <div className="mt-6">
+        <div className="mt-8">
           <OfferResponse token={token} initialResponse={recipient.response} />
         </div>
       </section>

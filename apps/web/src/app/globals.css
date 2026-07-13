@@ -1,62 +1,79 @@
 @import "tailwindcss";
-@import "@jvb/ui/tokens.css";
 
 /*
- * Map the JVB greyscale tokens into Tailwind v4 theme variables.
- * `inline` so utilities resolve the var() chain at build time while the
- * underlying --jvb-* custom properties stay live at runtime.
+ * Joost van den Bergh — design system.
+ * Ma: emptiness is the material. One Dutch-orange accent, rationed.
+ * No shadows, no rounded corners, no gradients. Hairlines structure the page.
+ *
+ * Raw tokens live in :root; the ones that back Tailwind utilities are declared
+ * in @theme (Tailwind v4 emits them to :root and generates the colour, font and
+ * type-size utilities). Layout scalars (measure, gutter, section rhythm) live
+ * only in :root and are consumed via var() and arbitrary values.
  */
-@theme inline {
-  /* surfaces */
-  --color-page: var(--jvb-bg-page);
-  --color-cell: var(--jvb-bg-cell);
-  --color-band: var(--jvb-bg-band);
-  --color-placeholder: var(--jvb-bg-placeholder);
-  --color-chip: var(--jvb-bg-chip);
-  --color-pill: var(--jvb-bg-pill);
-  --color-control: var(--jvb-bg-control);
-  --color-control-active: var(--jvb-bg-control-active);
-  --color-primary: var(--jvb-bg-primary);
-  --color-primary-fg: var(--jvb-ink-primary-fg);
-  --color-header: var(--jvb-bg-header);
-  --color-overlay: var(--jvb-bg-overlay);
 
-  /* borders */
-  --color-line: var(--jvb-border);
-  --color-line-soft: var(--jvb-border-soft);
-  --color-line-control: var(--jvb-border-control);
-  --color-line-control-active: var(--jvb-border-control-active);
-  --color-ring-strong: var(--jvb-border-ring);
+:root {
+  /* colour */
+  --washi: #faf9f5; /* page bg — never pure white */
+  --washi-2: #f2f0ea; /* image grounds, raised surfaces */
+  --hairline: #e5e2d9; /* 1px rules */
+  --sumi: #1b1916; /* text, rules, dark bands */
+  --ink-70: #43413b; /* secondary text */
+  --ink-50: #6e6a61; /* labels, meta */
+  --oranje: #fc6600; /* accent — max one per view */
 
-  /* ink */
-  --color-ink-strong: var(--jvb-ink-strong);
-  --color-ink-heading: var(--jvb-ink-heading);
-  --color-ink: var(--jvb-ink);
-  --color-ink-body: var(--jvb-ink-body);
-  --color-ink-desc: var(--jvb-ink-desc);
-  --color-ink-label: var(--jvb-ink-label);
-  --color-ink-mid: var(--jvb-ink-mid);
-  --color-ink-muted: var(--jvb-ink-muted);
-  --color-ink-soft: var(--jvb-ink-soft);
-  --color-ink-faint: var(--jvb-ink-faint);
-  --color-ink-label-soft: var(--jvb-ink-label-soft);
-  --color-ink-separator: var(--jvb-ink-separator);
+  /* layout */
+  --measure: 640px; /* max text width */
+  --gutter: 24px;
+  --page-max: 1520px;
+  --page-pad: 64px; /* 24px below md — handled by utilities */
+  --section: clamp(128px, 12vw, 192px);
+}
 
-  /* the single chromatic value */
-  --color-status-green: var(--jvb-status-green);
+@theme {
+  /* Remove the framework's default palette so only the system colours exist. */
+  --color-*: initial;
 
-  /* type — next/font variables first, token stacks as fallback */
-  --font-sans: var(--font-hanken), var(--jvb-font-sans);
-  --font-mono: var(--font-jetbrains), var(--jvb-font-mono);
+  --color-washi: var(--washi);
+  --color-washi-2: var(--washi-2);
+  --color-hairline: var(--hairline);
+  --color-sumi: var(--sumi);
+  --color-ink-70: var(--ink-70);
+  --color-ink-50: var(--ink-50);
+  --color-oranje: var(--oranje);
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
 
-  /* radii */
-  --radius-card: var(--jvb-radius-card);
-  --radius-hero: var(--jvb-radius-hero);
-  --radius-grid: var(--jvb-radius-grid);
-  --radius-thumb: var(--jvb-radius-thumb-related);
-  --radius-control: var(--jvb-radius-control);
-  --radius-chip: var(--jvb-radius-chip);
-  --radius-tag: var(--jvb-radius-tag);
+  /* type families — sans is system (no webfont); serif via next/font */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+
+  /* type scale (line-height / tracking companions applied automatically) */
+  --text-label: 12px;
+  --text-label--line-height: 1.3;
+  --text-label--letter-spacing: 0.08em;
+
+  --text-ui: 14px;
+  --text-ui--line-height: 1.4;
+
+  --text-body: 17px;
+  --text-body--line-height: 1.65;
+
+  --text-lead: 22px;
+  --text-lead--line-height: 1.45;
+
+  --text-h2: 32px;
+  --text-h2--line-height: 1.15;
+  --text-h2--letter-spacing: -0.01em;
+
+  --text-h1: 56px;
+  --text-h1--line-height: 1.05;
+  --text-h1--letter-spacing: -0.02em;
+
+  --text-display: clamp(48px, 6.6vw, 96px);
+  --text-display--line-height: 1.0;
+  --text-display--letter-spacing: -0.02em;
 }
 
 @layer base {
@@ -65,22 +82,121 @@
   }
 
   body {
-    background: var(--jvb-bg-page);
-    color: var(--jvb-ink-body);
-    font-family: var(--font-hanken), var(--jvb-font-sans);
+    background: var(--washi);
+    color: var(--ink-70);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* Visible focus for keyboard users, on the greyscale ring token. */
+  /* Square corners everywhere — the system forbids radii. */
+  * {
+    border-radius: 0 !important;
+  }
+
+  /* Keyboard focus: 2px oranje. */
   :focus-visible {
-    outline: 2px solid var(--jvb-border-ring);
+    outline: 2px solid var(--oranje);
     outline-offset: 2px;
-    border-radius: 2px;
   }
 
   ::selection {
-    background: var(--jvb-bg-control-active);
-    color: var(--jvb-ink-strong);
+    background: var(--sumi);
+    color: var(--washi);
+  }
+}
+
+@layer components {
+  /* Page container: max 1520px, 64px margins (24 below md). */
+  .page {
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+  @media (min-width: 768px) {
+    .page {
+      padding-inline: var(--page-pad);
+    }
+  }
+
+  /* 12-column grid, 24px gutter. */
+  .grid12 {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--gutter);
+  }
+
+  /* Uppercase structural label. */
+  .label {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-50);
+  }
+
+  /* Section header: 1px sumi rule on top, 20px padding, oranje index in rail. */
+  .section-head {
+    border-top: 1px solid var(--sumi);
+    padding-top: 20px;
+  }
+
+  /* Buttons — square always. Default outlined; hover inverts. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid var(--sumi);
+    background: transparent;
+    color: var(--sumi);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+  .btn:hover {
+    background: var(--sumi);
+    color: var(--washi);
+  }
+
+  /* Filled oranje — at most one per page. */
+  .btn-filled {
+    border-color: var(--oranje);
+    background: var(--oranje);
+    color: #fff;
+  }
+  .btn-filled:hover {
+    background: var(--oranje);
+    color: #fff;
+    opacity: 0.9;
+  }
+
+  /* Inverted outlined button, for dark (sumi) bands. */
+  .btn-invert {
+    border-color: var(--washi);
+    color: var(--washi);
+  }
+  .btn-invert:hover {
+    background: var(--washi);
+    color: var(--sumi);
+  }
+
+  /* Inline link: 1px underline, hover oranje. */
+  .link-inline {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: color 0.2s ease;
+  }
+  .link-inline:hover {
+    color: var(--oranje);
   }
 }

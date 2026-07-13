@@ -45,29 +45,27 @@ export default async function CollectionPage({
   const works = (collection.works ?? []).filter((w) => w?.slug);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-ink-soft">
-        <ol className="flex flex-wrap items-center gap-1.5">
+    <div className="page py-16">
+      <nav aria-label="Breadcrumb" className="label mb-8">
+        <ol className="flex flex-wrap items-center gap-2">
           <li>
-            <Link href="/collections" className="hover:text-ink-strong">
+            <Link href="/collections" className="hover:text-oranje">
               Collections
             </Link>
           </li>
-          <li aria-hidden className="text-ink-separator">
-            /
-          </li>
-          <li aria-current="page" className="text-ink-mid">
-            {collection.title}
-          </li>
+          <li aria-hidden>/</li>
+          <li aria-current="page">{collection.title}</li>
         </ol>
       </nav>
 
-      <header className="mb-10 max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">
+      <header className="mb-16 max-w-[var(--measure)]">
+        <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
           {collection.title}
         </h1>
         {collection.description ? (
-          <p className="mt-3 leading-relaxed text-ink-muted">{collection.description}</p>
+          <p className="mt-4 font-serif text-lead font-light text-ink-70">
+            {collection.description}
+          </p>
         ) : null}
       </header>
 

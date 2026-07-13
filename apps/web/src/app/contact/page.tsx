@@ -20,64 +20,69 @@ export default async function ContactPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">Contact</h1>
+    <div className="page py-16">
+      <div className="grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
+            Contact
+          </h1>
 
-      {page?.body?.length ? (
-        <div className="mt-4">
-          <PortableText value={page.body} />
+          {page?.body?.length ? (
+            <div className="mt-10">
+              <PortableText value={page.body} />
+            </div>
+          ) : (
+            <p className="mt-10 max-w-[var(--measure)] font-serif text-body text-ink-70">
+              We welcome enquiries about any work on the site, and are happy to
+              discuss works we may have that are not yet published. The gallery is
+              open by appointment.
+            </p>
+          )}
+
+          <dl className="mt-10 border-t border-sumi">
+            {settings?.email ? (
+              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="label">Email</dt>
+                <dd className="font-serif text-ui text-ink-70">
+                  <a href={`mailto:${settings.email}`} className="link-inline">
+                    {settings.email}
+                  </a>
+                </dd>
+              </div>
+            ) : null}
+            {settings?.phone ? (
+              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="label">Phone</dt>
+                <dd className="font-serif text-ui text-ink-70">{settings.phone}</dd>
+              </div>
+            ) : null}
+            {settings?.address ? (
+              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="label">Address</dt>
+                <dd className="whitespace-pre-line font-serif text-ui text-ink-70">
+                  {settings.address}
+                </dd>
+              </div>
+            ) : null}
+            {settings?.openingHours ? (
+              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+                <dt className="label">Hours</dt>
+                <dd className="font-serif text-ui text-ink-70">
+                  {settings.openingHours}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+
+          <p className="mt-10 font-serif text-body text-ink-70">
+            To see works in person,{" "}
+            <Link href="/visit" className="link-inline">
+              book a private viewing
+            </Link>
+            .
+          </p>
         </div>
-      ) : (
-        <p className="mt-4 max-w-2xl leading-relaxed text-ink-body">
-          We welcome enquiries about any work on the site, and are happy to discuss works we may
-          have that are not yet published. The gallery is open by appointment.
-        </p>
-      )}
-
-      <dl className="mt-8 divide-y divide-line-soft border-y border-line-soft">
-        {settings?.email ? (
-          <div className="grid grid-cols-[8rem_1fr] gap-4 py-3 text-sm">
-            <dt className="text-ink-label-soft">Email</dt>
-            <dd>
-              <a
-                href={`mailto:${settings.email}`}
-                className="text-ink-body underline decoration-ink-separator underline-offset-2 hover:text-ink-strong"
-              >
-                {settings.email}
-              </a>
-            </dd>
-          </div>
-        ) : null}
-        {settings?.phone ? (
-          <div className="grid grid-cols-[8rem_1fr] gap-4 py-3 text-sm">
-            <dt className="text-ink-label-soft">Phone</dt>
-            <dd className="text-ink-body">{settings.phone}</dd>
-          </div>
-        ) : null}
-        {settings?.address ? (
-          <div className="grid grid-cols-[8rem_1fr] gap-4 py-3 text-sm">
-            <dt className="text-ink-label-soft">Address</dt>
-            <dd className="whitespace-pre-line text-ink-body">{settings.address}</dd>
-          </div>
-        ) : null}
-        {settings?.openingHours ? (
-          <div className="grid grid-cols-[8rem_1fr] gap-4 py-3 text-sm">
-            <dt className="text-ink-label-soft">Hours</dt>
-            <dd className="text-ink-body">{settings.openingHours}</dd>
-          </div>
-        ) : null}
-      </dl>
-
-      <p className="mt-8 text-sm text-ink-muted">
-        To see works in person,{" "}
-        <Link
-          href="/visit"
-          className="underline decoration-ink-separator underline-offset-2 hover:text-ink-strong"
-        >
-          book a private viewing
-        </Link>
-        .
-      </p>
+      </div>
     </div>
   );
 }

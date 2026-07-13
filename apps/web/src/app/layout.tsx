@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Newsreader } from "next/font/google";
 import { getSiteSettings } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
@@ -7,15 +7,16 @@ import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/json-ld";
 import "./globals.css";
 
-const hanken = Hanken_Grotesk({
+/*
+ * Serif = voice (gallery texts, catalogue entries, essays).
+ * Roman only — weights 300 & 400, no italic. Sans is the system Helvetica
+ * Neue stack, so it carries no webfont.
+ */
+const newsreader = Newsreader({
   subsets: ["latin"],
-  variable: "--font-hanken",
-  display: "swap",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
+  weight: ["300", "400"],
+  style: ["normal"],
+  variable: "--font-newsreader",
   display: "swap",
 });
 
@@ -71,8 +72,8 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${hanken.variable} ${jetbrains.variable}`}>
-      <body className="flex min-h-screen flex-col">
+    <html lang="en" className={newsreader.variable}>
+      <body className="flex min-h-screen flex-col bg-washi text-ink-70">
         <JsonLd data={orgJsonLd} />
         <SiteHeader galleryName={galleryName} />
         <main className="flex-1">{children}</main>

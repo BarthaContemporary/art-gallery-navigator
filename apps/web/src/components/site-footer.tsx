@@ -9,38 +9,37 @@ export function SiteFooter({
   galleryName: string;
 }) {
   return (
-    <footer className="border-t border-line-soft bg-band">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
-        <div>
-          <p className="font-bold text-ink-strong">{galleryName}</p>
+    <footer className="mt-[var(--section)] border-t border-sumi">
+      <div className="page grid12 py-16">
+        {/* Wordmark + address */}
+        <div className="col-span-12 md:col-span-5">
+          <p className="font-sans text-ui font-medium text-sumi">{galleryName}</p>
           {settings?.address ? (
-            <address className="mt-2 text-sm not-italic leading-relaxed text-ink-muted whitespace-pre-line">
+            <address className="mt-4 max-w-[var(--measure)] font-serif text-ui not-italic leading-relaxed text-ink-70 whitespace-pre-line">
               {settings.address}
             </address>
           ) : null}
           {settings?.openingHours ? (
-            <p className="mt-2 text-sm text-ink-muted">{settings.openingHours}</p>
+            <p className="mt-2 font-serif text-ui text-ink-70">
+              {settings.openingHours}
+            </p>
           ) : null}
         </div>
 
-        <div className="text-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-label-soft">
-            Contact
-          </h2>
-          <ul className="mt-2 space-y-1 text-ink-muted">
+        {/* Contact */}
+        <div className="col-span-6 mt-8 md:col-span-3 md:mt-0">
+          <h2 className="label">Contact</h2>
+          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
             {settings?.email ? (
               <li>
-                <a
-                  className="hover:text-ink-strong"
-                  href={`mailto:${settings.email}`}
-                >
+                <a className="link-inline" href={`mailto:${settings.email}`}>
                   {settings.email}
                 </a>
               </li>
             ) : null}
             {settings?.phone ? <li>{settings.phone}</li> : null}
             <li>
-              <Link className="hover:text-ink-strong" href="/contact">
+              <Link className="link-inline" href="/contact">
                 Contact the gallery
               </Link>
             </li>
@@ -48,7 +47,7 @@ export function SiteFooter({
               social.url ? (
                 <li key={social._key}>
                   <a
-                    className="hover:text-ink-strong"
+                    className="link-inline"
                     href={social.url}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -61,67 +60,61 @@ export function SiteFooter({
           </ul>
         </div>
 
-        <div className="text-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-label-soft">
-            Visit
-          </h2>
-          <ul className="mt-2 space-y-1 text-ink-muted">
+        {/* Visit */}
+        <div className="col-span-6 mt-8 md:col-span-2 md:mt-0">
+          <h2 className="label">Visit</h2>
+          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
             <li>
-              <Link className="hover:text-ink-strong" href="/visit">
-                Book a private viewing
+              <Link className="link-inline" href="/visit">
+                Book a viewing
               </Link>
             </li>
             <li>
-              <Link className="hover:text-ink-strong" href="/faq">
+              <Link className="link-inline" href="/faq">
                 Collectors&rsquo; FAQ
               </Link>
             </li>
             <li>
-              <Link className="hover:text-ink-strong" href="/glossary">
+              <Link className="link-inline" href="/glossary">
                 Glossary
               </Link>
             </li>
           </ul>
         </div>
 
-        <div className="text-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-label-soft">
-            Legal
-          </h2>
-          <ul className="mt-2 space-y-1 text-ink-muted">
+        {/* Legal */}
+        <div className="col-span-12 mt-8 md:col-span-2 md:mt-0">
+          <h2 className="label">Legal</h2>
+          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
             <li>
-              <Link className="hover:text-ink-strong" href="/privacy">
-                Privacy Notice
+              <Link className="link-inline" href="/privacy">
+                Privacy
               </Link>
             </li>
             <li>
-              <Link className="hover:text-ink-strong" href="/terms">
-                Terms &amp; Conditions
+              <Link className="link-inline" href="/terms">
+                Terms
               </Link>
             </li>
             <li>
-              <Link className="hover:text-ink-strong" href="/cookies">
-                Cookie Policy
+              <Link className="link-inline" href="/cookies">
+                Cookies
               </Link>
             </li>
             <li>
-              <Link className="hover:text-ink-strong" href="/aml">
+              <Link className="link-inline" href="/aml">
                 Anti-Money-Laundering
               </Link>
             </li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-line-soft">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between sm:px-6">
+
+      <div className="border-t border-hairline">
+        <div className="page flex flex-col gap-1 py-6 font-sans text-label text-ink-50 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            &copy; {new Date().getFullYear()} {galleryName}. All works subject to availability.
-          </p>
-          <p className="flex flex-wrap gap-x-3 gap-y-1">
-            <Link className="hover:text-ink-mid" href="/privacy">Privacy</Link>
-            <Link className="hover:text-ink-mid" href="/terms">Terms</Link>
-            <Link className="hover:text-ink-mid" href="/cookies">Cookies</Link>
-            <Link className="hover:text-ink-mid" href="/aml">AML</Link>
+            &copy; {new Date().getFullYear()} {galleryName}. All works subject to
+            availability.
           </p>
         </div>
       </div>

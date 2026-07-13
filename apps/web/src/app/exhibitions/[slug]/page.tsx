@@ -104,75 +104,85 @@ export default async function ExhibitionPage({
   }
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <article className="py-10">
       <JsonLd data={eventJsonLd} />
 
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-ink-soft">
-        <ol className="flex flex-wrap items-center gap-1.5">
-          <li>
-            <Link href="/exhibitions" className="hover:text-ink-strong">
-              Exhibitions
-            </Link>
-          </li>
-          <li aria-hidden className="text-ink-separator">
-            /
-          </li>
-          <li aria-current="page" className="text-ink-mid">
-            {exhibition.title}
-          </li>
-        </ol>
-      </nav>
+      <div className="page">
+        <nav aria-label="Breadcrumb" className="label mb-8">
+          <ol className="flex flex-wrap items-center gap-2">
+            <li>
+              <Link href="/exhibitions" className="hover:text-oranje">
+                Exhibitions
+              </Link>
+            </li>
+            <li aria-hidden>/</li>
+            <li aria-current="page">{exhibition.title}</li>
+          </ol>
+        </nav>
 
-      <header className="max-w-3xl">
-        {exhibition.isArtFair ? (
-          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
-            Art fair
-          </p>
-        ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
-          {exhibition.title}
-        </h1>
-        {exhibition.subtitle ? (
-          <p className="mt-2 text-lg text-ink-muted">{exhibition.subtitle}</p>
-        ) : null}
-        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-          {venueLine ? <span>{venueLine}</span> : null}
-          {dates ? (
-            <span className="font-mono text-xs tracking-tight text-ink-soft">
-              {dates}
-            </span>
+        <header className="max-w-[var(--measure)]">
+          {exhibition.isArtFair ? (
+            <p className="label mb-3">Art fair</p>
           ) : null}
-        </p>
-      </header>
+          <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
+            {exhibition.title}
+          </h1>
+          {exhibition.subtitle ? (
+            <p className="mt-3 font-serif text-lead font-light text-ink-70">
+              {exhibition.subtitle}
+            </p>
+          ) : null}
+          <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 font-serif text-ui text-ink-50">
+            {venueLine ? <span>{venueLine}</span> : null}
+            {dates ? <span>{dates}</span> : null}
+          </p>
+        </header>
+      </div>
 
+      {/* Full-bleed hero — caption below, never overlaid. */}
       {coverSrc ? (
-        <figure className="mt-8 overflow-hidden rounded-hero bg-placeholder">
-          <Image
-            src={coverSrc}
-            alt={exhibition.coverImage?.caption ?? exhibition.title ?? "Exhibition"}
-            width={2000}
-            height={1333}
-            priority
-            sizes="(min-width: 1152px) 72rem, 100vw"
-            className="h-auto w-full object-cover"
-          />
+        <figure className="mt-10">
+          <div className="relative h-[72vh] w-full bg-washi-2">
+            <Image
+              src={coverSrc}
+              alt={exhibition.coverImage?.caption ?? exhibition.title ?? "Exhibition"}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+          </div>
+          {exhibition.coverImage?.caption ? (
+            <figcaption className="page label mt-3">
+              {exhibition.coverImage.caption}
+            </figcaption>
+          ) : null}
         </figure>
       ) : null}
 
-      {exhibition.intro && exhibition.intro.length > 0 ? (
-        <div className="mt-8">
-          <PortableText value={exhibition.intro} />
-        </div>
-      ) : null}
+      <div className="page">
+        {exhibition.intro && exhibition.intro.length > 0 ? (
+          <div className="mt-[var(--section)]">
+            <PortableText value={exhibition.intro} />
+          </div>
+        ) : null}
 
-      {works.length > 0 ? (
-        <section className="mt-12">
-          <h2 className="mb-6 font-mono text-xs uppercase tracking-[0.16em] text-ink-label-soft">
-            Works in the exhibition
-          </h2>
-          <WorkGrid works={works} />
-        </section>
-      ) : null}
+        {works.length > 0 ? (
+          <section className="mt-[var(--section)]">
+            <div className="section-head grid12">
+              <span className="label col-span-2 text-oranje md:col-span-1">
+                01
+              </span>
+              <h2 className="label col-span-10 text-sumi md:col-span-11">
+                Works in the exhibition
+              </h2>
+            </div>
+            <div className="mt-12">
+              <WorkGrid works={works} />
+            </div>
+          </section>
+        ) : null}
+      </div>
     </article>
   );
 }

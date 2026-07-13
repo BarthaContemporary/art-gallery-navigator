@@ -63,42 +63,47 @@ export default function FaqPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="page py-16">
       <JsonLd data={faqJsonLd} />
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-strong">
-        Collectors&rsquo; FAQ
-      </h1>
-      <p className="mt-3 max-w-2xl text-sm text-ink-muted">
-        Common questions about buying and living with Japanese and Indian works of art. Terms in
-        italics are explained further in the{" "}
-        <Link
-          href="/glossary"
-          className="underline decoration-ink-separator underline-offset-2 hover:text-ink-strong"
-        >
-          glossary
-        </Link>
-        .
-      </p>
+      <div className="grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
+            Collectors&rsquo; FAQ
+          </h1>
+          <p className="mt-4 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
+            Common questions about buying and living with Japanese and Indian works
+            of art. Terms are explained further in the{" "}
+            <Link href="/glossary" className="link-inline">
+              glossary
+            </Link>
+            .
+          </p>
 
-      <div className="mt-8 divide-y divide-line-soft border-y border-line-soft">
-        {faqs.map((faq) => (
-          <section key={faq.question} className="py-6">
-            <h2 className="font-medium text-ink-heading">{faq.question}</h2>
-            <p className="mt-2 leading-relaxed text-ink-body">{faq.answer}</p>
-          </section>
-        ))}
+          <div className="mt-12 border-t border-sumi">
+            {faqs.map((faq) => (
+              <section
+                key={faq.question}
+                className="border-b border-hairline py-8"
+              >
+                <h2 className="font-sans text-ui font-medium text-sumi">
+                  {faq.question}
+                </h2>
+                <p className="mt-2 max-w-[var(--measure)] font-serif text-body text-ink-70">
+                  {faq.answer}
+                </p>
+              </section>
+            ))}
+          </div>
+
+          <p className="mt-10 font-serif text-body text-ink-70">
+            Something we haven&rsquo;t covered?{" "}
+            <Link href="/contact" className="link-inline">
+              Get in touch
+            </Link>
+            .
+          </p>
+        </div>
       </div>
-
-      <p className="mt-8 text-sm text-ink-muted">
-        Something we haven&rsquo;t covered?{" "}
-        <Link
-          href="/contact"
-          className="underline decoration-ink-separator underline-offset-2 hover:text-ink-strong"
-        >
-          Get in touch
-        </Link>
-        .
-      </p>
     </div>
   );
 }

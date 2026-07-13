@@ -12,28 +12,38 @@ export function LegalDoc({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
-      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-        <Link href="/" className="hover:text-ink-mid">
-          Joost van den Bergh
-        </Link>
-      </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-strong">{title}</h1>
-      <p className="mt-2 text-[13px] text-ink-soft">Last updated {updated}</p>
-      <div className="legal-body mt-8 space-y-6 text-[15px] leading-[1.7] text-ink-body">
-        {children}
+    <main className="page py-[var(--section)]">
+      <div className="grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <p className="label">
+            <Link href="/" className="hover:text-oranje">
+              Joost van den Bergh
+            </Link>
+          </p>
+          <h1 className="mt-6 font-sans text-h1 font-medium tracking-tight text-sumi">
+            {title}
+          </h1>
+          <p className="mt-3 label">Last updated {updated}</p>
+          <div className="legal-body mt-12 max-w-[var(--measure)] space-y-8 [&_p]:mt-3 [&_p]:font-serif [&_p]:text-body [&_p]:text-ink-70 [&_p:first-child]:mt-0">
+            {children}
+          </div>
+        </div>
       </div>
     </main>
   );
 }
 
-export function LegalSection({ heading, children }: { heading: string; children: ReactNode }) {
+export function LegalSection({
+  heading,
+  children,
+}: {
+  heading: string;
+  children: ReactNode;
+}) {
   return (
     <section>
-      <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-strong">
-        {heading}
-      </h2>
-      <div className="mt-2 space-y-3">{children}</div>
+      <h2 className="label text-sumi">{heading}</h2>
+      <div className="mt-2">{children}</div>
     </section>
   );
 }

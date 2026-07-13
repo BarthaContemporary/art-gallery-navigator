@@ -40,9 +40,11 @@ export function OfferResponse({
     return (
       <div
         role="status"
-        className="rounded-card border border-line-soft bg-cell p-6 text-sm leading-relaxed text-ink-body"
+        className="border border-hairline bg-washi-2 p-6 font-serif text-body text-ink-70"
       >
-        <p className="font-medium text-ink-strong">Thank you for your interest.</p>
+        <p className="font-sans text-ui font-medium text-sumi">
+          Thank you for your interest.
+        </p>
         <p className="mt-1">We will be in touch personally very shortly.</p>
       </div>
     );
@@ -50,8 +52,8 @@ export function OfferResponse({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <label htmlFor="offer-message" className="block text-sm font-medium text-ink-label">
-        A note for us <span className="font-normal text-ink-faint">(optional)</span>
+      <label htmlFor="offer-message" className="label block">
+        A note for us (optional)
       </label>
       <textarea
         id="offer-message"
@@ -59,17 +61,17 @@ export function OfferResponse({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="Which works caught your eye, or any questions."
-        className="w-full rounded-control border border-line-control bg-control px-3 py-2.5 text-sm text-ink-body placeholder:text-ink-faint focus:border-line-control-active"
+        className="w-full border border-hairline bg-washi px-3 py-2.5 font-serif text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi"
       />
       {status === "error" ? (
-        <p role="alert" className="text-sm text-ink-strong">
+        <p role="alert" className="font-sans text-ui text-sumi">
           Something went wrong — please try again, or simply reply to our email.
         </p>
       ) : null}
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="min-h-11 rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="btn btn-filled disabled:opacity-60"
       >
         {status === "submitting" ? "Sending…" : "I’m interested"}
       </button>

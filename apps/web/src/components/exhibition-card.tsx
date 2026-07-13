@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { imageUrl, type ExhibitionListItem } from "@/lib/sanity";
+import { ImageFrame } from "@/components/work-card";
 
 /** Human date range, e.g. "3 March – 12 April 2026". Collapses a shared year. */
 export function formatExhibitionDates(
@@ -30,6 +30,17 @@ export function formatExhibitionDates(
   return null;
 }
 
+/** Four-digit year for the row rail. */
+export function exhibitionYear(
+  ex: { startDate: string | null; endDate: string | null },
+): string | null {
+  const ref = ex.startDate ?? ex.endDate;
+  if (!ref) return null;
+  const d = new Date(ref);
+  if (Number.isNaN(d.getTime())) return null;
+  return String(d.getFullYear());
+}
+
 /**
  * Current (or upcoming) if there is no end date, or the end date is today
  * or later. Past once the end date has slipped by. Undated shows count as
@@ -47,55 +58,101 @@ export function isCurrentExhibition(
   return d.getTime() >= today.getTime();
 }
 
-export function ExhibitionCard({
+function venueOf(exhibition: ExhibitionListItem): string | null {
+  return exhibition.isArtFair
+    ? [exhibition.fairName, exhibition.venue].filter(Boolean).join(" · ") ||
+        "Art fair"
+    : exhibition.venue;
+}
+
+/**
+ * Index row — year rail / title / dates / status. The whole row is a link;
+ * hover tints the title oranje.
+ */
+export function ExhibitionRow({
   exhibition,
 }: {
   exhibition: ExhibitionListItem;
 }) {
   const dates = formatExhibitionDates(exhibition.startDate, exhibition.endDate);
-  const src = imageUrl(exhibition.coverImage, { width: 1000 });
-  const venueLine = exhibition.isArtFair
-    ? [exhibition.fairName, exhibition.venue].filter(Boolean).join(" · ") ||
-      "Art fair"
-    : exhibition.venue;
+  const year = exhibitionYear(exhibition);
+  const status = isCurrentExhibition(exhibition) ? "Current" : "Past";
+  const venue = venueOf(exhibition);
 
   return (
     <Link
       href={`/exhibitions/${exhibition.slug}`}
-      className="group block rounded-card focus-visible:outline-offset-4"
+      className="group grid grid-cols-12 gap-x-6 gap-y-2 border-t border-hairline py-8"
     >
-      <div className="relative aspect-[4/3] overflow-hidden rounded-card bg-placeholder">
-        {src ? (
-          <Image
-            src={src}
-            alt={exhibition.coverImage?.caption ?? exhibition.title ?? "Exhibition"}
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <span className="sr-only">No cover image</span>
-        )}
+      <span className="label col-span-2 self-start pt-1.5 md:col-span-1">
+        {year ?? "—"}
+      </span>
+      <div className="col-span-10 md:col-span-7">
+        <h3 className="font-sans text-[24px] font-medium leading-tight tracking-tight text-sumi transition-colors group-hover:text-oranje md:text-[28px]">
+          {exhibition.title}
+        </h3>
+        {exhibition.subtitle ? (
+          <p className="mt-1 font-serif text-ui text-ink-70">
+            {exhibition.subtitle}
+          </p>
+        ) : null}
+        {venue ? (
+          <p className="mt-1 font-serif text-ui text-ink-50">{venue}</p>
+        ) : null}
       </div>
-      {exhibition.isArtFair ? (
-        <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-soft">
-          Art fair
-        </p>
-      ) : null}
-      <h3 className="mt-2 text-base font-semibold leading-snug text-ink-strong">
-        {exhibition.title}
-      </h3>
-      {exhibition.subtitle ? (
-        <p className="mt-0.5 text-sm text-ink-muted">{exhibition.subtitle}</p>
-      ) : null}
-      {venueLine ? (
-        <p className="mt-1 text-sm text-ink-muted">{venueLine}</p>
-      ) : null}
-      {dates ? (
-        <p className="mt-1 font-mono text-xs tracking-tight text-ink-soft">
-          {dates}
-        </p>
-      ) : null}
+      <div className="col-span-12 md:col-span-4 md:text-right">
+        {dates ? (
+          <p className="font-serif text-ui text-ink-70">{dates}</p>
+        ) : null}
+        <p className="label mt-1 md:justify-end">{status}</p>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Featured hero — image on cols 1–8, text block bottom-aligned on cols 10–12.
+ * Caption sits below the image, never over it.
+ */
+export function ExhibitionHero({
+  exhibition,
+}: {
+  exhibition: ExhibitionListItem;
+}) {
+  const dates = formatExhibitionDates(exhibition.startDate, exhibition.endDate);
+  const src = imageUrl(exhibition.coverImage, { width: 1800 });
+  const venue = venueOf(exhibition);
+  const status = isCurrentExhibition(exhibition) ? "Current" : "Past";
+
+  return (
+    <Link href={`/exhibitions/${exhibition.slug}`} className="group grid12">
+      <div className="col-span-12 lg:col-span-8">
+        <ImageFrame
+          src={src}
+          alt={exhibition.coverImage?.caption ?? exhibition.title ?? "Exhibition"}
+          sizes="(min-width: 1024px) 66vw, 100vw"
+          priority
+          ratio="aspect-[3/2]"
+          pad="p-0"
+        />
+      </div>
+      <div className="col-span-12 flex flex-col justify-end lg:col-span-3 lg:col-start-10">
+        <p className="label">{status}</p>
+        <h2 className="mt-3 font-sans text-h2 font-medium tracking-tight text-sumi transition-colors group-hover:text-oranje">
+          {exhibition.title}
+        </h2>
+        {exhibition.subtitle ? (
+          <p className="mt-2 font-serif text-lead font-light text-ink-70">
+            {exhibition.subtitle}
+          </p>
+        ) : null}
+        {venue ? (
+          <p className="mt-3 font-serif text-ui text-ink-70">{venue}</p>
+        ) : null}
+        {dates ? (
+          <p className="mt-1 font-serif text-ui text-ink-50">{dates}</p>
+        ) : null}
+      </div>
     </Link>
   );
 }

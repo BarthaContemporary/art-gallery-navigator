@@ -69,7 +69,7 @@ export default function PrivacyPage() {
         respond within the time limits set by law.</p>
       </LegalSection>
 
-      <p className="text-[13px] text-ink-soft">
+      <p className="label">
         This notice is provided for information and is kept under review.
       </p>
     </LegalDoc>

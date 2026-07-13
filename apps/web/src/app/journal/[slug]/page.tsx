@@ -57,53 +57,58 @@ export default async function JournalPostPage({
   const coverDims = imageDimensions(post.cover);
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mb-6 text-sm text-ink-soft">
-        <Link href="/journal" className="hover:text-ink-strong">
-          &larr; Journal
-        </Link>
-      </nav>
+    <article className="page py-10">
+      <div className="grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <nav aria-label="Breadcrumb" className="label mb-8">
+            <Link href="/journal" className="hover:text-oranje">
+              &larr; Journal
+            </Link>
+          </nav>
 
-      <header>
-        {post.publishedAt ? (
-          <time
-            dateTime={post.publishedAt}
-            className="font-mono text-[11px] text-ink-soft"
-          >
-            {new Intl.DateTimeFormat("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }).format(new Date(post.publishedAt))}
-          </time>
-        ) : null}
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink-strong">
-          {post.title}
-        </h1>
-        {post.excerpt ? (
-          <p className="mt-3 text-lg leading-relaxed text-ink-muted">{post.excerpt}</p>
-        ) : null}
-      </header>
+          <header>
+            {post.publishedAt ? (
+              <time dateTime={post.publishedAt} className="label">
+                {new Intl.DateTimeFormat("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }).format(new Date(post.publishedAt))}
+              </time>
+            ) : null}
+            <h1 className="mt-3 font-sans text-h1 font-medium tracking-tight text-sumi">
+              {post.title}
+            </h1>
+            {post.excerpt ? (
+              <p className="mt-4 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
+                {post.excerpt}
+              </p>
+            ) : null}
+          </header>
+        </div>
+      </div>
 
       {coverSrc && coverDims ? (
-        <figure className="mt-8">
+        <figure className="mt-10">
           <Image
             src={coverSrc}
             alt={post.cover?.caption ?? post.title ?? ""}
             width={coverDims.width}
             height={coverDims.height}
             priority
-            sizes="(min-width: 768px) 42rem, 100vw"
-            className="w-full rounded-hero bg-placeholder"
+            sizes="100vw"
+            className="w-full bg-washi-2"
           />
           {post.cover?.caption ? (
-            <figcaption className="mt-2 text-xs text-ink-soft">{post.cover.caption}</figcaption>
+            <figcaption className="label mt-3">{post.cover.caption}</figcaption>
           ) : null}
         </figure>
       ) : null}
 
-      <div className="mt-6">
-        <PortableText value={post.body} />
+      <div className="mt-12 grid12">
+        <div className="col-span-12 md:col-span-8 md:col-start-3">
+          <PortableText value={post.body} />
+        </div>
       </div>
     </article>
   );
