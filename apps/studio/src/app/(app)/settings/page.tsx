@@ -1,68 +1,120 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSession, getSupabase, hasRole } from "@/lib/supabase";
+import { getSession, getSupabase, hasRole, createServiceClient } from "@/lib/supabase";
 
 export const metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+function genPassword() {
+  // 16 URL-safe chars
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString("base64").replace(/[+/=]/g, "").slice(0, 16);
+}
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string }>;
+}) {
   const session = await getSession();
   if (!session || !hasRole(session.roles, "admin")) redirect("/");
+  const { notice } = await searchParams;
 
   const supabase = await getSupabase();
-  const [{ data: profiles }, { data: roles }, { data: invitations }, { data: outbox }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, full_name, created_at"),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("invitations").select("id, email, role, accepted_at, created_at").order("created_at", { ascending: false }),
-      supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
-    ]);
+  const admin = createServiceClient();
+
+  const [{ data: usersList }, { data: roles }, { data: outbox }] = await Promise.all([
+    admin.auth.admin.listUsers({ perPage: 200 }),
+    supabase.from("user_roles").select("user_id, role"),
+    supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
+  ]);
 
   const rolesByUser = new Map<string, string[]>();
   (roles ?? []).forEach((r) => {
     rolesByUser.set(r.user_id, [...(rolesByUser.get(r.user_id) ?? []), r.role]);
   });
+  const users = (usersList?.users ?? []).map((u) => ({
+    id: u.id,
+    email: u.email ?? "—",
+    roles: rolesByUser.get(u.id) ?? [],
+    created_at: u.created_at,
+  }));
 
-  async function invite(formData: FormData) {
+  async function createUser(formData: FormData) {
     "use server";
-    const supabase = await getSupabase();
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
-    if (!email) return;
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    await supabase.from("invitations").insert({
+    const role = String(formData.get("role") ?? "staff");
+    if (!email) redirect("/settings?notice=Email+required");
+    const pw = String(formData.get("password") ?? "").trim() || genPassword();
+    const admin = createServiceClient();
+    const { data, error } = await admin.auth.admin.createUser({
       email,
-      role: String(formData.get("role") ?? "staff"),
-      invited_by: user?.id,
+      password: pw,
+      email_confirm: true,
     });
-    // Sending the invite email via Resend is wired in the invite API route (Phase 0 stub).
+    if (error || !data.user) redirect(`/settings?notice=${encodeURIComponent(error?.message ?? "Create failed")}`);
+    await admin.from("user_roles").upsert(
+      { user_id: data.user.id, role },
+      { onConflict: "user_id,role" },
+    );
     revalidatePath("/settings");
+    redirect(`/settings?notice=${encodeURIComponent(`Created ${email} (${role}) — password: ${pw}`)}`);
+  }
+
+  async function resetPassword(formData: FormData) {
+    "use server";
+    const userId = String(formData.get("user_id") ?? "");
+    const email = String(formData.get("email") ?? "");
+    const pw = String(formData.get("password") ?? "").trim() || genPassword();
+    const admin = createServiceClient();
+    const { error } = await admin.auth.admin.updateUserById(userId, { password: pw });
+    if (error) redirect(`/settings?notice=${encodeURIComponent(error.message)}`);
+    redirect(`/settings?notice=${encodeURIComponent(`Password for ${email} reset to: ${pw}`)}`);
   }
 
   return (
     <div>
       <h1 className="text-[26px] font-semibold text-ink-strong">Settings</h1>
 
+      {notice ? (
+        <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 font-mono text-[12.5px] text-ink-body">
+          {notice}
+        </p>
+      ) : null}
+
       <section className="mt-6">
         <h2 className="text-[13px] font-semibold text-ink-strong">Users</h2>
         <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
-          <table className="w-full min-w-[420px] bg-cell text-left">
+          <table className="w-full min-w-[560px] bg-cell text-left">
             <thead>
               <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Email</th>
                 <th className="px-4 py-2.5 font-medium">Roles</th>
                 <th className="px-4 py-2.5 font-medium">Since</th>
+                <th className="px-4 py-2.5 font-medium">Reset password</th>
               </tr>
             </thead>
             <tbody>
-              {(profiles ?? []).map((p) => (
-                <tr key={p.id} className="border-b border-line-soft last:border-0">
-                  <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{p.full_name ?? p.id.slice(0, 8)}</td>
-                  <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">
-                    {(rolesByUser.get(p.id) ?? ["—"]).join(", ")}
-                  </td>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-line-soft last:border-0">
+                  <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{u.email}</td>
+                  <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{u.roles.join(", ") || "—"}</td>
                   <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
-                    {new Date(p.created_at).toLocaleDateString("en-GB")}
+                    {new Date(u.created_at).toLocaleDateString("en-GB")}
+                  </td>
+                  <td className="px-4 py-2">
+                    <form action={resetPassword} className="flex items-center gap-1.5">
+                      <input type="hidden" name="user_id" value={u.id} />
+                      <input type="hidden" name="email" value={u.email} />
+                      <input
+                        name="password"
+                        placeholder="new (blank = generate)"
+                        className="w-40 rounded-md border border-line-control bg-control px-2 py-1 text-[12px]"
+                      />
+                      <button type="submit" className="rounded-md border border-line-control bg-control px-2 py-1 text-[11px] font-medium text-ink-mid">
+                        Reset
+                      </button>
+                    </form>
                   </td>
                 </tr>
               ))}
@@ -72,11 +124,14 @@ export default async function SettingsPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-[13px] font-semibold text-ink-strong">Invitations</h2>
-        <form action={invite} className="mt-3 flex flex-wrap items-end gap-2">
+        <h2 className="text-[13px] font-semibold text-ink-strong">Add user</h2>
+        <p className="mt-1 text-[12.5px] text-ink-muted">
+          Creates the account immediately. Leave the password blank to auto-generate one (shown once above).
+        </p>
+        <form action={createUser} className="mt-3 flex flex-wrap items-end gap-2">
           <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
             Email
-            <input name="email" type="email" className="mt-1 block w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
+            <input name="email" type="email" required className="mt-1 block w-64 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
           </label>
           <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
             Role
@@ -86,27 +141,21 @@ export default async function SettingsPage() {
               <option value="admin">Admin</option>
             </select>
           </label>
+          <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+            Password (optional)
+            <input name="password" className="mt-1 block w-48 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />
+          </label>
           <button type="submit" className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
-            Invite
+            Create user
           </button>
         </form>
-        <ul className="mt-3 space-y-1.5">
-          {(invitations ?? []).map((i) => (
-            <li key={i.id} className="text-[13px] text-ink-body">
-              {i.email} — {i.role}
-              <span className="ml-2 font-mono text-[11px] text-ink-soft">
-                {i.accepted_at ? "accepted" : "pending"}
-              </span>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="mt-8">
         <h2 className="text-[13px] font-semibold text-ink-strong">Website sync</h2>
         <p className="mt-2 text-[13px] text-ink-muted">
-          {outbox === null ? "—" : ""}Pending outbox entries are pushed to Sanity by the sync
-          endpoint; a cron drains missed entries every 10 minutes.
+          {(outbox ?? 0) === 0 ? "No pending" : `${outbox} pending`} outbox entries. Web-visible pieces are pushed to
+          Sanity on change; a cron drains any misses every 10 minutes.
         </p>
       </section>
     </div>

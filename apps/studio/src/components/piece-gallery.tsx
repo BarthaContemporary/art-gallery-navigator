@@ -24,10 +24,12 @@ export function PieceGallery({
 }) {
   const [heroIndex, setHeroIndex] = useState(0);
   const hero = images[heroIndex];
+  const count = images.length;
+  const go = (delta: number) => setHeroIndex((i) => (i + delta + count) % count);
 
   return (
     <div>
-      <div className="relative aspect-square w-full overflow-hidden rounded-[12px]">
+      <div className="group relative aspect-square w-full overflow-hidden rounded-[12px]">
         {hero?.url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -40,6 +42,26 @@ export function PieceGallery({
         )}
         {hero ? (
           <>
+            {count > 1 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => go(-1)}
+                  aria-label="Previous image"
+                  className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => go(1)}
+                  aria-label="Next image"
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100"
+                >
+                  ›
+                </button>
+              </>
+            ) : null}
             <span className="absolute left-3 top-3 rounded-lg bg-[var(--jvb-bg-overlay)] px-2.5 py-1 text-[11px] font-medium text-ink-body backdrop-blur-[6px]">
               {hero.caption}
             </span>
