@@ -15,7 +15,10 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "JVB Studio", template: "%s · JVB Studio" },
+  title: {
+    default: "Joost van den Bergh — Studio",
+    template: "%s · Joost van den Bergh",
+  },
   description: "Inventory and CRM back office",
   robots: { index: false, follow: false },
 };

@@ -23,7 +23,9 @@ export default async function LoginPage({
         action={signIn}
         className="w-full max-w-sm rounded-[14px] border border-line bg-cell p-8"
       >
-        <h1 className="text-[22px] font-semibold text-ink-strong">JVB Studio</h1>
+        <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink-strong">
+          Joost van den Bergh
+        </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
           Inventory · CRM · Website
         </p>

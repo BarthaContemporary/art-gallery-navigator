@@ -40,9 +40,9 @@ export default async function AppLayout({
         <div className="mx-auto flex max-w-[1320px] items-center gap-4 overflow-x-auto px-4 py-3 md:px-8">
           <Link
             href="/"
-            className="shrink-0 font-mono text-[12px] font-medium tracking-[0.08em] text-ink-strong"
+            className="shrink-0 whitespace-nowrap text-[15px] font-bold tracking-[-0.01em] text-ink-strong"
           >
-            JVB
+            Joost van den Bergh
           </Link>
           <nav className="flex items-center gap-1">
             {items.map((n) => (

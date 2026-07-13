@@ -5,7 +5,7 @@ export const siteUrl = (
 ).replace(/\/$/, "");
 
 /** Fallback until Sanity siteSettings is populated. */
-export const fallbackGalleryName = "JvB Asian Art";
+export const fallbackGalleryName = "Joost van den Bergh";
 
 export const navLinks = [
   { href: "/works", label: "Works" },
