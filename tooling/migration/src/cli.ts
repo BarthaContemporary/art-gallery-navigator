@@ -185,7 +185,7 @@ program
           raw: r.data,
           import_batch: opts.batch,
         })),
-        { onConflict: "row_number" },
+        { onConflict: "import_batch,row_number" },
       );
       if (error) {
         console.error(`load-raw failed at row ~${done}: ${error.message}`);

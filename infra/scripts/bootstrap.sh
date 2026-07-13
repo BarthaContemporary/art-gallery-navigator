@@ -823,7 +823,10 @@ step_migrate() {
       | remote_psql > /dev/null
     count=$(( count + 1 ))
   done
-  info "migrations complete ($count newly applied)"
+  # PostgREST caches the schema at startup; after new tables it must be told
+  # to reload or it 404s inserts (GET still works off the stale cache).
+  printf "notify pgrst, 'reload schema';\n" | remote_psql > /dev/null 2>&1 || true
+  info "migrations complete ($count newly applied); PostgREST schema cache reloaded"
 }
 
 # ===========================================================================
