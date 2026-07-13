@@ -1,77 +1,51 @@
-# Bartha Contemporary App
+# JVB — Asian Art Dealer System
 
-## Project Description
+Inventory database · CRM · Website, built for a UK Asian-art dealer replacing a legacy
+FileMaker system. The full plan (architecture, schema, phasing, compliance) lives in
+[`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 
-A comprehensive art gallery management application for Bartha Contemporary.
+## Layout
 
-## Project info
+| Path | What it is |
+| --- | --- |
+| `apps/studio` | Staff back office (Next.js) — inventory, Piece Detail, CRM, offers, stock book |
+| `apps/web` | Public website (Next.js + Sanity) — works, collections, offers (`/o/[token]`), booking |
+| `packages/db` | Supabase clients + domain types |
+| `packages/ui` | Design tokens (oklch, from the design handoff) |
+| `packages/emails` | React Email templates (offers, newsletters) |
+| `packages/documents` | PDF generators (fact sheets, Avery mailing labels) |
+| `supabase` | Database migrations (schema, RLS, views, seeds) |
+| `infra` | VPS: docker-compose (self-hosted Supabase), Caddy, image worker, backups, runbook |
+| `tooling/migration` | FileMaker import CLI (staged, auditable) |
 
-**URL**: https://lovable.dev/projects/e3078f31-b76a-482e-8640-7bf4b8cdaa03
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/e3078f31-b76a-482e-8640-7bf4b8cdaa03) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Getting started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+corepack enable && pnpm install
+supabase start                      # local Supabase (Docker) + applies migrations
+cp apps/studio/.env.example apps/studio/.env.local   # fill in keys from `supabase status`
+pnpm dev                            # studio on :3000, web on :3001
 ```
 
-**Edit a file directly in GitHub**
+Create the first admin (invite-only auth — no public signup):
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+# in supabase studio (local) or psql: create the user, then
+insert into user_roles (user_id, role) values ('<auth user id>', 'admin');
+```
 
-**Use GitHub Codespaces**
+## Roles
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **admin** — everything
+- **staff** — inventory + CRM + offers; cannot see purchase costs, margins, or invoices
+- **accountant** — read-only inventory + financials + margin-scheme stock book; no CRM
 
-## What technologies are used for this project?
+## Production
 
-This project is built with:
+The VPS runs only Supabase (`infra/compose`); both Next.js apps deploy to Vercel.
+See `infra/README.md` for the provisioning runbook, backups, and disaster recovery.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## FileMaker migration
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e3078f31-b76a-482e-8640-7bf4b8cdaa03) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+See `tooling/migration/README.md` — staged: parse → mapping review (dealer signs off)
+→ clean → load → finalize → image matching → report. Real data stays out of git.

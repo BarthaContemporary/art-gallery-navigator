@@ -1,0 +1,212 @@
+# infra/ — ops runbook
+
+Self-hosted Supabase on a single Vultr VPS (London) for the gallery system.
+Everything the VPS runs lives here; the apps themselves run on Vercel
+(BUILD_PLAN §2). Keep this document current — it is the disaster-recovery
+manual.
+
+```
+infra/
+  compose/          docker-compose.yml, .env.example, Caddyfile, kong/db init
+  image-worker/     Node + sharp derivative worker (built by compose)
+  scripts/          provision.sh, backup.sh, restore-drill.sh
+```
+
+## 1. Provisioning order (fresh VPS)
+
+1. **Create the instance**: Vultr High Frequency, 4 vCPU / 8 GB / 256 GB NVMe,
+   London, Ubuntu 24.04. Add your SSH key at creation.
+2. **Create Object Storage** (London / `lhr1`) and three buckets:
+   `jvb-storage` (storage-api backend), `jvb-storage-replica` (weekly sync
+   target), `jvb-backups` (pg dumps). Note the access key/secret.
+3. **Run the provision script** as root:
+   ```sh
+   scp infra/scripts/provision.sh root@<ip>:
+   ssh root@<ip> 'SSH_PORT=2222 bash provision.sh'
+   ```
+   It creates the `deploy` user, hardens SSH (custom port, keys only, no
+   root), enables UFW (80/443/SSH only), fail2ban, unattended-upgrades,
+   installs Docker + compose plugin + Caddy, and sets `vm.overcommit_memory=1`.
+   **Verify `ssh -p 2222 deploy@<ip>` works before closing the root session.**
+4. **DNS** (see §2) — must resolve before Caddy can obtain certificates.
+5. **Clone + configure** as `deploy`:
+   ```sh
+   sudo install -d -o deploy -g deploy /opt/jvb
+   git clone <repo> /opt/jvb          # read-only deploy key
+   cd /opt/jvb/infra/compose
+   cp .env.example .env && chmod 600 .env    # fill in EVERY CHANGE_ME
+   ```
+   Generate secrets: `openssl rand -base64 48` for `JWT_SECRET` (40+ chars),
+   then derive `ANON_KEY` / `SERVICE_ROLE_KEY` from it with the Supabase CLI
+   or the self-hosting JWT generator
+   (<https://supabase.com/docs/guides/self-hosting#api-keys>).
+6. **Caddy**: edit `Caddyfile` (real domains, `caddy hash-password` output in
+   the `basic_auth` block), then:
+   ```sh
+   sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
+7. **Bring the stack up** (§3), **apply migrations** (§4), then configure
+   `rclone` and cron for backups (§5) and monitoring (§6).
+8. **Prove it**: run `scripts/restore-drill.sh` once the first nightly backup
+   exists. Phase 0 is not done until the drill passes.
+
+## 2. DNS records
+
+| Record | Type | Value | Purpose |
+|---|---|---|---|
+| `api.<domain>` | A | VPS IP | Supabase gateway (Caddy → Kong :8000) |
+| `studio.<domain>` | A | VPS IP | Supabase dashboard (Caddy → :3000, basic-auth, break-glass only) |
+| Resend DKIM/SPF/MX | per Resend | per Resend | auth + offer/newsletter email |
+
+The Next.js apps (`studio` back-office, public site) are Vercel domains and
+do not point at the VPS. Public-site images are served from Sanity's CDN —
+no public traffic ever reaches this box except API calls.
+
+## 3. Bringing the stack up / down
+
+```sh
+cd /opt/jvb/infra/compose
+docker compose up -d          # first run builds ../image-worker
+docker compose ps             # all services healthy?
+docker compose logs -f image-worker
+```
+
+Smoke test from your machine:
+
+```sh
+curl -H "apikey: $ANON_KEY" https://api.<domain>/rest/v1/   # 200 JSON
+curl https://api.<domain>/auth/v1/health                     # GoTrue health
+```
+
+Down: `docker compose down` (data survives in the `db-data` volume and in
+Object Storage). Never `down -v` on production — that deletes the database.
+
+## 4. Applying migrations
+
+Postgres is bound to `127.0.0.1:5432` on the VPS only. Work over an SSH
+tunnel:
+
+```sh
+ssh -p 2222 -N -L 54322:127.0.0.1:5432 deploy@<vps>
+# then, from the repo root on your machine:
+supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres"
+# or ad-hoc admin:
+psql "postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres"
+```
+
+Migrations live in `supabase/migrations/` and are the only supported way to
+change schema. They also create the storage buckets (`piece-originals`,
+`piece-derivatives`, `piece-documents` — all private) and the
+`new_piece_image` NOTIFY trigger the image-worker listens on.
+
+## 5. Backups & restore
+
+Configure the rclone remote once (as `deploy`): `rclone config` → s3 /
+provider Other / endpoint `https://lhr1.vultrobjects.com` + the Object
+Storage keys. Name it `vultr` (scripts default to that).
+
+| What | Script | Schedule (cron, §comments in script) |
+|---|---|---|
+| Postgres dump (`pg_dump -Fc`) → `jvb-backups/backups/postgres/` | `backup.sh db` | nightly 02:30 UTC |
+| Retention: newest 30 + first-of-month for 12 months | (built into `backup.sh db`) | — |
+| Storage bucket → replica bucket | `backup.sh storage-sync` | weekly Sun 03:30 UTC |
+| Restore drill (throwaway container + sanity counts) | `restore-drill.sh` | quarterly, and after any major change |
+
+`backup.sh db` pings `HEALTHCHECKS_URL` (healthchecks.io) on success — a
+missed ping alerts us that backups silently stopped. Set the URLs in the
+cron environment or at the top of the script.
+
+**Restore to production** (worst case, §8 covers full DR):
+
+```sh
+cd /opt/jvb/infra/compose
+docker compose stop image-worker rest storage auth   # stop writers
+rclone copyto vultr:jvb-backups/backups/postgres/<dump> /tmp/restore.dump
+docker compose exec -T db pg_restore -U postgres -d postgres --clean --if-exists --no-owner /tmp/restore.dump
+docker compose up -d
+```
+
+## 6. Monitoring
+
+- **healthchecks.io** (free tier): dead-man switches for the nightly backup
+  and weekly storage sync — configured in §5.
+- **HTTP uptime**: either Better Stack (hosted, simplest) probing
+  `https://api.<domain>/auth/v1/health`, or self-host Uptime Kuma by
+  appending this optional block to `docker-compose.yml`:
+
+  ```yaml
+  # Optional — Uptime Kuma at 127.0.0.1:3001 (add a Caddy site or SSH-tunnel to it)
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    networks: [supabase]
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+  # ...and add `uptime-kuma-data:` under `volumes:`
+  ```
+
+  (A hosted monitor is preferred: a monitor on the same box misses the box
+  itself dying.)
+- **Disk**: watch `db-data` volume growth; originals/derivatives are in
+  Object Storage so the NVMe mostly holds Postgres + logs.
+
+## 7. Upgrade procedure
+
+Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —
+record the tag in the compose file when you first deploy). To upgrade:
+
+1. Read release notes: supabase/postgres and storage-api occasionally
+   require migration steps; GoTrue minor bumps are usually safe.
+2. Take an out-of-band backup: `scripts/backup.sh db`.
+3. Bump ONE image tag in `docker-compose.yml` (commit the change).
+4. `docker compose pull <service> && docker compose up -d <service>`.
+5. Verify: `docker compose ps` healthy, smoke tests from §3, studio app
+   login, an image upload end-to-end.
+6. Postgres major upgrades are a special case: dump → new cluster → restore
+   (plan downtime; rehearse on a throwaway VPS first).
+
+Rollback = revert the tag and `docker compose up -d <service>` (except
+Postgres once its data directory has been upgraded — hence step 2).
+
+OS security patches are automatic (unattended-upgrades); reboots are manual:
+`docker compose down && reboot` in a quiet window, `up -d` after.
+
+## 8. Disaster recovery (VPS lost)
+
+Recovery is: **new VPS + latest dump + Object Storage**, because all state
+lives in exactly three places — Postgres (dumped nightly), Object Storage
+(originals/derivatives/documents + replica), and this repo (config).
+
+1. Provision a new instance (§1 steps 1, 3) — ~15 min.
+2. Point DNS `api.` / `studio.` at the new IP (low TTL helps).
+3. Clone repo, recreate `.env` from the password manager (the `.env` values
+   are the ONE thing not in git — keep a copy in the manager, always
+   current), install Caddyfile.
+4. `docker compose up -d`, then restore the latest dump (§5).
+5. Storage objects are already in Object Storage — nothing to restore unless
+   the bucket itself was lost, in which case `rclone sync` back from
+   `jvb-storage-replica`.
+6. Run the §3 smoke tests + one end-to-end image upload; re-enable cron.
+
+Target: < 2 hours, data loss bounded by the nightly dump (≤ 24 h).
+
+## 9. Escape hatch — managed Postgres
+
+If self-hosting becomes a burden (BUILD_PLAN §11), the migration path is
+deliberately short because we only rely on stock Supabase primitives
+(Postgres + GoTrue + PostgREST + storage-api, no self-hosted edge functions):
+
+1. Create a managed Supabase project (or any managed Postgres for the
+   DB-only variant).
+2. `pg_dump -Fc` here → `pg_restore` there; re-point storage-api's S3 config
+   (managed Supabase storage can keep using its own backend; objects can be
+   `rclone sync`ed from Vultr to it or stay put behind a custom storage
+   proxy).
+3. Update `SUPABASE_URL`/keys in Vercel env; the image-worker container can
+   run anywhere with a DATABASE_URL (Fly.io, Railway, or a $6 VPS).
+4. Decommission: final backup, snapshot, destroy.
+
+The schema, RLS and clients are identical on managed Supabase — no
+application code changes.

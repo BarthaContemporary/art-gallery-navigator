@@ -1,0 +1,62 @@
+/*
+ * JVB design tokens — from the Piece Detail design handoff.
+ * Greyscale oklch throughout; the status-dot green is the only chromatic value.
+ */
+:root {
+  /* surfaces */
+  --jvb-bg-page: oklch(0.985 0 0);
+  --jvb-bg-cell: oklch(0.99 0 0);
+  --jvb-bg-band: oklch(0.963 0 0);
+  --jvb-bg-placeholder: oklch(0.935 0 0);
+  --jvb-bg-chip: oklch(0.9 0 0);
+  --jvb-bg-pill: oklch(0.94 0 0);
+  --jvb-bg-control: oklch(0.98 0 0);
+  --jvb-bg-control-active: oklch(0.92 0 0);
+  --jvb-bg-primary: oklch(0.24 0 0);
+  --jvb-bg-tag-dark: oklch(0.28 0 0);
+  --jvb-bg-header: oklch(0.985 0 0 / 0.9);
+  --jvb-bg-overlay: oklch(0.99 0 0 / 0.85);
+
+  /* borders */
+  --jvb-border: oklch(0.9 0 0);
+  --jvb-border-soft: oklch(0.92 0 0);
+  --jvb-border-control: oklch(0.88 0 0);
+  --jvb-border-control-active: oklch(0.8 0 0);
+  --jvb-border-ring: oklch(0.32 0 0);
+
+  /* ink */
+  --jvb-ink-strong: oklch(0.19 0 0);
+  --jvb-ink-heading: oklch(0.2 0 0);
+  --jvb-ink-primary-fg: oklch(0.97 0 0);
+  --jvb-ink: oklch(0.27 0 0);
+  --jvb-ink-body: oklch(0.31 0 0);
+  --jvb-ink-desc: oklch(0.33 0 0);
+  --jvb-ink-label: oklch(0.36 0 0);
+  --jvb-ink-mid: oklch(0.4 0 0);
+  --jvb-ink-cost: oklch(0.45 0 0);
+  --jvb-ink-muted: oklch(0.5 0 0);
+  --jvb-ink-soft: oklch(0.55 0 0);
+  --jvb-ink-faint: oklch(0.58 0 0);
+  --jvb-ink-label-soft: oklch(0.6 0 0);
+  --jvb-ink-separator: oklch(0.78 0 0);
+
+  /* the single chromatic value */
+  --jvb-status-green: oklch(0.62 0.12 150);
+
+  /* activity-dot recency scale */
+  --jvb-dot-recent: oklch(0.35 0 0);
+  --jvb-dot-mid: oklch(0.55 0 0);
+  --jvb-dot-old: oklch(0.72 0 0);
+
+  /* radii */
+  --jvb-radius-card: 14px;
+  --jvb-radius-hero: 12px;
+  --jvb-radius-grid: 11px;
+  --jvb-radius-thumb-related: 9px;
+  --jvb-radius-control: 8px;
+  --jvb-radius-chip: 6px;
+  --jvb-radius-tag: 5px;
+
+  --jvb-font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --jvb-font-mono: "JetBrains Mono", ui-monospace, monospace;
+}

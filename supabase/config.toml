@@ -1,4 +1,8 @@
-project_id = "cvhdspyugfcvkrufqzrq"
+# Supabase CLI configuration for local development.
+# The self-hosted VPS stack (infra/compose) is configured separately via .env;
+# this file only drives `supabase start` / `supabase db reset` locally.
+
+project_id = "jvb-project"
 
 [api]
 enabled = true
@@ -7,199 +11,37 @@ schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
-[auth]
-enabled = true
-port = 54324
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000"]
-jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-security_update_password_require_reauthentication = true
-
-[auth.email]
-enable_signup = true
-double_confirm_changes = true
-enable_confirmations = false
-
-[auth.sms]
-enable_signup = true
-enable_confirmations = false
-
 [db]
-enabled = true
 port = 54322
 shadow_port = 54320
 major_version = 15
 
-[edge_runtime]
+[studio]
 enabled = true
 port = 54323
 
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+# Invite-only system: public signup is disabled, users are created via
+# admin invitations (see public.invitations + GoTrue invite flow).
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = false
+
 [storage]
 enabled = true
+file_size_limit = "500MiB"
+
+[inbucket]
+enabled = true
 port = 54324
-file_size_limit = "50MiB"
 
 [analytics]
 enabled = false
-port = 54327
-vector_port = 54328
-
-[functions.webdav]
-verify_jwt = false
-
-[functions.webdav-create-token]
-verify_jwt = true
-
-[functions.idrive-proxy]
-verify_jwt = true
-
-[functions.ai-field-mapper]
-verify_jwt = true
-
-[functions.ai-data-cleaner]
-verify_jwt = true
-
-[functions.ai-content-enhancer]
-verify_jwt = true
-
-[functions.targeted-image-search]
-verify_jwt = true
-
-[functions.security-compliance-scanner]
-verify_jwt = true
-
-[functions.exchange-rates]
-verify_jwt = false
-
-[functions.get-vapid-public-key]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = true
-
-[functions.google-oauth]
-verify_jwt = true
-
-[functions.google-contacts-sync]
-verify_jwt = true
-
-[functions.google-gmail]
-verify_jwt = true
-
-[functions.verify-collection-password]
-verify_jwt = false
-
-[functions.hash-collection-password]
-verify_jwt = true
-
-[functions.verify-turnstile]
-verify_jwt = false
-
-[functions.process-viewer-image]
-verify_jwt = true
-
-[functions.validate-address]
-verify_jwt = true
-
-[functions.validate-vat-eori]
-verify_jwt = true
-
-[functions.check-sanctions]
-verify_jwt = false
-
-[functions.enrich-email]
-verify_jwt = true
-
-[functions.search-linkedin-profile]
-verify_jwt = true
-
-[functions.generate-pdf]
-verify_jwt = true
-
-[functions.art-institute-chicago-search]
-verify_jwt = true
-
-[functions.national-gallery-search]
-verify_jwt = true
-
-[functions.guggenheim-search]
-verify_jwt = true
-
-[functions.whitney-search]
-verify_jwt = true
-
-[functions.artsy-search]
-verify_jwt = true
-
-[functions.process-publication-pdf]
-verify_jwt = true
-
-[functions.publication-seo-page]
-verify_jwt = false
-
-[functions.publication-download]
-verify_jwt = false
-
-[functions.publication-lead-capture]
-verify_jwt = false
-
-[functions.convert-image-format]
-verify_jwt = true
-
-[functions.generate-document-preview]
-verify_jwt = true
-
-[functions.export-to-docx]
-verify_jwt = true
-
-[functions.newsapi-search]
-verify_jwt = true
-
-[functions.va-museum-search]
-verify_jwt = true
-
-[functions.cleveland-museum-search]
-verify_jwt = true
-
-[functions.walters-museum-search]
-verify_jwt = true
-
-[functions.getty-museum-search]
-verify_jwt = true
-
-[functions.smk-search]
-verify_jwt = true
-
-[functions.finna-search]
-verify_jwt = true
-
-[functions.british-museum-search]
-verify_jwt = true
-
-[functions.nga-search]
-verify_jwt = true
-
-[functions.europeana-search]
-verify_jwt = true
-
-[functions.dpla-search]
-verify_jwt = true
-
-[functions.smithsonian-search]
-verify_jwt = true
-
-[functions.scrape-artsy-images]
-verify_jwt = true
-
-[functions.audio-signed-url]
-verify_jwt = false
-
-[functions.analyze-tour-photogrammetry]
-verify_jwt = false
-
-[functions.stitch-panorama]
-verify_jwt = false
-
-[functions.public-inventory-api]
-verify_jwt = false

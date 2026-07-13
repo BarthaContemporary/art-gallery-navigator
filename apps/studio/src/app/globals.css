@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@import "@jvb/ui/tokens.css";
+
+@theme {
+  --font-sans: var(--jvb-font-sans);
+  --font-mono: var(--jvb-font-mono);
+
+  --color-page: var(--jvb-bg-page);
+  --color-cell: var(--jvb-bg-cell);
+  --color-band: var(--jvb-bg-band);
+  --color-placeholder: var(--jvb-bg-placeholder);
+  --color-chip: var(--jvb-bg-chip);
+  --color-pill: var(--jvb-bg-pill);
+  --color-control: var(--jvb-bg-control);
+  --color-control-active: var(--jvb-bg-control-active);
+  --color-primary: var(--jvb-bg-primary);
+  --color-primary-fg: var(--jvb-ink-primary-fg);
+  --color-tag-dark: var(--jvb-bg-tag-dark);
+
+  --color-line: var(--jvb-border);
+  --color-line-soft: var(--jvb-border-soft);
+  --color-line-control: var(--jvb-border-control);
+  --color-ring-active: var(--jvb-border-ring);
+
+  --color-ink: var(--jvb-ink);
+  --color-ink-strong: var(--jvb-ink-strong);
+  --color-ink-body: var(--jvb-ink-body);
+  --color-ink-mid: var(--jvb-ink-mid);
+  --color-ink-muted: var(--jvb-ink-muted);
+  --color-ink-soft: var(--jvb-ink-soft);
+  --color-ink-faint: var(--jvb-ink-faint);
+
+  --color-status-green: var(--jvb-status-green);
+}
+
+body {
+  background: var(--jvb-bg-page);
+  color: var(--jvb-ink);
+  font-family: var(--jvb-font-sans);
+}
+
+/* diagonal-hatch placeholder for missing artwork imagery, per the design handoff */
+.jvb-hatch {
+  background-color: var(--jvb-bg-placeholder);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    oklch(0.9 0 0) 6px,
+    oklch(0.9 0 0) 7px
+  );
+}

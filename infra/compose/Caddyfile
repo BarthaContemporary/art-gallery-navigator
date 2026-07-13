@@ -1,0 +1,61 @@
+# ===========================================================================
+# Caddyfile — TLS termination for the self-hosted Supabase stack.
+#
+# Caddy runs ON THE HOST (apt install caddy — see scripts/provision.sh), NOT
+# in docker-compose. Install this file to /etc/caddy/Caddyfile, replace
+# example.com with the real domain, then `sudo systemctl reload caddy`.
+# Caddy obtains/renews Let's Encrypt certificates automatically, so DNS
+# A records for api.<domain> and studio.<domain> must point at the VPS first.
+#
+# Everything proxies to loopback ports published by docker-compose:
+#   kong   → 127.0.0.1:8000
+#   studio → 127.0.0.1:3000
+# ===========================================================================
+
+# Shared security headers.
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Don't advertise the server.
+		-Server
+	}
+}
+
+# ---------------------------------------------------------------------------
+# Supabase API gateway — auth, rest, storage (incl. TUS uploads + imgproxy
+# renders) all flow through Kong. CORS is handled by Kong, not here.
+# ---------------------------------------------------------------------------
+api.example.com {
+	import security_headers
+
+	# Large TIFF originals arrive as resumable TUS uploads; Caddy streams
+	# request bodies by default, so no body-size tuning is needed here
+	# (storage-api enforces STORAGE_FILE_SIZE_LIMIT).
+	reverse_proxy 127.0.0.1:8000
+}
+
+# ---------------------------------------------------------------------------
+# Supabase Studio dashboard — break-glass admin only (BUILD_PLAN §2). Single
+# shared login is a self-hosting limitation; day-to-day admin happens in the
+# studio app. Keep it behind basic-auth, and optionally an IP allowlist.
+# ---------------------------------------------------------------------------
+studio.example.com {
+	import security_headers
+
+	# Generate the hash with:  caddy hash-password
+	# (plaintext lives in compose/.env as STUDIO_PASSWORD for record-keeping;
+	# only the bcrypt hash goes here).
+	basic_auth {
+		admin CHANGE_ME_bcrypt_hash_from_caddy_hash-password
+	}
+
+	# Optional hardening: uncomment and list trusted IPs/CIDRs to allowlist.
+	# @blocked not remote_ip 203.0.113.10 198.51.100.0/24
+	# respond @blocked 403
+
+	reverse_proxy 127.0.0.1:3000
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@jvb/emails",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "build": "echo 'ts source package'" },
+  "dependencies": {
+    "@react-email/components": "^0.0.36",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "typescript": "^5.8.3"
+  }
+}

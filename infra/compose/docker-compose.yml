@@ -1,0 +1,359 @@
+# ---------------------------------------------------------------------------
+# Self-hosted Supabase for the JVB art-dealer system — single Vultr VPS.
+#
+# Trimmed from the upstream reference (github.com/supabase/supabase,
+# docker/docker-compose.yml). Deliberately OMITTED relative to upstream:
+#   - analytics (logflare) + vector (log shipping)   — not needed at this scale
+#   - realtime                                        — no realtime consumers (Phase 7 maybe)
+#   - functions (edge runtime)                        — all server logic lives in
+#                                                       Next.js on Vercel (BUILD_PLAN §2)
+#   - supavisor/pgbouncer                              — app connects via PostgREST;
+#                                                       the worker holds few connections
+#
+# Exposure model: NOTHING is published on a public interface. Kong (8000) and
+# Studio (3000) bind to 127.0.0.1 only; Caddy on the HOST terminates TLS and
+# proxies to them (see ./Caddyfile). Postgres (5432) also binds to 127.0.0.1
+# purely so admin work / migrations can be done over an SSH tunnel.
+#
+# Usage:
+#   cp .env.example .env   # then fill in real secrets (never commit .env)
+#   docker compose up -d
+# ---------------------------------------------------------------------------
+
+name: jvb-supabase
+
+services:
+  # ---------------------------------------------------------------------
+  # Postgres — supabase/postgres bundles pgvector, pg_trgm, pg_net, pgjwt…
+  # ---------------------------------------------------------------------
+  db:
+    container_name: supabase-db
+    image: supabase/postgres:15.8.1.060
+    restart: unless-stopped
+    networks:
+      - supabase
+    ports:
+      # Loopback only: reach it with `ssh -L 5432:127.0.0.1:5432 …` for
+      # psql / supabase db push. Never expose 5432 publicly (BUILD_PLAN §2).
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+      # First-boot init scripts (no-ops on an initialised data volume):
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY}
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=warning
+
+  # ---------------------------------------------------------------------
+  # Kong — the single API gateway (auth/rest/storage/meta behind one port)
+  # ---------------------------------------------------------------------
+  kong:
+    container_name: supabase-kong
+    image: kong:2.8.1
+    restart: unless-stopped
+    networks:
+      - supabase
+    ports:
+      # Loopback only — Caddy on the host proxies api.<domain> → :8000.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./volumes/api/kong.yml:/home/kong/temp.yml:ro
+    # Upstream trick: substitute the SUPABASE_ANON_KEY / SUPABASE_SERVICE_KEY
+    # env vars into the declarative config before starting Kong.
+    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      storage:
+        condition: service_healthy
+      meta:
+        condition: service_started
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      # Large headers/bodies pass through storage uploads (TUS) and PostgREST.
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+
+  # ---------------------------------------------------------------------
+  # GoTrue — auth. Invite-only studio logins; SMTP wired to Resend.
+  # ---------------------------------------------------------------------
+  auth:
+    container_name: supabase-auth
+    image: supabase/gotrue:v2.170.0
+    restart: unless-stopped
+    networks:
+      - supabase
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      # Invite-only: nobody self-registers; staff are invited from the studio.
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
+
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+
+      # --- SMTP via Resend (smtp.resend.com:465, implicit TLS) -----------
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+
+  # ---------------------------------------------------------------------
+  # PostgREST — the /rest/v1 data API
+  # ---------------------------------------------------------------------
+  rest:
+    container_name: supabase-rest
+    image: postgrest/postgrest:v12.2.8
+    restart: unless-stopped
+    networks:
+      - supabase
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
+    command: ["postgrest"]
+
+  # ---------------------------------------------------------------------
+  # Storage API — S3 backend → Vultr Object Storage (London).
+  # Buckets `piece-originals`, `piece-derivatives`, `piece-documents` are
+  # created private via migrations; objects live in the Vultr S3 bucket.
+  # ---------------------------------------------------------------------
+  storage:
+    container_name: supabase-storage
+    image: supabase/storage-api:v1.19.3
+    restart: unless-stopped
+    networks:
+      - supabase
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      imgproxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      # Scratch space; also shared with imgproxy for local-source renders.
+      - ./volumes/storage:/var/lib/storage
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      FILE_SIZE_LIMIT: ${STORAGE_FILE_SIZE_LIMIT}
+      TENANT_ID: stub
+      IS_MULTITENANT: "false"
+
+      # --- S3 backend → Vultr Object Storage -----------------------------
+      STORAGE_BACKEND: s3
+      GLOBAL_S3_BUCKET: ${VULTR_S3_BUCKET}
+      GLOBAL_S3_ENDPOINT: ${VULTR_S3_ENDPOINT}
+      GLOBAL_S3_PROTOCOL: https
+      GLOBAL_S3_FORCE_PATH_STYLE: "true"
+      AWS_ACCESS_KEY_ID: ${VULTR_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${VULTR_S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: ${VULTR_S3_REGION}
+      REGION: ${VULTR_S3_REGION}
+
+      # --- imgproxy integration (/render/image transforms) ---------------
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+
+      # --- resumable (TUS) uploads for big originals (BUILD_PLAN §4) -----
+      TUS_URL_PATH: /storage/v1/upload/resumable
+
+  # ---------------------------------------------------------------------
+  # imgproxy — on-the-fly thumbs/list/detail sizes from the display master
+  # (called by storage-api only; never exposed outside the compose network)
+  # ---------------------------------------------------------------------
+  imgproxy:
+    container_name: supabase-imgproxy
+    image: darthsim/imgproxy:v3.27
+    restart: unless-stopped
+    networks:
+      - supabase
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./volumes/storage:/var/lib/storage:ro
+    environment:
+      IMGPROXY_BIND: :5001
+      # Local-source access to storage's working dir (upstream pattern).
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      # storage-api may also hand imgproxy presigned object URLs when the
+      # backend is S3, so allow local + our Vultr endpoint only.
+      IMGPROXY_ALLOWED_SOURCES: local://,${VULTR_S3_ENDPOINT}/
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      # Display masters are ≤2560px, but allow headroom (megapixels).
+      IMGPROXY_MAX_SRC_RESOLUTION: "80"
+      # Leave both EMPTY (see .env.example): storage-api sends unsigned
+      # requests over the internal network. Set both only if imgproxy is
+      # ever exposed directly — then all URLs must be signed.
+      IMGPROXY_KEY: ${IMGPROXY_KEY}
+      IMGPROXY_SALT: ${IMGPROXY_SALT}
+
+  # ---------------------------------------------------------------------
+  # postgres-meta — used by Studio for table/SQL editors
+  # ---------------------------------------------------------------------
+  meta:
+    container_name: supabase-meta
+    image: supabase/postgres-meta:v0.87.1
+    restart: unless-stopped
+    networks:
+      - supabase
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+  # ---------------------------------------------------------------------
+  # Studio — break-glass admin dashboard. Loopback only; Caddy proxies
+  # studio.<domain> → :3000 behind basic-auth + (optionally) IP allowlist.
+  # ---------------------------------------------------------------------
+  studio:
+    container_name: supabase-studio
+    # `latest` intentionally: Studio only publishes date-stamped tags.
+    # PIN AT DEPLOY TIME, e.g. supabase/studio:20250519-<sha> — record the
+    # chosen tag in the server's .env/notes and in infra/README.md upgrades.
+    image: supabase/studio:latest
+    restart: unless-stopped
+    networks:
+      - supabase
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      meta:
+        condition: service_started
+      kong:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:3000/api/platform/profile').then((r) => { if (r.status !== 200) throw new Error(r.status) })
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${API_EXTERNAL_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+
+  # ---------------------------------------------------------------------
+  # image-worker — our derivative pipeline (BUILD_PLAN §4):
+  # LISTEN new_piece_image + 60s poll → EXIF → sRGB JPEG display master.
+  # ---------------------------------------------------------------------
+  image-worker:
+    container_name: jvb-image-worker
+    build:
+      context: ../image-worker
+    restart: unless-stopped
+    networks:
+      - supabase
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    environment:
+      # Storage API via the gateway (service-role key bypasses RLS/bucket policy).
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      # Direct DB connection for LISTEN/NOTIFY + row claiming.
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS}
+      BATCH_SIZE: ${WORKER_BATCH_SIZE}
+
+volumes:
+  db-data:
+  db-config:
+
+networks:
+  supabase:
+    # Internal bridge network; only the 127.0.0.1 port bindings above leave it.
+    driver: bridge

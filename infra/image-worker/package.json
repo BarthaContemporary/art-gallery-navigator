@@ -1,0 +1,24 @@
+{
+  "name": "@jvb/image-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Derivative pipeline worker: LISTEN/NOTIFY + poll piece_images, EXIF via exifr, sharp -> sRGB JPEG display master into piece-derivatives",
+  "scripts": {
+    "start": "tsx src/worker.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "echo ts source package"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "exifr": "^7.1.3",
+    "pg": "^8.14.1",
+    "sharp": "^0.34.1",
+    "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.11.13",
+    "typescript": "^5.8.3"
+  }
+}
