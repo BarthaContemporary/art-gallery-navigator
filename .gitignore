@@ -15,3 +15,6 @@ tooling/migration/out/*
 !tooling/migration/out/.gitkeep
 # bootstrap state (live credentials: SSH key, secrets.env — NEVER commit)
 infra/scripts/.bootstrap-state/
+
+# Vercel CLI local link artifacts
+.vercel/
