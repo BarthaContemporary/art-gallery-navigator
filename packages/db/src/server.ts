@@ -14,7 +14,9 @@ export function createServerSupabase(cookies: CookieStore) {
     {
       cookies: {
         getAll: () => cookies.getAll(),
-        setAll: (all) => {
+        setAll: (
+          all: { name: string; value: string; options?: Record<string, unknown> }[],
+        ) => {
           try {
             all.forEach(({ name, value, options }) => cookies.set(name, value, options));
           } catch {

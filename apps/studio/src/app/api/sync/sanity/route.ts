@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       mutations.push({ delete: { id: docId } });
       continue;
     }
-    const maker = piece.maker as { display_name: string; life_dates: string | null } | null;
+    const maker = piece.maker as unknown as { display_name: string; life_dates: string | null } | null;
     mutations.push({
       createOrReplace: {
         _id: docId,
@@ -124,4 +124,18 @@ export async function POST(request: Request) {
   );
 
   return Response.json({ processed: outbox.length, pieces: pieceIds.length });
+}
+
+/** Vercel cron entry point — drains any outbox rows pg_net missed. */
+export async function GET(request: Request) {
+  const auth = request.headers.get("authorization");
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  return POST(
+    new Request(request.url, {
+      method: "POST",
+      headers: { "x-sync-secret": process.env.SYNC_SHARED_SECRET ?? "" },
+    }),
+  );
 }

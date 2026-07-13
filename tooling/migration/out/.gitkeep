@@ -1,0 +1,4 @@
+# This directory holds generated migration artefacts derived from the real FileMaker
+# export (raw.json, cleaned.json, mapping/review CSVs, reports). They contain
+# commercially sensitive records. Everything in tooling/migration/out/ is gitignored —
+# real data must NEVER be committed.

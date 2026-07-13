@@ -31,7 +31,7 @@ export default async function AppLayout({
   const { user, roles } = session;
 
   const items = NAV.filter(
-    (n) => !("roles" in n) || hasRole(roles, ...(n.roles as ("admin" | "accountant")[])),
+    (n) => !("roles" in n) || hasRole(roles, ...(n.roles as readonly ("admin" | "accountant")[])),
   );
 
   return (

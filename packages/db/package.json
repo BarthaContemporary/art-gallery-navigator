@@ -8,11 +8,17 @@
     "./server": "./src/server.ts",
     "./browser": "./src/browser.ts"
   },
-  "scripts": { "typecheck": "tsc --noEmit", "build": "echo 'ts source package'" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'ts source package'"
+  },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "zod": "^3.24.2"
   },
-  "devDependencies": { "typescript": "^5.8.3" }
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.8.3"
+  }
 }

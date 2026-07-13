@@ -1,0 +1,2 @@
+# This directory holds the real FileMaker export (commercially sensitive).
+# Everything in tooling/migration/data/ is gitignored — real data must NEVER be committed.

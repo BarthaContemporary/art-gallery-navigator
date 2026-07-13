@@ -527,8 +527,8 @@ export default async function PieceDetail({
                     <span className="font-mono text-[11px] text-ink-soft">
                       {new Date(h.moved_at).toLocaleDateString("en-GB")}
                     </span>{" "}
-                    {(h.from_loc as { code: string } | null)?.code ?? "—"} →{" "}
-                    {(h.to_loc as { code: string } | null)?.code ?? "—"}
+                    {(h.from_loc as unknown as { code: string } | null)?.code ?? "—"} →{" "}
+                    {(h.to_loc as unknown as { code: string } | null)?.code ?? "—"}
                   </li>
                 ))}
                 {(historyRes.data ?? []).length === 0 ? (

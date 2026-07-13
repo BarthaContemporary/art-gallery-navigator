@@ -1,0 +1,25 @@
+{
+  "name": "@jvb/migration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FileMaker -> Supabase migration CLI (staged, idempotent, auditable)",
+  "scripts": {
+    "migrate": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "echo ts source package"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "commander": "^13.1.0",
+    "exceljs": "^4.4.0",
+    "papaparse": "^5.5.2",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/papaparse": "^5.3.15",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
