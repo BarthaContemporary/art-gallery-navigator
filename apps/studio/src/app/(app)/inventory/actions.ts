@@ -41,6 +41,14 @@ const pieceSchema = z.object({
   weight_g: num,
   dimensions_display: z.string().trim().max(300).transform((v) => v || null),
   comments: z.string().trim().transform((v) => v || null),
+  // Promoted legacy FileMaker fields
+  source_note: z.string().trim().transform((v) => v || null),
+  published_note: z.string().trim().transform((v) => v || null),
+  shares_note: z.string().trim().transform((v) => v || null),
+  consignment_details: z.string().trim().transform((v) => v || null),
+  purchased_from: z.string().trim().max(300).transform((v) => v || null),
+  sold_to: z.string().trim().max(300).transform((v) => v || null),
+  document_note: z.string().trim().transform((v) => v || null),
   web_visible: z.preprocess((v) => v === "on" || v === true, z.boolean()),
 });
 

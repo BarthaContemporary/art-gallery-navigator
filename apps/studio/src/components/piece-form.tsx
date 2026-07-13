@@ -189,6 +189,49 @@ export function PieceFormFields({
 
       <div className="space-y-5">
         <section className="rounded-[11px] border border-line bg-cell p-5">
+          <h2 className="text-[13px] font-semibold text-ink-strong">Provenance &amp; source</h2>
+          <div className="mt-4 space-y-4">
+            <label className={label}>
+              Source / acquired from
+              <input name="source_note" defaultValue={v("source_note")} className={field} placeholder="dealer, auction, date…" />
+            </label>
+            <label className={label}>
+              Purchased from
+              <input name="purchased_from" defaultValue={v("purchased_from")} className={field} />
+            </label>
+            <label className={label}>
+              Sold to
+              <input name="sold_to" defaultValue={v("sold_to")} className={field} />
+            </label>
+            <label className={label}>
+              Published / exhibited
+              <input name="published_note" defaultValue={v("published_note")} className={field} placeholder="catalogue, buyer, export note…" />
+            </label>
+            <label className={label}>
+              Shares / co-ownership
+              <input name="shares_note" defaultValue={v("shares_note")} className={field} />
+            </label>
+            <label className={label}>
+              Consignment details
+              <textarea name="consignment_details" defaultValue={v("consignment_details")} rows={2} className={field} />
+            </label>
+            <label className={label}>
+              Document note
+              <textarea name="document_note" defaultValue={v("document_note")} rows={2} className={field} />
+            </label>
+          </div>
+          {piece?.legacy_modified_by || piece?.legacy_modified_at ? (
+            <p className="mt-4 border-t border-line-soft pt-3 font-mono text-[11px] text-ink-soft">
+              FileMaker: last modified{" "}
+              {piece?.legacy_modified_at
+                ? new Date(piece.legacy_modified_at as string).toLocaleDateString("en-GB")
+                : ""}
+              {piece?.legacy_modified_by ? ` by ${piece.legacy_modified_by}` : ""}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="rounded-[11px] border border-line bg-cell p-5">
           <h2 className="text-[13px] font-semibold text-ink-strong">Placement</h2>
           <label className={`${label} mt-4 block`}>
             Location
