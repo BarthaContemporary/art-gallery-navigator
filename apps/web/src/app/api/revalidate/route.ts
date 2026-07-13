@@ -9,10 +9,33 @@ import { parseBody } from "next-sanity/webhook";
  */
 export async function POST(req: NextRequest) {
   try {
+    const secret = process.env.SANITY_REVALIDATE_SECRET;
+
+    // Legacy Sanity webhooks (and manual triggers) can't sign the payload, so
+    // also accept the secret via ?secret= or an x-revalidate-secret header.
+    const querySecret =
+      req.nextUrl.searchParams.get("secret") || req.headers.get("x-revalidate-secret");
+    if (querySecret && secret && querySecret === secret) {
+      let type: string | undefined;
+      try {
+        const json = (await req.json()) as { _type?: string };
+        type = json?._type;
+      } catch {
+        // no/invalid body — revalidate everything
+      }
+      if (type) revalidateTag(type);
+      else {
+        for (const t of ["work", "exhibition", "publication", "collection", "page", "siteSettings", "journalPost"]) {
+          revalidateTag(t);
+        }
+      }
+      return NextResponse.json({ revalidated: true, tag: type ?? "all", now: Date.now() });
+    }
+
     const { isValidSignature, body } = await parseBody<{
       _type?: string;
       slug?: { current?: string };
-    }>(req, process.env.SANITY_REVALIDATE_SECRET);
+    }>(req, secret);
 
     if (!isValidSignature) {
       return NextResponse.json({ message: "Invalid signature" }, { status: 401 });
