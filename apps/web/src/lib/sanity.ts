@@ -135,14 +135,63 @@ export interface Collection {
   works?: Work[] | null;
 }
 
+export interface Seo {
+  title: string | null;
+  description: string | null;
+  ogImage?: SanityImage | null;
+}
+
 export interface Exhibition {
   _id: string;
   title: string | null;
+  slug: string | null;
+  subtitle: string | null;
   venue: string | null;
   startDate: string | null;
   endDate: string | null;
-  body: PortableBlock[] | null;
+  isArtFair: boolean | null;
+  fairName: string | null;
+  coverImage: SanityImage | null;
+  intro: PortableBlock[] | null;
   works: Work[] | null;
+  seo: Seo | null;
+}
+
+/** Lightweight shape returned by the exhibitions index query. */
+export interface ExhibitionListItem {
+  _id: string;
+  title: string | null;
+  slug: string | null;
+  subtitle: string | null;
+  venue: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isArtFair: boolean | null;
+  fairName: string | null;
+  coverImage: SanityImage | null;
+  workCount: number | null;
+}
+
+/** Lightweight shape returned by the publications index query. */
+export interface PublicationListItem {
+  _id: string;
+  title: string | null;
+  slug: string | null;
+  coverImage: SanityImage | null;
+  publishedYear: number | null;
+  externalUrl: string | null;
+}
+
+export interface Publication {
+  _id: string;
+  title: string | null;
+  slug: string | null;
+  coverImage: SanityImage | null;
+  description: PortableBlock[] | null;
+  publishedYear: number | null;
+  externalUrl: string | null;
+  relatedExhibition: { title: string | null; slug: string | null } | null;
+  seo: Seo | null;
 }
 
 export interface JournalPost {
@@ -258,15 +307,67 @@ export const collectionBySlugQuery = groq`*[_type == "collection" && slug.curren
 
 export const collectionSlugsQuery = groq`*[_type == "collection" && defined(slug.current)].slug.current`;
 
-export const exhibitionsQuery = groq`*[_type == "exhibition"] | order(coalesce(startDate, "0000") desc){
+/* Fields for the exhibitions index (no dereferenced works — lightweight). */
+const exhibitionListFields = /* groq */ `{
   _id,
   title,
+  "slug": slug.current,
+  subtitle,
   venue,
   startDate,
   endDate,
-  body,
-  works[]->${workFields}
+  isArtFair,
+  fairName,
+  coverImage{ asset, caption },
+  "workCount": count(works)
 }`;
+
+/** All exhibitions, most-recently-ending first. Split current/past in the page. */
+export const exhibitionsQuery = groq`*[_type == "exhibition" && defined(slug.current)]
+  | order(coalesce(endDate, startDate, "0000") desc)
+  ${exhibitionListFields}`;
+
+export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.current == $slug][0]{
+  _id,
+  title,
+  "slug": slug.current,
+  subtitle,
+  venue,
+  startDate,
+  endDate,
+  isArtFair,
+  fairName,
+  coverImage{ asset, caption },
+  intro,
+  works[]->${workFields},
+  seo{ title, description, ogImage{ asset } }
+}`;
+
+export const exhibitionSlugsQuery = groq`*[_type == "exhibition" && defined(slug.current)].slug.current`;
+
+export const publicationsQuery = groq`*[_type == "publication" && defined(slug.current)]
+  | order(coalesce(publishedYear, 0) desc, title asc){
+  _id,
+  title,
+  "slug": slug.current,
+  coverImage{ asset, caption },
+  publishedYear,
+  externalUrl
+}`;
+
+export const publicationBySlugQuery = groq`*[_type == "publication" && slug.current == $slug][0]{
+  _id,
+  title,
+  "slug": slug.current,
+  coverImage{ asset, caption },
+  description,
+  publishedYear,
+  externalUrl,
+  relatedExhibition->{ title, "slug": slug.current },
+  seo{ title, description, ogImage{ asset } }
+}`;
+
+export const publicationSlugsQuery = groq`*[_type == "publication" && defined(slug.current)].slug.current`;
 
 export const journalPostsQuery = groq`*[_type == "journalPost" && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc){
   _id,

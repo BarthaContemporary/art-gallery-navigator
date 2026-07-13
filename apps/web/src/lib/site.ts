@@ -8,13 +8,11 @@ export const siteUrl = (
 export const fallbackGalleryName = "Joost van den Bergh";
 
 export const navLinks = [
-  { href: "/works", label: "Works" },
-  { href: "/collections", label: "Collections" },
   { href: "/exhibitions", label: "Exhibitions" },
-  { href: "/journal", label: "Journal" },
+  { href: "/publications", label: "Publications" },
+  { href: "/works", label: "Works" },
   { href: "/about", label: "About" },
   { href: "/visit", label: "Visit" },
-  { href: "/contact", label: "Contact" },
 ] as const;
 
 export function absoluteUrl(path: string): string {

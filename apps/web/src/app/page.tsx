@@ -1,18 +1,50 @@
 import Link from "next/link";
 import groq from "groq";
-import { getSiteSettings, sanityFetch, type Work } from "@/lib/sanity";
+import {
+  exhibitionsQuery,
+  getSiteSettings,
+  imageDimensions,
+  imageUrl,
+  sanityFetch,
+  type ExhibitionListItem,
+  type Work,
+} from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
-import { WorkGrid } from "@/components/work-card";
+import { HeroSlideshow, type HeroSlide } from "@/components/hero-slideshow";
+import { ExhibitionCard, isCurrentExhibition } from "@/components/exhibition-card";
+import { workImageAlt } from "@/components/work-card";
 
-const latestWorksQuery = groq`*[_type == "work" && defined(slug.current)] | order(_createdAt desc)[0...6]{
+const latestWorksQuery = groq`*[_type == "work" && defined(slug.current)] | order(_createdAt desc)[0...8]{
   _id, "slug": slug.current, stockNumber, title, maker, makerLifeDates,
   period, originRegion, medium, dimensionsDisplay, description,
   priceDisplay, available, supabaseId, category, categorySlug,
   images[]{ _key, asset, caption, role }
 }`;
 
+function toSlide(work: Work): HeroSlide | null {
+  const hero = work.images?.[0];
+  const src = imageUrl(hero, { width: 2200 });
+  const dims = imageDimensions(hero);
+  if (!src || !dims || !work.slug) return null;
+  return {
+    src,
+    alt: workImageAlt(work, hero?.caption),
+    href: `/works/${work.slug}`,
+    label: [work.maker, work.title].filter(Boolean).join(" — ") || work.title,
+    width: dims.width,
+    height: dims.height,
+  };
+}
+
 export default async function HomePage() {
-  const settings = await getSiteSettings();
+  const [settings, exhibitions] = await Promise.all([
+    getSiteSettings(),
+    sanityFetch<ExhibitionListItem[]>({
+      query: exhibitionsQuery,
+      tags: ["exhibition"],
+      fallback: [],
+    }),
+  ]);
 
   let featured = settings?.featuredWorks?.filter((w) => w?.slug) ?? [];
   if (featured.length === 0) {
@@ -23,64 +55,68 @@ export default async function HomePage() {
     });
   }
 
+  const slides = featured
+    .map(toSlide)
+    .filter((s): s is HeroSlide => s !== null)
+    .slice(0, 8);
+
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
+  const statement =
+    settings?.tagline ??
+    "Indian and Japanese art. London, by appointment.";
+
+  // Current & recent exhibitions: current first, then most recent past.
+  const current = exhibitions.filter((e) => isCurrentExhibition(e));
+  const recent = [...current, ...exhibitions.filter((e) => !isCurrentExhibition(e))].slice(0, 3);
 
   return (
     <>
-      {/* Hero */}
-      <section className="border-b border-line-soft bg-band">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-          <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-ink-strong sm:text-4xl">
-            {settings?.tagline ?? "Japanese and Indian works of art"}
-          </h1>
-          <p className="mt-4 max-w-xl leading-relaxed text-ink-muted">
+      {slides.length > 0 ? (
+        <HeroSlideshow slides={slides} />
+      ) : (
+        <section className="border-b border-line-soft bg-band">
+          <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6 sm:py-32">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink-strong sm:text-4xl">
+              {galleryName}
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-ink-muted">{statement}</p>
+          </div>
+        </section>
+      )}
+
+      {/* One-line gallery statement. */}
+      <section className="border-b border-line-soft">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          <p className="max-w-2xl text-lg leading-relaxed text-ink-body sm:text-xl">
             {settings?.aboutTeaser ??
-              `${galleryName} deals in fine Japanese and Indian works of art — bronzes, metalwork and objects of quiet distinction, sourced for collectors and museums.`}
+              "Joost van den Bergh is a London gallery of Indian and Japanese art — tantric drawings, bronzes, Mingei and 20th-century Japanese design. By appointment."}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+        </div>
+      </section>
+
+      {/* Current & recent exhibitions. */}
+      {recent.length > 0 ? (
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+          <div className="mb-6 flex items-baseline justify-between">
+            <h2 className="font-mono text-xs uppercase tracking-[0.16em] text-ink-label-soft">
+              Current &amp; recent exhibitions
+            </h2>
             <Link
-              href="/works"
-              className="inline-flex min-h-11 items-center rounded-control bg-primary px-6 py-3 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
+              href="/exhibitions"
+              className="text-sm text-ink-mid transition-colors hover:text-ink-strong"
             >
-              Browse the works
-            </Link>
-            <Link
-              href="/visit"
-              className="inline-flex min-h-11 items-center rounded-control border border-line-control bg-control px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-control-active"
-            >
-              Book a viewing
+              All exhibitions
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* Featured works */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <div className="mb-8 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-ink-heading">Selected works</h2>
-          <Link href="/works" className="text-sm text-ink-mid hover:text-ink-strong">
-            View all
-          </Link>
-        </div>
-        <WorkGrid works={featured} />
-      </section>
-
-      {/* About teaser */}
-      <section className="border-t border-line-soft bg-cell">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <h2 className="text-lg font-semibold text-ink-heading">About the gallery</h2>
-          <p className="mt-3 max-w-2xl leading-relaxed text-ink-body">
-            {settings?.aboutTeaser ??
-              "Every work is catalogued in depth — maker, period, provenance and condition — and can be seen in person by appointment."}
-          </p>
-          <Link
-            href="/about"
-            className="mt-4 inline-block text-sm text-ink-mid underline decoration-ink-separator underline-offset-4 hover:text-ink-strong"
-          >
-            Read more about us
-          </Link>
-        </div>
-      </section>
+          <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {recent.map((exhibition) => (
+              <li key={exhibition._id}>
+                <ExhibitionCard exhibition={exhibition} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }
