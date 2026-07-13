@@ -1,0 +1,5 @@
+**/.next
+**/node_modules
+tooling/migration/data
+tooling/migration/out
+infra/scripts/.bootstrap-state
