@@ -210,3 +210,22 @@ deliberately short because we only rely on stock Supabase primitives
 
 The schema, RLS and clients are identical on managed Supabase — no
 application code changes.
+
+## Automated bootstrap
+
+`scripts/bootstrap.sh` automates §1–§4 of this runbook end-to-end (VPS +
+Object Storage + DNS + provision + compose + migrations + first admin) and
+also wires up Vercel, Sanity and Resend — see
+`scripts/bootstrap.README.md` for inputs, step list and re-run semantics:
+
+```sh
+VULTR_API_KEY=… VERCEL_TOKEN=… SANITY_AUTH_TOKEN=… RESEND_API_KEY=… \
+DOMAIN=<domain> ADMIN_EMAIL=<email> GITHUB_REPO=<owner/name> \
+bash infra/scripts/bootstrap.sh          # --only/--from <step>, --yes
+```
+
+It is idempotent (re-runs re-use existing resources by label/name) and keeps
+all generated credentials in `scripts/.bootstrap-state/` (gitignored —
+**never commit it**; copy `secrets.env` into the password manager, per §8).
+Backups cron, the restore drill (§5) and monitoring (§6) remain manual.
+

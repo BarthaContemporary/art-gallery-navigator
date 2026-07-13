@@ -13,3 +13,5 @@ tooling/migration/data/*
 tooling/migration/out/*
 !tooling/migration/data/.gitkeep
 !tooling/migration/out/.gitkeep
+# bootstrap state (live credentials: SSH key, secrets.env — NEVER commit)
+infra/scripts/.bootstrap-state/
