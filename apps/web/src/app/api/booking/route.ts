@@ -86,12 +86,26 @@ export async function POST(req: NextRequest) {
       contactId = (created as { id: string }).id;
     }
 
+    // Resolve the seeded appointment type ("Private gallery viewing" / "Fair or exhibition meeting").
+    const typeName =
+      payload.appointmentType === "private_viewing"
+        ? "Private gallery viewing"
+        : "Fair or exhibition meeting";
+    const { data: typeRow } = await supabase
+      .from("appointment_types")
+      .select("id")
+      .ilike("name", typeName)
+      .maybeSingle();
+
     const { error: appointmentError } = await supabase.from("appointments").insert({
       contact_id: contactId,
-      type: payload.appointmentType,
+      appointment_type_id: (typeRow as { id: string } | null)?.id ?? null,
       starts_at: startLocal,
       ends_at: endLocal,
       status: "requested",
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone ?? null,
       notes: payload.notes ?? null,
       ics_uid: icsUid,
     });

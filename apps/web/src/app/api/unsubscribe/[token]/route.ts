@@ -49,11 +49,22 @@ export async function GET(
 
   try {
     const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("crm_contacts")
-      .update({ unsubscribed_at: new Date().toISOString() })
-      .eq("unsubscribe_token", token)
-      .select("id");
+    // Tokens live in their own table so a leaked token never exposes contact data.
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from("unsubscribe_tokens")
+      .select("contact_id")
+      .eq("token", token)
+      .maybeSingle();
+    if (tokenError) throw tokenError;
+
+    const contactId = (tokenRow as { contact_id: string } | null)?.contact_id;
+    const { data, error } = contactId
+      ? await supabase
+          .from("crm_contacts")
+          .update({ unsubscribed_at: new Date().toISOString(), marketing_consent: false })
+          .eq("id", contactId)
+          .select("id")
+      : { data: null, error: null };
 
     if (error) throw error;
 

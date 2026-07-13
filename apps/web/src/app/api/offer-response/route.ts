@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       // Best-effort enquiry record — staff notification surface in the studio.
       const { error: enquiryError } = await supabase.from("enquiries").insert({
         contact_id: recipient.contact_id,
-        source: "offer",
+        channel: "offer",
         message:
           payload.message ??
           `Interested in offer "${recipient.offer?.title ?? recipient.offer?.id ?? "unknown"}".`,

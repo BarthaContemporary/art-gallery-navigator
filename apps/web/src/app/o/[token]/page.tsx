@@ -163,7 +163,6 @@ export default async function OfferPage({
   try {
     await supabase.from("offer_views").insert({
       recipient_id: recipient.id,
-      offer_id: offer.id,
       viewed_at: nowIso,
     });
     await supabase
