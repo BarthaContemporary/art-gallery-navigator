@@ -1,0 +1,33 @@
+{
+  "name": "@jvb/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint || echo 'no eslint configured'"
+  },
+  "dependencies": {
+    "@jvb/db": "workspace:*",
+    "@jvb/ui": "workspace:*",
+    "@sanity/client": "^7",
+    "@supabase/supabase-js": "^2.49.4",
+    "groq": "^4",
+    "next": "^15.3.0",
+    "next-sanity": "^10",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "resend": "^4",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.3"
+  }
+}

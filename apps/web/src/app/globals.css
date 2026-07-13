@@ -1,0 +1,86 @@
+@import "tailwindcss";
+@import "@jvb/ui/tokens.css";
+
+/*
+ * Map the JVB greyscale tokens into Tailwind v4 theme variables.
+ * `inline` so utilities resolve the var() chain at build time while the
+ * underlying --jvb-* custom properties stay live at runtime.
+ */
+@theme inline {
+  /* surfaces */
+  --color-page: var(--jvb-bg-page);
+  --color-cell: var(--jvb-bg-cell);
+  --color-band: var(--jvb-bg-band);
+  --color-placeholder: var(--jvb-bg-placeholder);
+  --color-chip: var(--jvb-bg-chip);
+  --color-pill: var(--jvb-bg-pill);
+  --color-control: var(--jvb-bg-control);
+  --color-control-active: var(--jvb-bg-control-active);
+  --color-primary: var(--jvb-bg-primary);
+  --color-primary-fg: var(--jvb-ink-primary-fg);
+  --color-header: var(--jvb-bg-header);
+  --color-overlay: var(--jvb-bg-overlay);
+
+  /* borders */
+  --color-line: var(--jvb-border);
+  --color-line-soft: var(--jvb-border-soft);
+  --color-line-control: var(--jvb-border-control);
+  --color-line-control-active: var(--jvb-border-control-active);
+  --color-ring-strong: var(--jvb-border-ring);
+
+  /* ink */
+  --color-ink-strong: var(--jvb-ink-strong);
+  --color-ink-heading: var(--jvb-ink-heading);
+  --color-ink: var(--jvb-ink);
+  --color-ink-body: var(--jvb-ink-body);
+  --color-ink-desc: var(--jvb-ink-desc);
+  --color-ink-label: var(--jvb-ink-label);
+  --color-ink-mid: var(--jvb-ink-mid);
+  --color-ink-muted: var(--jvb-ink-muted);
+  --color-ink-soft: var(--jvb-ink-soft);
+  --color-ink-faint: var(--jvb-ink-faint);
+  --color-ink-label-soft: var(--jvb-ink-label-soft);
+  --color-ink-separator: var(--jvb-ink-separator);
+
+  /* the single chromatic value */
+  --color-status-green: var(--jvb-status-green);
+
+  /* type — next/font variables first, token stacks as fallback */
+  --font-sans: var(--font-hanken), var(--jvb-font-sans);
+  --font-mono: var(--font-jetbrains), var(--jvb-font-mono);
+
+  /* radii */
+  --radius-card: var(--jvb-radius-card);
+  --radius-hero: var(--jvb-radius-hero);
+  --radius-grid: var(--jvb-radius-grid);
+  --radius-thumb: var(--jvb-radius-thumb-related);
+  --radius-control: var(--jvb-radius-control);
+  --radius-chip: var(--jvb-radius-chip);
+  --radius-tag: var(--jvb-radius-tag);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--jvb-bg-page);
+    color: var(--jvb-ink-body);
+    font-family: var(--font-hanken), var(--jvb-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus for keyboard users, on the greyscale ring token. */
+  :focus-visible {
+    outline: 2px solid var(--jvb-border-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--jvb-bg-control-active);
+    color: var(--jvb-ink-strong);
+  }
+}
