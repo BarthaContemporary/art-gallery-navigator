@@ -18,3 +18,7 @@ infra/scripts/.bootstrap-state/
 
 # Vercel CLI local link artifacts
 .vercel/
+
+# Sanity studio build output
+apps/web/dist/
+apps/web/.sanity/
