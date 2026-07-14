@@ -40,12 +40,17 @@ export default async function ListsPage() {
       <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(lists ?? []).map((l) => (
           <li key={l.id} className="rounded-[11px] border border-line bg-cell p-4">
-            <h2 className="text-[14.5px] font-semibold text-ink-strong">{l.name}</h2>
-            {l.description ? <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p> : null}
-            <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-              {(l.crm_list_members as unknown as { count: number }[])[0]?.count ?? 0} members
-            </p>
+            <a href={`/crm/lists/${l.id}`} className="block">
+              <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">{l.name}</h2>
+              {l.description ? <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p> : null}
+              <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
+                {(l.crm_list_members as unknown as { count: number }[])[0]?.count ?? 0} members
+              </p>
+            </a>
             <div className="mt-3 flex flex-wrap gap-3">
+              <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
+                Manage
+              </a>
               <a href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                 Labels PDF
               </a>

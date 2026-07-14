@@ -152,6 +152,12 @@ export default async function InventoryPage({
     <div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
+          <Link
+            href="/inventory/lists"
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Lists
+          </Link>
           <a
             href={`/api/export/inventory.csv${qs(sp)}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
