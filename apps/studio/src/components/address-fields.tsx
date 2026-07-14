@@ -75,6 +75,7 @@ export function AddressFields({
     type: defaults.type ?? "primary_home",
   });
   const line1Ref = useRef<HTMLInputElement>(null);
+  const [mapBroken, setMapBroken] = useState(false);
 
   useEffect(() => {
     if (!MAPS_KEY || !line1Ref.current) return;
@@ -117,8 +118,13 @@ export function AddressFields({
     .join(", ");
   const mapSrc =
     MAPS_KEY && query
-      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=14&size=320x150&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=saturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=14&size=320x150&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=feature:all%7Celement:all%7Csaturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
       : null;
+
+  // A rejected Static Maps request (API not enabled, referrer, billing) must
+  // never surface as a broken-image "!". Hide the preview instead; it retries
+  // whenever the address changes.
+  useEffect(() => setMapBroken(false), [mapSrc]);
 
   return (
     <fieldset className="sm:col-span-2">
@@ -171,12 +177,13 @@ export function AddressFields({
           Country
           <input name={names.country} value={v.country} onChange={set("country")} className={input} />
         </label>
-        {mapSrc ? (
+        {mapSrc && !mapBroken ? (
           <div className="self-end">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={mapSrc}
               alt={`Map of ${query}`}
+              onError={() => setMapBroken(true)}
               className="h-[75px] w-full rounded-lg border border-line-soft object-cover"
               loading="lazy"
             />
