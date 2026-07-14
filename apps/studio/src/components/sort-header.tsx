@@ -64,10 +64,43 @@ export function SortHeader({
         }`}
       >
         {label}
-        <span aria-hidden className="font-mono text-[10px] text-ink-faint">
-          {isActive ? (activeDir === "asc" ? "▲" : "▼") : "↕"}
-        </span>
+        <SortIcon state={isActive ? activeDir : "none"} />
       </button>
     </th>
+  );
+}
+
+/**
+ * Sort indicator — a paired up/down chevron drawn as monochrome SVG (not a
+ * Unicode arrow, which iOS renders as a coloured emoji). The active direction
+ * shows in full ink; the other is dimmed. Neutral state shows both faint.
+ */
+function SortIcon({ state }: { state: "asc" | "desc" | "none" }) {
+  return (
+    <svg
+      aria-hidden
+      width="7"
+      height="11"
+      viewBox="0 0 8 12"
+      fill="none"
+      className={`ml-0.5 ${state === "none" ? "text-ink-faint" : "text-ink-strong"}`}
+    >
+      <path
+        d="M1.5 4.5 L4 2 L6.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={state === "desc" ? 0.3 : 1}
+      />
+      <path
+        d="M1.5 7.5 L4 10 L6.5 7.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={state === "asc" ? 0.3 : 1}
+      />
+    </svg>
   );
 }

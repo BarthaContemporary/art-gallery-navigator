@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, getSupabase, hasRole } from "@/lib/supabase";
+import { AppHeader } from "@/components/app-header";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
@@ -37,36 +37,11 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-b border-line bg-[var(--jvb-bg-header)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1320px] items-center gap-4 overflow-x-auto px-4 py-3 md:px-8">
-          <Link
-            href="/"
-            className="shrink-0 whitespace-nowrap text-[15px] font-bold tracking-[-0.01em] text-ink-strong"
-          >
-            Joost van den Bergh
-          </Link>
-          <nav className="flex items-center gap-1">
-            {items.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-ink-mid hover:bg-control-active"
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-          <form action={signOut} className="ml-auto shrink-0">
-            <button
-              type="submit"
-              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-              title={user.email ?? undefined}
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+      <AppHeader
+        items={items.map((n) => ({ href: n.href, label: n.label }))}
+        userEmail={user.email ?? null}
+        signOut={signOut}
+      />
       <main className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
         {children}
       </main>
