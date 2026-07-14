@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Newsreader, Noto_Sans } from "next/font/google";
 import "./globals.css";
 
-const sans = Hanken_Grotesk({
+/*
+ * Same two-family principle as the public site:
+ *   Sans = structure (UI, headings, labels, tables) — Noto Sans.
+ *   Serif = voice (catalogue prose: descriptions, condition, provenance) —
+ *   Newsreader, roman only. Numerals reuse the sans with tabular figures.
+ */
+const sans = Noto_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--jvb-font-sans",
+  display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const serif = Newsreader({
   subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--jvb-font-mono",
+  weight: ["300", "400"],
+  style: ["normal"],
+  variable: "--jvb-font-serif",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

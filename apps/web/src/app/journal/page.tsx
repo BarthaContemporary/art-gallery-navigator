@@ -35,7 +35,7 @@ export default async function JournalPage() {
       </header>
 
       {posts.length === 0 ? (
-        <p className="mt-16 border-t border-hairline py-12 font-serif text-body text-ink-50">
+        <p className="mt-16 py-12 font-serif text-body text-ink-50">
           The first entries are being written.
         </p>
       ) : (

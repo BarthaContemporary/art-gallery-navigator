@@ -86,11 +86,11 @@ export default function GlossaryPage() {
             Terms used in our catalogue descriptions, briefly explained.
           </p>
 
-          <dl className="mt-12 border-t border-sumi">
+          <dl className="mt-12">
             {terms.map(({ term, definition }) => (
               <div
                 key={term}
-                className="grid gap-2 border-b border-hairline py-6 sm:grid-cols-[11rem_1fr] sm:gap-6"
+                className="grid gap-2 py-6 sm:grid-cols-[11rem_1fr] sm:gap-6"
               >
                 <dt className="label pt-0.5">{term}</dt>
                 <dd className="max-w-[var(--measure)] font-serif text-body text-ink-70">

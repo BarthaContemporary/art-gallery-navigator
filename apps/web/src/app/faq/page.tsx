@@ -79,11 +79,11 @@ export default function FaqPage() {
             .
           </p>
 
-          <div className="mt-12 border-t border-sumi">
+          <div className="mt-12">
             {faqs.map((faq) => (
               <section
                 key={faq.question}
-                className="border-b border-hairline py-8"
+                className="py-8"
               >
                 <h2 className="font-sans text-ui font-medium text-sumi">
                   {faq.question}

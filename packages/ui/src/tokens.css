@@ -57,6 +57,10 @@
   --jvb-radius-chip: 6px;
   --jvb-radius-tag: 5px;
 
-  --jvb-font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --jvb-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Fallbacks; next/font sets --jvb-font-sans / --jvb-font-serif on <html>.
+     Structure = Noto Sans, voice = Newsreader (roman). Numerals reuse the
+     sans with tabular figures — no separate monospace family. */
+  --jvb-font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --jvb-font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --jvb-font-mono: var(--jvb-font-sans);
 }

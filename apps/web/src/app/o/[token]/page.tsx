@@ -296,7 +296,7 @@ export default async function OfferPage({
         })}
       </ul>
 
-      <section className="mt-[var(--section)] max-w-[var(--measure)] border-t border-sumi pt-10">
+      <section className="mt-[var(--section)] max-w-[var(--measure)] pt-10">
         <h2 className="font-sans text-h2 font-medium tracking-tight text-sumi">
           Would you like to know more?
         </h2>

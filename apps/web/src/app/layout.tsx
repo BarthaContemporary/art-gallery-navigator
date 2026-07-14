@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Newsreader } from "next/font/google";
+import { Newsreader, Noto_Sans } from "next/font/google";
 import { getSiteSettings } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
@@ -8,10 +8,20 @@ import { JsonLd } from "@/components/json-ld";
 import "./globals.css";
 
 /*
- * Serif = voice (gallery texts, catalogue entries, essays).
- * Roman only — weights 300 & 400, no italic. Sans is the system Helvetica
- * Neue stack, so it carries no webfont.
+ * Two families, strict division of labour:
+ *   Sans = structure (wordmark, nav, headings, labels, buttons).
+ *   Serif = voice (gallery texts, catalogue entries, essays).
+ * Noto Sans stands in for Helvetica Neue; Newsreader carries the voice —
+ * roman only, weights 300 & 400, no italic.
  */
+const notoSans = Noto_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal"],
+  variable: "--font-noto-sans",
+  display: "swap",
+});
+
 const newsreader = Newsreader({
   subsets: ["latin"],
   weight: ["300", "400"],
@@ -72,7 +82,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="en" className={newsreader.variable}>
+    <html lang="en" className={`${notoSans.variable} ${newsreader.variable}`}>
       <body className="flex min-h-screen flex-col bg-washi text-ink-70">
         <JsonLd data={orgJsonLd} />
         <SiteHeader galleryName={galleryName} />

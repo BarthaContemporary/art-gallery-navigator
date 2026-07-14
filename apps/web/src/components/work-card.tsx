@@ -87,7 +87,7 @@ export function WorkCard({ work }: { work: Work }) {
 export function WorkGrid({ works }: { works: Work[] }) {
   if (works.length === 0) {
     return (
-      <p className="border-t border-hairline py-12 font-serif text-body text-ink-50">
+      <p className="py-12 font-serif text-body text-ink-50">
         No works to show yet.
       </p>
     );

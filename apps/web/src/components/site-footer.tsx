@@ -9,7 +9,7 @@ export function SiteFooter({
   galleryName: string;
 }) {
   return (
-    <footer className="mt-[var(--section)] border-t border-sumi">
+    <footer className="mt-[var(--section)]">
       <div className="page grid12 py-16">
         {/* Wordmark + address */}
         <div className="col-span-12 md:col-span-5">
@@ -110,8 +110,8 @@ export function SiteFooter({
         </div>
       </div>
 
-      <div className="border-t border-hairline">
-        <div className="page flex flex-col gap-1 py-6 font-sans text-label text-ink-50 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div className="page flex flex-col gap-1 pb-10 font-sans text-label text-ink-50 sm:flex-row sm:items-center sm:justify-between">
           <p>
             &copy; {new Date().getFullYear()} {galleryName}. All works subject to
             availability.

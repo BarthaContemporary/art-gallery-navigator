@@ -36,7 +36,7 @@ export default async function PublicationsPage() {
       </header>
 
       {publications.length === 0 ? (
-        <p className="mt-16 border-t border-hairline py-12 font-serif text-body text-ink-50">
+        <p className="mt-16 py-12 font-serif text-body text-ink-50">
           Catalogues will appear here.
         </p>
       ) : (

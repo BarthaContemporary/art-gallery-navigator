@@ -39,7 +39,7 @@ export default async function VisitPage() {
       <div className="page py-16">
         <div className="grid12">
           <div className="col-span-12 md:col-span-8 md:col-start-3">
-            <div className="border border-hairline bg-washi-2 p-6 sm:p-10">
+            <div className="bg-washi-2 p-6 sm:p-10">
               <BookingForm />
             </div>
             <p className="mt-6 max-w-[var(--measure)] font-serif text-ui text-ink-50">

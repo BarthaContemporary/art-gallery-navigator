@@ -3,7 +3,8 @@
 /*
  * Joost van den Bergh — design system.
  * Ma: emptiness is the material. One Dutch-orange accent, rationed.
- * No shadows, no rounded corners, no gradients. Hairlines structure the page.
+ * No shadows, no rounded corners, no gradients, no horizontal rules —
+ * hierarchy comes from space and type alone.
  *
  * Raw tokens live in :root; the ones that back Tailwind utilities are declared
  * in @theme (Tailwind v4 emits them to :root and generates the colour, font and
@@ -15,7 +16,7 @@
   /* colour */
   --washi: #faf9f5; /* page bg — never pure white */
   --washi-2: #f2f0ea; /* image grounds, raised surfaces */
-  --hairline: #e5e2d9; /* 1px rules */
+  --hairline: #e5e2d9; /* reserved: subtle borders where unavoidable */
   --sumi: #1b1916; /* text, rules, dark bands */
   --ink-70: #43413b; /* secondary text */
   --ink-50: #6e6a61; /* labels, meta */
@@ -45,8 +46,8 @@
   --color-transparent: transparent;
   --color-current: currentColor;
 
-  /* type families — sans is system (no webfont); serif via next/font */
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* type families — both via next/font/google */
+  --font-sans: var(--font-noto-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
 
   /* type scale (line-height / tracking companions applied automatically) */
@@ -138,9 +139,9 @@
     color: var(--ink-50);
   }
 
-  /* Section header: 1px sumi rule on top, 20px padding, oranje index in rail. */
+  /* Section header: label-caps title in the rail; separation through
+     whitespace, never rules. */
   .section-head {
-    border-top: 1px solid var(--sumi);
     padding-top: 20px;
   }
 
@@ -189,11 +190,9 @@
     color: var(--sumi);
   }
 
-  /* Inline link: 1px underline, hover oranje. */
+  /* Inline link: no underline, hover oranje. */
   .link-inline {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
+    text-decoration: none;
     transition: color 0.2s ease;
   }
   .link-inline:hover {

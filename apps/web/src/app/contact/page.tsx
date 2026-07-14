@@ -39,9 +39,9 @@ export default async function ContactPage() {
             </p>
           )}
 
-          <dl className="mt-10 border-t border-sumi">
+          <dl className="mt-10">
             {settings?.email ? (
-              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+              <div className="grid grid-cols-[7rem_1fr] gap-4 py-3">
                 <dt className="label">Email</dt>
                 <dd className="font-serif text-ui text-ink-70">
                   <a href={`mailto:${settings.email}`} className="link-inline">
@@ -51,13 +51,13 @@ export default async function ContactPage() {
               </div>
             ) : null}
             {settings?.phone ? (
-              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+              <div className="grid grid-cols-[7rem_1fr] gap-4 py-3">
                 <dt className="label">Phone</dt>
                 <dd className="font-serif text-ui text-ink-70">{settings.phone}</dd>
               </div>
             ) : null}
             {settings?.address ? (
-              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+              <div className="grid grid-cols-[7rem_1fr] gap-4 py-3">
                 <dt className="label">Address</dt>
                 <dd className="whitespace-pre-line font-serif text-ui text-ink-70">
                   {settings.address}
@@ -65,7 +65,7 @@ export default async function ContactPage() {
               </div>
             ) : null}
             {settings?.openingHours ? (
-              <div className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3">
+              <div className="grid grid-cols-[7rem_1fr] gap-4 py-3">
                 <dt className="label">Hours</dt>
                 <dd className="font-serif text-ui text-ink-70">
                   {settings.openingHours}

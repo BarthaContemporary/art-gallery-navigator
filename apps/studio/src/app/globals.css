@@ -3,7 +3,10 @@
 
 @theme {
   --font-sans: var(--jvb-font-sans);
-  --font-mono: var(--jvb-font-mono);
+  --font-serif: var(--jvb-font-serif);
+  /* Numerals (stock #, prices, dates) reuse the sans with tabular figures —
+     no third typeface; see the .font-mono rule below. */
+  --font-mono: var(--jvb-font-sans);
 
   --color-page: var(--jvb-bg-page);
   --color-cell: var(--jvb-bg-cell);
@@ -37,6 +40,20 @@ body {
   background: var(--jvb-bg-page);
   color: var(--jvb-ink);
   font-family: var(--jvb-font-sans);
+}
+
+/* Voice: Newsreader for catalogue prose (descriptions, condition, provenance).
+   Roman only — the serif never appears in dense UI chrome. */
+.font-serif {
+  font-family: var(--jvb-font-serif);
+  font-style: normal;
+}
+
+/* Former monospace numeric cells keep their tabular alignment while using the
+   sans, so the studio holds to two typefaces (Noto Sans + Newsreader). */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 /* diagonal-hatch placeholder for missing artwork imagery, per the design handoff */

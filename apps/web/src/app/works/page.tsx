@@ -102,7 +102,7 @@ export default async function WorksPage({
       {totalPages > 1 ? (
         <nav
           aria-label="Pagination"
-          className="mt-[var(--section)] flex items-center justify-between border-t border-hairline pt-6 font-sans text-ui"
+          className="mt-[var(--section)] flex items-center justify-between pt-6 font-sans text-ui"
         >
           {pageNumber > 1 ? (
             <Link

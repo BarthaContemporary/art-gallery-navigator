@@ -223,12 +223,12 @@ export default async function WorkPage({
             </header>
 
             {/* MetaTable — sumi top rule, label-caps keys, serif values. */}
-            <dl className="mt-8 border-t border-sumi">
+            <dl className="mt-8">
               {specs.map(([label, value]) =>
                 value ? (
                   <div
                     key={label}
-                    className="grid grid-cols-[7rem_1fr] gap-4 border-b border-hairline py-3"
+                    className="grid grid-cols-[7rem_1fr] gap-4 py-3"
                   >
                     <dt className="label">{label}</dt>
                     <dd className="font-serif text-ui text-ink-70">{value}</dd>

@@ -344,7 +344,7 @@ export default async function PieceDetail({
               <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
                 Description
               </h2>
-              <p className="mt-2 whitespace-pre-line text-[14.5px] leading-[1.62] text-[var(--jvb-ink-desc)] [text-wrap:pretty]">
+              <p className="mt-2 whitespace-pre-line font-serif text-[15.5px] leading-[1.62] text-[var(--jvb-ink-desc)] [text-wrap:pretty]">
                 {piece.description}
               </p>
             </div>
@@ -357,7 +357,7 @@ export default async function PieceDetail({
                   <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
                     Condition
                   </h2>
-                  <p className="mt-2 text-[13.5px] leading-[1.55] text-ink-body">
+                  <p className="mt-2 font-serif text-[14.5px] leading-[1.55] text-ink-body">
                     {piece.condition_report}
                   </p>
                 </div>
@@ -367,7 +367,7 @@ export default async function PieceDetail({
                   <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
                     Signature
                   </h2>
-                  <p className="mt-2 text-[13.5px] leading-[1.55] text-ink-body">
+                  <p className="mt-2 font-serif text-[14.5px] leading-[1.55] text-ink-body">
                     {piece.signature_inscription}
                   </p>
                 </div>
@@ -389,7 +389,7 @@ export default async function PieceDetail({
                     <span className="font-mono text-[12px] text-ink-soft">
                       {p.date_text ?? "—"}
                     </span>
-                    <span className="text-[14px] text-[var(--jvb-ink-body)]">
+                    <span className="font-serif text-[15px] text-[var(--jvb-ink-body)]">
                       {[p.party, p.details].filter(Boolean).join(" — ")}
                     </span>
                   </li>

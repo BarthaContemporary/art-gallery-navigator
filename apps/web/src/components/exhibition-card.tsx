@@ -82,7 +82,7 @@ export function ExhibitionRow({
   return (
     <Link
       href={`/exhibitions/${exhibition.slug}`}
-      className="group grid grid-cols-12 gap-x-6 gap-y-2 border-t border-hairline py-8"
+      className="group grid grid-cols-12 gap-x-6 gap-y-2 py-8"
     >
       <span className="label col-span-2 self-start pt-1.5 md:col-span-1">
         {year ?? "—"}
