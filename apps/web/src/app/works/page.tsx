@@ -11,9 +11,10 @@ export const metadata: Metadata = {
     "Browse available Japanese and Indian works of art — bronzes, metalwork, okimono and fine objects.",
 };
 
-function pageHref(category: string, page: number): string {
+function pageHref(category: string, page: number, q = ""): string {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
+  if (q) params.set("q", q);
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/works?${qs}` : "/works";
@@ -22,16 +23,17 @@ function pageHref(category: string, page: number): string {
 export default async function WorksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; page?: string }>;
+  searchParams: Promise<{ category?: string; page?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   const category = sp.category ?? "";
+  const q = (sp.q ?? "").trim();
   const pageNumber = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const offset = (pageNumber - 1) * PAGE_SIZE;
 
   const result = await sanityFetch<WorkListResult>({
     query: worksQuery,
-    params: { category, offset, end: offset + PAGE_SIZE },
+    params: { category, q, offset, end: offset + PAGE_SIZE },
     tags: ["work"],
     fallback: { items: [], total: 0, categories: [] },
   });
@@ -61,11 +63,43 @@ export default async function WorksPage({
             Works
           </h1>
           <p className="mt-4 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
-            {result.total > 0
-              ? `${result.total} work${result.total === 1 ? "" : "s"} available. Prices on application unless stated.`
-              : "Prices on application unless stated."}
+            {q
+              ? `${result.total} result${result.total === 1 ? "" : "s"} for “${q}”.`
+              : result.total > 0
+                ? `${result.total} work${result.total === 1 ? "" : "s"} available. Prices on application unless stated.`
+                : "Prices on application unless stated."}
           </p>
         </div>
+
+        {/* Catalogue search */}
+        <form
+          method="get"
+          role="search"
+          className="col-span-12 mt-8 flex max-w-[var(--measure)] items-center gap-2 md:col-span-8"
+        >
+          {category ? (
+            <input type="hidden" name="category" value={category} />
+          ) : null}
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search works — maker, medium, period…"
+            aria-label="Search works"
+            className="min-h-11 w-full border border-hairline bg-washi px-3.5 py-2 font-sans text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi"
+          />
+          <button type="submit" className="btn shrink-0">
+            Search
+          </button>
+          {q ? (
+            <Link
+              href={pageHref(category, 1)}
+              className="shrink-0 font-sans text-ui text-ink-50 hover:text-oranje"
+            >
+              Clear
+            </Link>
+          ) : null}
+        </form>
       </header>
 
       {categories.length > 0 ? (
@@ -73,7 +107,7 @@ export default async function WorksPage({
           <ul className="flex flex-wrap gap-2">
             <li>
               <Link
-                href="/works"
+                href={pageHref("", 1, q)}
                 aria-current={category === "" ? "page" : undefined}
                 className={chip(category === "")}
               >
@@ -83,7 +117,7 @@ export default async function WorksPage({
             {categories.map(([slug, label]) => (
               <li key={slug}>
                 <Link
-                  href={pageHref(slug, 1)}
+                  href={pageHref(slug, 1, q)}
                   aria-current={category === slug ? "page" : undefined}
                   className={chip(category === slug)}
                 >
@@ -106,7 +140,7 @@ export default async function WorksPage({
         >
           {pageNumber > 1 ? (
             <Link
-              href={pageHref(category, pageNumber - 1)}
+              href={pageHref(category, pageNumber - 1, q)}
               className="link-inline text-ink-70"
             >
               &larr; Previous
@@ -121,7 +155,7 @@ export default async function WorksPage({
           </span>
           {pageNumber < totalPages ? (
             <Link
-              href={pageHref(category, pageNumber + 1)}
+              href={pageHref(category, pageNumber + 1, q)}
               className="link-inline text-ink-70"
             >
               Next &rarr;

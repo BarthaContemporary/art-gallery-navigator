@@ -43,24 +43,83 @@ export default async function InventoryPage({
     supabase.from("locations").select("id, code").order("code"),
   ]);
 
-  let query = supabase
-    .from("vw_pieces_list")
-    .select("*", { count: "exact" })
-    .order(sortCol, { ascending, nullsFirst: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+  const q = sp.q?.trim();
+  const searching = Boolean(q);
 
-  if (sp.status) query = query.eq("status", sp.status);
-  if (sp.category) query = query.eq("category_id", sp.category);
-  if (sp.location) query = query.eq("location_id", sp.location);
-  if (sp.q) {
-    const q = sp.q.trim();
-    query = query.or(
-      `stock_number.ilike.%${q}%,legacy_stock_number.ilike.%${q}%,title.ilike.%${q}%,maker_name.ilike.%${q}%,medium.ilike.%${q}%`,
-    );
+  type ListRow = {
+    id: string;
+    stock_number: string;
+    legacy_stock_number: string | null;
+    title: string | null;
+    maker_name: string | null;
+    category_name: string | null;
+    category_id: string | null;
+    location_id: string | null;
+    location_code: string | null;
+    status: string;
+    primary_image_id: string | null;
+  };
+
+  let rows: ListRow[] = [];
+  let total = 0;
+  let error: { message: string } | null = null;
+
+  if (searching) {
+    // Ranked omnisearch: FTS (weighted tsvector) + pg_trgm fuzzy + maker-name
+    // matching, all in the pieces_search() RPC. Facets are applied to the
+    // ranked hits, then only the current page's ids are hydrated through
+    // vw_pieces_list (keeps the request URL short and preserves rank order).
+    const { data: hits, error: rpcErr } = await supabase.rpc("pieces_search", {
+      q,
+    });
+    error = rpcErr;
+    let filtered = (hits ?? []) as Array<{
+      id: string;
+      status: string;
+      category_id: string | null;
+      location_id: string | null;
+    }>;
+    if (sp.status) filtered = filtered.filter((h) => h.status === sp.status);
+    if (sp.category)
+      filtered = filtered.filter((h) => h.category_id === sp.category);
+    if (sp.location)
+      filtered = filtered.filter((h) => h.location_id === sp.location);
+
+    total = filtered.length;
+    const pageIds = filtered
+      .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+      .map((h) => h.id);
+
+    if (pageIds.length > 0) {
+      const { data: viewRows, error: vErr } = await supabase
+        .from("vw_pieces_list")
+        .select("*")
+        .in("id", pageIds);
+      error = error ?? vErr;
+      const byId = new Map(
+        ((viewRows ?? []) as ListRow[]).map((r) => [r.id, r]),
+      );
+      rows = pageIds
+        .map((id) => byId.get(id))
+        .filter((r): r is ListRow => Boolean(r));
+    }
+  } else {
+    let query = supabase
+      .from("vw_pieces_list")
+      .select("*", { count: "exact" })
+      .order(sortCol, { ascending, nullsFirst: false })
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+    if (sp.status) query = query.eq("status", sp.status);
+    if (sp.category) query = query.eq("category_id", sp.category);
+    if (sp.location) query = query.eq("location_id", sp.location);
+
+    const res = await query;
+    rows = (res.data ?? []) as ListRow[];
+    total = res.count ?? 0;
+    error = res.error;
   }
 
-  const { data: rows, count, error } = await query;
-  const total = count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Thumbnails: batch-sign the primary image for rows that have a processed one.
@@ -163,8 +222,43 @@ export default async function InventoryPage({
         </button>
       </form>
 
+      {(() => {
+        const catName = (categories ?? []).find((c) => c.id === sp.category)?.name;
+        const locCode = (locations ?? []).find((l) => l.id === sp.location)?.code;
+        const chips: Array<{ key: keyof Search; label: string }> = [];
+        if (q) chips.push({ key: "q", label: `“${q}”` });
+        if (sp.status) chips.push({ key: "status", label: sp.status.replace(/_/g, " ") });
+        if (sp.category && catName) chips.push({ key: "category", label: catName });
+        if (sp.location && locCode) chips.push({ key: "location", label: locCode });
+        if (chips.length === 0) return null;
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {chips.map((chip) => (
+              <a
+                key={chip.key}
+                href={qs({ ...sp, [chip.key]: undefined, page: undefined }) || "/inventory"}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-control bg-control px-2.5 py-1 text-[11.5px] text-ink-mid hover:text-ink-strong"
+                title={`Remove ${chip.key} filter`}
+              >
+                {chip.label}
+                <span aria-hidden className="text-ink-faint">
+                  ×
+                </span>
+              </a>
+            ))}
+            <a
+              href="/inventory"
+              className="px-1.5 text-[11.5px] text-ink-soft underline hover:text-ink-strong"
+            >
+              Clear all
+            </a>
+          </div>
+        );
+      })()}
+
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
         {total.toLocaleString("en-GB")} records · page {page} of {pages}
+        {searching ? " · ranked by relevance" : ""}
       </p>
 
       {error ? (

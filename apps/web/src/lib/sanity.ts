@@ -269,17 +269,24 @@ export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
  * Paginated works list, filterable by category slug.
  * Pass $category = "" for "all".
  */
+/* Shared predicate: category facet + a tokenised text search across the
+   catalogue fields (prefix wildcard so partial words match). */
+const worksMatch = /* groq */ `
+  _type == "work" &&
+  defined(slug.current) &&
+  ($category == "" || categorySlug == $category) &&
+  ($q == "" ||
+    title match ($q + "*") ||
+    maker match ($q + "*") ||
+    medium match ($q + "*") ||
+    period match ($q + "*") ||
+    originRegion match ($q + "*") ||
+    stockNumber match ($q + "*"))
+`;
+
 export const worksQuery = groq`{
-  "items": *[
-    _type == "work" &&
-    defined(slug.current) &&
-    ($category == "" || categorySlug == $category)
-  ] | order(_createdAt desc) [$offset...$end] ${workFields},
-  "total": count(*[
-    _type == "work" &&
-    defined(slug.current) &&
-    ($category == "" || categorySlug == $category)
-  ]),
+  "items": *[${worksMatch}] | order(_createdAt desc) [$offset...$end] ${workFields},
+  "total": count(*[${worksMatch}]),
   "categories": *[_type == "work" && defined(categorySlug)]{ category, categorySlug }
 }`;
 
