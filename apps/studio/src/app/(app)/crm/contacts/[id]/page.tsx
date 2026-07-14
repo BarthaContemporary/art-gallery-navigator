@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { AddressFields } from "@/components/address-fields";
 
 export const metadata = { title: "Contact" };
 
@@ -68,7 +69,7 @@ export default async function ContactProfile({
   const name =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     "Unnamed contact";
-  const photo = cf(contact, "photo_url");
+  const addr2 = (contact.custom_fields?.address2 as Record<string, string> | undefined) ?? {};
 
   async function updateContact(formData: FormData) {
     "use server";
@@ -108,7 +109,15 @@ export default async function ContactProfile({
           linkedin: String(formData.get("linkedin") ?? "").trim(),
           x_handle: String(formData.get("x_handle") ?? "").trim(),
           website: String(formData.get("website") ?? "").trim(),
-          photo_url: String(formData.get("photo_url") ?? "").trim(),
+          addr1_type: String(formData.get("addr1_type") ?? "primary_home"),
+          address2: {
+            type: String(formData.get("addr2_type") ?? "second_home"),
+            line1: String(formData.get("addr2_line1") ?? "").trim(),
+            line2: String(formData.get("addr2_line2") ?? "").trim(),
+            city: String(formData.get("addr2_city") ?? "").trim(),
+            postcode: String(formData.get("addr2_postcode") ?? "").trim(),
+            country: String(formData.get("addr2_country") ?? "").trim(),
+          },
         },
       })
       .eq("id", id);
@@ -155,18 +164,9 @@ export default async function ContactProfile({
 
       {/* header */}
       <div className="mt-2 flex flex-wrap items-start gap-4">
-        {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photo}
-            alt={name}
-            className="h-16 w-16 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-band text-[18px] text-ink-soft">
-            {(contact.first_name?.[0] ?? contact.last_name?.[0] ?? "?").toUpperCase()}
-          </div>
-        )}
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-band text-[18px] text-ink-soft">
+          {(contact.first_name?.[0] ?? contact.last_name?.[0] ?? "?").toUpperCase()}
+        </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-[24px] font-semibold text-ink-strong">{name}</h1>
           <p className="mt-0.5 text-[12.5px] text-ink-muted">
@@ -293,31 +293,47 @@ export default async function ContactProfile({
           <input name="phone" defaultValue={contact.phone ?? ""} className={input} />
         </label>
 
-        {/* Mailing address */}
-        <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint sm:col-span-2">
-          Mailing address
-        </p>
-        <label className={label}>
-          Address line 1
-          <input name="address_line1" defaultValue={contact.address_line1 ?? ""} className={input} />
-        </label>
-        <label className={label}>
-          Address line 2
-          <input name="address_line2" defaultValue={contact.address_line2 ?? ""} className={input} />
-        </label>
-        <label className={label}>
-          City
-          <input name="city" defaultValue={contact.city ?? ""} className={input} />
-        </label>
-        <label className={label}>
-          Postcode
-          <input name="postcode" defaultValue={contact.postcode ?? ""} className={input} />
-        </label>
-        <label className={label}>
-          Country
-          <input name="country" defaultValue={contact.country ?? ""} className={input} />
-        </label>
-        <div />
+        {/* Primary mailing address */}
+        <AddressFields
+          legend="Mailing address"
+          names={{
+            line1: "address_line1",
+            line2: "address_line2",
+            city: "city",
+            postcode: "postcode",
+            country: "country",
+            type: "addr1_type",
+          }}
+          defaults={{
+            line1: contact.address_line1 ?? "",
+            line2: contact.address_line2 ?? "",
+            city: contact.city ?? "",
+            postcode: contact.postcode ?? "",
+            country: contact.country ?? "",
+            type: cf(contact, "addr1_type") || "primary_home",
+          }}
+        />
+
+        {/* Second address */}
+        <AddressFields
+          legend="Second address"
+          names={{
+            line1: "addr2_line1",
+            line2: "addr2_line2",
+            city: "addr2_city",
+            postcode: "addr2_postcode",
+            country: "addr2_country",
+            type: "addr2_type",
+          }}
+          defaults={{
+            line1: addr2.line1 ?? "",
+            line2: addr2.line2 ?? "",
+            city: addr2.city ?? "",
+            postcode: addr2.postcode ?? "",
+            country: addr2.country ?? "",
+            type: addr2.type ?? "second_home",
+          }}
+        />
 
         {/* Social / online */}
         <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint sm:col-span-2">
@@ -348,15 +364,6 @@ export default async function ContactProfile({
           <input name="wechat_id" defaultValue={contact.wechat_id ?? ""} className={input} />
         </label>
         <input type="hidden" name="line_id" defaultValue={contact.line_id ?? ""} />
-        <label className={`${label} sm:col-span-2`}>
-          Photo URL (collector image)
-          <input
-            name="photo_url"
-            defaultValue={photo}
-            placeholder="https://…"
-            className={input}
-          />
-        </label>
 
         {/* consent + notes */}
         <label className="flex items-center gap-2 text-[12.5px] text-ink-body">
