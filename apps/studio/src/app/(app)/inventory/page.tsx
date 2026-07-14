@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { StatusPill } from "@/components/status-pill";
 import { SortHeader } from "@/components/sort-header";
@@ -45,6 +46,29 @@ export default async function InventoryPage({
 
   const q = sp.q?.trim();
   const searching = Boolean(q);
+
+  // Save the current search + facets as a dynamic (saved-view) list. The rules
+  // are stored on piece_lists.filter_rules; the list detail page re-runs them
+  // live, so the membership always reflects the current inventory.
+  async function saveAsList(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) return;
+    const rules = {
+      q: String(formData.get("q") ?? "").trim() || null,
+      status: String(formData.get("status") ?? "").trim() || null,
+      category: String(formData.get("category") ?? "").trim() || null,
+      location: String(formData.get("location") ?? "").trim() || null,
+    };
+    const { data: created } = await db
+      .from("piece_lists")
+      .insert({ name, is_dynamic: true, filter_rules: rules })
+      .select("id")
+      .single();
+    if (created) redirect(`/inventory/lists/${created.id}`);
+    redirect("/inventory/lists");
+  }
 
   type ListRow = {
     id: string;
@@ -266,6 +290,36 @@ export default async function InventoryPage({
           </div>
         );
       })()}
+
+      {q || sp.status || sp.category || sp.location ? (
+        <form
+          action={saveAsList}
+          className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line-soft bg-control/40 px-3 py-2"
+        >
+          <input type="hidden" name="q" value={q ?? ""} />
+          <input type="hidden" name="status" value={sp.status ?? ""} />
+          <input type="hidden" name="category" value={sp.category ?? ""} />
+          <input type="hidden" name="location" value={sp.location ?? ""} />
+          <span className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
+            Save these filters as a live list
+          </span>
+          <input
+            name="name"
+            required
+            placeholder="e.g. Everything at the fair"
+            className="w-56 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px]"
+          />
+          <button
+            type="submit"
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+          >
+            Save as list
+          </button>
+          <span className="text-[11px] text-ink-soft">
+            Membership stays live — it re-runs these filters each time you open it.
+          </span>
+        </form>
+      ) : null}
 
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
         {total.toLocaleString("en-GB")} records · page {page} of {pages}

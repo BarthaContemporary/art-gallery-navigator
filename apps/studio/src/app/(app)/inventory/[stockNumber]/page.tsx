@@ -182,6 +182,37 @@ export default async function PieceDetail({
       ? (((fin.marked_price_gbp - fin.total_cost_gbp) / fin.marked_price_gbp) * 100).toFixed(1)
       : null;
 
+  const { data: pieceLists } = await supabase
+    .from("piece_lists")
+    .select("id, name")
+    .eq("is_dynamic", false)
+    .order("name");
+
+  async function addToList(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const listId = String(formData.get("list_id") ?? "");
+    if (!listId) return;
+    const { data: pieceRow } = await db
+      .from("pieces")
+      .select("id")
+      .eq("stock_number", stockNumber)
+      .single();
+    if (!pieceRow) return;
+    const { data: mx } = await db
+      .from("piece_list_items")
+      .select("sort_order")
+      .eq("list_id", listId)
+      .order("sort_order", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    await db.from("piece_list_items").upsert(
+      { list_id: listId, piece_id: pieceRow.id, sort_order: (mx?.sort_order ?? -1) + 1 },
+      { onConflict: "list_id,piece_id", ignoreDuplicates: true },
+    );
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
+  }
+
   async function toggleWatch() {
     "use server";
     const supabase = await getSupabase();
@@ -310,6 +341,50 @@ export default async function PieceDetail({
             </a>
           ));
         })()}
+      </div>
+
+      {/* add to list — file this work into a static list */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-1 pt-2 text-[12px] md:px-8">
+        <span className="uppercase tracking-[0.06em] text-ink-faint">Lists</span>
+        {pieceLists && pieceLists.length > 0 ? (
+          <form action={addToList} className="flex items-center gap-2">
+            <label htmlFor="add-to-list" className="sr-only">
+              Add to list
+            </label>
+            <select
+              id="add-to-list"
+              name="list_id"
+              defaultValue=""
+              className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
+            >
+              <option value="" disabled>
+                Choose a list…
+              </option>
+              {pieceLists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+            >
+              Add to list
+            </button>
+          </form>
+        ) : (
+          <span className="text-ink-muted">
+            No lists yet —{" "}
+            <Link href="/inventory/lists" className="text-oranje hover:underline">
+              create one
+            </Link>
+            .
+          </span>
+        )}
+        <Link href="/inventory/lists" className="text-ink-mid hover:text-ink-strong">
+          Manage lists →
+        </Link>
       </div>
 
       {/* 2 · main split */}

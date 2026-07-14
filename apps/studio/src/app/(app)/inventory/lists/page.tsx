@@ -8,7 +8,7 @@ export default async function InventoryListsPage() {
   const supabase = await getSupabase();
   const { data: lists } = await supabase
     .from("piece_lists")
-    .select("id, name, description, piece_list_items(count)")
+    .select("id, name, description, is_dynamic, piece_list_items(count)")
     .order("name");
 
   async function addList(formData: FormData) {
@@ -59,14 +59,23 @@ export default async function InventoryListsPage() {
         {(lists ?? []).map((l) => (
           <li key={l.id} className="rounded-[11px] border border-line bg-cell p-4">
             <a href={`/inventory/lists/${l.id}`} className="block">
-              <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
-                {l.name}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
+                  {l.name}
+                </h2>
+                {l.is_dynamic ? (
+                  <span className="rounded-full bg-oranje/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-oranje">
+                    Live
+                  </span>
+                ) : null}
+              </div>
               {l.description ? (
                 <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p>
               ) : null}
               <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-                {(l.piece_list_items as unknown as { count: number }[])[0]?.count ?? 0} works
+                {l.is_dynamic
+                  ? "Saved view · membership is live"
+                  : `${(l.piece_list_items as unknown as { count: number }[])[0]?.count ?? 0} works`}
               </p>
             </a>
           </li>
