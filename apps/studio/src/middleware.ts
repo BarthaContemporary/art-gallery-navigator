@@ -44,5 +44,5 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Exclude machine endpoints that authenticate themselves (sync via shared
   // secret, cron). Data-export APIs stay behind the session check.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/public|api/sync).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/public|api/sync|api/cron).*)"],
 };

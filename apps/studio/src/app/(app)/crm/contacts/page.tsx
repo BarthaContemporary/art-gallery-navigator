@@ -83,7 +83,9 @@ export default async function ContactsPage({
                 {(contacts ?? []).map((c) => (
                   <tr key={c.id} className="border-b border-line-soft last:border-0">
                     <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
-                      {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                      <a href={`/crm/contacts/${c.id}`} className="hover:text-ink-strong">
+                        {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                      </a>
                     </td>
                     <td className="px-4 py-2.5 text-[13px] text-ink-muted">{c.email ?? "—"}</td>
                     <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{c.contact_type}</td>

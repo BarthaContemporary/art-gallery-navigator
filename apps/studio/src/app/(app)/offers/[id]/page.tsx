@@ -280,7 +280,7 @@ export default async function OfferDetail({
     const from =
       process.env.OFFERS_FROM_EMAIL ??
       process.env.EMAIL_FROM ??
-      `${GALLERY_NAME} <offers@joostvandenbergh.com>`;
+      `${GALLERY_NAME} <offers@web.joostvandenbergh.com>`;
     const expiresAt = off?.expires_at ? longDate(off.expires_at) : undefined;
 
     let sent = 0;
