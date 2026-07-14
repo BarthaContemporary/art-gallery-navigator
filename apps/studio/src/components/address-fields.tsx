@@ -61,10 +61,12 @@ export function AddressFields({
   legend,
   names,
   defaults,
+  onChange,
 }: {
   legend: string;
   names: Names;
   defaults: Partial<Values>;
+  onChange?: () => void;
 }) {
   const [v, setV] = useState<Values>({
     line1: defaults.line1 ?? "",
@@ -125,6 +127,14 @@ export function AddressFields({
   // never surface as a broken-image "!". Hide the preview instead; it retries
   // whenever the address changes.
   useEffect(() => setMapBroken(false), [mapSrc]);
+
+  // Notify the parent editor on any change (incl. autocomplete fills) so it can
+  // autosave. Skip the initial mount.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (mounted.current) onChange?.();
+    else mounted.current = true;
+  }, [v]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <fieldset className="sm:col-span-2">
