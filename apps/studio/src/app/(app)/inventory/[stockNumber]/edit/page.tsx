@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { AiCataloguer } from "@/components/ai-cataloguer";
 import { savePiece } from "../../actions";
 
 export const metadata = { title: "Edit record" };
@@ -140,7 +141,8 @@ export default async function EditPiecePage({
         </div>
       </form>
 
-      {/* documents live outside the form so uploading never disturbs unsaved edits */}
+      {/* AI cataloguing + documents live outside the form so they never disturb unsaved edits */}
+      <AiCataloguer stockNumber={piece.stock_number} />
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={documents.data ?? []} />
       </div>
