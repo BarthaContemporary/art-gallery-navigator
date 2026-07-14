@@ -5,6 +5,7 @@ import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { AiCataloguer } from "@/components/ai-cataloguer";
 import { AutosaveForm } from "@/components/autosave-form";
+import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 
 export const metadata = { title: "Edit record" };
 
@@ -125,6 +126,7 @@ export default async function EditPiecePage({
       </AutosaveForm>
 
       {/* AI cataloguing + documents live outside the form so they never disturb unsaved edits */}
+      {showFinancials ? <LegacyRecordPanel pieceId={piece.id} /> : null}
       <AiCataloguer stockNumber={piece.stock_number} />
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={documents.data ?? []} />

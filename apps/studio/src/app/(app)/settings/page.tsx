@@ -80,6 +80,12 @@ export default async function SettingsPage({
         </p>
       ) : null}
 
+      <p className="text-[12.5px]">
+        <a href="/migration" className="text-ink-mid hover:text-oranje">
+          Data review — flagged import records (duplicates, unconverted currency…) →
+        </a>
+      </p>
+
       <section className="mt-6">
         <h2 className="text-[13px] font-semibold text-ink-strong">Users</h2>
         <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
