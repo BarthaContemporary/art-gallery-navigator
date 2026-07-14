@@ -279,6 +279,7 @@ export default async function OfferDetail({
     const resend = new Resend(apiKey);
     const from =
       process.env.OFFERS_FROM_EMAIL ??
+      process.env.EMAIL_FROM ??
       `${GALLERY_NAME} <offers@joostvandenbergh.com>`;
     const expiresAt = off?.expires_at ? longDate(off.expires_at) : undefined;
 
