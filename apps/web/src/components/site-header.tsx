@@ -41,8 +41,9 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
   );
 
   return (
-    <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--washi)_92%,transparent)] backdrop-blur">
-      <div className="page flex items-baseline justify-between gap-6 py-5">
+    <>
+      <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--washi)_92%,transparent)] backdrop-blur">
+        <div className="page flex items-baseline justify-between gap-6 py-5">
         <Link
           href="/"
           className="font-sans text-ui font-medium tracking-tight text-sumi"
@@ -85,11 +86,15 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
         >
           {open ? "Close" : "Menu"}
         </button>
-      </div>
+        </div>
+      </header>
 
-      {/* Mobile full-screen overlay menu */}
+      {/* Mobile full-screen overlay menu — rendered as a sibling of <header>
+          (not a child) so its fixed positioning and backdrop-blur resolve
+          against the viewport and blur the page, rather than being trapped in
+          the header's own backdrop-filter context. */}
       {open ? (
-        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_85%,transparent)] backdrop-blur-lg md:hidden">
+        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_85%,transparent)] backdrop-blur-xl md:hidden">
           <div className="page flex items-baseline justify-between py-5">
             <span className="font-sans text-ui font-medium leading-tight tracking-tight text-sumi">
               {stacked}
@@ -125,6 +130,6 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
           </nav>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }

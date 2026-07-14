@@ -42,9 +42,20 @@ export default async function HomePage() {
   const selected = featured.slice(0, 6);
 
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
+  // Display heading breaks after the first word: "Joost" / "van den Bergh".
+  const [headingFirst, ...headingRest] = galleryName.split(" ");
+  const heading = headingRest.length ? (
+    <>
+      {headingFirst}
+      <br />
+      {headingRest.join(" ")}
+    </>
+  ) : (
+    galleryName
+  );
   const statement =
     settings?.aboutTeaser ??
-    "Joost van den Bergh is a London gallery of Indian and Japanese art — tantric drawings, bronzes, Mingei and 20th-century Japanese design. By appointment.";
+    "Joost van den Bergh is a St James’s gallery of Indian and Japanese art — tantric drawings, bronzes, Mingei and 20th-century Japanese design. By appointment.";
 
   // Current first, then most recent past.
   const current = exhibitions.filter((e) => isCurrentExhibition(e));
@@ -63,10 +74,12 @@ export default async function HomePage() {
           <div className="grid12">
             <div className="col-span-12 md:col-span-8">
               <h1 className="font-sans text-display font-medium text-sumi">
-                {galleryName}
+                {heading}
               </h1>
               <p className="mt-6 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
-                Indian and Japanese art. London, by appointment.
+                Indian and Japanese art.
+                <br />
+                St James&rsquo;s, by appointment.
               </p>
             </div>
           </div>
@@ -112,7 +125,7 @@ export default async function HomePage() {
           <div className="col-span-12 md:col-span-8">
             <p className="label text-washi/70">Visit</p>
             <h2 className="mt-4 font-sans text-h1 font-medium tracking-tight text-washi">
-              By appointment, in London.
+              By appointment, in St James&rsquo;s.
             </h2>
             <p className="mt-5 max-w-[var(--measure)] font-serif text-lead font-light text-washi/80">
               Choose a date and time and we will confirm by email, with a calendar

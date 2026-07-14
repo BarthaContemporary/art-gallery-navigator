@@ -19,7 +19,7 @@ export default async function VisitPage() {
           <div className="col-span-12 md:col-span-8">
             <p className="label text-washi/70">Visit</p>
             <h1 className="mt-4 font-sans text-h1 font-medium tracking-tight text-washi">
-              By appointment, in London.
+              By appointment, in St James&rsquo;s.
             </h1>
             <p className="mt-5 max-w-[var(--measure)] font-serif text-lead font-light text-washi/80">
               The gallery is open by appointment. Choose a date and time that suits
