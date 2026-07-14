@@ -1,15 +1,19 @@
 # Plausible Analytics — self-hosted (Community Edition)
 
-Cookieless, GDPR-friendly web analytics for the studio app, self-hosted on the
-same London VPS as Supabase. Mirrors the official reference stack at
+Cookieless, GDPR-friendly web analytics for the **public website**, self-hosted
+on the same London VPS as Supabase. Mirrors the official reference stack at
 <https://github.com/plausible/community-edition> (tag `v3.0.1`).
+
+**Where it runs:** tracking is on the **public website only** — the studio
+(back office) is never tracked. Staff view the results inside the studio at
+`/analytics`, which reads Plausible's Stats API server-side (steps 5–7).
 
 - **App:** `ghcr.io/plausible/community-edition:v3.0.1`
 - **Metadata DB:** `postgres:16-alpine` (`plausible_db`)
 - **Event DB:** `clickhouse/clickhouse-server:24.12-alpine` (`plausible_events_db`)
 
 Because Plausible is **cookieless and stores no personal data**, no cookie
-consent banner is required on the studio app.
+consent banner is required.
 
 ---
 
@@ -80,29 +84,45 @@ the one admin account:
    (Compose recreates the plausible container with the new env; the databases
    are untouched.)
 
-## 5. Add the studio site
+## 5. Add the public website
 
 Inside the Plausible dashboard → **Add a website**:
 
-- **Domain:** use the site's data-domain. For studio this is the production
-  host — e.g. `studio.<domain>` if served there, or the Vercel host
-  `jvb-studio.vercel.app`. Whatever you enter here is the value that must match
-  `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` in the studio app (step 6).
+- **Domain:** the public site's data-domain — e.g. `joostvandenbergh.com`.
+  Whatever you enter here must match `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` on the
+  **web** app (step 6). Do **not** add the studio here — the studio is not
+  tracked.
 
 Plausible then shows the snippet; we inject it ourselves via `next/script`
-(see `apps/studio/src/components/plausible.tsx`), so you don't paste it by hand.
+(see `apps/web/src/components/plausible.tsx`), so you don't paste it by hand.
 
-## 6. Wire the studio app (Vercel env vars)
+## 6. Wire the public website (Vercel env vars)
 
-Set these on the **studio** Vercel project (Production, and Preview if wanted):
+Set these on the **web** Vercel project (Production, and Preview if wanted):
 
 | Var | Value | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | the exact data-domain from step 5 (e.g. `studio.<domain>`) | Turns tracking on; must match the Plausible site. If unset, no script is rendered (local/dev stays clean). |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | the data-domain from step 5 (e.g. `joostvandenbergh.com`) | Turns tracking on; must match the Plausible site. If unset, no script is rendered (local/dev stays clean). |
 | `NEXT_PUBLIC_PLAUSIBLE_SRC` | `https://analytics.<domain>/js/script.js` | The tracker script URL (served by this instance). |
-| `NEXT_PUBLIC_PLAUSIBLE_DASHBOARD` *(optional)* | `https://analytics.<domain>` | Target of the "Analytics" link on the studio Settings page. Falls back to `https://analytics.joostvandenbergh.com`. |
 
-Redeploy the studio app after setting them.
+Redeploy the web app after setting them.
+
+## 6b. Let the studio read the results (Stats API)
+
+Staff view analytics at the studio's `/analytics` page, which reads Plausible's
+Stats API server-side (no Plausible login needed). In Plausible → the site →
+**Settings → API keys**, create a key, then set these on the **studio** Vercel
+project (server-side only — never `NEXT_PUBLIC`, so the key stays off the
+browser):
+
+| Var | Value |
+| --- | --- |
+| `PLAUSIBLE_STATS_HOST` | `https://analytics.<domain>` |
+| `PLAUSIBLE_API_KEY` | the Stats API key you just created |
+| `PLAUSIBLE_SITE_ID` | the public site's data-domain, e.g. `joostvandenbergh.com` |
+
+Until these are set, the studio `/analytics` page shows a "not connected yet"
+notice. Redeploy the studio app after setting them.
 
 ## 7. Backups
 

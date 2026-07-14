@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader, Noto_Sans } from "next/font/google";
 import "./globals.css";
-import { Plausible } from "@/components/plausible";
 
 /*
  * Same two-family principle as the public site:
@@ -40,10 +39,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sans.variable} ${serif.variable}`}>
-      <body className="min-h-dvh antialiased">
-        {children}
-        <Plausible />
-      </body>
+      <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );
 }

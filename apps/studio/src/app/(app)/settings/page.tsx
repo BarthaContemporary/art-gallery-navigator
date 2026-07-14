@@ -87,16 +87,8 @@ export default async function SettingsPage({
       </p>
 
       <p className="mt-2 text-[12.5px]">
-        <a
-          href={
-            process.env.NEXT_PUBLIC_PLAUSIBLE_DASHBOARD ??
-            "https://analytics.joostvandenbergh.com"
-          }
-          target="_blank"
-          rel="noreferrer"
-          className="text-ink-mid hover:text-oranje"
-        >
-          Analytics — visitor stats in Plausible (cookieless) →
+        <a href="/analytics" className="text-ink-mid hover:text-oranje">
+          Analytics — public website visitor results (cookieless) →
         </a>
       </p>
 

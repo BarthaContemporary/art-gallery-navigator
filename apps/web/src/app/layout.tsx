@@ -5,6 +5,7 @@ import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/json-ld";
+import { Plausible } from "@/components/plausible";
 import "./globals.css";
 
 /*
@@ -88,6 +89,7 @@ export default async function RootLayout({
         <SiteHeader galleryName={galleryName} />
         <main className="flex-1">{children}</main>
         <SiteFooter settings={settings} galleryName={galleryName} />
+        <Plausible />
       </body>
     </html>
   );

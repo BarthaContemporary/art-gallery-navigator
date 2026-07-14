@@ -12,6 +12,7 @@ const NAV = [
   { href: "/crm/campaigns", label: "Newsletter" },
   { href: "/offers", label: "Offers" },
   { href: "/appointments", label: "Appointments" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/stock-book", label: "Stock book", roles: ["admin", "accountant"] },
   { href: "/account", label: "Account" },
   { href: "/settings", label: "Settings", roles: ["admin"] },
