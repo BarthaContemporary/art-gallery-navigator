@@ -4,19 +4,16 @@ import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { AiCataloguer } from "@/components/ai-cataloguer";
-import { savePiece } from "../../actions";
+import { AutosaveForm } from "@/components/autosave-form";
 
 export const metadata = { title: "Edit record" };
 
 export default async function EditPiecePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ stockNumber: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { stockNumber: raw } = await params;
-  const { error } = await searchParams;
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
   const session = await getSession();
@@ -64,8 +61,6 @@ export default async function EditPiecePage({
       .createSignedUrl(primaryImage.data.storage_path_display, 3600);
     thumbUrl = data?.signedUrl ?? null;
   }
-
-  const save = savePiece.bind(null, stockNumber);
 
   return (
     <div>
@@ -115,31 +110,19 @@ export default async function EditPiecePage({
         </div>
       </div>
 
-      <form action={save} className="mt-6">
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="rounded-lg bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-fg"
-          >
-            Save changes
-          </button>
-        </div>
-        {error ? (
-          <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
-            {error}
-          </p>
-        ) : null}
-        <div className="mt-4">
-          <PieceFormFields
-            piece={piece}
-            financials={financials.data}
-            makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
-            categories={(categories.data ?? []).map((c) => ({ id: c.id, label: c.name }))}
-            locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
-            showFinancials={showFinancials}
-          />
-        </div>
-      </form>
+      <AutosaveForm
+        endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}
+        className="mt-6"
+      >
+        <PieceFormFields
+          piece={piece}
+          financials={financials.data}
+          makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
+          categories={(categories.data ?? []).map((c) => ({ id: c.id, label: c.name }))}
+          locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+          showFinancials={showFinancials}
+        />
+      </AutosaveForm>
 
       {/* AI cataloguing + documents live outside the form so they never disturb unsaved edits */}
       <AiCataloguer stockNumber={piece.stock_number} />

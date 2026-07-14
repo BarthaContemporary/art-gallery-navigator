@@ -130,15 +130,21 @@ export function PieceFormFields({
               </label>
               <label className={label}>
                 Currency
-                <input name="purchase_currency" defaultValue={f("purchase_currency") || "GBP"} className={field} />
+                <select name="purchase_currency" defaultValue={String(f("purchase_currency") || "GBP")} className={field}>
+                  {["GBP", "EUR", "USD", "CHF"].map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className={label}>
                 FX → GBP
-                <input name="purchase_fx" type="number" step="0.0001" defaultValue={f("purchase_fx") || 1} className={field} />
+                <input name="purchase_fx" type="number" step="0.0001" defaultValue={f("purchase_fx") || 1} className={field} readOnly />
               </label>
               <label className={label}>
                 Cost £
-                <input name="purchase_cost_gbp" type="number" step="0.01" defaultValue={f("purchase_cost_gbp")} className={field} />
+                <input name="purchase_cost_gbp" type="number" step="0.01" defaultValue={f("purchase_cost_gbp")} className={field} readOnly />
               </label>
               <label className={label}>
                 Restoration £
@@ -162,15 +168,21 @@ export function PieceFormFields({
               </label>
               <label className={label}>
                 Sell currency
-                <input name="sell_currency" defaultValue={f("sell_currency") || "GBP"} className={field} />
+                <select name="sell_currency" defaultValue={String(f("sell_currency") || "GBP")} className={field}>
+                  {["GBP", "EUR", "USD", "CHF"].map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className={label}>
                 Sell FX → GBP
-                <input name="sell_fx" type="number" step="0.0001" defaultValue={f("sell_fx") || 1} className={field} />
+                <input name="sell_fx" type="number" step="0.0001" defaultValue={f("sell_fx") || 1} className={field} readOnly />
               </label>
               <label className={label}>
                 Sold £
-                <input name="sold_price_gbp" type="number" step="0.01" defaultValue={f("sold_price_gbp")} className={field} />
+                <input name="sold_price_gbp" type="number" step="0.01" defaultValue={f("sold_price_gbp")} className={field} readOnly />
               </label>
               <label className={label}>
                 VAT treatment
@@ -183,6 +195,10 @@ export function PieceFormFields({
                 </select>
               </label>
             </div>
+            <p className="mt-3 text-[11.5px] text-ink-soft">
+              £ values are calculated automatically from the spot exchange rate on
+              the purchase / sale date for EUR, USD and CHF.
+            </p>
           </section>
         ) : null}
       </div>

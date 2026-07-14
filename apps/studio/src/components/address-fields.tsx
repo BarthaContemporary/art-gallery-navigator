@@ -6,18 +6,23 @@ import { useEffect, useRef, useState } from "react";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-// Load the Google Maps JS (Places) script once, shared across instances.
-let mapsPromise: Promise<void> | null = null;
-function loadMaps(): Promise<void> {
+// Load the Google Maps JS API once (async bootstrap so importLibrary works).
+let mapsPromise: Promise<any> | null = null;
+function loadMaps(): Promise<any> {
   if (!MAPS_KEY) return Promise.reject(new Error("no key"));
   if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
-  if ((window as any).google?.maps?.places) return Promise.resolve();
+  if ((window as any).google?.maps?.importLibrary)
+    return Promise.resolve((window as any).google);
   if (mapsPromise) return mapsPromise;
-  mapsPromise = new Promise<void>((resolve, reject) => {
+  mapsPromise = new Promise<any>((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=places`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&v=weekly&libraries=places&loading=async`;
     s.async = true;
-    s.onload = () => resolve();
+    s.onload = () => {
+      const g = (window as any).google;
+      if (g?.maps?.importLibrary) resolve(g);
+      else reject(new Error("maps unavailable"));
+    };
     s.onerror = () => reject(new Error("load failed"));
     document.head.appendChild(s);
   });
@@ -52,11 +57,6 @@ const TYPE_OPTIONS: [string, string][] = [
   ["second_home", "Second home"],
 ];
 
-/**
- * One address block: a type selector, address inputs wired to Google Places
- * autocomplete (fills city/postcode/country from the chosen place), and a
- * greyscale Static Maps preview. Degrades to plain inputs when no Maps key.
- */
 export function AddressFields({
   legend,
   names,
@@ -76,39 +76,49 @@ export function AddressFields({
     country: defaults.country ?? "",
     type: defaults.type ?? "primary_home",
   });
-  const line1Ref = useRef<HTMLInputElement>(null);
+  const acHostRef = useRef<HTMLDivElement>(null);
   const [mapBroken, setMapBroken] = useState(false);
 
+  // Google Places Autocomplete (new PlaceAutocompleteElement — the only variant
+  // available to keys created after March 2025). Everything is wrapped so a
+  // missing/blocked API never throws into React.
   useEffect(() => {
-    if (!MAPS_KEY || !line1Ref.current) return;
-    let ac: any;
+    if (!MAPS_KEY || !acHostRef.current) return;
+    let el: any;
+    let cancelled = false;
     loadMaps()
-      .then(() => {
-        const g = (window as any).google;
-        if (!g?.maps?.places || !line1Ref.current) return;
-        ac = new g.maps.places.Autocomplete(line1Ref.current, {
-          fields: ["address_components"],
-        });
-        ac.addListener("place_changed", () => {
-          const place = ac.getPlace();
-          const parts: Record<string, string> = {};
-          for (const c of place.address_components ?? []) {
-            for (const t of c.types) parts[t] = c.long_name;
+      .then(async (g) => {
+        const places = await g.maps.importLibrary("places");
+        if (cancelled || !acHostRef.current) return;
+        if (!places?.PlaceAutocompleteElement) return;
+        el = new places.PlaceAutocompleteElement();
+        el.style.width = "100%";
+        acHostRef.current.appendChild(el);
+        el.addEventListener("gmp-select", async (e: any) => {
+          try {
+            const place = e.placePrediction.toPlace();
+            await place.fetchFields({ fields: ["addressComponents"] });
+            const parts: Record<string, string> = {};
+            for (const c of place.addressComponents ?? []) {
+              for (const t of c.types) parts[t] = c.longText ?? c.shortText ?? "";
+            }
+            setV((prev) => ({
+              ...prev,
+              line1: [parts.street_number, parts.route].filter(Boolean).join(" ") || prev.line1,
+              line2: parts.subpremise || parts.premise || prev.line2,
+              city: parts.postal_town || parts.locality || parts.sublocality || prev.city,
+              postcode: parts.postal_code || prev.postcode,
+              country: parts.country || prev.country,
+            }));
+          } catch {
+            /* ignore selection errors */
           }
-          setV((prev) => ({
-            ...prev,
-            line1: [parts.street_number, parts.route].filter(Boolean).join(" ") || prev.line1,
-            line2: parts.subpremise || parts.premise || prev.line2,
-            city: parts.postal_town || parts.locality || parts.sublocality || prev.city,
-            postcode: parts.postal_code || prev.postcode,
-            country: parts.country || prev.country,
-          }));
         });
       })
       .catch(() => {});
     return () => {
-      if (ac && (window as any).google?.maps?.event)
-        (window as any).google.maps.event.clearInstanceListeners(ac);
+      cancelled = true;
+      if (el?.remove) el.remove();
     };
   }, []);
 
@@ -120,16 +130,11 @@ export function AddressFields({
     .join(", ");
   const mapSrc =
     MAPS_KEY && query
-      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=14&size=320x150&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=feature:all%7Celement:all%7Csaturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=14&size=320x150&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=saturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
       : null;
-
-  // A rejected Static Maps request (API not enabled, referrer, billing) must
-  // never surface as a broken-image "!". Hide the preview instead; it retries
-  // whenever the address changes.
   useEffect(() => setMapBroken(false), [mapSrc]);
 
-  // Notify the parent editor on any change (incl. autocomplete fills) so it can
-  // autosave. Skip the initial mount.
+  // Notify the parent editor on any change (incl. autocomplete fills). Skip mount.
   const mounted = useRef(false);
   useEffect(() => {
     if (mounted.current) onChange?.();
@@ -159,17 +164,17 @@ export function AddressFields({
         </label>
       </div>
 
+      {MAPS_KEY ? (
+        <div className="mt-2">
+          <span className={label}>Find address</span>
+          <div ref={acHostRef} className="mt-1" />
+        </div>
+      ) : null}
+
       <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={label}>
-          Address line 1{MAPS_KEY ? " (start typing to search)" : ""}
-          <input
-            ref={line1Ref}
-            name={names.line1}
-            value={v.line1}
-            onChange={set("line1")}
-            autoComplete="off"
-            className={input}
-          />
+          Address line 1
+          <input name={names.line1} value={v.line1} onChange={set("line1")} className={input} />
         </label>
         <label className={label}>
           Address line 2
