@@ -35,8 +35,7 @@ export default async function LocationsPage() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Locations</h1>
-      <form action={addLocation} className="mt-4 flex flex-wrap items-end gap-2">
+      <form action={addLocation} className="flex flex-wrap items-end gap-2">
         <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Code
           <input name="code" placeholder="SJ-B2" className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />

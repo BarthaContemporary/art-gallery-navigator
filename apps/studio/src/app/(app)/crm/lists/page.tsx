@@ -24,8 +24,7 @@ export default async function ListsPage() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Mailing lists</h1>
-      <form action={addList} className="mt-4 flex flex-wrap items-end gap-2">
+      <form action={addList} className="flex flex-wrap items-end gap-2">
         <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Name
           <input name="name" placeholder="Japanese bronzes collectors" className="mt-1 block w-72 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px]" />

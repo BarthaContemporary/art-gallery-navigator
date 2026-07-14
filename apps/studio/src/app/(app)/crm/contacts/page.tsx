@@ -37,8 +37,7 @@ export default async function ContactsPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[26px] font-semibold text-ink-strong">Contacts</h1>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <a
             href="/api/export/contacts.csv"

@@ -26,8 +26,7 @@ export default async function MakersPage() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Makers</h1>
-      <form action={addMaker} className="mt-4 flex flex-wrap items-end gap-2">
+      <form action={addMaker} className="flex flex-wrap items-end gap-2">
         {[
           ["display_name", "Name (romanized)", "Kobayashi Shōmin"],
           ["native_name", "Native name", "小林紹民"],

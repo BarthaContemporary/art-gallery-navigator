@@ -24,8 +24,7 @@ export default async function AccountPage({
   const { error, ok } = await searchParams;
   return (
     <div className="max-w-md">
-      <h1 className="text-[26px] font-semibold text-ink-strong">Account</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
+      <p className="text-[13px] text-ink-muted">
         {user.email} · {roles.join(", ") || "no role"}
       </p>
 

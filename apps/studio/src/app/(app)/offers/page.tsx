@@ -48,8 +48,7 @@ export default async function OffersPage() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Offers &amp; previews</h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
+      <p className="text-[13px] text-ink-muted">
         Tokenized private pages sent to collectors — offers, art-fair previews, viewing rooms.
       </p>
       <form action={createOffer} className="mt-4 flex flex-wrap items-end gap-2">

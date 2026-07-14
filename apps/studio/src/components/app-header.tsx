@@ -52,7 +52,7 @@ export function AppHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-[var(--jvb-bg-header)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 bg-[var(--jvb-bg-header)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1320px] items-center gap-4 px-4 py-3 md:px-8">
           <Link
             href="/"
@@ -71,10 +71,10 @@ export function AppHeader({
                 key={n.href}
                 href={n.href}
                 aria-current={isActive(n.href) ? "page" : undefined}
-                className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium hover:bg-control-active ${
+                className={`shrink-0 px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
                   isActive(n.href)
-                    ? "bg-control-active text-ink-strong"
-                    : "text-ink-mid"
+                    ? "text-oranje"
+                    : "text-ink-mid hover:text-ink-strong"
                 }`}
               >
                 {n.label}
@@ -130,7 +130,7 @@ export function AppHeader({
                 href={n.href}
                 aria-current={isActive(n.href) ? "page" : undefined}
                 className={`text-[26px] font-semibold tracking-[-0.01em] ${
-                  isActive(n.href) ? "text-ink-strong" : "text-ink-mid"
+                  isActive(n.href) ? "text-oranje" : "text-ink-mid"
                 }`}
               >
                 {n.label}

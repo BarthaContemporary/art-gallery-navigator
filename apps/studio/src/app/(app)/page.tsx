@@ -28,8 +28,7 @@ export default async function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Dashboard</h1>
-      <div className="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="bg-cell px-4 py-4 hover:bg-control">
             <div className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">

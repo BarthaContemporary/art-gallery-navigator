@@ -34,6 +34,10 @@
   --color-ink-faint: var(--jvb-ink-faint);
 
   --color-status-green: var(--jvb-status-green);
+
+  /* Single accent — matches the public site's Dutch orange. Used for the
+     active navigation item only. */
+  --color-oranje: #fc6600;
 }
 
 body {

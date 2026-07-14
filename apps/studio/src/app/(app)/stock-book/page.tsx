@@ -43,8 +43,7 @@ export default async function StockBookPage({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-semibold text-ink-strong">Stock book</h1>
-          <p className="mt-1 text-[13px] text-ink-muted">
+          <p className="text-[13px] text-ink-muted">
             {scheme === "margin"
               ? "VAT margin scheme (HMRC Notice 718) — VAT due is 1/6 of the positive margin."
               : "Standard-rated items."}

@@ -74,10 +74,8 @@ export default async function SettingsPage({
 
   return (
     <div>
-      <h1 className="text-[26px] font-semibold text-ink-strong">Settings</h1>
-
       {notice ? (
-        <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 font-mono text-[12.5px] text-ink-body">
+        <p className="rounded-lg border border-line bg-band px-3 py-2 font-mono text-[12.5px] text-ink-body">
           {notice}
         </p>
       ) : null}
