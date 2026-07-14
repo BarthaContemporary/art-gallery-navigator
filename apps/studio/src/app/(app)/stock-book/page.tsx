@@ -50,12 +50,20 @@ export default async function StockBookPage({
               : "Standard-rated items."}
           </p>
         </div>
-        <a
-          href={`/api/export/stock-book.csv${qs ? `?${qs}` : ""}`}
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-        >
-          Export CSV
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/export/stock-book.csv${qs ? `?${qs}` : ""}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export CSV
+          </a>
+          <a
+            href={`/api/export/stock-book.xlsx${qs ? `?${qs}` : ""}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export XLSX
+          </a>
+        </div>
       </div>
 
       <form method="get" className="mt-4 flex flex-wrap items-end gap-2">

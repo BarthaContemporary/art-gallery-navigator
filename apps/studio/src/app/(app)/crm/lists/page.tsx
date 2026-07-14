@@ -46,6 +46,14 @@ export default async function ListsPage() {
             <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
               {(l.crm_list_members as unknown as { count: number }[])[0]?.count ?? 0} members
             </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <a href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
+                Labels PDF
+              </a>
+              <a href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
+                vCards
+              </a>
+            </div>
           </li>
         ))}
         {(lists ?? []).length === 0 ? (

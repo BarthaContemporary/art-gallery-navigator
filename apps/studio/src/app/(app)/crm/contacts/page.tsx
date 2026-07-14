@@ -40,12 +40,20 @@ export default async function ContactsPage({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-semibold text-ink-strong">Contacts</h1>
-        <a
-          href="/api/export/contacts.csv"
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
-        >
-          Export CSV / vCard
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/export/contacts.csv"
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export CSV / vCard
+          </a>
+          <a
+            href="/api/export/contacts.xlsx"
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export XLSX
+          </a>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">

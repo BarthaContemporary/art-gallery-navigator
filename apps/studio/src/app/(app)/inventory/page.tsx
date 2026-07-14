@@ -159,6 +159,12 @@ export default async function InventoryPage({
           >
             Export CSV
           </a>
+          <a
+            href={`/api/export/inventory.xlsx${qs(sp)}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export XLSX
+          </a>
           <Link
             href="/inventory/new"
             className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"

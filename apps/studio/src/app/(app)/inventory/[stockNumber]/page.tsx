@@ -289,6 +289,29 @@ export default async function PieceDetail({
         </div>
       </div>
 
+      {/* documents — fact sheet / certificate as PDF or DOCX (Proton Docs) */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pb-1 pt-3 text-[12px] md:px-8">
+        <span className="uppercase tracking-[0.06em] text-ink-faint">Documents</span>
+        {(() => {
+          const sn = encodeURIComponent(piece.stock_number);
+          const links: [string, string][] = [
+            ["Fact sheet PDF", `/api/export/fact-sheet.pdf?stock=${sn}`],
+            ["DOCX", `/api/export/fact-sheet.docx?stock=${sn}`],
+            ["Certificate PDF", `/api/export/certificate.pdf?stock=${sn}`],
+            ["DOCX", `/api/export/certificate.docx?stock=${sn}`],
+          ];
+          return links.map(([label, href], i) => (
+            <a
+              key={href}
+              href={href}
+              className={`text-ink-mid hover:text-ink-strong ${i === 2 ? "border-l border-line pl-4" : ""}`}
+            >
+              {label}
+            </a>
+          ));
+        })()}
+      </div>
+
       {/* 2 · main split */}
       <div className="grid grid-cols-1 lg:grid-cols-[640px_1fr]">
         <section className="border-line-soft p-5 md:p-8 lg:border-r lg:pb-[34px] lg:pl-10 lg:pr-8 lg:pt-[38px]">
