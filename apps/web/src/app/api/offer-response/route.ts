@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const { error: updateError } = await supabase
       .from("offer_recipients")
-      .update({ response: payload.response })
+      .update({ response: payload.response, responded_at: new Date().toISOString() })
       .eq("id", recipient.id);
     if (updateError) throw updateError;
 

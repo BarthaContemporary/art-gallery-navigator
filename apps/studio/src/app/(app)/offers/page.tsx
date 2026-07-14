@@ -8,8 +8,24 @@ export default async function OffersPage() {
   const supabase = await getSupabase();
   const { data: offers } = await supabase
     .from("offers")
-    .select("id, title, kind, status, expires_at, created_at, offer_recipients(count), offer_items(count)")
+    .select(
+      "id, title, kind, expires_at, created_at, offer_items(count), offer_recipients(sent_at)",
+    )
     .order("created_at", { ascending: false });
+
+  // Lifecycle is derived (no status column): draft until any recipient is
+  // sent, then sent; past its expiry it reads expired.
+  function lifecycle(o: {
+    expires_at: string | null;
+    offer_recipients: { sent_at: string | null }[];
+  }): { label: string; sent: number } {
+    const recs = o.offer_recipients ?? [];
+    const sent = recs.filter((r) => r.sent_at).length;
+    const expired = o.expires_at != null && new Date(o.expires_at).getTime() < Date.now();
+    if (expired) return { label: "expired", sent };
+    if (sent > 0) return { label: `sent · ${sent}`, sent };
+    return { label: "draft", sent };
+  }
 
   async function createOffer(formData: FormData) {
     "use server";
@@ -76,9 +92,9 @@ export default async function OffersPage() {
                   <Link href={`/offers/${o.id}`}>{o.title}</Link>
                 </td>
                 <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{o.kind.replace(/_/g, " ")}</td>
-                <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{o.status}</td>
+                <td className="px-4 py-2.5 text-[12.5px] text-ink-muted">{lifecycle(o).label}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{count(o.offer_items)}</td>
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{count(o.offer_recipients)}</td>
+                <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{(o.offer_recipients ?? []).length}</td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
                   {new Date(o.created_at).toLocaleDateString("en-GB")}
                 </td>
@@ -91,8 +107,7 @@ export default async function OffersPage() {
         </table>
       </div>
       <p className="mt-3 text-[12px] text-ink-soft">
-        The full composer (work picker, recipients, Resend delivery, tracking) lands in Phase 4 —
-        the schema and tokenized public pages are already in place.
+        Open an offer to add works, choose recipients and send tokenized private links.
       </p>
     </div>
   );

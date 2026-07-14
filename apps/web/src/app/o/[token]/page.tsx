@@ -38,7 +38,7 @@ interface PieceRow {
 
 interface ItemRow {
   id: string;
-  price_override: number | null;
+  price_override_gbp: number | null;
   note: string | null;
   piece: PieceRow | null;
 }
@@ -50,7 +50,6 @@ interface OfferRow {
   intro: string | null;
   show_prices: boolean | null;
   expires_at: string | null;
-  status: string | null;
   items: ItemRow[] | null;
 }
 
@@ -126,9 +125,9 @@ export default async function OfferPage({
         `id, token, response, view_count, first_viewed_at,
          contact:crm_contacts ( first_name, last_name, salutation ),
          offer:offers (
-           id, title, kind, intro, show_prices, expires_at, status,
+           id, title, kind, intro, show_prices, expires_at,
            items:offer_items (
-             id, price_override, note,
+             id, price_override_gbp, note,
              piece:pieces (
                id, stock_number, title, medium, period, origin_region, dimensions_display,
                financials:piece_financials ( marked_price_gbp ),
@@ -148,7 +147,6 @@ export default async function OfferPage({
   const expired =
     !recipient ||
     !offer ||
-    offer.status === "archived" ||
     (offer.expires_at !== null && new Date(offer.expires_at).getTime() < Date.now());
 
   if (expired || !recipient || !offer || !supabase) {
@@ -242,7 +240,7 @@ export default async function OfferPage({
             ? (signedByPath.get(hero.storage_path_display) ?? null)
             : null;
           const price = offer.show_prices
-            ? (item.price_override ?? markedPrice(piece))
+            ? (item.price_override_gbp ?? markedPrice(piece))
             : null;
 
           return (

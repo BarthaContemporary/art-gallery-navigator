@@ -20,6 +20,9 @@ importers:
       '@jvb/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@jvb/emails':
+        specifier: workspace:*
+        version: link:../../packages/emails
       '@jvb/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -38,6 +41,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.7(react@19.2.7)
+      resend:
+        specifier: ^4
+        version: 4.8.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
