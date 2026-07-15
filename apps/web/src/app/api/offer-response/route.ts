@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@jvb/db/server";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ const responseSchema = z.object({
   token: z.string().min(8).max(200),
   response: z.enum(["interested", "declined"]).default("interested"),
   message: z.string().trim().max(2000).optional(),
+  turnstileToken: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -20,6 +22,14 @@ export async function POST(req: NextRequest) {
     payload = parsed.data;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const turnstile = await verifyTurnstile(
+    payload.turnstileToken,
+    req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for"),
+  );
+  if (!turnstile.ok) {
+    return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
 
   try {

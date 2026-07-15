@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 const APPOINTMENT_TYPES = [
   { value: "private_viewing", label: "Private gallery viewing" },
@@ -17,11 +18,18 @@ const labelClasses = "label block";
 export function BookingForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+
+    if (turnstileEnabled && !turnstileToken) {
+      setStatus("error");
+      setErrorMessage("Please complete the anti-spam check below.");
+      return;
+    }
 
     setStatus("submitting");
     setErrorMessage(null);
@@ -38,6 +46,7 @@ export function BookingForm() {
           email: data.get("email"),
           phone: data.get("phone") || undefined,
           notes: data.get("notes") || undefined,
+          turnstileToken: turnstileToken || undefined,
         }),
       });
 
@@ -163,6 +172,8 @@ export function BookingForm() {
           className={inputClasses}
         />
       </div>
+
+      <TurnstileWidget onToken={setTurnstileToken} />
 
       {status === "error" && errorMessage ? (
         <p role="alert" className="font-sans text-ui text-sumi">

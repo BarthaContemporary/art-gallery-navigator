@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { TurnstileWidget, turnstileEnabled } from "./turnstile-widget";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -15,9 +16,14 @@ export function OfferResponse({
     initialResponse === "interested" ? "success" : "idle",
   );
   const [message, setMessage] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (turnstileEnabled && !turnstileToken) {
+      setStatus("error");
+      return;
+    }
     setStatus("submitting");
     try {
       const res = await fetch("/api/offer-response", {
@@ -27,6 +33,7 @@ export function OfferResponse({
           token,
           response: "interested",
           message: message.trim() || undefined,
+          turnstileToken: turnstileToken || undefined,
         }),
       });
       if (!res.ok) throw new Error("request failed");
@@ -63,6 +70,7 @@ export function OfferResponse({
         placeholder="Which works caught your eye, or any questions."
         className="w-full border border-hairline bg-washi px-3 py-2.5 font-serif text-ui text-ink-70 placeholder:text-ink-50 focus:border-sumi"
       />
+      <TurnstileWidget onToken={setTurnstileToken} />
       {status === "error" ? (
         <p role="alert" className="font-sans text-ui text-sumi">
           Something went wrong — please try again, or simply reply to our email.

@@ -6,6 +6,7 @@ import { createServiceClient } from "@jvb/db/server";
 import { buildIcs } from "@/lib/ics";
 import { getSiteSettings } from "@/lib/sanity";
 import { fallbackGalleryName } from "@/lib/site";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ const bookingSchema = z.object({
   email: z.string().trim().email().max(320),
   phone: z.string().trim().max(50).optional(),
   notes: z.string().trim().max(2000).optional(),
+  turnstileToken: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,6 +42,14 @@ export async function POST(req: NextRequest) {
     payload = parsed.data;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const turnstile = await verifyTurnstile(
+    payload.turnstileToken,
+    req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for"),
+  );
+  if (!turnstile.ok) {
+    return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
 
   // Local (gallery-time) start/end; stored verbatim, ICS uses floating time.
