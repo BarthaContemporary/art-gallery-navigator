@@ -93,7 +93,10 @@ export default async function ContactProfile({
       stock_number: row.piece?.stock_number ?? null,
       title: row.piece?.title ?? null,
       sold_date: row.sold_date ?? null,
-      sold_price_gbp: row.sold_price_gbp ?? null,
+      // Never serialize the price to a non-privileged client: this prop is
+      // sent to a "use client" component, so a staff user (denied
+      // piece_financials by RLS) could otherwise read it from the flight payload.
+      sold_price_gbp: showPrices ? row.sold_price_gbp ?? null : null,
     };
   });
 

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@jvb/db/server";
+import { safeEqual } from "@/lib/secret";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,9 +10,9 @@ export const runtime = "nodejs";
  * campaign recipients (and offer recipients) so the studio tracking views
  * reflect real engagement.
  *
- * Security: if RESEND_WEBHOOK_SECRET is set, the request must carry a matching
- * `?secret=` query param. (Resend's Svix signature can be layered on later; a
- * shared secret is adequate for this low-volume, non-sensitive event feed.)
+ * Security: fails CLOSED — RESEND_WEBHOOK_SECRET must be set and the request
+ * must carry a matching `?secret=` param (constant-time compared). This route
+ * writes with the service client (bypasses RLS), so it must never be open.
  */
 
 type ResendEvent = {
@@ -29,7 +30,7 @@ const FIELD_BY_TYPE: Record<string, "opened_at" | "clicked_at" | "bounced_at"> =
 
 export async function POST(req: NextRequest) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (secret && req.nextUrl.searchParams.get("secret") !== secret) {
+  if (!secret || !safeEqual(req.nextUrl.searchParams.get("secret"), secret)) {
     return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   }
 

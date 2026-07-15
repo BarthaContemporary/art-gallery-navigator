@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { getSession, getSupabase, hasRole, createServiceClient } from "@/lib/supabase";
 
 export const metadata = { title: "Settings" };
+
+const NOTICE_COOKIE = "settings_notice";
 
 function genPassword() {
   // 16 URL-safe chars
@@ -11,14 +14,30 @@ function genPassword() {
   return Buffer.from(bytes).toString("base64").replace(/[+/=]/g, "").slice(0, 16);
 }
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ notice?: string }>;
-}) {
+/** Re-check admin inside every privileged Server Action — the page-level
+ *  guard does NOT protect the actions (they are independently callable POSTs). */
+async function assertAdmin() {
+  const s = await getSession();
+  if (!s || !hasRole(s.roles, "admin")) throw new Error("Forbidden");
+}
+
+/** Flash a (possibly sensitive) notice via a short-lived httpOnly cookie so
+ *  generated passwords never land in the URL / browser history / access logs. */
+async function flashNotice(message: string) {
+  const c = await cookies();
+  c.set(NOTICE_COOKIE, message, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/settings",
+    maxAge: 30,
+  });
+}
+
+export default async function SettingsPage() {
   const session = await getSession();
   if (!session || !hasRole(session.roles, "admin")) redirect("/");
-  const { notice } = await searchParams;
+  const notice = (await cookies()).get(NOTICE_COOKIE)?.value ?? null;
 
   const supabase = await getSupabase();
   const admin = createServiceClient();
@@ -42,9 +61,17 @@ export default async function SettingsPage({
 
   async function createUser(formData: FormData) {
     "use server";
+    await assertAdmin();
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
     const role = String(formData.get("role") ?? "staff");
-    if (!email) redirect("/settings?notice=Email+required");
+    if (!["staff", "accountant", "admin"].includes(role)) {
+      await flashNotice("Invalid role");
+      redirect("/settings");
+    }
+    if (!email) {
+      await flashNotice("Email required");
+      redirect("/settings");
+    }
     const pw = String(formData.get("password") ?? "").trim() || genPassword();
     const admin = createServiceClient();
     const { data, error } = await admin.auth.admin.createUser({
@@ -52,24 +79,33 @@ export default async function SettingsPage({
       password: pw,
       email_confirm: true,
     });
-    if (error || !data.user) redirect(`/settings?notice=${encodeURIComponent(error?.message ?? "Create failed")}`);
+    if (error || !data.user) {
+      await flashNotice(error?.message ?? "Create failed");
+      redirect("/settings");
+    }
     await admin.from("user_roles").upsert(
-      { user_id: data.user.id, role },
+      { user_id: data.user!.id, role },
       { onConflict: "user_id,role" },
     );
     revalidatePath("/settings");
-    redirect(`/settings?notice=${encodeURIComponent(`Created ${email} (${role}) — password: ${pw}`)}`);
+    await flashNotice(`Created ${email} (${role}) — password: ${pw}`);
+    redirect("/settings");
   }
 
   async function resetPassword(formData: FormData) {
     "use server";
+    await assertAdmin();
     const userId = String(formData.get("user_id") ?? "");
     const email = String(formData.get("email") ?? "");
     const pw = String(formData.get("password") ?? "").trim() || genPassword();
     const admin = createServiceClient();
     const { error } = await admin.auth.admin.updateUserById(userId, { password: pw });
-    if (error) redirect(`/settings?notice=${encodeURIComponent(error.message)}`);
-    redirect(`/settings?notice=${encodeURIComponent(`Password for ${email} reset to: ${pw}`)}`);
+    if (error) {
+      await flashNotice(error.message);
+      redirect("/settings");
+    }
+    await flashNotice(`Password for ${email} reset to: ${pw}`);
+    redirect("/settings");
   }
 
   return (

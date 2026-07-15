@@ -106,20 +106,12 @@ services:
     plugins:
       - name: cors
 
-  ## postgres-meta — service_role only (used by Studio via the gateway)
-  - name: meta
-    url: http://meta:8080/
-    routes:
-      - name: meta-all
-        strip_path: true
-        paths:
-          - /pg/
-    plugins:
-      - name: key-auth
-        config:
-          hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
-          allow:
-            - admin
+  ## postgres-meta is deliberately NOT routed through the public gateway.
+  ## It executes arbitrary SQL as supabase_admin (bypasses RLS), so exposing
+  ## it to the internet — even behind the service_role key — makes a single
+  ## key leak a full remote database takeover. The Supabase Studio container
+  ## reaches postgres-meta directly over the internal Docker network
+  ## (STUDIO_PG_META_URL=http://meta:8080), so no public route is needed.
+  ## To run ad-hoc SQL/migrations, tunnel to Postgres over SSH (it is bound to
+  ## the host's 127.0.0.1:5432, never public) and use psql / the Supabase CLI:
+  ##   ssh -L 5432:127.0.0.1:5432 <vps>   # then psql postgresql://…@127.0.0.1:5432/postgres

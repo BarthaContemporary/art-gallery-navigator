@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Resend } from "resend";
 import { OfferEmail } from "@jvb/emails";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "Offer" };
 
@@ -134,7 +135,7 @@ export default async function OfferDetail({
   }
 
   // Add-recipient contact search.
-  const rcQ = (sp.rc ?? "").trim();
+  const rcQ = sanitizeFilterTerm((sp.rc ?? "").trim());
   let contactResults: Recipient["contact"][] = [];
   if (rcQ) {
     const { data: cs } = await supabase

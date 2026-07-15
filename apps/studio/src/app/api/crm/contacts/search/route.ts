@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeFilterTerm } from "@/lib/search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
+  const q = sanitizeFilterTerm((new URL(req.url).searchParams.get("q") ?? "").trim());
   if (q.length < 2) return NextResponse.json({ results: [] });
 
   const { data, error } = await supabase

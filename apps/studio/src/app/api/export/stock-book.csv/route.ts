@@ -2,7 +2,8 @@ import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 
 function csvCell(v: unknown): string {
   if (v == null) return "";
-  const s = String(v);
+  let s = String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // block spreadsheet formula injection
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

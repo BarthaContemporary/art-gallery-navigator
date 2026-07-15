@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "Makers" };
 
@@ -9,7 +10,7 @@ export default async function MakersPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q: rawQ } = await searchParams;
-  const q = (rawQ ?? "").trim();
+  const q = sanitizeFilterTerm((rawQ ?? "").trim());
   const supabase = await getSupabase();
   let query = supabase
     .from("makers")

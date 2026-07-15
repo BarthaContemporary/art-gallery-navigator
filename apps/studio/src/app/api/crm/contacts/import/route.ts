@@ -123,12 +123,20 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — ample for a CRM contact export
+  const MAX_ROWS = 20000;
   let text: string;
   try {
     const fd = await req.formData();
     const file = fd.get("file");
     if (!file || typeof file === "string") {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    }
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "File too large (max 5 MB)." },
+        { status: 413 },
+      );
     }
     text = await file.text();
   } catch {
@@ -140,6 +148,13 @@ export async function POST(req: Request) {
     rows = parseCsv(text);
   } catch {
     return NextResponse.json({ error: "Could not parse the CSV file" }, { status: 400 });
+  }
+
+  if (rows.length > MAX_ROWS) {
+    return NextResponse.json(
+      { error: `Too many rows (max ${MAX_ROWS}). Split the file and re-import.` },
+      { status: 413 },
+    );
   }
 
   // Drop leading fully-empty rows, then take the first as header.

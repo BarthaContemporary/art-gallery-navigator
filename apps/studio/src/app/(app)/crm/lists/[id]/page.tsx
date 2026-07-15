@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "List" };
 
@@ -35,7 +36,7 @@ export default async function ListDetail({
     .filter(Boolean) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[];
   const memberIds = new Set(members.map((m) => m.id));
 
-  const term = (q ?? "").trim();
+  const term = sanitizeFilterTerm((q ?? "").trim());
   let results: typeof members = [];
   if (term) {
     const { data } = await supabase

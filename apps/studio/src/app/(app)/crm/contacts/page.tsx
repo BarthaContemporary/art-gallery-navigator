@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "Contacts" };
 
@@ -17,8 +18,9 @@ export default async function ContactsPage({
     .select("id, first_name, last_name, email, contact_type, city, country, marketing_consent, kyc_status, tags")
     .order("last_name", { nullsFirst: false })
     .limit(500);
-  if (q) {
-    query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
+  const term = sanitizeFilterTerm((q ?? "").trim());
+  if (term) {
+    query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`);
   }
   const { data: contacts } = await query;
 

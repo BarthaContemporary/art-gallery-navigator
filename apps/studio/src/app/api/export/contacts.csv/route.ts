@@ -2,7 +2,10 @@ import { getSupabase } from "@/lib/supabase";
 
 function csvCell(v: unknown): string {
   if (v == null) return "";
-  const s = String(v);
+  let s = String(v);
+  // Guard against CSV/formula injection when opened in a spreadsheet: a leading
+  // = + - @ (or tab/CR) can execute as a formula. Prefix such cells with '.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

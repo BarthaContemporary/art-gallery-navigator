@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createServiceClient } from "@jvb/db/server";
+import { safeEqual } from "@/lib/secret";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,9 +40,11 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const url = new URL(request.url);
   const auth = request.headers.get("authorization");
+  const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  // Prefer the Authorization header (Vercel Cron sends it); the ?secret= query
+  // fallback is constant-time compared and, being logged, should be avoided.
   const ok =
-    secret &&
-    (auth === `Bearer ${secret}` || url.searchParams.get("secret") === secret);
+    !!secret && (safeEqual(bearer, secret) || safeEqual(url.searchParams.get("secret"), secret));
   if (!ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServiceClient();

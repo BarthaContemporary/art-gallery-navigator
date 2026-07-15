@@ -1,4 +1,5 @@
 import { createServiceClient } from "@jvb/db/server";
+import { safeEqual } from "@/lib/secret";
 
 /**
  * Supabase → Sanity sync. Called by pg_net on outbox insert and by a Vercel
@@ -6,8 +7,8 @@ import { createServiceClient } from "@jvb/db/server";
  * documents; unpublishes pieces that are no longer web-visible.
  */
 export async function POST(request: Request) {
-  const secret = request.headers.get("x-sync-secret");
-  if (!secret || secret !== process.env.SYNC_SHARED_SECRET) {
+  const secret = process.env.SYNC_SHARED_SECRET;
+  if (!secret || !safeEqual(request.headers.get("x-sync-secret"), secret)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 

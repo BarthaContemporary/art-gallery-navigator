@@ -30,13 +30,18 @@ export async function PATCH(
   }
 
   const supabase = await getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const cap = (s: string, n: number) => s.slice(0, n);
   const patch: Record<string, unknown> = {};
-  if (typeof body.name === "string") patch.name = body.name.trim() || "Untitled newsletter";
-  if (typeof body.subject === "string") patch.subject = body.subject;
-  if (typeof body.preview_text === "string") patch.preview_text = body.preview_text;
+  if (typeof body.name === "string") patch.name = cap(body.name.trim(), 200) || "Untitled newsletter";
+  if (typeof body.subject === "string") patch.subject = cap(body.subject, 300);
+  if (typeof body.preview_text === "string") patch.preview_text = cap(body.preview_text, 300);
   if (typeof body.from_address === "string")
-    patch.from_address = body.from_address.trim() || null;
+    patch.from_address = cap(body.from_address.trim(), 320) || null;
   if ("list_id" in body) patch.list_id = body.list_id || null;
   if (body.design && Array.isArray(body.design.blocks)) {
     patch.design = body.design;

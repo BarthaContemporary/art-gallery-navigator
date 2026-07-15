@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseBody } from "next-sanity/webhook";
+import { safeEqual } from "@/lib/secret";
 
 /**
  * Sanity webhook → tag revalidation.
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     // also accept the secret via ?secret= or an x-revalidate-secret header.
     const querySecret =
       req.nextUrl.searchParams.get("secret") || req.headers.get("x-revalidate-secret");
-    if (querySecret && secret && querySecret === secret) {
+    if (secret && safeEqual(querySecret, secret)) {
       let type: string | undefined;
       try {
         const json = (await req.json()) as { _type?: string };
