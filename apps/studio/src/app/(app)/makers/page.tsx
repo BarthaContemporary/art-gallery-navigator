@@ -3,12 +3,31 @@ import { getSupabase } from "@/lib/supabase";
 
 export const metadata = { title: "Makers" };
 
-export default async function MakersPage() {
+export default async function MakersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q: rawQ } = await searchParams;
+  const q = (rawQ ?? "").trim();
   const supabase = await getSupabase();
-  const { data: makers } = await supabase
+  let query = supabase
     .from("makers")
     .select("id, display_name, native_name, life_dates, region, school_or_workshop")
     .order("display_name");
+  if (q) {
+    const like = `%${q}%`;
+    query = query.or(
+      [
+        `display_name.ilike.${like}`,
+        `native_name.ilike.${like}`,
+        `romanized_name.ilike.${like}`,
+        `region.ilike.${like}`,
+        `school_or_workshop.ilike.${like}`,
+      ].join(","),
+    );
+  }
+  const { data: makers } = await query;
 
   async function addMaker(formData: FormData) {
     "use server";
@@ -42,7 +61,31 @@ export default async function MakersPage() {
           Add maker
         </button>
       </form>
-      <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
+
+      <form method="get" className="mt-5 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search makers — name, native name, region, school…"
+          className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body sm:w-96"
+        />
+        <button type="submit" className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid">
+          Search
+        </button>
+        {q ? (
+          <a href="/makers" className="text-[12.5px] text-oranje">
+            Clear
+          </a>
+        ) : null}
+      </form>
+      {q ? (
+        <p className="mt-2 text-[12px] text-ink-soft">
+          {(makers ?? []).length} maker{(makers ?? []).length === 1 ? "" : "s"} matching “{q}”.
+        </p>
+      ) : null}
+
+      <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
         <table className="w-full min-w-[560px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
@@ -63,6 +106,13 @@ export default async function MakersPage() {
                 <td className="px-4 py-2.5 text-[13px] text-ink-muted">{m.school_or_workshop ?? "—"}</td>
               </tr>
             ))}
+            {(makers ?? []).length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-[13px] text-ink-soft">
+                  {q ? "No makers match your search." : "No makers yet."}
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>

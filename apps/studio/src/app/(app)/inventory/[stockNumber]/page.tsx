@@ -5,9 +5,12 @@ import {
   getSupabase,
   requireSession,
   canSeeFinancials,
+  hasRole,
 } from "@/lib/supabase";
 import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
 import { StatusPill } from "@/components/status-pill";
+import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
+import { cmToInchesFraction } from "@/lib/measure";
 
 export const metadata = { title: "Piece detail" };
 
@@ -20,6 +23,7 @@ const ROLE_CAPTIONS: Record<string, string> = {
   detail: "Detail",
   condition: "Condition",
   document: "Document",
+  other: "Other",
 };
 
 function gbp(n: number | null | undefined) {
@@ -41,6 +45,7 @@ export default async function PieceDetail({
   const supabase = await getSupabase();
   const { user, roles } = await requireSession();
   const showFinancials = canSeeFinancials(roles);
+  const isAdmin = hasRole(roles, "admin");
 
   const { data: piece } = await supabase
     .from("pieces")
@@ -91,10 +96,14 @@ export default async function PieceDetail({
     supabase.from("pieces").select("id", { count: "exact", head: true }),
     supabase
       .from("activity_log")
-      .select("id, action, created_at, actor_id")
+      .select(
+        isAdmin
+          ? "id, action, created_at, actor_id, entity_type, changes"
+          : "id, action, created_at, actor_id",
+      )
       .eq("entity_id", piece.id)
       .order("created_at", { ascending: false })
-      .limit(6),
+      .limit(isAdmin ? 200 : 6),
     showFinancials
       ? supabase
           .from("piece_financials")
@@ -172,6 +181,42 @@ export default async function PieceDetail({
   const enquiryCount = enquiriesRes.count ?? 0;
   const lastEnquiry = enquiriesRes.data?.[0]?.created_at;
 
+  // Activity / change history. Admins get the full field-level diff with the
+  // name of whoever made each change; other roles see a short recent list
+  // (and RLS returns nothing to staff regardless).
+  const activityRows = (activityRes.data ?? []) as unknown as Array<{
+    id: number | string;
+    action: string;
+    created_at: string;
+    actor_id: string | null;
+    entity_type?: string | null;
+    changes?: Record<string, unknown> | null;
+  }>;
+  let historyEntries: HistoryEntry[] = [];
+  if (isAdmin) {
+    const actorIds = [
+      ...new Set(activityRows.map((a) => a.actor_id).filter((x): x is string => Boolean(x))),
+    ];
+    let names: Record<string, string> = {};
+    if (actorIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", actorIds);
+      names = Object.fromEntries(
+        (profs ?? []).map((p) => [p.id as string, (p.full_name as string | null) ?? ""]),
+      );
+    }
+    historyEntries = activityRows.map((a) => ({
+      id: a.id,
+      action: a.action,
+      created_at: a.created_at,
+      actor: a.actor_id ? names[a.actor_id] ?? null : null,
+      entityType: a.entity_type ?? null,
+      changes: a.changes ?? null,
+    }));
+  }
+
   const daysInStock = fin?.purchase_date
     ? Math.floor(
         (Date.now() - new Date(fin.purchase_date).getTime()) / 86_400_000,
@@ -246,12 +291,12 @@ export default async function PieceDetail({
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
   }
 
-  const specs: [string, string][] = [
+  const specs: [string, React.ReactNode][] = [
     ["Category", piece.category ? `${piece.category.code} · ${piece.category.name}` : "—"],
     ["Medium", piece.medium ?? "—"],
     ["Period", piece.period ?? "—"],
     ["Origin", piece.origin_region ?? "—"],
-    ["Dimensions", formatDimensions(piece)],
+    ["Dimensions", renderDimensions(piece)],
     ["Weight", piece.weight_g ? `${(piece.weight_g / 1000).toFixed(1)} kg` : "—"],
     ["Location", piece.location?.code ?? "—"],
     ["Acquired", fin?.purchase_date ? new Date(fin.purchase_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"],
@@ -638,36 +683,47 @@ export default async function PieceDetail({
         </section>
 
         <section className="lg:border-l lg:border-line-soft lg:pl-8">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-            Activity
-          </h2>
-          <ul className="mt-3 space-y-2.5">
-            {(activityRes.data ?? []).map((a, i) => (
-              <li key={a.id} className="grid grid-cols-[14px_1fr] gap-2">
-                <span
-                  aria-hidden
-                  className="mt-[5px] h-[7px] w-[7px] rounded-full"
-                  style={{
-                    background:
-                      i === 0
-                        ? "var(--jvb-dot-recent)"
-                        : i < 3
-                          ? "var(--jvb-dot-mid)"
-                          : "var(--jvb-dot-old)",
-                  }}
-                />
-                <div>
-                  <p className="text-[13.5px] text-ink-body">{a.action}</p>
-                  <p className="font-mono text-[11px] text-ink-soft">
-                    {new Date(a.created_at).toLocaleString("en-GB")}
-                  </p>
-                </div>
-              </li>
-            ))}
-            {(activityRes.data ?? []).length === 0 ? (
-              <li className="text-[12.5px] text-ink-soft">No activity yet.</li>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+              {isAdmin ? "Change history" : "Activity"}
+            </h2>
+            {isAdmin ? (
+              <span className="font-mono text-[11px] text-ink-soft">
+                {historyEntries.length} change{historyEntries.length === 1 ? "" : "s"}
+              </span>
             ) : null}
-          </ul>
+          </div>
+          {isAdmin ? (
+            <ChangeHistory entries={historyEntries} />
+          ) : (
+            <ul className="mt-3 space-y-2.5">
+              {activityRows.map((a, i) => (
+                <li key={a.id} className="grid grid-cols-[14px_1fr] gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-[5px] h-[7px] w-[7px] rounded-full"
+                    style={{
+                      background:
+                        i === 0
+                          ? "var(--jvb-dot-recent)"
+                          : i < 3
+                            ? "var(--jvb-dot-mid)"
+                            : "var(--jvb-dot-old)",
+                    }}
+                  />
+                  <div>
+                    <p className="text-[13.5px] text-ink-body">{a.action}</p>
+                    <p className="font-mono text-[11px] text-ink-soft">
+                      {new Date(a.created_at).toLocaleString("en-GB")}
+                    </p>
+                  </div>
+                </li>
+              ))}
+              {activityRows.length === 0 ? (
+                <li className="text-[12.5px] text-ink-soft">No activity yet.</li>
+              ) : null}
+            </ul>
+          )}
         </section>
       </div>
     </div>
@@ -683,20 +739,52 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function formatDimensions(piece: {
+type Dims = {
   height_cm: number | null;
   width_cm: number | null;
   depth_cm: number | null;
   length_cm: number | null;
   diameter_cm: number | null;
   dimensions_display: string | null;
-}): string {
+};
+
+const DIM_PARTS: [keyof Dims, string][] = [
+  ["height_cm", "H"],
+  ["width_cm", "W"],
+  ["depth_cm", "D"],
+  ["length_cm", "L"],
+  ["diameter_cm", "Ø"],
+];
+
+function formatDimensions(piece: Dims): string {
   const parts: string[] = [];
-  if (piece.height_cm) parts.push(`H ${piece.height_cm}`);
-  if (piece.width_cm) parts.push(`W ${piece.width_cm}`);
-  if (piece.depth_cm) parts.push(`D ${piece.depth_cm}`);
-  if (piece.length_cm) parts.push(`L ${piece.length_cm}`);
-  if (piece.diameter_cm) parts.push(`Ø ${piece.diameter_cm}`);
+  for (const [key, prefix] of DIM_PARTS) {
+    const val = piece[key];
+    if (typeof val === "number" && val) parts.push(`${prefix} ${val}`);
+  }
   if (parts.length > 0) return `${parts.join(" × ")} cm`;
   return piece.dimensions_display ?? "—";
+}
+
+/** The same numeric dimensions converted to inches (nearest 1/8"), or null. */
+function formatDimensionsInches(piece: Dims): string | null {
+  const parts: string[] = [];
+  for (const [key, prefix] of DIM_PARTS) {
+    const val = piece[key];
+    if (typeof val === "number" && val) parts.push(`${prefix} ${cmToInchesFraction(val)}`);
+  }
+  return parts.length > 0 ? `${parts.join(" × ")} in` : null;
+}
+
+/** cm on top, the imperial conversion underneath (when numeric dims exist). */
+function renderDimensions(piece: Dims): React.ReactNode {
+  const cm = formatDimensions(piece);
+  const inches = formatDimensionsInches(piece);
+  if (!inches) return cm;
+  return (
+    <>
+      {cm}
+      <span className="mt-0.5 block font-mono text-[11.5px] text-ink-soft">{inches}</span>
+    </>
+  );
 }

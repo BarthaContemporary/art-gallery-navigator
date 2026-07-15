@@ -89,24 +89,32 @@ export default async function OfferDetail({
     .maybeSingle();
   if (!offer) notFound();
 
-  const [{ data: itemsData }, { data: recipientsData }, { data: lists }] =
-    await Promise.all([
-      supabase
-        .from("offer_items")
-        .select(
-          "id, price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period )",
-        )
-        .eq("offer_id", id)
-        .order("sort_order", { nullsFirst: true }),
-      supabase
-        .from("offer_recipients")
-        .select(
-          "id, token, sent_at, first_viewed_at, view_count, response, responded_at, contact:crm_contacts ( id, first_name, last_name, salutation, email, unsubscribed_at )",
-        )
-        .eq("offer_id", id)
-        .order("created_at"),
-      supabase.from("crm_lists").select("id, name").order("name"),
-    ]);
+  const [
+    { data: itemsData },
+    { data: recipientsData },
+    { data: lists },
+    { data: pieceLists },
+  ] = await Promise.all([
+    supabase
+      .from("offer_items")
+      .select(
+        "id, price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period )",
+      )
+      .eq("offer_id", id)
+      .order("sort_order", { nullsFirst: true }),
+    supabase
+      .from("offer_recipients")
+      .select(
+        "id, token, sent_at, first_viewed_at, view_count, response, responded_at, contact:crm_contacts ( id, first_name, last_name, salutation, email, unsubscribed_at )",
+      )
+      .eq("offer_id", id)
+      .order("created_at"),
+    supabase.from("crm_lists").select("id, name").order("name"),
+    supabase
+      .from("piece_lists")
+      .select("id, name, piece_list_items(count)")
+      .order("name"),
+  ]);
 
   const items = (itemsData ?? []) as unknown as Item[];
   const recipients = (recipientsData ?? []) as unknown as Recipient[];
@@ -181,6 +189,38 @@ export default async function OfferDetail({
       piece_id: pieceId,
       sort_order: (mx?.sort_order ?? -1) + 1,
     });
+    revalidatePath(`/offers/${id}`);
+  }
+
+  async function addListItems(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const listId = String(formData.get("piece_list_id") ?? "");
+    if (!listId) return;
+
+    // Pieces already on the offer — don't double-add.
+    const { data: existing } = await db
+      .from("offer_items")
+      .select("piece_id, sort_order")
+      .eq("offer_id", id);
+    const have = new Set((existing ?? []).map((r) => r.piece_id as string));
+    let nextSort =
+      (existing ?? []).reduce((m, r) => Math.max(m, (r.sort_order as number) ?? -1), -1) + 1;
+
+    const { data: members } = await db
+      .from("piece_list_items")
+      .select("piece_id, sort_order")
+      .eq("list_id", listId)
+      .order("sort_order");
+
+    const rows = (members ?? [])
+      .map((m) => m.piece_id as string)
+      .filter((pid) => pid && !have.has(pid))
+      .map((pid) => ({ offer_id: id, piece_id: pid, sort_order: nextSort++ }));
+
+    if (rows.length > 0) {
+      await db.from("offer_items").insert(rows);
+    }
     revalidatePath(`/offers/${id}`);
   }
 
@@ -516,6 +556,34 @@ export default async function OfferDetail({
             ) : null}
           </div>
         ) : null}
+
+        {/* Add every work from a saved inventory list */}
+        {(pieceLists ?? []).length > 0 ? (
+          <form action={addListItems} className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-soft pt-4">
+            <span className="text-[12px] text-ink-muted">Add works from a list</span>
+            <select
+              name="piece_list_id"
+              defaultValue=""
+              required
+              className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[13px] text-ink-body"
+            >
+              <option value="" disabled>
+                Choose an inventory list…
+              </option>
+              {(pieceLists ?? []).map((l) => {
+                const count = (l as { piece_list_items?: { count: number }[] }).piece_list_items?.[0]?.count ?? 0;
+                return (
+                  <option key={(l as { id: string }).id} value={(l as { id: string }).id}>
+                    {(l as { name: string }).name} ({count})
+                  </option>
+                );
+              })}
+            </select>
+            <button type="submit" className={btnGhost}>
+              Add all
+            </button>
+          </form>
+        ) : null}
       </section>
 
       {/* Recipients */}
@@ -596,7 +664,7 @@ export default async function OfferDetail({
               className="rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
             >
               <option value="" disabled>
-                Add a CRM list…
+                Add a contact list…
               </option>
               {(lists ?? []).map((l) => (
                 <option key={l.id} value={l.id}>

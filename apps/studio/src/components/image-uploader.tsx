@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 
-const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition", "document"];
+const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition", "document", "other"];
 
 /**
  * Uploads originals straight to the private `piece-originals` bucket, then

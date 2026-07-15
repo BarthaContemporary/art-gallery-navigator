@@ -1,4 +1,6 @@
 import { BuyerSelect } from "@/components/buyer-select";
+import { CategorySelect } from "@/components/category-select";
+import { MakerSelect } from "@/components/maker-select";
 
 type Option = { id: string; label: string };
 
@@ -37,28 +39,14 @@ export function PieceFormFields({
               Title
               <input name="title" defaultValue={v("title")} className={field} />
             </label>
-            <label className={label}>
+            <div className={label}>
               Maker
-              <select name="maker_id" defaultValue={v("maker_id")} className={field}>
-                <option value="">—</option>
-                {makers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={label}>
+              <MakerSelect options={makers} defaultId={String(v("maker_id")) || null} />
+            </div>
+            <div className={label}>
               Category
-              <select name="category_id" defaultValue={v("category_id")} className={field}>
-                <option value="">—</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <CategorySelect options={categories} defaultId={String(v("category_id")) || null} />
+            </div>
             <label className={label}>
               Medium
               <input name="medium" defaultValue={v("medium")} className={field} />

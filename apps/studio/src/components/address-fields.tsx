@@ -131,7 +131,18 @@ export function AddressFields({
         }
         setMapsMsg(null);
         el = new places.PlaceAutocompleteElement();
+        // Blend the widget into our form controls: fill the styled wrapper,
+        // drop its own chrome and inherit our typeface/colour.
         el.style.width = "100%";
+        try {
+          el.style.background = "transparent";
+          el.style.border = "none";
+          el.style.fontFamily = "inherit";
+          el.style.fontSize = "13.5px";
+          el.style.color = "var(--jvb-ink-body)";
+        } catch {
+          /* older widget builds may not expose these */
+        }
         acHostRef.current.appendChild(el);
         el.addEventListener("gmp-select", async (e: any) => {
           try {
@@ -229,7 +240,10 @@ export function AddressFields({
       {MAPS_KEY ? (
         <div className="mt-2">
           <span className={label}>Find address</span>
-          <div ref={acHostRef} className="mt-1" />
+          <div
+            ref={acHostRef}
+            className="mt-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
+          />
           {mapsMsg ? (
             <p className="mt-1 text-[11.5px] text-ink-soft">{mapsMsg}</p>
           ) : null}
