@@ -6,25 +6,54 @@ import { useEffect, useRef, useState } from "react";
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-// Load the Google Maps JS API once (async bootstrap so importLibrary works).
+// Load the Google Maps JS API once via Google's official inline bootstrap
+// loader, which defines google.maps.importLibrary synchronously (a plain
+// <script loading=async> tag does NOT reliably expose importLibrary at onload).
 let mapsPromise: Promise<any> | null = null;
 function loadMaps(): Promise<any> {
   if (!MAPS_KEY) return Promise.reject(new Error("no key"));
   if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
-  if ((window as any).google?.maps?.importLibrary)
-    return Promise.resolve((window as any).google);
+  const w = window as any;
+  if (w.google?.maps?.importLibrary) return Promise.resolve(w.google);
   if (mapsPromise) return mapsPromise;
   mapsPromise = new Promise<any>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&v=weekly&libraries=places&loading=async`;
-    s.async = true;
-    s.onload = () => {
-      const g = (window as any).google;
-      if (g?.maps?.importLibrary) resolve(g);
-      else reject(new Error("maps unavailable"));
-    };
-    s.onerror = () => reject(new Error("load failed"));
-    document.head.appendChild(s);
+    try {
+      // Bootstrap loader (from Google's docs), inlined and typed.
+      ((g: Record<string, string>) => {
+        let h: Promise<void> | undefined;
+        const c = "google";
+        const b: any = (w[c] = w[c] || {});
+        const d: any = (b.maps = b.maps || {});
+        const r = new Set<string>();
+        const e = new URLSearchParams();
+        const u = () =>
+          h ||
+          (h = new Promise<void>((res, rej) => {
+            const a = document.createElement("script");
+            e.set("libraries", [...r].join(","));
+            for (const k in g) {
+              const val = g[k];
+              if (val !== undefined)
+                e.set(k.replace(/[A-Z]/g, (t) => "_" + t.toLowerCase()), val);
+            }
+            e.set("callback", c + ".maps.__ib__");
+            a.src = "https://maps.googleapis.com/maps/api/js?" + e;
+            d.__ib__ = res;
+            a.onerror = () => {
+              h = undefined;
+              rej(new Error("could not load"));
+            };
+            document.head.append(a);
+          }));
+        if (!d.importLibrary)
+          d.importLibrary = (f: string, ...n: unknown[]) =>
+            r.add(f) && u().then(() => d.importLibrary(f, ...n));
+      })({ key: MAPS_KEY, v: "weekly" });
+      if (w.google?.maps?.importLibrary) resolve(w.google);
+      else reject(new Error("bootstrap failed"));
+    } catch (err) {
+      reject(err);
+    }
   });
   return mapsPromise;
 }
