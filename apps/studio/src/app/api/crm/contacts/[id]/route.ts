@@ -41,6 +41,8 @@ export async function PATCH(
     ((current as { custom_fields: Record<string, unknown> | null } | null)
       ?.custom_fields as Record<string, unknown>) ?? {};
 
+  const interests = parseInterests();
+
   const { error } = await supabase
     .from("crm_contacts")
     .update({
@@ -68,7 +70,7 @@ export async function PATCH(
         linkedin: raw("linkedin"),
         x_handle: raw("x_handle"),
         website: raw("website"),
-        interests: parseInterests(),
+        interests,
         addr1_type: raw("addr1_type") || "primary_home",
         addr1_company: raw("addr1_company"),
         address2: {
@@ -87,5 +89,31 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Keep the auto interest-lists in sync: add this contact to the list for each
+  // interest they now hold, and remove them from the rest.
+  const { data: areaRows } = await supabase
+    .from("crm_interest_areas")
+    .select("name, list_id")
+    .not("list_id", "is", null);
+  const areas = (areaRows ?? []) as { name: string; list_id: string }[];
+  const addTo = areas.filter((a) => interests.includes(a.name));
+  const removeFrom = areas.filter((a) => !interests.includes(a.name)).map((a) => a.list_id);
+  if (addTo.length) {
+    await supabase
+      .from("crm_list_members")
+      .upsert(
+        addTo.map((a) => ({ list_id: a.list_id, contact_id: id })),
+        { onConflict: "list_id,contact_id", ignoreDuplicates: true },
+      );
+  }
+  if (removeFrom.length) {
+    await supabase
+      .from("crm_list_members")
+      .delete()
+      .eq("contact_id", id)
+      .in("list_id", removeFrom);
+  }
+
   return NextResponse.json({ ok: true });
 }

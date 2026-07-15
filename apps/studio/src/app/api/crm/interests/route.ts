@@ -25,9 +25,23 @@ export async function POST(req: Request) {
   const { data, error } = await supabase
     .from("crm_interest_areas")
     .upsert({ name }, { onConflict: "name" })
-    .select("id, name")
+    .select("id, name, list_id")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ area: data });
+
+  // Ensure the area has a real mailing list backing it (auto-created).
+  const area = data as { id: string; name: string; list_id: string | null };
+  if (area && !area.list_id) {
+    const { data: list } = await supabase
+      .from("crm_lists")
+      .insert({ name: area.name, description: "Area of interest (auto)" })
+      .select("id")
+      .single();
+    if (list?.id) {
+      await supabase.from("crm_interest_areas").update({ list_id: list.id }).eq("id", area.id);
+    }
+  }
+
+  return NextResponse.json({ area: { id: area.id, name: area.name } });
 }

@@ -200,7 +200,7 @@ export function AddressFields({
           Type
           <select
             name={names.type}
-            value={v.type}
+            defaultValue={v.type}
             onChange={(e) => setV((p) => ({ ...p, type: e.target.value }))}
             className="ml-2 rounded-lg border border-line-control bg-control px-2 py-1 text-[12.5px] text-ink-body"
           >
