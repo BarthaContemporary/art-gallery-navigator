@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { StatusPill } from "@/components/status-pill";
-import { SortHeader } from "@/components/sort-header";
+import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
 
 const PAGE_SIZE = 100;
 
@@ -41,8 +40,14 @@ export default async function InventoryPage({
 
   const [{ data: categories }, { data: locations }] = await Promise.all([
     supabase.from("categories").select("id, name").order("name"),
-    supabase.from("locations").select("id, code").order("code"),
+    supabase.from("locations").select("id, code, name").order("code"),
   ]);
+  const locNameById = new Map(
+    ((locations ?? []) as { id: string; name: string | null; code: string }[]).map((l) => [
+      l.id,
+      l.name ?? l.code,
+    ]),
+  );
 
   const q = sp.q?.trim();
   const searching = Boolean(q);
@@ -245,7 +250,7 @@ export default async function InventoryPage({
           <option value="">All locations</option>
           {(locations ?? []).map((l) => (
             <option key={l.id} value={l.id}>
-              {l.code}
+              {l.name ?? l.code}
             </option>
           ))}
         </select>
@@ -259,12 +264,13 @@ export default async function InventoryPage({
 
       {(() => {
         const catName = (categories ?? []).find((c) => c.id === sp.category)?.name;
-        const locCode = (locations ?? []).find((l) => l.id === sp.location)?.code;
+        const locMatch = (locations ?? []).find((l) => l.id === sp.location);
+        const locName = locMatch?.name ?? locMatch?.code;
         const chips: Array<{ key: keyof Search; label: string }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
         if (sp.status) chips.push({ key: "status", label: sp.status.replace(/_/g, " ") });
         if (sp.category && catName) chips.push({ key: "category", label: catName });
-        if (sp.location && locCode) chips.push({ key: "location", label: locCode });
+        if (sp.location && locName) chips.push({ key: "location", label: locName });
         if (chips.length === 0) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -329,74 +335,24 @@ export default async function InventoryPage({
       {error ? (
         <p className="mt-4 text-[13px] text-ink-body">Could not load inventory: {error.message}</p>
       ) : (
-        <div className="mt-3 overflow-x-auto rounded-[11px] border border-line">
-          <table className="w-full min-w-[820px] border-collapse bg-cell text-left">
-            <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                <th className="w-[52px] px-3 py-2.5 font-medium" aria-label="Image" />
-                <SortHeader column="stock_number" label="Stock" />
-                <SortHeader column="title" label="Title" />
-                <SortHeader column="maker_name" label="Maker" />
-                <SortHeader column="category_name" label="Category" />
-                <SortHeader column="location_code" label="Location" />
-                <SortHeader column="status" label="Status" />
-              </tr>
-            </thead>
-            <tbody>
-              {(rows ?? []).map((r) => {
-                const thumb = thumbByPiece.get(r.id);
-                return (
-                  <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-control">
-                    <td className="px-3 py-2">
-                      <Link href={`/inventory/${encodeURIComponent(r.stock_number)}`}>
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={thumb}
-                            alt=""
-                            className="h-9 w-9 rounded-md object-cover"
-                          />
-                        ) : (
-                          <span
-                            className="jvb-hatch flex h-9 w-9 items-center justify-center rounded-md text-[11px] text-ink-soft"
-                            aria-label="No image"
-                          >
-                            ▦
-                          </span>
-                        )}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[12px] text-ink">
-                      <Link href={`/inventory/${encodeURIComponent(r.stock_number)}`}>
-                        {r.stock_number}
-                      </Link>
-                      {r.legacy_stock_number ? (
-                        <span className="ml-1.5 text-ink-soft">({r.legacy_stock_number})</span>
-                      ) : null}
-                    </td>
-                    <td className="max-w-[280px] truncate px-4 py-2.5 text-[13.5px] text-ink-body">
-                      <Link href={`/inventory/${encodeURIComponent(r.stock_number)}`}>
-                        {r.title ?? "Untitled"}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2.5 text-[13px] text-ink-muted">{r.maker_name ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-[13px] text-ink-muted">{r.category_name ?? "—"}</td>
-                    <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{r.location_code ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      <StatusPill status={r.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-              {(rows ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-[13px] text-ink-muted">
-                    No records match.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <InventoryTable
+            rows={(rows ?? []).map(
+              (r): InventoryRow => ({
+                id: r.id,
+                stock_number: r.stock_number,
+                legacy_stock_number: r.legacy_stock_number,
+                title: r.title,
+                maker_name: r.maker_name,
+                category_name: r.category_name,
+                location_name: r.location_id
+                  ? locNameById.get(r.location_id) ?? r.location_code
+                  : r.location_code,
+                status: r.status,
+              }),
+            )}
+            thumbs={Object.fromEntries(thumbByPiece)}
+          />
         </div>
       )}
 
