@@ -23,6 +23,14 @@ export async function PATCH(
     return t || null;
   };
   const raw = (k: string) => String(fd.get(k) ?? "").trim();
+  const parseInterests = (): string[] => {
+    try {
+      const arr = JSON.parse(String(fd.get("interests") ?? "[]"));
+      return Array.isArray(arr) ? arr.map((x) => String(x)).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  };
 
   const { data: current } = await supabase
     .from("crm_contacts")
@@ -60,6 +68,7 @@ export async function PATCH(
         linkedin: raw("linkedin"),
         x_handle: raw("x_handle"),
         website: raw("website"),
+        interests: parseInterests(),
         addr1_type: raw("addr1_type") || "primary_home",
         addr1_company: raw("addr1_company"),
         address2: {

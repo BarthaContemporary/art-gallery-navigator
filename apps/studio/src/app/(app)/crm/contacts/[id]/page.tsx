@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
-import { ContactEditor } from "@/components/contact-editor";
+import {
+  getSupabase,
+  getSession,
+  canSeeFinancials,
+  createServiceClient,
+} from "@/lib/supabase";
+import { ContactEditor, type Purchase } from "@/components/contact-editor";
+import { DeleteContactButton } from "@/components/delete-contact-button";
 
 export const metadata = { title: "Contact" };
 
@@ -56,6 +62,40 @@ export default async function ContactProfile({
     .maybeSingle();
   const contact = data as unknown as Contact | null;
   if (!contact) notFound();
+
+  // Areas of interest (shared master list) + role for price visibility.
+  const { data: areaRows } = await supabase
+    .from("crm_interest_areas")
+    .select("id, name")
+    .order("sort_order")
+    .order("name");
+  const interestOptions = (areaRows ?? []) as { id: string; name: string }[];
+
+  const session = await getSession();
+  const showPrices = canSeeFinancials(session?.roles ?? []);
+
+  // Past purchases: works sold to this contact. Read via the service client so
+  // all staff see the works even though piece_financials is role-restricted;
+  // the price itself is only rendered for admin/accountant (showPrices).
+  const svc = createServiceClient();
+  const { data: purRows } = await svc
+    .from("piece_financials")
+    .select("sold_date, sold_price_gbp, piece:pieces ( stock_number, title )")
+    .eq("buyer_contact_id", id)
+    .order("sold_date", { ascending: false, nullsFirst: false });
+  const purchases: Purchase[] = (purRows ?? []).map((r) => {
+    const row = r as unknown as {
+      sold_date: string | null;
+      sold_price_gbp: number | null;
+      piece: { stock_number: string | null; title: string | null } | null;
+    };
+    return {
+      stock_number: row.piece?.stock_number ?? null,
+      title: row.piece?.title ?? null,
+      sold_date: row.sold_date ?? null,
+      sold_price_gbp: row.sold_price_gbp ?? null,
+    };
+  });
 
   const name =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
@@ -112,17 +152,18 @@ export default async function ContactProfile({
         </div>
       </div>
 
-      <ContactEditor id={id} contact={contact} />
+      <ContactEditor
+        id={id}
+        contact={contact}
+        purchases={purchases}
+        interestOptions={interestOptions}
+        showPrices={showPrices}
+      />
 
       {/* danger */}
-      <form action={deleteContact} className="mt-6">
-        <button
-          type="submit"
-          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:text-ink-strong"
-        >
-          Delete contact
-        </button>
-      </form>
+      <div className="mt-6">
+        <DeleteContactButton action={deleteContact} />
+      </div>
     </div>
   );
 }

@@ -166,6 +166,7 @@ export async function PATCH(
           sell_fx: sellFx,
           sold_price_gbp: soldPriceGbp,
           vat_treatment: String(fd.get("vat_treatment") ?? "margin_scheme"),
+          buyer_contact_id: str("buyer_contact_id"),
         })
         .eq("piece_id", pieceRow.id);
     }

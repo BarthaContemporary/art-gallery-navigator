@@ -125,11 +125,14 @@ export function AddressFields({
           }
         });
       })
-      .catch(() => {
-        if (!cancelled)
-          setMapsMsg(
-            "Address lookup couldn’t load — enable the “Maps JavaScript API” for this key (separate from Maps Static API), and confirm Places API (New) + billing are on.",
-          );
+      .catch((err) => {
+        if (cancelled) return;
+        // Google logs its own precise `…MapError` to the console; surface the
+        // most common non-obvious causes and point there.
+        console.error("[address lookup] Google Maps JS failed to load:", err);
+        setMapsMsg(
+          "Address lookup couldn’t load. Most likely the key’s API restrictions don’t allow the Maps JavaScript API (enabling it project-wide isn’t enough — it must be in the key’s allowed-APIs list, alongside Places API New). Also check billing, and that no ad-blocker is blocking maps.googleapis.com. The browser console shows Google’s exact error.",
+        );
       });
     return () => {
       cancelled = true;

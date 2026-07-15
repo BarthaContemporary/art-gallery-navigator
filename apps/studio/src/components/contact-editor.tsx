@@ -2,6 +2,15 @@
 
 import { useCallback, useRef, useState } from "react";
 import { AddressFields } from "./address-fields";
+import { InterestSelect } from "./interest-select";
+
+export type Purchase = {
+  stock_number: string | null;
+  title: string | null;
+  sold_date: string | null;
+  sold_price_gbp: number | null;
+};
+export type InterestArea = { id: string; name: string };
 
 type Contact = {
   first_name: string | null;
@@ -41,7 +50,22 @@ const AML_OPTIONS: [string, string][] = [
 
 type Status = "idle" | "saving" | "saved" | "error";
 
-export function ContactEditor({ id, contact }: { id: string; contact: Contact }) {
+export function ContactEditor({
+  id,
+  contact,
+  purchases,
+  interestOptions,
+  showPrices,
+}: {
+  id: string;
+  contact: Contact;
+  purchases: Purchase[];
+  interestOptions: InterestArea[];
+  showPrices: boolean;
+}) {
+  const selectedInterests = Array.isArray(contact.custom_fields?.interests)
+    ? (contact.custom_fields?.interests as unknown[]).map(String)
+    : [];
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -235,6 +259,57 @@ export function ContactEditor({ id, contact }: { id: string; contact: Contact })
           Notes
           <textarea name="notes" rows={3} defaultValue={contact.notes ?? ""} className={input} />
         </label>
+      </div>
+
+      {/* Profile — past purchases + areas of interest */}
+      <div className={box}>
+        <h2 className="text-[13px] font-semibold text-ink-strong">Profile</h2>
+
+        <div className="mt-3">
+          <p className={label}>Past purchases</p>
+          {purchases.length ? (
+            <ul className="mt-1.5 overflow-hidden rounded-lg border border-line-soft">
+              {purchases.map((p, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 border-b border-line-soft px-3 py-1.5 text-[13px] last:border-0"
+                >
+                  <a
+                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                    className="min-w-0 truncate hover:text-oranje"
+                  >
+                    <span className="font-mono text-[12px] text-ink-muted">
+                      {p.stock_number ?? "—"}
+                    </span>{" "}
+                    <span className="text-ink-body">{p.title ?? "Untitled"}</span>
+                  </a>
+                  <span className="shrink-0 text-[12px] text-ink-muted">
+                    {p.sold_date
+                      ? new Date(p.sold_date).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : ""}
+                    {showPrices && p.sold_price_gbp != null
+                      ? ` · £${Number(p.sold_price_gbp).toLocaleString("en-GB")}`
+                      : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-[12.5px] text-ink-muted">No recorded purchases.</p>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <InterestSelect
+            options={interestOptions}
+            selected={selectedInterests}
+            onChange={scheduleSave}
+          />
+        </div>
       </div>
 
       {/* AML — at the bottom */}

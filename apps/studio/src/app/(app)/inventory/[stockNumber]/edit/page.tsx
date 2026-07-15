@@ -55,6 +55,22 @@ export default async function EditPiecePage({
         .eq("piece_id", piece.id),
     ]);
 
+  let buyerName: string | null = null;
+  const buyerContactId = financials.data?.buyer_contact_id as string | null | undefined;
+  if (buyerContactId) {
+    const { data: buyer } = await supabase
+      .from("crm_contacts")
+      .select("first_name, last_name, email")
+      .eq("id", buyerContactId)
+      .maybeSingle();
+    if (buyer) {
+      buyerName =
+        [buyer.first_name, buyer.last_name].filter(Boolean).join(" ") ||
+        buyer.email ||
+        null;
+    }
+  }
+
   let thumbUrl: string | null = null;
   if (primaryImage.data?.storage_path_display) {
     const { data } = await supabase.storage
@@ -122,6 +138,7 @@ export default async function EditPiecePage({
           categories={(categories.data ?? []).map((c) => ({ id: c.id, label: c.name }))}
           locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
           showFinancials={showFinancials}
+          buyerName={buyerName}
         />
       </AutosaveForm>
 

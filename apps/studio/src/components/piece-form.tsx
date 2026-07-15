@@ -1,3 +1,5 @@
+import { BuyerSelect } from "@/components/buyer-select";
+
 type Option = { id: string; label: string };
 
 const field =
@@ -12,6 +14,7 @@ export function PieceFormFields({
   categories,
   locations,
   showFinancials,
+  buyerName,
 }: {
   piece: Record<string, unknown> | null;
   financials: Record<string, unknown> | null;
@@ -19,6 +22,7 @@ export function PieceFormFields({
   categories: Option[];
   locations: Option[];
   showFinancials: boolean;
+  buyerName?: string | null;
 }) {
   const v = (k: string) => (piece?.[k] as string | number | null) ?? "";
   const f = (k: string) => (financials?.[k] as string | number | null) ?? "";
@@ -215,8 +219,17 @@ export function PieceFormFields({
               Purchased from
               <input name="purchased_from" defaultValue={v("purchased_from")} className={field} />
             </label>
+            <div className={label}>
+              Buyer (CRM contact)
+              <div className="mt-1.5">
+                <BuyerSelect
+                  initialId={String(financials?.buyer_contact_id ?? "") || null}
+                  initialName={buyerName ?? null}
+                />
+              </div>
+            </div>
             <label className={label}>
-              Sold to
+              Buyer note (freeform)
               <input name="sold_to" defaultValue={v("sold_to")} className={field} />
             </label>
             <label className={label}>
