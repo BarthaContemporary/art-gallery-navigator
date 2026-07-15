@@ -89,8 +89,8 @@ export function AppHeader({
             </button>
           </div>
 
-          {/* Row 2 — desktop nav, wraps beneath the wordmark */}
-          <nav className="mt-2 hidden flex-wrap items-center gap-x-0.5 gap-y-1 md:flex">
+          {/* Row 2 — desktop nav, wraps beneath the wordmark, flush-left with it */}
+          <nav className="-ml-2.5 mt-2 hidden flex-wrap items-center justify-start gap-x-0.5 gap-y-1 md:flex">
             {items.map((n) => (
               <Link
                 key={n.href}
