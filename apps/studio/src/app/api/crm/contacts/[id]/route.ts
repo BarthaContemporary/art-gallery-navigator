@@ -61,8 +61,10 @@ export async function PATCH(
         x_handle: raw("x_handle"),
         website: raw("website"),
         addr1_type: raw("addr1_type") || "primary_home",
+        addr1_company: raw("addr1_company"),
         address2: {
           type: raw("addr2_type") || "second_home",
+          company: raw("addr2_company"),
           line1: raw("addr2_line1"),
           line2: raw("addr2_line2"),
           city: raw("addr2_city"),

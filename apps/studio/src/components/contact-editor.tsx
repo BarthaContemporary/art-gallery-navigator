@@ -158,6 +158,7 @@ export function ContactEditor({ id, contact }: { id: string; contact: Contact })
             postcode: "postcode",
             country: "country",
             type: "addr1_type",
+            company: "addr1_company",
           }}
           defaults={{
             line1: contact.address_line1 ?? "",
@@ -166,6 +167,7 @@ export function ContactEditor({ id, contact }: { id: string; contact: Contact })
             postcode: contact.postcode ?? "",
             country: contact.country ?? "",
             type: cf("addr1_type") || "primary_home",
+            company: cf("addr1_company"),
           }}
         />
 
@@ -179,6 +181,7 @@ export function ContactEditor({ id, contact }: { id: string; contact: Contact })
             postcode: "addr2_postcode",
             country: "addr2_country",
             type: "addr2_type",
+            company: "addr2_company",
           }}
           defaults={{
             line1: addr2.line1 ?? "",
@@ -187,6 +190,7 @@ export function ContactEditor({ id, contact }: { id: string; contact: Contact })
             postcode: addr2.postcode ?? "",
             country: addr2.country ?? "",
             type: addr2.type ?? "second_home",
+            company: addr2.company ?? "",
           }}
         />
 

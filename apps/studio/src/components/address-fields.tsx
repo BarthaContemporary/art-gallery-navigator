@@ -36,6 +36,7 @@ type Names = {
   postcode: string;
   country: string;
   type: string;
+  company: string;
 };
 
 type Values = {
@@ -45,6 +46,7 @@ type Values = {
   postcode: string;
   country: string;
   type: string;
+  company: string;
 };
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
@@ -75,6 +77,7 @@ export function AddressFields({
     postcode: defaults.postcode ?? "",
     country: defaults.country ?? "",
     type: defaults.type ?? "primary_home",
+    company: defaults.company ?? "",
   });
   const acHostRef = useRef<HTMLDivElement>(null);
   const [mapBroken, setMapBroken] = useState(false);
@@ -125,7 +128,7 @@ export function AddressFields({
       .catch(() => {
         if (!cancelled)
           setMapsMsg(
-            "Address lookup couldn’t load — check the API key, that the Maps JavaScript API + Places API (New) are enabled, billing is on, and this domain is in the key’s HTTP-referrer allowlist.",
+            "Address lookup couldn’t load — enable the “Maps JavaScript API” for this key (separate from Maps Static API), and confirm Places API (New) + billing are on.",
           );
       });
     return () => {
@@ -142,7 +145,7 @@ export function AddressFields({
     .join(", ");
   const mapSrc =
     MAPS_KEY && query
-      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=14&size=320x150&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=saturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=15&size=640x260&scale=2&markers=color:0x555555%7C${encodeURIComponent(query)}&style=saturation:-100&style=feature:poi%7Cvisibility:off&key=${MAPS_KEY}`
       : null;
   useEffect(() => setMapBroken(false), [mapSrc]);
 
@@ -152,6 +155,8 @@ export function AddressFields({
     if (mounted.current) onChange?.();
     else mounted.current = true;
   }, [v]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isWork = v.type === "work";
 
   return (
     <fieldset className="sm:col-span-2">
@@ -175,6 +180,19 @@ export function AddressFields({
           </select>
         </label>
       </div>
+
+      {/* Company name — for work addresses. Kept mounted (hidden when not work) so
+          its value is preserved and always submitted with the form. */}
+      <label className={`${label} mt-2 ${isWork ? "block" : "hidden"}`}>
+        Company name
+        <input
+          name={names.company}
+          value={v.company}
+          onChange={set("company")}
+          placeholder="e.g. Christie’s"
+          className={input}
+        />
+      </label>
 
       {MAPS_KEY ? (
         <div className="mt-2">
@@ -203,29 +221,29 @@ export function AddressFields({
           Postcode
           <input name={names.postcode} value={v.postcode} onChange={set("postcode")} className={input} />
         </label>
-        <label className={label}>
+        <label className={`${label} sm:col-span-2`}>
           Country
           <input name={names.country} value={v.country} onChange={set("country")} className={input} />
         </label>
-        {mapSrc && !mapBroken ? (
-          <div className="self-end">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={mapSrc}
-              alt={`Map of ${query}`}
-              onError={() => setMapBroken(true)}
-              className="h-[75px] w-full rounded-lg border border-line-soft object-cover"
-              loading="lazy"
-            />
-          </div>
-        ) : query && mapBroken ? (
-          <div className="self-end text-[11px] text-ink-soft">
-            Map preview unavailable — enable the “Maps Static API” for this key.
-          </div>
-        ) : (
-          <div />
-        )}
       </div>
+
+      {/* Greyscale map preview — full width, larger. */}
+      {mapSrc && !mapBroken ? (
+        <div className="mt-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={mapSrc}
+            alt={`Map of ${query}`}
+            onError={() => setMapBroken(true)}
+            className="h-[220px] w-full rounded-lg border border-line-soft object-cover"
+            loading="lazy"
+          />
+        </div>
+      ) : query && mapBroken ? (
+        <p className="mt-3 text-[11px] text-ink-soft">
+          Map preview unavailable — enable the “Maps Static API” for this key.
+        </p>
+      ) : null}
     </fieldset>
   );
 }
