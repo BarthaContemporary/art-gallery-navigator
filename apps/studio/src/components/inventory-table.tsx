@@ -284,14 +284,18 @@ export function InventoryTable({
                     {c.resizable ? (
                       <span
                         onPointerDown={(e) => onResizeStart(e, c.key)}
-                        onDoubleClick={() => resetColumn(c.key)}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          resetColumn(c.key);
+                        }}
                         role="separator"
                         aria-orientation="vertical"
                         aria-label={`Resize ${c.label} column`}
                         title="Drag to resize · double-click to reset"
-                        className="group absolute right-0 top-0 z-10 flex h-full w-[11px] translate-x-[5px] cursor-col-resize touch-none items-center justify-center"
+                        className="group absolute inset-y-0 right-0 z-20 w-4 cursor-col-resize touch-none"
                       >
-                        <span className="h-3.5 w-px bg-line-control transition-colors group-hover:bg-oranje" />
+                        {/* visible divider at the column boundary (always faintly shown, orange on hover) */}
+                        <span className="pointer-events-none absolute inset-y-[5px] right-0 w-[2px] rounded bg-line-control transition-colors group-hover:bg-oranje" />
                       </span>
                     ) : null}
                   </th>
