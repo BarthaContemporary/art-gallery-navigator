@@ -134,7 +134,7 @@ export async function POST(req: Request) {
   let suggestions: Suggestions | null = null;
   try {
     const msg = await anthropic.messages.create({
-      model: process.env.AI_CATALOGUE_MODEL ?? "claude-opus-4-8",
+      model: process.env.AI_CATALOGUE_MODEL ?? "claude-sonnet-5",
       max_tokens: 1024,
       system: SYSTEM,
       messages: [
@@ -183,7 +183,7 @@ export async function POST(req: Request) {
     .update({
       ai_suggestions: {
         ...suggestions,
-        model: process.env.AI_CATALOGUE_MODEL ?? "claude-opus-4-8",
+        model: process.env.AI_CATALOGUE_MODEL ?? "claude-sonnet-5",
         generated_at: new Date().toISOString(),
       },
     })

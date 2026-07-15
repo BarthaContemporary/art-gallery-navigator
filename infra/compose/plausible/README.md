@@ -26,6 +26,17 @@ consent banner is required.
 
 ## 2. Configure
 
+**Quick path — `setup.sh`.** Run the helper; it generates `.env` (both secrets
++ a random Postgres password wired through `DATABASE_URL`/`POSTGRES_PASSWORD`),
+prompts for the domain and Resend key, and brings the stack up:
+
+```sh
+cd infra/compose/plausible
+bash setup.sh
+```
+
+Then skip to step 3 (Caddy). To configure by hand instead, continue below.
+
 ```sh
 cd infra/compose/plausible
 cp .env.example .env
@@ -48,17 +59,18 @@ Then edit `.env`:
 - Leave `DISABLE_REGISTRATION=true` for now — you flip it in step 4.
 
 The ClickHouse and Postgres services are **not** published to the host; only the
-app is, on `127.0.0.1:8000`. Never expose 5432/8123/9000 publicly.
+app is, on `127.0.0.1:8018` (8018, not 8000 — Supabase's Kong already owns
+`127.0.0.1:8000` on this VPS). Never expose 5432/8123/9000 publicly.
 
 ## 3. Add the Caddy block
 
-Caddy runs on the host (see `infra/compose/Caddyfile`). Add this site block
-(alongside the existing `api.` / `studio.` blocks), replacing `example.com`:
+Caddy runs on the host (see `infra/compose/Caddyfile`), which already contains a
+commented `analytics.` block — uncomment it and replace `example.com`, or add:
 
 ```caddyfile
 analytics.example.com {
 	import security_headers
-	reverse_proxy 127.0.0.1:8000
+	reverse_proxy 127.0.0.1:8018
 }
 ```
 

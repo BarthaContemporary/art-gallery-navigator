@@ -5,8 +5,9 @@
 #   https://github.com/plausible/community-edition  (tag v3.0.1)
 # with three deviations for our VPS:
 #   1. restart: unless-stopped (not "always").
-#   2. Only the plausible app is published, on 127.0.0.1:8000 — host Caddy
+#   2. Only the plausible app is published, on 127.0.0.1:8018 — host Caddy
 #      terminates TLS for analytics.<domain> and reverse-proxies to it.
+#      (8018, not 8000: Supabase's Kong already owns 127.0.0.1:8000 on this VPS.)
 #      Postgres (5432) and ClickHouse (8123/9000) stay internal to the
 #      compose network; they are NEVER exposed publicly.
 #   3. env_file: .env feeds the app (copy .env.example -> .env first).
@@ -66,8 +67,9 @@ services:
       - .env
     ports:
       # Loopback only — host Caddy proxies analytics.<domain> here.
-      # HTTP_PORT defaults to 8000 inside the container.
-      - "127.0.0.1:8000:8000"
+      # HTTP_PORT defaults to 8000 inside the container. Publish on host 8018
+      # to avoid clashing with Supabase's Kong (127.0.0.1:8000) on this VPS.
+      - "127.0.0.1:8018:8000"
     volumes:
       - plausible-data:/var/lib/plausible
     ulimits:

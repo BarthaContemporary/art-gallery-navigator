@@ -59,3 +59,15 @@ studio.example.com {
 
 	reverse_proxy 127.0.0.1:3000
 }
+
+# ---------------------------------------------------------------------------
+# Plausible Analytics (self-hosted, cookieless) — tracks the PUBLIC WEBSITE
+# only; the studio is never tracked. The Plausible app publishes on
+# 127.0.0.1:8000 via compose/plausible/docker-compose.yml. Uncomment this
+# block once that stack is up (see compose/plausible/README.md), replace
+# example.com, and `sudo systemctl reload caddy`.
+# ---------------------------------------------------------------------------
+# analytics.example.com {
+# 	import security_headers
+# 	reverse_proxy 127.0.0.1:8018
+# }
