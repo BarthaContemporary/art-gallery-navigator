@@ -14,10 +14,11 @@ export default async function NewPiecePage({
   const session = await getSession();
   const showFinancials = session ? canSeeFinancials(session.roles) : false;
 
-  const [makers, categories, locations] = await Promise.all([
+  const [makers, categories, locations, originRegions] = await Promise.all([
     supabase.from("makers").select("id, display_name").order("display_name"),
-    supabase.from("categories").select("id, name").order("name"),
+    supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
     supabase.from("locations").select("id, code").order("code"),
+    supabase.from("origin_regions").select("name").eq("is_active", true).order("sort_order"),
   ]);
 
   const save = savePiece.bind(null, null);
@@ -50,6 +51,7 @@ export default async function NewPiecePage({
           makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
           categories={(categories.data ?? []).map((c) => ({ id: c.id, label: c.name }))}
           locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+          originRegions={(originRegions.data ?? []).map((o) => o.name as string)}
           showFinancials={showFinancials}
         />
       </div>

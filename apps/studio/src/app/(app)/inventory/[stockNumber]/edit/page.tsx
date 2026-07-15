@@ -27,11 +27,12 @@ export default async function EditPiecePage({
     .maybeSingle();
   if (!piece) notFound();
 
-  const [makers, categories, locations, financials, primaryImage, documents, imageCount] =
+  const [makers, categories, locations, originRegions, financials, primaryImage, documents, imageCount] =
     await Promise.all([
       supabase.from("makers").select("id, display_name").order("display_name"),
-      supabase.from("categories").select("id, name").order("name"),
+      supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
       supabase.from("locations").select("id, code").order("code"),
+      supabase.from("origin_regions").select("name").eq("is_active", true).order("sort_order"),
       showFinancials
         ? supabase.from("piece_financials").select("*").eq("piece_id", piece.id).maybeSingle()
         : Promise.resolve({ data: null }),
@@ -70,6 +71,20 @@ export default async function EditPiecePage({
         null;
     }
   }
+
+  // Category options = active categories, plus this piece's current category
+  // even if it's a hidden legacy one (so it isn't silently dropped on save).
+  const categoryOptions = (categories.data ?? []).map((c) => ({ id: c.id, label: c.name }));
+  const currentCatId = piece.category_id as string | null;
+  if (currentCatId && !categoryOptions.some((c) => c.id === currentCatId)) {
+    const { data: cur } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("id", currentCatId)
+      .maybeSingle();
+    if (cur) categoryOptions.push({ id: cur.id, label: cur.name });
+  }
+  const originOptions = (originRegions.data ?? []).map((o) => o.name as string);
 
   let thumbUrl: string | null = null;
   if (primaryImage.data?.storage_path_display) {
@@ -135,8 +150,9 @@ export default async function EditPiecePage({
           piece={piece}
           financials={financials.data}
           makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
-          categories={(categories.data ?? []).map((c) => ({ id: c.id, label: c.name }))}
+          categories={categoryOptions}
           locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+          originRegions={originOptions}
           showFinancials={showFinancials}
           buyerName={buyerName}
         />

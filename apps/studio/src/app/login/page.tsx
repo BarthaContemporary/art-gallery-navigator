@@ -1,10 +1,24 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getSupabase } from "@/lib/supabase";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { Turnstile } from "@/components/turnstile";
 
 async function signIn(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+
+  // Bot mitigation: verify the Turnstile token before touching auth.
+  const h = await headers();
+  const turnstile = await verifyTurnstile(
+    String(formData.get("cf-turnstile-response") ?? ""),
+    h.get("cf-connecting-ip") ?? h.get("x-forwarded-for"),
+  );
+  if (!turnstile.ok) {
+    redirect(`/login?error=${encodeURIComponent(turnstile.error ?? "Security check failed")}`);
+  }
+
   const supabase = await getSupabase();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
@@ -54,6 +68,7 @@ export default async function LoginPage({
             className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink"
           />
         </label>
+        <Turnstile className="mt-5" />
         <button
           type="submit"
           className="mt-6 w-full rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-fg"

@@ -1,6 +1,7 @@
 import { BuyerSelect } from "@/components/buyer-select";
 import { CategorySelect } from "@/components/category-select";
 import { MakerSelect } from "@/components/maker-select";
+import { OriginSelect } from "@/components/origin-select";
 
 type Option = { id: string; label: string };
 
@@ -15,6 +16,7 @@ export function PieceFormFields({
   makers,
   categories,
   locations,
+  originRegions,
   showFinancials,
   buyerName,
 }: {
@@ -23,6 +25,7 @@ export function PieceFormFields({
   makers: Option[];
   categories: Option[];
   locations: Option[];
+  originRegions: string[];
   showFinancials: boolean;
   buyerName?: string | null;
 }) {
@@ -55,10 +58,10 @@ export function PieceFormFields({
               Period
               <input name="period" defaultValue={v("period")} className={field} placeholder="Shōwa, c. 1960" />
             </label>
-            <label className={label}>
+            <div className={label}>
               Origin / region
-              <input name="origin_region" defaultValue={v("origin_region")} className={field} placeholder="Japan" />
-            </label>
+              <OriginSelect options={originRegions} defaultValue={String(v("origin_region"))} />
+            </div>
             <label className={label}>
               Status
               <select name="status" defaultValue={v("status") || "in_stock"} className={field}>
