@@ -78,6 +78,7 @@ export function AddressFields({
   });
   const acHostRef = useRef<HTMLDivElement>(null);
   const [mapBroken, setMapBroken] = useState(false);
+  const [mapsMsg, setMapsMsg] = useState<string | null>(null);
 
   // Google Places Autocomplete (new PlaceAutocompleteElement — the only variant
   // available to keys created after March 2025). Everything is wrapped so a
@@ -90,7 +91,13 @@ export function AddressFields({
       .then(async (g) => {
         const places = await g.maps.importLibrary("places");
         if (cancelled || !acHostRef.current) return;
-        if (!places?.PlaceAutocompleteElement) return;
+        if (!places?.PlaceAutocompleteElement) {
+          setMapsMsg(
+            "Address lookup unavailable — enable the “Places API (New)” for this key in Google Cloud.",
+          );
+          return;
+        }
+        setMapsMsg(null);
         el = new places.PlaceAutocompleteElement();
         el.style.width = "100%";
         acHostRef.current.appendChild(el);
@@ -115,7 +122,12 @@ export function AddressFields({
           }
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled)
+          setMapsMsg(
+            "Address lookup couldn’t load — check the API key, that the Maps JavaScript API + Places API (New) are enabled, billing is on, and this domain is in the key’s HTTP-referrer allowlist.",
+          );
+      });
     return () => {
       cancelled = true;
       if (el?.remove) el.remove();
@@ -168,6 +180,9 @@ export function AddressFields({
         <div className="mt-2">
           <span className={label}>Find address</span>
           <div ref={acHostRef} className="mt-1" />
+          {mapsMsg ? (
+            <p className="mt-1 text-[11.5px] text-ink-soft">{mapsMsg}</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -202,6 +217,10 @@ export function AddressFields({
               className="h-[75px] w-full rounded-lg border border-line-soft object-cover"
               loading="lazy"
             />
+          </div>
+        ) : query && mapBroken ? (
+          <div className="self-end text-[11px] text-ink-soft">
+            Map preview unavailable — enable the “Maps Static API” for this key.
           </div>
         ) : (
           <div />

@@ -53,19 +53,44 @@ export function AppHeader({
   return (
     <>
       <header className="sticky top-0 z-40 bg-[var(--jvb-bg-header)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1320px] items-center gap-4 px-4 py-3 md:px-8">
-          <Link
-            href="/"
-            className="shrink-0 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong"
-          >
-            <span className="hidden whitespace-nowrap md:inline">
-              Joost van den Bergh
-            </span>
-            <span className="md:hidden">{wordmarkStacked}</span>
-          </Link>
+        <div className="mx-auto max-w-[1320px] px-4 py-3 md:px-8">
+          {/* Row 1 — wordmark + account/menu */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="shrink-0 text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong"
+            >
+              <span className="hidden whitespace-nowrap md:inline">
+                Joost van den Bergh
+              </span>
+              <span className="md:hidden">{wordmarkStacked}</span>
+            </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 md:flex">
+            {/* Desktop sign out */}
+            <form action={signOut} className="ml-auto hidden shrink-0 md:block">
+              <button
+                type="submit"
+                title={userEmail ?? undefined}
+                className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+              >
+                Sign out
+              </button>
+            </form>
+
+            {/* Mobile trigger */}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-label={open ? "Close menu" : "Open menu"}
+              className="ml-auto text-[13px] font-medium text-ink-strong md:hidden"
+            >
+              {open ? "Close" : "Menu"}
+            </button>
+          </div>
+
+          {/* Row 2 — desktop nav, wraps beneath the wordmark */}
+          <nav className="mt-2 hidden flex-wrap items-center gap-x-0.5 gap-y-1 md:flex">
             {items.map((n) => (
               <Link
                 key={n.href}
@@ -81,28 +106,6 @@ export function AppHeader({
               </Link>
             ))}
           </nav>
-
-          {/* Desktop sign out */}
-          <form action={signOut} className="ml-auto hidden shrink-0 md:block">
-            <button
-              type="submit"
-              title={userEmail ?? undefined}
-              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-            >
-              Sign out
-            </button>
-          </form>
-
-          {/* Mobile trigger */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={open ? "Close menu" : "Open menu"}
-            className="ml-auto text-[13px] font-medium text-ink-strong md:hidden"
-          >
-            {open ? "Close" : "Menu"}
-          </button>
         </div>
       </header>
 
