@@ -135,6 +135,10 @@ export function AddressFields({
         // drop its own chrome and inherit our typeface/colour.
         el.style.width = "100%";
         try {
+          // Force a light rendering (the widget otherwise inherits a dark
+          // color-scheme on focus → black field / illegible grey text), inherit
+          // our typeface, and keep it the same height as the other inputs.
+          el.style.colorScheme = "light";
           el.style.background = "transparent";
           el.style.border = "none";
           el.style.fontFamily = "inherit";
@@ -147,13 +151,23 @@ export function AddressFields({
         el.addEventListener("gmp-select", async (e: any) => {
           try {
             const place = e.placePrediction.toPlace();
-            await place.fetchFields({ fields: ["addressComponents"] });
+            await place.fetchFields({
+              fields: ["addressComponents", "displayName", "types"],
+            });
             const parts: Record<string, string> = {};
             for (const c of place.addressComponents ?? []) {
               for (const t of c.types) parts[t] = c.longText ?? c.shortText ?? "";
             }
+            // If the picked place is a business/establishment, use its name to
+            // auto-fill the company field.
+            const isEstablishment = (place.types ?? []).includes("establishment");
+            const businessName =
+              isEstablishment && typeof place.displayName === "string"
+                ? place.displayName
+                : "";
             setV((prev) => ({
               ...prev,
+              company: businessName || prev.company,
               line1: [parts.street_number, parts.route].filter(Boolean).join(" ") || prev.line1,
               line2: parts.subpremise || parts.premise || prev.line2,
               city: parts.postal_town || parts.locality || parts.sublocality || prev.city,
@@ -224,8 +238,22 @@ export function AddressFields({
         </label>
       </div>
 
-      {/* Company name — for work addresses. Kept mounted (hidden when not work) so
-          its value is preserved and always submitted with the form. */}
+      {MAPS_KEY ? (
+        <div className="mt-2">
+          <span className={label}>Find address</span>
+          <div
+            ref={acHostRef}
+            className="mt-1 flex items-center rounded-lg border border-line-control bg-control px-2 [color-scheme:light] [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
+          />
+          {mapsMsg ? (
+            <p className="mt-1 text-[11.5px] text-ink-soft">{mapsMsg}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Company name — sits beneath the search and is auto-filled when a
+          business is picked. Shown for work addresses; kept mounted (hidden
+          otherwise) so its value is preserved and always submitted. */}
       <label className={`${label} mt-2 ${isWork ? "block" : "hidden"}`}>
         Company name
         <input
@@ -236,19 +264,6 @@ export function AddressFields({
           className={input}
         />
       </label>
-
-      {MAPS_KEY ? (
-        <div className="mt-2">
-          <span className={label}>Find address</span>
-          <div
-            ref={acHostRef}
-            className="mt-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 [&_gmp-place-autocomplete]:w-full [&_gmp-place-autocomplete]:bg-transparent"
-          />
-          {mapsMsg ? (
-            <p className="mt-1 text-[11.5px] text-ink-soft">{mapsMsg}</p>
-          ) : null}
-        </div>
-      ) : null}
 
       <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={label}>

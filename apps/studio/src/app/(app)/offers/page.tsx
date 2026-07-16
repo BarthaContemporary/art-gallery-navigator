@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { DeleteListButton } from "@/components/delete-list-button";
 
 export const metadata = { title: "Offers" };
 
@@ -44,6 +45,20 @@ export default async function OffersPage() {
     revalidatePath("/offers");
   }
 
+  async function deleteOffer(formData: FormData) {
+    "use server";
+    const supabase = await getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    // offer_items / offer_recipients / offer_views cascade on delete.
+    await supabase.from("offers").delete().eq("id", id);
+    revalidatePath("/offers");
+  }
+
   const count = (v: unknown) => (v as { count: number }[])[0]?.count ?? 0;
 
   return (
@@ -82,6 +97,7 @@ export default async function OffersPage() {
               <th className="px-4 py-2.5 font-medium">Works</th>
               <th className="px-4 py-2.5 font-medium">Recipients</th>
               <th className="px-4 py-2.5 font-medium">Created</th>
+              <th className="px-4 py-2.5 font-medium" />
             </tr>
           </thead>
           <tbody>
@@ -97,10 +113,13 @@ export default async function OffersPage() {
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
                   {new Date(o.created_at).toLocaleDateString("en-GB")}
                 </td>
+                <td className="px-4 py-2.5 text-right">
+                  <DeleteListButton action={deleteOffer} id={o.id} name={o.title} />
+                </td>
               </tr>
             ))}
             {(offers ?? []).length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-[13px] text-ink-muted">No offers yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-[13px] text-ink-muted">No offers yet.</td></tr>
             ) : null}
           </tbody>
         </table>

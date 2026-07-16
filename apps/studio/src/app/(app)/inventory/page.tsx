@@ -20,6 +20,7 @@ type Search = {
   status?: string;
   category?: string;
   location?: string;
+  list?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -38,10 +39,21 @@ export default async function InventoryPage({
   const ascending = sp.dir === "asc";
   const supabase = await getSupabase();
 
-  const [{ data: categories }, { data: locations }] = await Promise.all([
-    supabase.from("categories").select("id, name").order("name"),
+  const [{ data: categories }, { data: locations }, { data: pieceLists }] = await Promise.all([
+    supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
     supabase.from("locations").select("id, code, name").order("code"),
+    supabase.from("piece_lists").select("id, name").order("name"),
   ]);
+
+  // When filtering by a list, resolve its (static) member piece ids up front.
+  let listMemberIds: Set<string> | null = null;
+  if (sp.list) {
+    const { data: mem } = await supabase
+      .from("piece_list_items")
+      .select("piece_id")
+      .eq("list_id", sp.list);
+    listMemberIds = new Set((mem ?? []).map((m) => m.piece_id as string));
+  }
   const locNameById = new Map(
     ((locations ?? []) as { id: string; name: string | null; code: string }[]).map((l) => [
       l.id,
@@ -113,6 +125,7 @@ export default async function InventoryPage({
       filtered = filtered.filter((h) => h.category_id === sp.category);
     if (sp.location)
       filtered = filtered.filter((h) => h.location_id === sp.location);
+    if (listMemberIds) filtered = filtered.filter((h) => listMemberIds!.has(h.id));
 
     total = filtered.length;
     const pageIds = filtered
@@ -142,6 +155,11 @@ export default async function InventoryPage({
     if (sp.status) query = query.eq("status", sp.status);
     if (sp.category) query = query.eq("category_id", sp.category);
     if (sp.location) query = query.eq("location_id", sp.location);
+    if (listMemberIds) {
+      const ids = [...listMemberIds];
+      // An empty list must return nothing (a sentinel keeps .in() valid).
+      query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    }
 
     const res = await query;
     rows = (res.data ?? []) as ListRow[];
@@ -254,6 +272,18 @@ export default async function InventoryPage({
             </option>
           ))}
         </select>
+        <select
+          name="list"
+          defaultValue={sp.list ?? ""}
+          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
+        >
+          <option value="">All lists</option>
+          {(pieceLists ?? []).map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
         <button
           type="submit"
           className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid"
@@ -266,11 +296,13 @@ export default async function InventoryPage({
         const catName = (categories ?? []).find((c) => c.id === sp.category)?.name;
         const locMatch = (locations ?? []).find((l) => l.id === sp.location);
         const locName = locMatch?.name ?? locMatch?.code;
+        const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
         const chips: Array<{ key: keyof Search; label: string }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
         if (sp.status) chips.push({ key: "status", label: sp.status.replace(/_/g, " ") });
         if (sp.category && catName) chips.push({ key: "category", label: catName });
         if (sp.location && locName) chips.push({ key: "location", label: locName });
+        if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
         if (chips.length === 0) return null;
         return (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -352,6 +384,7 @@ export default async function InventoryPage({
               }),
             )}
             thumbs={Object.fromEntries(thumbByPiece)}
+            lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
           />
         </div>
       )}

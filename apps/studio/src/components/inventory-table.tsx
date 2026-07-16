@@ -28,6 +28,7 @@ type Col = {
 // The image column is fixed; every other column is drag-resizable. Sort keys
 // match the SORTABLE map in the inventory page so header clicks re-sort server-side.
 const COLS: Col[] = [
+  { key: "select", label: "", sortable: false, resizable: false, width: 40 },
   { key: "image", label: "", sortable: false, resizable: false, width: 56 },
   { key: "stock_number", label: "Stock", sortable: true, resizable: true, width: 130 },
   { key: "title", label: "Title", sortable: true, resizable: true, width: 300 },
@@ -46,15 +47,38 @@ const DEFAULTS: Record<string, number> = Object.fromEntries(
 export function InventoryTable({
   rows,
   thumbs,
+  lists = [],
 }: {
   rows: InventoryRow[];
   thumbs: Record<string, string>;
+  lists?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const activeSort = params.get("sort");
   const activeDir = (params.get("dir") ?? "asc") as "asc" | "desc";
+
+  // ---- multi-select (add pieces to a list) ----
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const pageIds = rows.map((r) => r.id);
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  function toggleRow(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function toggleAll() {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (allSelected) pageIds.forEach((id) => n.delete(id));
+      else pageIds.forEach((id) => n.add(id));
+      return n;
+    });
+  }
 
   const [widths, setWidths] = useState<Record<string, number>>(DEFAULTS);
   const colRefs = useRef<Record<string, HTMLTableColElement | null>>({});
@@ -172,6 +196,16 @@ export function InventoryTable({
 
   function cell(col: Col, r: InventoryRow) {
     switch (col.key) {
+      case "select":
+        return (
+          <input
+            type="checkbox"
+            aria-label={`Select ${r.stock_number}`}
+            checked={selected.has(r.id)}
+            onChange={() => toggleRow(r.id)}
+            className="align-middle"
+          />
+        );
       case "image": {
         const thumb = thumbs[r.id];
         return (
@@ -224,6 +258,18 @@ export function InventoryTable({
 
   return (
     <div>
+      {selected.size > 0 ? (
+        <AddToListBar
+          selectedIds={[...selected]}
+          lists={lists}
+          onClear={() => setSelected(new Set())}
+          onDone={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      ) : null}
+
       {isCustomised ? (
         <div className="mb-1.5 flex justify-end">
           <button
@@ -265,7 +311,15 @@ export function InventoryTable({
                     } ${c.key === "image" ? "px-3" : ""}`}
                     aria-label={c.key === "image" ? "Image" : undefined}
                   >
-                    {c.sortable ? (
+                    {c.key === "select" ? (
+                      <input
+                        type="checkbox"
+                        aria-label="Select all on this page"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        className="align-middle"
+                      />
+                    ) : c.sortable ? (
                       <button
                         type="button"
                         onClick={() => onHeaderClick(c.key)}
@@ -326,6 +380,97 @@ export function InventoryTable({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function AddToListBar({
+  selectedIds,
+  lists,
+  onClear,
+  onDone,
+}: {
+  selectedIds: string[];
+  lists: { id: string; name: string }[];
+  onClear: () => void;
+  onDone: () => void;
+}) {
+  const [listId, setListId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function add() {
+    if (!listId && !newName.trim()) {
+      setError("Pick a list or enter a new name.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inventory/lists/add-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listId: listId || undefined,
+          name: listId ? undefined : newName.trim(),
+          pieceIds: selectedIds,
+        }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not add to list");
+      onDone();
+      setListId("");
+      setNewName("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add to list");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-oranje/30 bg-oranje/5 px-3 py-2">
+      <span className="text-[12.5px] font-medium text-ink-body">
+        {selectedIds.length} selected
+      </span>
+      <span className="text-[12px] text-ink-soft">→ add to</span>
+      <select
+        value={listId}
+        onChange={(e) => setListId(e.target.value)}
+        className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
+      >
+        <option value="">New list…</option>
+        {lists.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.name}
+          </option>
+        ))}
+      </select>
+      {!listId ? (
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New list name"
+          className="w-52 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
+        />
+      ) : null}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void add()}
+        className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
+      >
+        {busy ? "Adding…" : "Add"}
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        className="text-[12px] text-ink-soft hover:text-ink-strong"
+      >
+        Clear
+      </button>
+      {error ? <span className="text-[12px] text-ink-body">{error}</span> : null}
     </div>
   );
 }

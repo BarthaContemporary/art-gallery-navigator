@@ -2,7 +2,6 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "List" };
 
@@ -36,15 +35,15 @@ export default async function ListDetail({
     .filter(Boolean) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[];
   const memberIds = new Set(members.map((m) => m.id));
 
-  const term = sanitizeFilterTerm((q ?? "").trim());
+  const term = (q ?? "").trim();
   let results: typeof members = [];
   if (term) {
+    // Trigram-fuzzy contact search.
     const { data } = await supabase
-      .from("crm_contacts")
+      .rpc("crm_contacts_search", { q: term })
       .select("id, first_name, last_name, email")
-      .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`)
       .limit(20);
-    results = ((data ?? []) as typeof members).filter((c) => !memberIds.has(c.id));
+    results = ((data ?? []) as unknown as typeof members).filter((c) => !memberIds.has(c.id));
   }
 
   async function addMember(formData: FormData) {

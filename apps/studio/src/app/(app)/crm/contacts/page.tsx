@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { sanitizeFilterTerm } from "@/lib/search";
 
 export const metadata = { title: "Contacts" };
 
@@ -13,16 +12,29 @@ export default async function ContactsPage({
   const { q } = await searchParams;
   const supabase = await getSupabase();
 
-  let query = supabase
-    .from("crm_contacts")
-    .select("id, first_name, last_name, email, contact_type, city, country, marketing_consent, kyc_status, tags")
-    .order("last_name", { nullsFirst: false })
-    .limit(500);
-  const term = sanitizeFilterTerm((q ?? "").trim());
-  if (term) {
-    query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`);
-  }
-  const { data: contacts } = await query;
+  const cols =
+    "id, first_name, last_name, email, contact_type, city, country, marketing_consent, kyc_status, tags";
+  const term = (q ?? "").trim();
+  const { data: rawContacts } = term
+    ? // Trigram-fuzzy search (tolerates typos / partial names).
+      await supabase.rpc("crm_contacts_search", { q: term }).select(cols).limit(200)
+    : await supabase
+        .from("crm_contacts")
+        .select(cols)
+        .order("last_name", { nullsFirst: false })
+        .limit(500);
+  const contacts = (rawContacts ?? []) as unknown as Array<{
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    contact_type: string | null;
+    city: string | null;
+    country: string | null;
+    marketing_consent: boolean | null;
+    kyc_status: string | null;
+    tags: string[] | null;
+  }>;
 
   // Create a blank contact and open the full editor (autosaves).
   async function addContact() {
@@ -106,7 +118,7 @@ export default async function ContactsPage({
                   {[c.city, c.country].filter(Boolean).join(", ") || "—"}
                 </td>
                 <td className="px-4 py-2.5 text-[12px]">{c.marketing_consent ? "✓" : "—"}</td>
-                <td className="px-4 py-2.5 text-[12px] text-ink-muted">{c.kyc_status.replace(/_/g, " ")}</td>
+                <td className="px-4 py-2.5 text-[12px] text-ink-muted">{(c.kyc_status ?? "not started").replace(/_/g, " ")}</td>
               </tr>
             ))}
             {(contacts ?? []).length === 0 ? (
