@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { Resend } from "resend";
 import { getSession, getSupabase, hasRole, createServiceClient } from "@/lib/supabase";
+import { DeleteListButton } from "@/components/delete-list-button";
 
 export const metadata = { title: "Settings" };
 
@@ -114,6 +116,79 @@ export default async function SettingsPage() {
     redirect("/settings");
   }
 
+  // Re-invite: email the user a link to set their own password.
+  async function reinvite(formData: FormData) {
+    "use server";
+    await assertAdmin();
+    const email = String(formData.get("email") ?? "").trim();
+    if (!email) {
+      await flashNotice("Email required");
+      redirect("/settings");
+    }
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const redirectTo = `${proto}://${host}/set-password`;
+
+    const admin = createServiceClient();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo },
+    });
+    const link = data?.properties?.action_link;
+    if (error || !link) {
+      await flashNotice(`Could not create invite link: ${error?.message ?? "unknown error"}`);
+      redirect("/settings");
+    }
+
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    if (!apiKey || !from) {
+      // No mailer configured — surface the link so the admin can send it.
+      await flashNotice(`Email not configured. Send this link to ${email}: ${link}`);
+      redirect("/settings");
+    }
+    try {
+      const resend = new Resend(apiKey);
+      await resend.emails.send({
+        from: from!,
+        to: email,
+        subject: "Set your password — Joost van den Bergh Studio",
+        html: `<p>You've been given access to the Joost van den Bergh studio.</p>
+<p><a href="${link}">Click here to set your password</a>. This link expires in 24 hours.</p>
+<p>If you didn't expect this, you can ignore this email.</p>`,
+      });
+      await flashNotice(`Invitation sent to ${email}.`);
+    } catch (e) {
+      await flashNotice(`Email failed (${e instanceof Error ? e.message : "error"}). Link: ${link}`);
+    }
+    redirect("/settings");
+  }
+
+  // Delete a user (with self-delete guard).
+  async function deleteUser(formData: FormData) {
+    "use server";
+    await assertAdmin();
+    const me = await getSession();
+    const userId = String(formData.get("id") ?? "");
+    if (!userId) redirect("/settings");
+    if (me?.user.id === userId) {
+      await flashNotice("You can't delete your own account.");
+      redirect("/settings");
+    }
+    const admin = createServiceClient();
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) {
+      await flashNotice(error.message);
+      redirect("/settings");
+    }
+    await admin.from("user_roles").delete().eq("user_id", userId);
+    revalidatePath("/settings");
+    await flashNotice("User deleted.");
+    redirect("/settings");
+  }
+
   return (
     <div>
       {notice ? (
@@ -144,6 +219,7 @@ export default async function SettingsPage() {
                 <th className="px-4 py-2.5 font-medium">Roles</th>
                 <th className="px-4 py-2.5 font-medium">Since</th>
                 <th className="px-4 py-2.5 font-medium">Reset password</th>
+                <th className="px-4 py-2.5 font-medium">Manage</th>
               </tr>
             </thead>
             <tbody>
@@ -167,6 +243,21 @@ export default async function SettingsPage() {
                         Reset
                       </button>
                     </form>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-3">
+                      <form action={reinvite}>
+                        <input type="hidden" name="email" value={u.email} />
+                        <button
+                          type="submit"
+                          className="text-[12px] font-medium text-primary"
+                          title="Email this user a link to set their own password"
+                        >
+                          Re-invite
+                        </button>
+                      </form>
+                      <DeleteListButton action={deleteUser} id={u.id} name={u.email} />
+                    </div>
                   </td>
                 </tr>
               ))}

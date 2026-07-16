@@ -27,8 +27,12 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLogin = request.nextUrl.pathname.startsWith("/login");
-  if (!user && !isLogin) {
+  const path = request.nextUrl.pathname;
+  const isLogin = path.startsWith("/login");
+  // /set-password receives its recovery session in the URL fragment (never sent
+  // to the server), so it must be reachable while signed out.
+  const isPublic = isLogin || path.startsWith("/set-password");
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
