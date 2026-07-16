@@ -49,6 +49,72 @@ async function fxToGbp(
   }
 }
 
+/**
+ * When a work is sold to a contact, auto-select the "related" area(s) of
+ * interest on that contact — matched from the piece's category + origin.
+ * Most-specific match wins: an area naming both origin and category beats one
+ * naming just the category, which beats one naming just the origin.
+ * Non-destructive: it only adds interests, never removes.
+ */
+async function autoAddInterestForPurchase(
+  supabase: Awaited<ReturnType<typeof getSupabase>>,
+  contactId: string,
+  categoryId: string | null,
+  originRegion: string | null,
+) {
+  let categoryName: string | null = null;
+  if (categoryId) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("id", categoryId)
+      .maybeSingle();
+    categoryName = (cat?.name as string | undefined) ?? null;
+  }
+  const cat = categoryName?.trim().toLowerCase() || null;
+  const org = originRegion?.trim().toLowerCase() || null;
+  if (!cat && !org) return;
+
+  const { data: areaRows } = await supabase
+    .from("crm_interest_areas")
+    .select("name, list_id");
+  const areas = (areaRows ?? []) as { name: string; list_id: string | null }[];
+  const has = (name: string, term: string | null) =>
+    term != null && name.toLowerCase().includes(term);
+
+  let matched = cat && org ? areas.filter((a) => has(a.name, cat) && has(a.name, org)) : [];
+  if (matched.length === 0 && cat) matched = areas.filter((a) => has(a.name, cat));
+  if (matched.length === 0 && org) matched = areas.filter((a) => has(a.name, org));
+  if (matched.length === 0) return;
+
+  const { data: contact } = await supabase
+    .from("crm_contacts")
+    .select("custom_fields")
+    .eq("id", contactId)
+    .maybeSingle();
+  const cf = ((contact?.custom_fields as Record<string, unknown> | null) ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const existing = Array.isArray(cf.interests) ? cf.interests.map((x) => String(x)) : [];
+  const merged = [...new Set([...existing, ...matched.map((m) => m.name)])];
+  if (merged.length !== existing.length) {
+    await supabase
+      .from("crm_contacts")
+      .update({ custom_fields: { ...cf, interests: merged } })
+      .eq("id", contactId);
+  }
+
+  const listRows = matched
+    .filter((m) => m.list_id)
+    .map((m) => ({ list_id: m.list_id as string, contact_id: contactId }));
+  if (listRows.length) {
+    await supabase
+      .from("crm_list_members")
+      .upsert(listRows, { onConflict: "list_id,contact_id", ignoreDuplicates: true });
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ stockNumber: string }> },
@@ -169,6 +235,17 @@ export async function PATCH(
           buyer_contact_id: str("buyer_contact_id"),
         })
         .eq("piece_id", pieceRow.id);
+
+      // Sold to a contact → auto-tag their related area(s) of interest.
+      const buyerId = str("buyer_contact_id");
+      if (buyerId) {
+        await autoAddInterestForPurchase(
+          supabase,
+          buyerId,
+          str("category_id"),
+          str("origin_region"),
+        );
+      }
     }
   }
 
