@@ -143,8 +143,9 @@ export default async function SettingsPage() {
     }
 
     const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.EMAIL_FROM;
-    if (!apiKey || !from) {
+    // Default to the Resend-verified sender for the gallery; EMAIL_FROM overrides.
+    const from = process.env.EMAIL_FROM || "Joost van den Bergh <noreply@web.joostvandenbergh.com>";
+    if (!apiKey) {
       // No mailer configured — surface the link so the admin can send it.
       await flashNotice(`Email not configured. Send this link to ${email}: ${link}`);
       redirect("/settings");
@@ -152,7 +153,7 @@ export default async function SettingsPage() {
     try {
       const resend = new Resend(apiKey);
       await resend.emails.send({
-        from: from!,
+        from,
         to: email,
         subject: "Set your password — Joost van den Bergh Studio",
         html: `<p>You've been given access to the Joost van den Bergh studio.</p>
