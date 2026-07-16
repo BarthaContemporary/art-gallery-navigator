@@ -4,6 +4,11 @@
 
 const EIGHTHS = ["", "⅛", "¼", "⅜", "½", "⅝", "¾", "⅞"] as const;
 
+/** Convert grams → pounds, to 2 decimals (e.g. "1.32 lb"). */
+export function gramsToPounds(g: number): string {
+  return (g / 453.59237).toFixed(2);
+}
+
 /** Convert cm → inches, rounded to the nearest 1/8", as a nice fraction string. */
 export function cmToInchesFraction(cm: number): string {
   const inches = cm / 2.54;

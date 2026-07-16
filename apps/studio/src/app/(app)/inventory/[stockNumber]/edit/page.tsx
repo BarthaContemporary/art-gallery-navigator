@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
-import { AiCataloguer } from "@/components/ai-cataloguer";
+import { EditHeader } from "@/components/edit-header";
 import { AutosaveForm } from "@/components/autosave-form";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 import { DeleteListButton } from "@/components/delete-list-button";
@@ -114,71 +113,30 @@ export default async function EditPiecePage({
 
   return (
     <div>
-      {/* header with object image so the editor sees what they are editing */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href={`/inventory/${encodeURIComponent(piece.stock_number)}/images`}
-            className="block shrink-0"
-            title="Manage images"
-          >
-            {thumbUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={thumbUrl} alt={piece.title ?? "Object"} className="h-16 w-16 rounded-lg object-cover" />
-            ) : (
-              <span className="jvb-hatch flex h-16 w-16 items-center justify-center rounded-lg text-[16px] text-ink-soft">
-                ▦
-              </span>
-            )}
-          </Link>
-          <div>
-            <h1 className="text-[26px] font-semibold text-ink-strong">
-              Edit <span className="font-mono text-[20px]">{piece.stock_number}</span>
-            </h1>
-            <p className="mt-0.5 text-[13px] text-ink-muted">{piece.title ?? "Untitled"}</p>
-            <div className="mt-1 flex items-center gap-3 text-[12px]">
-              {piece.legacy_stock_number ? (
-                <span className="font-mono text-ink-soft">
-                  Legacy {piece.legacy_stock_number}
-                  {piece.legacy_stock_number_conflict ? " (dup)" : ""}
-                </span>
-              ) : null}
-              <Link
-                href={`/inventory/${encodeURIComponent(piece.stock_number)}/images`}
-                className="font-medium text-[var(--jvb-ink-desc)]"
-              >
-                Manage images ({imageCount.count ?? 0}) →
-              </Link>
-              <Link
-                href={`/inventory/${encodeURIComponent(piece.stock_number)}`}
-                className="text-ink-muted"
-              >
-                View record
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <AutosaveForm
-        endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}
-        className="mt-6"
-      >
-        <PieceFormFields
-          piece={piece}
-          financials={financials.data}
-          makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
-          categories={categoryOptions}
-          locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
-          originRegions={originOptions}
-          showFinancials={showFinancials}
-          buyerName={buyerName}
+      <AutosaveForm endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}>
+        <EditHeader
+          thumbUrl={thumbUrl}
+          stockNumber={piece.stock_number}
+          title={piece.title ?? null}
+          legacyStock={piece.legacy_stock_number ?? null}
+          legacyConflict={Boolean(piece.legacy_stock_number_conflict)}
+          imageCount={imageCount.count ?? 0}
+          webVisible={Boolean(piece.web_visible)}
         />
+        <div className="mt-6">
+          <PieceFormFields
+            piece={piece}
+            financials={financials.data}
+            makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
+            categories={categoryOptions}
+            locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
+            originRegions={originOptions}
+            showFinancials={showFinancials}
+            buyerName={buyerName}
+          />
+        </div>
       </AutosaveForm>
 
-      {/* AI cataloguing + documents live outside the form so they never disturb unsaved edits */}
-      {showFinancials ? <LegacyRecordPanel pieceId={piece.id} /> : null}
-      <AiCataloguer stockNumber={piece.stock_number} />
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={documents.data ?? []} />
       </div>
@@ -192,6 +150,13 @@ export default async function EditPiecePage({
         </div>
         <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} />
       </div>
+
+      {/* Original FileMaker record — kept at the bottom of the page */}
+      {showFinancials ? (
+        <div className="mt-8">
+          <LegacyRecordPanel pieceId={piece.id} />
+        </div>
+      ) : null}
     </div>
   );
 }

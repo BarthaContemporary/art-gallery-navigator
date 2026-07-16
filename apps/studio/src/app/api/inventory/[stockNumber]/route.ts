@@ -4,7 +4,7 @@ import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CURRENCIES = new Set(["GBP", "EUR", "USD", "CHF"]);
+const CURRENCIES = new Set(["GBP", "EUR", "USD", "CHF", "JPY"]);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
