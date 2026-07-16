@@ -26,6 +26,7 @@ export function InterestSelect({
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = (name: string) => {
     setSelected((prev) =>
@@ -34,33 +35,53 @@ export function InterestSelect({
     onChange?.();
   };
 
+  const allSelected = options.length > 0 && options.every((o) => selected.includes(o.name));
+  const selectAll = () => {
+    setSelected(allSelected ? [] : options.map((o) => o.name));
+    onChange?.();
+  };
+
   async function addNew() {
     const name = newName.trim();
     if (!name || adding) return;
     setAdding(true);
+    setError(null);
     try {
       const res = await fetch("/api/crm/interests", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      const data = (await res.json()) as { area?: Area };
-      if (data.area) {
-        const area = data.area;
-        setOptions((prev) => (prev.some((o) => o.id === area.id) ? prev : [...prev, area]));
-        setSelected((prev) => (prev.includes(area.name) ? prev : [...prev, area.name]));
-        setNewName("");
-        onChange?.();
+      const data = (await res.json().catch(() => ({}))) as { area?: Area; error?: string };
+      if (!res.ok || !data.area) {
+        throw new Error(data.error ?? `Could not add (HTTP ${res.status})`);
       }
-    } catch {
-      /* ignore */
+      const area = data.area;
+      setOptions((prev) => (prev.some((o) => o.id === area.id) ? prev : [...prev, area]));
+      setSelected((prev) => (prev.includes(area.name) ? prev : [...prev, area.name]));
+      setNewName("");
+      onChange?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add");
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   return (
     <div className="sm:col-span-2">
-      <span className={labelCls}>Areas of interest</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className={labelCls}>Areas of interest</span>
+        {options.length > 0 ? (
+          <button
+            type="button"
+            onClick={selectAll}
+            className="text-[11.5px] font-medium text-oranje"
+          >
+            {allSelected ? "Clear all" : "Select all"}
+          </button>
+        ) : null}
+      </div>
       <input type="hidden" name="interests" value={JSON.stringify(selected)} />
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {options.map((o) => {
@@ -107,6 +128,7 @@ export function InterestSelect({
           Add
         </button>
       </div>
+      {error ? <p className="mt-1 text-[12px] text-ink-body">Couldn’t add — {error}</p> : null}
     </div>
   );
 }

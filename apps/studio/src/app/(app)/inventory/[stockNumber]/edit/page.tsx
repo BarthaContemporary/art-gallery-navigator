@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
 import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { AiCataloguer } from "@/components/ai-cataloguer";
 import { AutosaveForm } from "@/components/autosave-form";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
+import { DeleteListButton } from "@/components/delete-list-button";
 
 export const metadata = { title: "Edit record" };
 
@@ -86,6 +88,22 @@ export default async function EditPiecePage({
   }
   const originOptions = (originRegions.data ?? []).map((o) => o.name as string);
 
+  async function deletePiece() {
+    "use server";
+    const db = await getSupabase();
+    const {
+      data: { user },
+    } = await db.auth.getUser();
+    if (!user) return;
+    // Soft delete: moves the record to the trash for 30 days.
+    await db
+      .from("pieces")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", piece.id);
+    revalidatePath("/inventory");
+    redirect("/inventory/trash");
+  }
+
   let thumbUrl: string | null = null;
   if (primaryImage.data?.storage_path_display) {
     const { data } = await supabase.storage
@@ -163,6 +181,16 @@ export default async function EditPiecePage({
       <AiCataloguer stockNumber={piece.stock_number} />
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={documents.data ?? []} />
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-line-soft bg-band px-4 py-3">
+        <div>
+          <p className="text-[13px] font-medium text-ink-strong">Delete this record</p>
+          <p className="text-[12px] text-ink-soft">
+            Moves it to the trash for 30 days — you can reinstate it until then.
+          </p>
+        </div>
+        <DeleteListButton action={deletePiece} id={piece.id} name={piece.stock_number} />
       </div>
     </div>
   );

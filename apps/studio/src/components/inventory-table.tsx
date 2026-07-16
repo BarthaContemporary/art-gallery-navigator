@@ -100,7 +100,6 @@ export function InventoryTable({
   const totalWidth = () =>
     COLS.reduce((s, c) => s + (c.resizable ? widths[c.key] ?? c.width : c.width), 0);
 
-  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function sort(column: string, dir: "asc" | "desc") {
     const p = new URLSearchParams(params.toString());
     p.set("sort", column);
@@ -108,19 +107,11 @@ export function InventoryTable({
     p.set("page", "1");
     router.push(`${pathname}?${p.toString()}`);
   }
+  // Click toggles: first click sorts ascending, clicking the active column
+  // again flips to descending (and back).
   function onHeaderClick(column: string) {
-    if (clickTimer.current) return;
-    clickTimer.current = setTimeout(() => {
-      clickTimer.current = null;
-      sort(column, "asc");
-    }, 220);
-  }
-  function onHeaderDoubleClick(column: string) {
-    if (clickTimer.current) {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-    }
-    sort(column, "desc");
+    const nextDir = activeSort === column && activeDir === "asc" ? "desc" : "asc";
+    sort(column, nextDir);
   }
 
   // ---- resize (mutate the <col>/<table> directly during drag; commit on release) ----
@@ -323,8 +314,7 @@ export function InventoryTable({
                       <button
                         type="button"
                         onClick={() => onHeaderClick(c.key)}
-                        onDoubleClick={() => onHeaderDoubleClick(c.key)}
-                        title="Click to sort ascending · double-click for descending"
+                        title="Click to sort · click again to reverse"
                         className={`inline-flex items-center gap-1 select-none hover:text-ink-mid ${
                           isActive ? "text-ink-strong" : ""
                         }`}

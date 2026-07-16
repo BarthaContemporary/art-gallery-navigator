@@ -205,6 +205,12 @@ export default async function InventoryPage({
           >
             Lists
           </Link>
+          <Link
+            href="/inventory/trash"
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Trash
+          </Link>
           <a
             href={`/api/export/inventory.csv${qs(sp)}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"

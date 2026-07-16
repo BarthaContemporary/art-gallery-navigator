@@ -49,6 +49,27 @@ async function query(cfg: PlausibleConfig, body: QueryBody): Promise<QueryResult
   }
 }
 
+export type TimeseriesPoint = { date: string; visitors: number; pageviews: number };
+
+/** Per-day visitors + pageviews over the given range (e.g. "30d", "365d"). */
+export async function fetchTimeseries(
+  cfg: PlausibleConfig,
+  dateRange: string,
+): Promise<TimeseriesPoint[] | null> {
+  const res = await query(cfg, {
+    metrics: ["visitors", "pageviews"],
+    date_range: dateRange,
+    dimensions: ["time:day"],
+    order_by: [["time:day", "asc"]],
+  });
+  if (!res) return null;
+  return res.results.map((r) => ({
+    date: r.dimensions[0] ?? "",
+    visitors: r.metrics[0] ?? 0,
+    pageviews: r.metrics[1] ?? 0,
+  }));
+}
+
 export type AnalyticsOverview = {
   totals: { visitors: number; pageviews: number; visits: number; visitDuration: number; bounceRate: number };
   topPages: { name: string; visitors: number }[];

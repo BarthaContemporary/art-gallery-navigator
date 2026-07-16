@@ -42,11 +42,17 @@ export default async function SettingsPage() {
   const supabase = await getSupabase();
   const admin = createServiceClient();
 
-  const [{ data: usersList }, { data: roles }, { data: outbox }] = await Promise.all([
-    admin.auth.admin.listUsers({ perPage: 200 }),
-    supabase.from("user_roles").select("user_id, role"),
-    supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
-  ]);
+  const [{ data: usersList }, { data: roles }, { data: outbox }, { data: activity }] =
+    await Promise.all([
+      admin.auth.admin.listUsers({ perPage: 200 }),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("sync_outbox").select("id", { count: "exact", head: true }).is("processed_at", null),
+      supabase
+        .from("activity_log")
+        .select("id, entity_type, action, created_at")
+        .order("created_at", { ascending: false })
+        .limit(15),
+    ]);
 
   const rolesByUser = new Map<string, string[]>();
   (roles ?? []).forEach((r) => {
@@ -203,6 +209,31 @@ export default async function SettingsPage() {
           {(outbox ?? 0) === 0 ? "No pending" : `${outbox} pending`} outbox entries. Web-visible pieces are pushed to
           Sanity on change; a cron drains any misses every 10 minutes.
         </p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-[13px] font-semibold text-ink-strong">Recent activity</h2>
+        <ul className="mt-3 space-y-2">
+          {(activity ?? []).map((a) => (
+            <li key={a.id} className="grid grid-cols-[14px_1fr] items-baseline gap-2">
+              <span
+                aria-hidden
+                className="mt-1 inline-block h-[7px] w-[7px] rounded-full bg-[var(--jvb-dot-mid)]"
+              />
+              <div>
+                <span className="text-[13.5px] text-ink-body">
+                  {a.action} {a.entity_type}
+                </span>
+                <span className="ml-2 font-mono text-[11px] text-ink-soft">
+                  {new Date(a.created_at).toLocaleString("en-GB")}
+                </span>
+              </div>
+            </li>
+          ))}
+          {(activity ?? []).length === 0 ? (
+            <li className="text-[13px] text-ink-muted">No activity yet.</li>
+          ) : null}
+        </ul>
       </section>
     </div>
   );

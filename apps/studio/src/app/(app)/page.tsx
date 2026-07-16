@@ -1,23 +1,21 @@
 import Link from "next/link";
-import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole } from "@/lib/supabase";
+import { StatPanel } from "@/components/stat-panel";
+import { WebsitePanel } from "@/components/website-panel";
 
 export default async function Dashboard() {
   const supabase = await getSupabase();
   const session = await getSession();
-  const financials = session ? canSeeFinancials(session.roles) : false;
+  const isAdmin = session ? hasRole(session.roles, "admin") : false;
 
-  const [pieces, inStock, contacts, activity] = await Promise.all([
-    supabase.from("pieces").select("id", { count: "exact", head: true }),
+  const [pieces, inStock, contacts] = await Promise.all([
+    supabase.from("pieces").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase
       .from("pieces")
       .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .eq("status", "in_stock"),
     supabase.from("crm_contacts").select("id", { count: "exact", head: true }),
-    supabase
-      .from("activity_log")
-      .select("id, entity_type, entity_id, action, created_at")
-      .order("created_at", { ascending: false })
-      .limit(8),
   ]);
 
   const stats = [
@@ -39,38 +37,17 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      <section className="mt-8">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Recent activity
-        </h2>
-        <ul className="mt-3 space-y-2">
-          {(activity.data ?? []).map((a) => (
-            <li key={a.id} className="grid grid-cols-[14px_1fr] items-baseline gap-2">
-              <span
-                aria-hidden
-                className="mt-1 inline-block h-[7px] w-[7px] rounded-full bg-[var(--jvb-dot-mid)]"
-              />
-              <div>
-                <span className="text-[13.5px] text-ink-body">
-                  {a.action} {a.entity_type}
-                </span>
-                <span className="ml-2 font-mono text-[11px] text-ink-soft">
-                  {new Date(a.created_at).toLocaleString("en-GB")}
-                </span>
-              </div>
-            </li>
-          ))}
-          {(activity.data ?? []).length === 0 ? (
-            <li className="text-[13px] text-ink-muted">No activity yet.</li>
-          ) : null}
-        </ul>
-      </section>
-
-      {!financials ? (
-        <p className="mt-8 text-[12px] text-ink-soft">
-          Financial figures are hidden for your role.
-        </p>
+      {isAdmin ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatPanel title="Objects added" metric="added" />
+          <StatPanel title="Total sales" metric="sales" />
+          <StatPanel title="Net profit" metric="profit" />
+        </div>
       ) : null}
+
+      <div className="mt-4">
+        <WebsitePanel />
+      </div>
     </div>
   );
 }
