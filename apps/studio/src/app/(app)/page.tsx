@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { StatPanel } from "@/components/stat-panel";
 import { WebsitePanel } from "@/components/website-panel";
+import { NationalityPie } from "@/components/nationality-pie";
 
 export default async function Dashboard() {
   const supabase = await getSupabase();
@@ -45,8 +46,9 @@ export default async function Dashboard() {
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <WebsitePanel />
+        <NationalityPie />
       </div>
     </div>
   );

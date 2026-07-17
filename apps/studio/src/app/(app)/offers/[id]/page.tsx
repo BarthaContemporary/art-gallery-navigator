@@ -85,7 +85,7 @@ export default async function OfferDetail({
 
   const { data: offer } = await supabase
     .from("offers")
-    .select("id, title, kind, intro, show_prices, expires_at, created_at")
+    .select("id, title, kind, intro, show_prices, expires_at, access_password, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!offer) notFound();
@@ -168,6 +168,7 @@ export default async function OfferDetail({
         intro: String(formData.get("intro") ?? "").trim() || null,
         show_prices: formData.get("show_prices") === "on",
         expires_at: expires ? new Date(`${expires}T23:59:59Z`).toISOString() : null,
+        access_password: String(formData.get("access_password") ?? "").trim() || null,
       })
       .eq("id", id);
     revalidatePath(`/offers/${id}`);
@@ -306,7 +307,7 @@ export default async function OfferDetail({
 
     const { data: off } = await db
       .from("offers")
-      .select("title, intro, expires_at")
+      .select("title, intro, expires_at, access_password")
       .eq("id", id)
       .maybeSingle();
     const { data: recs } = await db
@@ -346,6 +347,7 @@ export default async function OfferDetail({
             offerUrl: `${OFFER_BASE}/o/${r.token}`,
             galleryName: GALLERY_NAME,
             expiresAt,
+            accessPassword: off?.access_password ?? undefined,
           }),
         });
         await db
@@ -442,6 +444,20 @@ export default async function OfferDetail({
           />
           <span className="mb-1.5 normal-case tracking-normal text-[12.5px] text-ink-body">
             Show prices on the public page
+          </span>
+        </label>
+        <label className={labelCls}>
+          Access password (optional)
+          <input
+            name="access_password"
+            defaultValue={offer.access_password ?? ""}
+            className={fieldCls}
+            placeholder="leave blank for no password"
+            autoComplete="off"
+          />
+          <span className="mt-1 block text-[11px] normal-case tracking-normal text-ink-soft">
+            When set, the private page asks for this before showing the works. It’s included
+            in the invitation email, and clients can request a temporary sign-in link instead.
           </span>
         </label>
         <label className={`${labelCls} sm:col-span-2`}>

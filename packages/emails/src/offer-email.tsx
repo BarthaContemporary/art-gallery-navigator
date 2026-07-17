@@ -21,6 +21,8 @@ export interface OfferEmailProps {
   galleryAddress?: string;
   unsubscribeUrl?: string;
   expiresAt?: string;
+  /** Simple viewing password, shown to the client when the offer is gated. */
+  accessPassword?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export function OfferEmail({
   galleryAddress,
   unsubscribeUrl,
   expiresAt,
+  accessPassword,
 }: OfferEmailProps) {
   return (
     <Html lang="en">
@@ -70,6 +73,35 @@ export function OfferEmail({
               View the selection
             </Button>
           </Section>
+          {accessPassword ? (
+            <Section
+              style={{
+                margin: "0 0 24px",
+                padding: "14px 18px",
+                backgroundColor: "#f0f0f0",
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: "#3d3d3d", margin: 0 }}>
+                You’ll be asked for a password to open the page:
+              </Text>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  color: "#2a2a2a",
+                  margin: "6px 0 0",
+                }}
+              >
+                {accessPassword}
+              </Text>
+              <Text style={{ fontSize: 12, color: "#6f6f6f", margin: "6px 0 0" }}>
+                Prefer not to type it? On the page you can ask us to email you a temporary
+                sign-in link instead.
+              </Text>
+            </Section>
+          ) : null}
           <Text style={{ fontSize: 13, color: "#6f6f6f" }}>
             This private page was prepared for you personally
             {expiresAt ? ` and is available until ${expiresAt}` : ""}. Please do not forward the

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createServiceClient } from "@jvb/db/server";
 import { OfferResponse } from "@/components/offer-response";
+import { OfferGate } from "@/components/offer-gate";
+import { grantCookieName, verifyGrant } from "@/lib/offer-access";
 
 /** Tokenized private offer / fair-preview page. Never indexed, never cached. */
 export const dynamic = "force-dynamic";
@@ -50,6 +53,7 @@ interface OfferRow {
   intro: string | null;
   show_prices: boolean | null;
   expires_at: string | null;
+  access_password: string | null;
   items: ItemRow[] | null;
 }
 
@@ -125,7 +129,7 @@ export default async function OfferPage({
         `id, token, response, view_count, first_viewed_at,
          contact:crm_contacts ( first_name, last_name, salutation ),
          offer:offers (
-           id, title, kind, intro, show_prices, expires_at,
+           id, title, kind, intro, show_prices, expires_at, access_password,
            items:offer_items (
              id, price_override_gbp, note,
              piece:pieces (
@@ -151,6 +155,16 @@ export default async function OfferPage({
 
   if (expired || !recipient || !offer || !supabase) {
     return <UnavailableView />;
+  }
+
+  // Password gate: if the offer carries an access password, require a valid
+  // access cookie (set after unlocking or via a magic link) before revealing
+  // the works — and don't log a view for a locked page.
+  if (offer.access_password) {
+    const cookieVal = (await cookies()).get(grantCookieName(token))?.value;
+    if (!verifyGrant(token, cookieVal, Date.now())) {
+      return <OfferGate token={token} />;
+    }
   }
 
   // Log the view (best-effort — never blocks rendering).
