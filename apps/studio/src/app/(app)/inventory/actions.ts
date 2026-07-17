@@ -10,6 +10,22 @@ const num = z.preprocess(
   z.number().nullable(),
 );
 
+const jsonStringArray = z.preprocess(
+  (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === "string") {
+      try {
+        const parsed = JSON.parse(v || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  },
+  z.array(z.string().transform((s) => s.trim())).transform((a) => a.filter(Boolean)),
+);
+
 const pieceSchema = z.object({
   title: z.string().trim().max(500).transform((v) => v || null),
   year: z.string().trim().max(50).transform((v) => v || null),
@@ -44,7 +60,8 @@ const pieceSchema = z.object({
   comments: z.string().trim().transform((v) => v || null),
   // Promoted legacy FileMaker fields
   source_note: z.string().trim().transform((v) => v || null),
-  published_note: z.string().trim().transform((v) => v || null),
+  publications: jsonStringArray,
+  exhibitions: jsonStringArray,
   shares_note: z.string().trim().transform((v) => v || null),
   consignment_details: z.string().trim().transform((v) => v || null),
   purchased_from: z.string().trim().max(300).transform((v) => v || null),

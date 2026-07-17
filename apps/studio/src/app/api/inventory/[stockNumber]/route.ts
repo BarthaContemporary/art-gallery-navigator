@@ -138,6 +138,16 @@ export async function PATCH(
   };
 
   const statusVal = String(fd.get("status") ?? "in_stock");
+  const jsonList = (k: string): string[] => {
+    try {
+      const parsed = JSON.parse(String(fd.get(k) ?? "[]"));
+      return Array.isArray(parsed)
+        ? parsed.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+    } catch {
+      return [];
+    }
+  };
 
   const { error: pieceErr } = await supabase
     .from("pieces")
@@ -165,7 +175,8 @@ export async function PATCH(
       dimensions_display: str("dimensions_display"),
       comments: str("comments"),
       source_note: str("source_note"),
-      published_note: str("published_note"),
+      publications: jsonList("publications"),
+      exhibitions: jsonList("exhibitions"),
       shares_note: str("shares_note"),
       consignment_details: str("consignment_details"),
       purchased_from: str("purchased_from"),
@@ -194,16 +205,12 @@ export async function PATCH(
       const purchaseCost = numv("purchase_cost");
       const soldPrice = numv("sold_price");
 
-      // Purchase side £.
-      let purchaseFx = numv("purchase_fx") ?? 1;
-      let purchaseCostGbp = numv("purchase_cost_gbp");
-      if (purchaseCost != null) {
-        const rate = await fxToGbp(supabase, purchaseCur, purchaseDate);
-        if (rate != null) {
-          purchaseFx = rate;
-          purchaseCostGbp = round2(purchaseCost * rate);
-        }
-      }
+      // Purchase side £ — entered manually, never auto-converted.
+      const purchaseCostGbp = numv("purchase_cost_gbp");
+      const purchaseFx =
+        purchaseCost != null && purchaseCostGbp != null && purchaseCost !== 0
+          ? round2(purchaseCostGbp / purchaseCost)
+          : numv("purchase_fx") ?? 1;
 
       // Sale side £ — spot rate on the sale date.
       let sellFx = numv("sell_fx") ?? 1;

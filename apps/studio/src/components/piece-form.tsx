@@ -4,6 +4,7 @@ import { MakerSelect } from "@/components/maker-select";
 import { OriginSelect } from "@/components/origin-select";
 import { DimensionsFields } from "@/components/dimensions-fields";
 import { FinancialsFields } from "@/components/financials-fields";
+import { RepeatableList } from "@/components/repeatable-list";
 
 type Option = { id: string; label: string };
 
@@ -34,6 +35,19 @@ export function PieceFormFields({
 }) {
   const v = (k: string) => (piece?.[k] as string | number | null) ?? "";
   const f = (k: string) => (financials?.[k] as string | number | null) ?? "";
+  const list = (k: string): string[] => {
+    const raw = piece?.[k];
+    if (Array.isArray(raw)) return raw.map((x) => String(x));
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map((x) => String(x));
+      } catch {
+        /* fall through */
+      }
+    }
+    return [];
+  };
   const s = (getter: (k: string) => string | number | null, keys: string[]) =>
     Object.fromEntries(keys.map((k) => [k, String(getter(k) ?? "")]));
 
@@ -145,7 +159,29 @@ export function PieceFormFields({
         </section>
       ) : null}
 
-      {/* Provenance & source — full width */}
+      {/* Buyer — sits directly under financials */}
+      <section className={panel}>
+        <h2 className="text-[13px] font-semibold text-ink-strong">Buyer</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {showFinancials ? (
+            <div className={label}>
+              Buyer (CRM contact)
+              <div className="mt-1.5">
+                <BuyerSelect
+                  initialId={String(financials?.buyer_contact_id ?? "") || null}
+                  initialName={buyerName ?? null}
+                />
+              </div>
+            </div>
+          ) : null}
+          <label className={label}>
+            Buyer note (freeform)
+            <input name="sold_to" defaultValue={v("sold_to")} className={field} />
+          </label>
+        </div>
+      </section>
+
+      {/* Provenance & source */}
       <section className={panel}>
         <h2 className="text-[13px] font-semibold text-ink-strong">Provenance &amp; source</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -157,23 +193,38 @@ export function PieceFormFields({
             Purchased from
             <input name="purchased_from" defaultValue={v("purchased_from")} className={field} />
           </label>
-          <div className={label}>
-            Buyer (CRM contact)
-            <div className="mt-1.5">
-              <BuyerSelect
-                initialId={String(financials?.buyer_contact_id ?? "") || null}
-                initialName={buyerName ?? null}
-              />
-            </div>
+        </div>
+      </section>
+
+      {/* Published & exhibited — repeatable lists */}
+      <section className={panel}>
+        <h2 className="text-[13px] font-semibold text-ink-strong">Published &amp; exhibited</h2>
+        <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <p className={label}>Publications</p>
+            <RepeatableList
+              name="publications"
+              initial={list("publications")}
+              placeholder="Author, Title (publisher, year), p. 00"
+              addLabel="Add publication"
+            />
           </div>
-          <label className={label}>
-            Buyer note (freeform)
-            <input name="sold_to" defaultValue={v("sold_to")} className={field} />
-          </label>
-          <label className={label}>
-            Published / exhibited
-            <input name="published_note" defaultValue={v("published_note")} className={field} placeholder="catalogue, buyer, export note…" />
-          </label>
+          <div>
+            <p className={label}>Past exhibitions</p>
+            <RepeatableList
+              name="exhibitions"
+              initial={list("exhibitions")}
+              placeholder="Exhibition title, venue, year"
+              addLabel="Add exhibition"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Consignment */}
+      <section className={panel}>
+        <h2 className="text-[13px] font-semibold text-ink-strong">Consignment</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className={label}>
             Shares / co-ownership
             <input name="shares_note" defaultValue={v("shares_note")} className={field} />
