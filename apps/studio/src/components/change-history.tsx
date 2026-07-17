@@ -34,7 +34,13 @@ function trunc(s: string, n = 80): string {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-export function ChangeHistory({ entries }: { entries: HistoryEntry[] }) {
+export function ChangeHistory({
+  entries,
+  revertAction,
+}: {
+  entries: HistoryEntry[];
+  revertAction?: (formData: FormData) => void | Promise<void>;
+}) {
   if (entries.length === 0) {
     return <p className="mt-3 text-[12.5px] text-ink-soft">No changes recorded.</p>;
   }
@@ -79,6 +85,29 @@ export function ChangeHistory({ entries }: { entries: HistoryEntry[] }) {
                   );
                 })}
               </ul>
+            ) : null}
+            {revertAction && e.action === "UPDATE" && diffKeys.length > 0 ? (
+              <form
+                action={revertAction}
+                className="mt-2 border-t border-line-soft pt-2"
+                onSubmit={(ev) => {
+                  if (
+                    !window.confirm(
+                      "Reinstate the previous values for this change? The current values will be overwritten (this is itself recorded).",
+                    )
+                  ) {
+                    ev.preventDefault();
+                  }
+                }}
+              >
+                <input type="hidden" name="entry_id" value={String(e.id)} />
+                <button
+                  type="submit"
+                  className="text-[11.5px] font-medium text-oranje hover:underline"
+                >
+                  ↩ Reinstate previous values
+                </button>
+              </form>
             ) : null}
           </div>
         );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
+import { Dropzone } from "@/components/dropzone";
 
 const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition", "document", "other"];
 
@@ -12,7 +13,6 @@ const ROLES = ["front", "back", "side", "signature", "box", "detail", "condition
  * `capture` lets phones shoot stock photos directly at fairs.
  */
 export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nextSortOrder: number }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [role, setRole] = useState("front");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +51,15 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
       }
     }
     setBusy(null);
-    if (inputRef.current) inputRef.current.value = "";
     startTransition(() => router.refresh());
   }
 
   return (
     <div className="rounded-[11px] border border-line bg-cell p-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+          Role
+        </label>
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
@@ -70,17 +72,22 @@ export function ImageUploader({ pieceId, nextSortOrder }: { pieceId: string; nex
             </option>
           ))}
         </select>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,.tif,.tiff"
-          multiple
-          capture="environment"
-          onChange={(e) => handleFiles(e.target.files)}
-          className="text-[12.5px] text-ink-mid file:mr-3 file:rounded-lg file:border file:border-line-control file:bg-control file:px-3 file:py-1.5 file:text-[12.5px] file:font-medium file:text-ink-mid"
-        />
       </div>
-      {busy ? <p className="mt-2 text-[12px] text-ink-soft">Uploading {busy}…</p> : null}
+      <Dropzone
+        onFiles={handleFiles}
+        accept="image/*,.tif,.tiff"
+        multiple
+        capture="environment"
+        disabled={Boolean(busy)}
+      >
+        <p className="text-[13px] font-medium text-ink-body">
+          {busy ? `Uploading ${busy}…` : "Drag images here, or click to choose"}
+        </p>
+        <p className="mt-1 text-[11.5px] text-ink-soft">
+          Add several at once — each is filed as “{role}”. Use the picker on a phone to
+          shoot stock directly.
+        </p>
+      </Dropzone>
       {error ? <p className="mt-2 text-[12px] text-ink-body">Upload failed — {error}</p> : null}
       <p className="mt-2 text-[11.5px] text-ink-soft">
         High-resolution originals (TIFF/JPEG up to 500 MB) go to secure storage; web-size

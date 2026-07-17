@@ -15,8 +15,7 @@ const NAV = [
   { href: "/appointments", label: "Appointments" },
   { href: "/analytics", label: "Analytics" },
   { href: "/stock-book", label: "Stock book", roles: ["admin", "accountant"] },
-  { href: "/account", label: "Account" },
-  { href: "/settings", label: "Settings", roles: ["admin"] },
+  { href: "/admin", label: "Admin" },
 ] as const;
 
 async function signOut() {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@jvb/db/browser";
+import { Dropzone } from "@/components/dropzone";
 
 type Doc = {
   id: string;
@@ -39,40 +40,55 @@ export function DocumentsPanel({
   const [docs, setDocs] = useState<Doc[]>(initial);
   const [docType, setDocType] = useState("certificate");
   const [title, setTitle] = useState("");
+  const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  function stage(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setStaged((prev) => [...prev, ...Array.from(files)]);
+  }
+  function unstage(i: number) {
+    setStaged((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   async function upload() {
-    const file = inputRef.current?.files?.[0];
-    if (!file) return;
+    if (staged.length === 0) return;
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-    const id = crypto.randomUUID();
-    const path = `${pieceId}/${id}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from("piece-documents")
-      .upload(path, file, { contentType: file.type || undefined });
-    if (upErr) return fail(upErr.message);
-    const row = {
-      id,
-      piece_id: pieceId,
-      doc_type: docType,
-      title: title.trim() || file.name,
-      storage_path: path,
-    };
-    const { error: insErr } = await supabase.from("piece_documents").insert(row);
-    if (insErr) return fail(insErr.message);
-    setDocs((d) => [{ ...row, created_at: new Date().toISOString() }, ...d]);
+    const remaining = [...staged];
+    for (const file of staged) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const id = crypto.randomUUID();
+      const path = `${pieceId}/${id}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("piece-documents")
+        .upload(path, file, { contentType: file.type || undefined });
+      if (upErr) return fail(upErr.message, remaining);
+      const row = {
+        id,
+        piece_id: pieceId,
+        doc_type: docType,
+        // A single title only makes sense for a single file; otherwise keep
+        // each file's own name so a batch stays legible.
+        title: staged.length === 1 && title.trim() ? title.trim() : file.name,
+        storage_path: path,
+      };
+      const { error: insErr } = await supabase.from("piece_documents").insert(row);
+      if (insErr) return fail(insErr.message, remaining);
+      setDocs((d) => [{ ...row, created_at: new Date().toISOString() }, ...d]);
+      remaining.shift();
+    }
     setTitle("");
-    if (inputRef.current) inputRef.current.value = "";
+    setStaged([]);
     setBusy(false);
   }
 
-  function fail(msg: string) {
+  function fail(msg: string, remaining: File[]) {
     setError(msg);
+    setStaged(remaining);
     setBusy(false);
   }
 
@@ -115,37 +131,79 @@ export function DocumentsPanel({
         ) : null}
       </ul>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-soft pt-4">
-        <select
-          value={docType}
-          onChange={(e) => setDocType(e.target.value)}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-        >
-          {DOC_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title (optional)"
-          className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-        />
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.tiff,.doc,.docx,.heic"
-          className="text-[12px] text-ink-mid file:mr-2 file:rounded-lg file:border file:border-line-control file:bg-control file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-ink-mid"
-        />
+      <div className="mt-4 border-t border-line-soft pt-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
+          >
+            {DOC_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={staged.length > 1 ? "Title (used only for a single file)" : "Title (optional)"}
+            className="min-w-0 flex-1 rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
+          />
+        </div>
+
+        <div className="mt-3">
+          <Dropzone
+            onFiles={stage}
+            accept=".pdf,.jpg,.jpeg,.png,.tiff,.doc,.docx,.heic"
+            multiple
+            disabled={busy}
+          >
+            <p className="text-[13px] font-medium text-ink-body">
+              Drag files here, or click to choose
+            </p>
+            <p className="mt-1 text-[11.5px] text-ink-soft">
+              PDF, image or Word — all filed as “{docType.replace(/_/g, " ")}”.
+            </p>
+          </Dropzone>
+        </div>
+
+        {staged.length > 0 ? (
+          <ul className="mt-3 space-y-1.5">
+            {staged.map((f, i) => (
+              <li
+                key={`${f.name}-${i}`}
+                className="flex items-center gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-1.5 text-[12.5px]"
+              >
+                <span className="min-w-0 flex-1 truncate text-ink-body">{f.name}</span>
+                <span className="shrink-0 font-mono text-[11px] text-ink-soft">
+                  {(f.size / 1024).toFixed(0)} KB
+                </span>
+                <button
+                  type="button"
+                  onClick={() => unstage(i)}
+                  disabled={busy}
+                  aria-label={`Remove ${f.name}`}
+                  className="shrink-0 text-ink-soft hover:text-oranje"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <button
           type="button"
           onClick={upload}
-          disabled={busy}
-          className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
+          disabled={busy || staged.length === 0}
+          className="mt-3 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg disabled:opacity-50"
         >
-          {busy ? "Uploading…" : "Upload"}
+          {busy
+            ? "Uploading…"
+            : staged.length > 0
+              ? `Upload ${staged.length} file${staged.length === 1 ? "" : "s"}`
+              : "Upload"}
         </button>
       </div>
       {error ? <p className="mt-2 text-[12px] text-ink-body">Upload failed — {error}</p> : null}

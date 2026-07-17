@@ -258,6 +258,50 @@ export default async function PieceDetail({
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
   }
 
+  // Reinstate: revert the fields touched by one change back to their prior
+  // values. Admin only; the revert itself is logged as a fresh edit so the
+  // audit trail is never lost.
+  async function revertChange(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const { roles: r } = await requireSession();
+    if (!hasRole(r, "admin")) return;
+    const entryId = String(formData.get("entry_id") ?? "");
+    if (!entryId) return;
+
+    const { data: entry } = await db
+      .from("activity_log")
+      .select("entity_type, entity_id, action, changes")
+      .eq("id", entryId)
+      .eq("entity_id", piece.id)
+      .maybeSingle();
+    if (!entry || entry.action !== "UPDATE" || !entry.changes) return;
+
+    const IMMUTABLE = new Set([
+      "id", "piece_id", "created_at", "updated_at", "created_by", "updated_by",
+      "search_vector", "total_cost_gbp", "margin_gbp", "margin_pct",
+      "stock_number", "deleted_at",
+    ]);
+    const changes = entry.changes as Record<string, { old?: unknown; new?: unknown }>;
+    const patch: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(changes)) {
+      if (k === "old" || k === "new" || IMMUTABLE.has(k)) continue;
+      if (v && typeof v === "object" && "old" in v) patch[k] = v.old ?? null;
+    }
+    if (Object.keys(patch).length === 0) return;
+
+    if (entry.entity_type === "pieces") {
+      patch.updated_by = user.id;
+      await db.from("pieces").update(patch).eq("id", piece.id);
+    } else if (entry.entity_type === "piece_financials") {
+      if (!canSeeFinancials(roles)) return;
+      await db.from("piece_financials").update(patch).eq("piece_id", piece.id);
+    } else {
+      return;
+    }
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
+  }
+
   async function toggleWatch() {
     "use server";
     const supabase = await getSupabase();
@@ -694,7 +738,7 @@ export default async function PieceDetail({
             ) : null}
           </div>
           {isAdmin ? (
-            <ChangeHistory entries={historyEntries} />
+            <ChangeHistory entries={historyEntries} revertAction={revertChange} />
           ) : (
             <ul className="mt-3 space-y-2.5">
               {activityRows.map((a, i) => (
