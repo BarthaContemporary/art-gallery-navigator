@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/app-header";
 const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/inventory", label: "Inventory" },
+  { href: "/inventory/lists", label: "Inventory lists" },
   { href: "/makers", label: "Makers" },
   { href: "/locations", label: "Locations" },
   { href: "/crm/contacts", label: "Contacts" },

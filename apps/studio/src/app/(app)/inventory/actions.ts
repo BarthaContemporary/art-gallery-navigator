@@ -12,6 +12,7 @@ const num = z.preprocess(
 
 const pieceSchema = z.object({
   title: z.string().trim().max(500).transform((v) => v || null),
+  year: z.string().trim().max(50).transform((v) => v || null),
   maker_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),
   category_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),
   location_id: z.string().uuid().nullable().or(z.literal("").transform(() => null)),

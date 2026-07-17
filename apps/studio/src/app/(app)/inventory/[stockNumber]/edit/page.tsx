@@ -30,7 +30,7 @@ export default async function EditPiecePage({
 
   const [makers, categories, locations, originRegions, financials, primaryImage, documents, imageCount] =
     await Promise.all([
-      supabase.from("makers").select("id, display_name").order("display_name"),
+      supabase.from("makers").select("id, display_name, life_dates").order("display_name"),
       supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
       supabase.from("locations").select("id, code").order("code"),
       supabase.from("origin_regions").select("name").eq("is_active", true).order("sort_order"),
@@ -127,7 +127,10 @@ export default async function EditPiecePage({
           <PieceFormFields
             piece={piece}
             financials={financials.data}
-            makers={(makers.data ?? []).map((m) => ({ id: m.id, label: m.display_name }))}
+            makers={(makers.data ?? []).map((m) => ({
+            id: m.id,
+            label: m.life_dates ? `${m.display_name} (${m.life_dates})` : m.display_name,
+          }))}
             categories={categoryOptions}
             locations={(locations.data ?? []).map((l) => ({ id: l.id, label: l.code }))}
             originRegions={originOptions}

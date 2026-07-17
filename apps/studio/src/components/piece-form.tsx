@@ -52,10 +52,16 @@ export function PieceFormFields({
       <section className={panel}>
         <h2 className="text-[13px] font-semibold text-ink-strong">Cataloguing</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className={`${label} sm:col-span-2`}>
-            Title
-            <input name="title" defaultValue={v("title")} className={field} />
-          </label>
+          <div className="flex gap-4 sm:col-span-2">
+            <label className={`${label} flex-1`}>
+              Title
+              <input name="title" defaultValue={v("title")} className={field} />
+            </label>
+            <label className={`${label} w-32 shrink-0`}>
+              Year
+              <input name="year" defaultValue={v("year")} className={field} placeholder="2024-26" />
+            </label>
+          </div>
           <div className={label}>
             Maker
             <MakerSelect options={makers} defaultId={String(v("maker_id")) || null} />

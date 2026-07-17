@@ -143,6 +143,7 @@ export async function PATCH(
     .from("pieces")
     .update({
       title: str("title"),
+      year: str("year"),
       maker_id: str("maker_id"),
       category_id: str("category_id"),
       location_id: str("location_id"),

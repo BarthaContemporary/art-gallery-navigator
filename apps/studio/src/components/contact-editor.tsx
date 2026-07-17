@@ -7,6 +7,9 @@ import { InterestSelect } from "./interest-select";
 export type Purchase = {
   stock_number: string | null;
   title: string | null;
+  year: string | null;
+  maker_name: string | null;
+  buyer_note: string | null;
   sold_date: string | null;
   sold_price_gbp: number | null;
 };
@@ -269,34 +272,44 @@ export function ContactEditor({
           <p className={label}>Past purchases</p>
           {purchases.length ? (
             <ul className="mt-1.5 overflow-hidden rounded-lg border border-line-soft">
-              {purchases.map((p, i) => (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-3 border-b border-line-soft px-3 py-1.5 text-[13px] last:border-0"
-                >
-                  <a
-                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
-                    className="min-w-0 truncate hover:text-oranje"
+              {purchases.map((p, i) => {
+                const objectLine = [p.maker_name, p.title ?? "Untitled", p.year]
+                  .filter(Boolean)
+                  .join(", ");
+                return (
+                  <li
+                    key={i}
+                    className="flex items-start justify-between gap-3 border-b border-line-soft px-3 py-2 text-[13px] last:border-0"
                   >
-                    <span className="font-mono text-[12px] text-ink-muted">
-                      {p.stock_number ?? "—"}
-                    </span>{" "}
-                    <span className="text-ink-body">{p.title ?? "Untitled"}</span>
-                  </a>
-                  <span className="shrink-0 text-[12px] text-ink-muted">
-                    {p.sold_date
-                      ? new Date(p.sold_date).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : ""}
-                    {showPrices && p.sold_price_gbp != null
-                      ? ` · £${Number(p.sold_price_gbp).toLocaleString("en-GB")}`
-                      : ""}
-                  </span>
-                </li>
-              ))}
+                    <div className="min-w-0">
+                      <a
+                        href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                        className="block min-w-0 hover:text-oranje"
+                      >
+                        <span className="font-mono text-[12px] text-ink-muted">
+                          {p.stock_number ?? "—"}
+                        </span>{" "}
+                        <span className="text-ink-body">{objectLine}</span>
+                      </a>
+                      {p.buyer_note ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">{p.buyer_note}</p>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 text-[12px] text-ink-muted">
+                      {p.sold_date
+                        ? new Date(p.sold_date).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : ""}
+                      {showPrices && p.sold_price_gbp != null
+                        ? ` · £${Number(p.sold_price_gbp).toLocaleString("en-GB")}`
+                        : ""}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mt-1 text-[12.5px] text-ink-muted">No recorded purchases.</p>

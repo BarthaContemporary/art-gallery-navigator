@@ -80,18 +80,29 @@ export default async function ContactProfile({
   const svc = createServiceClient();
   const { data: purRows } = await svc
     .from("piece_financials")
-    .select("sold_date, sold_price_gbp, piece:pieces ( stock_number, title )")
+    .select(
+      "sold_date, sold_price_gbp, piece:pieces ( stock_number, title, year, sold_to, maker:makers ( display_name ) )",
+    )
     .eq("buyer_contact_id", id)
     .order("sold_date", { ascending: false, nullsFirst: false });
   const purchases: Purchase[] = (purRows ?? []).map((r) => {
     const row = r as unknown as {
       sold_date: string | null;
       sold_price_gbp: number | null;
-      piece: { stock_number: string | null; title: string | null } | null;
+      piece: {
+        stock_number: string | null;
+        title: string | null;
+        year: string | null;
+        sold_to: string | null;
+        maker: { display_name: string | null } | null;
+      } | null;
     };
     return {
       stock_number: row.piece?.stock_number ?? null,
       title: row.piece?.title ?? null,
+      year: row.piece?.year ?? null,
+      maker_name: row.piece?.maker?.display_name ?? null,
+      buyer_note: row.piece?.sold_to ?? null,
       sold_date: row.sold_date ?? null,
       // Never serialize the price to a non-privileged client: this prop is
       // sent to a "use client" component, so a staff user (denied
