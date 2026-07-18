@@ -124,7 +124,10 @@ export function AppHeader({
       {/* Mobile full-screen overlay menu — sibling of <header> so its fixed
           positioning and backdrop-blur resolve against the viewport. */}
       {open ? (
-        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--jvb-bg-page)_50%,transparent)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
+        <div
+          className="fixed inset-0 z-50 backdrop-blur-2xl backdrop-saturate-150 md:hidden"
+          style={{ backgroundColor: "rgba(250, 250, 250, 0.5)" }}
+        >
           <div className="flex items-start justify-between px-4 py-3">
             <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong">
               {wordmarkStacked}
