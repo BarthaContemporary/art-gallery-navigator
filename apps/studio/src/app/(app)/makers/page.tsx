@@ -5,6 +5,11 @@ import { MakerRow } from "@/components/maker-row";
 
 export const metadata = { title: "Makers" };
 
+// Module scope on purpose: a Server Action may not close over a locally-defined
+// function (Next.js can't serialize it into the action), so this helper lives
+// outside the component.
+const nullable = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim() || null;
+
 export default async function MakersPage({
   searchParams,
 }: {
@@ -30,8 +35,6 @@ export default async function MakersPage({
     );
   }
   const { data: makers } = await query;
-
-  const nullable = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim() || null;
 
   async function addMaker(formData: FormData) {
     "use server";
