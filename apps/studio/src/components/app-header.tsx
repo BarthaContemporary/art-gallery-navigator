@@ -23,9 +23,13 @@ export function AppHeader({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // The item the user just tapped — shown orange as press feedback while the
+  // next page loads, so the tap registers before the overlay closes.
+  const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
     setOpen(false);
+    setPending(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -120,7 +124,7 @@ export function AppHeader({
       {/* Mobile full-screen overlay menu — sibling of <header> so its fixed
           positioning and backdrop-blur resolve against the viewport. */}
       {open ? (
-        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--jvb-bg-page)_85%,transparent)] backdrop-blur-xl md:hidden">
+        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--jvb-bg-page)_58%,transparent)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
           <div className="flex items-start justify-between px-4 py-3">
             <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong">
               {wordmarkStacked}
@@ -134,23 +138,24 @@ export function AppHeader({
               Close
             </button>
           </div>
-          <nav className="mt-10 flex flex-col gap-5 px-4">
+          <nav className="mt-9 flex flex-col gap-3.5 px-4">
             {items.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
+                onClick={() => setPending(n.href)}
                 aria-current={isActive(n.href) ? "page" : undefined}
-                className={`text-[26px] font-semibold tracking-[-0.01em] ${
-                  isActive(n.href) ? "text-oranje" : "text-ink-mid"
+                className={`text-[18px] font-semibold tracking-[-0.01em] transition-colors duration-150 active:text-oranje ${
+                  isActive(n.href) || pending === n.href ? "text-oranje" : "text-ink-mid"
                 }`}
               >
                 {n.label}
               </Link>
             ))}
-            <form action={signOut} className="mt-6">
+            <form action={signOut} className="mt-5">
               <button
                 type="submit"
-                className="text-[15px] font-medium text-ink-soft"
+                className="text-[14px] font-medium text-ink-soft"
               >
                 Sign out
               </button>
