@@ -92,6 +92,7 @@ export default async function InventoryPage({
     stock_number: string;
     legacy_stock_number: string | null;
     title: string | null;
+    maker_id: string | null;
     maker_name: string | null;
     category_name: string | null;
     category_id: string | null;
@@ -168,6 +169,21 @@ export default async function InventoryPage({
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Maker life-dates for the displayed rows (shown after the maker's name).
+  const makerIds = [
+    ...new Set((rows ?? []).map((r) => r.maker_id).filter((v): v is string => Boolean(v))),
+  ];
+  const makerDatesById = new Map<string, string>();
+  if (makerIds.length > 0) {
+    const { data: makerRows } = await supabase
+      .from("makers")
+      .select("id, life_dates")
+      .in("id", makerIds);
+    for (const m of (makerRows ?? []) as { id: string; life_dates: string | null }[]) {
+      if (m.life_dates) makerDatesById.set(m.id, m.life_dates);
+    }
+  }
 
   // Thumbnails: batch-sign the primary image for rows that have a processed one.
   const imageIds = (rows ?? [])
@@ -382,6 +398,7 @@ export default async function InventoryPage({
                 legacy_stock_number: r.legacy_stock_number,
                 title: r.title,
                 maker_name: r.maker_name,
+                maker_dates: r.maker_id ? makerDatesById.get(r.maker_id) ?? null : null,
                 category_name: r.category_name,
                 location_name: r.location_id
                   ? locNameById.get(r.location_id) ?? r.location_code

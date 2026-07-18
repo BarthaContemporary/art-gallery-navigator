@@ -11,6 +11,7 @@ export type InventoryRow = {
   legacy_stock_number: string | null;
   title: string | null;
   maker_name: string | null;
+  maker_dates: string | null;
   category_name: string | null;
   location_name: string | null;
   status: string;
@@ -231,7 +232,14 @@ export function InventoryTable({
           </Link>
         );
       case "maker_name":
-        return <span className="block truncate text-[13px] text-ink-muted">{r.maker_name ?? "—"}</span>;
+        return (
+          <span className="block truncate text-[13px] text-ink-muted">
+            {r.maker_name ?? "—"}
+            {r.maker_name && r.maker_dates ? (
+              <span className="text-ink-soft"> ({r.maker_dates})</span>
+            ) : null}
+          </span>
+        );
       case "category_name":
         return <span className="block truncate text-[13px] text-ink-muted">{r.category_name ?? "—"}</span>;
       case "location_code":

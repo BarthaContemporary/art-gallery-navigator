@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
+import { MakerRow } from "@/components/maker-row";
 
 export const metadata = { title: "Makers" };
 
@@ -30,6 +31,8 @@ export default async function MakersPage({
   }
   const { data: makers } = await query;
 
+  const nullable = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim() || null;
+
   async function addMaker(formData: FormData) {
     "use server";
     const supabase = await getSupabase();
@@ -37,11 +40,42 @@ export default async function MakersPage({
     if (!display_name) return;
     await supabase.from("makers").insert({
       display_name,
-      native_name: String(formData.get("native_name") ?? "").trim() || null,
-      life_dates: String(formData.get("life_dates") ?? "").trim() || null,
-      region: String(formData.get("region") ?? "").trim() || null,
+      native_name: nullable(formData, "native_name"),
+      life_dates: nullable(formData, "life_dates"),
+      region: nullable(formData, "region"),
     });
     revalidatePath("/makers");
+  }
+
+  async function updateMaker(formData: FormData) {
+    "use server";
+    const supabase = await getSupabase();
+    const id = String(formData.get("id") ?? "");
+    const display_name = String(formData.get("display_name") ?? "").trim();
+    if (!id || !display_name) return;
+    await supabase
+      .from("makers")
+      .update({
+        display_name,
+        native_name: nullable(formData, "native_name"),
+        life_dates: nullable(formData, "life_dates"),
+        region: nullable(formData, "region"),
+        school_or_workshop: nullable(formData, "school_or_workshop"),
+      })
+      .eq("id", id);
+    revalidatePath("/makers");
+    revalidatePath("/inventory");
+  }
+
+  async function deleteMaker(formData: FormData) {
+    "use server";
+    const supabase = await getSupabase();
+    const id = String(formData.get("id") ?? "");
+    if (!id) return;
+    // pieces.maker_id is ON DELETE SET NULL, so works are unlinked, not removed.
+    await supabase.from("makers").delete().eq("id", id);
+    revalidatePath("/makers");
+    revalidatePath("/inventory");
   }
 
   return (
@@ -95,21 +129,21 @@ export default async function MakersPage({
               <th className="px-4 py-2.5 font-medium">Dates</th>
               <th className="px-4 py-2.5 font-medium">Region</th>
               <th className="px-4 py-2.5 font-medium">School / workshop</th>
+              <th className="px-4 py-2.5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {(makers ?? []).map((m) => (
-              <tr key={m.id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{m.display_name}</td>
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-muted">{m.native_name ?? "—"}</td>
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{m.life_dates ?? "—"}</td>
-                <td className="px-4 py-2.5 text-[13px] text-ink-muted">{m.region ?? "—"}</td>
-                <td className="px-4 py-2.5 text-[13px] text-ink-muted">{m.school_or_workshop ?? "—"}</td>
-              </tr>
+              <MakerRow
+                key={m.id}
+                maker={m}
+                updateAction={updateMaker}
+                deleteAction={deleteMaker}
+              />
             ))}
             {(makers ?? []).length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-[13px] text-ink-soft">
+                <td colSpan={6} className="px-4 py-6 text-center text-[13px] text-ink-soft">
                   {q ? "No makers match your search." : "No makers yet."}
                 </td>
               </tr>

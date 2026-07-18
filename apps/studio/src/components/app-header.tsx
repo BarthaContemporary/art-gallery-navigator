@@ -37,10 +37,18 @@ export function AppHeader({
     };
   }, [open]);
 
-  const isActive = (href: string) =>
+  // A nav item matches when the path is it or sits under it. When several match
+  // (e.g. "/inventory" and "/inventory/lists" both match /inventory/lists), only
+  // the most specific — longest href — is treated as active.
+  const matches = (href: string) =>
     href === "/"
       ? pathname === "/"
       : pathname === href || pathname.startsWith(`${href}/`);
+  const activeHref = items
+    .map((n) => n.href)
+    .filter(matches)
+    .sort((a, b) => b.length - a.length)[0];
+  const isActive = (href: string) => href === activeHref;
 
   const wordmarkStacked = (
     <>
