@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -21,6 +21,27 @@ export function AutosaveForm({
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<Status>("idle");
+
+  // On small screens the sticky autosave line eats scarce vertical space, so
+  // slide it away when the user scrolls down and bring it back on scroll up.
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (y > lastY + 4 && y > 80) setHidden(true);
+        else if (y < lastY - 4) setHidden(false);
+        lastY = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const save = useCallback(async () => {
     if (!formRef.current) return;
@@ -64,7 +85,9 @@ export function AutosaveForm({
       className={className}
     >
       <p
-        className={`sticky top-[64px] z-10 mb-3 text-[12px] ${
+        className={`sticky top-[64px] z-10 mb-3 text-[12px] transition-all duration-200 md:translate-y-0 md:opacity-100 ${
+          hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
+        } ${
           status === "error"
             ? "text-oranje"
             : status === "saved"

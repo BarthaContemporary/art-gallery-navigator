@@ -13,6 +13,7 @@ type Doc = {
 };
 
 const DOC_TYPES = [
+  "import_document",
   "purchase_invoice",
   "sale_invoice",
   "certificate",
@@ -24,6 +25,12 @@ const DOC_TYPES = [
   "insurance",
   "other",
 ];
+
+// Display labels for doc types where the raw enum → words mapping isn't ideal.
+const DOC_TYPE_LABELS: Record<string, string> = {
+  import_document: "Import Documents",
+};
+const docLabel = (t: string) => DOC_TYPE_LABELS[t] ?? t.replace(/_/g, " ");
 
 /**
  * Documents attached to a piece — list + upload, self-contained so uploading
@@ -38,7 +45,7 @@ export function DocumentsPanel({
   initial: Doc[];
 }) {
   const [docs, setDocs] = useState<Doc[]>(initial);
-  const [docType, setDocType] = useState("certificate");
+  const [docType, setDocType] = useState("import_document");
   const [title, setTitle] = useState("");
   const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -115,7 +122,7 @@ export function DocumentsPanel({
         {docs.map((d) => (
           <li key={d.id} className="flex items-center gap-2 py-2">
             <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
-              {d.doc_type.replace(/_/g, " ")}
+              {docLabel(d.doc_type)}
             </span>
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink-body">{d.title}</span>
             <button type="button" onClick={() => download(d)} className="text-[12px] font-medium text-[var(--jvb-ink-desc)]">
@@ -140,7 +147,7 @@ export function DocumentsPanel({
           >
             {DOC_TYPES.map((t) => (
               <option key={t} value={t}>
-                {t.replace(/_/g, " ")}
+                {docLabel(t)}
               </option>
             ))}
           </select>
@@ -163,7 +170,7 @@ export function DocumentsPanel({
               Drag files here, or click to choose
             </p>
             <p className="mt-1 text-[11.5px] text-ink-soft">
-              PDF, image or Word — all filed as “{docType.replace(/_/g, " ")}”.
+              PDF, image or Word — all filed as “{docLabel(docType)}”.
             </p>
           </Dropzone>
         </div>

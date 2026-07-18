@@ -694,7 +694,7 @@ export default async function PieceDetail({
                 {(documentsRes.data ?? []).map((d) => (
                   <li key={d.id} className="flex items-baseline gap-2 text-[13px] text-ink-body">
                     <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
-                      {d.doc_type.replace(/_/g, " ")}
+                      {d.doc_type === "import_document" ? "Import Documents" : d.doc_type.replace(/_/g, " ")}
                     </span>
                     <span className="truncate">{d.title}</span>
                   </li>
