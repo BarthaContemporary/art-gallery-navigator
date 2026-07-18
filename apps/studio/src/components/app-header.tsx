@@ -127,7 +127,7 @@ export function AppHeader({
         <div
           className="fixed inset-0 z-50 md:hidden"
           style={{
-            backgroundColor: "rgba(250, 250, 250, 0.45)",
+            backgroundColor: "rgba(250, 250, 250, 0.3)",
             backdropFilter: "blur(22px) saturate(1.4)",
             WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           }}

@@ -11,18 +11,21 @@ const FILTERS: [string, string][] = [
   ["press", "Press"],
 ];
 
-// Muted greyscale wedges with the house orange as the lead accent.
+// Validated categorical palette (colorblind-safe adjacent pairs in this fixed
+// order — checked with the dataviz validator). The last slot is a neutral grey
+// reserved for the rolled-up "Other" bucket, which is never a real category.
 const COLORS = [
-  "#c65d2e",
-  "#3f3f3f",
-  "#6b6b6b",
-  "#8f8f8f",
-  "#a9a9a9",
-  "#5a5a5a",
-  "#bcae9e",
-  "#7d7161",
-  "#cfcfcf",
+  "#2a78d6", // blue
+  "#008300", // green
+  "#e87ba4", // magenta
+  "#eda100", // yellow
+  "#1baf7a", // aqua
+  "#eb6834", // orange
+  "#4a3aa7", // violet
+  "#e34948", // red
+  "#9b9a92", // neutral — "Other"
 ];
+const SURFACE = "#fcfcfb"; // gap colour between wedges (matches the card)
 
 function polar(cx: number, cy: number, r: number, angle: number) {
   const a = (angle - 90) * (Math.PI / 180);
@@ -109,6 +112,9 @@ export function NationalityPie() {
                     key={s.label}
                     d={arcPath(cx, cy, r, start, end)}
                     fill={COLORS[i % COLORS.length]}
+                    stroke={SURFACE}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
                   />
                 );
               })

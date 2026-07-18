@@ -100,7 +100,7 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
         <div
           className="fixed inset-0 z-50 md:hidden"
           style={{
-            backgroundColor: "rgba(250, 249, 245, 0.45)",
+            backgroundColor: "rgba(250, 249, 245, 0.3)",
             backdropFilter: "blur(22px) saturate(1.4)",
             WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           }}
