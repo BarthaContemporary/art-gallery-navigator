@@ -125,8 +125,12 @@ export function AppHeader({
           positioning and backdrop-blur resolve against the viewport. */}
       {open ? (
         <div
-          className="fixed inset-0 z-50 backdrop-blur-2xl backdrop-saturate-150 md:hidden"
-          style={{ backgroundColor: "rgba(250, 250, 250, 0.5)" }}
+          className="fixed inset-0 z-50 md:hidden"
+          style={{
+            backgroundColor: "rgba(250, 250, 250, 0.45)",
+            backdropFilter: "blur(22px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(22px) saturate(1.4)",
+          }}
         >
           <div className="flex items-start justify-between px-4 py-3">
             <span className="text-[15px] font-bold leading-[1.05] tracking-[-0.01em] text-ink-strong">

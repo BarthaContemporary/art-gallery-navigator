@@ -98,8 +98,12 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
           the header's own backdrop-filter context. */}
       {open ? (
         <div
-          className="fixed inset-0 z-50 backdrop-blur-2xl backdrop-saturate-150 md:hidden"
-          style={{ backgroundColor: "rgba(250, 249, 245, 0.5)" }}
+          className="fixed inset-0 z-50 md:hidden"
+          style={{
+            backgroundColor: "rgba(250, 249, 245, 0.45)",
+            backdropFilter: "blur(22px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(22px) saturate(1.4)",
+          }}
         >
           <div className="page flex items-baseline justify-between py-5">
             <span className="font-sans text-ui font-medium leading-tight tracking-tight text-sumi">
