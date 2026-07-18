@@ -97,7 +97,7 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
           against the viewport and blur the page, rather than being trapped in
           the header's own backdrop-filter context. */}
       {open ? (
-        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_58%,transparent)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
+        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_50%,transparent)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
           <div className="page flex items-baseline justify-between py-5">
             <span className="font-sans text-ui font-medium leading-tight tracking-tight text-sumi">
               {stacked}
