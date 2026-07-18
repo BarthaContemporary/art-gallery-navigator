@@ -8,10 +8,13 @@ import { navLinks } from "@/lib/site";
 export function SiteHeader({ galleryName }: { galleryName: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // The just-tapped item, shown orange as press feedback until the page loads.
+  const [pending, setPending] = useState<string | null>(null);
 
   // Close the overlay on navigation.
   useEffect(() => {
     setOpen(false);
+    setPending(null);
   }, [pathname]);
 
   // Lock body scroll while the overlay is open.
@@ -94,7 +97,7 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
           against the viewport and blur the page, rather than being trapped in
           the header's own backdrop-filter context. */}
       {open ? (
-        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_85%,transparent)] backdrop-blur-xl md:hidden">
+        <div className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--washi)_58%,transparent)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
           <div className="page flex items-baseline justify-between py-5">
             <span className="font-sans text-ui font-medium leading-tight tracking-tight text-sumi">
               {stacked}
@@ -109,16 +112,17 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
             </button>
           </div>
           <nav aria-label="Main" className="page mt-16">
-            <ul className="flex flex-col gap-6">
+            <ul className="flex flex-col gap-5">
               {navLinks.map((link) => {
                 const active = isActive(link.href);
                 return (
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      onClick={() => setPending(link.href)}
                       aria-current={active ? "page" : undefined}
-                      className={`font-sans text-[32px] leading-tight tracking-tight ${
-                        active ? "text-oranje" : "text-sumi"
+                      className={`font-sans text-[22px] leading-tight tracking-tight transition-colors duration-150 active:text-oranje ${
+                        active || pending === link.href ? "text-oranje" : "text-sumi"
                       }`}
                     >
                       {link.label}
