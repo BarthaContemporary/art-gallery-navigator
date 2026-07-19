@@ -46,6 +46,21 @@ body {
   font-family: var(--jvb-font-sans);
 }
 
+/* Native date/time inputs carry an intrinsic min-width (pronounced on iOS
+   Safari) that pushes them past grid/flex cells. Force them to respect their
+   container so forms stay on the design grid on mobile. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"] {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /* Voice: Newsreader for catalogue prose (descriptions, condition, provenance).
    Roman only — the serif never appears in dense UI chrome. */
 .font-serif {

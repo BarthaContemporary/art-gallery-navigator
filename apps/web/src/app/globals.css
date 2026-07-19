@@ -95,6 +95,16 @@
     border-radius: 0 !important;
   }
 
+  /* Native date/time inputs respect their container (mobile grid overflow). */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"] {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
   /* Keyboard focus: 2px oranje. */
   :focus-visible {
     outline: 2px solid var(--oranje);
