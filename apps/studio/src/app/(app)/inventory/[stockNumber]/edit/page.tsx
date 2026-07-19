@@ -69,21 +69,66 @@ export default async function EditPiecePage({
   const [{ data: shipLinks }, { data: allShipments }] = await Promise.all([
     supabase
       .from("piece_shipments")
-      .select("kind, shipment:shipments ( id, kind, shipment_date, reference )")
+      .select("kind, returned_at, closed_reason, shipment:shipments ( id, kind, shipment_date, reference )")
       .eq("piece_id", piece.id),
     supabase
       .from("shipments")
       .select("id, kind, shipment_date, reference")
       .order("shipment_date", { ascending: false, nullsFirst: false }),
   ]);
-  const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null }>();
-  for (const l of (shipLinks ?? []) as unknown as {
+  type ShipLink = {
     kind: string;
+    returned_at: string | null;
+    closed_reason: string | null;
     shipment: { id: string; shipment_date: string | null; reference: string | null } | null;
-  }[]) {
-    if (l.shipment) shipmentByKind.set(l.kind, l.shipment);
+  };
+  const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null }>();
+  const tempExports: ShipLink[] = [];
+  for (const l of (shipLinks ?? []) as unknown as ShipLink[]) {
+    if (!l.shipment) continue;
+    if (l.kind === "temporary_export") tempExports.push(l);
+    else shipmentByKind.set(l.kind, l.shipment);
   }
+  tempExports.sort((a, b) => ((a.shipment?.shipment_date ?? "") < (b.shipment?.shipment_date ?? "") ? 1 : -1));
   const shipmentOptions = (allShipments ?? []) as { id: string; kind: string; shipment_date: string | null; reference: string | null }[];
+
+  async function linkTempExport(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const shipmentId = String(formData.get("shipment_id") ?? "");
+    if (!shipmentId) return;
+    await db
+      .from("piece_shipments")
+      .upsert(
+        { piece_id: piece.id, shipment_id: shipmentId, kind: "temporary_export" },
+        { onConflict: "piece_id,shipment_id", ignoreDuplicates: true },
+      );
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
+
+  async function returnTempExport(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const shipmentId = String(formData.get("shipment_id") ?? "");
+    const date = String(formData.get("return_date") ?? "").trim();
+    await db
+      .from("piece_shipments")
+      .update({ returned_at: date || null, closed_reason: null })
+      .eq("piece_id", piece.id)
+      .eq("shipment_id", shipmentId);
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
+
+  async function unlinkTempExport(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    await db
+      .from("piece_shipments")
+      .delete()
+      .eq("piece_id", piece.id)
+      .eq("shipment_id", String(formData.get("shipment_id") ?? ""));
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
 
   async function linkShipment(formData: FormData) {
     "use server";
@@ -230,6 +275,57 @@ export default async function EditPiecePage({
           );
         })}
       </div>
+
+      {/* Temporary exports (carnets) — many per piece, chronological */}
+      <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
+        <h2 className="text-[13px] font-semibold text-ink-strong">Temporary exports</h2>
+        <p className="mt-0.5 text-[12px] text-ink-muted">
+          Exhibition / fair loans abroad. A work can be on several over time.
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {tempExports.map((t) => (
+            <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
+              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-oranje">
+                Out {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
+                {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
+              </Link>
+              <div className="flex items-center gap-2">
+                {t.returned_at ? (
+                  <span className="text-[11.5px] text-status-green">Returned {new Date(t.returned_at).toLocaleDateString("en-GB")}</span>
+                ) : t.closed_reason ? (
+                  <span className="text-[11.5px] text-ink-soft">Not returned · {t.closed_reason.replace(/_/g, " ")}</span>
+                ) : (
+                  <form action={returnTempExport} className="flex items-center gap-1">
+                    <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                    <input type="date" name="return_date" required className="rounded-md border border-line-control bg-control px-2 py-1 text-[11.5px]" />
+                    <button className="text-[11.5px] font-medium text-[var(--jvb-ink-desc)]">Returned</button>
+                  </form>
+                )}
+                <form action={unlinkTempExport}>
+                  <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                  <button className="text-[11.5px] text-ink-soft hover:text-ink-strong">Remove</button>
+                </form>
+              </div>
+            </div>
+          ))}
+          {tempExports.length === 0 ? <p className="text-[12.5px] text-ink-muted">Not on any temporary export.</p> : null}
+        </div>
+        <form action={linkTempExport} className="mt-3 flex items-center gap-2">
+          <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
+            <option value="" disabled>Link to a temporary export…</option>
+            {shipmentOptions.filter((s) => s.kind === "temporary_export").map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
+                {s.reference ? ` · ${s.reference}` : ""}
+              </option>
+            ))}
+          </select>
+          <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
+        </form>
+        <Link href="/shipments?kind=temporary_export" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+          Manage temporary exports →
+        </Link>
+      </section>
 
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />

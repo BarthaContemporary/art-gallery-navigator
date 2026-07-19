@@ -6,11 +6,17 @@ export const metadata = { title: "Shipments" };
 
 type Row = {
   id: string;
-  kind: "import" | "export";
+  kind: "import" | "export" | "temporary_export";
   shipment_date: string | null;
   reference: string | null;
   piece_shipments: { count: number }[];
   shipment_documents: { count: number }[];
+};
+
+const KIND_LABEL: Record<string, string> = {
+  import: "Import",
+  export: "Export",
+  temporary_export: "Temporary export",
 };
 
 export default async function ShipmentsPage({
@@ -38,10 +44,11 @@ export default async function ShipmentsPage({
     const {
       data: { user },
     } = await db.auth.getUser();
-    const kind = String(formData.get("kind") ?? "import");
+    const raw = String(formData.get("kind") ?? "import");
+    const kind = raw === "export" || raw === "temporary_export" ? raw : "import";
     const { data: created } = await db
       .from("shipments")
-      .insert({ kind: kind === "export" ? "export" : "import", created_by: user?.id ?? null })
+      .insert({ kind, created_by: user?.id ?? null })
       .select("id")
       .single();
     if (created) redirect(`/shipments/${created.id}`);
@@ -65,6 +72,12 @@ export default async function ShipmentsPage({
               New export
             </button>
           </form>
+          <form action={createShipment}>
+            <input type="hidden" name="kind" value="temporary_export" />
+            <button className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-semibold text-ink-mid">
+              New temporary export
+            </button>
+          </form>
         </div>
       </div>
       <p className="mt-1 text-[13px] text-ink-muted">
@@ -77,6 +90,7 @@ export default async function ShipmentsPage({
           ["", "All"],
           ["import", "Imports"],
           ["export", "Exports"],
+          ["temporary_export", "Temporary"],
         ].map(([v, l]) => (
           <Link
             key={l}
@@ -107,8 +121,8 @@ export default async function ShipmentsPage({
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-control">
                 <td className="px-4 py-2.5">
-                  <Link href={`/shipments/${r.id}`} className="font-medium capitalize text-ink-body">
-                    {r.kind}
+                  <Link href={`/shipments/${r.id}`} className="font-medium text-ink-body">
+                    {KIND_LABEL[r.kind] ?? r.kind}
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">

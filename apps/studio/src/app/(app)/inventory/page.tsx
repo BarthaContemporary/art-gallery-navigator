@@ -21,6 +21,7 @@ type Search = {
   category?: string;
   location?: string;
   list?: string;
+  loan?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -156,6 +157,7 @@ export default async function InventoryPage({
     if (sp.status) query = query.eq("status", sp.status);
     if (sp.category) query = query.eq("category_id", sp.category);
     if (sp.location) query = query.eq("location_id", sp.location);
+    if (sp.loan) query = query.eq("on_temp_export", true);
     if (listMemberIds) {
       const ids = [...listMemberIds];
       // An empty list must return nothing (a sentinel keeps .in() valid).
@@ -215,6 +217,14 @@ export default async function InventoryPage({
     <div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
+          <Link
+            href={sp.loan ? "/inventory" : "/inventory?loan=1"}
+            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
+              sp.loan ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
+            }`}
+          >
+            On temporary export
+          </Link>
           <Link
             href="/inventory/lists"
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
