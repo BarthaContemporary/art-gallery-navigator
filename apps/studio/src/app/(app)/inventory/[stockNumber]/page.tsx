@@ -126,10 +126,9 @@ export default async function PieceDetail({
       .order("moved_at", { ascending: false })
       .limit(5),
     supabase
-      .from("piece_documents")
-      .select("id, doc_type, title, created_at")
-      .eq("piece_id", piece.id)
-      .order("created_at", { ascending: false }),
+      .from("document_pieces")
+      .select("doc:piece_documents ( id, doc_type, title, created_at )")
+      .eq("piece_id", piece.id),
     supabase
       .from("enquiries")
       .select("id, created_at", { count: "exact" })
@@ -691,7 +690,9 @@ export default async function PieceDetail({
                 Documents
               </h2>
               <ul className="mt-2 space-y-1.5">
-                {(documentsRes.data ?? []).map((d) => (
+                {(((documentsRes.data ?? []) as unknown as { doc: { id: string; doc_type: string; title: string | null } | null }[])
+                  .map((r) => r.doc)
+                  .filter((d): d is NonNullable<typeof d> => Boolean(d))).map((d) => (
                   <li key={d.id} className="flex items-baseline gap-2 text-[13px] text-ink-body">
                     <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
                       {d.doc_type === "import_document" ? "Import Documents" : d.doc_type.replace(/_/g, " ")}

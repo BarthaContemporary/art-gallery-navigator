@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
@@ -47,15 +48,62 @@ export default async function EditPiecePage({
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("piece_documents")
-        .select("id, doc_type, title, storage_path, created_at")
-        .eq("piece_id", piece.id)
-        .order("created_at", { ascending: false }),
+        .from("document_pieces")
+        .select("doc:piece_documents ( id, doc_type, title, storage_path, created_at )")
+        .eq("piece_id", piece.id),
       supabase
         .from("piece_images")
         .select("id", { count: "exact", head: true })
         .eq("piece_id", piece.id),
     ]);
+
+  // Documents linked to this piece (via the shared document_pieces link table).
+  const pieceDocs = ((documents.data ?? []) as unknown as {
+    doc: { id: string; doc_type: string; title: string; storage_path: string; created_at: string } | null;
+  }[])
+    .map((r) => r.doc)
+    .filter((d): d is NonNullable<typeof d> => Boolean(d))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  // Import / export shipments: this piece's current links + options to link to.
+  const [{ data: shipLinks }, { data: allShipments }] = await Promise.all([
+    supabase
+      .from("piece_shipments")
+      .select("kind, shipment:shipments ( id, kind, shipment_date, reference )")
+      .eq("piece_id", piece.id),
+    supabase
+      .from("shipments")
+      .select("id, kind, shipment_date, reference")
+      .order("shipment_date", { ascending: false, nullsFirst: false }),
+  ]);
+  const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null }>();
+  for (const l of (shipLinks ?? []) as unknown as {
+    kind: string;
+    shipment: { id: string; shipment_date: string | null; reference: string | null } | null;
+  }[]) {
+    if (l.shipment) shipmentByKind.set(l.kind, l.shipment);
+  }
+  const shipmentOptions = (allShipments ?? []) as { id: string; kind: string; shipment_date: string | null; reference: string | null }[];
+
+  async function linkShipment(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const shipmentId = String(formData.get("shipment_id") ?? "");
+    const kind = String(formData.get("kind") ?? "");
+    if (!shipmentId || (kind !== "import" && kind !== "export")) return;
+    await db
+      .from("piece_shipments")
+      .upsert({ piece_id: piece.id, shipment_id: shipmentId, kind }, { onConflict: "piece_id,kind" });
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
+
+  async function unlinkShipment(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const kind = String(formData.get("kind") ?? "");
+    await db.from("piece_shipments").delete().eq("piece_id", piece.id).eq("kind", kind);
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
 
   let buyerName: string | null = null;
   const buyerContactId = financials.data?.buyer_contact_id as string | null | undefined;
@@ -140,8 +188,51 @@ export default async function EditPiecePage({
         </div>
       </AutosaveForm>
 
+      {/* Import / export shipments */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {(["import", "export"] as const).map((kind) => {
+          const current = shipmentByKind.get(kind);
+          const opts = shipmentOptions.filter((s) => s.kind === kind);
+          return (
+            <section key={kind} className="rounded-[11px] border border-line bg-cell p-5">
+              <h2 className="text-[13px] font-semibold capitalize text-ink-strong">{kind} shipment</h2>
+              {current ? (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <Link href={`/shipments/${current.id}`} className="text-[13px] text-ink-body hover:text-oranje">
+                    {current.shipment_date ? new Date(current.shipment_date).toLocaleDateString("en-GB") : "No date"}
+                    {current.reference ? ` · ${current.reference}` : ""}
+                  </Link>
+                  <form action={unlinkShipment}>
+                    <input type="hidden" name="kind" value={kind} />
+                    <button className="text-[12px] text-ink-soft hover:text-ink-strong">Unlink</button>
+                  </form>
+                </div>
+              ) : (
+                <p className="mt-2 text-[12.5px] text-ink-muted">Not linked to an {kind}.</p>
+              )}
+              <form action={linkShipment} className="mt-3 flex items-center gap-2">
+                <input type="hidden" name="kind" value={kind} />
+                <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
+                  <option value="" disabled>Link to an existing {kind}…</option>
+                  {opts.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
+                      {s.reference ? ` · ${s.reference}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
+              </form>
+              <Link href="/shipments" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+                Manage shipments →
+              </Link>
+            </section>
+          );
+        })}
+      </div>
+
       <div className="mt-6">
-        <DocumentsPanel pieceId={piece.id} initial={documents.data ?? []} />
+        <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-line-soft bg-band px-4 py-3">

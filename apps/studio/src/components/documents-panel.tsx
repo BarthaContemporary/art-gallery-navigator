@@ -85,6 +85,11 @@ export function DocumentsPanel({
       };
       const { error: insErr } = await supabase.from("piece_documents").insert(row);
       if (insErr) return fail(insErr.message, remaining);
+      // Register the shared link so the doc appears in the Documents registry
+      // and can be linked to further pieces.
+      await supabase
+        .from("document_pieces")
+        .upsert({ document_id: id, piece_id: pieceId }, { onConflict: "document_id,piece_id", ignoreDuplicates: true });
       setDocs((d) => [{ ...row, created_at: new Date().toISOString() }, ...d]);
       remaining.shift();
     }

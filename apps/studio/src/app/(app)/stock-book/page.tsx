@@ -97,8 +97,10 @@ export default async function StockBookPage({
                 <th className="px-3 py-2.5 font-medium">Description</th>
                 <th className="px-3 py-2.5 font-medium">Purchased</th>
                 <th className="px-3 py-2.5 text-right font-medium">Purchase £</th>
+                <th className="px-3 py-2.5 font-medium">Import</th>
                 <th className="px-3 py-2.5 font-medium">Sold</th>
                 <th className="px-3 py-2.5 text-right font-medium">Sale £</th>
+                <th className="px-3 py-2.5 font-medium">Export</th>
                 <th className="px-3 py-2.5 text-right font-medium">Margin £</th>
                 {scheme === "margin" ? <th className="px-3 py-2.5 text-right font-medium">VAT due £</th> : null}
               </tr>
@@ -110,8 +112,16 @@ export default async function StockBookPage({
                   <td className="max-w-[260px] truncate px-3 py-2 text-[13px] text-ink-body">{r.description ?? "—"}</td>
                   <td className="px-3 py-2 font-mono text-[12px] text-ink-muted">{r.purchase_date ?? "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.purchase_cost_gbp)}</td>
+                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
+                    {r.import_date ? new Date(r.import_date).toLocaleDateString("en-GB") : "—"}
+                    {r.import_reference ? <span className="block text-ink-soft">{r.import_reference}</span> : null}
+                  </td>
                   <td className="px-3 py-2 font-mono text-[12px] text-ink-muted">{r.sold_date ?? "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.sold_price_gbp)}</td>
+                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
+                    {r.export_date ? new Date(r.export_date).toLocaleDateString("en-GB") : "—"}
+                    {r.export_reference ? <span className="block text-ink-soft">{r.export_reference}</span> : null}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.margin_gbp)}</td>
                   {scheme === "margin" ? (
                     <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-strong">{gbp(r.vat_due_gbp)}</td>
@@ -126,7 +136,9 @@ export default async function StockBookPage({
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.purchase)}</td>
                 <td />
+                <td />
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.sold)}</td>
+                <td />
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.margin)}</td>
                 {scheme === "margin" ? <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.vat)}</td> : null}
               </tr>
