@@ -15,6 +15,58 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  apps/capture:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.70.0
+        version: 0.70.1(zod@3.25.76)
+      '@jvb/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@jvb/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: ^0.6.1
+        version: 0.6.1(@supabase/supabase-js@2.110.2)
+      '@supabase/supabase-js':
+        specifier: ^2.49.4
+        version: 2.110.2
+      next:
+        specifier: ^15.3.0
+        version: 15.5.20(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.0
+        version: 4.3.2
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.2.3(@types/react@19.2.17)
+      postcss:
+        specifier: ^8.5.0
+        version: 8.5.18
+      tailwindcss:
+        specifier: ^4.1.0
+        version: 4.3.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   apps/studio:
     dependencies:
       '@anthropic-ai/sdk':

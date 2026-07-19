@@ -22,6 +22,7 @@ type Search = {
   location?: string;
   list?: string;
   loan?: string;
+  needs?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -101,6 +102,7 @@ export default async function InventoryPage({
     location_code: string | null;
     status: string;
     primary_image_id: string | null;
+    needs_completion: boolean | null;
   };
 
   let rows: ListRow[] = [];
@@ -158,6 +160,7 @@ export default async function InventoryPage({
     if (sp.category) query = query.eq("category_id", sp.category);
     if (sp.location) query = query.eq("location_id", sp.location);
     if (sp.loan) query = query.eq("on_temp_export", true);
+    if (sp.needs) query = query.eq("needs_completion", true);
     if (listMemberIds) {
       const ids = [...listMemberIds];
       // An empty list must return nothing (a sentinel keeps .in() valid).
@@ -224,6 +227,14 @@ export default async function InventoryPage({
             }`}
           >
             On temporary export
+          </Link>
+          <Link
+            href={sp.needs ? "/inventory" : "/inventory?needs=1"}
+            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
+              sp.needs ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
+            }`}
+          >
+            Needs completion
           </Link>
           <Link
             href="/inventory/lists"
@@ -414,6 +425,7 @@ export default async function InventoryPage({
                   ? locNameById.get(r.location_id) ?? r.location_code
                   : r.location_code,
                 status: r.status,
+                needs_completion: Boolean(r.needs_completion),
               }),
             )}
             thumbs={Object.fromEntries(thumbByPiece)}

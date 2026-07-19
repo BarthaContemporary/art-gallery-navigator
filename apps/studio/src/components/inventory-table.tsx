@@ -10,6 +10,7 @@ export type InventoryRow = {
   stock_number: string;
   legacy_stock_number: string | null;
   title: string | null;
+  needs_completion?: boolean;
   maker_name: string | null;
   maker_dates: string | null;
   category_name: string | null;
@@ -227,8 +228,16 @@ export function InventoryTable({
         );
       case "title":
         return (
-          <Link href={href(r)} className="block truncate text-[13.5px] text-ink-body">
-            {r.title ?? "Untitled"}
+          <Link href={href(r)} className="flex items-center gap-1.5 truncate text-[13.5px] text-ink-body">
+            {r.needs_completion ? (
+              <span
+                title="Captured on mobile — needs completion"
+                className="shrink-0 rounded bg-oranje px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-white"
+              >
+                Finish
+              </span>
+            ) : null}
+            <span className="truncate">{r.title ?? "Untitled"}</span>
           </Link>
         );
       case "maker_name":

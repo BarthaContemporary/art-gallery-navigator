@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "@jvb/ui/tokens.css";
+
+@theme {
+  --font-sans: var(--jvb-font-sans);
+  --font-serif: var(--jvb-font-serif);
+  --font-mono: var(--jvb-font-sans);
+
+  --color-page: var(--jvb-bg-page);
+  --color-cell: var(--jvb-bg-cell);
+  --color-band: var(--jvb-bg-band);
+  --color-placeholder: var(--jvb-bg-placeholder);
+  --color-chip: var(--jvb-bg-chip);
+  --color-control: var(--jvb-bg-control);
+  --color-control-active: var(--jvb-bg-control-active);
+  --color-primary: var(--jvb-bg-primary);
+  --color-primary-fg: var(--jvb-ink-primary-fg);
+
+  --color-line: var(--jvb-border);
+  --color-line-soft: var(--jvb-border-soft);
+  --color-line-control: var(--jvb-border-control);
+
+  --color-ink: var(--jvb-ink);
+  --color-ink-strong: var(--jvb-ink-strong);
+  --color-ink-body: var(--jvb-ink-body);
+  --color-ink-mid: var(--jvb-ink-mid);
+  --color-ink-muted: var(--jvb-ink-muted);
+  --color-ink-soft: var(--jvb-ink-soft);
+  --color-ink-faint: var(--jvb-ink-faint);
+
+  --color-status-green: var(--jvb-status-green);
+  --color-oranje: #fc6600;
+}
+
+html {
+  /* iOS: never zoom-jump on focus; respect the notch. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--jvb-bg-page);
+  color: var(--jvb-ink);
+  font-family: var(--jvb-font-sans);
+  /* Home-screen web-app feel: no rubber-band selection on chrome. */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Inputs at ≥16px so iOS Safari never auto-zooms the viewport on focus. */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"] {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Safe-area padding for the notch / home indicator. */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Big, thumb-friendly primary actions. */
+.tap {
+  min-height: 52px;
+  touch-action: manipulation;
+}
