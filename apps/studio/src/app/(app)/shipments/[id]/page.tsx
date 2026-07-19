@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { RecordFiles, type RecordFile } from "@/components/record-files";
+import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
 
 export const metadata = { title: "Shipment" };
@@ -219,19 +220,12 @@ export default async function ShipmentDetail({
         <section className="mt-6 rounded-[11px] border border-oranje/30 bg-oranje/5 p-5">
           <h2 className="text-[13px] font-semibold text-ink-strong">Record return</h2>
           <p className="mt-0.5 text-[12px] text-ink-muted">
-            Stamps the return date on all {stillOut} item{stillOut === 1 ? "" : "s"} still out.
-            Works sold/permanently exported or written off in the meantime are skipped and
-            marked accordingly.
+            Pick a date and preview which of the {stillOut} item{stillOut === 1 ? "" : "s"} still
+            out will be returned before confirming.
           </p>
-          <form action={recordReturn} className="mt-3 flex flex-wrap items-end gap-2">
-            <label className={labelCls}>
-              Return date
-              <input type="date" name="return_date" required className={field} />
-            </label>
-            <button className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
-              Return all still out
-            </button>
-          </form>
+          <div className="mt-3">
+            <RecordReturn shipmentId={id} action={recordReturn} />
+          </div>
         </section>
       ) : null}
 
