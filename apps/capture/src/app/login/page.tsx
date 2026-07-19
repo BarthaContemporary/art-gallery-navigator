@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { PasskeySignIn } from "@/components/passkey-signin";
 
 async function signIn(formData: FormData) {
   "use server";
@@ -29,6 +30,7 @@ export default async function LoginPage({
             {error}
           </p>
         ) : null}
+        <PasskeySignIn />
         <label className="mt-6 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Email
           <input

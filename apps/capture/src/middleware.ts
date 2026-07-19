@@ -29,7 +29,9 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLogin = path.startsWith("/login");
-  if (!user && !isLogin) {
+  // Passkey sign-in endpoints must be reachable before a session exists.
+  const isPublicApi = path.startsWith("/api/passkey/auth");
+  if (!user && !isLogin && !isPublicApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

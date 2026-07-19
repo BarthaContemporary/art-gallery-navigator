@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { PasskeyManager } from "@/components/passkey-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,8 @@ export default async function Home() {
           </Link>
         ))}
       </div>
+
+      <PasskeyManager />
     </div>
   );
 }
