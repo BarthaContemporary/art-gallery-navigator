@@ -12,25 +12,12 @@ type Doc = {
   created_at: string;
 };
 
-const DOC_TYPES = [
-  "import_document",
-  "purchase_invoice",
-  "sale_invoice",
-  "certificate",
-  "export_licence",
-  "condition_report",
-  "provenance_document",
-  "correspondence",
-  "shipping",
-  "insurance",
-  "other",
-];
+// Piece-specific document types only. Documents that can span several works
+// (invoices, provenance, correspondence, shipping, insurance) live in the
+// shared Documents area; import/export paperwork lives on the shipment.
+const DOC_TYPES = ["certificate", "condition_report", "export_licence", "other"];
 
-// Display labels for doc types where the raw enum → words mapping isn't ideal.
-const DOC_TYPE_LABELS: Record<string, string> = {
-  import_document: "Import Documents",
-};
-const docLabel = (t: string) => DOC_TYPE_LABELS[t] ?? t.replace(/_/g, " ");
+const docLabel = (t: string) => t.replace(/_/g, " ");
 
 /**
  * Documents attached to a piece — list + upload, self-contained so uploading
@@ -45,7 +32,7 @@ export function DocumentsPanel({
   initial: Doc[];
 }) {
   const [docs, setDocs] = useState<Doc[]>(initial);
-  const [docType, setDocType] = useState("import_document");
+  const [docType, setDocType] = useState("certificate");
   const [title, setTitle] = useState("");
   const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -121,7 +108,13 @@ export function DocumentsPanel({
 
   return (
     <section className="rounded-[11px] border border-line bg-cell p-5">
-      <h2 className="text-[13px] font-semibold text-ink-strong">Documents</h2>
+      <h2 className="text-[13px] font-semibold text-ink-strong">Piece documents</h2>
+      <p className="mt-0.5 text-[12px] text-ink-muted">
+        Certificates, condition reports and other item-specific files. Invoices, provenance,
+        shipping, insurance and correspondence live in{" "}
+        <a href="/documents" className="text-oranje hover:underline">Documents</a>; import/export
+        paperwork lives on the shipment.
+      </p>
 
       <ul className="mt-3 divide-y divide-line-soft">
         {docs.map((d) => (

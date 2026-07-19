@@ -189,7 +189,7 @@ export default async function ShipmentDetail({
 
       <form action={updateShipment} className="mt-5 grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
         <label className={labelCls}>
-          Export date
+          {shipment.kind === "import" ? "Import date" : "Export date"}
           <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
         </label>
         <label className={labelCls}>
