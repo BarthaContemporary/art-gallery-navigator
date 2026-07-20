@@ -31,7 +31,14 @@ export async function middleware(request: NextRequest) {
   const isLogin = path.startsWith("/login");
   // Passkey sign-in endpoints must be reachable before a session exists.
   const isPublicApi = path.startsWith("/api/passkey/auth");
-  if (!user && !isLogin && !isPublicApi) {
+  // Icon / manifest / static assets must serve without a session.
+  const isAsset =
+    path === "/icon.svg" ||
+    path === "/apple-icon.png" ||
+    path === "/manifest.webmanifest" ||
+    path === "/favicon.ico" ||
+    path.startsWith("/icons/");
+  if (!user && !isLogin && !isPublicApi && !isAsset) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -45,5 +52,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Exclude static assets and the icon/manifest routes — these must be
+  // fetchable without a session (e.g. iOS reads the apple-touch-icon and
+  // manifest with no cookie when adding the app to the home screen).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|icons/).*)",
+  ],
 };
