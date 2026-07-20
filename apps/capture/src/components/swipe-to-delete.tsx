@@ -25,15 +25,18 @@ export function SwipeToDelete({
   const base = useRef(0);
   const active = useRef(false);
   const blocked = useRef(false);
+  const moved = useRef(false);
 
   const OPEN = -84; // resting position that reveals the Delete button
   const CONFIRM_AT = -140; // drag past this → straight to confirm
 
   function down(e: React.PointerEvent) {
-    // Don't hijack taps/drags that begin on interactive elements.
+    // Don't hijack drags that begin on a form control (links stay swipeable —
+    // an accidental navigation after a real swipe is cancelled in onClickCapture).
     blocked.current = Boolean(
-      (e.target as HTMLElement).closest("input,textarea,select,button,a,[data-noswipe]"),
+      (e.target as HTMLElement).closest("input,textarea,select,button,[data-noswipe]"),
     );
+    moved.current = false;
     if (blocked.current) return;
     active.current = true;
     startX.current = e.clientX;
@@ -42,7 +45,9 @@ export function SwipeToDelete({
   }
   function move(e: React.PointerEvent) {
     if (!active.current || blocked.current) return;
-    let next = base.current + (e.clientX - startX.current);
+    const delta = e.clientX - startX.current;
+    if (Math.abs(delta) > 8) moved.current = true;
+    let next = base.current + delta;
     if (next > 0) next = 0;
     if (next < -200) next = -200;
     setDx(next);
@@ -91,6 +96,14 @@ export function SwipeToDelete({
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
+        onClickCapture={(e) => {
+          // A swipe shouldn't also trigger a tap (e.g. following a row's link).
+          if (moved.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            moved.current = false;
+          }
+        }}
         style={{
           transform: `translateX(${dx}px)`,
           transition: dragging ? "none" : "transform .2s ease",
