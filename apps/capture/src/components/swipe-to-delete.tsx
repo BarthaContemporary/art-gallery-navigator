@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import { IconTrash } from "@/components/icons";
 
 /**
  * Swipe a row right-to-left to reveal Delete, then confirm. Vertical scrolling
@@ -85,8 +86,9 @@ export function SwipeToDelete({
             setDx(0);
             setConfirming(true);
           }}
-          className="text-[13px] font-semibold text-white"
+          className="flex flex-col items-center gap-0.5 text-[11px] font-semibold text-white"
         >
+          <IconTrash className="h-5 w-5" />
           Delete
         </button>
       </div>

@@ -6,6 +6,7 @@ import { uploadToCaptures } from "@/lib/browser";
 import { PhotoGrid, type Photo } from "@/components/photo-grid";
 import { SourceBar } from "@/components/source-bar";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { IconCamera, IconCheck } from "@/components/icons";
 
 type Fields = {
   maker: string;
@@ -297,9 +298,9 @@ function WorkCard({
       <div className="mt-2 flex items-center gap-2">
         <button
           onClick={() => fileRef.current?.click()}
-          className="tap flex-1 rounded-xl border border-line-control bg-control text-[14px] font-medium text-ink-body active:bg-control-active"
+          className="tap flex flex-1 items-center justify-center gap-2 rounded-xl border border-line-control bg-control text-[14px] font-medium text-ink-body active:bg-control-active"
         >
-          📷 Add photos
+          <IconCamera className="h-[18px] w-[18px]" /> Add photos
         </button>
         {work.photos.length > 0 ? (
           <button
@@ -313,8 +314,9 @@ function WorkCard({
       </div>
 
       {work.detected ? (
-        <p className="mt-2 text-[12px] text-ink-soft">
-          {work.labelDetected ? "✓ Label read — check the details below." : "No label detected — enter details below."}
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-ink-soft">
+          {work.labelDetected ? <IconCheck className="h-3.5 w-3.5 shrink-0 text-status-green" /> : null}
+          {work.labelDetected ? "Label read — check the details below." : "No label detected — enter details below."}
         </p>
       ) : null}
 

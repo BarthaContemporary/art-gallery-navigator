@@ -1,5 +1,7 @@
 "use client";
 
+import { IconClose } from "@/components/icons";
+
 export type Photo = {
   id: string;
   url: string;
@@ -32,9 +34,9 @@ export function PhotoGrid({ photos, onRemove }: { photos: Photo[]; onRemove: (id
             <button
               onClick={() => onRemove(p.id)}
               aria-label="Remove photo"
-              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-[13px] leading-none text-white"
+              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"
             >
-              ×
+              <IconClose className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

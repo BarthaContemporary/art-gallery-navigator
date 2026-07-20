@@ -6,6 +6,7 @@ import { uploadToCaptures } from "@/lib/browser";
 import { squareUp, type Geo } from "@/lib/square";
 import { InventoryLinkPicker, type PieceHit } from "@/components/inventory-link-picker";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { IconCamera, IconCheck } from "@/components/icons";
 
 type CandidateWork = { id: string; label: string; sub: string };
 type RecentInvoice = { id: string; label: string; sub: string };
@@ -156,7 +157,7 @@ export function InvoiceCapture({
   if (saved) {
     return (
       <div className="pt-10 text-center">
-        <p className="text-[40px]">✓</p>
+        <IconCheck className="mx-auto h-12 w-12 text-status-green" />
         <h1 className="mt-2 text-[19px] font-bold text-ink-strong">Invoice saved</h1>
         <p className="mt-1 text-[13px] text-ink-muted">
           Linked to {selectedWorks.length} captured work(s) and {selectedPieces.length} inventory item(s).
@@ -211,8 +212,8 @@ export function InvoiceCapture({
           }}
         />
         <div className="mt-3 flex gap-2">
-          <button onClick={() => fileRef.current?.click()} className="tap flex-1 rounded-xl border border-line-control bg-control font-medium text-ink-body active:bg-control-active">
-            📷 Add page
+          <button onClick={() => fileRef.current?.click()} className="tap flex flex-1 items-center justify-center gap-2 rounded-xl border border-line-control bg-control font-medium text-ink-body active:bg-control-active">
+            <IconCamera className="h-[18px] w-[18px]" /> Add page
           </button>
           <button
             onClick={process}
@@ -259,8 +260,8 @@ export function InvoiceCapture({
                       on ? "border-oranje bg-oranje/5" : "border-line-control bg-control"
                     }`}
                   >
-                    <span className={`flex h-5 w-5 items-center justify-center rounded-md border text-[12px] ${on ? "border-oranje bg-oranje text-white" : "border-line-control"}`}>
-                      {on ? "✓" : ""}
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-md border ${on ? "border-oranje bg-oranje text-white" : "border-line-control"}`}>
+                      {on ? <IconCheck className="h-3.5 w-3.5" /> : null}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[13.5px] text-ink-body">{w.label}</span>

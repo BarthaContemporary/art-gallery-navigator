@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { IconChevron } from "@/components/icons";
 
 export type BatchRow = { id: string; name: string; date: string; count: number };
 
 /** Draft purchase batches — tap to review, swipe left to delete the whole batch. */
 export function ReviewList({ batches }: { batches: BatchRow[] }) {
   const [rows, setRows] = useState<BatchRow[]>(batches);
+  const router = useRouter();
 
   async function remove(id: string) {
     setRows((r) => r.filter((b) => b.id !== id));
     await fetch(`/api/capture/batch/${id}`, { method: "DELETE" });
+    router.refresh();
   }
 
   if (rows.length === 0) {
@@ -43,7 +47,7 @@ export function ReviewList({ batches }: { batches: BatchRow[] }) {
                   {b.date} · {b.count} work(s)
                 </span>
               </span>
-              <span className="shrink-0 text-ink-soft">›</span>
+              <IconChevron className="h-4 w-4 shrink-0 text-ink-soft" />
             </Link>
           </SwipeToDelete>
         ))}

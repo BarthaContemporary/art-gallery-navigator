@@ -67,7 +67,21 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   const supabase = await getSupabase();
+  // Note the batch so we can clean it up if this was its last work.
+  const { data: work } = await supabase.from("capture_works").select("batch_id").eq("id", id).maybeSingle();
+
   const { error } = await supabase.from("capture_works").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Don't leave empty draft batches lingering (they inflate the menu counter).
+  if (work?.batch_id) {
+    const { count } = await supabase
+      .from("capture_works")
+      .select("id", { count: "exact", head: true })
+      .eq("batch_id", work.batch_id);
+    if ((count ?? 0) === 0) {
+      await supabase.from("capture_batches").delete().eq("id", work.batch_id).eq("status", "draft");
+    }
+  }
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { IconKey } from "@/components/icons";
 
 /** "Sign in with passkey" — usernameless WebAuthn assertion, then redirect in. */
 export function PasskeySignIn() {
@@ -51,7 +52,8 @@ export function PasskeySignIn() {
         disabled={busy}
         className="tap flex w-full items-center justify-center gap-2 rounded-xl border border-line-control bg-cell font-semibold text-ink-body disabled:opacity-60"
       >
-        {busy ? "Waiting for passkey…" : "🔑 Sign in with passkey"}
+        <IconKey className="h-[18px] w-[18px]" />
+        {busy ? "Waiting for passkey…" : "Sign in with passkey"}
       </button>
       {err ? <p className="mt-2 text-center text-[12px] text-oranje">{err}</p> : null}
       <div className="my-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.06em] text-ink-faint">

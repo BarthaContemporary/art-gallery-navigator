@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { IconReceipt, IconCheck } from "@/components/icons";
 
 type Fields = {
   maker: string;
@@ -71,7 +72,7 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
   if (done) {
     return (
       <div className="pt-8 text-center">
-        <p className="text-[40px]">✓</p>
+        <IconCheck className="mx-auto h-12 w-12 text-status-green" />
         <h2 className="mt-2 text-[18px] font-bold text-ink-strong">
           {done.stockNumbers.length} added to inventory
         </h2>
@@ -110,8 +111,9 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
           <section className="rounded-2xl border border-line bg-cell p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Work {i + 1}</h2>
-              <span className={`text-[11px] ${w.hasInvoice ? "text-status-green" : "text-ink-soft"}`}>
-                {w.hasInvoice ? "🧾 invoice linked" : "no invoice"}
+              <span className={`flex items-center gap-1 text-[11px] ${w.hasInvoice ? "text-status-green" : "text-ink-soft"}`}>
+                {w.hasInvoice ? <IconReceipt className="h-3.5 w-3.5" /> : null}
+                {w.hasInvoice ? "invoice linked" : "no invoice"}
               </span>
             </div>
 
@@ -151,9 +153,9 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
       {!works.some((w) => w.hasInvoice) ? (
         <Link
           href={`/invoices/new?batch=${batchId}`}
-          className="tap mt-4 flex w-full items-center justify-center rounded-xl border border-dashed border-line-control bg-cell font-medium text-ink-body"
+          className="tap mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line-control bg-cell font-medium text-ink-body"
         >
-          🧾 Add an invoice to this purchase
+          <IconReceipt className="h-[18px] w-[18px]" /> Add an invoice to this purchase
         </Link>
       ) : null}
 

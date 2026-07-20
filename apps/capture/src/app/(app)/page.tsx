@@ -1,43 +1,53 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { PasskeyManager } from "@/components/passkey-manager";
+import { IconArtwork, IconReceipt, IconPush, IconUser, type IconProps } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-const OPTIONS = [
+const OPTIONS: {
+  href: string;
+  title: string;
+  hint: string;
+  Icon: (p: IconProps) => React.ReactNode;
+}[] = [
   {
     href: "/works/new",
     title: "New work(s)",
     hint: "Photograph works with the camera — labels are read automatically.",
-    emoji: "🖼",
+    Icon: IconArtwork,
   },
   {
     href: "/invoices/new",
     title: "New invoice",
     hint: "Photograph an invoice (any number of pages) and link it to works.",
-    emoji: "🧾",
+    Icon: IconReceipt,
   },
   {
     href: "/review",
     title: "Edit & push to inventory",
     hint: "Review captured purchases, then add them to the inventory.",
-    emoji: "📤",
+    Icon: IconPush,
   },
   {
     href: "/contacts/new",
     title: "New contact",
     hint: "Scan a business card or type — added to contacts straight away.",
-    emoji: "👤",
+    Icon: IconUser,
   },
-] as const;
+];
 
 export default async function Home() {
   const supabase = await getSupabase();
-  // Small "what's waiting" hint for the review tile.
-  const { count: draftBatches } = await supabase
+  // "What's waiting" hint for the review tile — count only draft purchases that
+  // actually have works, matching what the review list shows.
+  const { data: draftRows } = await supabase
     .from("capture_batches")
-    .select("id", { count: "exact", head: true })
+    .select("id, capture_works(count)")
     .eq("status", "draft");
+  const draftBatches = (draftRows ?? []).filter(
+    (b) => ((b.capture_works as { count: number }[] | null)?.[0]?.count ?? 0) > 0,
+  ).length;
 
   return (
     <div className="pt-2">
@@ -54,9 +64,7 @@ export default async function Home() {
             href={o.href}
             className="tap flex items-center gap-4 rounded-2xl border border-line bg-cell px-5 py-4 active:bg-control/50"
           >
-            <span aria-hidden className="text-[26px] leading-none">
-              {o.emoji}
-            </span>
+            <o.Icon className="h-7 w-7 shrink-0 text-ink-strong" />
             <span className="min-w-0">
               <span className="flex items-center gap-2 text-[16px] font-semibold text-ink-strong">
                 {o.title}

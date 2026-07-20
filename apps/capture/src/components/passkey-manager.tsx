@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
+import { IconKey, IconChevron } from "@/components/icons";
 
 type Passkey = { id: string; device_label: string | null; created_at: string; last_used_at: string | null };
 
@@ -85,8 +86,10 @@ export function PasskeyManager() {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-5 py-4 text-left"
       >
-        <span className="flex items-center gap-2 text-[14px] font-semibold text-ink-strong">🔑 Passkeys</span>
-        <span className={`text-ink-soft transition-transform ${open ? "rotate-90" : ""}`}>›</span>
+        <span className="flex items-center gap-2 text-[14px] font-semibold text-ink-strong">
+          <IconKey className="h-[18px] w-[18px]" /> Passkeys
+        </span>
+        <IconChevron className={`h-4 w-4 text-ink-soft transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
       {open ? (
         <div className="border-t border-line-soft px-5 py-4">

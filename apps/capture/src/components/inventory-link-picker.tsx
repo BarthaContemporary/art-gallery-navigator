@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { IconClose } from "@/components/icons";
 
 export type PieceHit = { id: string; stock_number: string; title: string | null; maker: string | null };
 
@@ -53,7 +54,8 @@ export function InventoryLinkPicker({
               onClick={() => toggle(s)}
               className="flex items-center gap-1.5 rounded-full border border-oranje bg-oranje/10 px-2.5 py-1 text-[12px] text-oranje"
             >
-              <span className="font-mono">{s.stock_number}</span> ×
+              <span className="font-mono">{s.stock_number}</span>
+              <IconClose className="h-3 w-3" />
             </button>
           ))}
         </div>

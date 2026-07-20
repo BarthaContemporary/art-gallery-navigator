@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { ReviewList } from "@/components/review-list";
+import { IconCheck } from "@/components/icons";
 
 export const metadata = { title: "Edit & push" };
 export const dynamic = "force-dynamic";
@@ -55,7 +56,9 @@ export default async function ReviewPage() {
             {pushed.slice(0, 8).map((b) => (
               <div key={b.id} className="flex items-center justify-between px-1 py-1.5 text-[13px] text-ink-muted">
                 <span className="truncate">{b.source_name || "Unknown source"}</span>
-                <span className="text-[11.5px] text-status-green">✓ in inventory</span>
+                <span className="flex items-center gap-1 text-[11.5px] text-status-green">
+                  <IconCheck className="h-3.5 w-3.5" /> in inventory
+                </span>
               </div>
             ))}
           </div>

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { uploadToCaptures } from "@/lib/browser";
 import { AddressLookup } from "@/components/address-lookup";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { IconIdCard, IconCheck } from "@/components/icons";
 
 type RecentContact = { id: string; name: string; sub: string };
 
@@ -134,7 +135,7 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
   if (savedName) {
     return (
       <div className="pt-10 text-center">
-        <p className="text-[40px]">✓</p>
+        <IconCheck className="mx-auto h-12 w-12 text-status-green" />
         <h1 className="mt-2 text-[19px] font-bold text-ink-strong">{savedName} added to contacts</h1>
         <div className="mt-6 flex flex-col gap-2">
           <button
@@ -180,7 +181,8 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
         disabled={scanning}
         className="tap mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-line bg-cell font-semibold text-ink-body disabled:opacity-60"
       >
-        {scanning ? "Reading card…" : "📇 Scan business card"}
+        <IconIdCard className="h-5 w-5" />
+        {scanning ? "Reading card…" : "Scan business card"}
       </button>
 
       {cardUrl ? (
@@ -222,7 +224,11 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
         <div className="rounded-xl border border-line-soft bg-cell p-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-medium text-ink-body">Address</span>
-            {verified ? <span className="text-[11px] font-medium text-status-green">✓ Verified by Google</span> : null}
+            {verified ? (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-status-green">
+                <IconCheck className="h-3.5 w-3.5" /> Verified by Google
+              </span>
+            ) : null}
           </div>
           <div className="mt-2 space-y-3">
             <AddressLookup
