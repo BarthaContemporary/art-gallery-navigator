@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { uploadToCaptures } from "@/lib/browser";
 import { PhotoGrid, type Photo } from "@/components/photo-grid";
 import { SourceBar } from "@/components/source-bar";
+import { SwipeToDelete } from "@/components/swipe-to-delete";
 
 type Fields = {
   maker: string;
@@ -210,18 +211,19 @@ export function WorksCapture() {
 
       <div className="mt-4 space-y-5">
         {works.map((w, i) => (
-          <WorkCard
-            key={w.id}
-            index={i}
-            work={w}
-            onPickPhotos={(files) => onPickPhotos(w.id, files)}
-            onRemovePhoto={(pid) => removePhoto(w.id, pid)}
-            onField={(up) => patchWork(w.id, { fields: { ...(get(w.id)?.fields ?? w.fields), ...up } })}
-            onBlur={() => saveFields(w.id)}
-            onDetect={() => detectLabel(w.id)}
-            onToggleMore={() => patchWork(w.id, { more: !get(w.id)?.more })}
-            onRemove={() => removeWork(w.id)}
-          />
+          <SwipeToDelete key={w.id} confirmText="Delete this work and its photos?" onDelete={() => removeWork(w.id)}>
+            <WorkCard
+              index={i}
+              work={w}
+              onPickPhotos={(files) => onPickPhotos(w.id, files)}
+              onRemovePhoto={(pid) => removePhoto(w.id, pid)}
+              onField={(up) => patchWork(w.id, { fields: { ...(get(w.id)?.fields ?? w.fields), ...up } })}
+              onBlur={() => saveFields(w.id)}
+              onDetect={() => detectLabel(w.id)}
+              onToggleMore={() => patchWork(w.id, { more: !get(w.id)?.more })}
+              onRemove={() => removeWork(w.id)}
+            />
+          </SwipeToDelete>
         ))}
       </div>
 

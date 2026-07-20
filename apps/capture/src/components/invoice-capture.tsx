@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { uploadToCaptures } from "@/lib/browser";
 import { squareUp, type Geo } from "@/lib/square";
 import { InventoryLinkPicker, type PieceHit } from "@/components/inventory-link-picker";
+import { SwipeToDelete } from "@/components/swipe-to-delete";
 
 type CandidateWork = { id: string; label: string; sub: string };
+type RecentInvoice = { id: string; label: string; sub: string };
 type Page = { id: string; url: string; pageNo: number; uploading?: boolean; squared?: boolean };
 type Header = { vendor: string; reference: string; invoice_date: string; total: string; currency: string; notes: string };
 
@@ -15,10 +17,17 @@ const EMPTY: Header = { vendor: "", reference: "", invoice_date: "", total: "", 
 export function InvoiceCapture({
   batchId,
   candidateWorks,
+  recentInvoices = [],
 }: {
   batchId: string | null;
   candidateWorks: CandidateWork[];
+  recentInvoices?: RecentInvoice[];
 }) {
+  const [recent, setRecent] = useState<RecentInvoice[]>(recentInvoices);
+  async function deleteRecent(id: string) {
+    setRecent((r) => r.filter((x) => x.id !== id));
+    await fetch(`/api/capture/invoice/${id}`, { method: "DELETE" });
+  }
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   const [header, setHeader] = useState<Header>(EMPTY);
@@ -271,6 +280,23 @@ export function InvoiceCapture({
           <InventoryLinkPicker selected={selectedPieces} onChange={setSelectedPieces} />
         </div>
       </section>
+
+      {recent.length ? (
+        <section className="mt-4">
+          <h2 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Recent invoices</h2>
+          <p className="mt-1 text-[11.5px] text-ink-soft">Swipe a row left to delete.</p>
+          <div className="mt-2 space-y-2">
+            {recent.map((iv) => (
+              <SwipeToDelete key={iv.id} confirmText="Delete this invoice and its pages?" onDelete={() => deleteRecent(iv.id)}>
+                <div className="rounded-2xl border border-line bg-cell px-4 py-3">
+                  <span className="block truncate text-[14px] text-ink-body">{iv.label}</span>
+                  {iv.sub ? <span className="block text-[12px] text-ink-soft">{iv.sub}</span> : null}
+                </div>
+              </SwipeToDelete>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="safe-bottom sticky bottom-0 mt-6 flex gap-2 border-t border-line-soft bg-page/90 py-3 backdrop-blur">
         <button onClick={save} disabled={!invoiceId} className="tap flex-1 rounded-xl bg-primary font-semibold text-primary-fg disabled:opacity-50">

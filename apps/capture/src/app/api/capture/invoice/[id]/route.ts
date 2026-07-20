@@ -32,6 +32,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json({ ok: true });
 }
 
+/** Delete an invoice, its pages, links, and stored page images. */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireCapture();
+  if ("error" in gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const { id } = await params;
+
+  const supabase = await getSupabase();
+  const { data: pages } = await supabase
+    .from("capture_invoice_pages")
+    .select("storage_path, squared_path")
+    .eq("invoice_id", id);
+  const paths = (pages ?? [])
+    .flatMap((p) => [p.storage_path, p.squared_path])
+    .filter((v): v is string => Boolean(v));
+  if (paths.length) await supabase.storage.from("captures").remove(paths);
+
+  // Rows (pages + links) cascade from the invoice FK.
+  const { error } = await supabase.from("capture_invoices").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 function str(v: unknown): string | null {
   const s = String(v ?? "").trim();
   return s || null;

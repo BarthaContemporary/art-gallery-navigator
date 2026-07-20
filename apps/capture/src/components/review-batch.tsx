@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SwipeToDelete } from "@/components/swipe-to-delete";
 
 type Fields = {
   maker: string;
@@ -30,6 +31,10 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
 
   function setField(workId: string, k: keyof Fields, v: string) {
     setWorks((ws) => ws.map((w) => (w.id === workId ? { ...w, fields: { ...w.fields, [k]: v } } : w)));
+  }
+  async function removeWork(workId: string) {
+    setWorks((ws) => ws.filter((w) => w.id !== workId));
+    await fetch(`/api/capture/work?id=${workId}`, { method: "DELETE" });
   }
   async function saveWork(workId: string) {
     const w = works.find((x) => x.id === workId);
@@ -101,7 +106,8 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
     <div className="mt-4">
       <div className="space-y-5">
         {works.map((w, i) => (
-          <section key={w.id} className="rounded-2xl border border-line bg-cell p-4">
+          <SwipeToDelete key={w.id} confirmText="Delete this work and its photos?" onDelete={() => removeWork(w.id)}>
+          <section className="rounded-2xl border border-line bg-cell p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Work {i + 1}</h2>
               <span className={`text-[11px] ${w.hasInvoice ? "text-status-green" : "text-ink-soft"}`}>
@@ -138,6 +144,7 @@ export function ReviewBatch({ batchId, initialWorks }: { batchId: string; initia
               <F label="Notes" v={w.fields.notes} on={(v) => setField(w.id, "notes", v)} blur={() => saveWork(w.id)} textarea />
             </div>
           </section>
+          </SwipeToDelete>
         ))}
       </div>
 

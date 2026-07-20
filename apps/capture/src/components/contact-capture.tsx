@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { uploadToCaptures } from "@/lib/browser";
+import { AddressLookup } from "@/components/address-lookup";
+import { SwipeToDelete } from "@/components/swipe-to-delete";
+
+type RecentContact = { id: string; name: string; sub: string };
 
 type Fields = {
   first_name: string;
@@ -46,17 +50,29 @@ const TYPES = [
   ["press", "Press"],
 ] as const;
 
-export function ContactCapture() {
+export function ContactCapture({ recentContacts = [] }: { recentContacts?: RecentContact[] }) {
   const [f, setF] = useState<Fields>(EMPTY);
   const [scanning, setScanning] = useState(false);
   const [cardUrl, setCardUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [verified, setVerified] = useState(false);
+  const [recent, setRecent] = useState<RecentContact[]>(recentContacts);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function deleteRecent(id: string) {
+    setRecent((r) => r.filter((c) => c.id !== id));
+    await fetch(`/api/capture/contact/${id}`, { method: "DELETE" });
+  }
 
   function set<K extends keyof Fields>(k: K, v: Fields[K]) {
     setF((s) => ({ ...s, [k]: v }));
+  }
+  // Editing an address field by hand clears the "verified" flag.
+  function setAddr<K extends keyof Fields>(k: K, v: Fields[K]) {
+    set(k, v);
+    setVerified(false);
   }
 
   async function onScan(list: FileList | null) {
@@ -104,8 +120,12 @@ export function ContactCapture() {
         setError(e ?? "Could not save contact");
         return;
       }
-      const { contact } = (await res.json()) as { contact?: { first_name: string | null; last_name: string | null } };
-      setSavedName([contact?.first_name, contact?.last_name].filter(Boolean).join(" ") || "Contact");
+      const { contact } = (await res.json()) as {
+        contact?: { id: string; first_name: string | null; last_name: string | null };
+      };
+      const name = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") || f.organization || "Contact";
+      if (contact?.id) setRecent((r) => [{ id: contact.id, name, sub: f.organization }, ...r]);
+      setSavedName(name);
     } finally {
       setSaving(false);
     }
@@ -198,20 +218,56 @@ export function ContactCapture() {
           </div>
         </div>
 
-        <details className="rounded-xl border border-line-soft bg-cell px-3 py-2">
-          <summary className="cursor-pointer text-[13px] font-medium text-ink-body">Address & more</summary>
-          <div className="mt-3 space-y-3">
-            <F label="Address line 1" v={f.address_line1} on={(v) => set("address_line1", v)} />
-            <F label="Address line 2" v={f.address_line2} on={(v) => set("address_line2", v)} />
-            <div className="grid grid-cols-2 gap-3">
-              <F label="City" v={f.city} on={(v) => set("city", v)} />
-              <F label="Postcode" v={f.postcode} on={(v) => set("postcode", v)} />
-            </div>
-            <F label="Country" v={f.country} on={(v) => set("country", v)} />
-            <F label="Instagram" v={f.instagram_handle} on={(v) => set("instagram_handle", v)} />
-            <F label="Notes" v={f.notes} on={(v) => set("notes", v)} textarea />
+        {/* Address — Google lookup fills + validates; fields stay editable */}
+        <div className="rounded-xl border border-line-soft bg-cell p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-ink-body">Address</span>
+            {verified ? <span className="text-[11px] font-medium text-status-green">✓ Verified by Google</span> : null}
           </div>
-        </details>
+          <div className="mt-2 space-y-3">
+            <AddressLookup
+              onPick={(p) => {
+                setF((s) => ({
+                  ...s,
+                  address_line1: p.line1 || s.address_line1,
+                  address_line2: p.line2 || s.address_line2,
+                  city: p.city || s.city,
+                  postcode: p.postcode || s.postcode,
+                  country: p.country || s.country,
+                  organization: p.company || s.organization,
+                }));
+                setVerified(true);
+              }}
+            />
+            <F label="Address line 1" v={f.address_line1} on={(v) => setAddr("address_line1", v)} />
+            <F label="Address line 2" v={f.address_line2} on={(v) => setAddr("address_line2", v)} />
+            <div className="grid grid-cols-2 gap-3">
+              <F label="City" v={f.city} on={(v) => setAddr("city", v)} />
+              <F label="Postcode" v={f.postcode} on={(v) => setAddr("postcode", v)} />
+            </div>
+            <F label="Country" v={f.country} on={(v) => setAddr("country", v)} />
+          </div>
+        </div>
+
+        <F label="Instagram" v={f.instagram_handle} on={(v) => set("instagram_handle", v)} />
+        <F label="Notes" v={f.notes} on={(v) => set("notes", v)} textarea />
+
+        {recent.length ? (
+          <div className="mt-6">
+            <h2 className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-faint">Recently added</h2>
+            <p className="mt-1 text-[11.5px] text-ink-soft">Swipe a row left to delete.</p>
+            <div className="mt-2 space-y-2">
+              {recent.map((c) => (
+                <SwipeToDelete key={c.id} confirmText={`Delete ${c.name} from contacts?`} onDelete={() => deleteRecent(c.id)}>
+                  <div className="rounded-2xl border border-line bg-cell px-4 py-3">
+                    <span className="block truncate text-[14px] text-ink-body">{c.name}</span>
+                    {c.sub ? <span className="block text-[12px] text-ink-soft">{c.sub}</span> : null}
+                  </div>
+                </SwipeToDelete>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="safe-bottom sticky bottom-0 mt-6 border-t border-line-soft bg-page/90 py-3 backdrop-blur">
