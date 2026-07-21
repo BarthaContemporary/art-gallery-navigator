@@ -155,7 +155,10 @@ export function PieceFormFields({
       {showFinancials ? (
         <section className="rounded-[11px] border border-line bg-band p-5">
           <h2 className="text-[13px] font-semibold text-ink-strong">Financials</h2>
-          <FinancialsFields defaults={finDefaults} />
+          <FinancialsFields
+            defaults={finDefaults}
+            saleHandledByJvb={(piece?.sale_handled_by_jvb as boolean | null) ?? null}
+          />
         </section>
       ) : null}
 
@@ -221,24 +224,8 @@ export function PieceFormFields({
         </div>
       </section>
 
-      {/* Consignment */}
-      <section className={panel}>
-        <h2 className="text-[13px] font-semibold text-ink-strong">Consignment</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className={label}>
-            Shares / co-ownership
-            <input name="shares_note" defaultValue={v("shares_note")} className={field} />
-          </label>
-          <label className={`${label} sm:col-span-2`}>
-            Consignment details
-            <textarea name="consignment_details" defaultValue={v("consignment_details")} rows={2} className={field} />
-          </label>
-          <label className={`${label} sm:col-span-2`}>
-            Document note
-            <textarea name="document_note" defaultValue={v("document_note")} rows={2} className={field} />
-          </label>
-        </div>
-      </section>
+      {/* Consignment now lives in its own panel on the edit page, after
+          Temporary exports (see ConsignmentPanel). */}
     </div>
   );
 }

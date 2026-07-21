@@ -33,8 +33,17 @@ const VAT_LABELS: Record<string, string> = {
   outside_scope: "outside scope",
 };
 
-export function FinancialsFields({ defaults }: { defaults: Record<string, string> }) {
+export function FinancialsFields({
+  defaults,
+  saleHandledByJvb = null,
+}: {
+  defaults: Record<string, string>;
+  // From pieces.sale_handled_by_jvb. When explicitly No, the work was sold by a
+  // third party: the sold price is NET and no VAT is due for us.
+  saleHandledByJvb?: boolean | null;
+}) {
   const d = (k: string) => defaults[k] ?? "";
+  const thirdParty = saleHandledByJvb === false;
   const numOf = (s: string) => {
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
@@ -88,13 +97,14 @@ export function FinancialsFields({ defaults }: { defaults: Record<string, string
     const total = round2(numOf(costGbp) + numOf(restorationGbp) + numOf(otherGbp));
     const sold = numOf(soldGbp);
     let vat = 0;
-    if (sold > 0) {
+    // Third-party sale (sold by someone else): no VAT for us; price is net.
+    if (sold > 0 && !thirdParty) {
       if (vatTreatment === "margin_scheme") vat = Math.max(0, sold - total) / 6;
       else if (vatTreatment === "standard") vat = sold / 6;
     }
     vat = round2(vat);
     return { totalCost: total, vatDue: vat, netAmount: round2(sold - vat) };
-  }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment]);
+  }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment, thirdParty]);
 
   const soldNum = numOf(soldGbp);
 
@@ -147,7 +157,7 @@ export function FinancialsFields({ defaults }: { defaults: Record<string, string
           <input type="date" name="sold_date" value={soldDate} onChange={(e) => setSoldDate(e.target.value)} className={field} />
         </label>
         <label className={label}>
-          Sold price
+          {thirdParty ? "Net sold price" : "Sold price"}
           <input type="number" step="0.01" name="sold_price" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className={field} />
         </label>
         <label className={label}>
@@ -157,7 +167,7 @@ export function FinancialsFields({ defaults }: { defaults: Record<string, string
           </select>
         </label>
         <label className={label}>
-          Sold £
+          {thirdParty ? "Net sold £" : "Sold £"}
           <input type="number" step="0.01" name="sold_price_gbp" value={soldGbp} readOnly className={readonly} />
           {soldNote ? <span className="mt-1 block text-[10.5px] text-ink-soft">{soldNote}</span> : null}
         </label>
@@ -186,11 +196,13 @@ export function FinancialsFields({ defaults }: { defaults: Record<string, string
             {soldNum > 0 ? gbp(vatDue) : "—"}
           </p>
           <p className="mt-0.5 text-[10.5px] text-ink-soft">
-            {vatTreatment === "margin_scheme"
-              ? "1/6 of margin (sale − total cost)"
-              : vatTreatment === "standard"
-                ? "1/6 of sale price"
-                : "no VAT on this treatment"}
+            {thirdParty
+              ? "no VAT — sold by a third party"
+              : vatTreatment === "margin_scheme"
+                ? "1/6 of margin (sale − total cost)"
+                : vatTreatment === "standard"
+                  ? "1/6 of sale price"
+                  : "no VAT on this treatment"}
           </p>
         </div>
         <div>

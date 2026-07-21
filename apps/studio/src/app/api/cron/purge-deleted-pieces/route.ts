@@ -25,5 +25,10 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.rpc("purge_deleted_pieces");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, purged: data ?? 0 });
+  // Also clear blank draft records left behind by "New record".
+  const { data: blanks } = await supabase.rpc("purge_blank_draft_pieces", {
+    grace: "2 hours",
+  });
+
+  return NextResponse.json({ ok: true, purged: data ?? 0, blankDrafts: blanks ?? 0 });
 }

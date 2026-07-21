@@ -177,11 +177,10 @@ export async function PATCH(
       source_note: str("source_note"),
       publications: jsonList("publications"),
       exhibitions: jsonList("exhibitions"),
-      shares_note: str("shares_note"),
-      consignment_details: str("consignment_details"),
+      // shares_note / consignment_details are edited via the separate
+      // Consignment panel (/consignment endpoint); document_note is retired.
       purchased_from: str("purchased_from"),
       sold_to: str("sold_to"),
-      document_note: str("document_note"),
       web_visible: fd.get("web_visible") === "on",
       updated_by: session.user.id,
     })

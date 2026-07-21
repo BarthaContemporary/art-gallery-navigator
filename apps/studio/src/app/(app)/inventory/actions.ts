@@ -62,11 +62,8 @@ const pieceSchema = z.object({
   source_note: z.string().trim().transform((v) => v || null),
   publications: jsonStringArray,
   exhibitions: jsonStringArray,
-  shares_note: z.string().trim().transform((v) => v || null),
-  consignment_details: z.string().trim().transform((v) => v || null),
   purchased_from: z.string().trim().max(300).transform((v) => v || null),
   sold_to: z.string().trim().max(300).transform((v) => v || null),
-  document_note: z.string().trim().transform((v) => v || null),
   web_visible: z.preprocess((v) => v === "on" || v === true, z.boolean()),
 });
 

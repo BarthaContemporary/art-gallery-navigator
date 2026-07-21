@@ -8,6 +8,7 @@ import { EditHeader } from "@/components/edit-header";
 import { AutosaveForm } from "@/components/autosave-form";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { ConsignmentPanel } from "@/components/consignment-panel";
 
 export const metadata = { title: "Edit record" };
 
@@ -326,6 +327,28 @@ export default async function EditPiecePage({
           Manage temporary exports →
         </Link>
       </section>
+
+      {/* Consignment — after temporary exports; own autosaving panel */}
+      <ConsignmentPanel
+        stockNumber={piece.stock_number}
+        initial={{
+          coOwner: (piece.shares_note as string | null) ?? "",
+          notes: (piece.consignment_details as string | null) ?? "",
+          sharePct:
+            piece.consignment_share_pct != null ? String(piece.consignment_share_pct) : "",
+          saleHandled:
+            piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",
+        }}
+        settlement={
+          showFinancials
+            ? {
+                soldGbp: (financials.data?.sold_price_gbp as number | null) ?? null,
+                totalCostGbp: (financials.data?.total_cost_gbp as number | null) ?? null,
+                vatTreatment: (financials.data?.vat_treatment as string | null) ?? "margin_scheme",
+              }
+            : null
+        }
+      />
 
       <div className="mt-6">
         <DocumentsPanel pieceId={piece.id} initial={pieceDocs} />
