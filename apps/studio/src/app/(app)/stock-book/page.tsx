@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
+import { StockBookTable, type StockBookRow } from "@/components/stock-book-table";
 
 export const metadata = { title: "Stock book" };
 
@@ -50,17 +51,6 @@ export default async function StockBookPage({
     { purchase: 0, sold: 0, margin: 0, vat: 0, reclaim: 0, jvbShare: 0 },
   );
 
-  const IMPORT_TYPE_LABEL: Record<string, string> = {
-    import_vat_paid: "VAT paid",
-    import_vat_deferred: "VAT deferred",
-    temporary_import: "Temp import",
-  };
-  const TREATMENT_LABEL: Record<string, string> = {
-    margin_scheme: "Margin",
-    standard: "Standard",
-    zero_rated: "Zero-rated",
-    outside_scope: "Outside scope",
-  };
   const showTreatment = scheme === "all";
 
   const qs = new URLSearchParams(
@@ -145,58 +135,7 @@ export default async function StockBookPage({
                 <th className="px-3 py-2.5 text-right font-medium">VAT due £</th>
               </tr>
             </thead>
-            <tbody>
-              {(rows ?? []).map((r) => (
-                <tr key={r.stock_number} className="border-b border-line-soft last:border-0">
-                  <td className="px-3 py-2 font-mono text-[12px] text-ink">{r.stock_number}</td>
-                  {showTreatment ? (
-                    <td className="px-3 py-2 text-[11.5px] text-ink-muted">
-                      {TREATMENT_LABEL[r.vat_treatment] ?? r.vat_treatment ?? "—"}
-                    </td>
-                  ) : null}
-                  <td className="max-w-[260px] truncate px-3 py-2 text-[13px] text-ink-body">{r.description ?? "—"}</td>
-                  <td className="px-3 py-2 font-mono text-[12px] text-ink-muted">{r.purchase_date ?? "—"}</td>
-                  <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.purchase_cost_gbp)}</td>
-                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
-                    {r.import_date ? new Date(r.import_date).toLocaleDateString("en-GB") : "—"}
-                    {r.import_reference ? <span className="block text-ink-soft">{r.import_reference}</span> : null}
-                    {r.import_type ? (
-                      <span className="block text-oranje">
-                        {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
-                        {r.import_vat_gbp != null ? ` ${gbp(r.import_vat_gbp)}` : ""}
-                        {r.reclaimable_import_vat_gbp ? " · reclaim" : ""}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-[12px] text-ink-muted">{r.sold_date ?? "—"}</td>
-                  <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.sold_price_gbp)}</td>
-                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
-                    {r.export_date ? new Date(r.export_date).toLocaleDateString("en-GB") : "—"}
-                    {r.export_reference ? <span className="block text-ink-soft">{r.export_reference}</span> : null}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
-                    {r.temp_export_date ? new Date(r.temp_export_date).toLocaleDateString("en-GB") : "—"}
-                    {r.temp_export_reference ? <span className="block text-ink-soft">{r.temp_export_reference}</span> : null}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
-                    {r.consignment_share_pct != null ? (
-                      <>
-                        <span className="block text-ink-body">
-                          {r.consignment_co_owner ?? "—"} · {r.consignment_share_pct}%
-                        </span>
-                        <span className="block text-ink-soft">
-                          {r.sale_handled_by_jvb === false ? "3rd-party" : "JvB"} · share {gbp(r.jvb_share_gbp)}
-                        </span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.margin_gbp)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-strong">{gbp(r.vat_due_gbp)}</td>
-                </tr>
-              ))}
-            </tbody>
+            <StockBookTable rows={(rows ?? []) as unknown as StockBookRow[]} showTreatment={showTreatment} />
             <tfoot>
               <tr className="border-t border-line bg-band text-[12.5px] font-semibold text-ink-strong">
                 <td className="px-3 py-2.5" colSpan={showTreatment ? 4 : 3}>

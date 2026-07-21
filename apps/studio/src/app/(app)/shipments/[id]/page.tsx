@@ -37,7 +37,7 @@ export default async function ShipmentDetail({
 
   const { data: shipment } = await supabase
     .from("shipments")
-    .select("id, kind, shipment_date, reference, notes")
+    .select("id, kind, shipment_date, reference, notes, destination_country")
     .eq("id", id)
     .maybeSingle();
   if (!shipment) notFound();
@@ -70,6 +70,7 @@ export default async function ShipmentDetail({
         shipment_date: String(formData.get("shipment_date") ?? "").trim() || null,
         reference: String(formData.get("reference") ?? "").trim() || null,
         notes: String(formData.get("notes") ?? "").trim() || null,
+        destination_country: String(formData.get("destination_country") ?? "").trim() || null,
       })
       .eq("id", id);
     revalidatePath(`/shipments/${id}`);
@@ -190,13 +191,26 @@ export default async function ShipmentDetail({
 
       <form action={updateShipment} className="mt-5 grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
         <label className={labelCls}>
-          {shipment.kind === "import" ? "Import date" : "Export date"}
+          {`${KIND_LABEL[shipment.kind] ?? "Shipment"} date`}
           <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
         </label>
         <label className={labelCls}>
           Reference number
           <input name="reference" defaultValue={shipment.reference ?? ""} className={field} />
         </label>
+        {shipment.kind === "export" || shipment.kind === "temporary_export" ? (
+          <label className={`${labelCls} sm:col-span-2`}>
+            Destination country
+            <input
+              name="destination_country"
+              defaultValue={shipment.destination_country ?? ""}
+              placeholder="e.g. United States, Japan, France"
+              className={field}
+            />
+          </label>
+        ) : (
+          <input type="hidden" name="destination_country" value={shipment.destination_country ?? ""} />
+        )}
         <label className={`${labelCls} sm:col-span-2`}>
           Notes
           <textarea name="notes" rows={2} defaultValue={shipment.notes ?? ""} className={field} />

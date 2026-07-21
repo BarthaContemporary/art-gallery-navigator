@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Joost van den Bergh — Studio",
-    short_name: "JvB Studio",
+    name: "JvdB - Studio",
+    short_name: "JvdB - Studio",
     description: "Inventory · CRM · Website back office",
     start_url: "/",
     display: "standalone",
