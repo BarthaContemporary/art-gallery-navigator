@@ -87,12 +87,17 @@ export default async function EditPiecePage({
   };
   const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null }>();
   const tempExports: ShipLink[] = [];
+  const tempImports: ShipLink[] = [];
   for (const l of (shipLinks ?? []) as unknown as ShipLink[]) {
     if (!l.shipment) continue;
     if (l.kind === "temporary_export") tempExports.push(l);
+    else if (l.kind === "temporary_import") tempImports.push(l);
     else shipmentByKind.set(l.kind, l.shipment);
   }
-  tempExports.sort((a, b) => ((a.shipment?.shipment_date ?? "") < (b.shipment?.shipment_date ?? "") ? 1 : -1));
+  const byDateDesc = (a: ShipLink, b: ShipLink) =>
+    (a.shipment?.shipment_date ?? "") < (b.shipment?.shipment_date ?? "") ? 1 : -1;
+  tempExports.sort(byDateDesc);
+  tempImports.sort(byDateDesc);
   const shipmentOptions = (allShipments ?? []) as { id: string; kind: string; shipment_date: string | null; reference: string | null }[];
 
   async function linkTempExport(formData: FormData) {
@@ -106,6 +111,31 @@ export default async function EditPiecePage({
         { piece_id: piece.id, shipment_id: shipmentId, kind: "temporary_export" },
         { onConflict: "piece_id,shipment_id", ignoreDuplicates: true },
       );
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
+
+  async function linkTempImport(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const shipmentId = String(formData.get("shipment_id") ?? "");
+    if (!shipmentId) return;
+    await db
+      .from("piece_shipments")
+      .upsert(
+        { piece_id: piece.id, shipment_id: shipmentId, kind: "temporary_import" },
+        { onConflict: "piece_id,shipment_id", ignoreDuplicates: true },
+      );
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
+  }
+
+  async function unlinkTempImport(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    await db
+      .from("piece_shipments")
+      .delete()
+      .eq("piece_id", piece.id)
+      .eq("shipment_id", String(formData.get("shipment_id") ?? ""));
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
   }
 
@@ -303,6 +333,44 @@ export default async function EditPiecePage({
           );
         })}
       </div>
+
+      {/* Temporary imports — many per piece (e.g. a UK exhibition/fair) */}
+      <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
+        <h2 className="text-[13px] font-semibold text-ink-strong">Temporary imports</h2>
+        <p className="mt-0.5 text-[12px] text-ink-muted">
+          Goods brought in temporarily (e.g. for a UK exhibition or fair).
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {tempImports.map((t) => (
+            <div key={t.shipment!.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2 text-[12.5px]">
+              <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-oranje">
+                In {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
+                {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
+              </Link>
+              <form action={unlinkTempImport}>
+                <input type="hidden" name="shipment_id" value={t.shipment!.id} />
+                <button className="text-[11.5px] text-ink-soft hover:text-ink-strong">Remove</button>
+              </form>
+            </div>
+          ))}
+          {tempImports.length === 0 ? <p className="text-[12.5px] text-ink-muted">Not on any temporary import.</p> : null}
+        </div>
+        <form action={linkTempImport} className="mt-3 flex items-center gap-2">
+          <select name="shipment_id" defaultValue="" required className="flex-1 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body">
+            <option value="" disabled>Link to a temporary import…</option>
+            {shipmentOptions.filter((s) => s.kind === "temporary_import").map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.shipment_date ? new Date(s.shipment_date).toLocaleDateString("en-GB") : "No date"}
+                {s.reference ? ` · ${s.reference}` : ""}
+              </option>
+            ))}
+          </select>
+          <button className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid">Link</button>
+        </form>
+        <Link href="/shipments?kind=temporary_import" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
+          Manage temporary imports →
+        </Link>
+      </section>
 
       {/* Temporary exports (carnets) — many per piece, chronological */}
       <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
