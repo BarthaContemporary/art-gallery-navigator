@@ -440,24 +440,28 @@ export function StockBookTable({
     [rows],
   );
 
+  // Every cell's first line shares the same fixed line-height so the row's
+  // content aligns along the top despite the mixed font sizes.
+  const line = "leading-[18px]";
+
   function cell(key: string, r: StockBookRow) {
     switch (key) {
       case "stock_number":
         return (
-          <span className="block truncate font-mono text-[12px] text-ink">
+          <span className={`block truncate font-mono text-[12px] ${line} text-ink`}>
             <span className="mr-1 inline-block w-2 text-oranje">{open === r.stock_number ? "▾" : "▸"}</span>
             {r.stock_number}
           </span>
         );
       case "description":
-        return <span className="block truncate text-[13px] text-ink-body">{r.description ?? "—"}</span>;
+        return <span className={`block truncate text-[13px] ${line} text-ink-body`}>{r.description ?? "—"}</span>;
       case "purchase_date":
-        return <span className="font-mono text-[12px] text-ink-muted">{d(r.purchase_date)}</span>;
+        return <span className={`block font-mono text-[12px] ${line} text-ink-muted`}>{d(r.purchase_date)}</span>;
       case "purchase_cost_gbp":
-        return <span className="block text-right font-mono text-[12.5px] text-ink-body">{gbp(r.purchase_cost_gbp)}</span>;
+        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.purchase_cost_gbp)}</span>;
       case "import":
         return (
-          <span className="font-mono text-[11.5px] text-ink-muted">
+          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
             {d(r.import_date)}
             {r.import_reference ? <span className="block truncate text-ink-soft">{r.import_reference}</span> : null}
             {r.import_type ? (
@@ -471,7 +475,7 @@ export function StockBookTable({
         );
       case "export":
         return (
-          <span className="font-mono text-[11.5px] text-ink-muted">
+          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
             {d(r.export_date)}
             {r.export_reference ? <span className="block truncate text-ink-soft">{r.export_reference}</span> : null}
             {r.export_destination ? <span className="block truncate text-ink-body">→ {r.export_destination}</span> : null}
@@ -479,25 +483,25 @@ export function StockBookTable({
         );
       case "share":
         return r.consignment_share_pct != null ? (
-          <span className="font-mono text-[11.5px] text-ink-muted">
+          <span className={`block font-mono text-[11.5px] ${line} text-ink-muted`}>
             <span className="block text-ink-body">{r.consignment_share_pct}%</span>
             <span className="block text-ink-soft">
               {r.sale_handled_by_jvb === false ? "3rd-party" : "JvB"} · {gbp(r.jvb_share_gbp)}
             </span>
           </span>
         ) : (
-          <span className="text-ink-soft">—</span>
+          <span className={`block ${line} text-ink-soft`}>—</span>
         );
       case "sold_date":
-        return <span className="font-mono text-[12px] text-ink-muted">{d(r.sold_date)}</span>;
+        return <span className={`block font-mono text-[12px] ${line} text-ink-muted`}>{d(r.sold_date)}</span>;
       case "sold_price_gbp":
-        return <span className="block text-right font-mono text-[12.5px] text-ink-body">{gbp(r.sold_price_gbp)}</span>;
+        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.sold_price_gbp)}</span>;
       case "margin_gbp":
-        return <span className="block text-right font-mono text-[12.5px] text-ink-body">{gbp(r.margin_gbp)}</span>;
+        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-body`}>{gbp(r.margin_gbp)}</span>;
       case "vat_treatment":
-        return <span className="text-[11.5px] text-ink-muted">{TREATMENT_LABEL[r.vat_treatment ?? ""] ?? r.vat_treatment ?? "—"}</span>;
+        return <span className={`block text-[11.5px] ${line} text-ink-muted`}>{TREATMENT_LABEL[r.vat_treatment ?? ""] ?? r.vat_treatment ?? "—"}</span>;
       case "vat_due_gbp":
-        return <span className="block text-right font-mono text-[12.5px] text-ink-strong">{gbp(r.vat_due_gbp)}</span>;
+        return <span className={`block text-right font-mono text-[12.5px] ${line} text-ink-strong`}>{gbp(r.vat_due_gbp)}</span>;
       default:
         return null;
     }
