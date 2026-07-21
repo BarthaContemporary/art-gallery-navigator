@@ -75,11 +75,13 @@ export function FinancialsFields({
     return Number.isFinite(n) ? n : 0;
   };
 
-  // Purchase side — the £ figure is entered manually (no spot conversion).
+  // Purchase side — the £ figure is entered by hand, except when the purchase
+  // was made in GBP: then Cost £ just mirrors the purchase cost.
   const [purchaseDate, setPurchaseDate] = useState(d("purchase_date"));
   const [purchaseCost, setPurchaseCost] = useState(d("purchase_cost"));
   const [purchaseCur, setPurchaseCur] = useState(d("purchase_currency") || "GBP");
   const [costGbp, setCostGbp] = useState(d("purchase_cost_gbp"));
+  const purchaseIsGbp = purchaseCur === "GBP";
   const [restorationGbp, setRestorationGbp] = useState(d("restoration_cost_gbp") || "0");
   const [otherGbp, setOtherGbp] = useState(d("other_costs_gbp") || "0");
 
@@ -94,6 +96,12 @@ export function FinancialsFields({
   const [autoConverted, setAutoConverted] = useState(true);
 
   const [vatTreatment, setVatTreatment] = useState(d("vat_treatment") || "margin_scheme");
+
+  // When purchased in GBP, Cost £ mirrors the purchase cost automatically;
+  // manual entry is only needed for a foreign-currency purchase.
+  useEffect(() => {
+    if (purchaseIsGbp) setCostGbp(purchaseCost);
+  }, [purchaseIsGbp, purchaseCost]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,8 +194,18 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           Cost £
-          <input type="number" step="0.01" name="purchase_cost_gbp" value={costGbp} onChange={(e) => setCostGbp(e.target.value)} className={field} />
-          <span className="mt-1 block text-[10.5px] text-ink-soft">Entered manually.</span>
+          <input
+            type="number"
+            step="0.01"
+            name="purchase_cost_gbp"
+            value={costGbp}
+            readOnly={purchaseIsGbp}
+            onChange={purchaseIsGbp ? undefined : (e) => setCostGbp(e.target.value)}
+            className={purchaseIsGbp ? readonly : field}
+          />
+          <span className="mt-1 block text-[10.5px] text-ink-soft">
+            {purchaseIsGbp ? "Same as purchase cost (GBP)." : "Entered manually."}
+          </span>
         </label>
 
         <label className={label}>
