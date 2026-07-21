@@ -30,5 +30,16 @@ export async function GET(request: Request) {
     grace: "2 hours",
   });
 
-  return NextResponse.json({ ok: true, purged: data ?? 0, blankDrafts: blanks ?? 0 });
+  // And empty shipment entries (no items, no documents, no details) left behind
+  // by a half-started "New import / export / temporary import / export".
+  const { data: emptyShipments } = await supabase.rpc("purge_empty_shipments", {
+    grace: "2 days",
+  });
+
+  return NextResponse.json({
+    ok: true,
+    purged: data ?? 0,
+    blankDrafts: blanks ?? 0,
+    emptyShipments: emptyShipments ?? 0,
+  });
 }

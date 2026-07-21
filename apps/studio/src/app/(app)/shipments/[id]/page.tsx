@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { RecordFiles, type RecordFile } from "@/components/record-files";
 import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { AutosaveForm } from "@/components/autosave-form";
 
 export const metadata = { title: "Shipment" };
 
@@ -61,21 +62,6 @@ export default async function ShipmentDetail({
     results = ((hits ?? []) as PieceLite[]).filter((h) => !attachedIds.has(h.id)).slice(0, 20);
   }
 
-  async function updateShipment(formData: FormData) {
-    "use server";
-    const db = await getSupabase();
-    await db
-      .from("shipments")
-      .update({
-        shipment_date: String(formData.get("shipment_date") ?? "").trim() || null,
-        reference: String(formData.get("reference") ?? "").trim() || null,
-        notes: String(formData.get("notes") ?? "").trim() || null,
-        destination_country: String(formData.get("destination_country") ?? "").trim() || null,
-      })
-      .eq("id", id);
-    revalidatePath(`/shipments/${id}`);
-  }
-
   async function addPiece(formData: FormData) {
     "use server";
     const db = await getSupabase();
@@ -90,10 +76,11 @@ export default async function ShipmentDetail({
           { onConflict: "piece_id,shipment_id", ignoreDuplicates: true },
         );
     } else {
-      // One import / one export per piece — reassign if already on another.
-      await db
-        .from("piece_shipments")
-        .upsert({ piece_id: pieceId, shipment_id: id, kind: shipment!.kind }, { onConflict: "piece_id,kind" });
+      // One import / one export per piece — reassign if already on another. The
+      // unique index on (piece_id, kind) is partial, so ON CONFLICT inference
+      // can't target it; clear any existing link of this kind first, then add.
+      await db.from("piece_shipments").delete().eq("piece_id", pieceId).eq("kind", shipment!.kind);
+      await db.from("piece_shipments").insert({ piece_id: pieceId, shipment_id: id, kind: shipment!.kind });
     }
     revalidatePath(`/shipments/${id}`);
   }
@@ -189,36 +176,33 @@ export default async function ShipmentDetail({
       <Link href="/shipments" className="text-[12.5px] text-ink-soft">← All shipments</Link>
       <h1 className="mt-2 text-[22px] font-semibold text-ink-strong">{KIND_LABEL[shipment.kind]}</h1>
 
-      <form action={updateShipment} className="mt-5 grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
-        <label className={labelCls}>
-          {`${KIND_LABEL[shipment.kind] ?? "Shipment"} date`}
-          <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
-        </label>
-        <label className={labelCls}>
-          Reference number
-          <input name="reference" defaultValue={shipment.reference ?? ""} className={field} />
-        </label>
-        {shipment.kind === "export" || shipment.kind === "temporary_export" ? (
-          <label className={`${labelCls} sm:col-span-2`}>
-            Destination country
-            <input
-              name="destination_country"
-              defaultValue={shipment.destination_country ?? ""}
-              placeholder="e.g. United States, Japan, France"
-              className={field}
-            />
+      <AutosaveForm endpoint={`/api/shipments/${id}`} className="mt-5">
+        <div className="grid grid-cols-1 gap-4 rounded-[11px] border border-line bg-cell p-5 sm:grid-cols-2">
+          <label className={labelCls}>
+            {`${KIND_LABEL[shipment.kind] ?? "Shipment"} date`}
+            <input type="date" name="shipment_date" defaultValue={dateValue} className={field} />
           </label>
-        ) : (
-          <input type="hidden" name="destination_country" value={shipment.destination_country ?? ""} />
-        )}
-        <label className={`${labelCls} sm:col-span-2`}>
-          Notes
-          <textarea name="notes" rows={2} defaultValue={shipment.notes ?? ""} className={field} />
-        </label>
-        <div className="sm:col-span-2">
-          <button className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">Save details</button>
+          <label className={labelCls}>
+            Reference number
+            <input name="reference" defaultValue={shipment.reference ?? ""} className={field} />
+          </label>
+          {shipment.kind === "export" || shipment.kind === "temporary_export" ? (
+            <label className={`${labelCls} sm:col-span-2`}>
+              Destination country
+              <input
+                name="destination_country"
+                defaultValue={shipment.destination_country ?? ""}
+                placeholder="e.g. United States, Japan, France"
+                className={field}
+              />
+            </label>
+          ) : null}
+          <label className={`${labelCls} sm:col-span-2`}>
+            Notes
+            <textarea name="notes" rows={2} defaultValue={shipment.notes ?? ""} className={field} />
+          </label>
         </div>
-      </form>
+      </AutosaveForm>
 
       <section className="mt-6 rounded-[11px] border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Documents</h2>

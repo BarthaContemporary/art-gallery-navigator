@@ -169,9 +169,12 @@ export default async function EditPiecePage({
     const shipmentId = String(formData.get("shipment_id") ?? "");
     const kind = String(formData.get("kind") ?? "");
     if (!shipmentId || (kind !== "import" && kind !== "export")) return;
-    await db
-      .from("piece_shipments")
-      .upsert({ piece_id: piece.id, shipment_id: shipmentId, kind }, { onConflict: "piece_id,kind" });
+    // One import / one export per piece. The unique index on (piece_id, kind) is
+    // partial (import/export only), so ON CONFLICT inference can't target it —
+    // clear any existing link of this kind first, then attach (reassigning if
+    // the piece was on another import/export).
+    await db.from("piece_shipments").delete().eq("piece_id", piece.id).eq("kind", kind);
+    await db.from("piece_shipments").insert({ piece_id: piece.id, shipment_id: shipmentId, kind });
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/edit`);
   }
 
