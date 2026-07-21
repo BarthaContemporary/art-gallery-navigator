@@ -4,11 +4,6 @@ import { StockBookTable, type StockBookRow } from "@/components/stock-book-table
 
 export const metadata = { title: "Stock book" };
 
-function gbp(n: number | null) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
-}
-
 export default async function StockBookPage({
   searchParams,
 }: {
@@ -38,18 +33,6 @@ export default async function StockBookPage({
   if (sp.from) query = query.gte("sold_date", sp.from);
   if (sp.to) query = query.lte("sold_date", sp.to);
   const { data: rows, error } = await query;
-
-  const totals = (rows ?? []).reduce(
-    (acc, r) => ({
-      purchase: acc.purchase + (r.purchase_cost_gbp ?? 0),
-      sold: acc.sold + (r.sold_price_gbp ?? 0),
-      margin: acc.margin + (r.margin_gbp ?? 0),
-      vat: acc.vat + (r.vat_due_gbp ?? 0),
-      reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
-      jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
-    }),
-    { purchase: 0, sold: 0, margin: 0, vat: 0, reclaim: 0, jvbShare: 0 },
-  );
 
   const showTreatment = scheme === "all";
 
@@ -116,47 +99,8 @@ export default async function StockBookPage({
       {error ? (
         <p className="mt-4 text-[13px] text-ink-body">Could not load: {error.message}</p>
       ) : (
-        <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
-          <table className="w-full min-w-[1220px] bg-cell text-left">
-            <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
-                <th className="px-3 py-2.5 font-medium">Stock no.</th>
-                {showTreatment ? <th className="px-3 py-2.5 font-medium">Treatment</th> : null}
-                <th className="px-3 py-2.5 font-medium">Description</th>
-                <th className="px-3 py-2.5 font-medium">Purchased</th>
-                <th className="px-3 py-2.5 text-right font-medium">Purchase £</th>
-                <th className="px-3 py-2.5 font-medium">Import</th>
-                <th className="px-3 py-2.5 font-medium">Sold</th>
-                <th className="px-3 py-2.5 text-right font-medium">Sale £</th>
-                <th className="px-3 py-2.5 font-medium">Export</th>
-                <th className="px-3 py-2.5 font-medium">Temp export</th>
-                <th className="px-3 py-2.5 font-medium">Consignment</th>
-                <th className="px-3 py-2.5 text-right font-medium">Margin £</th>
-                <th className="px-3 py-2.5 text-right font-medium">VAT due £</th>
-              </tr>
-            </thead>
-            <StockBookTable rows={(rows ?? []) as unknown as StockBookRow[]} showTreatment={showTreatment} />
-            <tfoot>
-              <tr className="border-t border-line bg-band text-[12.5px] font-semibold text-ink-strong">
-                <td className="px-3 py-2.5" colSpan={showTreatment ? 4 : 3}>
-                  Totals ({(rows ?? []).length} items)
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.purchase)}</td>
-                <td className="px-3 py-2.5 font-mono text-[11px] text-oranje">
-                  {totals.reclaim > 0 ? `reclaim ${gbp(totals.reclaim)}` : ""}
-                </td>
-                <td />
-                <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.sold)}</td>
-                <td />
-                <td />
-                <td className="px-3 py-2.5 font-mono text-[11px] text-ink-soft">
-                  {totals.jvbShare > 0 ? `share ${gbp(totals.jvbShare)}` : ""}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.margin)}</td>
-                <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.vat)}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="mt-5">
+          <StockBookTable rows={(rows ?? []) as unknown as StockBookRow[]} showTreatment={showTreatment} />
         </div>
       )}
     </div>
