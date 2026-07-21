@@ -156,6 +156,23 @@ export default async function PieceDetail({
       .maybeSingle(),
   ]);
 
+  // Export / temporary-export destination country (shown in the spec grid).
+  const { data: expShipments } = await supabase
+    .from("piece_shipments")
+    .select("kind, shipment:shipments ( shipment_date, destination_country )")
+    .eq("piece_id", piece.id)
+    .in("kind", ["export", "temporary_export"]);
+  let exportDest: string | null = null;
+  let tempExportDest: string | null = null;
+  for (const r of (expShipments ?? []) as unknown as {
+    kind: string;
+    shipment: { destination_country: string | null } | null;
+  }[]) {
+    if (!r.shipment?.destination_country) continue;
+    if (r.kind === "export") exportDest = r.shipment.destination_country;
+    else if (r.kind === "temporary_export") tempExportDest = r.shipment.destination_country;
+  }
+
   const imageRows = imagesRes.data ?? [];
   const images: GalleryImage[] = await Promise.all(
     imageRows.map(async (img) => {
@@ -372,6 +389,8 @@ export default async function PieceDetail({
     ["Location", piece.location?.code ?? "—"],
     ["Acquired", fin?.purchase_date ? new Date(fin.purchase_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"],
     ["Reference", piece.legacy_stock_number ? `Legacy ${piece.legacy_stock_number}` : piece.stock_number],
+    ...(exportDest ? ([["Exported to", exportDest]] as [string, React.ReactNode][]) : []),
+    ...(tempExportDest ? ([["Temp. export to", tempExportDest]] as [string, React.ReactNode][]) : []),
   ];
 
   return (

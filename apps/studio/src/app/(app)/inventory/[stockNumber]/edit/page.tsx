@@ -72,20 +72,20 @@ export default async function EditPiecePage({
   const [{ data: shipLinks }, { data: allShipments }] = await Promise.all([
     supabase
       .from("piece_shipments")
-      .select("kind, returned_at, closed_reason, shipment:shipments ( id, kind, shipment_date, reference )")
+      .select("kind, returned_at, closed_reason, shipment:shipments ( id, kind, shipment_date, reference, destination_country )")
       .eq("piece_id", piece.id),
     supabase
       .from("shipments")
-      .select("id, kind, shipment_date, reference")
+      .select("id, kind, shipment_date, reference, destination_country")
       .order("shipment_date", { ascending: false, nullsFirst: false }),
   ]);
   type ShipLink = {
     kind: string;
     returned_at: string | null;
     closed_reason: string | null;
-    shipment: { id: string; shipment_date: string | null; reference: string | null } | null;
+    shipment: { id: string; shipment_date: string | null; reference: string | null; destination_country: string | null } | null;
   };
-  const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null }>();
+  const shipmentByKind = new Map<string, { id: string; shipment_date: string | null; reference: string | null; destination_country: string | null }>();
   const tempExports: ShipLink[] = [];
   const tempImports: ShipLink[] = [];
   for (const l of (shipLinks ?? []) as unknown as ShipLink[]) {
@@ -98,7 +98,7 @@ export default async function EditPiecePage({
     (a.shipment?.shipment_date ?? "") < (b.shipment?.shipment_date ?? "") ? 1 : -1;
   tempExports.sort(byDateDesc);
   tempImports.sort(byDateDesc);
-  const shipmentOptions = (allShipments ?? []) as { id: string; kind: string; shipment_date: string | null; reference: string | null }[];
+  const shipmentOptions = (allShipments ?? []) as { id: string; kind: string; shipment_date: string | null; reference: string | null; destination_country: string | null }[];
 
   async function linkTempExport(formData: FormData) {
     "use server";
@@ -299,6 +299,7 @@ export default async function EditPiecePage({
                   <Link href={`/shipments/${current.id}`} className="text-[13px] text-ink-body hover:text-oranje">
                     {current.shipment_date ? new Date(current.shipment_date).toLocaleDateString("en-GB") : "No date"}
                     {current.reference ? ` · ${current.reference}` : ""}
+                    {kind === "export" && current.destination_country ? ` · → ${current.destination_country}` : ""}
                   </Link>
                   <form action={unlinkShipment}>
                     <input type="hidden" name="kind" value={kind} />
@@ -338,8 +339,10 @@ export default async function EditPiecePage({
         })}
       </div>
 
+      {/* Temporary imports / exports — half-width like the import/export panels */}
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
       {/* Temporary imports — many per piece (e.g. a UK exhibition/fair) */}
-      <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
+      <section className="rounded-[11px] border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Temporary imports</h2>
         <p className="mt-0.5 text-[12px] text-ink-muted">
           Goods brought in temporarily (e.g. for a UK exhibition or fair).
@@ -377,7 +380,7 @@ export default async function EditPiecePage({
       </section>
 
       {/* Temporary exports (carnets) — many per piece, chronological */}
-      <section className="mt-4 rounded-[11px] border border-line bg-cell p-5">
+      <section className="rounded-[11px] border border-line bg-cell p-5">
         <h2 className="text-[13px] font-semibold text-ink-strong">Temporary exports</h2>
         <p className="mt-0.5 text-[12px] text-ink-muted">
           Exhibition / fair loans abroad. A work can be on several over time.
@@ -388,6 +391,7 @@ export default async function EditPiecePage({
               <Link href={`/shipments/${t.shipment!.id}`} className="text-ink-body hover:text-oranje">
                 Out {t.shipment!.shipment_date ? new Date(t.shipment!.shipment_date).toLocaleDateString("en-GB") : "—"}
                 {t.shipment!.reference ? ` · ${t.shipment!.reference}` : ""}
+                {t.shipment!.destination_country ? ` · → ${t.shipment!.destination_country}` : ""}
               </Link>
               <div className="flex items-center gap-2">
                 {t.returned_at ? (
@@ -426,6 +430,7 @@ export default async function EditPiecePage({
           Manage temporary exports →
         </Link>
       </section>
+      </div>
 
       {/* Consignment — after temporary exports; own autosaving panel */}
       <ConsignmentPanel

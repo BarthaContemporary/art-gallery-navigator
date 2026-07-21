@@ -19,8 +19,10 @@ export type StockBookRow = {
   sold_price_gbp: number | null;
   export_date: string | null;
   export_reference: string | null;
+  export_destination: string | null;
   temp_export_date: string | null;
   temp_export_reference: string | null;
+  temp_export_destination: string | null;
   consignment_co_owner: string | null;
   consignment_notes?: string | null;
   consignment_share_pct: number | null;
@@ -291,10 +293,12 @@ export function StockBookTable({
               <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
                 {d(r.export_date)}
                 {r.export_reference ? <span className="block text-ink-soft">{r.export_reference}</span> : null}
+                {r.export_destination ? <span className="block text-ink-body">→ {r.export_destination}</span> : null}
               </td>
               <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
                 {d(r.temp_export_date)}
                 {r.temp_export_reference ? <span className="block text-ink-soft">{r.temp_export_reference}</span> : null}
+                {r.temp_export_destination ? <span className="block text-ink-body">→ {r.temp_export_destination}</span> : null}
               </td>
               <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
                 {r.consignment_share_pct != null ? (

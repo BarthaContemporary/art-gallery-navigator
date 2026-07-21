@@ -13,6 +13,16 @@ export type Purchase = {
   sold_date: string | null;
   sold_price_gbp: number | null;
 };
+export type Consignment = {
+  stock_number: string | null;
+  title: string | null;
+  year: string | null;
+  maker_name: string | null;
+  share_pct: number | null;
+  sale_handled_by_jvb: boolean | null;
+  sold_date: string | null;
+  co_owner_share_gbp: number | null;
+};
 export type InterestArea = { id: string; name: string };
 
 type Contact = {
@@ -57,12 +67,14 @@ export function ContactEditor({
   id,
   contact,
   purchases,
+  consignments,
   interestOptions,
   showPrices,
 }: {
   id: string;
   contact: Contact;
   purchases: Purchase[];
+  consignments: Consignment[];
   interestOptions: InterestArea[];
   showPrices: boolean;
 }) {
@@ -315,6 +327,57 @@ export function ContactEditor({
             <p className="mt-1 text-[12.5px] text-ink-muted">No recorded purchases.</p>
           )}
         </div>
+
+        {consignments.length ? (
+          <div className="mt-4">
+            <p className={label}>Consignments</p>
+            <ul className="mt-1.5 overflow-hidden rounded-lg border border-line-soft">
+              {consignments.map((c, i) => {
+                const objectLine = [c.maker_name, c.title ?? "Untitled", c.year]
+                  .filter(Boolean)
+                  .join(", ");
+                return (
+                  <li
+                    key={i}
+                    className="flex items-start justify-between gap-3 border-b border-line-soft px-3 py-2 text-[13px] last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <a
+                        href={`/inventory/${encodeURIComponent(c.stock_number ?? "")}`}
+                        className="block min-w-0 hover:text-oranje"
+                      >
+                        <span className="font-mono text-[12px] text-ink-muted">
+                          {c.stock_number ?? "—"}
+                        </span>{" "}
+                        <span className="text-ink-body">{objectLine}</span>
+                      </a>
+                      <p className="mt-0.5 text-[12px] text-ink-muted">
+                        {c.share_pct != null ? `Co-owner / consignee share ${100 - c.share_pct}%` : "Consignee"}
+                        {c.sale_handled_by_jvb === false
+                          ? " · sold by third party"
+                          : c.sale_handled_by_jvb === true
+                            ? " · sale handled by J.v.d.B."
+                            : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-right text-[12px] text-ink-muted">
+                      {c.sold_date
+                        ? new Date(c.sold_date).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "In stock"}
+                      {showPrices && c.co_owner_share_gbp != null
+                        ? ` · £${Number(c.co_owner_share_gbp).toLocaleString("en-GB")}`
+                        : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <InterestSelect

@@ -7,8 +7,9 @@ import {
   canSeeFinancials,
   createServiceClient,
 } from "@/lib/supabase";
-import { ContactEditor, type Purchase } from "@/components/contact-editor";
+import { ContactEditor, type Purchase, type Consignment } from "@/components/contact-editor";
 import { DeleteContactButton } from "@/components/delete-contact-button";
+import { consignmentSplit } from "@/lib/consignment";
 
 export const metadata = { title: "Contact" };
 
@@ -111,6 +112,59 @@ export default async function ContactProfile({
     };
   });
 
+  // Consignments: works where this contact is the co-owner / consignee. Read
+  // via the service client so all staff see the work; this contact's share £ is
+  // only computed/serialised for admin/accountant (showPrices).
+  const { data: consRows } = await svc
+    .from("pieces")
+    .select(
+      "stock_number, title, year, consignment_share_pct, sale_handled_by_jvb, maker:makers ( display_name ), fin:piece_financials ( sold_date, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, vat_treatment, import_type, import_vat_gbp )",
+    )
+    .eq("consignee_contact_id", id);
+  const num0 = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const consignments: Consignment[] = ((consRows ?? []) as unknown as {
+    stock_number: string | null;
+    title: string | null;
+    year: string | null;
+    consignment_share_pct: number | null;
+    sale_handled_by_jvb: boolean | null;
+    maker: { display_name: string | null } | null;
+    fin: {
+      sold_date: string | null;
+      sold_price_gbp: number | null;
+      purchase_cost_gbp: number | null;
+      restoration_cost_gbp: number | null;
+      other_costs_gbp: number | null;
+      vat_treatment: string | null;
+      import_type: string | null;
+      import_vat_gbp: number | null;
+    }[] | null;
+  }[]).map((r) => {
+    const f = r.fin?.[0] ?? null;
+    let coOwnerShare: number | null = null;
+    if (showPrices && f?.sold_date && r.consignment_share_pct != null) {
+      coOwnerShare = consignmentSplit({
+        amount: num0(f.sold_price_gbp),
+        vatTreatment: f.vat_treatment ?? "margin_scheme",
+        saleHandledByJvb: r.sale_handled_by_jvb,
+        purchaseCostGbp: num0(f.purchase_cost_gbp),
+        extraCostsGbp: num0(f.restoration_cost_gbp) + num0(f.other_costs_gbp),
+        importVatPaidGbp: f.import_type === "import_vat_paid" ? num0(f.import_vat_gbp) : 0,
+        sharePct: r.consignment_share_pct,
+      }).coOwnerShare;
+    }
+    return {
+      stock_number: r.stock_number ?? null,
+      title: r.title ?? null,
+      year: r.year ?? null,
+      maker_name: r.maker?.display_name ?? null,
+      share_pct: r.consignment_share_pct ?? null,
+      sale_handled_by_jvb: r.sale_handled_by_jvb ?? null,
+      sold_date: f?.sold_date ?? null,
+      co_owner_share_gbp: coOwnerShare,
+    };
+  });
+
   const name =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     "Unnamed contact";
@@ -170,6 +224,7 @@ export default async function ContactProfile({
         id={id}
         contact={contact}
         purchases={purchases}
+        consignments={consignments}
         interestOptions={interestOptions}
         showPrices={showPrices}
       />
