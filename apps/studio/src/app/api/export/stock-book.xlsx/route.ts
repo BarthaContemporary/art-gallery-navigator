@@ -13,15 +13,17 @@ export async function GET(request: Request) {
   const supabase = await getSupabase();
   const url = new URL(request.url);
   const s = url.searchParams.get("scheme") ?? "";
-  const scheme = ["margin", "standard", "zero_rated"].includes(s) ? s : "all";
+  const scheme = ["margin", "standard", "zero_rated", "outside_scope"].includes(s) ? s : "all";
   const view =
     scheme === "standard"
       ? "vw_stock_book_standard"
       : scheme === "zero_rated"
         ? "vw_stock_book_zero_rated"
-        : scheme === "margin"
-          ? "vw_stock_book"
-          : "vw_stock_book_all";
+        : scheme === "outside_scope"
+          ? "vw_stock_book_outside_scope"
+          : scheme === "margin"
+            ? "vw_stock_book"
+            : "vw_stock_book_all";
 
   let query = supabase.from(view).select("*").order("stock_number");
   const from = url.searchParams.get("from");

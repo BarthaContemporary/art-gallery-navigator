@@ -18,17 +18,19 @@ export default async function StockBookPage({
   const sp = await searchParams;
   // Default to "all" so every item is in the stock book; the per-scheme views
   // remain available for the formal HMRC reports.
-  const scheme = ["margin", "standard", "zero_rated"].includes(sp.scheme ?? "")
-    ? (sp.scheme as "margin" | "standard" | "zero_rated")
+  const scheme = ["margin", "standard", "zero_rated", "outside_scope"].includes(sp.scheme ?? "")
+    ? (sp.scheme as "margin" | "standard" | "zero_rated" | "outside_scope")
     : "all";
   const view =
     scheme === "standard"
       ? "vw_stock_book_standard"
       : scheme === "zero_rated"
         ? "vw_stock_book_zero_rated"
-        : scheme === "margin"
-          ? "vw_stock_book"
-          : "vw_stock_book_all";
+        : scheme === "outside_scope"
+          ? "vw_stock_book_outside_scope"
+          : scheme === "margin"
+            ? "vw_stock_book"
+            : "vw_stock_book_all";
 
   const supabase = await getSupabase();
   let query = supabase.from(view).select("*").order("stock_number");
@@ -76,7 +78,9 @@ export default async function StockBookPage({
                 ? "Zero-rated items — no output VAT; import VAT paid is reclaimable."
                 : scheme === "standard"
                   ? "Standard-rated items."
-                  : "All items — VAT worked out per each item’s treatment."}
+                  : scheme === "outside_scope"
+                    ? "Outside the scope of UK VAT — no output VAT; import VAT paid is reclaimable."
+                    : "All items — VAT worked out per each item’s treatment."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -111,6 +115,7 @@ export default async function StockBookPage({
             <option value="margin">Margin scheme</option>
             <option value="standard">Standard VAT</option>
             <option value="zero_rated">Zero-rated</option>
+            <option value="outside_scope">Outside scope</option>
           </select>
         </label>
         <button type="submit" className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid">
