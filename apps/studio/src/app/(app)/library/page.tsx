@@ -9,6 +9,7 @@ export const metadata = { title: "Inventory Lists & Docs" };
 const KIND_LABEL: Record<string, string> = {
   import: "Import",
   export: "Export",
+  temporary_import: "Temporary import",
   temporary_export: "Temporary export",
 };
 const TYPE_LABEL: Record<string, string> = {
@@ -52,7 +53,7 @@ export default async function LibraryPage() {
     const db = await getSupabase();
     const { data: { user } } = await db.auth.getUser();
     const raw = String(formData.get("kind") ?? "import");
-    const kind = raw === "export" || raw === "temporary_export" ? raw : "import";
+    const kind = ["export", "temporary_export", "temporary_import"].includes(raw) ? raw : "import";
     const { data } = await db.from("shipments").insert({ kind, created_by: user?.id ?? null }).select("id").single();
     if (data) redirect(`/shipments/${data.id}`);
     redirect("/library");
@@ -101,6 +102,7 @@ export default async function LibraryPage() {
           action={
             <>
               <form action={createShipment}><input type="hidden" name="kind" value="import" /><button className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg">New import</button></form>
+              <form action={createShipment}><input type="hidden" name="kind" value="temporary_import" /><button className={manageCls}>New temporary import</button></form>
               <form action={createShipment}><input type="hidden" name="kind" value="export" /><button className={manageCls}>New export</button></form>
               <form action={createShipment}><input type="hidden" name="kind" value="temporary_export" /><button className={manageCls}>New temporary export</button></form>
               <Link href="/shipments" className="text-[12px] text-oranje hover:underline">All →</Link>
