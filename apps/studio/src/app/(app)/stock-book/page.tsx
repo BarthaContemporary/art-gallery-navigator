@@ -16,8 +16,14 @@ export default async function StockBookPage({
   const session = await getSession();
   if (!session || !canSeeFinancials(session.roles)) redirect("/");
   const sp = await searchParams;
-  const scheme = sp.scheme === "standard" ? "standard" : "margin";
-  const view = scheme === "standard" ? "vw_stock_book_standard" : "vw_stock_book";
+  const scheme =
+    sp.scheme === "standard" ? "standard" : sp.scheme === "zero_rated" ? "zero_rated" : "margin";
+  const view =
+    scheme === "standard"
+      ? "vw_stock_book_standard"
+      : scheme === "zero_rated"
+        ? "vw_stock_book_zero_rated"
+        : "vw_stock_book";
 
   const supabase = await getSupabase();
   let query = supabase.from(view).select("*").order("stock_number");
@@ -54,7 +60,9 @@ export default async function StockBookPage({
           <p className="text-[13px] text-ink-muted">
             {scheme === "margin"
               ? "VAT margin scheme (HMRC Notice 718) — VAT due is 1/6 of the positive margin."
-              : "Standard-rated items."}
+              : scheme === "zero_rated"
+                ? "Zero-rated items — no output VAT; import VAT paid is reclaimable."
+                : "Standard-rated items."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -87,6 +95,7 @@ export default async function StockBookPage({
           <select name="scheme" defaultValue={scheme} className="mt-1 block rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]">
             <option value="margin">Margin scheme</option>
             <option value="standard">Standard VAT</option>
+            <option value="zero_rated">Zero-rated</option>
           </select>
         </label>
         <button type="submit" className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid">
