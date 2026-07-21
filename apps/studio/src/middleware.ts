@@ -31,7 +31,15 @@ export async function middleware(request: NextRequest) {
   const isLogin = path.startsWith("/login");
   // /set-password receives its recovery session in the URL fragment (never sent
   // to the server), so it must be reachable while signed out.
-  const isPublic = isLogin || path.startsWith("/set-password");
+  // Icon / manifest routes must serve without a session (e.g. iOS reads the
+  // apple-touch-icon and manifest with no cookie when adding to the home screen).
+  const isAsset =
+    path === "/icon.svg" ||
+    path === "/apple-icon.png" ||
+    path === "/manifest.webmanifest" ||
+    path === "/favicon.ico" ||
+    path.startsWith("/icons/");
+  const isPublic = isLogin || isAsset || path.startsWith("/set-password");
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -48,5 +56,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Exclude machine endpoints that authenticate themselves (sync via shared
   // secret, cron). Data-export APIs stay behind the session check.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/public|api/sync|api/cron).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|manifest.webmanifest|icons/|api/public|api/sync|api/cron).*)",
+  ],
 };
