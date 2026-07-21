@@ -268,7 +268,7 @@ export default async function PieceDetail({
         extraCostsGbp: num0(fin!.restoration_cost_gbp) + num0(fin!.other_costs_gbp),
         importVatPaidGbp: fin!.import_type === "import_vat_paid" ? num0(fin!.import_vat_gbp) : 0,
         sharePct: consignSharePct as number,
-      }).jvbShare
+      }).jvbNetProfit
     : null;
 
   const { data: pieceLists } = await supabase

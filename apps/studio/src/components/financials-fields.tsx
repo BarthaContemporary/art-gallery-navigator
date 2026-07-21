@@ -175,7 +175,7 @@ export function FinancialsFields({
   // carried by J.v.d.B. out of its own share.
   const sharePctNum = ctx && ctx.sharePct.trim() !== "" ? Number(ctx.sharePct) : NaN;
   const onConsignment = Number.isFinite(sharePctNum) && sharePctNum > 0 && sharePctNum < 100;
-  const jvbShare = onConsignment
+  const jvbSplit = onConsignment
     ? consignmentSplit({
         amount: soldNum,
         vatTreatment,
@@ -184,7 +184,7 @@ export function FinancialsFields({
         extraCostsGbp: numOf(restorationGbp) + numOf(otherGbp),
         importVatPaidGbp: importType === "import_vat_paid" ? importVatGbp : 0,
         sharePct: sharePctNum,
-      }).jvbShare
+      })
     : null;
 
   const curOptions = CURRENCIES.map((c) => (
@@ -323,10 +323,11 @@ export function FinancialsFields({
           <div>
             <p className={label}>J.v.d.B. share £</p>
             <p className="mt-1 font-mono text-[15px] text-ink-strong">
-              {soldNum > 0 ? gbp(jvbShare ?? 0) : "—"}
+              {soldNum > 0 ? gbp(jvbSplit?.jvbReceived ?? 0) : "—"}
             </p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              {sharePctNum}% of {thirdParty ? "net sold price" : "net after VAT"}, less J.v.d.B. costs · on consignment
+              net profit {gbp(jvbSplit?.jvbNetProfit ?? 0)}
+              {jvbSplit && jvbSplit.jvbBorne > 0 ? ` + ${gbp(jvbSplit.jvbBorne)} costs reimbursed` : ""} · on consignment
             </p>
           </div>
         ) : null}

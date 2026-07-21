@@ -272,21 +272,25 @@ export function ConsignmentPanel({
           </div>
           <div>
             <p className={label}>{split.thirdParty ? "Net sold price £" : "Net after VAT £"}</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.sharedNet)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">purchase cost excluded from split</p>
-          </div>
-          <div>
-            <p className={label}>J.v.d.B. share £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.jvbShare)}</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.netAfterVat)}</p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              {sharePct}% of net{split.jvbBorne > 0 ? `, less ${gbp(split.jvbBorne)} costs` : ""}
+              profit pool {gbp(split.profitPool)}
+              {split.jvbBorne > 0 ? ` (after ${gbp(split.jvbBorne)} costs)` : ""}
             </p>
           </div>
           <div>
-            <p className={label}>Co-owner / consignee share £</p>
+            <p className={label}>J.v.d.B. receives £</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.jvbReceived)}</p>
+            <p className="mt-0.5 text-[10.5px] text-ink-soft">
+              net profit {gbp(split.jvbNetProfit)}
+              {split.jvbBorne > 0 ? ` + ${gbp(split.jvbBorne)} costs` : ""}
+            </p>
+          </div>
+          <div>
+            <p className={label}>Co-owner / consignee receives £</p>
             <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.coOwnerShare)}</p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              {round2(100 - (pctNum ?? 0))}% of net
+              net profit {gbp(split.coOwnerShare)} · {round2(100 - (pctNum ?? 0))}%
             </p>
           </div>
         </div>

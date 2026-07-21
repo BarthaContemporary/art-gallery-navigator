@@ -79,7 +79,7 @@ export async function GET(req: Request) {
             extraCostsGbp: (r.restoration_cost_gbp ?? 0) + (r.other_costs_gbp ?? 0),
             importVatPaidGbp: r.import_type === "import_vat_paid" ? r.import_vat_gbp ?? 0 : 0,
             sharePct: r.piece.consignment_share_pct,
-          }).jvbShare
+          }).jvbNetProfit
         );
       }
       return s + (r.net_profit_gbp ?? r.margin_gbp ?? 0);

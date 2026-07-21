@@ -6,11 +6,16 @@
  * Rules (for a work on consignment or co-owned):
  *  - Margin-scheme VAT is worked out on the full cost base *including* the
  *    purchase cost (standard margin rules).
- *  - The pool that J.v.d.B. and the co-owner / consignee split ("shared net")
- *    is the amount less VAT only — the purchase cost is ignored here.
- *  - Restoration / other costs (and any import VAT paid) are carried by
- *    J.v.d.B. out of its own share, not deducted from the shared pool, so the
- *    co-owner / consignee is unaffected by them.
+ *  - The purchase cost is ignored in the settlement (it's the consignor's).
+ *  - Restoration / other costs (and any import VAT paid) are a *shared*
+ *    expense: they come off the profit pool that both parties split by
+ *    percentage, so each party's net profit drops by its share of the cost.
+ *  - J.v.d.B. laid the cash out, so it is reimbursed those costs on top of its
+ *    profit share — i.e. the costs are credited to J.v.d.B.'s received amount.
+ *
+ * Worked example — sold £10,000 zero-rated, £500 restoration, 50% share:
+ *   profit pool 9,500 → net profit £4,750 each; J.v.d.B. receives 4,750 + 500
+ *   = £5,250, the co-owner / consignee receives £4,750.
  */
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -21,9 +26,9 @@ export type ConsignmentInput = {
   vatTreatment: string;
   /** false → sold by a third party (no VAT for us; amount is already net). */
   saleHandledByJvb: boolean | null;
-  /** Applied to margin-scheme VAT, ignored in the shared pool. */
+  /** Applied to margin-scheme VAT, ignored in the settlement. */
   purchaseCostGbp: number;
-  /** Restoration + other costs — borne by J.v.d.B. out of its share. */
+  /** Restoration + other costs — a shared expense, reimbursed to J.v.d.B. */
   extraCostsGbp: number;
   /** Import VAT paid (only relevant on the margin scheme) — like extra costs. */
   importVatPaidGbp: number;
@@ -34,11 +39,17 @@ export type ConsignmentInput = {
 export type ConsignmentSplit = {
   thirdParty: boolean;
   vat: number;
-  /** Amount − VAT: the pool split by percentage (purchase cost excluded). */
-  sharedNet: number;
-  /** Restoration + other + import VAT, all carried by J.v.d.B. */
+  /** Amount − VAT: the total distributed between the two parties. */
+  netAfterVat: number;
+  /** Restoration + other + import VAT — the cash J.v.d.B. laid out. */
   jvbBorne: number;
-  jvbShare: number;
+  /** netAfterVat − costs: the pool split by percentage into net profit. */
+  profitPool: number;
+  /** J.v.d.B.'s net profit = share % of the profit pool. */
+  jvbNetProfit: number;
+  /** What J.v.d.B. actually receives = net profit + costs reimbursed. */
+  jvbReceived: number;
+  /** Co-owner / consignee's share = net profit = what they receive. */
   coOwnerShare: number;
 };
 
@@ -56,12 +67,14 @@ export function consignmentSplit(i: ConsignmentInput): ConsignmentSplit {
   }
   vat = round2(vat);
 
-  // Shared pool ignores the purchase cost — only VAT comes off it.
-  const sharedNet = round2(Math.max(0, i.amount - vat));
-  // J.v.d.B. carries restoration / other / import VAT out of its own share.
+  const netAfterVat = round2(Math.max(0, i.amount - vat));
+  // Restoration / other / import VAT: a shared expense off the profit pool,
+  // reimbursed to J.v.d.B. (which laid the cash out).
   const jvbBorne = round2(Math.max(0, i.extraCostsGbp) + importVatCost);
-  const jvbShare = round2(pct * sharedNet - jvbBorne);
-  const coOwnerShare = round2((1 - pct) * sharedNet);
+  const profitPool = round2(Math.max(0, netAfterVat - jvbBorne));
+  const jvbNetProfit = round2(pct * profitPool);
+  const coOwnerShare = round2((1 - pct) * profitPool);
+  const jvbReceived = round2(jvbNetProfit + jvbBorne);
 
-  return { thirdParty, vat, sharedNet, jvbBorne, jvbShare, coOwnerShare };
+  return { thirdParty, vat, netAfterVat, jvbBorne, profitPool, jvbNetProfit, jvbReceived, coOwnerShare };
 }
