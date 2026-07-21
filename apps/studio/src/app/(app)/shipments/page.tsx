@@ -6,7 +6,7 @@ export const metadata = { title: "Shipments" };
 
 type Row = {
   id: string;
-  kind: "import" | "export" | "temporary_export";
+  kind: "import" | "export" | "temporary_export" | "temporary_import";
   shipment_date: string | null;
   reference: string | null;
   piece_shipments: { count: number }[];
@@ -15,9 +15,12 @@ type Row = {
 
 const KIND_LABEL: Record<string, string> = {
   import: "Import",
+  temporary_import: "Temporary import",
   export: "Export",
   temporary_export: "Temporary export",
 };
+
+const KINDS = ["import", "export", "temporary_export", "temporary_import"];
 
 export default async function ShipmentsPage({
   searchParams,
@@ -34,7 +37,7 @@ export default async function ShipmentsPage({
     )
     .order("shipment_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
-  if (sp.kind === "import" || sp.kind === "export") query = query.eq("kind", sp.kind);
+  if (sp.kind && KINDS.includes(sp.kind)) query = query.eq("kind", sp.kind);
   const { data } = await query;
   const rows = (data ?? []) as unknown as Row[];
 
@@ -45,7 +48,7 @@ export default async function ShipmentsPage({
       data: { user },
     } = await db.auth.getUser();
     const raw = String(formData.get("kind") ?? "import");
-    const kind = raw === "export" || raw === "temporary_export" ? raw : "import";
+    const kind = KINDS.includes(raw) ? raw : "import";
     const { data: created } = await db
       .from("shipments")
       .insert({ kind, created_by: user?.id ?? null })
@@ -64,6 +67,12 @@ export default async function ShipmentsPage({
             <input type="hidden" name="kind" value="import" />
             <button className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">
               New import
+            </button>
+          </form>
+          <form action={createShipment}>
+            <input type="hidden" name="kind" value="temporary_import" />
+            <button className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-semibold text-ink-mid">
+              New temporary import
             </button>
           </form>
           <form action={createShipment}>
@@ -89,8 +98,9 @@ export default async function ShipmentsPage({
         {[
           ["", "All"],
           ["import", "Imports"],
+          ["temporary_import", "Temp imports"],
           ["export", "Exports"],
-          ["temporary_export", "Temporary"],
+          ["temporary_export", "Temp exports"],
         ].map(([v, l]) => (
           <Link
             key={l}

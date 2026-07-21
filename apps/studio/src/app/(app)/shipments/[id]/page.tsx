@@ -14,6 +14,7 @@ const btnGhost = "rounded-lg border border-line-control bg-control px-3 py-1.5 t
 
 const KIND_LABEL: Record<string, string> = {
   import: "Import",
+  temporary_import: "Temporary import",
   export: "Export",
   temporary_export: "Temporary export",
 };
@@ -79,12 +80,12 @@ export default async function ShipmentDetail({
     const db = await getSupabase();
     const pieceId = String(formData.get("piece_id") ?? "");
     if (!pieceId) return;
-    if (shipment!.kind === "temporary_export") {
-      // A piece may be on many temporary exports — just add the link.
+    if (shipment!.kind === "temporary_export" || shipment!.kind === "temporary_import") {
+      // A piece may be on many temporary shipments — just add the link.
       await db
         .from("piece_shipments")
         .upsert(
-          { piece_id: pieceId, shipment_id: id, kind: "temporary_export" },
+          { piece_id: pieceId, shipment_id: id, kind: shipment!.kind },
           { onConflict: "piece_id,shipment_id", ignoreDuplicates: true },
         );
     } else {
