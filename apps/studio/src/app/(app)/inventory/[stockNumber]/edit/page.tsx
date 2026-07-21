@@ -431,6 +431,7 @@ export default async function EditPiecePage({
         stockNumber={piece.stock_number}
         initial={{
           coOwner: (piece.shares_note as string | null) ?? "",
+          coOwnerContactId: (piece.consignee_contact_id as string | null) ?? "",
           notes: (piece.consignment_details as string | null) ?? "",
           sharePct:
             piece.consignment_share_pct != null ? String(piece.consignment_share_pct) : "",

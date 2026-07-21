@@ -168,6 +168,15 @@ export function FinancialsFields({
 
   const soldNum = numOf(soldGbp);
 
+  // Consignment: when a share % is set, work out the J.v.d.B. share £ (shown
+  // next to Net of VAT £). Mirrors the Consignment panel + stock book:
+  //  - third-party sale → share % of the net sold price;
+  //  - J.v.d.B. sale    → share % of (sold − total cost − VAT due).
+  const sharePctNum = ctx && ctx.sharePct.trim() !== "" ? Number(ctx.sharePct) : NaN;
+  const onConsignment = Number.isFinite(sharePctNum) && sharePctNum > 0 && sharePctNum < 100;
+  const jvbShareBase = thirdParty ? soldNum : Math.max(0, netAmount - totalCost);
+  const jvbShare = onConsignment ? round2((sharePctNum / 100) * jvbShareBase) : null;
+
   const curOptions = CURRENCIES.map((c) => (
     <option key={c} value={c}>
       {c}
@@ -269,7 +278,7 @@ export function FinancialsFields({
       </div>
 
       {/* Worked-out tax + net — display only, driven by the VAT treatment. */}
-      <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 sm:grid-cols-3">
+      <div className={`mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 ${onConsignment ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         <div>
           <p className={label}>Total cost £</p>
           <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(totalCost)}</p>
@@ -300,6 +309,17 @@ export function FinancialsFields({
             </p>
           ) : null}
         </div>
+        {onConsignment ? (
+          <div>
+            <p className={label}>J.v.d.B. share £</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">
+              {soldNum > 0 ? gbp(jvbShare ?? 0) : "—"}
+            </p>
+            <p className="mt-0.5 text-[10.5px] text-ink-soft">
+              {sharePctNum}%{thirdParty ? " of net sold price" : " of net after costs + VAT"} · on consignment
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <p className="mt-3 text-[11.5px] text-ink-soft">

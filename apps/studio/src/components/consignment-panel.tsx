@@ -25,6 +25,8 @@ type Settlement = {
  *  - Sold by a third party → no VAT for us; the sold price is NET, and
  *    J.v.d.B. receives the Share/Commission % of that net sold price.
  */
+type ContactHit = { id: string; name: string; email: string | null };
+
 export function ConsignmentPanel({
   stockNumber,
   initial,
@@ -33,6 +35,7 @@ export function ConsignmentPanel({
   stockNumber: string;
   initial: {
     coOwner: string;
+    coOwnerContactId: string;
     notes: string;
     sharePct: string;
     saleHandled: "" | "yes" | "no";
@@ -40,10 +43,52 @@ export function ConsignmentPanel({
   settlement: Settlement;
 }) {
   const [coOwner, setCoOwner] = useState(initial.coOwner);
+  const [coOwnerContactId, setCoOwnerContactId] = useState(initial.coOwnerContactId);
   const [notes, setNotes] = useState(initial.notes);
   const [sharePct, setSharePct] = useState(initial.sharePct);
   const [saleHandled, setSaleHandled] = useState<"" | "yes" | "no">(initial.saleHandled);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // CRM contact search for the co-owner / consignee (optional — a free-text
+  // name still works for consignees not in the CRM).
+  const [contactQuery, setContactQuery] = useState("");
+  const [contactHits, setContactHits] = useState<ContactHit[]>([]);
+  const [contactSearching, setContactSearching] = useState(false);
+  useEffect(() => {
+    const query = contactQuery.trim();
+    if (query.length < 2) {
+      setContactHits([]);
+      setContactSearching(false);
+      return;
+    }
+    setContactSearching(true);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetch(`/api/crm/contacts/search?q=${encodeURIComponent(query)}`)
+        .then((r) => (r.ok ? r.json() : { results: [] }))
+        .then((json: { results?: ContactHit[] }) => {
+          if (!cancelled) setContactHits(json.results ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setContactHits([]);
+        })
+        .finally(() => {
+          if (!cancelled) setContactSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [contactQuery]);
+
+  const pickContact = (c: ContactHit) => {
+    setCoOwnerContactId(c.id);
+    setCoOwner(c.name);
+    setContactQuery("");
+    setContactHits([]);
+  };
+  const unlinkContact = () => setCoOwnerContactId("");
 
   // Publish share % + sale-handled to the shared state so the Financials panel
   // relabels the sold price / zeroes VAT live.
@@ -67,6 +112,7 @@ export function ConsignmentPanel({
     setStatus("saving");
     const body = new FormData();
     body.set("co_owner_consignee", coOwner);
+    body.set("consignee_contact_id", coOwnerContactId);
     body.set("consignment_details", notes);
     body.set("consignment_share_pct", sharePct);
     body.set("sale_handled_by_jvb", saleHandled);
@@ -79,7 +125,7 @@ export function ConsignmentPanel({
     } catch {
       setStatus("error");
     }
-  }, [coOwner, notes, sharePct, saleHandled, pctInvalid, stockNumber]);
+  }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, pctInvalid, stockNumber]);
 
   // Debounced autosave on any change (skip the initial mount).
   useEffect(() => {
@@ -93,7 +139,7 @@ export function ConsignmentPanel({
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [coOwner, notes, sharePct, saleHandled, save]);
+  }, [coOwner, coOwnerContactId, notes, sharePct, saleHandled, save]);
 
   // Live settlement (admin/accountant only — settlement is null otherwise).
   // Sold price / costs / treatment come live from the Financials + Import
@@ -134,10 +180,58 @@ export function ConsignmentPanel({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={label}>
+        <div className={label}>
           Co-owner / consignee
-          <input value={coOwner} onChange={(e) => setCoOwner(e.target.value)} className={field} />
-        </label>
+          <input
+            value={coOwner}
+            onChange={(e) => setCoOwner(e.target.value)}
+            placeholder="Name, or link a CRM contact below"
+            className={field}
+          />
+          {coOwnerContactId ? (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-line-control px-2.5 py-0.5 text-[11.5px] text-ink-body">
+              Linked contact
+              <button
+                type="button"
+                onClick={unlinkContact}
+                aria-label="Unlink contact"
+                className="text-ink-muted hover:text-oranje"
+              >
+                ×
+              </button>
+            </span>
+          ) : (
+            <>
+              <input
+                type="search"
+                value={contactQuery}
+                onChange={(e) => setContactQuery(e.target.value)}
+                placeholder="Search CRM contacts to assign…"
+                className={`${field} mt-1.5`}
+              />
+              {contactSearching ? (
+                <p className="mt-1 text-[11.5px] text-ink-muted">Searching…</p>
+              ) : contactHits.length > 0 ? (
+                <ul className="mt-1 divide-y divide-line-control overflow-hidden rounded-lg border border-line-control">
+                  {contactHits.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => pickContact(c)}
+                        className="flex w-full flex-col items-start px-3 py-1.5 text-left text-[13px] text-ink-body hover:bg-control"
+                      >
+                        <span>{c.name}</span>
+                        {c.email ? <span className="text-[11.5px] text-ink-muted">{c.email}</span> : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : contactQuery.trim().length >= 2 ? (
+                <p className="mt-1 text-[11.5px] text-ink-muted">No matches.</p>
+              ) : null}
+            </>
+          )}
+        </div>
 
         <label className={label}>
           Share / commission (%)
@@ -171,7 +265,7 @@ export function ConsignmentPanel({
       </div>
 
       {split ? (
-        <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line-soft bg-band/50 p-4 sm:grid-cols-4">
           <div>
             <p className={label}>VAT due £</p>
             <p className="mt-1 font-mono text-[15px] text-ink-strong">{split.thirdParty ? "—" : gbp(split.vat)}</p>
@@ -185,6 +279,13 @@ export function ConsignmentPanel({
             <p className={label}>J.v.d.B. share £</p>
             <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.share)}</p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">{sharePct}% of the above</p>
+          </div>
+          <div>
+            <p className={label}>Co-owner / consignee share £</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(round2(split.base - split.share))}</p>
+            <p className="mt-0.5 text-[10.5px] text-ink-soft">
+              {round2(100 - (pctNum ?? 0))}% of the above
+            </p>
           </div>
         </div>
       ) : settlement && pctNum !== null && !pctInvalid && saleHandled === "" ? (

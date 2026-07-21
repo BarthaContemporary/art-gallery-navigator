@@ -52,6 +52,7 @@ export async function PATCH(
     .from("pieces")
     .update({
       shares_note: str("co_owner_consignee"),
+      consignee_contact_id: str("consignee_contact_id"),
       consignment_details: str("consignment_details"),
       consignment_share_pct: pct,
       sale_handled_by_jvb: saleHandled,
