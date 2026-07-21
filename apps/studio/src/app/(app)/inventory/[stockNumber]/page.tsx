@@ -623,21 +623,46 @@ export default async function PieceDetail({
               ) : null}
             </Stat>
           </div>
-          <div className="border-line md:border-l md:pl-9">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[15px] font-semibold text-ink-strong">
-                {fin.consignment_id ? "Consigned" : "Owned outright"}
-              </span>
-              <span className="rounded-[6px] bg-chip px-2 py-0.5 text-[11px] text-ink-body">
-                {fin.consignment_id ? "Consignment" : "Not consigned"}
-              </span>
-            </div>
-            <p className="mt-1.5 text-[13px] text-ink-muted">
-              {fin.consignment_id
-                ? "Revenue split applies — see consignment record."
-                : `100% JVB stock · no revenue split. VAT: ${fin.vat_treatment.replace(/_/g, " ")}${fin.vat_review_needed ? " (review needed)" : ""}.`}
-            </p>
-          </div>
+          {(() => {
+            // Consignment status comes from the Consignment panel fields on the
+            // piece (co-owner/consignee, share %, sale-handled), falling back to
+            // any legacy consignment_id link on the financials row.
+            const coOwnerName = (piece.shares_note as string | null)?.trim() || null;
+            const sharePct = piece.consignment_share_pct as number | null;
+            const saleHandled = piece.sale_handled_by_jvb as boolean | null;
+            const onConsignment =
+              Boolean(fin.consignment_id) ||
+              sharePct != null ||
+              Boolean(coOwnerName) ||
+              Boolean(piece.consignee_contact_id) ||
+              saleHandled != null;
+            const vatText = `${fin.vat_treatment.replace(/_/g, " ")}${fin.vat_review_needed ? " (review needed)" : ""}`;
+            return (
+              <div className="border-line md:border-l md:pl-9">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[15px] font-semibold text-ink-strong">
+                    {onConsignment ? "Consigned" : "Owned outright"}
+                  </span>
+                  <span className="rounded-[6px] bg-chip px-2 py-0.5 text-[11px] text-ink-body">
+                    {onConsignment ? "Consignment" : "Not consigned"}
+                  </span>
+                </div>
+                {onConsignment ? (
+                  <p className="mt-1.5 text-[13px] text-ink-muted">
+                    {coOwnerName ? `Co-owner / consignee: ${coOwnerName}. ` : ""}
+                    {sharePct != null ? `J.v.d.B. share ${sharePct}%. ` : ""}
+                    {saleHandled === false
+                      ? "Sold by a third party — no VAT for J.v.d.B."
+                      : `${saleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[13px] text-ink-muted">
+                    {`100% JVB stock · no revenue split. VAT: ${vatText}.`}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ) : null}
 
