@@ -91,6 +91,27 @@ function formToObject(formData: FormData, keys: string[]) {
   return Object.fromEntries(keys.map((k) => [k, formData.get(k) ?? ""]));
 }
 
+/**
+ * Start a new record as a draft and open it in the editor. Creating the piece
+ * up front (rather than only on a final submit) is what lets the editor
+ * autosave every change and lets the user attach import/export/temporary-export
+ * shipments to the work while entering it — including stepping out to "Manage
+ * shipments" and back without losing anything. A blank draft that is abandoned
+ * can simply be deleted from the record (soft-delete).
+ */
+export async function createDraftPiece() {
+  const { user } = await requireSession();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from("pieces")
+    .insert({ created_by: user.id, updated_by: user.id })
+    .select("stock_number")
+    .single();
+  if (error || !data)
+    redirect(`/inventory?error=${encodeURIComponent(error?.message ?? "Could not start a new record")}`);
+  redirect(`/inventory/${encodeURIComponent(data.stock_number)}/edit`);
+}
+
 export async function savePiece(
   stockNumber: string | null,
   formData: FormData,

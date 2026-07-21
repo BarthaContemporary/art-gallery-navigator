@@ -31,7 +31,12 @@ export async function POST() {
       transports: (c.transports ?? []) as AuthenticatorTransport[],
     })),
     authenticatorSelection: {
-      residentKey: "preferred",
+      // Apple Face ID / Touch ID = a platform authenticator with a discoverable
+      // (resident) credential, synced via iCloud Keychain. Requiring a resident
+      // key is what makes usernameless Face ID sign-in work.
+      authenticatorAttachment: "platform",
+      residentKey: "required",
+      requireResidentKey: true,
       userVerification: "preferred",
     },
   });

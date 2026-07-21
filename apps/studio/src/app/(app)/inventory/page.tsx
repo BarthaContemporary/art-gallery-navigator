@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
+import { createDraftPiece } from "./actions";
 
 const PAGE_SIZE = 100;
 
@@ -260,12 +261,14 @@ export default async function InventoryPage({
           >
             Export XLSX
           </a>
-          <Link
-            href="/inventory/new"
-            className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
-          >
-            New record
-          </Link>
+          <form action={createDraftPiece}>
+            <button
+              type="submit"
+              className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
+            >
+              New record
+            </button>
+          </form>
         </div>
       </div>
 

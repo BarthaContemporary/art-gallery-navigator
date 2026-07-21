@@ -63,6 +63,14 @@ export function AutosaveForm({
     timer.current = setTimeout(save, 800);
   }, [save]);
 
+  // Flush immediately when focus leaves a field — so stepping out to "Manage
+  // shipments" / "Manage temporary exports" (links outside this form) never
+  // loses the in-progress entry to a pending debounce.
+  const flush = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    void save();
+  }, [save]);
+
   const statusText =
     status === "saving"
       ? "Saving…"
@@ -77,6 +85,7 @@ export function AutosaveForm({
       ref={formRef}
       onInput={scheduleSave}
       onChange={scheduleSave}
+      onBlur={flush}
       onSubmit={(e) => {
         e.preventDefault();
         if (timer.current) clearTimeout(timer.current);
