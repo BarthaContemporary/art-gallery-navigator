@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useEditFinancials } from "@/components/edit-financials-context";
+
+/** Small customs/import glyph shown when import VAT is folded into costs. */
+function ImportVatIcon({ title }: { title: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-1px] text-oranje" aria-label={title}>
+      <title>{title}</title>
+      <path d="M5 14v3.5A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5V14" />
+      <path d="M12 4v9" />
+      <path d="M8.5 9.5 12 13l3.5-3.5" />
+    </svg>
+  );
+}
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 const field =
@@ -43,7 +56,20 @@ export function FinancialsFields({
   saleHandledByJvb?: boolean | null;
 }) {
   const d = (k: string) => defaults[k] ?? "";
-  const thirdParty = saleHandledByJvb === false;
+
+  // Live cross-panel state (sale-handled from Consignment, import VAT from the
+  // Import panel). Falls back to the server value when no provider is present.
+  const ctx = useEditFinancials();
+  const saleHandled = ctx
+    ? ctx.saleHandled
+    : saleHandledByJvb === true
+      ? "yes"
+      : saleHandledByJvb === false
+        ? "no"
+        : "";
+  const thirdParty = saleHandled === "no";
+  const importType = ctx?.importType ?? "";
+  const importVatGbp = ctx?.importVatGbp ?? 0;
   const numOf = (s: string) => {
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
@@ -93,8 +119,15 @@ export function FinancialsFields({
   // VAT + net worked out from the VAT treatment. Margin scheme charges 1/6 of
   // the margin (sale − total cost); standard-rated charges 1/6 of the sale;
   // zero-rated / outside-scope charge nothing.
-  const { totalCost, vatDue, netAmount } = useMemo(() => {
-    const total = round2(numOf(costGbp) + numOf(restorationGbp) + numOf(otherGbp));
+  // Import VAT paid: on the margin scheme it is added to costs; on standard /
+  // zero-rated it is instead reclaimable input VAT (recorded for the return).
+  const importVatCost = vatTreatment === "margin_scheme" && importType === "import_vat_paid" ? importVatGbp : 0;
+  const reclaimableImportVat =
+    importType === "import_vat_paid" && (vatTreatment === "standard" || vatTreatment === "zero_rated") ? importVatGbp : 0;
+
+  const { totalBase, totalCost, vatDue, netAmount } = useMemo(() => {
+    const base = round2(numOf(costGbp) + numOf(restorationGbp) + numOf(otherGbp));
+    const total = round2(base + importVatCost);
     const sold = numOf(soldGbp);
     let vat = 0;
     // Third-party sale (sold by someone else): no VAT for us; price is net.
@@ -103,8 +136,14 @@ export function FinancialsFields({
       else if (vatTreatment === "standard") vat = sold / 6;
     }
     vat = round2(vat);
-    return { totalCost: total, vatDue: vat, netAmount: round2(sold - vat) };
-  }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment, thirdParty]);
+    return { totalBase: base, totalCost: total, vatDue: vat, netAmount: round2(sold - vat) };
+  }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment, thirdParty, importVatCost]);
+
+  // Publish the values other panels need (sold £, base cost, treatment).
+  useEffect(() => {
+    ctx?.patch({ soldGbp: numOf(soldGbp), totalCost: totalBase, vatTreatment });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soldGbp, totalBase, vatTreatment]);
 
   const soldNum = numOf(soldGbp);
 
@@ -143,8 +182,14 @@ export function FinancialsFields({
           <input type="number" step="0.01" name="restoration_cost_gbp" value={restorationGbp} onChange={(e) => setRestorationGbp(e.target.value)} className={field} />
         </label>
         <label className={label}>
-          Other costs £
+          <span className="inline-flex items-center gap-1">
+            Other costs £
+            {importVatCost > 0 ? <ImportVatIcon title={`Includes import VAT of ${gbp(importVatCost)} added to costs (margin scheme)`} /> : null}
+          </span>
           <input type="number" step="0.01" name="other_costs_gbp" value={otherGbp} onChange={(e) => setOtherGbp(e.target.value)} className={field} />
+          {importVatCost > 0 ? (
+            <span className="mt-1 block text-[10.5px] text-oranje">+ import VAT {gbp(importVatCost)}</span>
+          ) : null}
         </label>
         <label className={`${label} sm:col-span-2`}>
           Marked price £
@@ -210,6 +255,11 @@ export function FinancialsFields({
           <p className="mt-1 font-mono text-[15px] text-ink-strong">
             {soldNum > 0 ? gbp(netAmount) : "—"}
           </p>
+          {reclaimableImportVat > 0 ? (
+            <p className="mt-1 text-[10.5px] font-medium text-oranje">
+              Import VAT of {gbp(reclaimableImportVat)} is reclaimable on this item — noted in the stock book.
+            </p>
+          ) : null}
         </div>
       </div>
 

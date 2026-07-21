@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEditFinancials } from "@/components/edit-financials-context";
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 const field = "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
@@ -43,6 +44,14 @@ export function ConsignmentPanel({
   const [sharePct, setSharePct] = useState(initial.sharePct);
   const [saleHandled, setSaleHandled] = useState<"" | "yes" | "no">(initial.saleHandled);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Publish share % + sale-handled to the shared state so the Financials panel
+  // relabels the sold price / zeroes VAT live.
+  const ctx = useEditFinancials();
+  useEffect(() => {
+    ctx?.patch({ sharePct, saleHandled });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharePct, saleHandled]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const first = useRef(true);
@@ -87,24 +96,32 @@ export function ConsignmentPanel({
   }, [coOwner, notes, sharePct, saleHandled, save]);
 
   // Live settlement (admin/accountant only — settlement is null otherwise).
+  // Sold price / costs / treatment come live from the Financials + Import
+  // panels via shared state, falling back to the values passed at load.
+  const liveSold = ctx?.soldGbp ?? settlement?.soldGbp ?? 0;
+  const liveCosts = ctx?.totalCost ?? settlement?.totalCostGbp ?? 0;
+  const liveTreatment = ctx?.vatTreatment ?? settlement?.vatTreatment ?? "margin_scheme";
+  const importVatCost =
+    liveTreatment === "margin_scheme" && ctx?.importType === "import_vat_paid" ? ctx?.importVatGbp ?? 0 : 0;
+
   const split = useMemo(() => {
     if (!settlement || pctNum === null || pctInvalid || saleHandled === "") return null;
-    const sold = settlement.soldGbp ?? 0;
+    const sold = liveSold;
     if (sold <= 0) return null;
-    const costs = settlement.totalCostGbp ?? 0;
     const pct = pctNum / 100;
     if (saleHandled === "no") {
       // Third-party sale: no VAT, sold price is net.
-      return { vat: 0, base: sold, share: round2(pct * sold), thirdParty: true as const };
+      return { vat: 0, base: round2(sold), share: round2(pct * sold), thirdParty: true as const };
     }
-    // JvB sale: regular VAT, share of (sold − costs − VAT).
+    // JvB sale: regular VAT (margin scheme absorbs import VAT), share of the net.
+    const costs = round2(liveCosts + importVatCost);
     let vat = 0;
-    if (settlement.vatTreatment === "margin_scheme") vat = Math.max(0, sold - costs) / 6;
-    else if (settlement.vatTreatment === "standard") vat = sold / 6;
+    if (liveTreatment === "margin_scheme") vat = Math.max(0, sold - costs) / 6;
+    else if (liveTreatment === "standard") vat = sold / 6;
     vat = round2(vat);
     const base = round2(sold - costs - vat);
     return { vat, base, share: round2(pct * base), thirdParty: false as const };
-  }, [settlement, pctNum, pctInvalid, saleHandled]);
+  }, [settlement, pctNum, pctInvalid, saleHandled, liveSold, liveCosts, liveTreatment, importVatCost]);
 
   const statusText =
     status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? (pctInvalid ? "Share must be 1–99" : "Couldn’t save") : "";

@@ -9,6 +9,8 @@ import { AutosaveForm } from "@/components/autosave-form";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { ConsignmentPanel } from "@/components/consignment-panel";
+import { ImportVatFields } from "@/components/import-vat-fields";
+import { EditFinancialsProvider, type EditFinancialsState } from "@/components/edit-financials-context";
 
 export const metadata = { title: "Edit record" };
 
@@ -205,7 +207,23 @@ export default async function EditPiecePage({
     thumbUrl = data?.signedUrl ?? null;
   }
 
+  const fin = financials.data as Record<string, unknown> | null;
+  const numOr0 = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const initialFinState: EditFinancialsState = {
+    soldGbp: numOr0(fin?.sold_price_gbp),
+    totalCost: numOr0(fin?.purchase_cost_gbp) + numOr0(fin?.restoration_cost_gbp) + numOr0(fin?.other_costs_gbp),
+    vatTreatment: String(fin?.vat_treatment ?? "margin_scheme"),
+    saleHandled: piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",
+    sharePct: piece.consignment_share_pct != null ? String(piece.consignment_share_pct) : "",
+    importType: ((fin?.import_type as string) ?? "") as EditFinancialsState["importType"],
+    importVatGbp: numOr0(fin?.import_vat_gbp),
+  };
+
   return (
+    <EditFinancialsProvider initial={initialFinState}>
     <div>
       <AutosaveForm endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}>
         <EditHeader
@@ -272,6 +290,15 @@ export default async function EditPiecePage({
               <Link href="/shipments" className="mt-2 inline-block text-[11.5px] text-oranje hover:underline">
                 Manage shipments →
               </Link>
+              {kind === "import" && showFinancials ? (
+                <ImportVatFields
+                  stockNumber={piece.stock_number}
+                  initial={{
+                    importType: (fin?.import_type as string) ?? "",
+                    importVatGbp: fin?.import_vat_gbp != null ? String(fin.import_vat_gbp) : "",
+                  }}
+                />
+              ) : null}
             </section>
           );
         })}
@@ -371,5 +398,6 @@ export default async function EditPiecePage({
         </div>
       ) : null}
     </div>
+    </EditFinancialsProvider>
   );
 }

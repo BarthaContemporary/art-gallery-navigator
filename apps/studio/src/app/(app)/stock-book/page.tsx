@@ -31,9 +31,17 @@ export default async function StockBookPage({
       sold: acc.sold + (r.sold_price_gbp ?? 0),
       margin: acc.margin + (r.margin_gbp ?? 0),
       vat: acc.vat + (r.vat_due_gbp ?? 0),
+      reclaim: acc.reclaim + (r.reclaimable_import_vat_gbp ?? 0),
+      jvbShare: acc.jvbShare + (r.jvb_share_gbp ?? 0),
     }),
-    { purchase: 0, sold: 0, margin: 0, vat: 0 },
+    { purchase: 0, sold: 0, margin: 0, vat: 0, reclaim: 0, jvbShare: 0 },
   );
+
+  const IMPORT_TYPE_LABEL: Record<string, string> = {
+    import_vat_paid: "VAT paid",
+    import_vat_deferred: "VAT deferred",
+    temporary_import: "Temp import",
+  };
 
   const qs = new URLSearchParams(
     Object.entries(sp).filter(([, v]) => v) as [string, string][],
@@ -90,7 +98,7 @@ export default async function StockBookPage({
         <p className="mt-4 text-[13px] text-ink-body">Could not load: {error.message}</p>
       ) : (
         <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
-          <table className="w-full min-w-[900px] bg-cell text-left">
+          <table className="w-full min-w-[1120px] bg-cell text-left">
             <thead>
               <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
                 <th className="px-3 py-2.5 font-medium">Stock no.</th>
@@ -102,8 +110,9 @@ export default async function StockBookPage({
                 <th className="px-3 py-2.5 text-right font-medium">Sale £</th>
                 <th className="px-3 py-2.5 font-medium">Export</th>
                 <th className="px-3 py-2.5 font-medium">Temp export</th>
+                <th className="px-3 py-2.5 font-medium">Consignment</th>
                 <th className="px-3 py-2.5 text-right font-medium">Margin £</th>
-                {scheme === "margin" ? <th className="px-3 py-2.5 text-right font-medium">VAT due £</th> : null}
+                <th className="px-3 py-2.5 text-right font-medium">VAT due £</th>
               </tr>
             </thead>
             <tbody>
@@ -116,6 +125,13 @@ export default async function StockBookPage({
                   <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
                     {r.import_date ? new Date(r.import_date).toLocaleDateString("en-GB") : "—"}
                     {r.import_reference ? <span className="block text-ink-soft">{r.import_reference}</span> : null}
+                    {r.import_type ? (
+                      <span className="block text-oranje">
+                        {IMPORT_TYPE_LABEL[r.import_type] ?? r.import_type}
+                        {r.import_vat_gbp != null ? ` ${gbp(r.import_vat_gbp)}` : ""}
+                        {r.reclaimable_import_vat_gbp ? " · reclaim" : ""}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2 font-mono text-[12px] text-ink-muted">{r.sold_date ?? "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.sold_price_gbp)}</td>
@@ -127,10 +143,22 @@ export default async function StockBookPage({
                     {r.temp_export_date ? new Date(r.temp_export_date).toLocaleDateString("en-GB") : "—"}
                     {r.temp_export_reference ? <span className="block text-ink-soft">{r.temp_export_reference}</span> : null}
                   </td>
+                  <td className="px-3 py-2 font-mono text-[11.5px] text-ink-muted">
+                    {r.consignment_share_pct != null ? (
+                      <>
+                        <span className="block text-ink-body">
+                          {r.consignment_co_owner ?? "—"} · {r.consignment_share_pct}%
+                        </span>
+                        <span className="block text-ink-soft">
+                          {r.sale_handled_by_jvb === false ? "3rd-party" : "JvB"} · share {gbp(r.jvb_share_gbp)}
+                        </span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-body">{gbp(r.margin_gbp)}</td>
-                  {scheme === "margin" ? (
-                    <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-strong">{gbp(r.vat_due_gbp)}</td>
-                  ) : null}
+                  <td className="px-3 py-2 text-right font-mono text-[12.5px] text-ink-strong">{gbp(r.vat_due_gbp)}</td>
                 </tr>
               ))}
             </tbody>
@@ -140,13 +168,18 @@ export default async function StockBookPage({
                   Totals ({(rows ?? []).length} items)
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.purchase)}</td>
-                <td />
+                <td className="px-3 py-2.5 font-mono text-[11px] text-oranje">
+                  {totals.reclaim > 0 ? `reclaim ${gbp(totals.reclaim)}` : ""}
+                </td>
                 <td />
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.sold)}</td>
                 <td />
                 <td />
+                <td className="px-3 py-2.5 font-mono text-[11px] text-ink-soft">
+                  {totals.jvbShare > 0 ? `share ${gbp(totals.jvbShare)}` : ""}
+                </td>
                 <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.margin)}</td>
-                {scheme === "margin" ? <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.vat)}</td> : null}
+                <td className="px-3 py-2.5 text-right font-mono">{gbp(totals.vat)}</td>
               </tr>
             </tfoot>
           </table>
