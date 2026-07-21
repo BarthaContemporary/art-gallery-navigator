@@ -30,7 +30,7 @@ async function spotToGbp(cur: string, date: string | null): Promise<number | nul
   if (cur === "GBP") return 1;
   if (!date) return null;
   try {
-    const r = await fetch(`https://api.frankfurter.app/${date}?from=${cur}&to=GBP`);
+    const r = await fetch(`https://api.frankfurter.dev/v1/${date}?from=${cur}&to=GBP`);
     if (!r.ok) return null;
     const j = (await r.json()) as { rates?: { GBP?: number } };
     return typeof j?.rates?.GBP === "number" ? j.rates.GBP : null;
@@ -89,6 +89,9 @@ export function FinancialsFields({
   const [sellCur, setSellCur] = useState(d("sell_currency") || "GBP");
   const [soldGbp, setSoldGbp] = useState(d("sold_price_gbp"));
   const [soldNote, setSoldNote] = useState<string | null>(null);
+  // True while the £ figure is coming from the spot conversion; false when no
+  // rate was available and the user should type the £ in by hand.
+  const [autoConverted, setAutoConverted] = useState(true);
 
   const [vatTreatment, setVatTreatment] = useState(d("vat_treatment") || "margin_scheme");
 
@@ -98,15 +101,25 @@ export function FinancialsFields({
     if (!soldPrice || Number.isNaN(amount)) {
       setSoldGbp("");
       setSoldNote(null);
+      setAutoConverted(true);
       return;
     }
     const t = setTimeout(async () => {
       const rate = await spotToGbp(sellCur, soldDate || null);
       if (cancelled) return;
       if (rate == null) {
-        setSoldNote(sellCur === "GBP" ? null : "Enter a sold date to convert.");
+        // No spot rate (no date, a future date, or the service is down). Don't
+        // clobber any £ already entered — let the user type it in by hand
+        // instead of blocking the sale.
+        setAutoConverted(false);
+        setSoldNote(
+          !soldDate
+            ? "Enter a sold date to convert, or type the Sold £ in by hand."
+            : `No spot rate available for ${soldDate} — type the Sold £ in by hand.`,
+        );
         return;
       }
+      setAutoConverted(true);
       setSoldGbp(String(round2(amount * rate)));
       setSoldNote(sellCur === "GBP" ? null : `spot ${rate.toFixed(4)} on ${soldDate}`);
     }, 400);
@@ -213,7 +226,15 @@ export function FinancialsFields({
         </label>
         <label className={label}>
           {thirdParty ? "Net sold £" : "Sold £"}
-          <input type="number" step="0.01" name="sold_price_gbp" value={soldGbp} readOnly className={readonly} />
+          <input
+            type="number"
+            step="0.01"
+            name="sold_price_gbp"
+            value={soldGbp}
+            readOnly={autoConverted}
+            onChange={autoConverted ? undefined : (e) => setSoldGbp(e.target.value)}
+            className={autoConverted ? readonly : field}
+          />
           {soldNote ? <span className="mt-1 block text-[10.5px] text-ink-soft">{soldNote}</span> : null}
         </label>
 
@@ -264,9 +285,9 @@ export function FinancialsFields({
       </div>
 
       <p className="mt-3 text-[11.5px] text-ink-soft">
-        The sale £ is worked out automatically from the spot rate on the sale date; the
-        purchase £ is entered by hand. VAT and net update from the VAT treatment above and
-        are shown for reference — they aren’t stored.
+        The sale £ is worked out automatically from the spot rate on the sale date (or typed
+        in by hand if no rate is available); the purchase £ is entered by hand. VAT and net
+        update from the VAT treatment above and are shown for reference — they aren’t stored.
       </p>
     </div>
   );

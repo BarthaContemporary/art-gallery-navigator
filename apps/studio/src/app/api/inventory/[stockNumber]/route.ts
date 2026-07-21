@@ -30,7 +30,7 @@ async function fxToGbp(
 
   try {
     const res = await fetch(
-      `https://api.frankfurter.app/${date}?from=${currency}&to=GBP`,
+      `https://api.frankfurter.dev/v1/${date}?from=${currency}&to=GBP`,
       { cache: "no-store" },
     );
     if (!res.ok) return null;
