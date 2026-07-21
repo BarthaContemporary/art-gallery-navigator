@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditFinancials } from "@/components/edit-financials-context";
+import { consignmentSplit } from "@/lib/consignment";
 
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 const field = "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
@@ -145,29 +146,27 @@ export function ConsignmentPanel({
   // Sold price / costs / treatment come live from the Financials + Import
   // panels via shared state, falling back to the values passed at load.
   const liveSold = ctx?.soldGbp ?? settlement?.soldGbp ?? 0;
+  const livePurchase = ctx?.purchaseCost ?? 0;
   const liveCosts = ctx?.totalCost ?? settlement?.totalCostGbp ?? 0;
   const liveTreatment = ctx?.vatTreatment ?? settlement?.vatTreatment ?? "margin_scheme";
-  const importVatCost =
-    liveTreatment === "margin_scheme" && ctx?.importType === "import_vat_paid" ? ctx?.importVatGbp ?? 0 : 0;
+  const liveImportVatPaid = ctx?.importType === "import_vat_paid" ? ctx?.importVatGbp ?? 0 : 0;
 
   const split = useMemo(() => {
     if (!settlement || pctNum === null || pctInvalid || saleHandled === "") return null;
-    const sold = liveSold;
-    if (sold <= 0) return null;
-    const pct = pctNum / 100;
-    if (saleHandled === "no") {
-      // Third-party sale: no VAT, sold price is net.
-      return { vat: 0, base: round2(sold), share: round2(pct * sold), thirdParty: true as const };
-    }
-    // JvB sale: regular VAT (margin scheme absorbs import VAT), share of the net.
-    const costs = round2(liveCosts + importVatCost);
-    let vat = 0;
-    if (liveTreatment === "margin_scheme") vat = Math.max(0, sold - costs) / 6;
-    else if (liveTreatment === "standard") vat = sold / 6;
-    vat = round2(vat);
-    const base = round2(sold - costs - vat);
-    return { vat, base, share: round2(pct * base), thirdParty: false as const };
-  }, [settlement, pctNum, pctInvalid, saleHandled, liveSold, liveCosts, liveTreatment, importVatCost]);
+    if (liveSold <= 0) return null;
+    // Purchase cost drives the margin-scheme VAT but is ignored in the shared
+    // pool; restoration / other (liveCosts − purchase) + import VAT are carried
+    // by J.v.d.B. out of its own share.
+    return consignmentSplit({
+      amount: liveSold,
+      vatTreatment: liveTreatment,
+      saleHandledByJvb: saleHandled === "no" ? false : true,
+      purchaseCostGbp: livePurchase,
+      extraCostsGbp: Math.max(0, liveCosts - livePurchase),
+      importVatPaidGbp: liveImportVatPaid,
+      sharePct: pctNum,
+    });
+  }, [settlement, pctNum, pctInvalid, saleHandled, liveSold, livePurchase, liveCosts, liveTreatment, liveImportVatPaid]);
 
   const statusText =
     status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? (pctInvalid ? "Share must be 1–99" : "Couldn’t save") : "";
@@ -272,19 +271,22 @@ export function ConsignmentPanel({
             <p className="mt-0.5 text-[10.5px] text-ink-soft">{split.thirdParty ? "no VAT (third-party sale)" : "regular VAT rules"}</p>
           </div>
           <div>
-            <p className={label}>{split.thirdParty ? "Net sold price £" : "Net after costs + VAT £"}</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.base)}</p>
+            <p className={label}>{split.thirdParty ? "Net sold price £" : "Net after VAT £"}</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.sharedNet)}</p>
+            <p className="mt-0.5 text-[10.5px] text-ink-soft">purchase cost excluded from split</p>
           </div>
           <div>
             <p className={label}>J.v.d.B. share £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.share)}</p>
-            <p className="mt-0.5 text-[10.5px] text-ink-soft">{sharePct}% of the above</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.jvbShare)}</p>
+            <p className="mt-0.5 text-[10.5px] text-ink-soft">
+              {sharePct}% of net{split.jvbBorne > 0 ? `, less ${gbp(split.jvbBorne)} costs` : ""}
+            </p>
           </div>
           <div>
             <p className={label}>Co-owner / consignee share £</p>
-            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(round2(split.base - split.share))}</p>
+            <p className="mt-1 font-mono text-[15px] text-ink-strong">{gbp(split.coOwnerShare)}</p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              {round2(100 - (pctNum ?? 0))}% of the above
+              {round2(100 - (pctNum ?? 0))}% of net
             </p>
           </div>
         </div>

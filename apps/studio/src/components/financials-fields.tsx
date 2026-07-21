@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useEditFinancials } from "@/components/edit-financials-context";
+import { consignmentSplit } from "@/lib/consignment";
 
 /** Small customs/import glyph shown when import VAT is folded into costs. */
 function ImportVatIcon({ title }: { title: string }) {
@@ -160,22 +161,31 @@ export function FinancialsFields({
     return { totalBase: base, totalCost: total, vatDue: vat, netAmount: round2(sold - vat) };
   }, [costGbp, restorationGbp, otherGbp, soldGbp, vatTreatment, thirdParty, importVatCost]);
 
-  // Publish the values other panels need (sold £, base cost, treatment).
+  // Publish the values other panels need (sold £, purchase £, base cost, treatment).
   useEffect(() => {
-    ctx?.patch({ soldGbp: numOf(soldGbp), totalCost: totalBase, vatTreatment });
+    ctx?.patch({ soldGbp: numOf(soldGbp), purchaseCost: numOf(costGbp), totalCost: totalBase, vatTreatment });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soldGbp, totalBase, vatTreatment]);
+  }, [soldGbp, costGbp, totalBase, vatTreatment]);
 
   const soldNum = numOf(soldGbp);
 
   // Consignment: when a share % is set, work out the J.v.d.B. share £ (shown
-  // next to Net of VAT £). Mirrors the Consignment panel + stock book:
-  //  - third-party sale → share % of the net sold price;
-  //  - J.v.d.B. sale    → share % of (sold − total cost − VAT due).
+  // next to Net of VAT £). The purchase cost still drives the margin-scheme VAT
+  // but is ignored in the shared pool; restoration / other / import VAT are
+  // carried by J.v.d.B. out of its own share.
   const sharePctNum = ctx && ctx.sharePct.trim() !== "" ? Number(ctx.sharePct) : NaN;
   const onConsignment = Number.isFinite(sharePctNum) && sharePctNum > 0 && sharePctNum < 100;
-  const jvbShareBase = thirdParty ? soldNum : Math.max(0, netAmount - totalCost);
-  const jvbShare = onConsignment ? round2((sharePctNum / 100) * jvbShareBase) : null;
+  const jvbShare = onConsignment
+    ? consignmentSplit({
+        amount: soldNum,
+        vatTreatment,
+        saleHandledByJvb: saleHandled === "no" ? false : saleHandled === "yes" ? true : null,
+        purchaseCostGbp: numOf(costGbp),
+        extraCostsGbp: numOf(restorationGbp) + numOf(otherGbp),
+        importVatPaidGbp: importType === "import_vat_paid" ? importVatGbp : 0,
+        sharePct: sharePctNum,
+      }).jvbShare
+    : null;
 
   const curOptions = CURRENCIES.map((c) => (
     <option key={c} value={c}>
@@ -316,7 +326,7 @@ export function FinancialsFields({
               {soldNum > 0 ? gbp(jvbShare ?? 0) : "—"}
             </p>
             <p className="mt-0.5 text-[10.5px] text-ink-soft">
-              {sharePctNum}%{thirdParty ? " of net sold price" : " of net after costs + VAT"} · on consignment
+              {sharePctNum}% of {thirdParty ? "net sold price" : "net after VAT"}, less J.v.d.B. costs · on consignment
             </p>
           </div>
         ) : null}

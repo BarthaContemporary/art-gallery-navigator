@@ -11,6 +11,7 @@ import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
 import { StatusPill } from "@/components/status-pill";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
+import { consignmentSplit } from "@/lib/consignment";
 
 export const metadata = { title: "Piece detail" };
 
@@ -225,6 +226,33 @@ export default async function PieceDetail({
     fin?.marked_price_gbp && fin?.total_cost_gbp != null && fin.marked_price_gbp > 0
       ? (((fin.marked_price_gbp - fin.total_cost_gbp) / fin.marked_price_gbp) * 100).toFixed(1)
       : null;
+
+  // Consignment / co-ownership status + the J.v.d.B. projected margin. The
+  // "projected margin" is worked out at the marked (asking) price; when the
+  // work is consigned/co-owned with a share %, it becomes J.v.d.B.'s projected
+  // share instead of the overall margin.
+  const num0 = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const consignSharePct = piece.consignment_share_pct as number | null;
+  const consignSaleHandled = piece.sale_handled_by_jvb as boolean | null;
+  const consignCoOwner = (piece.shares_note as string | null)?.trim() || null;
+  const onConsignment =
+    Boolean(fin?.consignment_id) ||
+    consignSharePct != null ||
+    Boolean(consignCoOwner) ||
+    Boolean(piece.consignee_contact_id) ||
+    consignSaleHandled != null;
+  const useJvbMargin = onConsignment && consignSharePct != null && fin?.marked_price_gbp != null;
+  const jvbProjectedMargin = useJvbMargin
+    ? consignmentSplit({
+        amount: fin!.marked_price_gbp as number,
+        vatTreatment: String(fin!.vat_treatment ?? "margin_scheme"),
+        saleHandledByJvb: consignSaleHandled,
+        purchaseCostGbp: num0(fin!.purchase_cost_gbp),
+        extraCostsGbp: num0(fin!.restoration_cost_gbp) + num0(fin!.other_costs_gbp),
+        importVatPaidGbp: fin!.import_type === "import_vat_paid" ? num0(fin!.import_vat_gbp) : 0,
+        sharePct: consignSharePct as number,
+      }).jvbShare
+    : null;
 
   const { data: pieceLists } = await supabase
     .from("piece_lists")
@@ -600,13 +628,19 @@ export default async function PieceDetail({
                 {gbp(fin.total_cost_gbp)}
               </span>
             </Stat>
-            <Stat label="Projected margin">
+            <Stat label={useJvbMargin ? "Projected margin (JvdB)" : "Projected margin"}>
               <span className="font-mono text-[18px] text-ink-strong md:text-[22px]">
-                {fin.marked_price_gbp != null && fin.total_cost_gbp != null
-                  ? gbp(fin.marked_price_gbp - fin.total_cost_gbp)
-                  : "—"}
+                {useJvbMargin
+                  ? gbp(jvbProjectedMargin)
+                  : fin.marked_price_gbp != null && fin.total_cost_gbp != null
+                    ? gbp(fin.marked_price_gbp - fin.total_cost_gbp)
+                    : "—"}
               </span>
-              {marginPct ? (
+              {useJvbMargin ? (
+                <span className="mt-0.5 block font-mono text-[12px] text-ink-muted">
+                  {consignSharePct}% share
+                </span>
+              ) : marginPct ? (
                 <span className="mt-0.5 block font-mono text-[12px] text-ink-muted">
                   {marginPct}%
                 </span>
@@ -624,18 +658,9 @@ export default async function PieceDetail({
             </Stat>
           </div>
           {(() => {
-            // Consignment status comes from the Consignment panel fields on the
-            // piece (co-owner/consignee, share %, sale-handled), falling back to
-            // any legacy consignment_id link on the financials row.
-            const coOwnerName = (piece.shares_note as string | null)?.trim() || null;
-            const sharePct = piece.consignment_share_pct as number | null;
-            const saleHandled = piece.sale_handled_by_jvb as boolean | null;
-            const onConsignment =
-              Boolean(fin.consignment_id) ||
-              sharePct != null ||
-              Boolean(coOwnerName) ||
-              Boolean(piece.consignee_contact_id) ||
-              saleHandled != null;
+            // Consignment status derives from the Consignment panel fields on
+            // the piece (co-owner/consignee, share %, sale-handled), computed
+            // above; a legacy consignment_id link still counts.
             const vatText = `${fin.vat_treatment.replace(/_/g, " ")}${fin.vat_review_needed ? " (review needed)" : ""}`;
             return (
               <div className="border-line md:border-l md:pl-9">
@@ -649,11 +674,11 @@ export default async function PieceDetail({
                 </div>
                 {onConsignment ? (
                   <p className="mt-1.5 text-[13px] text-ink-muted">
-                    {coOwnerName ? `Co-owner / consignee: ${coOwnerName}. ` : ""}
-                    {sharePct != null ? `J.v.d.B. share ${sharePct}%. ` : ""}
-                    {saleHandled === false
+                    {consignCoOwner ? `Co-owner / consignee: ${consignCoOwner}. ` : ""}
+                    {consignSharePct != null ? `J.v.d.B. share ${consignSharePct}%. ` : ""}
+                    {consignSaleHandled === false
                       ? "Sold by a third party — no VAT for J.v.d.B."
-                      : `${saleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
+                      : `${consignSaleHandled === true ? "Sale handled by J.v.d.B. · " : ""}VAT: ${vatText}.`}
                   </p>
                 ) : (
                   <p className="mt-1.5 text-[13px] text-ink-muted">

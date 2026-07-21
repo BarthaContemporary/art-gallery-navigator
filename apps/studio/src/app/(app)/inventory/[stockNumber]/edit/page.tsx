@@ -247,6 +247,7 @@ export default async function EditPiecePage({
   };
   const initialFinState: EditFinancialsState = {
     soldGbp: numOr0(fin?.sold_price_gbp),
+    purchaseCost: numOr0(fin?.purchase_cost_gbp),
     totalCost: numOr0(fin?.purchase_cost_gbp) + numOr0(fin?.restoration_cost_gbp) + numOr0(fin?.other_costs_gbp),
     vatTreatment: String(fin?.vat_treatment ?? "margin_scheme"),
     saleHandled: piece.sale_handled_by_jvb === true ? "yes" : piece.sale_handled_by_jvb === false ? "no" : "",

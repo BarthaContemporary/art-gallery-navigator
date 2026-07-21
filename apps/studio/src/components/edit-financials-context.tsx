@@ -11,6 +11,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
  */
 export type EditFinancialsState = {
   soldGbp: number;
+  purchaseCost: number; // purchase £ only
   totalCost: number; // cost + restoration + other (excludes import VAT)
   vatTreatment: string;
   saleHandled: "" | "yes" | "no";

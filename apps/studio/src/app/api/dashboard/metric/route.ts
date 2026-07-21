@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
+import { consignmentSplit } from "@/lib/consignment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,14 +40,16 @@ export async function GET(req: Request) {
   const { data } = await supabase
     .from("piece_financials")
     .select(
-      "sold_price_gbp, total_cost_gbp, margin_gbp, net_profit_gbp, vat_treatment, import_type, import_vat_gbp, sold_date, piece:pieces ( consignment_share_pct, sale_handled_by_jvb )",
+      "sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, margin_gbp, net_profit_gbp, vat_treatment, import_type, import_vat_gbp, sold_date, piece:pieces ( consignment_share_pct, sale_handled_by_jvb )",
     )
     .gte("sold_date", startDate)
     .not("sold_date", "is", null);
 
   const rows = (data ?? []) as unknown as {
     sold_price_gbp: number | null;
-    total_cost_gbp: number | null;
+    purchase_cost_gbp: number | null;
+    restoration_cost_gbp: number | null;
+    other_costs_gbp: number | null;
     margin_gbp: number | null;
     net_profit_gbp: number | null;
     vat_treatment: string | null;
@@ -61,24 +64,25 @@ export async function GET(req: Request) {
   }
   if (metric === "profit") {
     // For a work on consignment, J.v.d.B.'s net profit is its share £, not the
-    // net of value — mirrors the Consignment panel + stock book:
-    //   third-party sale → share % of the net sold price;
-    //   J.v.d.B. sale    → share % of (sold − total cost − VAT due).
-    const jvbShare = (r: (typeof rows)[number]): number => {
-      const pct = (r.piece?.consignment_share_pct ?? 0) / 100;
-      const sold = r.sold_price_gbp ?? 0;
-      if (r.piece?.sale_handled_by_jvb === false) return pct * sold;
-      const importVat =
-        r.import_type === "import_vat_paid" && r.vat_treatment === "margin_scheme" ? r.import_vat_gbp ?? 0 : 0;
-      const costs = (r.total_cost_gbp ?? 0) + importVat;
-      let vat = 0;
-      if (r.vat_treatment === "margin_scheme") vat = Math.max(0, sold - costs) / 6;
-      else if (r.vat_treatment === "standard") vat = sold / 6;
-      return pct * Math.max(0, sold - costs - vat);
-    };
+    // net of value (mirrors the Consignment / Financials panels): purchase cost
+    // drives the margin VAT but is excluded from the shared pool; restoration /
+    // other / import VAT are carried by J.v.d.B. out of its share.
     const value = rows.reduce((s, r) => {
-      const onConsignment = r.piece?.consignment_share_pct != null;
-      return s + (onConsignment ? jvbShare(r) : r.net_profit_gbp ?? r.margin_gbp ?? 0);
+      if (r.piece?.consignment_share_pct != null) {
+        return (
+          s +
+          consignmentSplit({
+            amount: r.sold_price_gbp ?? 0,
+            vatTreatment: r.vat_treatment ?? "margin_scheme",
+            saleHandledByJvb: r.piece.sale_handled_by_jvb,
+            purchaseCostGbp: r.purchase_cost_gbp ?? 0,
+            extraCostsGbp: (r.restoration_cost_gbp ?? 0) + (r.other_costs_gbp ?? 0),
+            importVatPaidGbp: r.import_type === "import_vat_paid" ? r.import_vat_gbp ?? 0 : 0,
+            sharePct: r.piece.consignment_share_pct,
+          }).jvbShare
+        );
+      }
+      return s + (r.net_profit_gbp ?? r.margin_gbp ?? 0);
     }, 0);
     return NextResponse.json({ value, format: "gbp" });
   }
