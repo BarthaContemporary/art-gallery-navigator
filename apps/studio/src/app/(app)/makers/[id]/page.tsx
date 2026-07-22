@@ -15,7 +15,7 @@ export default async function MakerProfilePage({
 
   const { data: maker } = await supabase
     .from("makers")
-    .select("id, display_name, native_name, life_dates, region, school_or_workshop, biography, portrait_path, profile_html")
+    .select("id, display_name, native_name, romanized_name, life_dates, region, school_or_workshop, biography, portrait_path, profile_html")
     .eq("id", id)
     .maybeSingle();
   if (!maker) notFound();
@@ -40,20 +40,21 @@ export default async function MakerProfilePage({
   return (
     <div className="max-w-[980px]">
       <Link href="/makers" className="text-[12.5px] text-ink-soft">← All makers</Link>
-      <div className="mt-2 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[24px] font-semibold text-ink-strong">{maker.display_name}</h1>
-        {maker.native_name ? <span className="text-[16px] text-ink-muted">{maker.native_name}</span> : null}
-        {maker.life_dates ? <span className="font-mono text-[13px] text-ink-soft">{maker.life_dates}</span> : null}
-      </div>
-      <p className="mt-1 text-[13px] text-ink-muted">
-        {[maker.region, maker.school_or_workshop].filter(Boolean).join(" · ") || " "}
-      </p>
+      <h1 className="mt-2 text-[24px] font-semibold text-ink-strong">{maker.display_name}</h1>
 
-      <div className="mt-6 rounded-[11px] border border-line bg-cell p-5">
+      <div className="mt-5 rounded-[11px] border border-line bg-cell p-5">
         <MakerProfileEditor
           makerId={maker.id}
           initialHtml={(maker.profile_html as string | null) ?? ""}
           portraitUrl={portraitUrl}
+          initialFields={{
+            display_name: maker.display_name ?? "",
+            native_name: (maker.native_name as string | null) ?? "",
+            romanized_name: (maker.romanized_name as string | null) ?? "",
+            life_dates: (maker.life_dates as string | null) ?? "",
+            region: (maker.region as string | null) ?? "",
+            school_or_workshop: (maker.school_or_workshop as string | null) ?? "",
+          }}
         />
       </div>
 

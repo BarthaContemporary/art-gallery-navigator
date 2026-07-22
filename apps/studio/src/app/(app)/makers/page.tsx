@@ -1,7 +1,7 @@
 import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
 import { MakerRow } from "@/components/maker-row";
-import { addMaker, updateMaker, deleteMaker } from "./actions";
+import { addMaker, deleteMaker } from "./actions";
 
 export const metadata = { title: "Makers" };
 
@@ -87,12 +87,7 @@ export default async function MakersPage({
           </thead>
           <tbody>
             {(makers ?? []).map((m) => (
-              <MakerRow
-                key={m.id}
-                maker={m}
-                updateAction={updateMaker}
-                deleteAction={deleteMaker}
-              />
+              <MakerRow key={m.id} maker={m} deleteAction={deleteMaker} />
             ))}
             {(makers ?? []).length === 0 ? (
               <tr>
