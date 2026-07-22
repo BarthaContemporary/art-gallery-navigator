@@ -152,6 +152,32 @@ docker compose up -d
 - **Disk**: watch `db-data` volume growth; originals/derivatives are in
   Object Storage so the NVMe mostly holds Postgres + logs.
 
+## 6b. Rebuild the image-worker (e.g. HEIC support)
+
+The worker runs from source in the image; a code/dependency change (like the
+`heic-convert` HEIC fallback) needs a rebuild + restart on the VPS:
+
+```
+cd /opt/jvb && git pull
+cd infra/compose
+docker compose build image-worker
+docker compose up -d image-worker
+docker compose logs -f image-worker          # watch it come up clean
+```
+
+Then re-queue any rows that failed on the old worker (the derivative job is
+idempotent — it overwrites the display master):
+
+```
+# reset the HEIC failures back to pending; the worker picks them up on its next poll
+docker compose exec -T db psql -U postgres -d postgres -c \
+  "update piece_images set processing_status='pending', processing_error=null \
+   where processing_status='error' and legacy_container_filename ilike '%.heic';"
+```
+
+Note: `heic-convert` is a pure-JS (WASM) decoder, so no apt packages or a
+libvips rebuild are required — a plain `docker compose build` is enough.
+
 ## 7. Upgrade procedure
 
 Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —

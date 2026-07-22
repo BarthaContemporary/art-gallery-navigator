@@ -20,6 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import exifr from "exifr";
+import convert from "heic-convert";
 import pg from "pg";
 import sharp from "sharp";
 
@@ -184,6 +185,12 @@ async function markError(imageId: string, err: unknown): Promise<void> {
   }
 }
 
+/** True when sharp/libvips couldn't decode the input because it's HEIC/HEVC. */
+function isHeifDecodeError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /compression format has not been built in|heif|no.*decoding plugin/i.test(m);
+}
+
 async function processImage(row: PendingImage): Promise<void> {
   const startedAt = Date.now();
   log("info", "processing image", { imageId: row.id, pieceId: row.piece_id, original: row.storage_path_original });
@@ -194,17 +201,41 @@ async function processImage(row: PendingImage): Promise<void> {
   // sharp: .rotate() with no args auto-orients from EXIF; TIFF input is
   // handled natively by libvips; toColorspace('srgb') normalises AdobeRGB /
   // ProPhoto / CMYK originals to an sRGB display master.
-  const { data: displayJpeg, info } = await sharp(original, { limitInputPixels: 1_000_000_000 })
-    .rotate()
-    .toColorspace("srgb")
-    .resize({
-      width: MAX_DIMENSION_PX,
-      height: MAX_DIMENSION_PX,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
-    .toBuffer({ resolveWithObject: true });
+  const toMaster = (buf: Buffer) =>
+    sharp(buf, { limitInputPixels: 1_000_000_000 })
+      .rotate()
+      .toColorspace("srgb")
+      .resize({
+        width: MAX_DIMENSION_PX,
+        height: MAX_DIMENSION_PX,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .toBuffer({ resolveWithObject: true });
+
+  let displayJpeg: Buffer;
+  let info: sharp.OutputInfo;
+  try {
+    ({ data: displayJpeg, info } = await toMaster(original));
+  } catch (err) {
+    // sharp's bundled libvips can't decode HEIC/HEVC (patent licensing), so
+    // iPhone HEIC photos fail with "compression format has not been built in".
+    // Fall back to a pure-JS decoder (libheif-js/WASM), then run the normal
+    // pipeline on the JPEG it produces. AVIF and everything else still go
+    // straight through sharp.
+    if (isHeifDecodeError(err)) {
+      log("info", "HEIC original — decoding via heic-convert", { imageId: row.id });
+      // @types/heic-convert types buffer as ArrayBufferLike; a Node Buffer is
+      // accepted at runtime (verified), so cast past the imperfect types.
+      const jpeg = Buffer.from(
+        await convert({ buffer: original as unknown as ArrayBufferLike, format: "JPEG", quality: 0.95 }),
+      );
+      ({ data: displayJpeg, info } = await toMaster(jpeg));
+    } else {
+      throw err;
+    }
+  }
 
   const displayPath = `${row.piece_id}/${row.id}.jpg`;
   const { error: uploadError } = await supabase.storage
