@@ -149,7 +149,10 @@ export async function factSheetDocx(props: {
       }),
     );
   }
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({
+    styles: { default: { document: { run: { font: "Helvetica" } } } },
+    sections: [{ children }],
+  });
   return Packer.toBuffer(doc);
 }
 
@@ -257,6 +260,9 @@ export async function certificateDocx(props: {
       children: [new TextRun({ text: `Issued ${props.issuedDate}`, size: 20, color: "6F6F6F" })],
     }),
   );
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({
+    styles: { default: { document: { run: { font: "Helvetica" } } } },
+    sections: [{ children }],
+  });
   return Packer.toBuffer(doc);
 }

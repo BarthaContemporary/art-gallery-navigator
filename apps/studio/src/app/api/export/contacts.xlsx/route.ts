@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { getSupabase } from "@/lib/supabase";
+import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,18 +23,18 @@ export async function GET() {
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Contacts");
-  ws.columns = cols.map((c) => ({ header: c, key: c, width: 24 }));
+  ws.columns = cols.map((c) => ({ header: prettyHeader(c), key: c, width: columnWidth(c) }));
   for (const r of rows ?? [])
     ws.addRow(
       cols.reduce(
         (o, c) => {
-          o[c] = (r as Record<string, unknown>)[c] ?? "";
+          o[c] = cellValue(c, (r as Record<string, unknown>)[c]);
           return o;
         },
         {} as Record<string, unknown>,
       ),
     );
-  ws.getRow(1).font = { bold: true };
+  styleSheet(ws, cols);
   const buf = await wb.xlsx.writeBuffer();
 
   return new Response(new Uint8Array(buf as ArrayBuffer), {
