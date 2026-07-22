@@ -41,6 +41,9 @@ export function MakerProfileEditor({
   const fieldsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [url, setUrl] = useState(portraitUrl);
   const [uploading, setUploading] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSources, setAiSources] = useState<{ url: string; title: string }[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,39 @@ export function MakerProfileEditor({
     }
   }
 
+  async function draftWithAi() {
+    if (aiBusy) return;
+    const existing = editorRef.current?.textContent?.trim() ?? "";
+    if (
+      existing &&
+      !window.confirm(
+        "Replace the current profile text with a fresh AI research draft? The draft is fully editable afterwards.",
+      )
+    )
+      return;
+    setAiBusy(true);
+    setAiError(null);
+    setAiSources([]);
+    try {
+      const res = await fetch(`/api/makers/${makerId}/ai-draft`, { method: "POST" });
+      const json = (await res.json()) as {
+        html?: string;
+        sources?: { url: string; title: string }[];
+        error?: string;
+      };
+      if (!res.ok || !json.html) throw new Error(json.error ?? "Draft failed");
+      if (editorRef.current) {
+        editorRef.current.innerHTML = json.html;
+        void save();
+      }
+      setAiSources(json.sources ?? []);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Draft failed");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function removePortrait() {
     await fetch(`/api/makers/${makerId}/portrait`, { method: "DELETE" });
     setUrl(null);
@@ -190,7 +226,18 @@ export function MakerProfileEditor({
 
       {/* Rich text profile */}
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Profile</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Profile</p>
+          <button
+            type="button"
+            disabled={aiBusy}
+            onClick={() => void draftWithAi()}
+            className="rounded-lg border border-oranje/40 bg-control px-3 py-1.5 text-[12px] font-medium text-oranje hover:border-oranje disabled:opacity-60"
+            title="Research this maker and write a draft biography with AI"
+          >
+            {aiBusy ? "Researching… (can take a minute)" : "✦ Draft with AI"}
+          </button>
+        </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <button type="button" onClick={() => cmd("bold")} className={`${tbtn} font-bold`}>B</button>
           <button type="button" onClick={() => cmd("italic")} className={`${tbtn} italic`}>I</button>
@@ -215,6 +262,23 @@ export function MakerProfileEditor({
         <p className="mt-1.5 text-[11px] text-ink-soft">
           Autosaves as you type. This text feeds the maker profile PDF and website page.
         </p>
+        {aiError ? <p className="mt-1.5 text-[11.5px] text-oranje">AI draft: {aiError}</p> : null}
+        {aiSources.length > 0 ? (
+          <div className="mt-2 rounded-lg border border-line-soft bg-band/50 px-3 py-2">
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+              Sources the draft drew on — verify before publishing
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {aiSources.map((s) => (
+                <li key={s.url} className="truncate text-[11.5px]">
+                  <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-oranje">
+                    {s.title || s.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       </div>
     </div>

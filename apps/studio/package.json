@@ -9,7 +9,7 @@
     "lint": "echo 'no eslint configured'"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.70.0",
+    "@anthropic-ai/sdk": "^0.113.0",
     "@jvb/db": "workspace:*",
     "@jvb/documents": "workspace:*",
     "@jvb/emails": "workspace:*",
