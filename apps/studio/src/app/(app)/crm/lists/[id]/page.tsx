@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { LabelPdfButton } from "@/components/label-pdf-button";
 
 export const metadata = { title: "List" };
 
@@ -96,9 +97,7 @@ export default async function ListDetail({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3 text-[12px]">
-        <a href={`/api/export/labels.pdf?list=${id}`} className="font-medium text-primary">
-          Labels PDF
-        </a>
+        <LabelPdfButton listId={id} className="font-medium text-primary" />
         <a href={`/api/export/contacts.vcf?list=${id}`} className="font-medium text-primary">
           vCards
         </a>

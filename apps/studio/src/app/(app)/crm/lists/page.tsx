@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { LabelPdfButton } from "@/components/label-pdf-button";
 
 export const metadata = { title: "Contact list" };
 
@@ -99,9 +100,7 @@ export default async function ListsPage() {
               <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
                 Manage
               </a>
-              <a href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
-                Labels PDF
-              </a>
+              <LabelPdfButton listId={l.id} />
               <a href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                 vCards
               </a>

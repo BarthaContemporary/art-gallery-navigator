@@ -48,14 +48,52 @@ export default async function InventoryPage({
     supabase.from("piece_lists").select("id, name").order("name"),
   ]);
 
-  // When filtering by a list, resolve its (static) member piece ids up front.
+  // When filtering by a list, resolve its member piece ids up front. Static
+  // lists come from piece_list_items; dynamic (saved-view) lists have no rows
+  // there, so their membership is re-run live from filter_rules — the same way
+  // the list detail page resolves them.
   let listMemberIds: Set<string> | null = null;
   if (sp.list) {
-    const { data: mem } = await supabase
-      .from("piece_list_items")
-      .select("piece_id")
-      .eq("list_id", sp.list);
-    listMemberIds = new Set((mem ?? []).map((m) => m.piece_id as string));
+    const { data: listRow } = await supabase
+      .from("piece_lists")
+      .select("is_dynamic, filter_rules")
+      .eq("id", sp.list)
+      .maybeSingle();
+    if (listRow?.is_dynamic) {
+      const rules = (listRow.filter_rules ?? {}) as {
+        q?: string | null;
+        status?: string | null;
+        category?: string | null;
+        location?: string | null;
+      };
+      const rq = (rules.q ?? "").trim();
+      if (rq) {
+        const { data: hits } = await supabase.rpc("pieces_search", { q: rq });
+        let f = (hits ?? []) as Array<{
+          id: string;
+          status: string;
+          category_id: string | null;
+          location_id: string | null;
+        }>;
+        if (rules.status) f = f.filter((h) => h.status === rules.status);
+        if (rules.category) f = f.filter((h) => h.category_id === rules.category);
+        if (rules.location) f = f.filter((h) => h.location_id === rules.location);
+        listMemberIds = new Set(f.map((h) => h.id));
+      } else {
+        let lq = supabase.from("vw_pieces_list").select("id");
+        if (rules.status) lq = lq.eq("status", rules.status);
+        if (rules.category) lq = lq.eq("category_id", rules.category);
+        if (rules.location) lq = lq.eq("location_id", rules.location);
+        const { data } = await lq;
+        listMemberIds = new Set(((data ?? []) as { id: string }[]).map((r) => r.id));
+      }
+    } else {
+      const { data: mem } = await supabase
+        .from("piece_list_items")
+        .select("piece_id")
+        .eq("list_id", sp.list);
+      listMemberIds = new Set((mem ?? []).map((m) => m.piece_id as string));
+    }
   }
   const locNameById = new Map(
     ((locations ?? []) as { id: string; name: string | null; code: string }[]).map((l) => [
