@@ -21,6 +21,28 @@ export type ResolvedSource = {
 
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+// J.v.d.B.'s own premises. Several St James's neighbours (Ben Hunter,
+// Littleton & Hennessy, Christie's) sit close enough that a GPS fix taken at his
+// own door resolves to their storefront — so any of those aliases is forced to
+// the home base below.
+const HOME_BASE: ResolvedSource = {
+  source_name: "Joost van den Bergh",
+  source_address: "St James's, London",
+  source_type: "gallery",
+};
+const HOME_BASE_ALIASES = [
+  "ben hunter",
+  "littleton & hennessy",
+  "littleton and hennessy",
+  "christie's",
+  "christies",
+];
+function isHomeBaseAlias(name: string | null): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return HOME_BASE_ALIASES.some((a) => n.includes(a));
+}
+
 // How far a prioritised gallery/antique hit may be and still be treated as
 // "where I am" (GPS + being outside the door needs some slack).
 const PRIORITY_RADIUS_M = 300;
@@ -86,6 +108,12 @@ function typeFromGoogle(types: string[]): CaptureSourceType | null {
 }
 
 export async function resolveSource(lat: number, lng: number): Promise<ResolvedSource> {
+  const resolved = await resolveSourceRaw(lat, lng);
+  // St James's neighbours picked up at J.v.d.B.'s own door → home base.
+  return isHomeBaseAlias(resolved.source_name) ? { ...HOME_BASE } : resolved;
+}
+
+async function resolveSourceRaw(lat: number, lng: number): Promise<ResolvedSource> {
   if (!KEY) return { source_name: null, source_address: null, source_type: null };
 
   // 1. Prioritise art galleries and antique dealers near the fix.
