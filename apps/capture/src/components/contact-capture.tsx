@@ -182,8 +182,14 @@ export function ContactCapture({ recentContacts = [] }: { recentContacts?: Recen
         className="tap mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-line bg-cell font-semibold text-ink-body disabled:opacity-60"
       >
         <IconIdCard className="h-5 w-5" />
-        {scanning ? "Reading card…" : "Scan business card"}
+        {scanning ? "Reading card…" : cardUrl ? "Rescan business card" : "Scan business card"}
       </button>
+
+      <p className="mt-2 text-center text-[11.5px] text-ink-soft">
+        {cardUrl
+          ? "Check the fields below — tap Rescan for a sharper photo if any are wrong."
+          : "Fill the frame with the card, hold flat, steady and well-lit."}
+      </p>
 
       {cardUrl ? (
         <div className="mt-3 overflow-hidden rounded-xl border border-line bg-band">

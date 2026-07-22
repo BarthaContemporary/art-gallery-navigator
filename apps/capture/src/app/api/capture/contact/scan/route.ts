@@ -1,29 +1,48 @@
 import { NextResponse } from "next/server";
+import type Anthropic from "@anthropic-ai/sdk";
 import { getSupabase, requireCapture } from "@/lib/supabase";
-import { fetchImage, visionJson, isConfigured } from "@/lib/anthropic";
+import { fetchImage, visionExtract, isConfigured } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYSTEM = `You read a photographed business card or letterhead and extract contact details for a gallery CRM.
+const SYSTEM = `You transcribe a photographed business card or letterhead into contact fields for a gallery CRM.
 
-Return ONLY a JSON object (no prose, no code fences):
-{
-  "first_name": string,
-  "last_name": string,
-  "organization": string,
-  "email": string,
-  "phone": string,
-  "address_line1": string,
-  "address_line2": string,
-  "city": string,
-  "postcode": string,
-  "country": string,
-  "instagram_handle": string,
-  "contact_type": string,        // one of: collector, museum, dealer, auction_house, shipper, restorer, press — best guess, else "collector"
-  "notes": string                // anything useful not captured above (title/role, website), else ""
-}
-Transcribe exactly what is printed. Use "" for anything not present. Split a full name into first/last as best you can.`;
+Rules — accuracy over completeness:
+- Transcribe EXACTLY what is printed. Do not guess, translate, expand, or invent anything.
+- If a field is not clearly legible or not present on the card, leave it as an empty string "". Never fabricate an email, phone, or address.
+- Read the whole card, including small print and both sides of a letterhead. Text may be rotated or in a non-Latin script (Japanese, Chinese) — transcribe what you can and put anything uncertain in notes.
+- The card usually names ONE person — put that person in first_name/last_name and their company in organization. If it is a company card with no individual, leave the names empty.
+- Normalise: email lower-case; keep phone digits with their international prefix and spacing as printed; strip a leading @ from the Instagram handle.
+- notes: capture the job title / role, website, and anything useful that has no dedicated field.
+- Pick contact_type from the allowed list as a best guess from the card (a museum/gallery/auction house/shipper/restorer/press outlet is usually obvious); default to "collector" when unclear.`;
+
+const SCHEMA: Anthropic.Tool.InputSchema = {
+  type: "object",
+  properties: {
+    first_name: { type: "string" },
+    last_name: { type: "string" },
+    organization: { type: "string" },
+    email: { type: "string" },
+    phone: { type: "string" },
+    address_line1: { type: "string" },
+    address_line2: { type: "string" },
+    city: { type: "string" },
+    postcode: { type: "string" },
+    country: { type: "string" },
+    instagram_handle: { type: "string" },
+    contact_type: {
+      type: "string",
+      enum: ["collector", "museum", "dealer", "auction_house", "shipper", "restorer", "press"],
+    },
+    notes: { type: "string" },
+  },
+  required: [
+    "first_name", "last_name", "organization", "email", "phone",
+    "address_line1", "address_line2", "city", "postcode", "country",
+    "instagram_handle", "contact_type", "notes",
+  ],
+};
 
 type Card = Record<string, string>;
 
@@ -43,10 +62,12 @@ export async function POST(req: Request) {
 
   let card: Card | null = null;
   try {
-    card = await visionJson<Card>({
+    card = await visionExtract<Card>({
       system: SYSTEM,
-      instruction: "Extract the contact details from this card.",
+      instruction: "Transcribe the contact details from this card into the tool.",
       images: [img],
+      schema: SCHEMA,
+      toolName: "contact_card",
       maxTokens: 800,
     });
   } catch (e) {

@@ -85,6 +85,48 @@ export async function visionJson<T>(opts: {
   return parseJsonObject<T>(text);
 }
 
+/**
+ * Run a vision prompt and get a *guaranteed* structured object back via tool
+ * use (temperature 0, tool_choice forced). Far more reliable than parsing
+ * free-text JSON — the model must fill the given schema, so the result shape is
+ * always valid. Returns null only if the API isn't configured or errors.
+ */
+export async function visionExtract<T>(opts: {
+  system: string;
+  instruction: string;
+  images: ImageInput[];
+  schema: Anthropic.Tool.InputSchema;
+  toolName?: string;
+  maxTokens?: number;
+}): Promise<T | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  const anthropic = new Anthropic({ apiKey });
+  const name = opts.toolName ?? "extract";
+
+  const content: Block[] = [
+    ...opts.images.map(imageBlock),
+    { type: "text", text: opts.instruction },
+  ];
+
+  const msg = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: opts.maxTokens ?? 1024,
+    temperature: 0,
+    system: opts.system,
+    tools: [
+      { name, description: "Record the extracted fields.", input_schema: opts.schema },
+    ],
+    tool_choice: { type: "tool", name },
+    messages: [{ role: "user", content }],
+  });
+
+  const block = msg.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === name,
+  );
+  return (block?.input as T) ?? null;
+}
+
 export function isConfigured() {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
