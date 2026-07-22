@@ -258,14 +258,31 @@ systemctl restart fail2ban
 fail2ban-client status caddy-webdav
 ```
 
-## 6e. Optional: Cryptomator zero-knowledge
+## 6e. Cryptomator zero-knowledge vaults (free / open source)
 
-For the strongest posture (the VPS never sees plaintext — ideal for client /
-AML material), install **Cryptomator** on each device (macOS + iOS/iPadOS
-apps), create a vault whose storage location is the WebDAV share, and unlock it
-per device. Files are encrypted client-side; the server, its backups, and
-anyone with disk access only ever see ciphertext. Trade-off: each device needs
-the app and unlocks the vault locally (the iOS app is a one-time purchase).
+The strongest posture: the VPS (and its backups, and anyone with disk access)
+only ever sees ciphertext — ideal for client / AML material. Cryptomator is
+open source (GPLv3). Use **standalone vaults**: a vault is just an encrypted
+folder unlocked with a passphrase — you do NOT need the paid "Cryptomator Hub"
+(a separate commercial team key-manager). A vault lives on the WebDAV share, so
+no server change is needed.
+
+- **macOS:** the desktop app is free and open source — `brew install --cask
+  cryptomator` (or download from cryptomator.org). Uses macFUSE / FUSE-T or a
+  built-in WebDAV mount.
+- **iPhone / iPad:** the app is open source too, but Apple's App Store build is
+  a small **one-time paid** purchase (there is no free App Store distribution;
+  self-compiling + sideloading the FOSS source is impractical). Either pay the
+  modest one-off (per Apple ID — Family Sharing can cover the devices), or let
+  iOS use the plain WebDAV share (still TLS + gocryptfs-at-rest) and keep the
+  vaults for Mac-only sensitive material.
+
+Setup, per device:
+1. Install Cryptomator; mount the WebDAV drive first (§6c device setup).
+2. New Vault → storage location = a folder on the mounted WebDAV drive → set a
+   strong shared passphrase (keep it in your password manager).
+3. Unlock → a normal-looking drive appears; everything written into it is
+   encrypted client-side before it reaches the server.
 
 ## 7. Upgrade procedure
 
