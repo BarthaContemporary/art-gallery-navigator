@@ -230,7 +230,7 @@ async function processImage(row: PendingImage): Promise<void> {
         SET storage_path_display = $2,
             width                = $3,
             height               = $4,
-            bytes                = $5,
+            file_size_bytes      = $5,
             exif                 = $6::jsonb,
             processing_status    = 'done',
             processing_error     = NULL
