@@ -78,7 +78,11 @@ export function MakerRow({
 
   return (
     <tr className="border-b border-line-soft last:border-0">
-      <td className={`${td} text-[13.5px] text-ink-body`}>{maker.display_name}</td>
+      <td className={`${td} text-[13.5px] text-ink-body`}>
+        <a href={`/makers/${maker.id}`} className="hover:text-oranje" title="Open maker profile">
+          {maker.display_name}
+        </a>
+      </td>
       <td className={`${td} text-[13.5px] text-ink-muted`}>{maker.native_name ?? "—"}</td>
       <td className={`${td} font-mono text-[12px] text-ink-muted`}>{maker.life_dates ?? "—"}</td>
       <td className={`${td} text-[13px] text-ink-muted`}>{maker.region ?? "—"}</td>

@@ -403,6 +403,16 @@ export default async function OfferDetail({
         </p>
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-3 text-[12px]">
+        <a
+          href={`/api/export/offer-presentation.docx?offer=${id}`}
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 font-medium text-ink-mid hover:text-ink-strong"
+          title="Editable Word/Pages document — one work per page with images"
+        >
+          Presentation DOCX
+        </a>
+      </div>
+
       {banner ? (
         <p className="mt-4 rounded-lg border border-line bg-band px-3 py-2 text-[12.5px] text-ink-body">
           {banner}

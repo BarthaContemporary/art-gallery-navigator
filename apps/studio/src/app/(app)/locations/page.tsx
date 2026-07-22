@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { LocationTableRow, type LocationRow } from "@/components/location-row";
 
 export const metadata = { title: "Locations" };
 
@@ -33,6 +34,57 @@ export default async function LocationsPage() {
     revalidatePath("/locations");
   }
 
+  async function updateLocation(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const id = String(formData.get("id") ?? "");
+    const code = String(formData.get("code") ?? "").trim();
+    if (!id || !code) return;
+    await db
+      .from("locations")
+      .update({
+        code,
+        name: String(formData.get("name") ?? "").trim() || code,
+        type: String(formData.get("type") ?? "storage"),
+      })
+      .eq("id", id);
+    revalidatePath("/locations");
+  }
+
+  // Delete a location. If it still holds pieces the form supplies merge_to and
+  // the pieces are moved there first (the location-history trigger records the
+  // move on every piece), then the emptied location is removed.
+  async function deleteLocation(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const id = String(formData.get("id") ?? "");
+    const mergeTo = String(formData.get("merge_to") ?? "").trim();
+    if (!id || id === mergeTo) return;
+
+    const { count } = await db
+      .from("pieces")
+      .select("id", { count: "exact", head: true })
+      .eq("location_id", id);
+    if ((count ?? 0) > 0) {
+      if (!mergeTo) return; // still occupied and no target chosen — refuse
+      const { error: moveError } = await db
+        .from("pieces")
+        .update({ location_id: mergeTo })
+        .eq("location_id", id);
+      if (moveError) return; // don't delete if the move failed
+    }
+    await db.from("locations").delete().eq("id", id);
+    revalidatePath("/locations");
+  }
+
+  const rows: LocationRow[] = (locations ?? []).map((l) => ({
+    id: l.id,
+    code: l.code,
+    name: l.name,
+    type: l.type,
+    pieces: byLocation.get(l.id) ?? 0,
+  }));
+
   return (
     <div>
       <form action={addLocation} className="flex flex-wrap items-end gap-2">
@@ -57,27 +109,25 @@ export default async function LocationsPage() {
         </button>
       </form>
       <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
-        <table className="w-full min-w-[480px] bg-cell text-left">
+        <table className="w-full min-w-[560px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               <th className="px-4 py-2.5 font-medium">Code</th>
               <th className="px-4 py-2.5 font-medium">Name</th>
               <th className="px-4 py-2.5 font-medium">Type</th>
               <th className="px-4 py-2.5 font-medium">Pieces</th>
+              <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {(locations ?? []).map((l) => (
-              <tr key={l.id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink">{l.code}</td>
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{l.name}</td>
-                <td className="px-4 py-2.5 text-[13px] text-ink-muted">{l.type}</td>
-                <td className="px-4 py-2.5">
-                  <a href={`/inventory?location=${l.id}`} className="font-mono text-[12px] text-ink-mid underline">
-                    {byLocation.get(l.id) ?? 0}
-                  </a>
-                </td>
-              </tr>
+            {rows.map((l) => (
+              <LocationTableRow
+                key={l.id}
+                loc={l}
+                others={rows.filter((o) => o.id !== l.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                updateAction={updateLocation}
+                deleteAction={deleteLocation}
+              />
             ))}
           </tbody>
         </table>
