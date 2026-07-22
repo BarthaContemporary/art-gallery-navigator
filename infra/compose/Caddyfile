@@ -61,6 +61,33 @@ studio.example.com {
 }
 
 # ---------------------------------------------------------------------------
+# WebDAV shared drive — the gallery's self-hosted "Dropbox" (BUILD_PLAN: files
+# on the VPS, in the backup routine). Caddy terminates TLS; the webdav
+# container does per-user bcrypt auth and only listens on 127.0.0.1:8081.
+# Access is logged to a file so fail2ban can ban brute-force attempts
+# (see infra/README.md §6c → §6d).
+#
+# DNS: point files.<domain> A record at the VPS before first load.
+# ---------------------------------------------------------------------------
+files.example.com {
+	import security_headers
+
+	# Per-request access log → fail2ban tails this for repeated 401s.
+	log {
+		output file /var/log/caddy/files-access.log
+		format json
+	}
+
+	# Bodies are streamed, so large uploads are fine. Cap a single upload to a
+	# sane ceiling to blunt a disk-fill attack (raise if you move big files).
+	request_body {
+		max_size 5GB
+	}
+
+	reverse_proxy 127.0.0.1:8081
+}
+
+# ---------------------------------------------------------------------------
 # Plausible Analytics (self-hosted, cookieless) — tracks the PUBLIC WEBSITE
 # only; the studio is never tracked. The Plausible app publishes on
 # 127.0.0.1:8000 via compose/plausible/docker-compose.yml. Uncomment this

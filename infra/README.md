@@ -178,6 +178,95 @@ docker compose exec -T db psql -U postgres -d postgres -c \
 Note: `heic-convert` is a pure-JS (WASM) decoder, so no apt packages or a
 libvips rebuild are required — a plain `docker compose build` is enough.
 
+## 6c. WebDAV shared drive (encrypted at rest)
+
+The gallery's self-hosted "Dropbox": a WebDAV server on the VPS, mounted in
+Finder (Macs) and the Files app (iPhone/iPad). Security layers: **TLS** in
+transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
+**fail2ban** on brute force (§6d), and optional **Cryptomator** zero-knowledge
+(§6e).
+
+1. **DNS** — add an A record `files.<domain>` → VPS IP (Caddy needs it before
+   it can issue the cert).
+
+2. **Encryption at rest (gocryptfs).** Files land in an encrypted store; the
+   container only sees the decrypted mount.
+   ```
+   apt-get install -y gocryptfs
+   install -d -m 700 -o deploy -g deploy /opt/jvb/webdav-cipher /opt/jvb/webdav-plain
+   # init the encrypted store — choose a STRONG passphrase and SAVE the printed master key offline:
+   gocryptfs -init /opt/jvb/webdav-cipher
+   # mount it (prompts for the passphrase):
+   gocryptfs /opt/jvb/webdav-cipher /opt/jvb/webdav-plain
+   ```
+   Auto-remount after a reboot needs the passphrase. Either mount it by hand
+   after each reboot, or install a systemd unit that reads it from a
+   root-only file (`/etc/jvb/webdav.pass`, mode 600):
+   ```
+   # /etc/systemd/system/webdav-crypt.service
+   [Unit]
+   Description=gocryptfs mount for the WebDAV shared drive
+   After=local-fs.target
+   [Service]
+   Type=forking
+   ExecStart=/bin/sh -c 'gocryptfs -passfile /etc/jvb/webdav.pass /opt/jvb/webdav-cipher /opt/jvb/webdav-plain'
+   ExecStop=/bin/fusermount -u /opt/jvb/webdav-plain
+   RemainAfterExit=yes
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   `systemctl enable --now webdav-crypt`. Caveat: a passphrase file on the box
+   protects against **disk theft / decommissioning**, not a live root
+   compromise (same as LUKS with a keyfile). For protection even from the
+   server itself, use Cryptomator (§6e).
+
+3. **Env + accounts.** In `compose/.env` set `WEBDAV_DATA_DIR=/opt/jvb/webdav-plain`.
+   Then create the user list:
+   ```
+   cd /opt/jvb/infra/compose/webdav
+   cp webdav.example.yml webdav.yml
+   # one hash per user (prompts for the password):
+   docker run --rm -it httpd:2.4-alpine htpasswd -nBC 12 "" | cut -d: -f2
+   # paste each $2y$… after {bcrypt} in webdav.yml
+   ```
+
+4. **Start it + Caddy.** In `infra/compose`: `docker compose up -d webdav`.
+   Put the real domain in the Caddyfile's `files.` block, then
+   `mkdir -p /var/log/caddy && systemctl reload caddy`.
+
+5. **Verify.** `curl -u <user>:<pass> -X PROPFIND https://files.<domain>/` → 207.
+
+6. **Backups.** Already wired: the nightly `backup.sh webdav-sync` cron
+   replicates the gocryptfs **ciphertext** to `…/backups/webdav` in object
+   storage (encrypted by construction). Set `WEBDAV_CIPHER_DIR` in the backup
+   environment and add the cron line from `backup.sh`'s header.
+
+### Device setup
+- **Mac (Finder):** ⌘K / Go → Connect to Server → `https://files.<domain>` →
+  Registered User → username + password (stored in Keychain).
+- **iPhone / iPad (Files app):** Browse → ⋯ → Connect to Server →
+  `files.<domain>` → Registered User → credentials.
+
+## 6d. fail2ban for the WebDAV endpoint
+
+The Caddy `files.` block logs to `/var/log/caddy/files-access.log`; the jail
+bans an IP after 5 auth failures in 10 min.
+```
+cp infra/security/fail2ban/filter.d/caddy-webdav.conf /etc/fail2ban/filter.d/
+cp infra/security/fail2ban/jail.d/caddy-webdav.conf   /etc/fail2ban/jail.d/
+systemctl restart fail2ban
+fail2ban-client status caddy-webdav
+```
+
+## 6e. Optional: Cryptomator zero-knowledge
+
+For the strongest posture (the VPS never sees plaintext — ideal for client /
+AML material), install **Cryptomator** on each device (macOS + iOS/iPadOS
+apps), create a vault whose storage location is the WebDAV share, and unlock it
+per device. Files are encrypted client-side; the server, its backups, and
+anyone with disk access only ever see ciphertext. Trade-off: each device needs
+the app and unlocks the vault locally (the iOS app is a one-time purchase).
+
 ## 7. Upgrade procedure
 
 Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —

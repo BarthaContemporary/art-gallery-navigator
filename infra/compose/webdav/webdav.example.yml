@@ -1,0 +1,40 @@
+# ===========================================================================
+# WebDAV server config (hacdias/webdav v5). Copy to webdav.yml on the VPS and
+# fill in per-user bcrypt password hashes:
+#
+#   cp webdav.example.yml webdav.yml
+#   # generate a hash for each user (prompts for the password):
+#   docker run --rm -it httpd:2.4-alpine htpasswd -nBC 12 "" | tr -d ':\n' | sed 's/^\$2y/$2y/'
+#   # …paste the resulting $2y$… string after {bcrypt}
+#
+# webdav.yml is gitignored (holds credentials). Only this .example is committed.
+# ===========================================================================
+
+# Bind inside the container; compose publishes it on 127.0.0.1 only, and Caddy
+# on the host terminates TLS in front of it. Never expose this port publicly.
+address: 0.0.0.0
+port: 8081
+prefix: /
+debug: false
+
+# The shared tree. In the container this is /data, which compose maps to the
+# gocryptfs-decrypted directory on the host (see infra/README.md §6c).
+directory: /data
+
+# Default: no access. Each user is granted CRUD explicitly below.
+permissions: none
+
+# CORS is not needed (native Finder / Files clients, not a browser app).
+cors:
+  enabled: false
+
+# Per-user accounts. Passwords are bcrypt hashes (the {bcrypt} prefix is
+# required). Give each real person their own account so access can be revoked
+# individually; never share one login.
+users:
+  - username: joost
+    password: "{bcrypt}REPLACE_WITH_BCRYPT_HASH"
+    permissions: CRUD
+  - username: gallery
+    password: "{bcrypt}REPLACE_WITH_BCRYPT_HASH"
+    permissions: CRUD

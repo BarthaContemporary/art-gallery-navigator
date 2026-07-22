@@ -22,3 +22,7 @@ infra/scripts/.bootstrap-state/
 # Sanity studio build output
 apps/web/dist/
 apps/web/.sanity/
+
+# WebDAV shared-drive: real config holds credentials; data is server-only
+infra/compose/webdav/webdav.yml
+infra/compose/webdav/data/

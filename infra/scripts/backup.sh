@@ -6,6 +6,9 @@
 # Modes:
 #   backup.sh db             pg_dump -Fc → rclone → prune → healthchecks ping
 #   backup.sh storage-sync   rclone sync of the storage bucket to its replica
+#   backup.sh webdav-sync    rclone sync of the WebDAV shared drive to backup
+#                            (syncs the gocryptfs CIPHERTEXT dir, so the backup
+#                             is encrypted at rest by construction)
 #
 # Requirements on the VPS:
 #   * rclone configured with a remote named "$RCLONE_REMOTE" pointing at
@@ -23,6 +26,8 @@
 #   30 2 * * *  /opt/jvb/infra/scripts/backup.sh db           >> /var/log/jvb-backup.log 2>&1
 #   # weekly storage replica, Sundays 03:30 UTC
 #   30 3 * * 0  /opt/jvb/infra/scripts/backup.sh storage-sync >> /var/log/jvb-backup.log 2>&1
+#   # nightly WebDAV shared-drive backup at 03:00 UTC
+#   0  3 * * *  /opt/jvb/infra/scripts/backup.sh webdav-sync  >> /var/log/jvb-backup.log 2>&1
 # ===========================================================================
 set -euo pipefail
 
@@ -37,6 +42,12 @@ DEST="$RCLONE_REMOTE:$BACKUP_BUCKET/$BACKUP_PREFIX"
 
 STORAGE_BUCKET="${STORAGE_BUCKET:-jvb-storage}"
 STORAGE_REPLICA_BUCKET="${STORAGE_REPLICA_BUCKET:-jvb-storage-replica}"
+
+# WebDAV shared drive: back up the gocryptfs CIPHERTEXT store (already
+# encrypted at rest), so no extra crypto is needed on the backup path.
+WEBDAV_CIPHER_DIR="${WEBDAV_CIPHER_DIR:-/opt/jvb/webdav-cipher}"
+WEBDAV_BACKUP_PREFIX="backups/webdav"
+HEALTHCHECKS_WEBDAV_URL="${HEALTHCHECKS_WEBDAV_URL:-}"
 
 KEEP_DAILY=30      # newest N dumps always kept
 KEEP_MONTHS=12     # plus the first dump of each of the last N months
@@ -134,13 +145,33 @@ backup_storage() {
 }
 
 # ---------------------------------------------------------------------------
+# webdav-sync: replicate the WebDAV shared drive to the backup bucket. We sync
+# the gocryptfs CIPHERTEXT directory, so what lands in object storage is
+# already encrypted — no key ever leaves the VPS. Not versioned; pair with
+# object-storage versioning/lifecycle if you want point-in-time recovery.
+# ---------------------------------------------------------------------------
+backup_webdav() {
+  if [[ ! -d "$WEBDAV_CIPHER_DIR" ]]; then
+    log "WARNING: WEBDAV_CIPHER_DIR ($WEBDAV_CIPHER_DIR) not found — skipping"
+    return 0
+  fi
+  local dest="$RCLONE_REMOTE:$BACKUP_BUCKET/$WEBDAV_BACKUP_PREFIX"
+  log "syncing WebDAV ciphertext $WEBDAV_CIPHER_DIR → $dest"
+  rclone sync "$WEBDAV_CIPHER_DIR" "$dest" \
+    --fast-list --transfers 8 --stats-one-line --stats 5m
+  ping_healthchecks "$HEALTHCHECKS_WEBDAV_URL"
+  log "webdav sync complete"
+}
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 case "${1:-db}" in
   db)           backup_db ;;
   storage-sync) backup_storage ;;
+  webdav-sync)  backup_webdav ;;
   *)
-    echo "usage: $0 {db|storage-sync}" >&2
+    echo "usage: $0 {db|storage-sync|webdav-sync}" >&2
     exit 2
     ;;
 esac
