@@ -44,6 +44,7 @@ import { stockStats } from "./lib/stock.js";
 import { toText } from "./lib/values.js";
 import { fillRates, readWorkbook } from "./lib/xlsx.js";
 import { runFinalize } from "./commands/finalize.js";
+import { runAttachImages } from "./commands/attach-images.js";
 
 const program = new Command();
 program
@@ -290,6 +291,19 @@ program
       console.error("finalize is idempotent — fix the cause and re-run; linked rows are skipped.");
       process.exit(1);
     }
+  });
+
+// ---------------------------------------------------------------------------
+// attach-images (DB) — upload exported images + wire them to piece_images stubs
+// ---------------------------------------------------------------------------
+program
+  .command("attach-images")
+  .description("Upload exported images from --dir and attach them to piece_images stubs by legacy filename")
+  .requiredOption("--dir <path>", "root directory of the exported FileMaker images")
+  .option("--dry-run", "match and report only; upload nothing", false)
+  .option("--force", "re-upload even for stubs that already have an original", false)
+  .action(async (opts: { dir: string; dryRun: boolean; force: boolean }) => {
+    await runAttachImages({ dir: opts.dir, dryRun: opts.dryRun, force: opts.force });
   });
 
 // ---------------------------------------------------------------------------
