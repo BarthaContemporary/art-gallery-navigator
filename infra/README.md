@@ -201,13 +201,15 @@ transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
 (§6e).
 
 1. **DNS** — add an A record `files.<domain>` → VPS IP (Caddy needs it before
-   it can issue the cert).
+   it can issue the cert). On the sslip.io setup no DNS is needed:
+   `files.<ip-with-dashes>.sslip.io` resolves automatically.
 
 2. **Encryption at rest (gocryptfs).** Files land in an encrypted store; the
-   container only sees the decrypted mount.
+   container only sees the decrypted mount. (Deployed 2026-07-23; the live
+   box runs everything as root — there is no `deploy` user, drop the -o/-g.)
    ```
    apt-get install -y gocryptfs
-   install -d -m 700 -o deploy -g deploy /opt/jvb/webdav-cipher /opt/jvb/webdav-plain
+   install -d -m 700 /opt/jvb/webdav-cipher /opt/jvb/webdav-plain
    # init the encrypted store — choose a STRONG passphrase and SAVE the printed master key offline:
    gocryptfs -init /opt/jvb/webdav-cipher
    # mount it (prompts for the passphrase):
@@ -245,8 +247,18 @@ transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
    ```
 
 4. **Start it + Caddy.** In `infra/compose`: `docker compose up -d webdav`.
-   Put the real domain in the Caddyfile's `files.` block, then
-   `mkdir -p /var/log/caddy && systemctl reload caddy`.
+   Put the real domain in the Caddyfile's `files.` block, then create the log
+   location **owned by the caddy user** — Caddy runs as `caddy:caddy` and a
+   root-owned log dir makes the reload fail with `permission denied` while
+   the old config keeps serving:
+   ```
+   install -d -m 775 -o caddy -g caddy /var/log/caddy
+   install -m 664 -o caddy -g caddy /dev/null /var/log/caddy/files-access.log
+   systemctl reload caddy
+   ```
+   (`caddy validate` does NOT catch this — it doesn't open log writers.
+   Also make sure the `files.` block appears exactly once; a double paste
+   fails the reload with "ambiguous site definition".)
 
 5. **Verify.** `curl -u <user>:<pass> -X PROPFIND https://files.<domain>/` → 207.
 
