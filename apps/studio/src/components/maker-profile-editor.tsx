@@ -142,41 +142,66 @@ export function MakerProfileEditor({
     }
   }
 
-  /** XHR (not fetch) so the browser reports real upload progress. */
-  function uploadPortrait(file: File) {
+  /**
+   * Three legs: get a signed storage URL, PUT the original straight to
+   * storage (XHR for real progress — and Vercel routes cap bodies at 4.5MB,
+   * so the file must not travel through an API route), then ask the server
+   * to generate the display master.
+   */
+  async function uploadPortrait(file: File) {
     setUploadError(null);
     setPhase("uploading");
     setProgress(0);
-    const body = new FormData();
-    body.set("file", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/makers/${makerId}/portrait`);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setProgress(e.loaded / e.total);
-    };
-    // Upload finished — the server is now generating the display master.
-    xhr.upload.onload = () => setPhase("processing");
-    xhr.onload = () => {
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const signRes = await fetch(`/api/makers/${makerId}/portrait/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ext }),
+      });
+      const sign = (await signRes.json()) as { path?: string; signedUrl?: string; error?: string };
+      if (!signRes.ok || !sign.signedUrl || !sign.path)
+        throw new Error(sign.error ?? "Could not start the upload");
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", sign.signedUrl!);
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.setRequestHeader("x-upsert", "true");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(e.loaded / e.total);
+        };
+        xhr.onload = () =>
+          xhr.status < 400 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(file);
+      });
+
+      setPhase("processing");
+      const procRes = await fetch(`/api/makers/${makerId}/portrait/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: sign.path }),
+      });
+      const text = await procRes.text();
+      let json: { url?: string | null; error?: string };
       try {
-        const json = JSON.parse(xhr.responseText) as { url?: string | null; error?: string };
-        if (xhr.status >= 400 || json.error) throw new Error(json.error ?? "Upload failed");
-        setUrl(json.url ?? null);
-      } catch (e) {
-        setUploadError(e instanceof Error ? e.message : "Upload failed");
-      } finally {
-        setPhase("idle");
+        json = JSON.parse(text) as typeof json;
+      } catch {
+        throw new Error(`Processing failed (${procRes.status}): ${text.slice(0, 80)}`);
       }
-    };
-    xhr.onerror = () => {
-      setUploadError("Network error during upload");
+      if (!procRes.ok || json.error) throw new Error(json.error ?? "Processing failed");
+      setUrl(json.url ?? null);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
       setPhase("idle");
-    };
-    xhr.send(body);
+    }
   }
 
   function onPick(list: FileList | null) {
     const file = list?.[0];
-    if (file) uploadPortrait(file);
+    if (file) void uploadPortrait(file);
   }
 
   async function removePortrait() {
@@ -247,7 +272,7 @@ export function MakerProfileEditor({
             accept="image/*,.heic,.heif"
             className="hidden"
             onChange={(e) => {
-              onPick(e.target.files);
+              void onPick(e.target.files);
               e.currentTarget.value = "";
             }}
           />
