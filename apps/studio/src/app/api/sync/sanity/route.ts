@@ -130,7 +130,8 @@ export async function POST(request: Request) {
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!process.env.CRON_SECRET || !safeEqual(bearer, process.env.CRON_SECRET)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   return POST(

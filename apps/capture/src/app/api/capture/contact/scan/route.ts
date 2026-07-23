@@ -53,6 +53,11 @@ export async function POST(req: Request) {
 
   const { path } = (await req.json().catch(() => ({}))) as { path?: string };
   if (!path) return NextResponse.json({ error: "Missing path" }, { status: 400 });
+  // Scope to the business-card upload prefix — the client only ever supplies a
+  // cards/<uuid>.<ext> path from the upload route; reject anything else so an
+  // arbitrary object in the bucket can't be signed and OCR'd.
+  if (!/^cards\/[A-Za-z0-9-]+\.[a-z0-9]+$/.test(path))
+    return NextResponse.json({ error: "Invalid path" }, { status: 400 });
 
   const supabase = await getSupabase();
   const { data: signed } = await supabase.storage.from("captures").createSignedUrl(path, 60 * 5);

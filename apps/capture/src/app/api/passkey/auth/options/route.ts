@@ -13,7 +13,7 @@ export async function POST() {
   const { rpID, secure } = await rpInfo();
   const options = await generateAuthenticationOptions({
     rpID,
-    userVerification: "preferred",
+    userVerification: "required",
     allowCredentials: [],
   });
   await stashChallenge("auth", options.challenge, secure);

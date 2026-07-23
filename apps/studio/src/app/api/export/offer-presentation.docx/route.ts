@@ -1,6 +1,6 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { offerPresentationDocx, type PresentationWork } from "@jvb/documents";
-import { getSupabase, getSession, createServiceClient } from "@/lib/supabase";
+import { getSupabase, getSession, createServiceClient, canSeeFinancials } from "@/lib/supabase";
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
 
 export const runtime = "nodejs";
@@ -61,7 +61,10 @@ export async function GET(request: Request) {
   const svc = createServiceClient();
   const pieceIds = items.map((r) => r.piece!.id);
   const priceByPiece = new Map<string, number>();
-  if (offer.show_prices) {
+  // marked_price_gbp lives in piece_financials, which staff cannot see. Only
+  // fall back to it for privileged roles; staff get the price_override the
+  // offers UI already exposes to them (and nothing else).
+  if (offer.show_prices && canSeeFinancials(session.roles)) {
     const { data: fins } = await svc
       .from("piece_financials")
       .select("piece_id, marked_price_gbp")

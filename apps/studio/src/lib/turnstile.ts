@@ -28,6 +28,9 @@ export async function verifyTurnstile(
       ? { ok: true }
       : { ok: false, error: "Security check failed. Please try again." };
   } catch {
-    return { ok: true }; // don't lock out a legitimate user if Cloudflare is down
+    // Fail closed: a verification error must not silently remove bot
+    // protection. A transient Cloudflare outage will surface as a retryable
+    // error rather than an open door.
+    return { ok: false, error: "Security check unavailable. Please try again." };
   }
 }

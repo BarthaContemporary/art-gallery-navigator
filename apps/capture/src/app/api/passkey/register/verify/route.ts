@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Verify failed" }, { status: 400 });

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
-      requireUserVerification: false,
+      requireUserVerification: true,
       credential: {
         id: pk.id as string,
         publicKey: new Uint8Array(Buffer.from(pk.public_key as string, "base64")),

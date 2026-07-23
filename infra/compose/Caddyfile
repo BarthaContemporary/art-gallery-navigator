@@ -46,16 +46,26 @@ api.example.com {
 studio.example.com {
 	import security_headers
 
+	# This is the break-glass DB dashboard (arbitrary SQL). It is the most
+	# powerful endpoint on the box — STRONGLY prefer restricting it to trusted
+	# IPs; uncomment and list your VPN/office CIDRs. Leaving it open to the
+	# whole internet behind one shared password is discouraged.
+	@blocked not remote_ip 203.0.113.10 198.51.100.0/24
+	respond @blocked 403
+
 	# Generate the hash with:  caddy hash-password
-	# (plaintext lives in compose/.env as STUDIO_PASSWORD for record-keeping;
-	# only the bcrypt hash goes here).
+	# (store the plaintext ONLY in the password manager, never in .env).
 	basic_auth {
 		admin CHANGE_ME_bcrypt_hash_from_caddy_hash-password
 	}
 
-	# Optional hardening: uncomment and list trusted IPs/CIDRs to allowlist.
-	# @blocked not remote_ip 203.0.113.10 198.51.100.0/24
-	# respond @blocked 403
+	# Log 401s so fail2ban can ban brute-force attempts against the dashboard
+	# (jail: caddy-studio, tails this file). Without this, failed logins against
+	# the most sensitive endpoint are invisible to fail2ban.
+	log {
+		output file /var/log/caddy/studio-access.log
+		format json
+	}
 
 	reverse_proxy 127.0.0.1:3000
 }

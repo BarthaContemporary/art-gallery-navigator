@@ -12,7 +12,9 @@ export async function GET(req: Request) {
   if (q.length < 2) return NextResponse.json({ results: [] });
 
   const supabase = await getSupabase();
-  const like = `%${q.replace(/[%_]/g, "")}%`;
+  // Strip PostgREST filter metacharacters too — commas, dots and parens would
+  // otherwise let a crafted q inject extra OR terms into the .or() below.
+  const like = `%${q.replace(/[%_,.()]/g, "")}%`;
   const { data, error } = await supabase
     .from("pieces")
     .select("id, stock_number, title, maker:makers ( display_name )")

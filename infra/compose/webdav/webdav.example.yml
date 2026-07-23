@@ -38,3 +38,13 @@ users:
   - username: gallery
     password: "{bcrypt}REPLACE_WITH_BCRYPT_HASH"
     permissions: CRUD
+  # Service account for the studio app's document mirror (SHARED_DRIVE_* env).
+  # Scoped to Downloads/ ONLY: a leaked Vercel credential can write the export
+  # folders but cannot read or delete client/AML material elsewhere on the
+  # drive (e.g. Cryptomator vaults). Default deny + one allow rule.
+  - username: studio
+    password: "{bcrypt}REPLACE_WITH_BCRYPT_HASH"
+    permissions: none
+    rules:
+      - path: /Downloads
+        permissions: CRUD

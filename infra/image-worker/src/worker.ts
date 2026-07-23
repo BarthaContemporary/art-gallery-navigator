@@ -51,6 +51,11 @@ const NOTIFY_CHANNEL = "new_piece_image";
 
 /** Display master: longest side, never enlarged (BUILD_PLAN §4). */
 const MAX_DIMENSION_PX = 2560;
+// Decompression-bomb ceiling: cap decoded pixels so a small, highly compressed
+// original can't force a multi-GB raw allocation and OOM the worker. 100 MP is
+// far above any real gallery photo yet well under a bomb (matches the
+// imgproxy IMGPROXY_MAX_SRC_RESOLUTION guard).
+const MAX_INPUT_PIXELS = 100_000_000;
 const JPEG_QUALITY = 85;
 
 // ---------------------------------------------------------------------------
@@ -221,7 +226,7 @@ async function processImage(row: PendingImage): Promise<void> {
   // handled natively by libvips; toColorspace('srgb') normalises AdobeRGB /
   // ProPhoto / CMYK originals to an sRGB display master.
   const toMaster = (buf: Buffer) =>
-    sharp(buf, { limitInputPixels: 1_000_000_000 })
+    sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
       .toColorspace("srgb")
       .resize({
@@ -245,6 +250,17 @@ async function processImage(row: PendingImage): Promise<void> {
     // straight through sharp.
     if (isHeifDecodeError(err) || looksLikeHeif(original)) {
       log("info", "HEIC original — decoding via heic-convert", { imageId: row.id });
+      // Pixel-bomb guard before the WASM decode: sharp can read HEIF metadata
+      // (dimensions) even when its libvips can't decode the pixels, so cap
+      // total pixels before heic-convert allocates a full raw bitmap.
+      try {
+        const meta = await sharp(original, { limitInputPixels: false }).metadata();
+        if ((meta.width ?? 0) * (meta.height ?? 0) > MAX_INPUT_PIXELS)
+          throw new Error("HEIC exceeds pixel limit");
+      } catch (metaErr) {
+        if (metaErr instanceof Error && metaErr.message === "HEIC exceeds pixel limit") throw metaErr;
+        // metadata unreadable — fall through; toMaster still enforces the cap.
+      }
       // @types/heic-convert types buffer as ArrayBufferLike; a Node Buffer is
       // accepted at runtime (verified), so cast past the imperfect types.
       const jpeg = Buffer.from(

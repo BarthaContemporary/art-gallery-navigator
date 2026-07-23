@@ -250,7 +250,7 @@ services:
     environment:
       IMGPROXY_BIND: :5001
       # Local-source access to storage's working dir (upstream pattern).
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /var/lib/storage
       # storage-api may also hand imgproxy presigned object URLs when the
       # backend is S3, so allow local + our Vultr endpoint only.
       IMGPROXY_ALLOWED_SOURCES: local://,${VULTR_S3_ENDPOINT}/
@@ -333,6 +333,11 @@ services:
     build:
       context: ../image-worker
     restart: unless-stopped
+    # This service decodes attacker-influenceable image bytes (sharp/libvips +
+    # the heic-convert WASM decoder). Deny privilege escalation so a decoder
+    # memory-corruption bug can't be leveraged past the container.
+    security_opt:
+      - no-new-privileges:true
     networks:
       - supabase
     depends_on:
@@ -344,8 +349,11 @@ services:
       # Storage API via the gateway (service-role key bypasses RLS/bucket policy).
       SUPABASE_URL: http://kong:8000
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      # Direct DB connection for LISTEN/NOTIFY + row claiming.
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Direct DB connection for LISTEN/NOTIFY + row claiming. Uses the scoped
+      # image_worker role (SELECT/UPDATE on piece_images + LISTEN), NOT the
+      # postgres superuser — least privilege for a service parsing untrusted
+      # image bytes. Role created in migration 0051.
+      DATABASE_URL: postgres://image_worker:${IMAGE_WORKER_DB_PASSWORD}@db:5432/${POSTGRES_DB}
       POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS}
       BATCH_SIZE: ${WORKER_BATCH_SIZE}
 

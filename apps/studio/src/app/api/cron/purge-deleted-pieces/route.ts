@@ -13,11 +13,9 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const auth = request.headers.get("authorization");
   const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  const url = new URL(request.url);
-  if (
-    !secret ||
-    !(safeEqual(bearer, secret) || safeEqual(url.searchParams.get("secret"), secret))
-  ) {
+  // Header only — this route hard-deletes rows, so never accept the secret via
+  // ?secret= where it would land in proxy/access logs and enable replay.
+  if (!secret || !safeEqual(bearer, secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

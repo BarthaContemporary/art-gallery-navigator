@@ -84,6 +84,24 @@ export async function exportResponse(
 ): Promise<Response> {
   const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
   if (new URL(request.url).searchParams.get("mode") === "drive") {
+    // mode=drive writes a file to the shared drive — a state change. It's a GET
+    // (fetch from the export buttons), so guard against cross-site drive writes
+    // by requiring a same-origin request: same-origin fetches send Origin (or
+    // at least a Referer) matching the host; a cross-site top-level navigation
+    // does not. Reject anything that doesn't match this host.
+    const origin = request.headers.get("origin") ?? request.headers.get("referer");
+    const host = request.headers.get("host");
+    if (origin && host) {
+      let ok = false;
+      try {
+        ok = new URL(origin).host === host;
+      } catch {
+        ok = false;
+      }
+      if (!ok) return Response.json({ ok: false, error: "Cross-origin request refused" }, { status: 403 });
+    } else if (!origin) {
+      return Response.json({ ok: false, error: "Missing origin" }, { status: 403 });
+    }
     if (!config())
       return Response.json(
         { ok: false, error: "Shared drive not configured (SHARED_DRIVE_URL)" },
