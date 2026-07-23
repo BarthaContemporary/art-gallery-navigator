@@ -20,11 +20,15 @@ const FIELD_LABELS: [keyof MakerFields, string, string][] = [
   ["school_or_workshop", "School / workshop", ""],
 ];
 
+const HEADING = "text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
+
 /**
  * The single maker editing panel: detail fields + representative portrait +
- * rich-text profile, all autosaving to /api/makers/[id]/profile (fields, html)
- * and /portrait (image). The HTML is the source for maker profile PDFs and
- * website pages.
+ * rich-text profile, all autosaving. The portrait upload processes the image
+ * server-side (original kept for exports, sRGB display master for studio and
+ * web) with an upload/processing progress bar; when empty, the image field is
+ * a drag-and-drop area. The image column and the rich-text field sit on a
+ * shared grid row so their tops align.
  */
 export function MakerProfileEditor({
   makerId,
@@ -40,11 +44,14 @@ export function MakerProfileEditor({
   const [fields, setFields] = useState<MakerFields>(initialFields);
   const fieldsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [url, setUrl] = useState(portraitUrl);
-  const [uploading, setUploading] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "uploading" | "processing">("idle");
+  const [progress, setProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSources, setAiSources] = useState<{ url: string; title: string }[]>([]);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,24 +109,6 @@ export function MakerProfileEditor({
     scheduleSave();
   }
 
-  async function onPickPortrait(list: FileList | null) {
-    const file = list?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const body = new FormData();
-      body.set("file", file);
-      const res = await fetch(`/api/makers/${makerId}/portrait`, { method: "POST", body });
-      const json = (await res.json()) as { url?: string | null; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
-      setUrl(json.url ?? null);
-    } catch {
-      /* leave previous portrait; the button label resets */
-    } finally {
-      setUploading(false);
-    }
-  }
-
   async function draftWithAi() {
     if (aiBusy) return;
     const existing = editorRef.current?.textContent?.trim() ?? "";
@@ -153,19 +142,57 @@ export function MakerProfileEditor({
     }
   }
 
+  /** XHR (not fetch) so the browser reports real upload progress. */
+  function uploadPortrait(file: File) {
+    setUploadError(null);
+    setPhase("uploading");
+    setProgress(0);
+    const body = new FormData();
+    body.set("file", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/makers/${makerId}/portrait`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) setProgress(e.loaded / e.total);
+    };
+    // Upload finished — the server is now generating the display master.
+    xhr.upload.onload = () => setPhase("processing");
+    xhr.onload = () => {
+      try {
+        const json = JSON.parse(xhr.responseText) as { url?: string | null; error?: string };
+        if (xhr.status >= 400 || json.error) throw new Error(json.error ?? "Upload failed");
+        setUrl(json.url ?? null);
+      } catch (e) {
+        setUploadError(e instanceof Error ? e.message : "Upload failed");
+      } finally {
+        setPhase("idle");
+      }
+    };
+    xhr.onerror = () => {
+      setUploadError("Network error during upload");
+      setPhase("idle");
+    };
+    xhr.send(body);
+  }
+
+  function onPick(list: FileList | null) {
+    const file = list?.[0];
+    if (file) uploadPortrait(file);
+  }
+
   async function removePortrait() {
     await fetch(`/api/makers/${makerId}/portrait`, { method: "DELETE" });
     setUrl(null);
   }
 
+  const busy = phase !== "idle";
   const tbtn =
     "rounded-md border border-line-control bg-control px-2 py-1 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
 
   return (
     <div>
-      {/* Details — same panel, autosaving like the rest */}
+      {/* Details */}
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Details</p>
+        <p className={HEADING}>Details</p>
         <span className={`text-[11px] ${status === "error" ? "text-oranje" : "text-ink-soft"}`}>
           {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "error" ? "Couldn’t save" : "Autosave on"}
         </span>
@@ -184,50 +211,23 @@ export function MakerProfileEditor({
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 border-t border-line-soft pt-5 md:grid-cols-[220px_1fr]">
-      {/* Portrait */}
-      <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-          Representative image
-        </p>
-        <div className="jvb-hatch mt-2 aspect-[3/4] w-full overflow-hidden rounded-[11px] border border-line bg-band">
-          {url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Portrait" className="h-full w-full object-cover" />
-          ) : null}
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            void onPickPortrait(e.target.files);
-            e.currentTarget.value = "";
-          }}
-        />
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid disabled:opacity-60"
-          >
-            {uploading ? "Uploading…" : url ? "Replace" : "Upload portrait"}
-          </button>
-          {url ? (
-            <button type="button" onClick={() => void removePortrait()} className="text-[12px] text-ink-soft hover:text-ink-strong">
-              Remove
-            </button>
-          ) : null}
-        </div>
-        <p className="mt-1.5 text-[11px] text-ink-soft">Ideally a portrait of the maker; used on profile PDFs and web pages.</p>
-      </div>
-
-      {/* Rich text profile */}
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">Profile</p>
+      {/* Image + profile: shared grid rows so headings align and the image
+          field starts exactly level with the rich-text field. */}
+      <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-line-soft pt-5 md:grid-cols-[230px_1fr] md:grid-rows-[auto_1fr]">
+        {/* row 1 — headings (toolbar lives in the same row so row 2 aligns) */}
+        <p className={`${HEADING} self-end`}>Representative image</p>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className={`${HEADING} mr-2`}>Profile</p>
+            <button type="button" onClick={() => cmd("bold")} className={`${tbtn} font-bold`}>B</button>
+            <button type="button" onClick={() => cmd("italic")} className={`${tbtn} italic`}>I</button>
+            <button type="button" onClick={() => cmd("underline")} className={`${tbtn} underline`}>U</button>
+            <button type="button" onClick={() => cmd("formatBlock", "<h2>")} className={tbtn}>H2</button>
+            <button type="button" onClick={() => cmd("formatBlock", "<h3>")} className={tbtn}>H3</button>
+            <button type="button" onClick={() => cmd("formatBlock", "<p>")} className={tbtn}>¶</button>
+            <button type="button" onClick={() => cmd("insertUnorderedList")} className={tbtn}>• List</button>
+            <button type="button" onClick={() => cmd("insertOrderedList")} className={tbtn}>1. List</button>
+          </div>
           <button
             type="button"
             disabled={aiBusy}
@@ -238,48 +238,126 @@ export function MakerProfileEditor({
             {aiBusy ? "Researching… (can take a minute)" : "✦ Draft with AI"}
           </button>
         </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => cmd("bold")} className={`${tbtn} font-bold`}>B</button>
-          <button type="button" onClick={() => cmd("italic")} className={`${tbtn} italic`}>I</button>
-          <button type="button" onClick={() => cmd("underline")} className={`${tbtn} underline`}>U</button>
-          <button type="button" onClick={() => cmd("formatBlock", "<h2>")} className={tbtn}>H2</button>
-          <button type="button" onClick={() => cmd("formatBlock", "<h3>")} className={tbtn}>H3</button>
-          <button type="button" onClick={() => cmd("formatBlock", "<p>")} className={tbtn}>¶</button>
-          <button type="button" onClick={() => cmd("insertUnorderedList")} className={tbtn}>• List</button>
-          <button type="button" onClick={() => cmd("insertOrderedList")} className={tbtn}>1. List</button>
-        </div>
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={scheduleSave}
-          onBlur={() => {
-            if (timer.current) clearTimeout(timer.current);
-            void save();
-          }}
-          className="prose-maker mt-2 min-h-[260px] w-full rounded-[11px] border border-line-control bg-control px-4 py-3 text-[14px] leading-[1.6] text-ink-body focus:outline-none focus:ring-1 focus:ring-oranje/50 [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-        />
-        <p className="mt-1.5 text-[11px] text-ink-soft">
-          Autosaves as you type. This text feeds the maker profile PDF and website page.
-        </p>
-        {aiError ? <p className="mt-1.5 text-[11.5px] text-oranje">AI draft: {aiError}</p> : null}
-        {aiSources.length > 0 ? (
-          <div className="mt-2 rounded-lg border border-line-soft bg-band/50 px-3 py-2">
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
-              Sources the draft drew on — verify before publishing
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {aiSources.map((s) => (
-                <li key={s.url} className="truncate text-[11.5px]">
-                  <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-oranje">
-                    {s.title || s.url}
-                  </a>
-                </li>
-              ))}
-            </ul>
+
+        {/* row 2, col 1 — image field (drop area when empty) */}
+        <div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,.heic,.heif"
+            className="hidden"
+            onChange={(e) => {
+              onPick(e.target.files);
+              e.currentTarget.value = "";
+            }}
+          />
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={url ? "Replace the portrait" : "Upload a portrait"}
+            onClick={() => !busy && fileRef.current?.click()}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !busy) fileRef.current?.click();
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (!busy) onPick(e.dataTransfer.files);
+            }}
+            className={`aspect-[3/4] w-full cursor-pointer overflow-hidden rounded-[11px] border transition-colors ${
+              url
+                ? "border-line bg-band"
+                : `border-2 border-dashed ${dragOver ? "border-oranje bg-oranje/5" : "border-line-control bg-band/60"}`
+            }`}
+          >
+            {url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt="Portrait" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+                <span aria-hidden className="text-[22px] text-ink-soft">⬆︎</span>
+                <p className="text-[12.5px] font-medium text-ink-mid">
+                  {dragOver ? "Drop to upload" : "Drop an image here"}
+                </p>
+                <p className="text-[11px] text-ink-soft">or click to choose a file</p>
+              </div>
+            )}
           </div>
-        ) : null}
-      </div>
+
+          {busy ? (
+            <div className="mt-2">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-line-soft">
+                <div
+                  className={`h-full rounded-full bg-oranje transition-[width] duration-200 ${phase === "processing" ? "animate-pulse" : ""}`}
+                  style={{ width: phase === "uploading" ? `${Math.round(progress * 90)}%` : "100%" }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-ink-soft">
+                {phase === "uploading" ? `Uploading… ${Math.round(progress * 100)}%` : "Processing image…"}
+              </p>
+            </div>
+          ) : null}
+          {uploadError ? <p className="mt-1.5 text-[11.5px] text-oranje">{uploadError}</p> : null}
+
+          {url && !busy ? (
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+              >
+                Replace
+              </button>
+              <button type="button" onClick={() => void removePortrait()} className="text-[12px] text-ink-soft hover:text-ink-strong">
+                Remove
+              </button>
+            </div>
+          ) : null}
+          <p className="mt-1.5 text-[11px] text-ink-soft">
+            Ideally a portrait of the maker. The original is kept for print-quality
+            documents; a web version is generated automatically.
+          </p>
+        </div>
+
+        {/* row 2, col 2 — rich text profile */}
+        <div>
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={scheduleSave}
+            onBlur={() => {
+              if (timer.current) clearTimeout(timer.current);
+              void save();
+            }}
+            className="prose-maker min-h-[280px] w-full rounded-[11px] border border-line-control bg-control px-4 py-3 text-[14px] leading-[1.6] text-ink-body focus:outline-none focus:ring-1 focus:ring-oranje/50 [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+          />
+          <p className="mt-1.5 text-[11px] text-ink-soft">
+            Autosaves as you type. This text feeds the maker profile PDF and website page.
+          </p>
+          {aiError ? <p className="mt-1.5 text-[11.5px] text-oranje">AI draft: {aiError}</p> : null}
+          {aiSources.length > 0 ? (
+            <div className="mt-2 rounded-lg border border-line-soft bg-band/50 px-3 py-2">
+              <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+                Sources the draft drew on — verify before publishing
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {aiSources.map((s) => (
+                  <li key={s.url} className="truncate text-[11.5px]">
+                    <a href={s.url} target="_blank" rel="noreferrer" className="text-ink-muted hover:text-oranje">
+                      {s.title || s.url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

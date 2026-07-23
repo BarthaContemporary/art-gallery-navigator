@@ -111,6 +111,9 @@ importers:
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
+      heic-convert:
+        specifier: ^2.1.0
+        version: 2.1.0
       next:
         specifier: ^15.3.0
         version: 15.5.20(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -123,6 +126,9 @@ importers:
       resend:
         specifier: ^4
         version: 4.8.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      sharp:
+        specifier: ^0.34.1
+        version: 0.34.5
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -130,6 +136,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.1.0
         version: 4.3.2
+      '@types/heic-convert':
+        specifier: ^2.1.0
+        version: 2.1.1
       '@types/node':
         specifier: ^22
         version: 22.20.1
@@ -2885,6 +2894,9 @@ packages:
 
   '@types/heic-convert@1.2.3':
     resolution: {integrity: sha512-5LJ2fGuVk/gnOLihoT56xJwrXxfnNepGvrHwlW5ZtT3HS4jO1AqBaAHCxXUpnY9UaD3zYcyxXMRM2fNN1AFF/Q==}
+
+  '@types/heic-convert@2.1.1':
+    resolution: {integrity: sha512-+s14762Nf62z9zziIs7ItvAkSUCS3ls4Z5XPT9BlVve3Q3S4DAnf6qekffMTvEWycSUF+kulkGaSN65fK6eKvg==}
 
   '@types/lodash-es@4.17.12':
     resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
@@ -9467,6 +9479,8 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/heic-convert@1.2.3': {}
+
+  '@types/heic-convert@2.1.1': {}
 
   '@types/lodash-es@4.17.12':
     dependencies:
