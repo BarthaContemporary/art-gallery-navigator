@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import ExcelJS from "exceljs";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
@@ -54,7 +54,8 @@ export async function GET(request: Request) {
   styleSheet(ws, cols);
   const buf = await wb.xlsx.writeBuffer();
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     new Uint8Array(buf as ArrayBuffer),
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     `stock-book-${scheme}.xlsx`,

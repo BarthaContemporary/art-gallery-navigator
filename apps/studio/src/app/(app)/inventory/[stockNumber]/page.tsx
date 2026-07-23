@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -467,13 +468,13 @@ export default async function PieceDetail({
             ["DOCX", `/api/export/certificate.docx?stock=${sn}`],
           ];
           return links.map(([label, href], i) => (
-            <a
+            <SaveToDriveLink
               key={href}
               href={href}
               className={`text-ink-mid hover:text-ink-strong ${i === 2 ? "border-l border-line pl-4" : ""}`}
             >
               {label}
-            </a>
+            </SaveToDriveLink>
           ));
         })()}
       </div>

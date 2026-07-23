@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -287,18 +288,18 @@ export default async function InventoryPage({
           >
             Trash
           </Link>
-          <a
+          <SaveToDriveLink
             href={`/api/export/inventory.csv${qs(sp)}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export CSV
-          </a>
-          <a
+          </SaveToDriveLink>
+          <SaveToDriveLink
             href={`/api/export/inventory.xlsx${qs(sp)}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export XLSX
-          </a>
+          </SaveToDriveLink>
           <form action={createDraftPiece}>
             <button
               type="submit"

@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
@@ -101,9 +102,9 @@ export default async function ListsPage() {
                 Manage
               </a>
               <LabelPdfButton listId={l.id} />
-              <a href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
+              <SaveToDriveLink href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                 vCards
-              </a>
+              </SaveToDriveLink>
               <DeleteListButton action={deleteList} id={l.id} name={l.name} />
             </div>
           </li>
@@ -144,12 +145,12 @@ export default async function ListsPage() {
                   <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
                     View
                   </a>
-                  <a href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
+                  <SaveToDriveLink href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                     Labels PDF
-                  </a>
-                  <a href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
+                  </SaveToDriveLink>
+                  <SaveToDriveLink href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                     vCards
-                  </a>
+                  </SaveToDriveLink>
                 </div>
               </li>
             ))}

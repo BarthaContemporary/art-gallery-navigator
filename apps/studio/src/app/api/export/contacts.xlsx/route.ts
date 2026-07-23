@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import ExcelJS from "exceljs";
 import { getSupabase } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Contacts export — XLSX opens directly in Proton Sheets / Excel. */
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await getSupabase();
   const {
     data: { user },
@@ -38,7 +38,8 @@ export async function GET() {
   styleSheet(ws, cols);
   const buf = await wb.xlsx.writeBuffer();
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     new Uint8Array(buf as ArrayBuffer),
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "contacts.xlsx",

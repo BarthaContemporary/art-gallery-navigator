@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -98,9 +99,9 @@ export default async function ListDetail({
 
       <div className="mt-4 flex flex-wrap gap-3 text-[12px]">
         <LabelPdfButton listId={id} className="font-medium text-primary" />
-        <a href={`/api/export/contacts.vcf?list=${id}`} className="font-medium text-primary">
+        <SaveToDriveLink href={`/api/export/contacts.vcf?list=${id}`} className="font-medium text-primary">
           vCards
-        </a>
+        </SaveToDriveLink>
       </div>
 
       {/* Members */}

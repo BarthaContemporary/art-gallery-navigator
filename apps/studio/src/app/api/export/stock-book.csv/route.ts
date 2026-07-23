@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 
 function csvCell(v: unknown): string {
@@ -45,7 +45,8 @@ export async function GET(request: Request) {
       cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(","),
     ),
   ];
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     lines.join("\n"),
     "text/csv; charset=utf-8",
     `stock-book-${scheme}.csv`,

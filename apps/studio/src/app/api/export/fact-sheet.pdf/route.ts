@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { FactSheet } from "@jvb/documents";
 import { GALLERY_NAME, loadPieceDoc } from "@/lib/document-data";
@@ -24,7 +24,8 @@ export async function GET(request: Request) {
     }),
   );
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     new Uint8Array(buf),
     "application/pdf",
     `fact-sheet-${stock}.pdf`,

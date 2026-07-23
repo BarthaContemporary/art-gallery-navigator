@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -83,7 +83,8 @@ export async function GET(request: Request) {
         .join("\r\n");
     });
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     cards.join("\r\n"),
     "text/vcard; charset=utf-8",
     "contacts.vcf",

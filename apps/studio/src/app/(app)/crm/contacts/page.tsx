@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -53,18 +54,18 @@ export default async function ContactsPage({
     <div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <a
+          <SaveToDriveLink
             href="/api/export/contacts.csv"
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export CSV / vCard
-          </a>
-          <a
+          </SaveToDriveLink>
+          <SaveToDriveLink
             href="/api/export/contacts.xlsx"
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export XLSX
-          </a>
+          </SaveToDriveLink>
           <Link
             href="/crm/contacts/import"
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"

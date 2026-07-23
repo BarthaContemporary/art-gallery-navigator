@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import { redirect } from "next/navigation";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { StockBookTable, type StockBookRow } from "@/components/stock-book-table";
@@ -57,18 +58,18 @@ export default async function StockBookPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
+          <SaveToDriveLink
             href={`/api/export/stock-book.csv${qs ? `?${qs}` : ""}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export CSV
-          </a>
-          <a
+          </SaveToDriveLink>
+          <SaveToDriveLink
             href={`/api/export/stock-book.xlsx${qs ? `?${qs}` : ""}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >
             Export XLSX
-          </a>
+          </SaveToDriveLink>
         </div>
       </div>
 

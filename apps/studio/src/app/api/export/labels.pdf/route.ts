@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { MailingLabels, type LabelAddress, type AveryTemplate } from "@jvb/documents";
 import { getSupabase } from "@/lib/supabase";
@@ -65,7 +65,8 @@ export async function GET(request: Request) {
 
   const buf = await renderToBuffer(MailingLabels({ addresses, template }));
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     new Uint8Array(buf),
     "application/pdf",
     "labels.pdf",

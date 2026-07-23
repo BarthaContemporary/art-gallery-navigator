@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 
 function csvCell(v: unknown): string {
@@ -41,7 +41,8 @@ export async function GET(request: Request) {
       cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(","),
     ),
   ];
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     lines.join("\n"),
     "text/csv; charset=utf-8",
     "inventory.csv",

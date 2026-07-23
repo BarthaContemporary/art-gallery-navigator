@@ -1,3 +1,4 @@
+import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -404,13 +405,12 @@ export default async function OfferDetail({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-3 text-[12px]">
-        <a
+        <SaveToDriveLink
           href={`/api/export/offer-presentation.docx?offer=${id}`}
           className="rounded-lg border border-line-control bg-control px-3 py-1.5 font-medium text-ink-mid hover:text-ink-strong"
-          title="Editable Word/Pages document — one work per page with images"
         >
           Presentation DOCX
-        </a>
+        </SaveToDriveLink>
       </div>
 
       {banner ? (

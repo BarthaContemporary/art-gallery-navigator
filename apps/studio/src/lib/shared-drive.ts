@@ -33,9 +33,9 @@ export async function copyToSharedDrive(
   filename: string,
   bytes: Uint8Array,
   contentType: string,
-): Promise<void> {
+): Promise<boolean> {
   const cfg = config();
-  if (!cfg) return;
+  if (!cfg) return false;
   const target = `${cfg.base}/Downloads/${folder}/${encodeURIComponent(filename)}`;
   const put = () =>
     fetch(target, {
@@ -57,26 +57,46 @@ export async function copyToSharedDrive(
       }
       res = await put();
     }
-    if (!res.ok) console.warn(`shared-drive copy failed: ${res.status} ${target}`);
+    if (!res.ok) {
+      console.warn(`shared-drive copy failed: ${res.status} ${target}`);
+      return false;
+    }
+    return true;
   } catch (e) {
     console.warn("shared-drive copy failed:", e instanceof Error ? e.message : e);
+    return false;
   }
 }
 
 /**
- * Standard download response for export routes: serves the file as an
- * attachment and drops a copy onto the shared drive first (bounded by the
- * fetch timeout, so a dead drive delays a download by at most ~8s and
- * never breaks it).
+ * Standard response for export routes. The studio UI calls these routes with
+ * ?mode=drive: the document is saved onto the shared drive and a small JSON
+ * confirmation comes back — no browser download (the drive copy IS the
+ * delivery). Without the parameter (direct URL, old bookmarks) the route
+ * behaves as a plain attachment download and skips the drive copy.
  */
-export async function downloadWithDriveCopy(
+export async function exportResponse(
+  request: Request,
   body: Uint8Array | string,
   contentType: string,
   filename: string,
   folder: DriveFolder,
 ): Promise<Response> {
   const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
-  await copyToSharedDrive(folder, filename, bytes, contentType);
+  if (new URL(request.url).searchParams.get("mode") === "drive") {
+    if (!config())
+      return Response.json(
+        { ok: false, error: "Shared drive not configured (SHARED_DRIVE_URL)" },
+        { status: 501 },
+      );
+    const saved = await copyToSharedDrive(folder, filename, bytes, contentType);
+    if (!saved)
+      return Response.json(
+        { ok: false, error: "Could not save to the shared drive" },
+        { status: 502 },
+      );
+    return Response.json({ ok: true, folder, filename });
+  }
   return new Response(bytes as unknown as BodyInit, {
     headers: {
       "Content-Type": contentType,

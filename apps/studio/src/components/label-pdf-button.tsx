@@ -1,5 +1,7 @@
 "use client";
 
+import { SaveToDriveLink } from "@/components/save-to-drive";
+
 import { useState } from "react";
 
 // Avery layouts the label generator supports. perPage / size shown so the user
@@ -37,17 +39,16 @@ export function LabelPdfButton({
               Choose Avery layout
             </span>
             {AVERY.map((a) => (
-              <a
+              <SaveToDriveLink
                 key={a.code}
                 href={`/api/export/labels.pdf?list=${encodeURIComponent(listId)}&template=${a.code}`}
-                onClick={() => setOpen(false)}
                 className="block rounded-md px-2 py-1.5 text-[12.5px] text-ink-body hover:bg-control"
               >
                 <span className="font-medium">Avery {a.code}</span>
                 <span className="block text-[11px] text-ink-soft">
                   {a.perPage} per sheet · {a.size}
                 </span>
-              </a>
+              </SaveToDriveLink>
             ))}
           </span>
         </>

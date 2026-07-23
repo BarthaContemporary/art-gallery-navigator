@@ -1,4 +1,4 @@
-import { downloadWithDriveCopy } from "@/lib/shared-drive";
+import { exportResponse } from "@/lib/shared-drive";
 import { factSheetDocx } from "@jvb/documents";
 import { GALLERY_NAME, loadPieceDoc } from "@/lib/document-data";
 
@@ -21,7 +21,8 @@ export async function GET(request: Request) {
     showPrices: url.searchParams.get("prices") === "1",
   });
 
-  return downloadWithDriveCopy(
+  return exportResponse(
+    request,
     new Uint8Array(buf),
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     `fact-sheet-${stock}.docx`,
