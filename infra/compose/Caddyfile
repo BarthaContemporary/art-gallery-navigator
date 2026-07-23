@@ -84,6 +84,16 @@ files.example.com {
 		max_size 5GB
 	}
 
+	# Ordinary browsers (GET/HEAD + Mozilla UA) get bounced to the public
+	# website instead of a basic-auth prompt / raw WebDAV XML. Real WebDAV
+	# clients (Finder = WebDAVFS, iOS Files, Cryptomator) never send a
+	# Mozilla user agent, so their GETs pass straight through.
+	@browser {
+		method GET HEAD
+		header User-Agent *Mozilla*
+	}
+	redir @browser https://www.joostvandenbergh.com 302
+
 	reverse_proxy 127.0.0.1:8081
 }
 
