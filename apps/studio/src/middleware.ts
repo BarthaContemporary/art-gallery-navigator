@@ -39,7 +39,11 @@ export async function middleware(request: NextRequest) {
     path === "/manifest.webmanifest" ||
     path === "/favicon.ico" ||
     path.startsWith("/icons/");
-  const isPublic = isLogin || isAsset || path.startsWith("/set-password");
+  // Passkey sign-in endpoints must be reachable while signed out (they ARE
+  // the sign-in); they verify the WebAuthn assertion themselves. Enrolment
+  // and management endpoints stay behind the session check.
+  const isPasskeyLogin = path.startsWith("/api/passkeys/login-");
+  const isPublic = isLogin || isAsset || isPasskeyLogin || path.startsWith("/set-password");
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
