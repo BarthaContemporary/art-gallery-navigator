@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -82,10 +83,10 @@ export async function GET(request: Request) {
         .join("\r\n");
     });
 
-  return new Response(cards.join("\r\n"), {
-    headers: {
-      "Content-Type": "text/vcard; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="contacts.vcf"',
-    },
-  });
+  return downloadWithDriveCopy(
+    cards.join("\r\n"),
+    "text/vcard; charset=utf-8",
+    "contacts.vcf",
+    "Docs",
+  );
 }

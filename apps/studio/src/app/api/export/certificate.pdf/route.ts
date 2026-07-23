@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { Certificate } from "@jvb/documents";
 import { GALLERY_NAME, loadPieceDoc } from "@/lib/document-data";
@@ -26,10 +27,10 @@ export async function GET(request: Request) {
     Certificate({ galleryName: GALLERY_NAME, work: piece, issuedDate: today() }),
   );
 
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="certificate-${stock}.pdf"`,
-    },
-  });
+  return downloadWithDriveCopy(
+    new Uint8Array(buf),
+    "application/pdf",
+    `certificate-${stock}.pdf`,
+    "Certificates",
+  );
 }

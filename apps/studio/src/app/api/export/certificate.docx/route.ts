@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { certificateDocx } from "@jvb/documents";
 import { GALLERY_NAME, loadPieceDoc } from "@/lib/document-data";
 
@@ -27,11 +28,10 @@ export async function GET(request: Request) {
     issuedDate: today(),
   });
 
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="certificate-${stock}.docx"`,
-    },
-  });
+  return downloadWithDriveCopy(
+    new Uint8Array(buf),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    `certificate-${stock}.docx`,
+    "Certificates",
+  );
 }

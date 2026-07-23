@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { offerPresentationDocx, type PresentationWork } from "@jvb/documents";
 import { getSupabase, getSession, createServiceClient } from "@/lib/supabase";
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
@@ -146,10 +147,10 @@ export async function GET(request: Request) {
   });
 
   const filename = `${(offer.title ?? "presentation").replace(/[^\w\- ]+/g, "").trim() || "presentation"}.docx`;
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
+  return downloadWithDriveCopy(
+    new Uint8Array(buf),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    filename,
+    "Presentations",
+  );
 }

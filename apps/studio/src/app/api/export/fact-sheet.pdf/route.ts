@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { FactSheet } from "@jvb/documents";
 import { GALLERY_NAME, loadPieceDoc } from "@/lib/document-data";
@@ -23,10 +24,10 @@ export async function GET(request: Request) {
     }),
   );
 
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="fact-sheet-${stock}.pdf"`,
-    },
-  });
+  return downloadWithDriveCopy(
+    new Uint8Array(buf),
+    "application/pdf",
+    `fact-sheet-${stock}.pdf`,
+    "Docs",
+  );
 }

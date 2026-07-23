@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import ExcelJS from "exceljs";
 import { getSupabase } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
@@ -49,11 +50,10 @@ export async function GET(request: Request) {
   styleSheet(ws, cols);
   const buf = await wb.xlsx.writeBuffer();
 
-  return new Response(new Uint8Array(buf as ArrayBuffer), {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": 'attachment; filename="inventory.xlsx"',
-    },
-  });
+  return downloadWithDriveCopy(
+    new Uint8Array(buf as ArrayBuffer),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "inventory.xlsx",
+    "Docs",
+  );
 }

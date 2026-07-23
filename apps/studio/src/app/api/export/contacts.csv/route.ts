@@ -1,3 +1,4 @@
+import { downloadWithDriveCopy } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 
 function csvCell(v: unknown): string {
@@ -59,10 +60,10 @@ export async function GET(request: Request) {
     cols.join(","),
     ...(rows ?? []).map((r) => cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(",")),
   ];
-  return new Response(lines.join("\n"), {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="contacts.csv"',
-    },
-  });
+  return downloadWithDriveCopy(
+    lines.join("\n"),
+    "text/csv; charset=utf-8",
+    "contacts.csv",
+    "Docs",
+  );
 }
