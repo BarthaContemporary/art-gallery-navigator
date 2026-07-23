@@ -268,10 +268,13 @@ transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
    environment and add the cron line from `backup.sh`'s header.
 
 ### Device setup
-- **Mac (Finder):** ⌘K / Go → Connect to Server → `https://files.<domain>` →
+Live address (since 2026-07-23): **https://drive.joostvandenbergh.com**
+(the bootstrap-era `files.<ip>.sslip.io` name still answers on the same
+Caddy block; drop it once every device has been repointed).
+- **Mac (Finder):** ⌘K / Go → Connect to Server → `https://drive.joostvandenbergh.com` →
   Registered User → username + password (stored in Keychain).
 - **iPhone / iPad (Files app):** Browse → ⋯ → Connect to Server →
-  `files.<domain>` → Registered User → credentials.
+  `drive.joostvandenbergh.com` → Registered User → credentials.
 
 ## 6d. fail2ban for the WebDAV endpoint
 
