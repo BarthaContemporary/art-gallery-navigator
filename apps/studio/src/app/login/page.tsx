@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getSupabase } from "@/lib/supabase";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { Turnstile } from "@/components/turnstile";
+import { PasskeyLogin } from "@/components/passkey-login";
 
 async function signIn(formData: FormData) {
   "use server";
@@ -48,13 +49,16 @@ export default async function LoginPage({
             {error}
           </p>
         ) : null}
-        <label className="mt-6 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+        <div className="mt-6">
+          <PasskeyLogin />
+        </div>
+        <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Email
           <input
             name="email"
             type="email"
             required
-            autoComplete="email"
+            autoComplete="username webauthn"
             className="mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink"
           />
         </label>

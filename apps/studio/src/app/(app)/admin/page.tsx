@@ -10,6 +10,7 @@ import {
   createServiceClient,
 } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { PasskeyManager } from "@/components/passkey-manager";
 
 export const metadata = { title: "Admin" };
 
@@ -252,6 +253,9 @@ export default async function AdminPage({
         </button>
         <p className="mt-3 text-[12px] text-ink-soft">Minimum 10 characters. You stay signed in after changing it.</p>
       </form>
+
+      {/* Passkeys — available to everyone */}
+      <PasskeyManager />
 
       {!isAdmin ? null : (
         <>
