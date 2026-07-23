@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, getSession, createServiceClient } from "@/lib/supabase";
 import { MakerProfileEditor } from "@/components/maker-profile-editor";
 
 export const metadata = { title: "Maker profile" };
@@ -20,10 +20,13 @@ export default async function MakerProfilePage({
     .maybeSingle();
   if (!maker) notFound();
 
+  // The portraits bucket has no user-level storage policies (uploads and
+  // processing run through service-role API routes), so signing the display
+  // URL needs the service client too — the page itself is session-gated.
   let portraitUrl: string | null = null;
-  if (maker.portrait_path) {
-    const { data } = await supabase.storage
-      .from("maker-portraits")
+  if (maker.portrait_path && (await getSession())) {
+    const { data } = await createServiceClient()
+      .storage.from("maker-portraits")
       .createSignedUrl(maker.portrait_path, 3600);
     portraitUrl = data?.signedUrl ?? null;
   }
