@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSupabase, getSession } from "@/lib/supabase";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -140,6 +141,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .split(/\n{2,}/)
       .map((p) => `<p>${esc(p.trim())}</p>`)
       .join("");
+
+  // Defence in depth: the model read arbitrary web pages, and the client
+  // inserts this straight into the editor via innerHTML — never return it
+  // unsanitised (the save path sanitises again).
+  html = sanitizeHtml(html);
 
   return NextResponse.json({ html, sources, model });
 }
