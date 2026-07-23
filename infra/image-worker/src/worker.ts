@@ -87,7 +87,7 @@ const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 4 });
 interface PendingImage {
   id: string;
   piece_id: string;
-  storage_path_original: string;
+  storage_path_original: string | null;
 }
 
 /** Subset of EXIF we persist on piece_images.exif (jsonb). */
@@ -191,9 +191,28 @@ function isHeifDecodeError(err: unknown): boolean {
   return /compression format has not been built in|heif|no.*decoding plugin/i.test(m);
 }
 
+/**
+ * HEIF/HEIC sniff by container signature (ISO-BMFF ftyp brand). libvips'
+ * error message varies by build ("compression format has not been built in"
+ * vs "bad seek"), so the buffer itself is the reliable signal for whether the
+ * heic-convert fallback applies.
+ */
+function looksLikeHeif(buf: Buffer): boolean {
+  if (buf.length < 12 || buf.toString("ascii", 4, 8) !== "ftyp") return false;
+  const brand = buf.toString("ascii", 8, 12);
+  return ["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"].includes(brand);
+}
+
 async function processImage(row: PendingImage): Promise<void> {
   const startedAt = Date.now();
   log("info", "processing image", { imageId: row.id, pieceId: row.piece_id, original: row.storage_path_original });
+
+  // Legacy stubs from the FileMaker migration can exist without a matched
+  // original file — nothing to process, record that cleanly.
+  if (!row.storage_path_original) {
+    await markError(row.id, new Error("No original image file (legacy stub not matched to a file)"));
+    return;
+  }
 
   const original = await downloadOriginal(row.storage_path_original);
   const exif = await extractExif(original);
@@ -224,7 +243,7 @@ async function processImage(row: PendingImage): Promise<void> {
     // Fall back to a pure-JS decoder (libheif-js/WASM), then run the normal
     // pipeline on the JPEG it produces. AVIF and everything else still go
     // straight through sharp.
-    if (isHeifDecodeError(err)) {
+    if (isHeifDecodeError(err) || looksLikeHeif(original)) {
       log("info", "HEIC original — decoding via heic-convert", { imageId: row.id });
       // @types/heic-convert types buffer as ArrayBufferLike; a Node Buffer is
       // accepted at runtime (verified), so cast past the imperfect types.
