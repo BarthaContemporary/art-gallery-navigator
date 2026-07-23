@@ -155,11 +155,25 @@ docker compose up -d
 ## 6b. Rebuild the image-worker (e.g. HEIC support)
 
 The worker runs from source in the image; a code/dependency change (like the
-`heic-convert` HEIC fallback) needs a rebuild + restart on the VPS:
+`heic-convert` HEIC fallback) needs a rebuild + restart on the VPS.
+
+**`/opt/jvb` is NOT a git clone** — `bootstrap.sh step_configure` ships the
+infra subtree there as a tarball over SSH. To update the worker, re-ship the
+files first, from a machine with the repo checked out:
 
 ```
-cd /opt/jvb && git pull
-cd infra/compose
+cd <repo-root>
+tar cz infra/image-worker | ssh deploy@<vps> 'tar xz -C /opt/jvb'
+```
+
+(No repo checkout at hand? Any HTTPS-reachable copy of `infra/image-worker/`
+{package.json, tsconfig.json, src/} untarred into `/opt/jvb/infra/image-worker`
+works the same — the build context is that directory alone.)
+
+Then rebuild on the VPS:
+
+```
+cd /opt/jvb/infra/compose
 docker compose build image-worker
 docker compose up -d image-worker
 docker compose logs -f image-worker          # watch it come up clean
