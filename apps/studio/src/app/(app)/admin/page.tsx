@@ -268,6 +268,9 @@ export default async function AdminPage({
             <a href="/analytics" className="text-ink-mid hover:text-oranje">
               Analytics — public website visitor results (cookieless) →
             </a>
+            <a href="/admin/duplicates" className="text-ink-mid hover:text-oranje">
+              Duplicate contacts — review &amp; merge pairs found during the legacy import →
+            </a>
           </div>
 
           <section className="mt-6">
