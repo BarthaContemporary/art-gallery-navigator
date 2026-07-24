@@ -264,6 +264,7 @@ export default async function EditPiecePage({
           thumbUrl={thumbUrl}
           stockNumber={piece.stock_number}
           title={piece.title ?? null}
+          year={piece.year ?? null}
           legacyStock={piece.legacy_stock_number ?? null}
           legacyConflict={Boolean(piece.legacy_stock_number_conflict)}
           imageCount={imageCount.count ?? 0}

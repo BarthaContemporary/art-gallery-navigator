@@ -37,6 +37,11 @@ function gbp(n: number | null | undefined) {
   }).format(n);
 }
 
+/** Work title with its year appended, e.g. "Reclining Figure, 2026". */
+function titleWithYear(title: string | null | undefined, year: number | string | null | undefined) {
+  return [title?.toString().trim() || "Untitled", year ?? null].filter(Boolean).join(", ");
+}
+
 export default async function PieceDetail({
   params,
 }: {
@@ -116,7 +121,7 @@ export default async function PieceDetail({
     piece.maker_id
       ? supabase
           .from("pieces")
-          .select("id, stock_number, title, status")
+          .select("id, stock_number, title, status, year")
           .eq("maker_id", piece.maker_id)
           .neq("id", piece.id)
           .limit(4)
@@ -191,6 +196,42 @@ export default async function PieceDetail({
       };
     }),
   );
+
+  // Signed preview image per related work ("More from this maker" thumbnails).
+  const related = (relatedRes.data ?? []) as {
+    id: string;
+    stock_number: string;
+    title: string | null;
+    status: string;
+    year: number | null;
+  }[];
+  const relatedImg = new Map<string, string>();
+  if (related.length) {
+    const { data: relImgs } = await supabase
+      .from("piece_images")
+      .select("piece_id, role, sort_order, storage_path_display")
+      .in("piece_id", related.map((r) => r.id))
+      .not("storage_path_display", "is", null);
+    // Best image per piece: prefer the "front" role, then lowest sort_order.
+    const best = new Map<string, { score: number; sort: number; path: string }>();
+    for (const im of relImgs ?? []) {
+      const path = im.storage_path_display as string | null;
+      if (!path) continue;
+      const score = im.role === "front" ? 0 : 1;
+      const sort = im.sort_order ?? 0;
+      const cur = best.get(im.piece_id as string);
+      if (!cur || score < cur.score || (score === cur.score && sort < cur.sort))
+        best.set(im.piece_id as string, { score, sort, path });
+    }
+    await Promise.all(
+      [...best.entries()].map(async ([pid, v]) => {
+        const { data } = await supabase.storage
+          .from("piece-derivatives")
+          .createSignedUrl(v.path, 3600);
+        if (data?.signedUrl) relatedImg.set(pid, data.signedUrl);
+      }),
+    );
+  }
 
   const watching = Boolean(watchRes.data);
   const fin = financialsRes.data;
@@ -555,7 +596,7 @@ export default async function PieceDetail({
             </p>
           ) : null}
           <h1 className="mt-1 text-[26px] font-semibold leading-[1.13] tracking-[-0.01em] text-ink-strong md:text-[32px]">
-            {piece.title ?? "Untitled"}
+            {titleWithYear(piece.title, piece.year)}
           </h1>
           <p className="mt-1.5 text-[14.5px] text-ink-muted">
             {[piece.period, piece.origin_region].filter(Boolean).join(" · ") || " "}
@@ -714,7 +755,7 @@ export default async function PieceDetail({
       {/* 4 · related + activity + records */}
       <div className="grid grid-cols-1 gap-8 p-5 md:p-8 lg:grid-cols-[1.5fr_1fr] lg:px-[42px]">
         <section>
-          {piece.maker && (relatedRes.data ?? []).length > 0 ? (
+          {piece.maker && related.length > 0 ? (
             <>
               <div className="flex items-baseline justify-between">
                 <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
@@ -728,27 +769,34 @@ export default async function PieceDetail({
                 </Link>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-                {(relatedRes.data ?? []).map((r) => (
-                  <Link
-                    key={r.id}
-                    href={`/inventory/${encodeURIComponent(r.stock_number)}`}
-                    className="group"
-                  >
-                    <div className="jvb-hatch relative aspect-square overflow-hidden rounded-[9px]">
-                      <span className="absolute left-2 top-2 font-mono text-[10px] text-ink-muted">
-                        {r.stock_number}
-                      </span>
-                      {r.status === "sold" ? (
-                        <span className="absolute right-2 top-2 rounded-[5px] bg-tag-dark px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] text-primary-fg">
-                          Sold
+                {related.map((r) => {
+                  const thumb = relatedImg.get(r.id);
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/inventory/${encodeURIComponent(r.stock_number)}`}
+                      className="group"
+                    >
+                      <div className="jvb-hatch relative aspect-square overflow-hidden rounded-[9px]">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt={r.title ?? r.stock_number} className="h-full w-full object-cover" />
+                        ) : null}
+                        <span className="absolute left-2 top-2 font-mono text-[10px] text-ink-muted">
+                          {r.stock_number}
                         </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-1.5 truncate text-[12.5px] text-ink-body group-hover:text-ink-strong">
-                      {r.title ?? "Untitled"}
-                    </p>
-                  </Link>
-                ))}
+                        {r.status === "sold" ? (
+                          <span className="absolute right-2 top-2 rounded-[5px] bg-tag-dark px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] text-primary-fg">
+                            Sold
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1.5 truncate text-[12.5px] text-ink-body group-hover:text-ink-strong">
+                        {titleWithYear(r.title, r.year)}
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
             </>
           ) : null}

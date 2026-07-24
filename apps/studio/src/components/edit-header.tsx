@@ -18,6 +18,7 @@ export function EditHeader({
   thumbUrl,
   stockNumber,
   title,
+  year,
   legacyStock,
   legacyConflict,
   imageCount,
@@ -26,11 +27,13 @@ export function EditHeader({
   thumbUrl: string | null;
   stockNumber: string;
   title: string | null;
+  year?: number | string | null;
   legacyStock: string | null;
   legacyConflict: boolean;
   imageCount: number;
   webVisible: boolean;
 }) {
+  const titleWithYear = [title?.trim() || "Untitled", year ?? null].filter(Boolean).join(", ");
   const imagesHref = `/inventory/${encodeURIComponent(stockNumber)}/images`;
 
   // --- website visibility toggle (submits web_visible with the form) ---
@@ -129,7 +132,7 @@ export function EditHeader({
           </Link>
           <div>
             <h1 className="text-[24px] font-semibold leading-tight text-ink-strong">
-              {title || "Untitled"}
+              {titleWithYear}
             </h1>
             <p className="mt-1 font-mono text-[13px] text-ink-muted">
               {stockNumber}
