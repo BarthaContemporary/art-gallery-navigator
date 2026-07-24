@@ -250,7 +250,7 @@ services:
     environment:
       IMGPROXY_BIND: :5001
       # Local-source access to storage's working dir (upstream pattern).
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /var/lib/storage
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
       # storage-api may also hand imgproxy presigned object URLs when the
       # backend is S3, so allow local + our Vultr endpoint only.
       IMGPROXY_ALLOWED_SOURCES: local://,${VULTR_S3_ENDPOINT}/
