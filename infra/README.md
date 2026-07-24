@@ -101,9 +101,35 @@ change schema. They also create the storage buckets (`piece-originals`,
 
 ## 5. Backups & restore
 
-Configure the rclone remote once (as `deploy`): `rclone config` → s3 /
-provider Other / endpoint `https://lhr1.vultrobjects.com` + the Object
-Storage keys. Name it `vultr` (scripts default to that).
+**REQUIRED FIRST STEP — configure the rclone remote, or every backup silently
+fails** (this was missed on the first deploy: `pg_dump`/`webdav-sync` ran
+nightly but each rclone upload died with `didn't find section in config file
+("vultr")`, so nothing was actually backed up). The S3 keys are already in
+`compose/.env`; write the config from them (run as root — this box has no
+`deploy` user):
+
+```sh
+set -a; . /opt/jvb/infra/compose/.env; set +a
+install -d -m 700 /root/.config/rclone
+cat > /root/.config/rclone/rclone.conf <<EOF
+[vultr]
+type = s3
+provider = Other
+env_auth = false
+access_key_id = ${VULTR_S3_ACCESS_KEY}
+secret_access_key = ${VULTR_S3_SECRET_KEY}
+endpoint = ${VULTR_S3_ENDPOINT}
+region = ${VULTR_S3_REGION}
+acl = private
+EOF
+chmod 600 /root/.config/rclone/rclone.conf
+rclone lsd vultr:                       # must list jvb-backups / jvb-storage
+/opt/jvb/infra/scripts/backup.sh db     # prove one real backup lands
+```
+
+Name it `vultr` (the scripts default to that). Because a failed rclone upload
+is invisible unless you read the log, wire the healthchecks.io ping below so a
+missed backup actively alerts you.
 
 | What | Script | Schedule (cron, §comments in script) |
 |---|---|---|
