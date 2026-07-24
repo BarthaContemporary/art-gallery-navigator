@@ -84,24 +84,15 @@ export async function exportResponse(
 ): Promise<Response> {
   const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
   if (new URL(request.url).searchParams.get("mode") === "drive") {
-    // mode=drive writes a file to the shared drive — a state change. It's a GET
-    // (fetch from the export buttons), so guard against cross-site drive writes
-    // by requiring a same-origin request: same-origin fetches send Origin (or
-    // at least a Referer) matching the host; a cross-site top-level navigation
-    // does not. Reject anything that doesn't match this host.
-    const origin = request.headers.get("origin") ?? request.headers.get("referer");
-    const host = request.headers.get("host");
-    if (origin && host) {
-      let ok = false;
-      try {
-        ok = new URL(origin).host === host;
-      } catch {
-        ok = false;
-      }
-      if (!ok) return Response.json({ ok: false, error: "Cross-origin request refused" }, { status: 403 });
-    } else if (!origin) {
-      return Response.json({ ok: false, error: "Missing origin" }, { status: 403 });
-    }
+    // mode=drive writes a file to the shared drive — a state change on a GET.
+    // CSRF guard: require the custom header the studio's export buttons send.
+    // A cross-site attacker can trigger a GET via navigation/img/form (none of
+    // which can set custom headers) but a cross-origin fetch that sets one
+    // triggers a CORS preflight this endpoint never grants — so the header
+    // proves the request came from our own JS. This has no false negatives
+    // from a missing Origin/Referer, so every signed-in user can save.
+    if (request.headers.get("x-jvb-drive-save") !== "1")
+      return Response.json({ ok: false, error: "Save must be triggered from the app" }, { status: 403 });
     if (!config())
       return Response.json(
         { ok: false, error: "Shared drive not configured (SHARED_DRIVE_URL)" },

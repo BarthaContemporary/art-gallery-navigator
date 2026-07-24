@@ -28,7 +28,10 @@ export function SaveToDriveLink({
     setState("saving");
     try {
       const sep = href.includes("?") ? "&" : "?";
-      const res = await fetch(`${href}${sep}mode=drive`);
+      // Custom header proves this came from our own JS (CSRF guard on the route).
+      const res = await fetch(`${href}${sep}mode=drive`, {
+        headers: { "x-jvb-drive-save": "1" },
+      });
       const json = (await res.json()) as { ok?: boolean; folder?: string; filename?: string; error?: string };
       if (!res.ok || !json.ok) throw new Error(json.error ?? "Save failed");
       setDetail(`Saved to Downloads/${json.folder}/${json.filename}`);
