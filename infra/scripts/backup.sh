@@ -34,6 +34,11 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Config (override via environment or edit here).
 # ---------------------------------------------------------------------------
+# Stable, root-only overrides that survive a tar-ship redeploy of this script:
+# put HEALTHCHECKS_* ping URLs (and any other overrides) in /etc/jvb/backup.env.
+# shellcheck disable=SC1091
+[[ -f /etc/jvb/backup.env ]] && . /etc/jvb/backup.env
+
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/jvb/infra/compose}"
 RCLONE_REMOTE="${RCLONE_REMOTE:-vultr}"
 BACKUP_BUCKET="${BACKUP_BUCKET:-jvb-backups}"
@@ -67,6 +72,26 @@ ping_healthchecks() {
   fi
 }
 
+# Record a successful run in the DB so the studio dashboard can show backup
+# health. Best-effort: a DB hiccup must never fail the backup. kind is a fixed
+# literal; detail/size are locally generated (filenames/ints), so the values
+# are trusted — but keep detail to safe characters.
+record_run() {
+  local kind="$1" size="${2:-}"
+  local detail="${3:-}"
+  detail="${detail//\'/}"   # strip quotes defensively
+  local sizeval="null"
+  [[ -n "$size" ]] && sizeval="$size"
+  local detailval="null"
+  [[ -n "$detail" ]] && detailval="'$detail'"
+  docker compose --project-directory "$COMPOSE_DIR" exec -T db \
+    psql -U postgres -d postgres -q -c \
+    "insert into backup_runs (kind, status, size_bytes, detail) values ('$kind','ok',$sizeval,$detailval);" \
+    >/dev/null 2>&1 \
+    && log "recorded $kind run in db" \
+    || log "WARNING: could not record $kind run in db (backup itself succeeded)"
+}
+
 # ---------------------------------------------------------------------------
 # db: dump, upload, prune, ping
 # ---------------------------------------------------------------------------
@@ -81,12 +106,15 @@ backup_db() {
   # -T: no TTY (cron); custom format (-Fc) is compressed and pg_restore-able.
   docker compose --project-directory "$COMPOSE_DIR" exec -T db \
     pg_dump -U postgres -d postgres -Fc > "$tmp/$file"
+  local bytes
+  bytes="$(stat -c%s "$tmp/$file" 2>/dev/null || echo "")"
   log "dump size: $(du -h "$tmp/$file" | cut -f1)"
 
   log "uploading to $DEST/$file"
   rclone copyto "$tmp/$file" "$DEST/$file"
 
   prune_db_backups
+  record_run db "$bytes" "$file"
   ping_healthchecks "$HEALTHCHECKS_URL"
   log "db backup complete"
 }
@@ -140,6 +168,7 @@ backup_storage() {
     "$RCLONE_REMOTE:$STORAGE_BUCKET" \
     "$RCLONE_REMOTE:$STORAGE_REPLICA_BUCKET" \
     --fast-list --transfers 8 --stats-one-line --stats 5m
+  record_run storage
   ping_healthchecks "$HEALTHCHECKS_STORAGE_URL"
   log "storage sync complete"
 }
@@ -159,6 +188,7 @@ backup_webdav() {
   log "syncing WebDAV ciphertext $WEBDAV_CIPHER_DIR → $dest"
   rclone sync "$WEBDAV_CIPHER_DIR" "$dest" \
     --fast-list --transfers 8 --stats-one-line --stats 5m
+  record_run webdav
   ping_healthchecks "$HEALTHCHECKS_WEBDAV_URL"
   log "webdav sync complete"
 }

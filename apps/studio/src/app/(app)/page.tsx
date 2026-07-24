@@ -3,6 +3,7 @@ import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { StatPanel } from "@/components/stat-panel";
 import { WebsitePanel } from "@/components/website-panel";
 import { NationalityPie } from "@/components/nationality-pie";
+import { BackupPanel } from "@/components/backup-panel";
 
 export default async function Dashboard() {
   const supabase = await getSupabase();
@@ -39,11 +40,16 @@ export default async function Dashboard() {
       </div>
 
       {isAdmin ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatPanel title="Objects added" metric="added" />
-          <StatPanel title="Total sales" metric="sales" />
-          <StatPanel title="Net profit" metric="profit" />
-        </div>
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatPanel title="Objects added" metric="added" />
+            <StatPanel title="Total sales" metric="sales" />
+            <StatPanel title="Net profit" metric="profit" />
+          </div>
+          <div className="mt-4">
+            <BackupPanel />
+          </div>
+        </>
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
