@@ -6,8 +6,9 @@
 -- and LISTEN for the notify signal.
 --
 -- DEPLOY (coordinated — do NOT apply in isolation):
---   1. Set a strong password:  \set pw '...'  then run this file with it, or
---      after applying:  alter role image_worker with password 'STRONG';
+--   1. Enable login with a strong password (the role ships NOLOGIN / no
+--      password so a fresh apply can't be abused):
+--        alter role image_worker with password 'STRONG' login;
 --   2. Put the same value in compose/.env as IMAGE_WORKER_DB_PASSWORD.
 --   3. Rebuild/restart the worker (its DATABASE_URL now uses this role).
 -- Until step 3 the running worker keeps using its old connection string, so
@@ -16,7 +17,12 @@
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'image_worker') then
-    create role image_worker with login password 'CHANGE_ME_SET_AT_DEPLOY';
+    -- Fail closed: no password and NOLOGIN, so the role cannot authenticate
+    -- until the deploy sets a strong password and enables login:
+    --   alter role image_worker with password '<strong>' login;
+    -- (Never ship a usable placeholder credential.) An existing role — e.g.
+    -- one already configured on the live box — is left untouched.
+    create role image_worker with nologin;
   end if;
 end
 $$;
