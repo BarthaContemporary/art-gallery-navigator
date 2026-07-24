@@ -9,7 +9,6 @@ import { getSupabase } from "@/lib/supabase";
 const KINDS: { kind: string; label: string; maxAgeHours: number; cadence: string }[] = [
   { kind: "db", label: "Database", maxAgeHours: 26, cadence: "nightly" },
   { kind: "webdav", label: "Shared drive", maxAgeHours: 26, cadence: "nightly" },
-  { kind: "storage", label: "Image storage", maxAgeHours: 24 * 8, cadence: "weekly" },
 ];
 
 type Run = { kind: string; status: string; created_at: string; size_bytes: number | null };

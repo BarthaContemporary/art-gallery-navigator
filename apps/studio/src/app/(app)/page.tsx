@@ -40,22 +40,23 @@ export default async function Dashboard() {
       </div>
 
       {isAdmin ? (
-        <>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatPanel title="Objects added" metric="added" />
-            <StatPanel title="Total sales" metric="sales" />
-            <StatPanel title="Net profit" metric="profit" />
-          </div>
-          <div className="mt-4">
-            <BackupPanel />
-          </div>
-        </>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatPanel title="Objects added" metric="added" />
+          <StatPanel title="Total sales" metric="sales" />
+          <StatPanel title="Net profit" metric="profit" />
+        </div>
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <WebsitePanel />
         <NationalityPie />
       </div>
+
+      {isAdmin ? (
+        <div className="mt-4">
+          <BackupPanel />
+        </div>
+      ) : null}
     </div>
   );
 }
