@@ -336,14 +336,19 @@ async function runCycle(): Promise<void> {
     if (batch.length === 0) return;
     log("info", "claimed batch", { count: batch.length });
 
-    for (const row of batch) {
-      try {
-        await processImage(row);
-      } catch (err) {
-        log("error", "image failed", { imageId: row.id, error: errorMessage(err) });
-        await markError(row.id, err);
-      }
-    }
+    // Process the batch concurrently — each image is mostly I/O (download the
+    // original, upload the derivative), so overlapping them drains a bulk
+    // upload roughly BATCH_SIZE× faster. A failure is isolated per image.
+    await Promise.all(
+      batch.map(async (row) => {
+        try {
+          await processImage(row);
+        } catch (err) {
+          log("error", "image failed", { imageId: row.id, error: errorMessage(err) });
+          await markError(row.id, err);
+        }
+      }),
+    );
   }
 }
 
