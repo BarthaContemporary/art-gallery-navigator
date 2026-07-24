@@ -28,4 +28,11 @@ grant select, update on table public.piece_images to image_worker;
 -- No access to financials, CRM, auth, or storage tables.
 revoke all on table public.piece_financials from image_worker;
 
+-- piece_images has RLS enabled; the worker is a trusted background process
+-- (the old worker ran as the postgres superuser, which bypasses RLS). Its
+-- table grants are already limited to SELECT/UPDATE on piece_images only, so
+-- BYPASSRLS here is appropriately scoped — without it the worker sees zero
+-- pending rows and silently processes nothing.
+alter role image_worker bypassrls;
+
 notify pgrst, 'reload schema';
