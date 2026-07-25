@@ -1,0 +1,15 @@
+# JVB nightly WebDAV shared-drive backup (rclone sync of the gocryptfs
+# ciphertext store → Vultr Object Storage → record_run). Driven by
+# jvb-backup-webdav.timer.
+[Unit]
+Description=JVB nightly WebDAV shared-drive backup
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+ExecStart=/opt/jvb/infra/scripts/backup.sh webdav-sync
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=idle

@@ -1,0 +1,11 @@
+# Fires the weekly object-storage replica on Sundays at 03:30 UTC.
+[Unit]
+Description=Run the JVB object-storage replica weekly (Sun 03:30 UTC)
+
+[Timer]
+OnCalendar=Sun *-*-* 03:30:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

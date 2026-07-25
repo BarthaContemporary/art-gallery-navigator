@@ -1,0 +1,21 @@
+# JVB nightly Postgres backup (pg_dump -Fc → Vultr Object Storage → prune →
+# record_run → healthchecks ping). Driven by jvb-backup-db.timer.
+#
+# Replaces the old crontab line. Failures land in `journalctl -u
+# jvb-backup-db.service` instead of vanishing silently — the exact failure
+# mode that let the DB dump go 30h stale on 2026-07-25.
+[Unit]
+Description=JVB nightly Postgres backup
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# rclone and the compose CLI both resolve their config under $HOME; a systemd
+# service does not inherit root's login HOME, so pin it (this was the silent
+# gotcha to guard against).
+Environment=HOME=/root
+ExecStart=/opt/jvb/infra/scripts/backup.sh db
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=idle

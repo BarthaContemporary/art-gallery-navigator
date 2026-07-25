@@ -1,0 +1,14 @@
+# Fires the nightly Postgres backup at 02:30 UTC. Persistent=true means a run
+# missed while the box was down is executed on the next boot — cron would just
+# skip it.
+[Unit]
+Description=Run the JVB Postgres backup nightly (02:30 UTC)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+# Small jitter so the DB and WebDAV jobs never collide on I/O.
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

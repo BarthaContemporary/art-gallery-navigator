@@ -1,0 +1,11 @@
+# Fires the nightly WebDAV shared-drive backup at 03:00 UTC.
+[Unit]
+Description=Run the JVB WebDAV shared-drive backup nightly (03:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
