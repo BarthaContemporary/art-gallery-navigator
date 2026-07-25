@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession, getSupabase, hasRole } from "@/lib/supabase";
 import { AppHeader } from "@/components/app-header";
+import { CommandPalette } from "@/components/command-palette";
 
 const NAV = [
   { href: "/", label: "Dashboard", group: "overview" },
@@ -42,6 +43,9 @@ export default async function AppLayout({
         items={items.map((n) => ({ href: n.href, label: n.label, group: n.group }))}
         userEmail={user.email ?? null}
         signOut={signOut}
+      />
+      <CommandPalette
+        navItems={items.map((n) => ({ href: n.href, label: n.label, group: n.group }))}
       />
       <main className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
         {children}

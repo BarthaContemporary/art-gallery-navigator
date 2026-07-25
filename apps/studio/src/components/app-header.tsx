@@ -96,6 +96,17 @@ export function AppHeader({
 
             {/* Desktop actions */}
             <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
+                aria-label="Search (⌘K)"
+                className="flex items-center gap-2 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:text-ink-strong"
+              >
+                <span>Search</span>
+                <kbd className="rounded border border-line-control bg-band px-1.5 py-px font-mono text-[10.5px] text-ink-faint">
+                  ⌘K
+                </kbd>
+              </button>
               <ThemeToggle />
               <form action={signOut}>
                 <button
@@ -108,16 +119,31 @@ export function AppHeader({
               </form>
             </div>
 
-            {/* Mobile trigger */}
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-              aria-label={open ? "Close menu" : "Open menu"}
-              className="ml-auto text-[13px] font-medium text-ink-strong md:hidden"
-            >
-              {open ? "Close" : "Menu"}
-            </button>
+            {/* Mobile triggers */}
+            <div className="ml-auto flex items-center gap-4 md:hidden">
+              {!open ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("jvb:command-palette"))}
+                  aria-label="Search"
+                  className="grid h-11 w-11 -mr-2 place-items-center text-ink-strong"
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                    <path d="m20 20-3.2-3.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                aria-label={open ? "Close menu" : "Open menu"}
+                className="text-[13px] font-medium text-ink-strong"
+              >
+                {open ? "Close" : "Menu"}
+              </button>
+            </div>
           </div>
 
           {/* Row 2 — desktop nav, wraps beneath the wordmark, flush-left with it */}
