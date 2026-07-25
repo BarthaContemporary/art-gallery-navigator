@@ -1,6 +1,12 @@
 /*
  * JVB design tokens — from the Piece Detail design handoff.
- * Greyscale oklch throughout; the status-dot green is the only chromatic value.
+ *
+ * The surface is a disciplined greyscale oklch ramp. Chromatic values are held
+ * to a small, deliberate set: the Dutch-orange accent (active nav + focus), the
+ * status-green dot, and a muted semantic palette (warn / danger / info) for the
+ * states the product genuinely has to signal — kept low-chroma so they sit
+ * inside the greyscale calm rather than reading as bright SaaS. A dark ramp
+ * lives at the bottom of this file.
  */
 :root {
   /* surfaces */
@@ -43,6 +49,28 @@
   /* the single chromatic value */
   --jvb-status-green: oklch(0.62 0.12 150);
 
+  /* Semantic state palette — deliberately muted so it sits inside the
+     greyscale calm rather than reading as bright SaaS. Each state has a
+     foreground (text/dot/icon) and a soft surface tint for badges. */
+  --jvb-warn: oklch(0.58 0.1 75);            /* muted ochre — overdue, review-needed */
+  --jvb-warn-soft: oklch(0.94 0.04 80);
+  --jvb-danger: oklch(0.52 0.16 27);         /* muted terracotta — errors, missing, off */
+  --jvb-danger-soft: oklch(0.94 0.04 27);
+  --jvb-info: oklch(0.55 0.07 240);          /* muted slate — neutral notice */
+  --jvb-info-soft: oklch(0.94 0.03 240);
+
+  /* Categorical ramp for charts (nationality pie, etc.) — restrained,
+     evenly-spaced hues at a common muted chroma so no slice shouts. */
+  --jvb-cat-1: oklch(0.55 0.09 40);
+  --jvb-cat-2: oklch(0.58 0.08 150);
+  --jvb-cat-3: oklch(0.55 0.08 250);
+  --jvb-cat-4: oklch(0.6 0.09 90);
+  --jvb-cat-5: oklch(0.55 0.09 320);
+  --jvb-cat-6: oklch(0.6 0.07 200);
+  --jvb-cat-7: oklch(0.5 0.08 20);
+  --jvb-cat-8: oklch(0.62 0.07 130);
+  --jvb-cat-9: oklch(0.52 0.06 280);
+
   /* activity-dot recency scale */
   --jvb-dot-recent: oklch(0.35 0 0);
   --jvb-dot-mid: oklch(0.55 0 0);
@@ -63,4 +91,74 @@
   --jvb-font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
   --jvb-font-serif: "Newsreader", Georgia, "Times New Roman", serif;
   --jvb-font-mono: var(--jvb-font-sans);
+}
+
+/*
+ * Dark theme — a second oklch ramp, not a refactor: the L channel inverts
+ * while the accent (oranje), status-green and the muted semantic hues carry
+ * over (nudged lighter for contrast on dark surfaces). Applied when the studio
+ * sets data-theme="dark" on <html> (see the theme toggle + no-flash script).
+ */
+:root[data-theme="dark"] {
+  /* surfaces */
+  --jvb-bg-page: oklch(0.17 0 0);
+  --jvb-bg-cell: oklch(0.195 0 0);
+  --jvb-bg-band: oklch(0.225 0 0);
+  --jvb-bg-placeholder: oklch(0.26 0 0);
+  --jvb-bg-chip: oklch(0.3 0 0);
+  --jvb-bg-pill: oklch(0.28 0 0);
+  --jvb-bg-control: oklch(0.225 0 0);
+  --jvb-bg-control-active: oklch(0.31 0 0);
+  --jvb-bg-primary: oklch(0.9 0 0);
+  --jvb-bg-tag-dark: oklch(0.34 0 0);
+  --jvb-bg-header: oklch(0.17 0 0 / 0.9);
+  --jvb-bg-overlay: oklch(0.2 0 0 / 0.85);
+
+  /* borders */
+  --jvb-border: oklch(0.32 0 0);
+  --jvb-border-soft: oklch(0.28 0 0);
+  --jvb-border-control: oklch(0.36 0 0);
+  --jvb-border-control-active: oklch(0.46 0 0);
+  --jvb-border-ring: oklch(0.72 0 0);
+
+  /* ink (light on dark) */
+  --jvb-ink-strong: oklch(0.96 0 0);
+  --jvb-ink-heading: oklch(0.95 0 0);
+  --jvb-ink-primary-fg: oklch(0.2 0 0);
+  --jvb-ink: oklch(0.9 0 0);
+  --jvb-ink-body: oklch(0.87 0 0);
+  --jvb-ink-desc: oklch(0.84 0 0);
+  --jvb-ink-label: oklch(0.8 0 0);
+  --jvb-ink-mid: oklch(0.72 0 0);
+  --jvb-ink-cost: oklch(0.68 0 0);
+  --jvb-ink-muted: oklch(0.63 0 0);
+  --jvb-ink-soft: oklch(0.57 0 0);
+  --jvb-ink-faint: oklch(0.53 0 0);
+  --jvb-ink-label-soft: oklch(0.5 0 0);
+  --jvb-ink-separator: oklch(0.4 0 0);
+
+  --jvb-status-green: oklch(0.7 0.13 150);
+
+  /* activity-dot recency — inverted so "recent" is bright */
+  --jvb-dot-recent: oklch(0.82 0 0);
+  --jvb-dot-mid: oklch(0.6 0 0);
+  --jvb-dot-old: oklch(0.42 0 0);
+
+  /* semantic — brightened for dark surfaces */
+  --jvb-warn: oklch(0.74 0.11 75);
+  --jvb-warn-soft: oklch(0.3 0.05 75);
+  --jvb-danger: oklch(0.66 0.16 27);
+  --jvb-danger-soft: oklch(0.3 0.06 27);
+  --jvb-info: oklch(0.7 0.08 240);
+  --jvb-info-soft: oklch(0.3 0.04 240);
+
+  --jvb-cat-1: oklch(0.66 0.09 40);
+  --jvb-cat-2: oklch(0.68 0.08 150);
+  --jvb-cat-3: oklch(0.66 0.08 250);
+  --jvb-cat-4: oklch(0.72 0.09 90);
+  --jvb-cat-5: oklch(0.66 0.09 320);
+  --jvb-cat-6: oklch(0.7 0.07 200);
+  --jvb-cat-7: oklch(0.62 0.08 20);
+  --jvb-cat-8: oklch(0.72 0.07 130);
+  --jvb-cat-9: oklch(0.64 0.06 280);
 }

@@ -163,7 +163,7 @@ export function EditHeader({
             <span
               aria-hidden
               className="inline-block h-2 w-2 rounded-full"
-              style={{ background: visible ? "var(--jvb-status-green, #4E7A51)" : "#C0392B" }}
+              style={{ background: visible ? "var(--jvb-status-green)" : "var(--jvb-danger)" }}
             />
             On website
           </button>

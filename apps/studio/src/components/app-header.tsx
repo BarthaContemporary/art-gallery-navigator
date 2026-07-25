@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = { href: string; label: string };
 
@@ -78,16 +79,19 @@ export function AppHeader({
               <span className="md:hidden">{wordmarkStacked}</span>
             </Link>
 
-            {/* Desktop sign out */}
-            <form action={signOut} className="ml-auto hidden shrink-0 md:block">
-              <button
-                type="submit"
-                title={userEmail ?? undefined}
-                className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-              >
-                Sign out
-              </button>
-            </form>
+            {/* Desktop actions */}
+            <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">
+              <ThemeToggle />
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  title={userEmail ?? undefined}
+                  className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+                >
+                  Sign out
+                </button>
+              </form>
+            </div>
 
             {/* Mobile trigger */}
             <button

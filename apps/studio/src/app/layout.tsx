@@ -32,13 +32,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Set the theme before first paint to avoid a flash. Reads the saved choice,
+// falling back to the OS preference.
+const themeScript = `(function(){try{var t=localStorage.getItem('jvb-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

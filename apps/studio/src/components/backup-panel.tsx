@@ -43,7 +43,11 @@ export async function BackupPanel() {
 
   const worst = rows.some((r) => r.state !== "ok");
   const dot = (state: string) =>
-    state === "ok" ? "var(--jvb-status-green, #4E7A51)" : state === "stale" ? "#C9992B" : "#C0392B";
+    state === "ok"
+      ? "var(--jvb-status-green)"
+      : state === "stale"
+        ? "var(--jvb-warn)"
+        : "var(--jvb-danger)";
 
   return (
     <div className="rounded-[11px] border border-line bg-cell p-4">

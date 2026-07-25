@@ -35,9 +35,39 @@
 
   --color-status-green: var(--jvb-status-green);
 
+  /* Semantic state palette (muted). */
+  --color-warn: var(--jvb-warn);
+  --color-warn-soft: var(--jvb-warn-soft);
+  --color-danger: var(--jvb-danger);
+  --color-danger-soft: var(--jvb-danger-soft);
+  --color-info: var(--jvb-info);
+  --color-info-soft: var(--jvb-info-soft);
+
+  --color-ink-heading: var(--jvb-ink-heading);
+  --color-ink-desc: var(--jvb-ink-desc);
+  --color-ink-label: var(--jvb-ink-label);
+  --color-line-control-active: var(--jvb-border-control-active);
+
   /* Single accent — matches the public site's Dutch orange. Used for the
-     active navigation item only. */
+     active navigation item and, as its "attention" extension, focus rings. */
   --color-oranje: #fc6600;
+}
+
+/* Theme changes ease rather than snap (respecting reduced-motion). */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .jvb-themed {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+/* Keyboard focus — one global, on-brand ring. The ring token existed but was
+   never consumed; wire it to every interactive element so the studio is fully
+   keyboard-navigable and reads as finished. Pointer clicks stay ring-free. */
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-oranje);
+  outline-offset: 2px;
+  border-radius: var(--jvb-radius-control);
 }
 
 body {
@@ -82,7 +112,13 @@ input[type="date"]::-webkit-date-and-time-value {
     45deg,
     transparent,
     transparent 6px,
-    oklch(0.9 0 0) 6px,
-    oklch(0.9 0 0) 7px
+    var(--jvb-hatch-line) 6px,
+    var(--jvb-hatch-line) 7px
   );
+}
+:root {
+  --jvb-hatch-line: oklch(0.9 0 0);
+}
+:root[data-theme="dark"] {
+  --jvb-hatch-line: oklch(0.3 0 0);
 }
