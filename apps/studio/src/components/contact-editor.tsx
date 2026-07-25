@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AddressFields } from "./address-fields";
 import { InterestSelect } from "./interest-select";
 
@@ -83,6 +83,9 @@ export function ContactEditor({
     : [];
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attempt = useRef(0);
+  const dirty = useRef(false);
   const [status, setStatus] = useState<Status>("idle");
 
   const cf = (k: string) => {
@@ -93,23 +96,74 @@ export function ContactEditor({
 
   const save = useCallback(async () => {
     if (!formRef.current) return;
+    if (retryTimer.current) {
+      clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+    }
     setStatus("saving");
     try {
       const res = await fetch(`/api/crm/contacts/${id}`, {
         method: "PATCH",
         body: new FormData(formRef.current),
       });
-      setStatus(res.ok ? "saved" : "error");
+      if (!res.ok) throw new Error(String(res.status));
+      attempt.current = 0;
+      dirty.current = false;
+      setStatus("saved");
     } catch {
+      // Keep the edit and retry with a capped backoff (2s → … → 30s).
       setStatus("error");
+      attempt.current += 1;
+      const delay = Math.min(2000 * 2 ** (attempt.current - 1), 30000);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(() => void save(), delay);
     }
   }, [id]);
 
   const scheduleSave = useCallback(() => {
+    dirty.current = true;
     setStatus("saving");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(save, 700);
   }, [save]);
+
+  // Retry as soon as the network returns; flush on unload with keepalive.
+  useEffect(() => {
+    const onOnline = () => {
+      if (dirty.current) void save();
+    };
+    const onLeave = () => {
+      if (!dirty.current || !formRef.current) return;
+      try {
+        void fetch(`/api/crm/contacts/${id}`, {
+          method: "PATCH",
+          body: new FormData(formRef.current),
+          keepalive: true,
+        });
+      } catch {
+        /* best-effort */
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onLeave();
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pagehide", onLeave);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pagehide", onLeave);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [id, save]);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    },
+    [],
+  );
 
   const statusText =
     status === "saving"
@@ -117,7 +171,7 @@ export function ContactEditor({
       : status === "saved"
         ? "All changes saved ✓"
         : status === "error"
-          ? "Couldn’t save — check your connection"
+          ? "Couldn’t save — your changes are kept and will retry automatically"
           : "Autosave on — changes save automatically";
 
   return (
@@ -134,7 +188,7 @@ export function ContactEditor({
     >
       {/* autosave status */}
       <p
-        className={`sticky top-[64px] z-10 text-[12px] ${
+        className={`sticky top-[64px] z-10 flex items-center gap-2 text-[12px] ${
           status === "error"
             ? "text-oranje"
             : status === "saved"
@@ -144,6 +198,18 @@ export function ContactEditor({
         aria-live="polite"
       >
         {statusText}
+        {status === "error" ? (
+          <button
+            type="button"
+            onClick={() => {
+              attempt.current = 0;
+              void save();
+            }}
+            className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-oranje hover:bg-oranje/10"
+          >
+            Retry now
+          </button>
+        ) : null}
       </p>
 
       {/* details */}
