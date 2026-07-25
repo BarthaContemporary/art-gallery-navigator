@@ -6,6 +6,7 @@ import { PieceFormFields } from "@/components/piece-form";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { EditHeader } from "@/components/edit-header";
 import { AutosaveForm } from "@/components/autosave-form";
+import { EditSectionRail } from "@/components/edit-section-rail";
 import { LegacyRecordPanel } from "@/components/legacy-record-panel";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { ConsignmentPanel } from "@/components/consignment-panel";
@@ -259,7 +260,10 @@ export default async function EditPiecePage({
   return (
     <EditFinancialsProvider initial={initialFinState}>
     <div>
-      <AutosaveForm endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}>
+      <AutosaveForm
+        endpoint={`/api/inventory/${encodeURIComponent(stockNumber)}`}
+        doneHref={`/inventory/${encodeURIComponent(stockNumber)}`}
+      >
         <EditHeader
           thumbUrl={thumbUrl}
           stockNumber={piece.stock_number}
@@ -270,6 +274,7 @@ export default async function EditPiecePage({
           imageCount={imageCount.count ?? 0}
           webVisible={Boolean(piece.web_visible)}
         />
+        <EditSectionRail />
         <div className="mt-6">
           <PieceFormFields
             piece={piece}

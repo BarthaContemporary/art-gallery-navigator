@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -13,11 +14,15 @@ export function AutosaveForm({
   endpoint,
   children,
   className,
+  doneHref,
 }: {
   endpoint: string;
   children: ReactNode;
   className?: string;
+  /** When set, a "Done" button flushes any pending save then navigates here. */
+  doneHref?: string;
 }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,33 +162,49 @@ export function AutosaveForm({
       }}
       className={className}
     >
-      <p
+      <div
         style={{ top: "var(--app-header-h, 88px)" }}
-        className={`sticky z-10 mb-3 flex items-center gap-2 text-[12px] transition-all duration-200 md:translate-y-0 md:opacity-100 ${
+        className={`sticky z-10 mb-3 flex items-center gap-2 transition-all duration-200 md:translate-y-0 md:opacity-100 ${
           hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
-        } ${
-          status === "error"
-            ? "text-oranje"
-            : status === "saved"
-              ? "text-status-green"
-              : "text-ink-soft"
         }`}
-        aria-live="polite"
       >
-        {statusText}
-        {status === "error" ? (
+        <span
+          className={`flex items-center gap-2 text-[12px] ${
+            status === "error"
+              ? "text-oranje"
+              : status === "saved"
+                ? "text-status-green"
+                : "text-ink-soft"
+          }`}
+          aria-live="polite"
+        >
+          {statusText}
+          {status === "error" ? (
+            <button
+              type="button"
+              onClick={() => {
+                attempt.current = 0;
+                void save();
+              }}
+              className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-oranje hover:bg-oranje/10"
+            >
+              Retry now
+            </button>
+          ) : null}
+        </span>
+        {doneHref ? (
           <button
             type="button"
             onClick={() => {
-              attempt.current = 0;
-              void save();
+              flush();
+              router.push(doneHref);
             }}
-            className="rounded-md border border-oranje/40 px-2 py-0.5 text-[11px] font-medium text-oranje hover:bg-oranje/10"
+            className="ml-auto rounded-lg bg-primary px-3.5 py-1.5 text-[12px] font-semibold text-primary-fg"
           >
-            Retry now
+            Done
           </button>
         ) : null}
-      </p>
+      </div>
       {children}
     </form>
   );
