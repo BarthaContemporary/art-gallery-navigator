@@ -27,14 +27,17 @@ export function PieceGallery({
   imagesMeta: string;
 }) {
   const [heroIndex, setHeroIndex] = useState(0);
-  const [zoomed, setZoomed] = useState(false);
+  const [scale, setScale] = useState(1);
   const [origin, setOrigin] = useState({ x: 50, y: 50 });
   const frameRef = useRef<HTMLDivElement>(null);
+  // Pinch tracking (iPad): distance + scale at the start of a 2-finger gesture.
+  const pinch = useRef<{ dist: number; scale: number } | null>(null);
 
+  const zoomed = scale > 1.02;
   const hero = images[heroIndex];
   const count = images.length;
   const go = (delta: number) => {
-    setZoomed(false);
+    setScale(1);
     setHeroIndex((i) => (i + delta + count) % count);
   };
 
@@ -45,6 +48,12 @@ export function PieceGallery({
       x: Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)),
       y: Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100)),
     });
+  };
+
+  const touchDist = (touches: React.TouchList) => {
+    const [a, b] = [touches[0], touches[1]];
+    if (!a || !b) return 0;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   };
 
   return (
@@ -60,19 +69,39 @@ export function PieceGallery({
             alt={hero.caption}
             onClick={(e) => {
               originFromEvent(e.clientX, e.clientY);
-              setZoomed((z) => !z);
+              setScale((s) => (s > 1.02 ? 1 : ZOOM));
             }}
             onMouseMove={(e) => {
               if (zoomed) originFromEvent(e.clientX, e.clientY);
             }}
-            onMouseLeave={() => setZoomed(false)}
+            onMouseLeave={() => setScale(1)}
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                // Begin a pinch; anchor the zoom at the fingers' midpoint.
+                pinch.current = { dist: touchDist(e.touches), scale };
+                const [a, b] = [e.touches[0]!, e.touches[1]!];
+                originFromEvent((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+              }
+            }}
             onTouchMove={(e) => {
-              const t = e.touches[0];
-              if (zoomed && t) originFromEvent(t.clientX, t.clientY);
+              if (e.touches.length === 2 && pinch.current) {
+                e.preventDefault();
+                const ratio = touchDist(e.touches) / (pinch.current.dist || 1);
+                setScale(Math.min(5, Math.max(1, pinch.current.scale * ratio)));
+              } else if (zoomed && e.touches[0]) {
+                // One-finger pan while zoomed.
+                originFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (e.touches.length < 2) pinch.current = null;
+              // Snap back to fit if the user pinched almost all the way out.
+              setScale((s) => (s < 1.1 ? 1 : s));
             }}
             style={{
-              transform: zoomed ? `scale(${ZOOM})` : "scale(1)",
+              transform: `scale(${zoomed ? scale : 1})`,
               transformOrigin: `${origin.x}% ${origin.y}%`,
+              touchAction: zoomed ? "none" : "pan-y",
             }}
             className={`h-full w-full object-contain transition-transform duration-200 ease-out ${
               zoomed ? "cursor-zoom-out" : "cursor-zoom-in"
@@ -113,7 +142,7 @@ export function PieceGallery({
                 </span>
                 {hero.url ? (
                   <span className="pointer-events-none absolute bottom-3 right-3 rounded-lg bg-[var(--jvb-bg-overlay)] px-2.5 py-1 text-[11px] font-medium text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100">
-                    ⚲ Click to zoom
+                    ⚲ Click or pinch to zoom
                   </span>
                 ) : null}
               </>
@@ -129,7 +158,7 @@ export function PieceGallery({
               key={img.id}
               type="button"
               onClick={() => {
-                setZoomed(false);
+                setScale(1);
                 setHeroIndex(i);
               }}
               aria-label={`Show image ${i + 1}: ${img.caption}`}
