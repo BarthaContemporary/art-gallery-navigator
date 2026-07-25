@@ -443,7 +443,11 @@ export default async function PieceDetail({
         className="sticky z-30 flex items-center justify-between gap-3 overflow-x-auto border-b border-line bg-[var(--jvb-bg-header)] px-4 py-3 backdrop-blur-[8px] md:px-[34px] md:py-4"
       >
         <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-muted">
-          <Link href="/inventory" aria-label="Back to inventory" className="text-ink-mid">
+          <Link
+            href="/inventory"
+            aria-label="Back to inventory"
+            className="-ml-2 flex h-11 w-11 items-center justify-center text-ink-mid md:ml-0 md:h-auto md:w-auto"
+          >
             ←
           </Link>
           <span className="hidden sm:inline">Inventory</span>
@@ -463,7 +467,7 @@ export default async function PieceDetail({
               <Link
                 href={`/inventory/${encodeURIComponent(prevRes.data.stock_number)}`}
                 aria-label="Previous record"
-                className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-line-control text-ink-mid"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
               >
                 ‹
               </Link>
@@ -472,7 +476,7 @@ export default async function PieceDetail({
               <Link
                 href={`/inventory/${encodeURIComponent(nextRes.data.stock_number)}`}
                 aria-label="Next record"
-                className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-line-control text-ink-mid"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-line-control text-ink-mid md:h-[30px] md:w-[30px]"
               >
                 ›
               </Link>
@@ -482,7 +486,7 @@ export default async function PieceDetail({
           <form action={toggleWatch}>
             <button
               type="submit"
-              className={`rounded-lg border px-3 py-[7px] text-[12.5px] font-medium transition-colors duration-150 ${
+              className={`inline-flex min-h-11 items-center rounded-lg border px-3 py-[7px] text-[12.5px] font-medium transition-colors duration-150 md:min-h-0 ${
                 watching
                   ? "border-[var(--jvb-border-control-active)] bg-control-active text-ink-strong"
                   : "border-line-control bg-control text-ink-mid"
@@ -493,7 +497,7 @@ export default async function PieceDetail({
           </form>
           <Link
             href={`/inventory/${encodeURIComponent(piece.stock_number)}/edit`}
-            className="rounded-lg bg-primary px-[15px] py-[7px] text-[12.5px] font-semibold text-primary-fg"
+            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-[15px] py-[7px] text-[12.5px] font-semibold text-primary-fg md:min-h-0"
           >
             Edit record
           </Link>

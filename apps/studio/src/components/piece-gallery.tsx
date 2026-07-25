@@ -89,7 +89,7 @@ export function PieceGallery({
                   type="button"
                   onClick={() => go(-1)}
                   aria-label="Previous image"
-                  className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                 >
                   ‹
                 </button>
@@ -97,7 +97,7 @@ export function PieceGallery({
                   type="button"
                   onClick={() => go(1)}
                   aria-label="Next image"
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line-control bg-[var(--jvb-bg-overlay)] text-ink-body backdrop-blur-[6px] transition-opacity md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                 >
                   ›
                 </button>
