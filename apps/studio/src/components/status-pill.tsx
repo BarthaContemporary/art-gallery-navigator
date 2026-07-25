@@ -1,4 +1,7 @@
-const LABELS: Record<string, string> = {
+// Single source of truth for status labels — import everywhere a status
+// string is shown (pill, filters, the buyer-select prompt) so one state never
+// reads as three different words.
+export const STATUS_LABELS: Record<string, string> = {
   in_stock: "Available",
   reserved: "Reserved",
   consigned_in: "Consigned in",
@@ -8,6 +11,7 @@ const LABELS: Record<string, string> = {
   returned: "Returned",
   written_off: "Written off",
 };
+const LABELS = STATUS_LABELS;
 
 // Semantic dot colour per status — greyscale for settled/terminal states,
 // muted colour only where it signals something actionable.

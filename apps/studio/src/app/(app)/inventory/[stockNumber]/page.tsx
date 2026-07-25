@@ -438,7 +438,10 @@ export default async function PieceDetail({
   return (
     <div className="-mx-4 -my-6 md:-mx-8 md:-my-8">
       {/* 1 · sticky top chrome */}
-      <div className="sticky top-[49px] z-30 flex items-center justify-between gap-3 overflow-x-auto border-b border-line bg-[var(--jvb-bg-header)] px-4 py-3 backdrop-blur-[8px] md:px-[34px] md:py-4">
+      <div
+        style={{ top: "var(--app-header-h, 88px)" }}
+        className="sticky z-30 flex items-center justify-between gap-3 overflow-x-auto border-b border-line bg-[var(--jvb-bg-header)] px-4 py-3 backdrop-blur-[8px] md:px-[34px] md:py-4"
+      >
         <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-muted">
           <Link href="/inventory" aria-label="Back to inventory" className="text-ink-mid">
             ←

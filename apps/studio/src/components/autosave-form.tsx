@@ -94,7 +94,8 @@ export function AutosaveForm({
       className={className}
     >
       <p
-        className={`sticky top-[64px] z-10 mb-3 text-[12px] transition-all duration-200 md:translate-y-0 md:opacity-100 ${
+        style={{ top: "var(--app-header-h, 88px)" }}
+        className={`sticky z-10 mb-3 text-[12px] transition-all duration-200 md:translate-y-0 md:opacity-100 ${
           hidden ? "-translate-y-3 opacity-0" : "translate-y-0 opacity-100"
         } ${
           status === "error"

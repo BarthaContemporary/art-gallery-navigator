@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
+import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
 
 const PAGE_SIZE = 100;
@@ -28,6 +29,7 @@ type Search = {
   page?: string;
   sort?: string;
   dir?: string;
+  error?: string;
 };
 
 export const metadata = { title: "Inventory" };
@@ -258,6 +260,11 @@ export default async function InventoryPage({
 
   return (
     <div>
+      {sp.error ? (
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
+          {sp.error}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
           <Link
@@ -327,9 +334,9 @@ export default async function InventoryPage({
           className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
         >
           <option value="">All statuses</option>
-          {["in_stock", "reserved", "consigned_in", "consigned_out", "sold", "gifted", "returned", "written_off"].map((s) => (
-            <option key={s} value={s}>
-              {s.replace(/_/g, " ")}
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
             </option>
           ))}
         </select>

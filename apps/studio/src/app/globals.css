@@ -70,6 +70,30 @@
   border-radius: var(--jvb-radius-control);
 }
 
+/* Press feedback — buttons respond on pointer-down, not just after the
+   round-trip. :where() keeps specificity 0 so it never fights utility classes. */
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, [role="button"], summary) {
+    transition: transform 100ms ease-out;
+  }
+  :where(button, [role="button"], summary):active {
+    transform: scale(0.97);
+  }
+}
+
+/* Global reduced-motion honour — nearly kill animation/transition durations
+   for users who ask for it. Individual opacity cross-fades can opt back in. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   background: var(--jvb-bg-page);
   color: var(--jvb-ink);

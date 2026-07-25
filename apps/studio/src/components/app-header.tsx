@@ -152,7 +152,9 @@ export function AppHeader({
         <div
           className="fixed inset-0 z-50 md:hidden"
           style={{
-            backgroundColor: "rgba(250, 250, 250, 0.3)",
+            // Theme-aware overlay — was hardcoded light, which frosted the menu
+            // as a light panel over the dark app in dark mode.
+            backgroundColor: "var(--jvb-bg-overlay)",
             backdropFilter: "blur(22px) saturate(1.4)",
             WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           }}

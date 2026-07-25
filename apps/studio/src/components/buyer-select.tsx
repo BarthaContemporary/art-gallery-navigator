@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { STATUS_LABELS } from "@/components/status-pill";
 
 type Result = { id: string; name: string; email: string | null };
 
@@ -8,17 +9,8 @@ const input =
   "w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
 
 // Mirrors the status options in piece-form.tsx.
-const STATUSES = [
-  "in_stock",
-  "reserved",
-  "consigned_in",
-  "consigned_out",
-  "sold",
-  "gifted",
-  "returned",
-  "written_off",
-];
-const label = (s: string) => s.replace(/_/g, " ");
+const STATUSES = Object.keys(STATUS_LABELS);
+const label = (s: string) => STATUS_LABELS[s] ?? s.replace(/_/g, " ");
 
 export function BuyerSelect({
   initialId,
@@ -100,6 +92,17 @@ export function BuyerSelect({
       }
     }, 1500);
   }
+
+  // Escape closes the status prompt (Apple + Impeccable both flagged the
+  // missing dismiss affordances).
+  useEffect(() => {
+    if (!prompt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPrompt(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [prompt]);
 
   function applyStatus() {
     const sel = statusSelect();
@@ -184,9 +187,13 @@ export function BuyerSelect({
 
       {prompt ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
           role="dialog"
           aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPrompt(null);
+          }}
         >
           <div className="w-full max-w-sm rounded-[13px] border border-line bg-cell p-5 shadow-xl">
             <h2 className="text-[15px] font-semibold text-ink-strong">Update the status?</h2>
