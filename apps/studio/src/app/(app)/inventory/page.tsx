@@ -259,7 +259,7 @@ export default async function InventoryPage({
   }
 
   return (
-    <div>
+    <div className="jvb-content-enter">
       {sp.error ? (
         <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
           {sp.error}

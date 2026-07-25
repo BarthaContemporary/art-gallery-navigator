@@ -94,6 +94,54 @@
   }
 }
 
+/* Enter transitions for things that used to teleport (modals, popovers, the
+   selection bar, route content). @starting-style animates the mount with no
+   JS; browsers without it simply skip to the settled state. Reduced-motion is
+   handled by the global reset above (durations → ~0). */
+@media (prefers-reduced-motion: no-preference) {
+  .jvb-scrim-enter {
+    transition: opacity 180ms ease-out;
+  }
+  @starting-style {
+    .jvb-scrim-enter {
+      opacity: 0;
+    }
+  }
+  .jvb-pop-enter {
+    transition:
+      opacity 200ms ease-out,
+      transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @starting-style {
+    .jvb-pop-enter {
+      opacity: 0;
+      transform: translateY(6px) scale(0.97);
+    }
+  }
+  .jvb-slide-enter {
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+  }
+  @starting-style {
+    .jvb-slide-enter {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  .jvb-content-enter {
+    transition:
+      opacity 160ms ease-out,
+      transform 160ms ease-out;
+  }
+  @starting-style {
+    .jvb-content-enter {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+}
+
 body {
   background: var(--jvb-bg-page);
   color: var(--jvb-ink);

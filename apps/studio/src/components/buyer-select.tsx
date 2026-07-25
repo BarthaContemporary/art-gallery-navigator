@@ -187,7 +187,7 @@ export function BuyerSelect({
 
       {prompt ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="jvb-scrim-enter fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
           role="dialog"
           aria-modal="true"
@@ -195,7 +195,7 @@ export function BuyerSelect({
             if (e.target === e.currentTarget) setPrompt(null);
           }}
         >
-          <div className="w-full max-w-sm rounded-[13px] border border-line bg-cell p-5 shadow-xl">
+          <div className="jvb-pop-enter w-full max-w-sm rounded-[13px] border border-line bg-cell p-5 shadow-xl">
             <h2 className="text-[15px] font-semibold text-ink-strong">Update the status?</h2>
             <p className="mt-1.5 text-[13px] text-ink-muted">
               This work has a buyer but its status is “{label(prompt.current)}”. Would you like to
