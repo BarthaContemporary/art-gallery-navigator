@@ -12,11 +12,13 @@ export function SubmitButton({
   children,
   pendingLabel,
   variant = "primary",
+  disabled = false,
   className = "",
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   variant?: "primary" | "ghost";
+  disabled?: boolean;
   className?: string;
 }) {
   const { pending } = useFormStatus();
@@ -25,7 +27,11 @@ export function SubmitButton({
       ? "rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg"
       : "rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-medium text-ink-mid";
   return (
-    <button type="submit" disabled={pending} className={`${base} disabled:opacity-60 ${className}`}>
+    <button
+      type="submit"
+      disabled={pending || disabled}
+      className={`${base} disabled:opacity-60 ${className}`}
+    >
       {pending && pendingLabel ? pendingLabel : children}
     </button>
   );

@@ -1,4 +1,5 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
+import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
@@ -68,8 +69,6 @@ const fieldCls =
   "mt-1 block w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
 const labelCls =
   "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
-const btnPrimary =
-  "rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg";
 const btnGhost =
   "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid";
 
@@ -481,9 +480,7 @@ export default async function OfferDetail({
           />
         </label>
         <div className="sm:col-span-2">
-          <button type="submit" className={btnPrimary}>
-            Save details
-          </button>
+          <SubmitButton pendingLabel="Saving…">Save details</SubmitButton>
         </div>
       </form>
 
@@ -762,13 +759,9 @@ export default async function OfferDetail({
             </p>
           </div>
           <form action={sendOffer}>
-            <button
-              type="submit"
-              disabled={sendable === 0 || items.length === 0}
-              className={`${btnPrimary} disabled:opacity-40`}
-            >
+            <SubmitButton pendingLabel="Sending…" disabled={sendable === 0 || items.length === 0}>
               Send to {sendable}
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </section>

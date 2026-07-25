@@ -68,7 +68,11 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
         </select>
       </div>
       <div className="mt-2 font-mono text-[26px] text-ink-strong">
-        {loading ? "…" : display}
+        {loading ? (
+          <span className="inline-block h-[26px] w-20 animate-pulse rounded bg-placeholder align-middle" aria-label="Loading" />
+        ) : (
+          display
+        )}
       </div>
     </div>
   );
