@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
+import { InventoryFilters } from "@/components/inventory-filters";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
 
@@ -318,71 +319,11 @@ export default async function InventoryPage({
         </div>
       </div>
 
-      <form className="mt-4 flex flex-wrap items-center gap-2" method="get">
-        <input
-          type="search"
-          name="q"
-          defaultValue={sp.q ?? ""}
-          placeholder="Search stock no., title, maker…"
-          className="w-full min-w-0 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] sm:w-72"
-        />
-        {sp.sort ? <input type="hidden" name="sort" value={sp.sort} /> : null}
-        {sp.dir ? <input type="hidden" name="dir" value={sp.dir} /> : null}
-        <select
-          name="status"
-          defaultValue={sp.status ?? ""}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-        >
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select
-          name="category"
-          defaultValue={sp.category ?? ""}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-        >
-          <option value="">All categories</option>
-          {(categories ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
-          name="location"
-          defaultValue={sp.location ?? ""}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-        >
-          <option value="">All locations</option>
-          {(locations ?? []).map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name ?? l.code}
-            </option>
-          ))}
-        </select>
-        <select
-          name="list"
-          defaultValue={sp.list ?? ""}
-          className="rounded-lg border border-line-control bg-control px-2.5 py-2 text-[12.5px] text-ink-mid"
-        >
-          <option value="">All lists</option>
-          {(pieceLists ?? []).map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="rounded-lg border border-line-control bg-control px-3 py-2 text-[12.5px] font-medium text-ink-mid"
-        >
-          Filter
-        </button>
-      </form>
+      <InventoryFilters
+        categories={(categories ?? []).map((c) => ({ id: c.id, name: c.name }))}
+        locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
+        lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
+      />
 
       {(() => {
         const catName = (categories ?? []).find((c) => c.id === sp.category)?.name;
@@ -391,7 +332,8 @@ export default async function InventoryPage({
         const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
         const chips: Array<{ key: keyof Search; label: string }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
-        if (sp.status) chips.push({ key: "status", label: sp.status.replace(/_/g, " ") });
+        if (sp.status)
+          chips.push({ key: "status", label: STATUS_LABELS[sp.status] ?? sp.status.replace(/_/g, " ") });
         if (sp.category && catName) chips.push({ key: "category", label: catName });
         if (sp.location && locName) chips.push({ key: "location", label: locName });
         if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
