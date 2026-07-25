@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase";
 import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
 import { RecordKeyNav } from "@/components/record-key-nav";
+import { Disclosure } from "@/components/disclosure";
 import { StatusPill } from "@/components/status-pill";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
@@ -515,11 +516,8 @@ export default async function PieceDetail({
 
       {/* secondary utilities — documents + lists, tucked into a disclosure so
           the artwork leads the fold instead of export links (one click away) */}
-      <details className="group px-5 pt-2 md:px-8">
-        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong [&::-webkit-details-marker]:hidden">
-          Documents &amp; lists
-          <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
-        </summary>
+      <div className="px-5 pt-2 md:px-8">
+       <Disclosure summary="Documents & lists">
         <div className="mt-2 space-y-2.5 rounded-lg border border-line-soft bg-band/40 px-3.5 py-3">
           {/* documents — fact sheet / certificate as PDF or DOCX */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
@@ -587,7 +585,8 @@ export default async function PieceDetail({
             </Link>
           </div>
         </div>
-      </details>
+       </Disclosure>
+      </div>
 
       {/* 2 · main split */}
       <div className="grid grid-cols-1 lg:grid-cols-[640px_1fr]">
