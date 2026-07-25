@@ -7,6 +7,7 @@ import { Resend } from "resend";
 import { OfferEmail } from "@jvb/emails";
 import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
+import { OfferItemsEditor } from "@/components/offer-items-editor";
 
 export const metadata = { title: "Offer" };
 
@@ -245,6 +246,18 @@ export default async function OfferDetail({
     "use server";
     const db = await getSupabase();
     await db.from("offer_items").delete().eq("id", String(formData.get("item_id") ?? ""));
+    revalidatePath(`/offers/${id}`);
+  }
+
+  async function reorderItems(orderedIds: string[]) {
+    "use server";
+    const db = await getSupabase();
+    // Persist the new order as sequential sort_order values.
+    await Promise.all(
+      orderedIds.map((itemId, i) =>
+        db.from("offer_items").update({ sort_order: i }).eq("id", itemId).eq("offer_id", id),
+      ),
+    );
     revalidatePath(`/offers/${id}`);
   }
 
@@ -489,57 +502,12 @@ export default async function OfferDetail({
         <h2 className="text-[15px] font-semibold text-ink-strong">
           Works ({items.length})
         </h2>
-        <div className="mt-3 space-y-2">
-          {items.map((it) => (
-            <form
-              key={it.id}
-              action={updateItem}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-line-soft bg-cell px-4 py-2.5"
-            >
-              <input type="hidden" name="item_id" value={it.id} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[13.5px] text-ink-body">
-                  <span className="font-mono text-[12px] text-ink-muted">
-                    {it.piece?.stock_number ?? "—"}
-                  </span>{" "}
-                  {it.piece?.title ?? "Untitled"}
-                </p>
-                <p className="text-[12px] text-ink-soft">
-                  {[it.piece?.period, it.piece?.medium].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-              <label className="text-[11px] text-ink-faint">
-                Price £
-                <input
-                  name="price_override_gbp"
-                  defaultValue={it.price_override_gbp ?? ""}
-                  inputMode="numeric"
-                  placeholder="override"
-                  className="ml-1 w-24 rounded-md border border-line-control bg-control px-2 py-1 font-mono text-[12px]"
-                />
-              </label>
-              <input
-                name="note"
-                defaultValue={it.note ?? ""}
-                placeholder="note (optional)"
-                className="w-40 rounded-md border border-line-control bg-control px-2 py-1 text-[12px]"
-              />
-              <button type="submit" className={btnGhost}>
-                Save
-              </button>
-              <button
-                type="submit"
-                formAction={removeItem}
-                className="text-[12px] text-ink-soft hover:text-ink-strong"
-              >
-                Remove
-              </button>
-            </form>
-          ))}
-          {items.length === 0 ? (
-            <p className="text-[13px] text-ink-muted">No works added yet.</p>
-          ) : null}
-        </div>
+        <OfferItemsEditor
+          items={items}
+          updateItem={updateItem}
+          removeItem={removeItem}
+          reorderItems={reorderItems}
+        />
 
         {/* Add works */}
         <form method="get" className="mt-4 flex items-center gap-2">
