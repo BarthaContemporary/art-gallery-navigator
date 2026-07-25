@@ -92,7 +92,14 @@ export function NationalityPie() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-[12.5px] text-ink-soft">Loading…</p>
+        <div className="mt-4 flex flex-wrap items-center gap-6" aria-label="Loading">
+          <span className="jvb-shimmer block h-[160px] w-[160px] rounded-full" />
+          <ul className="min-w-[160px] flex-1 space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <li key={i} className="jvb-shimmer h-[13px] rounded" style={{ width: `${88 - i * 12}%` }} />
+            ))}
+          </ul>
+        </div>
       ) : total === 0 ? (
         <p className="mt-6 text-[12.5px] text-ink-soft">
           No contacts with a recorded country for this filter.
@@ -115,6 +122,10 @@ export function NationalityPie() {
                     stroke={SURFACE}
                     strokeWidth={2}
                     strokeLinejoin="round"
+                    // Wedge reveal: slices scale in from the centre in series,
+                    // so the chart assembles rather than appearing whole.
+                    className="jvb-wedge"
+                    style={{ "--jvb-stagger": `${i * 45}ms` } as React.CSSProperties}
                   />
                 );
               })

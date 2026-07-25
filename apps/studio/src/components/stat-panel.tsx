@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CountUp } from "@/components/count-up";
 
 const PERIODS: [string, string][] = [
   ["month", "Month"],
@@ -37,16 +38,14 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
     };
   }, [metric, period]);
 
-  const display =
-    value == null
-      ? "—"
-      : format === "gbp"
-        ? new Intl.NumberFormat("en-GB", {
-            style: "currency",
-            currency: "GBP",
-            maximumFractionDigits: 0,
-          }).format(value)
-        : value.toLocaleString("en-GB");
+  const fmt = (n: number) =>
+    format === "gbp"
+      ? new Intl.NumberFormat("en-GB", {
+          style: "currency",
+          currency: "GBP",
+          maximumFractionDigits: 0,
+        }).format(n)
+      : n.toLocaleString("en-GB");
 
   return (
     <div className="rounded-[11px] border border-line bg-cell p-4">
@@ -69,9 +68,14 @@ export function StatPanel({ title, metric }: { title: string; metric: string }) 
       </div>
       <div className="mt-2 font-mono text-[26px] text-ink-strong">
         {loading ? (
-          <span className="inline-block h-[26px] w-20 animate-pulse rounded bg-placeholder align-middle" aria-label="Loading" />
+          <span
+            className="jvb-shimmer inline-block h-[26px] w-20 rounded align-middle"
+            aria-label="Loading"
+          />
+        ) : value == null ? (
+          "—"
         ) : (
-          display
+          <CountUp value={value} format={fmt} />
         )}
       </div>
     </div>

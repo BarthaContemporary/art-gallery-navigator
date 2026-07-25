@@ -4,6 +4,7 @@ import { StatPanel } from "@/components/stat-panel";
 import { WebsitePanel } from "@/components/website-panel";
 import { NationalityPie } from "@/components/nationality-pie";
 import { BackupPanel } from "@/components/backup-panel";
+import { CountUp } from "@/components/count-up";
 
 export default async function Dashboard() {
   const supabase = await getSupabase();
@@ -61,6 +62,11 @@ export default async function Dashboard() {
     },
   ].filter((t) => t.value > 0);
 
+  // One stagger sequence across the whole page: triage cards, then the headline
+  // stats, then the panels below. 60ms apart reads as a cascade without the
+  // last card feeling late.
+  const base = (triage.length + stats.length) * 60;
+
   return (
     <div>
       {/* Needs attention — triage cockpit. Hidden entirely when all clear. */}
@@ -73,15 +79,19 @@ export default async function Dashboard() {
             </h2>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {triage.map((t) => (
+            {triage.map((t, i) => (
               <Link
                 key={t.label}
                 href={t.href}
-                className="jvb-pop-enter group rounded-[11px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
+                style={{ "--jvb-stagger": `${i * 60}ms` } as React.CSSProperties}
+                className="jvb-rise jvb-lift group rounded-[11px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[12.5px] font-medium text-ink-strong">{t.label}</span>
-                  <span className="font-mono text-[22px] leading-none text-ink-strong">{t.value}</span>
+                  <CountUp
+                    value={t.value}
+                    className="font-mono text-[22px] leading-none text-ink-strong"
+                  />
                 </div>
                 <p className="mt-1 text-[11.5px] text-ink-muted">{t.hint}</p>
               </Link>
@@ -91,31 +101,61 @@ export default async function Dashboard() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
-        {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="bg-cell px-4 py-4 hover:bg-control">
+        {stats.map((s, i) => (
+          <Link
+            key={s.label}
+            href={s.href}
+            style={{ "--jvb-stagger": `${triage.length * 60 + i * 60}ms` } as React.CSSProperties}
+            className="jvb-rise bg-cell px-4 py-4 transition-colors hover:bg-control"
+          >
             <div className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               {s.label}
             </div>
-            <div className="mt-1 font-mono text-[26px] text-ink-strong">{s.value}</div>
+            <CountUp value={s.value} className="mt-1 block font-mono text-[26px] text-ink-strong" />
           </Link>
         ))}
       </div>
 
       {isAdmin ? (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatPanel title="Objects added" metric="added" />
-          <StatPanel title="Total sales" metric="sales" />
-          <StatPanel title="Net profit" metric="profit" />
+          {(
+            [
+              ["Objects added", "added"],
+              ["Total sales", "sales"],
+              ["Net profit", "profit"],
+            ] as const
+          ).map(([title, metric], i) => (
+            <div
+              key={metric}
+              style={{ "--jvb-stagger": `${base + i * 60}ms` } as React.CSSProperties}
+              className="jvb-rise"
+            >
+              <StatPanel title={title} metric={metric} />
+            </div>
+          ))}
         </div>
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <WebsitePanel />
-        <NationalityPie />
+        <div
+          style={{ "--jvb-stagger": `${base + 200}ms` } as React.CSSProperties}
+          className="jvb-rise"
+        >
+          <WebsitePanel />
+        </div>
+        <div
+          style={{ "--jvb-stagger": `${base + 260}ms` } as React.CSSProperties}
+          className="jvb-rise"
+        >
+          <NationalityPie />
+        </div>
       </div>
 
       {isAdmin ? (
-        <div className="mt-4">
+        <div
+          style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
+          className="jvb-rise mt-4"
+        >
           <BackupPanel />
         </div>
       ) : null}

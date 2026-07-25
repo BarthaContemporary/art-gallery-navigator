@@ -90,6 +90,10 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* Also neutralise delays: a staggered entrance whose duration is zeroed but
+       whose delay survives would leave content invisible for its delay window. */
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
 }
@@ -140,6 +144,116 @@
       transform: translateY(4px);
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Dashboard motion vocabulary
+   Named, reusable effects rather than one-off tweaks. Everything animates only
+   transform/opacity so the GPU composites it (no layout thrashing), and the
+   reduced-motion reset above neutralises all of it.
+   --------------------------------------------------------------------------- */
+
+/* Rise-in — a scale-in + fade entrance. Combined with --jvb-stagger below it
+   becomes a stagger: panels cascade in rather than all arriving at once.
+   `both` fill mode holds the from-state during the delay so nothing flashes. */
+@keyframes jvb-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.jvb-rise {
+  animation: jvb-rise-in 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: var(--jvb-stagger, 0ms);
+}
+
+/* Skeleton shimmer — a sheen sweeping across a placeholder while data loads.
+   Reads as "working" in a way a static grey block does not. */
+@keyframes jvb-shimmer {
+  from {
+    background-position: -160% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+.jvb-shimmer {
+  background-color: var(--jvb-bg-placeholder);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--jvb-shimmer-sheen) 50%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: jvb-shimmer 1.35s ease-in-out infinite;
+}
+:root {
+  --jvb-shimmer-sheen: oklch(1 0 0 / 0.62);
+}
+:root[data-theme="dark"] {
+  --jvb-shimmer-sheen: oklch(1 0 0 / 0.07);
+}
+
+/* Line drawing — an SVG path that traces itself in, as if drawn by a pen.
+   Paths must carry pathLength="1" so the dash maths is length-independent. */
+@keyframes jvb-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.jvb-draw {
+  stroke-dasharray: 1;
+  animation: jvb-draw 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: var(--jvb-stagger, 0ms);
+}
+
+/* Wedge reveal — pie slices scale in from the circle's centre, staggered, so
+   the chart assembles itself instead of appearing whole. transform-box keeps
+   the origin in the SVG's own coordinate space. */
+@keyframes jvb-wedge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.jvb-wedge {
+  transform-box: view-box;
+  transform-origin: 80px 80px;
+  animation: jvb-wedge-in 380ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: var(--jvb-stagger, 0ms);
+}
+
+/* Hover lift — a card rises a touch toward the cursor, confirming it's a
+   target before the click. Paired with the global :active press feedback. */
+@media (prefers-reduced-motion: no-preference) {
+  .jvb-lift {
+    transition:
+      transform 160ms ease-out,
+      box-shadow 160ms ease-out;
+  }
+  .jvb-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -8px var(--jvb-lift-shadow);
+  }
+}
+:root {
+  --jvb-lift-shadow: oklch(0 0 0 / 0.22);
+}
+:root[data-theme="dark"] {
+  --jvb-lift-shadow: oklch(0 0 0 / 0.6);
 }
 
 body {

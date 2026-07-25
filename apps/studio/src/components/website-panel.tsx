@@ -111,9 +111,7 @@ export function WebsitePanel() {
 
       <div className="mt-2 overflow-hidden">
         {loading ? (
-          <div className="flex h-[160px] items-center justify-center text-[12px] text-ink-soft">
-            Loading…
-          </div>
+          <div className="jvb-shimmer h-[160px] w-full rounded-lg" aria-label="Loading" />
         ) : (
           <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Website traffic">
             {/* baseline */}
@@ -125,8 +123,21 @@ export function WebsitePanel() {
               stroke="var(--jvb-border-soft)"
               strokeWidth="1"
             />
-            {paths.map((p) => (
-              <path key={p.key} d={p.d} fill="none" stroke={p.color} strokeWidth="1.8" strokeLinejoin="round" />
+            {paths.map((p, i) => (
+              <path
+                key={p.key}
+                d={p.d}
+                fill="none"
+                stroke={p.color}
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+                // Line drawing: each series traces itself in, one after the
+                // next. pathLength="1" normalises the dash maths so the timing
+                // is identical whatever the real path length is.
+                pathLength={1}
+                className="jvb-draw"
+                style={{ "--jvb-stagger": `${i * 140}ms` } as React.CSSProperties}
+              />
             ))}
             <text x={PAD.l} y={PAD.t - 2} className="fill-ink-faint" style={{ fontSize: 10 }}>
               {max.toLocaleString("en-GB")}
