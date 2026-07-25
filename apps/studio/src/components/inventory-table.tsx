@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { StatusPill } from "@/components/status-pill";
+import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
 
 export type InventoryRow = {
   id: string;
@@ -51,10 +51,12 @@ export function InventoryTable({
   rows,
   thumbs,
   lists = [],
+  locations = [],
 }: {
   rows: InventoryRow[];
   thumbs: Record<string, string>;
   lists?: { id: string; name: string }[];
+  locations?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -62,8 +64,30 @@ export function InventoryTable({
   const activeSort = params.get("sort");
   const activeDir = (params.get("dir") ?? "asc") as "asc" | "desc";
 
-  // ---- multi-select (add pieces to a list) ----
+  // ---- multi-select (add to list / bulk edit) ----
+  // Persisted to sessionStorage so a selection survives paging and sorting
+  // within the tab — you can gather works across several pages before acting.
+  const SEL_KEY = "jvb:inventory:selected:v1";
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SEL_KEY);
+      if (raw) {
+        const ids = JSON.parse(raw) as unknown;
+        if (Array.isArray(ids)) setSelected(new Set(ids.filter((x): x is string => typeof x === "string")));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      if (selected.size === 0) sessionStorage.removeItem(SEL_KEY);
+      else sessionStorage.setItem(SEL_KEY, JSON.stringify([...selected]));
+    } catch {
+      /* ignore */
+    }
+  }, [selected]);
   const pageIds = rows.map((r) => r.id);
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
   function toggleRow(id: string) {
@@ -287,6 +311,7 @@ export function InventoryTable({
         <AddToListBar
           selectedIds={[...selected]}
           lists={lists}
+          locations={locations}
           onClear={() => setSelected(new Set())}
           onDone={() => {
             setSelected(new Set());
@@ -420,16 +445,20 @@ export function InventoryTable({
 function AddToListBar({
   selectedIds,
   lists,
+  locations,
   onClear,
   onDone,
 }: {
   selectedIds: string[];
   lists: { id: string; name: string }[];
+  locations: { id: string; name: string }[];
   onClear: () => void;
   onDone: () => void;
 }) {
   const [listId, setListId] = useState("");
   const [newName, setNewName] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkLocation, setBulkLocation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -462,48 +491,116 @@ function AddToListBar({
     }
   }
 
+  async function applyBulk() {
+    if (!bulkStatus && !bulkLocation) {
+      setError("Pick a status or a location to apply.");
+      return;
+    }
+    const count = selectedIds.length;
+    const label = STATUS_LABELS[bulkStatus] ?? bulkStatus;
+    const parts = [
+      bulkStatus ? `status → ${label}` : null,
+      bulkLocation ? "a new location" : null,
+    ].filter(Boolean);
+    if (!confirm(`Apply ${parts.join(" and ")} to ${count} selected work${count === 1 ? "" : "s"}?`)) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inventory/bulk-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pieceIds: selectedIds,
+          status: bulkStatus || undefined,
+          locationId: bulkLocation || undefined,
+        }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not update");
+      setBulkStatus("");
+      setBulkLocation("");
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const field =
+    "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
+
   return (
-    <div className="jvb-slide-enter mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-oranje/30 bg-oranje/5 px-3 py-2">
-      <span className="text-[12.5px] font-medium text-ink-body">
-        {selectedIds.length} selected
-      </span>
-      <span className="text-[12px] text-ink-soft">→ add to</span>
-      <select
-        value={listId}
-        onChange={(e) => setListId(e.target.value)}
-        className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
-      >
-        <option value="">New list…</option>
-        {lists.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.name}
-          </option>
-        ))}
-      </select>
-      {!listId ? (
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New list name"
-          className="w-52 rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
-        />
-      ) : null}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void add()}
-        className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
-      >
-        {busy ? "Adding…" : "Add"}
-      </button>
-      <button
-        type="button"
-        onClick={onClear}
-        className="text-[12px] text-ink-soft hover:text-ink-strong"
-      >
-        Clear
-      </button>
-      {error ? <span className="text-[12px] text-ink-body">{error}</span> : null}
+    <div className="jvb-slide-enter mb-2 space-y-2 rounded-lg border border-oranje/30 bg-oranje/5 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[12.5px] font-medium text-ink-body">
+          {selectedIds.length} selected
+        </span>
+        <span className="text-[12px] text-ink-soft">→ add to</span>
+        <select value={listId} onChange={(e) => setListId(e.target.value)} className={field}>
+          <option value="">New list…</option>
+          {lists.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        {!listId ? (
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New list name"
+            className={`${field} w-52`}
+          />
+        ) : null}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void add()}
+          className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-fg disabled:opacity-60"
+        >
+          {busy ? "Adding…" : "Add"}
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          className="ml-auto text-[12px] text-ink-soft hover:text-ink-strong"
+        >
+          Clear selection
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-oranje/20 pt-2">
+        <span className="text-[12px] text-ink-soft">Bulk edit</span>
+        <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className={field}>
+          <option value="">Set status…</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select value={bulkLocation} onChange={(e) => setBulkLocation(e.target.value)} className={field}>
+          <option value="">Move to location…</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={busy || (!bulkStatus && !bulkLocation)}
+          onClick={() => void applyBulk()}
+          className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-semibold text-ink-strong disabled:opacity-50"
+        >
+          {busy ? "Applying…" : "Apply"}
+        </button>
+      </div>
+
+      {error ? <p className="text-[12px] text-danger">{error}</p> : null}
     </div>
   );
 }

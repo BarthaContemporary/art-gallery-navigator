@@ -421,6 +421,7 @@ export default async function InventoryPage({
             )}
             thumbs={Object.fromEntries(thumbByPiece)}
             lists={(pieceLists ?? []).map((l) => ({ id: l.id, name: l.name }))}
+            locations={(locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.code }))}
           />
         </div>
       )}
