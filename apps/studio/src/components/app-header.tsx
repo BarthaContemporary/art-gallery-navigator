@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = { href: string; label: string; group?: string };
@@ -42,6 +42,21 @@ export function AppHeader({
     };
   }, [open]);
 
+  // Publish the sticky header's real height as a CSS var so sticky elements
+  // below it (e.g. the inventory table's thead) can offset correctly — the
+  // header height changes as the nav wraps, so measure rather than guess.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () =>
+      document.documentElement.style.setProperty("--app-header-h", `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // A nav item matches when the path is it or sits under it. When several match
   // (e.g. "/inventory" and "/inventory/lists" both match /inventory/lists), only
   // the most specific — longest href — is treated as active.
@@ -65,7 +80,7 @@ export function AppHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[var(--jvb-bg-header)] backdrop-blur-md">
+      <header ref={headerRef} className="sticky top-0 z-40 bg-[var(--jvb-bg-header)] backdrop-blur-md">
         <div className="mx-auto max-w-[1320px] px-4 py-3 md:px-8">
           {/* Row 1 — wordmark + account/menu */}
           <div className="flex items-center gap-4">

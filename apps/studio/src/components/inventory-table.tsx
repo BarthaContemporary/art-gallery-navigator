@@ -42,6 +42,7 @@ const COLS: Col[] = [
 
 const MIN_W = 64;
 const STORAGE_KEY = "jvb:inventory:colwidths:v2";
+const DENSITY_KEY = "jvb:inventory:density:v1";
 const DEFAULTS: Record<string, number> = Object.fromEntries(
   COLS.map((c) => [c.key, c.width]),
 );
@@ -83,11 +84,12 @@ export function InventoryTable({
   }
 
   const [widths, setWidths] = useState<Record<string, number>>(DEFAULTS);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const colRefs = useRef<Record<string, HTMLTableColElement | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const drag = useRef<{ key: string; startX: number; startW: number } | null>(null);
 
-  // Load persisted widths after mount (avoids SSR hydration mismatch).
+  // Load persisted widths + density after mount (avoids SSR hydration mismatch).
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
@@ -97,7 +99,21 @@ export function InventoryTable({
     } catch {
       /* ignore malformed storage */
     }
+    if (localStorage.getItem(DENSITY_KEY) === "compact") setDensity("compact");
   }, []);
+
+  function toggleDensity() {
+    setDensity((d) => {
+      const next = d === "compact" ? "comfortable" : "compact";
+      try {
+        localStorage.setItem(DENSITY_KEY, next);
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+  const rowPad = density === "compact" ? "py-1.5" : "py-2.5";
 
   const totalWidth = () =>
     COLS.reduce((s, c) => s + (c.resizable ? widths[c.key] ?? c.width : c.width), 0);
@@ -279,8 +295,16 @@ export function InventoryTable({
         />
       ) : null}
 
-      {isCustomised ? (
-        <div className="mb-1.5 flex justify-end">
+      <div className="mb-1.5 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          onClick={toggleDensity}
+          className="text-[11.5px] text-ink-soft hover:text-ink-strong"
+          title="Toggle row density"
+        >
+          {density === "compact" ? "Comfortable rows" : "Compact rows"}
+        </button>
+        {isCustomised ? (
           <button
             type="button"
             onClick={resetAll}
@@ -288,10 +312,10 @@ export function InventoryTable({
           >
             Reset column widths
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
-      <div className="overflow-x-auto rounded-[11px] border border-line">
+      <div className="overflow-x-auto rounded-[11px] border border-line lg:overflow-x-visible">
         <table
           ref={tableRef}
           style={{ width: totalWidth(), tableLayout: "fixed" }}
@@ -309,13 +333,14 @@ export function InventoryTable({
             ))}
           </colgroup>
           <thead>
-            <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
+            <tr className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               {COLS.map((c) => {
                 const isActive = activeSort === c.key;
                 return (
                   <th
                     key={c.key}
-                    className={`relative select-none px-4 py-2.5 font-medium ${
+                    style={{ top: "var(--app-header-h, 88px)" }}
+                    className={`relative select-none border-b border-line bg-cell px-4 py-2.5 font-medium lg:sticky lg:z-20 ${
                       c.align === "right" ? "text-right" : "text-left"
                     } ${c.key === "image" ? "px-3" : ""}`}
                     aria-label={c.key === "image" ? "Image" : undefined}
@@ -371,7 +396,7 @@ export function InventoryTable({
                 {COLS.map((c) => (
                   <td
                     key={c.key}
-                    className={`overflow-hidden px-4 py-2.5 align-middle ${c.key === "image" ? "px-3 py-2" : ""}`}
+                    className={`overflow-hidden px-4 align-middle ${rowPad} ${c.key === "image" ? "px-3 py-1" : ""}`}
                   >
                     {cell(c, r)}
                   </td>
