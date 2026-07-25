@@ -232,7 +232,8 @@ export function InventoryTable({
             {r.needs_completion ? (
               <span
                 title="Captured on mobile — needs completion"
-                className="shrink-0 rounded bg-oranje px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-white"
+                className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em]"
+                style={{ background: "var(--jvb-warn-soft)", color: "var(--jvb-warn)" }}
               >
                 Finish
               </span>
@@ -258,7 +259,7 @@ export function InventoryTable({
           </span>
         );
       case "status":
-        return <StatusPill status={r.status} />;
+        return <StatusPill status={r.status} variant="inline" />;
       default:
         return null;
     }
