@@ -497,72 +497,81 @@ export default async function PieceDetail({
         </div>
       </div>
 
-      {/* documents — fact sheet / certificate as PDF or DOCX (Proton Docs) */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pb-1 pt-3 text-[12px] md:px-8">
-        <span className="uppercase tracking-[0.06em] text-ink-faint">Documents</span>
-        {(() => {
-          const sn = encodeURIComponent(piece.stock_number);
-          const links: [string, string][] = [
-            ["Fact sheet PDF", `/api/export/fact-sheet.pdf?stock=${sn}`],
-            ["DOCX", `/api/export/fact-sheet.docx?stock=${sn}`],
-            ["Certificate PDF", `/api/export/certificate.pdf?stock=${sn}`],
-            ["DOCX", `/api/export/certificate.docx?stock=${sn}`],
-          ];
-          return links.map(([label, href], i) => (
-            <SaveToDriveLink
-              key={href}
-              href={href}
-              className={`text-ink-mid hover:text-ink-strong ${i === 2 ? "border-l border-line pl-4" : ""}`}
-            >
-              {label}
-            </SaveToDriveLink>
-          ));
-        })()}
-      </div>
-
-      {/* add to list — file this work into a static list */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-1 pt-2 text-[12px] md:px-8">
-        <span className="uppercase tracking-[0.06em] text-ink-faint">Lists</span>
-        {pieceLists && pieceLists.length > 0 ? (
-          <form action={addToList} className="flex items-center gap-2">
-            <label htmlFor="add-to-list" className="sr-only">
-              Add to list
-            </label>
-            <select
-              id="add-to-list"
-              name="list_id"
-              defaultValue=""
-              className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
-            >
-              <option value="" disabled>
-                Choose a list…
-              </option>
-              {pieceLists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
-            >
-              Add to list
-            </button>
-          </form>
-        ) : (
-          <span className="text-ink-muted">
-            No lists yet —{" "}
-            <Link href="/inventory/lists" className="text-oranje hover:underline">
-              create one
+      {/* secondary utilities — documents + lists, tucked into a disclosure so
+          the artwork leads the fold instead of export links (one click away) */}
+      <details className="group px-5 pt-2 md:px-8">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong [&::-webkit-details-marker]:hidden">
+          Documents &amp; lists
+          <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
+        </summary>
+        <div className="mt-2 space-y-2.5 rounded-lg border border-line-soft bg-band/40 px-3.5 py-3">
+          {/* documents — fact sheet / certificate as PDF or DOCX */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
+            <span className="uppercase tracking-[0.06em] text-ink-faint">Documents</span>
+            {(() => {
+              const sn = encodeURIComponent(piece.stock_number);
+              const links: [string, string][] = [
+                ["Fact sheet PDF", `/api/export/fact-sheet.pdf?stock=${sn}`],
+                ["DOCX", `/api/export/fact-sheet.docx?stock=${sn}`],
+                ["Certificate PDF", `/api/export/certificate.pdf?stock=${sn}`],
+                ["DOCX", `/api/export/certificate.docx?stock=${sn}`],
+              ];
+              return links.map(([label, href], i) => (
+                <SaveToDriveLink
+                  key={href}
+                  href={href}
+                  className={`text-ink-mid hover:text-ink-strong ${i === 2 ? "border-l border-line pl-4" : ""}`}
+                >
+                  {label}
+                </SaveToDriveLink>
+              ));
+            })()}
+          </div>
+          {/* add to list — file this work into a static list */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
+            <span className="uppercase tracking-[0.06em] text-ink-faint">Lists</span>
+            {pieceLists && pieceLists.length > 0 ? (
+              <form action={addToList} className="flex items-center gap-2">
+                <label htmlFor="add-to-list" className="sr-only">
+                  Add to list
+                </label>
+                <select
+                  id="add-to-list"
+                  name="list_id"
+                  defaultValue=""
+                  className="rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body"
+                >
+                  <option value="" disabled>
+                    Choose a list…
+                  </option>
+                  {pieceLists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+                >
+                  Add to list
+                </button>
+              </form>
+            ) : (
+              <span className="text-ink-muted">
+                No lists yet —{" "}
+                <Link href="/inventory/lists" className="text-oranje hover:underline">
+                  create one
+                </Link>
+                .
+              </span>
+            )}
+            <Link href="/inventory/lists" className="text-ink-mid hover:text-ink-strong">
+              Manage lists →
             </Link>
-            .
-          </span>
-        )}
-        <Link href="/inventory/lists" className="text-ink-mid hover:text-ink-strong">
-          Manage lists →
-        </Link>
-      </div>
+          </div>
+        </div>
+      </details>
 
       {/* 2 · main split */}
       <div className="grid grid-cols-1 lg:grid-cols-[640px_1fr]">
@@ -606,7 +615,7 @@ export default async function PieceDetail({
           <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-[11px] border border-line bg-line sm:grid-cols-3">
             {specs.map(([label, value]) => (
               <div key={label} className="bg-cell px-4 py-[13px]">
-                <dt className="text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
+                <dt className="text-[11px] uppercase tracking-[0.06em] text-ink-label">
                   {label}
                 </dt>
                 <dd className="mt-0.5 text-[14px] text-ink">{value}</dd>
