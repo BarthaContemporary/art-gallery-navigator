@@ -43,6 +43,15 @@ export function CommandPalette({ navItems }: { navItems: NavItem[] }) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOpen((o) => !o);
+        return;
+      }
+      // "/" opens search too — but not while typing in a field.
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const el = e.target as HTMLElement | null;
+        const tag = el?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+        e.preventDefault();
+        setOpen(true);
       }
     };
     const onOpen = () => setOpen(true);

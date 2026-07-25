@@ -9,6 +9,7 @@ import {
   hasRole,
 } from "@/lib/supabase";
 import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
+import { RecordKeyNav } from "@/components/record-key-nav";
 import { StatusPill } from "@/components/status-pill";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
@@ -437,6 +438,14 @@ export default async function PieceDetail({
 
   return (
     <div className="jvb-content-enter -mx-4 -my-6 md:-mx-8 md:-my-8">
+      <RecordKeyNav
+        prevHref={
+          prevRes.data ? `/inventory/${encodeURIComponent(prevRes.data.stock_number)}` : null
+        }
+        nextHref={
+          nextRes.data ? `/inventory/${encodeURIComponent(nextRes.data.stock_number)}` : null
+        }
+      />
       {/* 1 · sticky top chrome */}
       <div
         style={{ top: "var(--app-header-h, 88px)" }}

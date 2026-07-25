@@ -227,6 +227,44 @@ export function InventoryTable({
     return `/inventory/${encodeURIComponent(r.stock_number)}`;
   }
 
+  // ---- j/k row navigation ----
+  // j/k move a highlighted row, ⏎ opens it, x toggles its selection. Skipped
+  // while typing so it never fights the filter box.
+  const [activeRow, setActiveRow] = useState(-1);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      if (rows.length === 0) return;
+      if (e.key === "j") {
+        e.preventDefault();
+        setActiveRow((a) => Math.min(a < 0 ? 0 : a + 1, rows.length - 1));
+      } else if (e.key === "k") {
+        e.preventDefault();
+        setActiveRow((a) => Math.max(a < 0 ? 0 : a - 1, 0));
+      } else if (e.key === "x" && rows[activeRow]) {
+        e.preventDefault();
+        toggleRow(rows[activeRow]!.id);
+      } else if (e.key === "Enter" && rows[activeRow]) {
+        e.preventDefault();
+        router.push(href(rows[activeRow]!));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, activeRow]);
+  useEffect(() => {
+    if (activeRow >= 0) {
+      rowRefs.current[activeRow]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeRow]);
+  // Rows change (paging/sort/filter) → drop the highlight.
+  useEffect(() => setActiveRow(-1), [rows]);
+
   function cell(col: Col, r: InventoryRow) {
     switch (col.key) {
       case "select":
@@ -321,6 +359,9 @@ export function InventoryTable({
       ) : null}
 
       <div className="mb-1.5 flex items-center justify-end gap-3">
+        <span className="mr-auto hidden font-mono text-[10.5px] text-ink-faint lg:inline">
+          j/k move · ⏎ open · x select
+        </span>
         <button
           type="button"
           onClick={toggleDensity}
@@ -416,8 +457,16 @@ export function InventoryTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-control">
+            {rows.map((r, i) => (
+              <tr
+                key={r.id}
+                ref={(el) => {
+                  rowRefs.current[i] = el;
+                }}
+                className={`border-b border-line-soft last:border-0 hover:bg-control ${
+                  i === activeRow ? "bg-oranje/10 ring-1 ring-inset ring-oranje/40" : ""
+                }`}
+              >
                 {COLS.map((c) => (
                   <td
                     key={c.key}
