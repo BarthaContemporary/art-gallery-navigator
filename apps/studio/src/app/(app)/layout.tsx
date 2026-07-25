@@ -3,17 +3,17 @@ import { getSession, getSupabase, hasRole } from "@/lib/supabase";
 import { AppHeader } from "@/components/app-header";
 
 const NAV = [
-  { href: "/", label: "Dashboard" },
-  { href: "/inventory", label: "Inventory" },
-  { href: "/library", label: "Inventory Lists & Docs" },
-  { href: "/crm/contacts", label: "Contacts" },
-  { href: "/crm/lists", label: "Contact list" },
-  { href: "/crm/campaigns", label: "Newsletter" },
-  { href: "/offers", label: "Offers" },
-  { href: "/appointments", label: "Appointments" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/stock-book", label: "Stock book", roles: ["admin", "accountant"] },
-  { href: "/admin", label: "Admin" },
+  { href: "/", label: "Dashboard", group: "overview" },
+  { href: "/inventory", label: "Inventory", group: "inventory" },
+  { href: "/library", label: "Inventory Lists & Docs", group: "inventory" },
+  { href: "/crm/contacts", label: "Contacts", group: "crm" },
+  { href: "/crm/lists", label: "Contact list", group: "crm" },
+  { href: "/crm/campaigns", label: "Newsletter", group: "crm" },
+  { href: "/offers", label: "Offers", group: "crm" },
+  { href: "/appointments", label: "Appointments", group: "crm" },
+  { href: "/analytics", label: "Analytics", group: "ops" },
+  { href: "/stock-book", label: "Stock book", roles: ["admin", "accountant"], group: "ops" },
+  { href: "/admin", label: "Admin", group: "ops" },
 ] as const;
 
 async function signOut() {
@@ -39,7 +39,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-dvh">
       <AppHeader
-        items={items.map((n) => ({ href: n.href, label: n.label }))}
+        items={items.map((n) => ({ href: n.href, label: n.label, group: n.group }))}
         userEmail={user.email ?? null}
         signOut={signOut}
       />

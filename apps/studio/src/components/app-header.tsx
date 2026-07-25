@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: string; label: string; group?: string };
 
 /**
  * Back-office header. Mirrors the public site's navigation architecture:
@@ -107,20 +107,26 @@ export function AppHeader({
 
           {/* Row 2 — desktop nav, wraps beneath the wordmark, flush-left with it */}
           <nav className="-ml-2.5 mt-2 hidden flex-wrap items-center justify-start gap-x-0.5 gap-y-1 md:flex">
-            {items.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                aria-current={isActive(n.href) ? "page" : undefined}
-                className={`shrink-0 px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
-                  isActive(n.href)
-                    ? "text-oranje"
-                    : "text-ink-mid hover:text-ink-strong"
-                }`}
-              >
-                {n.label}
-              </Link>
-            ))}
+            {items.map((n, i) => {
+              const active = isActive(n.href);
+              const newGroup = i > 0 && n.group !== items[i - 1]?.group;
+              return (
+                <span key={n.href} className="flex shrink-0 items-center">
+                  {newGroup ? <span aria-hidden className="mx-1.5 h-3.5 w-px bg-line" /> : null}
+                  <Link
+                    href={n.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`relative shrink-0 px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                      active
+                        ? "text-oranje after:absolute after:inset-x-2.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-oranje after:content-['']"
+                        : "text-ink-mid hover:text-ink-strong"
+                    }`}
+                  >
+                    {n.label}
+                  </Link>
+                </span>
+              );
+            })}
           </nav>
         </div>
       </header>
