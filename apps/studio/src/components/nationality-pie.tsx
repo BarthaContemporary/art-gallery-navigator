@@ -29,6 +29,13 @@ const COLORS = [
 // the theme (it was hardcoded light, which drew near-white gaps in dark mode).
 const SURFACE = "var(--jvb-bg-cell)";
 
+// Separator weight. Deliberately hairline: the stroke is centred on the wedge
+// outline, so it eats HALF ITS WIDTH from each neighbour. At the old 2px a
+// long-tail slice of ~2% (≈9° — about 6px across at its base) lost most of
+// itself to white on both sides and read far smaller than its real share.
+// 0.75px still separates adjacent colours without distorting the data.
+const SEPARATOR = 0.75;
+
 // How far a hovered wedge eases out along its bisector, in viewBox units.
 const NUDGE = 7;
 // Entrance sweep duration — legend rows are timed against this so each row
@@ -162,7 +169,7 @@ export function NationalityPie() {
                     d={w.d}
                     fill={w.color}
                     stroke={SURFACE}
-                    strokeWidth={2}
+                    strokeWidth={SEPARATOR}
                     strokeLinejoin="round"
                     className="jvb-slice"
                     style={{
