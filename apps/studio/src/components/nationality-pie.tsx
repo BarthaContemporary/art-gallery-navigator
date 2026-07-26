@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Slice = { label: string; count: number };
 
@@ -25,7 +25,15 @@ const COLORS = [
   "#e34948", // red
   "#9b9a92", // neutral — "Other"
 ];
-const SURFACE = "#fcfcfb"; // gap colour between wedges (matches the card)
+// Gap colour between wedges — must track the card it sits on, so it follows
+// the theme (it was hardcoded light, which drew near-white gaps in dark mode).
+const SURFACE = "var(--jvb-bg-cell)";
+
+// How far a hovered wedge eases out along its bisector, in viewBox units.
+const NUDGE = 7;
+// Entrance sweep duration — legend rows are timed against this so each row
+// arrives exactly as its own wedge is drawn.
+const SWEEP_MS = 820;
 
 function polar(cx: number, cy: number, r: number, angle: number) {
   const a = (angle - 90) * (Math.PI / 180);
@@ -71,7 +79,33 @@ export function NationalityPie() {
   const cx = 80;
   const cy = 80;
   const r = 78;
-  let acc = 0;
+
+  // The wedge that's currently lit — set from either the slice or its legend
+  // row, so the two halves of the chart point at each other.
+  const [active, setActive] = useState<number | null>(null);
+
+  // Resolve each slice's angles once: the arc path, the offset it eases out
+  // along when hovered (its bisector), and the moment in the sweep when it is
+  // drawn — which is also when its legend row should arrive.
+  const wedges = useMemo(() => {
+    let acc = 0;
+    return slices.map((s, i) => {
+      const start = (acc / total) * 360;
+      acc += s.count;
+      const end = (acc / total) * 360;
+      const mid = ((start + end) / 2 - 90) * (Math.PI / 180);
+      return {
+        ...s,
+        i,
+        d: arcPath(cx, cy, r, start, end),
+        color: COLORS[i % COLORS.length]!,
+        dx: Math.cos(mid) * NUDGE,
+        dy: Math.sin(mid) * NUDGE,
+        // Fraction of the revolution already swept when this wedge begins.
+        appearsAt: Math.round((start / 360) * SWEEP_MS),
+      };
+    });
+  }, [slices, total]);
 
   return (
     <section className="rounded-[11px] border border-line bg-cell p-5">
@@ -106,43 +140,71 @@ export function NationalityPie() {
         </p>
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-6">
-          <svg width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="Nationality breakdown">
-            {slices.length === 1 ? (
-              <circle cx={cx} cy={cy} r={r} fill={COLORS[0]} />
-            ) : (
-              slices.map((s, i) => {
-                const start = (acc / total) * 360;
-                acc += s.count;
-                const end = (acc / total) * 360;
-                return (
+          {/* The mask on this wrapper is what sweeps — one clock-wipe over the
+              whole chart, so the pie draws itself in data order. */}
+          <div className="jvb-sweep h-[160px] w-[160px] shrink-0">
+            <svg
+              width="160"
+              height="160"
+              viewBox="0 0 160 160"
+              role="img"
+              aria-label="Nationality breakdown"
+              onPointerLeave={(e) => {
+                if (e.pointerType === "mouse") setActive(null);
+              }}
+            >
+              {slices.length === 1 ? (
+                <circle cx={cx} cy={cy} r={r} fill={COLORS[0]} />
+              ) : (
+                wedges.map((w) => (
                   <path
-                    key={s.label}
-                    d={arcPath(cx, cy, r, start, end)}
-                    fill={COLORS[i % COLORS.length]}
+                    key={w.label}
+                    d={w.d}
+                    fill={w.color}
                     stroke={SURFACE}
                     strokeWidth={2}
                     strokeLinejoin="round"
-                    // Wedge reveal: slices scale in from the centre in series,
-                    // so the chart assembles rather than appearing whole.
-                    className="jvb-wedge"
-                    style={{ "--jvb-stagger": `${i * 45}ms` } as React.CSSProperties}
+                    className="jvb-slice"
+                    style={{
+                      transform:
+                        active === w.i ? `translate(${w.dx}px, ${w.dy}px)` : undefined,
+                    }}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === "mouse") setActive(w.i);
+                    }}
                   />
-                );
-              })
-            )}
-          </svg>
+                ))
+              )}
+            </svg>
+          </div>
 
-          <ul className="min-w-[160px] flex-1 space-y-1.5">
-            {slices.map((s, i) => (
-              <li key={s.label} className="flex items-center gap-2 text-[12.5px]">
+          <ul
+            className="min-w-[160px] flex-1 space-y-1.5"
+            onPointerLeave={(e) => {
+              if (e.pointerType === "mouse") setActive(null);
+            }}
+          >
+            {wedges.map((w) => (
+              <li
+                key={w.label}
+                // Each row rises in at the moment the sweep reaches its wedge,
+                // so chart and legend read as one motion rather than two.
+                style={{ "--jvb-stagger": `${w.appearsAt}ms` } as React.CSSProperties}
+                className={`jvb-rise flex items-center gap-2 rounded-md px-1 py-0.5 text-[12.5px] transition-colors ${
+                  active === w.i ? "bg-control" : ""
+                }`}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === "mouse") setActive(w.i);
+                }}
+              >
                 <span
                   aria-hidden
-                  className="inline-block h-[10px] w-[10px] rounded-[3px]"
-                  style={{ background: COLORS[i % COLORS.length] }}
+                  className="inline-block h-[10px] w-[10px] shrink-0 rounded-[3px]"
+                  style={{ background: w.color }}
                 />
-                <span className="min-w-0 flex-1 truncate text-ink-body">{s.label}</span>
+                <span className="min-w-0 flex-1 truncate text-ink-body">{w.label}</span>
                 <span className="font-mono text-[11.5px] text-ink-muted">
-                  {s.count} · {Math.round((s.count / total) * 100)}%
+                  {w.count} · {Math.round((w.count / total) * 100)}%
                 </span>
               </li>
             ))}
