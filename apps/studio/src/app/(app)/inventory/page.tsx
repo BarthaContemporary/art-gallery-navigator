@@ -27,7 +27,6 @@ type Search = {
   list?: string;
   loan?: string;
   needs?: string;
-  drafts?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -109,14 +108,6 @@ export default async function InventoryPage({
 
   const q = sp.q?.trim();
   const searching = Boolean(q);
-
-  // How many blank draft stubs exist (for the "show/hide drafts" hint).
-  const { count: blankDrafts } = await supabase
-    .from("vw_pieces_list")
-    .select("id", { count: "exact", head: true })
-    .is("title", null)
-    .is("maker_id", null)
-    .is("category_id", null);
 
   // Save the current search + facets as a dynamic (saved-view) list. The rules
   // are stored on piece_lists.filter_rules; the list detail page re-runs them
@@ -213,12 +204,6 @@ export default async function InventoryPage({
     if (sp.location) query = query.eq("location_id", sp.location);
     if (sp.loan) query = query.eq("on_temp_export", true);
     if (sp.needs) query = query.eq("needs_completion", true);
-    // Hide never-filled draft stubs (a "New record" opened then abandoned:
-    // no title, maker or category) from the everyday list. They stay reachable
-    // under ?drafts=1 or the Needs-completion filter so nothing is lost.
-    if (!sp.drafts && !sp.needs) {
-      query = query.or("title.not.is.null,maker_id.not.is.null,category_id.not.is.null");
-    }
     if (listMemberIds) {
       const ids = [...listMemberIds];
       // An empty list must return nothing (a sentinel keeps .in() valid).
@@ -411,20 +396,6 @@ export default async function InventoryPage({
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
         {total.toLocaleString("en-GB")} records · page {page} of {pages}
         {searching ? " · ranked by relevance" : ""}
-        {(blankDrafts ?? 0) > 0 ? (
-          <>
-            {" · "}
-            {sp.drafts ? (
-              <a href="/inventory" className="text-ink-soft underline hover:text-ink-strong">
-                hide {blankDrafts} blank draft{blankDrafts === 1 ? "" : "s"}
-              </a>
-            ) : (
-              <a href="/inventory?drafts=1" className="text-ink-soft underline hover:text-ink-strong">
-                {blankDrafts} blank draft{blankDrafts === 1 ? "" : "s"} hidden
-              </a>
-            )}
-          </>
-        ) : null}
       </p>
 
       {error ? (
