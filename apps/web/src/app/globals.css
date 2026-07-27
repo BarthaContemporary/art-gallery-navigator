@@ -209,3 +209,65 @@
     color: var(--oranje);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Consent drawer
+   A band along the foot of the page, in the system's own vocabulary: hairline
+   rule, washi ground, square corners, no shadow. It rises once the page has
+   settled — deliberate rather than interruptive.
+   --------------------------------------------------------------------------- */
+.jvb-consent {
+  opacity: 0;
+  transform: translateY(100%);
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.jvb-consent[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The site's inline links carry no underline — right for body copy, wrong in a
+   legal notice, where the policies must be findable without hovering. Underline
+   them here only. */
+.jvb-consent a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* Accept and Decline share one class so they cannot drift apart visually —
+   equal weight is a compliance property here, not a style preference. */
+.jvb-consent-btn {
+  border: 1px solid var(--sumi);
+  background: transparent;
+  color: var(--sumi);
+  padding: 10px 22px;
+  font-size: var(--text-ui);
+  line-height: 1;
+  min-height: 44px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.jvb-consent-btn:hover {
+  background: var(--sumi);
+  color: var(--washi);
+}
+
+/* The site had no global reduced-motion honour; add it with the first piece of
+   motion that ships here. The drawer appears instantly instead of rising. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

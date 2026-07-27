@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { SiteSettings } from "@/lib/sanity";
+import { ConsentReopenLink } from "@/components/consent-reopen-link";
 
 export function SiteFooter({
   settings,
@@ -105,6 +106,9 @@ export function SiteFooter({
               <Link className="link-inline" href="/aml">
                 Anti-Money-Laundering
               </Link>
+            </li>
+            <li>
+              <ConsentReopenLink />
             </li>
           </ul>
         </div>

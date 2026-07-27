@@ -6,6 +6,9 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { JsonLd } from "@/components/json-ld";
 import { Plausible } from "@/components/plausible";
+import { ConsentProvider } from "@/components/consent-provider";
+import { ConsentDrawer } from "@/components/consent-drawer";
+import { MarketingScripts } from "@/components/marketing-scripts";
 import "./globals.css";
 
 /*
@@ -86,10 +89,16 @@ export default async function RootLayout({
     <html lang="en" className={`${notoSans.variable} ${newsreader.variable}`}>
       <body className="flex min-h-screen flex-col bg-washi text-ink-70">
         <JsonLd data={orgJsonLd} />
-        <SiteHeader galleryName={galleryName} />
-        <main className="flex-1">{children}</main>
-        <SiteFooter settings={settings} galleryName={galleryName} />
-        <Plausible />
+        {/* Everything that can track sits inside the consent provider, so no
+            tag can render without first consulting the visitor's decision. */}
+        <ConsentProvider>
+          <SiteHeader galleryName={galleryName} />
+          <main className="flex-1">{children}</main>
+          <SiteFooter settings={settings} galleryName={galleryName} />
+          <Plausible />
+          <MarketingScripts />
+          <ConsentDrawer />
+        </ConsentProvider>
       </body>
     </html>
   );
