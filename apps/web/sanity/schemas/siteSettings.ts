@@ -47,6 +47,15 @@ const siteSettings = {
       type: "array",
       of: [{ type: "reference", to: [{ type: "work" }] }],
     },
+    {
+      name: "facebookPixelId",
+      title: "Meta (Facebook) pixel ID",
+      type: "string",
+      description:
+        "Paste the numeric pixel ID from Meta Events Manager and publish — the pixel goes live on the next page load. Leave empty to run no pixel at all. It only ever loads for visitors who accept marketing cookies; it is listed by name in the Cookie Policy, so if you change or remove it, update that page too.",
+      validation: (Rule: { regex: (r: RegExp, o: { name: string }) => unknown }) =>
+        Rule.regex(/^\d{10,20}$/, { name: "numeric pixel ID" }),
+    },
   ],
   preview: {
     select: { title: "galleryName" },

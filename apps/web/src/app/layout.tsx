@@ -96,7 +96,11 @@ export default async function RootLayout({
           <main className="flex-1">{children}</main>
           <SiteFooter settings={settings} galleryName={galleryName} />
           <Plausible />
-          <MarketingScripts />
+          {/* Pixel id comes from Sanity site settings so it can be switched on
+              without a deploy; FACEBOOK_PIXEL_ID env is a fallback. */}
+          <MarketingScripts
+            pixelId={settings?.facebookPixelId ?? process.env.FACEBOOK_PIXEL_ID ?? null}
+          />
           <ConsentDrawer />
         </ConsentProvider>
       </body>

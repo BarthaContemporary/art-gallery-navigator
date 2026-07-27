@@ -226,6 +226,8 @@ export interface SiteSettings {
     ogImage: SanityImage | null;
   } | null;
   featuredWorks: Work[] | null;
+  /** Meta pixel ID, set in Sanity so it can go live without a deploy. */
+  facebookPixelId: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -262,7 +264,8 @@ export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
   openingHours,
   socials[]{ _key, label, url },
   defaultSeo{ title, description, ogImage{ asset } },
-  featuredWorks[]->${workFields}
+  featuredWorks[]->${workFields},
+  facebookPixelId
 }`;
 
 /**
