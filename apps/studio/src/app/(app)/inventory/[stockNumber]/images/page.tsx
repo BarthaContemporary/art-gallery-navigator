@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { ImageUploader } from "@/components/image-uploader";
+import { RotateImageButton } from "@/components/rotate-image-button";
 
 export const metadata = { title: "Manage images" };
 
@@ -88,7 +89,12 @@ export default async function ManageImagesPage({
                 </span>
               )}
             </div>
-            <p className="mt-2 text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{img.role}</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{img.role}</p>
+              {/* Rotate sits above the caption row, per request. Disabled until
+                  there is a processed derivative to turn. */}
+              <RotateImageButton imageId={img.id} disabled={!img.url} />
+            </div>
             <form action={saveCaption} className="mt-1 flex gap-1.5">
               <input type="hidden" name="id" value={img.id} />
               <input
