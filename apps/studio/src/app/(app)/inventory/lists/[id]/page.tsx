@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { SaveToDriveLink } from "@/components/save-to-drive";
 
 export const metadata = { title: "Inventory list" };
 
@@ -228,9 +229,23 @@ export default async function InventoryListDetail({
             </p>
           ) : null}
         </div>
-        <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
-          {items.length} work{items.length === 1 ? "" : "s"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
+            {items.length} work{items.length === 1 ? "" : "s"}
+          </p>
+          <SaveToDriveLink
+            href={`/api/export/list.xlsx?list=${id}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+          >
+            Export XLSX
+          </SaveToDriveLink>
+          <SaveToDriveLink
+            href={`/api/export/list.docx?list=${id}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
+          >
+            Export DOCX
+          </SaveToDriveLink>
+        </div>
       </div>
 
       {/* Works in the list */}

@@ -93,6 +93,8 @@ interface PendingImage {
   id: string;
   piece_id: string;
   storage_path_original: string | null;
+  /** Manual quarter-turns applied to the previous derivative (0/90/180/270). */
+  rotation: number | null;
 }
 
 /** Subset of EXIF we persist on piece_images.exif (jsonb). */
@@ -140,7 +142,7 @@ async function claimBatch(): Promise<PendingImage[]> {
                LIMIT $1
                  FOR UPDATE SKIP LOCKED
             )
-  RETURNING id, piece_id, storage_path_original`,
+  RETURNING id, piece_id, storage_path_original, rotation`,
     [BATCH_SIZE],
   );
   return result.rows;
@@ -225,9 +227,20 @@ async function processImage(row: PendingImage): Promise<void> {
   // sharp: .rotate() with no args auto-orients from EXIF; TIFF input is
   // handled natively by libvips; toColorspace('srgb') normalises AdobeRGB /
   // ProPhoto / CMYK originals to an sRGB display master.
+  // Re-apply any rotation a human set by hand in the studio; without it a
+  // re-derivation silently reverts their correction to the original's
+  // orientation.
+  //
+  // autoOrient() rather than the bare rotate() this used to call: chaining
+  // rotate().rotate(n) is ambiguous — sharp documents that the last rotate
+  // wins, so whether the EXIF orientation survives depends on the angle.
+  // autoOrient() applies EXIF orientation explicitly and composes cleanly with
+  // a following rotate(), verified for both n=0 and n=270.
+  const manualRotation = (((row.rotation ?? 0) % 360) + 360) % 360;
   const toMaster = (buf: Buffer) =>
     sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS })
-      .rotate()
+      .autoOrient()
+      .rotate(manualRotation)
       .toColorspace("srgb")
       .resize({
         width: MAX_DIMENSION_PX,

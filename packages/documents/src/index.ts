@@ -7,3 +7,4 @@ export {
 export { MailingLabels, type LabelAddress, type AveryTemplate } from "./labels";
 export { factSheetDocx, certificateDocx } from "./docx";
 export { offerPresentationDocx, type PresentationWork } from "./presentation-docx";
+export { listDocx, type ListWork } from "./list-docx";
