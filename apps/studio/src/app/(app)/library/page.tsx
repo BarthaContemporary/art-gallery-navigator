@@ -32,7 +32,7 @@ const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") :
 
 export default async function LibraryPage() {
   const supabase = await getSupabase();
-  const [lists, shipments, documents, makers, locations] = await Promise.all([
+  const [lists, shipments, documents, makers, locations, categories] = await Promise.all([
     supabase.from("piece_lists").select("id, name, piece_list_items(count)").order("name"),
     supabase
       .from("shipments")
@@ -46,6 +46,7 @@ export default async function LibraryPage() {
       .limit(50),
     supabase.from("makers").select("id, display_name, life_dates").order("display_name"),
     supabase.from("locations").select("id, code, name, type").order("code"),
+    supabase.from("categories").select("id, name, code, is_active").order("name"),
   ]);
 
   async function createShipment(formData: FormData) {
@@ -68,6 +69,7 @@ export default async function LibraryPage() {
   }[];
   const makerRows = (makers.data ?? []) as { id: string; display_name: string; life_dates: string | null }[];
   const locRows = (locations.data ?? []) as { id: string; code: string; name: string | null; type: string | null }[];
+  const catRows = (categories.data ?? []) as { id: string; name: string; code: string; is_active: boolean }[];
 
   return (
     <div className="max-w-[820px]">
@@ -169,6 +171,28 @@ export default async function LibraryPage() {
               </div>
             ))}
             {locRows.length === 0 ? <p className="text-[12.5px] text-ink-muted">No locations yet.</p> : null}
+          </div>
+        </FoldPanel>
+
+        {/* Categories — count is the number in use, since hidden ones don't
+            appear in any picker. */}
+        <FoldPanel
+          title="Categories"
+          count={catRows.filter((c) => c.is_active).length}
+          action={<Link href="/categories" className={manageCls}>Manage / new →</Link>}
+        >
+          <div className="max-h-80 overflow-y-auto">
+            {catRows.map((c) => (
+              <div key={c.id} className={rowCls}>
+                <span className={`min-w-0 truncate ${c.is_active ? "text-ink-body" : "text-ink-muted"}`}>
+                  {c.name}
+                </span>
+                <span className="font-mono text-[12px] text-ink-soft">
+                  {c.is_active ? c.code : "hidden"}
+                </span>
+              </div>
+            ))}
+            {catRows.length === 0 ? <p className="text-[12.5px] text-ink-muted">No categories yet.</p> : null}
           </div>
         </FoldPanel>
       </div>
