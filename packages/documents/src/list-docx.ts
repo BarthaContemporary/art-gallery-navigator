@@ -7,6 +7,7 @@ import {
   TableCell,
   TableRow,
   TextRun,
+  ImageRun,
   WidthType,
   BorderStyle,
 } from "docx";
@@ -24,6 +25,8 @@ const INK = "2A2A2A";
 const RULE = "D9D9D9";
 
 export type ListWork = {
+  /** Optional thumbnail; omitted works simply show an empty image cell. */
+  image?: { data: Buffer; width: number; height: number } | null;
   stock_number: string | null;
   title: string | null;
   maker_name: string | null;
@@ -33,17 +36,54 @@ export type ListWork = {
   location_code: string | null;
 };
 
+/** Longest edge of an embedded thumbnail in the document, in points. */
+const IMAGE_PT = 64;
+
 const COLUMNS: { header: string; width: number; get: (w: ListWork) => string }[] = [
-  { header: "Stock", width: 14, get: (w) => w.stock_number ?? "—" },
-  { header: "Title", width: 30, get: (w) => w.title ?? "Untitled" },
-  { header: "Maker", width: 20, get: (w) => w.maker_name ?? "—" },
+  { header: "", width: 10, get: () => "" }, // image
+  { header: "Stock", width: 13, get: (w) => w.stock_number ?? "—" },
+  { header: "Title", width: 27, get: (w) => w.title ?? "Untitled" },
+  { header: "Maker", width: 18, get: (w) => w.maker_name ?? "—" },
   {
     header: "Medium / period",
-    width: 22,
+    width: 20,
     get: (w) => [w.medium, w.period].filter(Boolean).join(" · ") || "—",
   },
-  { header: "Location", width: 14, get: (w) => w.location_code ?? "—" },
+  { header: "Location", width: 12, get: (w) => w.location_code ?? "—" },
 ];
+
+/** Scale a thumbnail to fit IMAGE_PT on its longest edge, keeping aspect. */
+function imageCell(w: ListWork): TableCell {
+  const img = w.image;
+  const children = img
+    ? [
+        new Paragraph({
+          children: [
+            new ImageRun({
+              data: img.data,
+              type: "jpg",
+              transformation:
+                img.width >= img.height
+                  ? { width: IMAGE_PT, height: Math.round((img.height / img.width) * IMAGE_PT) }
+                  : { width: Math.round((img.width / img.height) * IMAGE_PT), height: IMAGE_PT },
+            }),
+          ],
+        }),
+      ]
+    : [new Paragraph({ children: [new TextRun({ text: "", size: 18 })] })];
+
+  return new TableCell({
+    width: { size: COLUMNS[0]!.width, type: WidthType.PERCENTAGE },
+    margins: { top: 80, bottom: 80, left: 100, right: 100 },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 2, color: RULE },
+      bottom: { style: BorderStyle.SINGLE, size: 2, color: RULE },
+      left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    },
+    children,
+  });
+}
 
 function cell(text: string, opts: { header?: boolean; width: number }): TableCell {
   return new TableCell({
@@ -84,7 +124,10 @@ export async function listDocx(props: {
   const body = props.works.map(
     (w) =>
       new TableRow({
-        children: COLUMNS.map((c) => cell(c.get(w), { width: c.width })),
+        children: [
+          imageCell(w),
+          ...COLUMNS.slice(1).map((c) => cell(c.get(w), { width: c.width })),
+        ],
       }),
   );
 

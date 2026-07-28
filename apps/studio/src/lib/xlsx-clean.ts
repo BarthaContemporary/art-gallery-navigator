@@ -54,13 +54,22 @@ export function columnWidth(key: string): number {
   return 22;
 }
 
-/** Bold + frozen + auto-filtered header row, and number formats per column. */
-export function styleSheet(ws: ExcelJS.Worksheet, keys: string[]): void {
+/**
+ * Bold + frozen + auto-filtered header row, and number formats per column.
+ *
+ * `offset` is how many columns sit before the keyed data — used by exports that
+ * put a thumbnail column first, so filters and number formats still land on the
+ * right columns.
+ */
+export function styleSheet(ws: ExcelJS.Worksheet, keys: string[], offset = 0): void {
   ws.getRow(1).font = { bold: true };
   ws.views = [{ state: "frozen", ySplit: 1 }];
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: keys.length } };
+  ws.autoFilter = {
+    from: { row: 1, column: 1 + offset },
+    to: { row: 1, column: keys.length + offset },
+  };
   keys.forEach((k, i) => {
-    const col = ws.getColumn(i + 1);
+    const col = ws.getColumn(i + 1 + offset);
     if (/_gbp$/i.test(k)) col.numFmt = "£#,##0.00";
     else if (/_pct$/i.test(k)) col.numFmt = '0.0"%"';
     else if (/_date$/i.test(k)) col.numFmt = "dd/mm/yyyy";

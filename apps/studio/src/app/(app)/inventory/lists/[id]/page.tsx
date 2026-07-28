@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { SaveToDriveLink } from "@/components/save-to-drive";
+import { StatusPill } from "@/components/status-pill";
 
 export const metadata = { title: "Inventory list" };
 
@@ -15,6 +16,7 @@ type PieceLite = {
   title: string | null;
   medium: string | null;
   period: string | null;
+  status: string | null;
 };
 
 type FilterRules = {
@@ -65,7 +67,7 @@ export default async function InventoryListDetail({
       if (ids.length > 0) {
         const { data: viewRows } = await supabase
           .from("vw_pieces_list")
-          .select("id, stock_number, title, medium, period")
+          .select("id, stock_number, title, medium, period, status")
           .in("id", ids);
         const byId = new Map(
           ((viewRows ?? []) as PieceLite[]).map((r) => [r.id, r]),
@@ -75,7 +77,7 @@ export default async function InventoryListDetail({
     } else {
       let query = supabase
         .from("vw_pieces_list")
-        .select("id, stock_number, title, medium, period")
+        .select("id, stock_number, title, medium, period, status")
         .order("stock_number", { ascending: false, nullsFirst: false })
         .limit(500);
       if (rules.status) query = query.eq("status", rules.status);
@@ -87,7 +89,7 @@ export default async function InventoryListDetail({
   } else {
     const { data: itemRows } = await supabase
       .from("piece_list_items")
-      .select("sort_order, piece:pieces ( id, stock_number, title, medium, period )")
+      .select("sort_order, piece:pieces ( id, stock_number, title, medium, period, status )")
       .eq("list_id", id)
       .order("sort_order", { nullsFirst: true });
     items = (itemRows ?? [])
@@ -259,6 +261,7 @@ export default async function InventoryListDetail({
               <th className="px-3 py-2.5 font-medium" />
               <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Stock</th>
               <th className="px-4 py-2.5 font-medium">Title</th>
+              <th className="px-4 py-2.5 font-medium">Availability</th>
               <th className="px-4 py-2.5 font-medium" />
             </tr>
           </thead>
@@ -310,6 +313,11 @@ export default async function InventoryListDetail({
                     </span>
                   ) : null}
                 </td>
+                {/* Availability is read live even on a static list — the
+                    membership is fixed, the works' status is not. */}
+                <td className="px-4 py-2">
+                  {p.status ? <StatusPill status={p.status} variant="inline" /> : "—"}
+                </td>
                 <td className="px-4 py-2 text-right">
                   {isDynamic ? null : (
                     <form action={removeItem}>
@@ -327,7 +335,7 @@ export default async function InventoryListDetail({
             ))}
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-ink-muted">
+                <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
                   {isDynamic
                     ? "No works currently match these filters."
                     : "No works yet — search below to add."}

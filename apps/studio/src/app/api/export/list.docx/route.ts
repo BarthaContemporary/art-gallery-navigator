@@ -3,8 +3,10 @@ import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 import { GALLERY_NAME } from "@/lib/document-data";
 import { resolveListPieceIds } from "@/lib/list-members";
+import { fetchExportThumbnails } from "@/lib/export-images";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /** Export one inventory list as an editable DOCX checklist (Proton Docs / Word). */
@@ -36,7 +38,9 @@ export async function GET(request: Request) {
     if (error) return new Response(error.message, { status: 500 });
     // .in() does not preserve the list's order; restore it.
     const byId = new Map((data ?? []).map((r) => [(r as { id: string }).id, r as ListWork & { id: string }]));
-    works = ids.map((id) => byId.get(id)).filter(Boolean) as ListWork[];
+    const ordered = ids.map((pid) => byId.get(pid)).filter(Boolean) as (ListWork & { id: string })[];
+    const { images } = await fetchExportThumbnails(ordered.map((p) => p.id));
+    works = ordered.map((p) => ({ ...p, image: images.get(p.id) ?? null }));
   }
 
   const buf = await listDocx({

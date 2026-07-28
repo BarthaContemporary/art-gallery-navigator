@@ -303,6 +303,12 @@ export default async function InventoryPage({
             Export CSV
           </SaveToDriveLink>
           <SaveToDriveLink
+            href={`/api/export/inventory.docx${qs(sp)}`}
+            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
+          >
+            Export DOCX
+          </SaveToDriveLink>
+          <SaveToDriveLink
             href={`/api/export/inventory.xlsx${qs(sp)}`}
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"
           >

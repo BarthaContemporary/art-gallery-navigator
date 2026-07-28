@@ -39,6 +39,10 @@ type PieceLite = {
   title: string | null;
   medium: string | null;
   period: string | null;
+  /* Current availability, read live — an offer's membership is a snapshot but
+     each work's status is not, so a piece sold after the offer was composed
+     shows as sold here. */
+  status?: string | null;
 };
 
 type Item = {
@@ -101,7 +105,7 @@ export default async function OfferDetail({
     supabase
       .from("offer_items")
       .select(
-        "id, price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period )",
+        "id, price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period, status )",
       )
       .eq("offer_id", id)
       .order("sort_order", { nullsFirst: true }),

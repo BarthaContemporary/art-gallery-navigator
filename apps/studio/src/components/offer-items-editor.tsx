@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { StatusPill } from "@/components/status-pill";
 
 export type OfferItem = {
   id: string;
@@ -11,6 +12,8 @@ export type OfferItem = {
     title: string | null;
     period: string | null;
     medium: string | null;
+    /* Read live: an offer's membership is a snapshot, availability is not. */
+    status?: string | null;
   } | null;
 };
 
@@ -122,8 +125,9 @@ function Row({
           </span>{" "}
           {item.piece?.title ?? "Untitled"}
         </p>
-        <p className="text-[12px] text-ink-soft">
-          {[item.piece?.period, item.piece?.medium].filter(Boolean).join(" · ")}
+        <p className="flex flex-wrap items-center gap-x-2 text-[12px] text-ink-soft">
+          <span>{[item.piece?.period, item.piece?.medium].filter(Boolean).join(" · ")}</span>
+          {item.piece?.status ? <StatusPill status={item.piece.status} variant="inline" /> : null}
         </p>
       </div>
       <label className="text-[11px] text-ink-faint">
