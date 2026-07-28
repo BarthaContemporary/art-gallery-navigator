@@ -235,11 +235,14 @@ export default async function InventoryListDetail({
 
       {/* Works in the list */}
       <div className="mt-4 overflow-x-auto rounded-[11px] border border-line">
-        <table className="w-full min-w-[560px] bg-cell text-left text-[13px]">
+        {/* No min-width: on a phone this forced 560px of sideways scrolling.
+            The stock column hides below sm (it is already in the row's link)
+            and the title wraps instead. */}
+        <table className="w-full bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               <th className="px-3 py-2.5 font-medium" />
-              <th className="px-4 py-2.5 font-medium">Stock</th>
+              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Stock</th>
               <th className="px-4 py-2.5 font-medium">Title</th>
               <th className="px-4 py-2.5 font-medium" />
             </tr>
@@ -267,7 +270,7 @@ export default async function InventoryListDetail({
                     )}
                   </Link>
                 </td>
-                <td className="px-4 py-2 font-mono text-[12px] text-ink">
+                <td className="hidden px-4 py-2 font-mono text-[12px] text-ink sm:table-cell">
                   <Link
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
                     className="hover:text-oranje"
@@ -276,9 +279,18 @@ export default async function InventoryListDetail({
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-ink-body">
-                  {p.title ?? "Untitled"}
+                  <Link
+                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                    className="hover:text-oranje"
+                  >
+                    {p.title ?? "Untitled"}
+                  </Link>
+                  {/* Stock number folds in here once its own column is hidden. */}
+                  <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
+                    {p.stock_number ?? "—"}
+                  </span>
                   {p.period || p.medium ? (
-                    <span className="ml-2 text-[12px] text-ink-soft">
+                    <span className="mt-0.5 block text-[12px] text-ink-soft sm:ml-2 sm:mt-0 sm:inline">
                       {[p.period, p.medium].filter(Boolean).join(" · ")}
                     </span>
                   ) : null}

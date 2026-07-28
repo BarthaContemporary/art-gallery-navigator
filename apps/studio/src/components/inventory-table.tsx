@@ -358,7 +358,9 @@ export function InventoryTable({
         />
       ) : null}
 
-      <div className="mb-1.5 flex items-center justify-end gap-3">
+      {/* Density and column-width controls only mean anything for the table,
+          which is desktop-only — hide them where the cards render. */}
+      <div className="mb-1.5 hidden items-center justify-end gap-3 md:flex">
         <span className="mr-auto hidden font-mono text-[10.5px] text-ink-faint lg:inline">
           j/k move · ⏎ open · x select
         </span>
@@ -381,7 +383,69 @@ export function InventoryTable({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-[11px] border border-line lg:overflow-x-visible">
+      {/* Mobile: a card list. The table is a fixed ~1100px grid with drag
+          handles — on a phone that is three viewports of sideways scrolling and
+          the handles are unusable by touch. Same data, one column, tappable. */}
+      <ul className="overflow-hidden rounded-[11px] border border-line md:hidden">
+        {rows.map((r) => (
+          <li key={r.id} className="border-b border-line-soft last:border-0">
+            <div className="flex items-stretch">
+              <label className="flex w-11 shrink-0 items-center justify-center border-r border-line-soft">
+                <span className="sr-only">Select {r.stock_number}</span>
+                <input
+                  type="checkbox"
+                  checked={selected.has(r.id)}
+                  onChange={() => toggleRow(r.id)}
+                  className="h-4 w-4 accent-[var(--jvb-bg-primary)]"
+                />
+              </label>
+              <Link href={href(r)} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
+                {thumbs[r.id] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={thumbs[r.id]}
+                    alt=""
+                    loading="lazy"
+                    className="h-12 w-12 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-label="No image"
+                    className="jvb-hatch flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-[11px] text-ink-soft"
+                  >
+                    ▦
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-mono text-[11.5px] text-ink-muted">{r.stock_number}</span>
+                    {r.needs_completion ? (
+                      <span className="rounded-full bg-warn-soft px-1.5 text-[10px] font-medium text-warn">
+                        Finish
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13.5px] text-ink-body">
+                    {r.title ?? "Untitled"}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[12px] text-ink-soft">
+                    {[r.maker_name, r.category_name, r.location_name].filter(Boolean).join(" · ") ||
+                      "—"}
+                  </span>
+                  <span className="mt-1 block">
+                    <StatusPill status={r.status} variant="inline" />
+                  </span>
+                </span>
+              </Link>
+            </div>
+          </li>
+        ))}
+        {rows.length === 0 ? (
+          <li className="px-4 py-8 text-center text-[13px] text-ink-muted">No records match.</li>
+        ) : null}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-[11px] border border-line md:block lg:overflow-x-visible">
         <table
           ref={tableRef}
           style={{ width: totalWidth(), tableLayout: "fixed" }}

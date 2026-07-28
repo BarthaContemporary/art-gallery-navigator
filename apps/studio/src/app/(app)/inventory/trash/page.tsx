@@ -71,13 +71,13 @@ export default async function TrashPage() {
       </div>
 
       <div className="mt-5 overflow-x-auto rounded-[11px] border border-line">
-        <table className="w-full min-w-[640px] bg-cell text-left">
+        <table className="w-full bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               <th className="px-4 py-2.5 font-medium">Stock</th>
               <th className="px-4 py-2.5 font-medium">Title</th>
-              <th className="px-4 py-2.5 font-medium">Deleted</th>
-              <th className="px-4 py-2.5 font-medium">Auto-removed in</th>
+              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Deleted</th>
+              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Auto-removed in</th>
               <th className="px-4 py-2.5 font-medium" />
             </tr>
           </thead>
@@ -85,11 +85,17 @@ export default async function TrashPage() {
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-line-soft last:border-0">
                 <td className="px-4 py-2.5 font-mono text-[12px] text-ink">{r.stock_number}</td>
-                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{r.title ?? "Untitled"}</td>
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink-soft">
+                <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
+                  {r.title ?? "Untitled"}
+                  <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
+                    deleted {new Date(r.deleted_at).toLocaleDateString("en-GB")} ·{" "}
+                    {daysLeft(r.deleted_at)} days left
+                  </span>
+                </td>
+                <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-soft sm:table-cell">
                   {new Date(r.deleted_at).toLocaleDateString("en-GB")}
                 </td>
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">
+                <td className="hidden px-4 py-2.5 font-mono text-[12px] text-ink-muted sm:table-cell">
                   {daysLeft(r.deleted_at)} days
                 </td>
                 <td className="px-4 py-2.5">
