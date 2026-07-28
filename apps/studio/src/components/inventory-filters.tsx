@@ -90,6 +90,17 @@ export function InventoryFilters({
         className="w-full min-w-0 rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] sm:w-72"
       />
       <select
+        aria-label="Filter by register"
+        value={params.get("ledger") ?? ""}
+        onChange={(e) => setParam("ledger", e.target.value)}
+        className={select}
+        title="JvdB stock is shown by default; non-JvdB works are held like stock but are not JvdB property"
+      >
+        <option value="">JvdB stock</option>
+        <option value="external">Not JvdB</option>
+        <option value="all">Both registers</option>
+      </select>
+      <select
         aria-label="Filter by status"
         value={params.get("status") ?? ""}
         onChange={(e) => setParam("status", e.target.value)}

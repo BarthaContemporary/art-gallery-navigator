@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSession, hasRole, createServiceClient } from "@/lib/supabase";
+import { loadPieceRows } from "@/lib/piece-store";
 
 export const metadata = { title: "Data review" };
 
@@ -42,15 +43,32 @@ export default async function DataReview() {
     db
       .from("piece_financials")
       .select(
-        "purchase_currency, purchase_fx, purchase_cost, sell_currency, sell_fx, sold_price, piece:pieces(stock_number, title)",
+        "piece_id, purchase_currency, purchase_fx, purchase_cost, sell_currency, sell_fx, sold_price",
       )
       .limit(2000),
     db
       .from("legacy_filemaker_rows")
-      .select("row_number, issues, piece:pieces(stock_number, title)")
+      .select("row_number, issues, piece_id")
       .limit(2000),
     db.from("pieces").select("id", { count: "exact", head: true }),
   ]);
+
+  // piece_financials and legacy_filemaker_rows key on the shared identity, so
+  // the stock number and title are looked up from the union view.
+  const migrationPieces = await loadPieceRows<{
+    id: string;
+    stock_number: string;
+    title: string | null;
+  }>(
+    db,
+    [
+      ...((finRes.data ?? []) as { piece_id: string | null }[]).map((r) => r.piece_id ?? ""),
+      ...((issuesRes.data ?? []) as { piece_id: string | null }[]).map((r) => r.piece_id ?? ""),
+    ],
+    "id, stock_number, title",
+  );
+  const attachPiece = <T extends { piece_id: string | null }>(rows: T[]) =>
+    rows.map((r) => ({ ...r, piece: (r.piece_id ? migrationPieces.get(r.piece_id) : null) ?? null }));
 
   const dups = (dupRes.data ?? []) as {
     stock_number: string;
@@ -58,7 +76,7 @@ export default async function DataReview() {
     title: string | null;
   }[];
 
-  const fxSuspect = ((finRes.data ?? []) as any[]).filter(
+  const fxSuspect = (attachPiece((finRes.data ?? []) as any[]) as any[]).filter(
     (f) =>
       (f.purchase_currency &&
         f.purchase_currency !== "GBP" &&
@@ -70,7 +88,7 @@ export default async function DataReview() {
         f.sold_price != null),
   );
 
-  const flagged = ((issuesRes.data ?? []) as any[]).filter(
+  const flagged = (attachPiece((issuesRes.data ?? []) as any[]) as any[]).filter(
     (r) => Array.isArray(r.issues) && r.issues.length > 0,
   );
   // Roll up issue types for a quick tally.

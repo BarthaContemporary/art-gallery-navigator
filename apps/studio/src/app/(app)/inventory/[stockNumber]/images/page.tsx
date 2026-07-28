@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 import { ImageUploader } from "@/components/image-uploader";
 import { RotateImageButton } from "@/components/rotate-image-button";
 
@@ -16,10 +17,14 @@ export default async function ManageImagesPage({
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
 
+  const ref = await resolvePiece(supabase, stockNumber);
+  if (!ref) notFound();
+  if (ref.retiredNumber) redirect(`/inventory/${encodeURIComponent(ref.stockNumber)}/images`);
+
   const { data: piece } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .select("id, stock_number, title")
-    .eq("stock_number", stockNumber)
+    .eq("id", ref.id)
     .maybeSingle();
   if (!piece) notFound();
 

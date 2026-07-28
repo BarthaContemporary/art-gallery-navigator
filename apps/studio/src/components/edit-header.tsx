@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { RegisterBadge } from "@/components/register-badge";
 
 type Suggestions = {
   hashtags: string[];
@@ -23,6 +24,7 @@ export function EditHeader({
   legacyConflict,
   imageCount,
   webVisible,
+  ledger,
 }: {
   thumbUrl: string | null;
   stockNumber: string;
@@ -32,6 +34,7 @@ export function EditHeader({
   legacyConflict: boolean;
   imageCount: number;
   webVisible: boolean;
+  ledger?: "jvb" | "external";
 }) {
   const titleWithYear = [title?.trim() || "Untitled", year ?? null].filter(Boolean).join(", ");
   const imagesHref = `/inventory/${encodeURIComponent(stockNumber)}/images`;
@@ -134,10 +137,11 @@ export function EditHeader({
             <h1 className="text-[24px] font-semibold leading-tight text-ink-strong">
               {titleWithYear}
             </h1>
-            <p className="mt-1 font-mono text-[13px] text-ink-muted">
+            <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[13px] text-ink-muted">
               {stockNumber}
+              <RegisterBadge ledger={ledger} size="xs" />
               {legacyStock ? (
-                <span className="ml-2 text-ink-soft">
+                <span className="text-ink-soft">
                   · Legacy {legacyStock}
                   {legacyConflict ? " (dup)" : ""}
                 </span>

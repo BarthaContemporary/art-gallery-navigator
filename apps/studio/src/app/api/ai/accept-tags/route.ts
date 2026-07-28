@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,10 +25,12 @@ export async function POST(req: Request) {
   if (!stock || tags.length === 0)
     return NextResponse.json({ error: "Missing stock or tags" }, { status: 400 });
 
+  const ref = await resolvePiece(supabase, stock);
+  if (!ref) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const { data: piece } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .select("id, tags")
-    .eq("stock_number", stock)
+    .eq("id", ref.id)
     .maybeSingle();
   if (!piece) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -40,9 +43,9 @@ export async function POST(req: Request) {
   ];
 
   const { error } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .update({ tags: merged })
-    .eq("id", (piece as { id: string }).id);
+    .eq("id", ref.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ tags: merged });

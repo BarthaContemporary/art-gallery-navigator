@@ -16,16 +16,18 @@ export async function GET(req: Request) {
   // otherwise let a crafted q inject extra OR terms into the .or() below.
   const like = `%${q.replace(/[%_,.()]/g, "")}%`;
   const { data, error } = await supabase
-    .from("pieces")
-    .select("id, stock_number, title, maker:makers ( display_name )")
-    .is("deleted_at", null)
+    // Both registers: a work photographed at a fair may be non-JvdB stock.
+    .from("vw_pieces_list")
+    .select("id, stock_number, title, maker_name")
     .or(`stock_number.ilike.${like},title.ilike.${like}`)
     .limit(15);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const results = (data ?? []).map((p) => {
-    const maker = p.maker as unknown as { display_name: string | null } | null;
-    return { id: p.id, stock_number: p.stock_number, title: p.title, maker: maker?.display_name ?? null };
-  });
+  const results = (data ?? []).map((p) => ({
+    id: p.id,
+    stock_number: p.stock_number,
+    title: p.title,
+    maker: p.maker_name ?? null,
+  }));
   return NextResponse.json({ results });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { resolvePieces, byTable } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,8 +58,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
   }
 
-  const { error } = await supabase.from("pieces").update(patch).in("id", pieceIds);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // A selection can span both registers; each row has to be written through
+  // the table that holds it.
+  const groups = byTable((await resolvePieces(supabase, pieceIds)).values());
+  let updated = 0;
+  for (const [table, ids] of Object.entries(groups) as [keyof typeof groups, string[]][]) {
+    if (ids.length === 0) continue;
+    const { error } = await supabase.from(table).update(patch).in("id", ids);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    updated += ids.length;
+  }
 
-  return NextResponse.json({ ok: true, updated: pieceIds.length });
+  return NextResponse.json({ ok: true, updated });
 }

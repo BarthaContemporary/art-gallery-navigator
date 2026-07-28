@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, getSupabase, canSeeFinancials } from "@/lib/supabase";
 import { consignmentSplit } from "@/lib/consignment";
+import { loadPieceRows } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,12 +41,24 @@ export async function GET(req: Request) {
   const { data } = await supabase
     .from("piece_financials")
     .select(
-      "sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, margin_gbp, net_profit_gbp, vat_treatment, import_type, import_vat_gbp, sold_date, piece:pieces ( consignment_share_pct, sale_handled_by_jvb )",
+      "piece_id, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, margin_gbp, net_profit_gbp, vat_treatment, import_type, import_vat_gbp, sold_date",
     )
     .gte("sold_date", startDate)
     .not("sold_date", "is", null);
 
-  const rows = (data ?? []) as unknown as {
+  const consignmentById = await loadPieceRows<{
+    id: string;
+    consignment_share_pct: number | null;
+    sale_handled_by_jvb: boolean | null;
+  }>(
+    supabase,
+    ((data ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+    "id, consignment_share_pct, sale_handled_by_jvb",
+  );
+
+  const rows = ((data ?? []) as unknown as ({ piece_id: string } & Record<string, unknown>)[]).map(
+    (r) => ({ ...r, piece: consignmentById.get(r.piece_id) ?? null }),
+  ) as unknown as {
     sold_price_gbp: number | null;
     purchase_cost_gbp: number | null;
     restoration_cost_gbp: number | null;

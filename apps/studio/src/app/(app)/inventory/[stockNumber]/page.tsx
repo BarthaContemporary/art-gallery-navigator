@@ -1,7 +1,9 @@
 import { SaveToDriveLink } from "@/components/save-to-drive";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { resolvePiece, type PieceRef } from "@/lib/piece-store";
+import { movePieceLedger } from "../actions";
 import {
   getSupabase,
   requireSession,
@@ -12,6 +14,8 @@ import { PieceGallery, type GalleryImage } from "@/components/piece-gallery";
 import { RecordKeyNav } from "@/components/record-key-nav";
 import { Disclosure } from "@/components/disclosure";
 import { StatusPill } from "@/components/status-pill";
+import { RegisterBadge } from "@/components/register-badge";
+import { RegisterMove } from "@/components/register-move";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
 import { consignmentSplit } from "@/lib/consignment";
@@ -56,15 +60,24 @@ export default async function PieceDetail({
   const showFinancials = canSeeFinancials(roles);
   const isAdmin = hasRole(roles, "admin");
 
+  const ref = await resolvePiece(supabase, stockNumber);
+  if (!ref) notFound();
+  // A number retired by a register move still names this work everywhere it was
+  // printed or emailed; send it to the number the record carries now.
+  if (ref.retiredNumber) redirect(`/inventory/${encodeURIComponent(ref.stockNumber)}`);
+  // Hoisted server actions below close over this; a non-nullable const keeps
+  // the narrowing that the guard above established.
+  const store: PieceRef = ref;
+
   const { data: piece } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .select(
       `*,
        maker:makers(id, display_name, life_dates),
        category:categories(id, name, code),
        location:locations(id, code, name)`,
     )
-    .eq("stock_number", stockNumber)
+    .eq("id", ref.id)
     .maybeSingle();
 
   if (!piece) notFound();
@@ -98,11 +111,13 @@ export default async function PieceDetail({
       .eq("piece_id", piece.id)
       .eq("user_id", user.id)
       .maybeSingle(),
+    // Record position counts within this work's own register — the two series
+    // are separate, so "12 of 240" across both would mean nothing.
     supabase
-      .from("pieces")
+      .from(ref.table)
       .select("id", { count: "exact", head: true })
       .gte("stock_number", piece.stock_number),
-    supabase.from("pieces").select("id", { count: "exact", head: true }),
+    supabase.from(ref.table).select("id", { count: "exact", head: true }),
     supabase
       .from("activity_log")
       .select(
@@ -120,9 +135,11 @@ export default async function PieceDetail({
           .eq("piece_id", piece.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // Other works by this maker, across both registers — who made a thing is
+    // independent of who owns it.
     piece.maker_id
       ? supabase
-          .from("pieces")
+          .from("vw_pieces_list")
           .select("id, stock_number, title, status, year")
           .eq("maker_id", piece.maker_id)
           .neq("id", piece.id)
@@ -149,14 +166,14 @@ export default async function PieceDetail({
   // adjacent records for prev/next (by stock number ordering)
   const [prevRes, nextRes] = await Promise.all([
     supabase
-      .from("pieces")
+      .from(ref.table)
       .select("stock_number")
       .lt("stock_number", piece.stock_number)
       .order("stock_number", { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
-      .from("pieces")
+      .from(ref.table)
       .select("stock_number")
       .gt("stock_number", piece.stock_number)
       .order("stock_number", { ascending: true })
@@ -326,12 +343,9 @@ export default async function PieceDetail({
     const db = await getSupabase();
     const listId = String(formData.get("list_id") ?? "");
     if (!listId) return;
-    const { data: pieceRow } = await db
-      .from("pieces")
-      .select("id")
-      .eq("stock_number", stockNumber)
-      .single();
-    if (!pieceRow) return;
+    // List membership keys on the identity, so which register holds the work
+    // does not come into it.
+    const pieceRow = { id: store.id };
     const { data: mx } = await db
       .from("piece_list_items")
       .select("sort_order")
@@ -378,9 +392,11 @@ export default async function PieceDetail({
     }
     if (Object.keys(patch).length === 0) return;
 
-    if (entry.entity_type === "pieces") {
+    if (entry.entity_type === "pieces" || entry.entity_type === "external_pieces") {
       patch.updated_by = user.id;
-      await db.from("pieces").update(patch).eq("id", piece.id);
+      // Write through the table that holds it now, not the one the entry was
+      // logged against — a register move does not invalidate older history.
+      await db.from(store.table).update(patch).eq("id", store.id);
     } else if (entry.entity_type === "piece_financials") {
       if (!canSeeFinancials(roles)) return;
       await db.from("piece_financials").update(patch).eq("piece_id", piece.id);
@@ -390,6 +406,17 @@ export default async function PieceDetail({
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}`);
   }
 
+  /**
+   * Hand the register move to the database function, which does the copy,
+   * delete, renumber and log in one transaction and re-checks the admin role.
+   */
+  async function moveRegister(formData: FormData) {
+    "use server";
+    const to = String(formData.get("to") ?? "");
+    if (to !== "jvb" && to !== "external") return;
+    await movePieceLedger(store.stockNumber, to, String(formData.get("note") ?? ""));
+  }
+
   async function toggleWatch() {
     "use server";
     const supabase = await getSupabase();
@@ -397,12 +424,7 @@ export default async function PieceDetail({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: pieceRow } = await supabase
-      .from("pieces")
-      .select("id")
-      .eq("stock_number", stockNumber)
-      .single();
-    if (!pieceRow) return;
+    const pieceRow = { id: store.id };
     const { data: existing } = await supabase
       .from("piece_watches")
       .select("piece_id")
@@ -601,6 +623,7 @@ export default async function PieceDetail({
         <section className="p-5 md:p-8 lg:px-[42px] lg:pb-10 lg:pt-[38px]">
           <div className="flex flex-wrap items-center gap-3">
             <StatusPill status={piece.status} />
+            <RegisterBadge ledger={store.ledger} />
             <span className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-muted">
               Stock {piece.stock_number}
             </span>
@@ -610,6 +633,16 @@ export default async function PieceDetail({
               </span>
             ) : null}
           </div>
+
+          {isAdmin ? (
+            <div className="mt-2.5">
+              <RegisterMove
+                action={moveRegister}
+                ledger={store.ledger}
+                stockNumber={piece.stock_number}
+              />
+            </div>
+          ) : null}
 
           {piece.maker ? (
             <p className="mt-5 text-[13px] font-medium text-ink-muted">

@@ -48,7 +48,8 @@ export function WorksCapture() {
     name: string | null;
     address: string | null;
     type: string | null;
-  }>({ name: null, address: null, type: null });
+    ledger?: "jvb" | "external" | null;
+  }>({ name: null, address: null, type: null, ledger: "jvb" });
   const [works, setWorks] = useState<Work[]>([]);
   const [starting, setStarting] = useState(true);
   const started = useRef(false);
@@ -82,11 +83,17 @@ export function WorksCapture() {
           source_name: string | null;
           source_address: string | null;
           source_type: string | null;
+          ledger?: "jvb" | "external" | null;
         };
       };
       if (batch) {
         setBatchId(batch.id);
-        setSource({ name: batch.source_name, address: batch.source_address, type: batch.source_type });
+        setSource({
+          name: batch.source_name,
+          address: batch.source_address,
+          type: batch.source_type,
+          ledger: batch.ledger ?? "jvb",
+        });
         await addWork(batch.id, 0);
       }
       setStarting(false);

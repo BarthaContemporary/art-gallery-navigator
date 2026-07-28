@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +20,7 @@ export async function PATCH(
   if (!canSeeFinancials(session.roles)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const supabase = await getSupabase();
-  const { data: piece } = await supabase
-    .from("pieces")
-    .select("id")
-    .eq("stock_number", stockNumber)
-    .maybeSingle();
+  const piece = await resolvePiece(supabase, stockNumber);
   if (!piece) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const fd = await req.formData();

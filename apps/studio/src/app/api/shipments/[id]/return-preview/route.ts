@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, getSupabase } from "@/lib/supabase";
+import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,15 +20,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data: open } = await supabase
     .from("piece_shipments")
-    .select("piece_id, piece:pieces ( stock_number, title, status )")
+    .select("piece_id")
     .eq("shipment_id", id)
     .eq("kind", "temporary_export")
     .is("returned_at", null)
     .is("closed_reason", null);
-  const rows = (open ?? []) as unknown as {
-    piece_id: string;
-    piece: (PieceLite & { status: string }) | null;
-  }[];
+  const summaries = await loadPieceSummaries(
+    supabase,
+    (open ?? []).map((r) => r.piece_id as string),
+  );
+  const rows = ((open ?? []) as { piece_id: string }[]).map((r) => ({
+    piece_id: r.piece_id,
+    piece: summaries.get(r.piece_id) ?? null,
+  }));
 
   const ids = rows.map((r) => r.piece_id);
   let exportedIds = new Set<string>();

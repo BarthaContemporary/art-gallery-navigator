@@ -3,6 +3,7 @@ import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 import { GALLERY_NAME } from "@/lib/document-data";
 import { fetchExportThumbnails, IMAGE_CAP } from "@/lib/export-images";
+import { applyInventoryFilters } from "@/lib/inventory-query";
 
 export const runtime = "nodejs";
 // Embedding imagery makes this the slowest export in the app; give it room.
@@ -22,15 +23,10 @@ export async function GET(request: Request) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(request.url);
-  let query = supabase.from("vw_pieces_list").select("*").order("stock_number");
-  for (const [param, column] of [
-    ["status", "status"],
-    ["category", "category_id"],
-    ["location", "location_id"],
-  ] as const) {
-    const v = url.searchParams.get(param);
-    if (v) query = query.eq(column, v);
-  }
+  const query = applyInventoryFilters(
+    supabase.from("vw_pieces_list").select("*").order("stock_number"),
+    url.searchParams,
+  );
   const { data: rows, error } = await query;
   if (error) return new Response(error.message, { status: 500 });
 

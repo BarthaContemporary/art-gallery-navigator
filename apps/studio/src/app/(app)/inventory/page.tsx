@@ -6,6 +6,7 @@ import { InventoryTable, type InventoryRow } from "@/components/inventory-table"
 import { InventoryFilters } from "@/components/inventory-filters";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
+import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 
 const PAGE_SIZE = 100;
 
@@ -24,6 +25,8 @@ type Search = {
   status?: string;
   category?: string;
   location?: string;
+  /** "" / absent = JvdB stock only, "external" = the non-JvdB register, "all" = both. */
+  ledger?: string;
   list?: string;
   loan?: string;
   needs?: string;
@@ -60,43 +63,13 @@ export default async function InventoryPage({
   if (sp.list) {
     const { data: listRow } = await supabase
       .from("piece_lists")
-      .select("is_dynamic, filter_rules")
+      .select("id, is_dynamic, filter_rules")
       .eq("id", sp.list)
       .maybeSingle();
-    if (listRow?.is_dynamic) {
-      const rules = (listRow.filter_rules ?? {}) as {
-        q?: string | null;
-        status?: string | null;
-        category?: string | null;
-        location?: string | null;
-      };
-      const rq = (rules.q ?? "").trim();
-      if (rq) {
-        const { data: hits } = await supabase.rpc("pieces_search", { q: rq });
-        let f = (hits ?? []) as Array<{
-          id: string;
-          status: string;
-          category_id: string | null;
-          location_id: string | null;
-        }>;
-        if (rules.status) f = f.filter((h) => h.status === rules.status);
-        if (rules.category) f = f.filter((h) => h.category_id === rules.category);
-        if (rules.location) f = f.filter((h) => h.location_id === rules.location);
-        listMemberIds = new Set(f.map((h) => h.id));
-      } else {
-        let lq = supabase.from("vw_pieces_list").select("id");
-        if (rules.status) lq = lq.eq("status", rules.status);
-        if (rules.category) lq = lq.eq("category_id", rules.category);
-        if (rules.location) lq = lq.eq("location_id", rules.location);
-        const { data } = await lq;
-        listMemberIds = new Set(((data ?? []) as { id: string }[]).map((r) => r.id));
-      }
-    } else {
-      const { data: mem } = await supabase
-        .from("piece_list_items")
-        .select("piece_id")
-        .eq("list_id", sp.list);
-      listMemberIds = new Set((mem ?? []).map((m) => m.piece_id as string));
+    if (listRow) {
+      // One implementation of "what is in this list", shared with the list
+      // detail page, the Library and the offers picker.
+      listMemberIds = new Set(await resolveListPieceIds(supabase, listRow as ListLike));
     }
   }
   const locNameById = new Map(
@@ -108,6 +81,12 @@ export default async function InventoryPage({
 
   const q = sp.q?.trim();
   const searching = Boolean(q);
+
+  // Non-JvdB works are real stock in every practical sense, but they are the
+  // exception — so the list opens on JvdB stock and the register filter is what
+  // reveals the rest.
+  const ledgerFilter: "jvb" | "external" | null =
+    sp.ledger === "all" ? null : sp.ledger === "external" ? "external" : "jvb";
 
   // Save the current search + facets as a dynamic (saved-view) list. The rules
   // are stored on piece_lists.filter_rules; the list detail page re-runs them
@@ -122,6 +101,7 @@ export default async function InventoryPage({
       status: String(formData.get("status") ?? "").trim() || null,
       category: String(formData.get("category") ?? "").trim() || null,
       location: String(formData.get("location") ?? "").trim() || null,
+      ledger: String(formData.get("ledger") ?? "").trim() || null,
     };
     const { data: created } = await db
       .from("piece_lists")
@@ -144,6 +124,7 @@ export default async function InventoryPage({
     location_id: string | null;
     location_code: string | null;
     status: string;
+    ledger: "jvb" | "external";
     primary_image_id: string | null;
     needs_completion: boolean | null;
   };
@@ -166,7 +147,9 @@ export default async function InventoryPage({
       status: string;
       category_id: string | null;
       location_id: string | null;
+      ledger: string;
     }>;
+    if (ledgerFilter) filtered = filtered.filter((h) => h.ledger === ledgerFilter);
     if (sp.status) filtered = filtered.filter((h) => h.status === sp.status);
     if (sp.category)
       filtered = filtered.filter((h) => h.category_id === sp.category);
@@ -199,6 +182,7 @@ export default async function InventoryPage({
       .order(sortCol, { ascending, nullsFirst: false })
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
+    if (ledgerFilter) query = query.eq("ledger", ledgerFilter);
     if (sp.status) query = query.eq("status", sp.status);
     if (sp.category) query = query.eq("category_id", sp.category);
     if (sp.location) query = query.eq("location_id", sp.location);
@@ -314,12 +298,16 @@ export default async function InventoryPage({
           >
             Export XLSX
           </SaveToDriveLink>
+          {/* Whichever register you are looking at is the one a new record
+              lands in — so filing a non-JvdB work is one filter away, not a
+              separate flow to remember. */}
           <form action={createDraftPiece}>
+            <input type="hidden" name="ledger" value={sp.ledger === "external" ? "external" : "jvb"} />
             <button
               type="submit"
               className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
             >
-              New record
+              {sp.ledger === "external" ? "New — not JvdB" : "New record"}
             </button>
           </form>
         </div>
@@ -338,6 +326,8 @@ export default async function InventoryPage({
         const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
         const chips: Array<{ key: keyof Search; label: string }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
+        if (sp.ledger === "external") chips.push({ key: "ledger", label: "Not JvdB" });
+        else if (sp.ledger === "all") chips.push({ key: "ledger", label: "Both registers" });
         if (sp.status)
           chips.push({ key: "status", label: STATUS_LABELS[sp.status] ?? sp.status.replace(/_/g, " ") });
         if (sp.category && catName) chips.push({ key: "category", label: catName });
@@ -369,7 +359,7 @@ export default async function InventoryPage({
         );
       })()}
 
-      {q || sp.status || sp.category || sp.location ? (
+      {q || sp.status || sp.category || sp.location || sp.ledger ? (
         <form
           action={saveAsList}
           className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line-soft bg-control/40 px-3 py-2"
@@ -378,6 +368,7 @@ export default async function InventoryPage({
           <input type="hidden" name="status" value={sp.status ?? ""} />
           <input type="hidden" name="category" value={sp.category ?? ""} />
           <input type="hidden" name="location" value={sp.location ?? ""} />
+          <input type="hidden" name="ledger" value={sp.ledger ?? ""} />
           <span className="text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
             Save these filters as a live list
           </span>
@@ -422,6 +413,7 @@ export default async function InventoryPage({
                   ? locNameById.get(r.location_id) ?? r.location_code
                   : r.location_code,
                 status: r.status,
+                ledger: r.ledger,
                 needs_completion: Boolean(r.needs_completion),
               }),
             )}

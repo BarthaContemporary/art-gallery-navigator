@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase, getSession } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,8 +49,11 @@ export async function PATCH(
   const handled = String(fd.get("sale_handled_by_jvb") ?? "").trim();
   const saleHandled = handled === "yes" ? true : handled === "no" ? false : null;
 
+  const ref = await resolvePiece(supabase, stockNumber);
+  if (!ref) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { error } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .update({
       shares_note: str("co_owner_consignee"),
       consignee_contact_id: str("consignee_contact_id"),
@@ -58,7 +62,7 @@ export async function PATCH(
       sale_handled_by_jvb: saleHandled,
       updated_by: session.user.id,
     })
-    .eq("stock_number", stockNumber);
+    .eq("id", ref.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });

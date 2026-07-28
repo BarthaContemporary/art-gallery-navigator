@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const metadata = { title: "Document" };
 
@@ -46,11 +47,15 @@ export default async function DocumentDetail({
 
   const { data: linkData } = await supabase
     .from("document_pieces")
-    .select("piece:pieces ( id, stock_number, title )")
+    .select("piece_id")
     .eq("document_id", id);
-  const attached = ((linkData ?? []) as unknown as { piece: PieceLite | null }[])
-    .map((r) => r.piece)
-    .filter((p): p is PieceLite => Boolean(p));
+  const attachedSummaries = await loadPieceSummaries(
+    supabase,
+    ((linkData ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+  );
+  const attached = ((linkData ?? []) as { piece_id: string }[])
+    .map((r) => attachedSummaries.get(r.piece_id))
+    .filter(Boolean) as unknown as PieceLite[];
   const attachedIds = new Set(attached.map((p) => p.id));
 
   const addQ = (add ?? "").trim();

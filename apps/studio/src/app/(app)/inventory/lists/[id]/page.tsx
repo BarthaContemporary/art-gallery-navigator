@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { SaveToDriveLink } from "@/components/save-to-drive";
 import { StatusPill } from "@/components/status-pill";
+import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const metadata = { title: "Inventory list" };
 
@@ -89,12 +90,17 @@ export default async function InventoryListDetail({
   } else {
     const { data: itemRows } = await supabase
       .from("piece_list_items")
-      .select("sort_order, piece:pieces ( id, stock_number, title, medium, period, status )")
+      .select("sort_order, piece_id")
       .eq("list_id", id)
       .order("sort_order", { nullsFirst: true });
-    items = (itemRows ?? [])
-      .map((r) => (r as unknown as { piece: PieceLite | null }).piece)
-      .filter(Boolean) as PieceLite[];
+    const summaries = await loadPieceSummaries(
+      supabase,
+      ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+    );
+    // .in() does not preserve order, so walk the ordered rows.
+    items = ((itemRows ?? []) as { piece_id: string }[])
+      .map((r) => summaries.get(r.piece_id))
+      .filter(Boolean) as unknown as PieceLite[];
   }
   const existing = new Set(items.map((p) => p.id));
 

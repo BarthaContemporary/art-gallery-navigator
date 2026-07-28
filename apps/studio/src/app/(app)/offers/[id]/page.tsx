@@ -9,6 +9,7 @@ import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
 import { OfferItemsEditor } from "@/components/offer-items-editor";
 import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
+import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const metadata = { title: "Offer" };
 
@@ -105,7 +106,7 @@ export default async function OfferDetail({
     supabase
       .from("offer_items")
       .select(
-        "id, price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period, status )",
+        "id, price_override_gbp, note, sort_order, piece_id",
       )
       .eq("offer_id", id)
       .order("sort_order", { nullsFirst: true }),
@@ -141,7 +142,15 @@ export default async function OfferDetail({
     })),
   );
 
-  const items = (itemsData ?? []) as unknown as Item[];
+  // Offer lines key on the shared identity, so the works are looked up in the
+  // union view rather than embedded from a single stock table.
+  const itemPieces = await loadPieceSummaries(
+    supabase,
+    ((itemsData ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+  );
+  const items = ((itemsData ?? []) as unknown as (Omit<Item, "piece"> & { piece_id: string })[]).map(
+    (r) => ({ ...r, piece: itemPieces.get(r.piece_id) ?? null }),
+  ) as unknown as Item[];
   const recipients = (recipientsData ?? []) as unknown as Recipient[];
   const existingPieceIds = new Set(items.map((i) => i.piece?.id).filter(Boolean));
   const existingContactIds = new Set(

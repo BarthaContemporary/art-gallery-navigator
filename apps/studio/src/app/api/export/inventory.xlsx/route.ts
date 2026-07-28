@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { getSupabase } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
 import { fetchExportThumbnails, IMAGE_CAP } from "@/lib/export-images";
+import { applyInventoryFilters, EXPORT_COLUMNS, toExportRow } from "@/lib/inventory-query";
 
 export const runtime = "nodejs";
 // Embedding imagery makes this slow; give it room.
@@ -18,27 +19,19 @@ export async function GET(request: Request) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(request.url);
-  let query = supabase.from("vw_pieces_list").select("*").order("stock_number");
-  const status = url.searchParams.get("status");
-  if (status) query = query.eq("status", status);
+  const query = applyInventoryFilters(
+    supabase.from("vw_pieces_list").select("*").order("stock_number"),
+    url.searchParams,
+  );
   const { data: rows, error } = await query;
   if (error) return new Response(error.message, { status: 500 });
 
-  const pieces = (rows ?? []) as unknown as (Record<string, unknown> & { id: string })[];
+  const pieces = (rows ?? []).map((r) =>
+    toExportRow(r as Record<string, unknown>),
+  ) as (Record<string, unknown> & { id: string })[];
   const { images, omitted } = await fetchExportThumbnails(pieces.map((p) => p.id));
 
-  const cols = [
-    "stock_number",
-    "legacy_stock_number",
-    "title",
-    "maker_name",
-    "category_name",
-    "medium",
-    "period",
-    "origin_region",
-    "status",
-    "location_code",
-  ];
+  const cols = [...EXPORT_COLUMNS];
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Inventory");

@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export interface PieceDoc {
   stockNumber: string;
@@ -42,12 +43,15 @@ export async function loadPieceDoc(
   } = await supabase.auth.getUser();
   if (!user) return { authed: false, piece: null };
 
+  const ref = await resolvePiece(supabase, stock);
+  if (!ref) return { authed: true, piece: null };
+
   const { data } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .select(
       "id, stock_number, title, medium, period, origin_region, description, signature_inscription, dimensions_display, maker:makers ( display_name, life_dates )",
     )
-    .eq("stock_number", stock)
+    .eq("id", ref.id)
     .maybeSingle();
   const row = data as unknown as PieceRow | null;
   if (!row) return { authed: true, piece: null };

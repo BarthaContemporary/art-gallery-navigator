@@ -17,6 +17,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if ("source_name" in body) patch.source_name = str(body.source_name);
   if ("source_address" in body) patch.source_address = str(body.source_address);
   if ("notes" in body) patch.notes = str(body.notes);
+  // Which register the whole purchase belongs to, decided at capture time.
+  if ("ledger" in body) {
+    patch.ledger = String(body.ledger) === "external" ? "external" : "jvb";
+  }
   if ("source_type" in body) {
     const v = String(body.source_type ?? "");
     patch.source_type = SOURCE_TYPES.includes(v) ? v : null;

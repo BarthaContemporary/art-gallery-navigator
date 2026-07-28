@@ -1,5 +1,6 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
+import { applyInventoryFilters, EXPORT_COLUMNS, toExportRow } from "@/lib/inventory-query";
 
 function csvCell(v: unknown): string {
   if (v == null) return "";
@@ -17,29 +18,19 @@ export async function GET(request: Request) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(request.url);
-  let query = supabase.from("vw_pieces_list").select("*").order("stock_number");
-  const status = url.searchParams.get("status");
-  if (status) query = query.eq("status", status);
+  const query = applyInventoryFilters(
+    supabase.from("vw_pieces_list").select("*").order("stock_number"),
+    url.searchParams,
+  );
   const { data: rows, error } = await query;
   if (error) return new Response(error.message, { status: 500 });
 
-  const cols = [
-    "stock_number",
-    "legacy_stock_number",
-    "title",
-    "maker_name",
-    "category_name",
-    "medium",
-    "period",
-    "origin_region",
-    "status",
-    "location_code",
-  ];
+  const cols = EXPORT_COLUMNS;
   const lines = [
     cols.join(","),
-    ...(rows ?? []).map((r) =>
-      cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(","),
-    ),
+    ...(rows ?? [])
+      .map((r) => toExportRow(r as Record<string, unknown>))
+      .map((r) => cols.map((c) => csvCell(r[c])).join(",")),
   ];
   return exportResponse(
     request,

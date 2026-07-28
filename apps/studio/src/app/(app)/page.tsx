@@ -11,7 +11,10 @@ export default async function Dashboard() {
   const session = await getSession();
   const isAdmin = session ? hasRole(session.roles, "admin") : false;
 
-  const [pieces, inStock, contacts, needs, reserved, onExport] = await Promise.all([
+  // Headline figures are JvdB stock only — reading `pieces` gives that for
+  // free, since non-JvdB works live in their own table. The external register
+  // gets its own figure rather than being folded into these.
+  const [pieces, inStock, contacts, needs, reserved, onExport, external] = await Promise.all([
     supabase.from("pieces").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase
       .from("pieces")
@@ -22,6 +25,7 @@ export default async function Dashboard() {
     supabase
       .from("vw_pieces_list")
       .select("id", { count: "exact", head: true })
+      .eq("ledger", "jvb")
       .eq("needs_completion", true),
     supabase
       .from("pieces")
@@ -31,13 +35,28 @@ export default async function Dashboard() {
     supabase
       .from("vw_pieces_list")
       .select("id", { count: "exact", head: true })
+      .eq("ledger", "jvb")
       .eq("on_temp_export", true),
+    supabase
+      .from("external_pieces")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null),
   ]);
 
   const stats = [
     { label: "Records", value: pieces.count ?? 0, href: "/inventory" },
     { label: "In stock", value: inStock.count ?? 0, href: "/inventory?status=in_stock" },
     { label: "Contacts", value: contacts.count ?? 0, href: "/crm/contacts" },
+    // Only worth a tile once the register is actually in use.
+    ...((external.count ?? 0) > 0
+      ? [
+          {
+            label: "Not JvdB",
+            value: external.count ?? 0,
+            href: "/inventory?ledger=external",
+          },
+        ]
+      : []),
   ];
 
   // Triage — the few states that want a human. Only non-empty ones show.

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       source_address: resolved.source_address,
       source_type: resolved.source_type,
     })
-    .select("id, captured_at, source_name, source_address, source_type")
+    .select("id, captured_at, source_name, source_address, source_type, ledger")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

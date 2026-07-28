@@ -1,5 +1,6 @@
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
+import { resolvePieces } from "@/lib/piece-store";
 
 /**
  * Supabase → Sanity sync. Called by pg_net on outbox insert and by a Vercel
@@ -35,9 +36,14 @@ export async function POST(request: Request) {
   const mutations: unknown[] = [];
   const pieceIds = [...new Set(outbox.map((o) => o.entity_id))];
 
+  // Both registers publish to the site under the same identity, so resolve
+  // which stock table holds each work before reading it.
+  const refs = await resolvePieces(supabase, pieceIds);
+
   for (const pieceId of pieceIds) {
+    const ref = refs.get(pieceId);
     const { data: piece } = await supabase
-      .from("pieces")
+      .from(ref?.table ?? "pieces")
       .select(
         `id, stock_number, title, medium, period, origin_region, description,
          dimensions_display, height_cm, width_cm, depth_cm, length_cm, status, web_visible,

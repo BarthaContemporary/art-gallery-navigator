@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { LEDGER_LABEL, type Ledger, type PieceRef } from "@/lib/piece-store";
 
 export const metadata = { title: "Trash" };
 
@@ -12,16 +13,36 @@ type TrashRow = {
   stock_number: string;
   title: string | null;
   deleted_at: string;
+  /** Which stock table to reinstate into or purge from. */
+  table: PieceRef["table"];
+  ledger: Ledger;
 };
 
 export default async function TrashPage() {
   const supabase = await getSupabase();
-  const { data } = await supabase
-    .from("pieces")
-    .select("id, stock_number, title, deleted_at")
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false });
-  const rows = (data ?? []) as TrashRow[];
+  // The union view drops soft-deleted rows on purpose, so the recycle bin
+  // reads both stock tables directly and remembers which one each row is in.
+  const [jvb, external] = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((table) =>
+      supabase
+        .from(table)
+        .select("id, stock_number, title, deleted_at")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false }),
+    ),
+  );
+  const rows: TrashRow[] = [
+    ...((jvb?.data ?? []) as Omit<TrashRow, "table" | "ledger">[]).map((r) => ({
+      ...r,
+      table: "pieces" as const,
+      ledger: "jvb" as const,
+    })),
+    ...((external?.data ?? []) as Omit<TrashRow, "table" | "ledger">[]).map((r) => ({
+      ...r,
+      table: "external_pieces" as const,
+      ledger: "external" as const,
+    })),
+  ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at));
 
   async function reinstate(formData: FormData) {
     "use server";
@@ -31,8 +52,9 @@ export default async function TrashPage() {
     } = await db.auth.getUser();
     if (!user) return;
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
-    await db.from("pieces").update({ deleted_at: null }).eq("id", id);
+    const table = String(formData.get("table") ?? "");
+    if (!id || (table !== "pieces" && table !== "external_pieces")) return;
+    await db.from(table).update({ deleted_at: null }).eq("id", id);
     revalidatePath("/inventory/trash");
     revalidatePath("/inventory");
   }
@@ -45,9 +67,11 @@ export default async function TrashPage() {
     } = await db.auth.getUser();
     if (!user) return;
     const id = String(formData.get("id") ?? "");
-    if (!id) return;
-    // Permanent delete (cascades to images, financials, provenance, …).
-    await db.from("pieces").delete().eq("id", id);
+    const table = String(formData.get("table") ?? "");
+    if (!id || (table !== "pieces" && table !== "external_pieces")) return;
+    // Permanent delete. Removing the last stock row drops the identity too,
+    // which cascades to images, financials, provenance and the rest.
+    await db.from(table).delete().eq("id", id);
     revalidatePath("/inventory/trash");
   }
 
@@ -84,7 +108,14 @@ export default async function TrashPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-line-soft last:border-0">
-                <td className="px-4 py-2.5 font-mono text-[12px] text-ink">{r.stock_number}</td>
+                <td className="px-4 py-2.5 font-mono text-[12px] text-ink">
+                  {r.stock_number}
+                  {r.ledger === "external" ? (
+                    <span className="ml-1.5 font-sans text-[10.5px] text-ink-faint">
+                      {LEDGER_LABEL.external}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-4 py-2.5 text-[13.5px] text-ink-body">
                   {r.title ?? "Untitled"}
                   <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">
@@ -102,11 +133,17 @@ export default async function TrashPage() {
                   <div className="flex items-center justify-end gap-3">
                     <form action={reinstate}>
                       <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="table" value={r.table} />
                       <button type="submit" className="text-[12px] font-medium text-primary">
                         Reinstate
                       </button>
                     </form>
-                    <DeleteListButton action={purge} id={r.id} name={r.stock_number} />
+                    <DeleteListButton
+                      action={purge}
+                      id={r.id}
+                      name={r.stock_number}
+                      extra={{ table: r.table }}
+                    />
                   </div>
                 </td>
               </tr>

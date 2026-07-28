@@ -7,10 +7,13 @@ export function DeleteListButton({
   action,
   id,
   name,
+  extra,
 }: {
   action: (formData: FormData) => void;
   id: string;
   name: string;
+  /** Extra hidden fields the action needs, e.g. which table the row is in. */
+  extra?: Record<string, string>;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -29,6 +32,9 @@ export function DeleteListButton({
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="id" value={id} />
+      {Object.entries(extra ?? {}).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
       <span className="text-[11.5px] text-ink-body">Delete “{name}”?</span>
       <button
         type="submit"

@@ -12,6 +12,7 @@ import { DeleteListButton } from "@/components/delete-list-button";
 import { ConsignmentPanel } from "@/components/consignment-panel";
 import { ImportVatFields } from "@/components/import-vat-fields";
 import { EditFinancialsProvider, type EditFinancialsState } from "@/components/edit-financials-context";
+import { resolvePiece, type PieceRef } from "@/lib/piece-store";
 
 export const metadata = { title: "Edit record" };
 
@@ -26,10 +27,17 @@ export default async function EditPiecePage({
   const session = await getSession();
   const showFinancials = session ? canSeeFinancials(session.roles) : false;
 
+  const ref = await resolvePiece(supabase, stockNumber);
+  if (!ref) notFound();
+  if (ref.retiredNumber) redirect(`/inventory/${encodeURIComponent(ref.stockNumber)}/edit`);
+  // Hoisted server actions below close over this; a non-nullable const keeps
+  // the narrowing that the guard above established.
+  const store: PieceRef = ref;
+
   const { data: piece } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .select("*")
-    .eq("stock_number", stockNumber)
+    .eq("id", ref.id)
     .maybeSingle();
   if (!piece) notFound();
 
@@ -226,9 +234,9 @@ export default async function EditPiecePage({
     if (!user) return;
     // Soft delete: moves the record to the trash for 30 days.
     await db
-      .from("pieces")
+      .from(store.table)
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", piece.id);
+      .eq("id", store.id);
     revalidatePath("/inventory");
     redirect("/inventory/trash");
   }
@@ -271,6 +279,7 @@ export default async function EditPiecePage({
           year={piece.year ?? null}
           legacyStock={piece.legacy_stock_number ?? null}
           legacyConflict={Boolean(piece.legacy_stock_number_conflict)}
+          ledger={store.ledger}
           imageCount={imageCount.count ?? 0}
           webVisible={Boolean(piece.web_visible)}
         />

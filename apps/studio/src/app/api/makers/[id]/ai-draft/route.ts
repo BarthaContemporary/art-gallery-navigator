@@ -68,10 +68,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   // Works in stock give strong hints about the maker's materials and subjects.
   const { data: works } = await supabase
-    .from("pieces")
-    .select("title, medium, period, category:categories ( name )")
+    // Both registers: who made a work is independent of who owns it.
+    .from("vw_pieces_list")
+    .select("title, medium, period, category_name")
     .eq("maker_id", id)
-    .is("deleted_at", null)
     .limit(25);
 
   const facts: string[] = [];
@@ -88,8 +88,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const workLines = (works ?? [])
     .map((w) => {
-      const cat = (w.category as unknown as { name: string | null } | null)?.name;
-      return [w.title, cat, w.medium, w.period].filter(Boolean).join(" — ");
+      return [w.title, w.category_name, w.medium, w.period].filter(Boolean).join(" — ");
     })
     .filter((l) => l.length > 0);
   if (workLines.length)

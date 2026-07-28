@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase, getSession, canSeeFinancials } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,8 +150,11 @@ export async function PATCH(
     }
   };
 
+  const ref = await resolvePiece(supabase, stockNumber);
+  if (!ref) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const { error: pieceErr } = await supabase
-    .from("pieces")
+    .from(ref.table)
     .update({
       title: str("title"),
       year: str("year"),
@@ -184,16 +188,13 @@ export async function PATCH(
       web_visible: fd.get("web_visible") === "on",
       updated_by: session.user.id,
     })
-    .eq("stock_number", stockNumber);
+    .eq("id", ref.id);
   if (pieceErr)
     return NextResponse.json({ error: pieceErr.message }, { status: 500 });
 
   if (canSeeFinancials(session.roles)) {
-    const { data: pieceRow } = await supabase
-      .from("pieces")
-      .select("id")
-      .eq("stock_number", stockNumber)
-      .single();
+    // Financials key on the identity, not on either stock table.
+    const pieceRow = { id: ref.id };
     if (pieceRow) {
       const purchaseCurrency = (String(fd.get("purchase_currency") ?? "GBP").toUpperCase());
       const sellCurrency = String(fd.get("sell_currency") ?? "GBP").toUpperCase();

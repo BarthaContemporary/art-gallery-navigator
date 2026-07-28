@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSupabase } from "@/lib/supabase";
+import { resolvePiece } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,11 +67,14 @@ export async function POST(req: Request) {
   }
   if (!stock) return NextResponse.json({ error: "Missing stock" }, { status: 400 });
 
-  const { data: pieceData } = await supabase
-    .from("pieces")
-    .select("id, title, period, medium, maker:makers ( display_name )")
-    .eq("stock_number", stock)
-    .maybeSingle();
+  const ref = await resolvePiece(supabase, stock);
+  const { data: pieceData } = ref
+    ? await supabase
+        .from(ref.table)
+        .select("id, title, period, medium, maker:makers ( display_name )")
+        .eq("id", ref.id)
+        .maybeSingle()
+    : { data: null };
   const piece = pieceData as unknown as {
     id: string;
     title: string | null;
@@ -179,7 +183,7 @@ export async function POST(req: Request) {
 
   // Persist for audit / re-review (never auto-applied to fields).
   await supabase
-    .from("pieces")
+    .from(ref!.table)
     .update({
       ai_suggestions: {
         ...suggestions,

@@ -33,10 +33,9 @@ export default async function MakerProfilePage({
 
   // Works by this maker (context under the profile).
   const { data: works } = await supabase
-    .from("pieces")
+    .from("vw_pieces_list")
     .select("id, stock_number, title, status")
     .eq("maker_id", id)
-    .is("deleted_at", null)
     .order("stock_number")
     .limit(60);
 

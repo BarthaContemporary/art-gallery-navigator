@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
   const { data: batch } = await rls
     .from("capture_batches")
-    .select("id, captured_at, source_name, source_type")
+    .select("id, captured_at, source_name, source_type, ledger")
     .eq("id", batchId)
     .maybeSingle();
   if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
@@ -75,7 +75,12 @@ export async function POST(req: Request) {
 
 type Ctx = {
   userId: string;
-  batch: { id: string; source_name: string | null; source_type: string | null };
+  batch: {
+    id: string;
+    source_name: string | null;
+    source_type: string | null;
+    ledger: "jvb" | "external";
+  };
   purchaseDate: string;
 };
 
@@ -109,9 +114,11 @@ async function pushWork(
     .filter(Boolean)
     .join("\n");
 
-  // 2. The piece itself, flagged for completion.
+  // 2. The piece itself, flagged for completion. A batch marked "not JvdB" at
+  // capture time files straight into the second register and gets a number from
+  // that series; everything else about the record is identical.
   const { data: piece, error: pErr } = await db
-    .from("pieces")
+    .from(ctx.batch.ledger === "external" ? "external_pieces" : "pieces")
     .insert({
       title: work.title?.trim() || null,
       maker_id: makerId,

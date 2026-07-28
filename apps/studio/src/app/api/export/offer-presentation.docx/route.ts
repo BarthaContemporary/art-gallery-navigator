@@ -2,6 +2,7 @@ import { exportResponse } from "@/lib/shared-drive";
 import { offerPresentationDocx, type PresentationWork } from "@jvb/documents";
 import { getSupabase, getSession, createServiceClient, canSeeFinancials } from "@/lib/supabase";
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
+import { loadPieceRows } from "@/lib/piece-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,10 +34,18 @@ export async function GET(request: Request) {
   const { data: itemRows } = await supabase
     .from("offer_items")
     .select(
-      "price_override_gbp, note, sort_order, piece:pieces ( id, stock_number, title, medium, period, origin_region, dimensions_display, description, maker:makers ( display_name, life_dates ) )",
+      "price_override_gbp, note, sort_order, piece_id",
     )
     .eq("offer_id", offerId)
     .order("sort_order");
+
+  // Works come from the union view: an offer can carry works from either
+  // register, and satellites no longer key on a single stock table.
+  const pieceById = await loadPieceRows<Row["piece"] & { id: string }>(
+    supabase,
+    ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+    "id, stock_number, title, medium, period, origin_region, dimensions_display, description, maker_name, maker_life_dates",
+  );
 
   type Row = {
     price_override_gbp: number | null;
@@ -50,10 +59,13 @@ export async function GET(request: Request) {
       origin_region: string | null;
       dimensions_display: string | null;
       description: string | null;
-      maker: { display_name: string | null; life_dates: string | null } | null;
+      maker_name: string | null;
+      maker_life_dates: string | null;
     } | null;
   };
-  const items = ((itemRows ?? []) as unknown as Row[]).filter((r) => r.piece);
+  const items = ((itemRows ?? []) as unknown as (Omit<Row, "piece"> & { piece_id: string })[])
+    .map((r) => ({ ...r, piece: pieceById.get(r.piece_id) ?? null }))
+    .filter((r) => r.piece) as Row[];
   if (items.length === 0) return new Response("Offer has no works", { status: 400 });
 
   // Marked prices (offer price fallback) — service client: this export is for
@@ -128,8 +140,8 @@ export async function GET(request: Request) {
     works.push({
       stockNumber: p.stock_number,
       title: p.title ?? "Untitled",
-      maker: p.maker?.display_name ?? null,
-      makerLifeDates: p.maker?.life_dates ?? null,
+      maker: p.maker_name,
+      makerLifeDates: p.maker_life_dates,
       period: p.period,
       originRegion: p.origin_region,
       medium: p.medium,

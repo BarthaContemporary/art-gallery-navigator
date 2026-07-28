@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
+import { RegisterBadge } from "@/components/register-badge";
 
 export type InventoryRow = {
   id: string;
@@ -16,6 +17,7 @@ export type InventoryRow = {
   category_name: string | null;
   location_name: string | null;
   status: string;
+  ledger?: "jvb" | "external";
 };
 
 type Col = {
@@ -321,11 +323,12 @@ export function InventoryTable({
       }
       case "stock_number":
         return (
-          <span className="block truncate font-mono text-[12px] text-ink">
+          <span className="flex items-center gap-1.5 truncate font-mono text-[12px] text-ink">
             <Link href={href(r)}>{r.stock_number}</Link>
             {r.legacy_stock_number ? (
-              <span className="ml-1.5 text-ink-soft">({r.legacy_stock_number})</span>
+              <span className="text-ink-soft">({r.legacy_stock_number})</span>
             ) : null}
+            <RegisterBadge ledger={r.ledger} size="xs" />
           </span>
         );
       case "title":
@@ -444,6 +447,7 @@ export function InventoryTable({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
                     <span className="font-mono text-[11.5px] text-ink-muted">{r.stock_number}</span>
+                    <RegisterBadge ledger={r.ledger} size="xs" />
                     {r.needs_completion ? (
                       <span className="rounded-full bg-warn-soft px-1.5 text-[10px] font-medium text-warn">
                         Finish

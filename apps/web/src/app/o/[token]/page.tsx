@@ -43,6 +43,8 @@ interface ItemRow {
   id: string;
   price_override_gbp: number | null;
   note: string | null;
+  piece_id: string;
+  /** Filled in by a second pass — see the loader below. */
   piece: PieceRow | null;
 }
 
@@ -130,19 +132,49 @@ export default async function OfferPage({
          contact:crm_contacts ( first_name, last_name, salutation ),
          offer:offers (
            id, title, kind, intro, show_prices, expires_at, access_password,
-           items:offer_items (
-             id, price_override_gbp, note,
-             piece:pieces (
-               id, stock_number, title, medium, period, origin_region, dimensions_display,
-               financials:piece_financials ( marked_price_gbp ),
-               images:piece_images ( id, role, caption, sort_order, storage_path_display, processing_status )
-             )
-           )
+           items:offer_items ( id, price_override_gbp, note, piece_id )
          )`,
       )
       .eq("token", token)
       .maybeSingle();
     recipient = (data as unknown as RecipientRow) ?? null;
+
+    // Offer lines key on the shared work identity rather than on a single
+    // stock table, so the works, their prices and their images are loaded in a
+    // second pass and stitched back onto the lines.
+    const lines: ItemRow[] = recipient?.offer?.items ?? [];
+    const pieceIds = lines.map((i) => i.piece_id).filter(Boolean);
+    if (pieceIds.length > 0) {
+      const [{ data: works }, { data: fins }, { data: imgs }] = await Promise.all([
+        supabase
+          .from("vw_pieces_all")
+          .select("id, stock_number, title, medium, period, origin_region, dimensions_display")
+          .in("id", pieceIds),
+        supabase.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", pieceIds),
+        supabase
+          .from("piece_images")
+          .select("id, piece_id, role, caption, sort_order, storage_path_display, processing_status")
+          .in("piece_id", pieceIds),
+      ]);
+      const byId = new Map((works ?? []).map((w) => [w.id as string, w]));
+      const finByPiece = new Map((fins ?? []).map((f) => [f.piece_id as string, f]));
+      const imagesByPiece = new Map<string, ImageRow[]>();
+      for (const img of (imgs ?? []) as (ImageRow & { piece_id: string })[]) {
+        const list = imagesByPiece.get(img.piece_id) ?? [];
+        list.push(img);
+        imagesByPiece.set(img.piece_id, list);
+      }
+      for (const line of lines) {
+        const work = byId.get(line.piece_id);
+        line.piece = work
+          ? ({
+              ...work,
+              financials: finByPiece.get(line.piece_id) ?? null,
+              images: imagesByPiece.get(line.piece_id) ?? [],
+            } as unknown as PieceRow)
+          : null;
+      }
+    }
   } catch {
     recipient = null;
   }

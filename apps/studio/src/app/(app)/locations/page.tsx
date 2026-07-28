@@ -29,9 +29,10 @@ export default async function LocationsPage({
     .select("id, code, name, type, notes")
     .order("code");
 
-  // pieces per location
+  // Works per location, across both registers — a non-JvdB work still sits on
+  // a shelf, and deleting the location would strand it just the same.
   const { data: counts } = await supabase
-    .from("pieces")
+    .from("vw_pieces_list")
     .select("location_id")
     .not("location_id", "is", null);
   const byLocation = new Map<string, number>();
@@ -84,7 +85,7 @@ export default async function LocationsPage({
     if (!id || id === mergeTo) return;
 
     const { count } = await db
-      .from("pieces")
+      .from("vw_pieces_list")
       .select("id", { count: "exact", head: true })
       .eq("location_id", id);
     if ((count ?? 0) > 0) {
@@ -94,16 +95,18 @@ export default async function LocationsPage({
             encodeURIComponent("Choose where to move the pieces before deleting."),
         );
       }
-      const { error: moveError } = await db
-        .from("pieces")
-        .update({ location_id: mergeTo })
-        .eq("location_id", id);
-      // Don't delete if the move failed — that would orphan the pieces.
-      if (moveError) {
-        redirect(
-          "/locations?error=" +
-            encodeURIComponent(`Could not move the pieces: ${moveError.message}`),
-        );
+      for (const table of (["pieces", "external_pieces"] as const)) {
+        const { error: moveError } = await db
+          .from(table)
+          .update({ location_id: mergeTo })
+          .eq("location_id", id);
+        // Don't delete if the move failed — that would orphan the pieces.
+        if (moveError) {
+          redirect(
+            "/locations?error=" +
+              encodeURIComponent(`Could not move the pieces: ${moveError.message}`),
+          );
+        }
       }
     }
     const { error } = await db.from("locations").delete().eq("id", id);

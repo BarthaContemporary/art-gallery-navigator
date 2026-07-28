@@ -10,6 +10,7 @@ import {
 import { ContactEditor, type Purchase, type Consignment } from "@/components/contact-editor";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { consignmentSplit } from "@/lib/consignment";
+import { loadPieceRows } from "@/lib/piece-store";
 
 export const metadata = { title: "Contact" };
 
@@ -82,21 +83,35 @@ export default async function ContactProfile({
   const { data: purRows } = await svc
     .from("piece_financials")
     .select(
-      "sold_date, sold_price_gbp, piece:pieces ( stock_number, title, year, sold_to, maker:makers ( display_name ) )",
+      "piece_id, sold_date, sold_price_gbp",
     )
     .eq("buyer_contact_id", id)
     .order("sold_date", { ascending: false, nullsFirst: false });
+  const purchasedPieces = await loadPieceRows<{
+    id: string;
+    stock_number: string | null;
+    title: string | null;
+    year: string | null;
+    sold_to: string | null;
+    maker_name: string | null;
+  }>(
+    svc,
+    ((purRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+    "id, stock_number, title, year, sold_to, maker_name",
+  );
   const purchases: Purchase[] = (purRows ?? []).map((r) => {
-    const row = r as unknown as {
+    const raw = r as unknown as {
+      piece_id: string;
       sold_date: string | null;
       sold_price_gbp: number | null;
-      piece: {
-        stock_number: string | null;
-        title: string | null;
-        year: string | null;
-        sold_to: string | null;
-        maker: { display_name: string | null } | null;
-      } | null;
+    };
+    const found = purchasedPieces.get(raw.piece_id);
+    const row = {
+      sold_date: raw.sold_date,
+      sold_price_gbp: raw.sold_price_gbp,
+      piece: found
+        ? { ...found, maker: { display_name: found.maker_name } }
+        : null,
     };
     return {
       stock_number: row.piece?.stock_number ?? null,
@@ -115,12 +130,17 @@ export default async function ContactProfile({
   // Consignments: works where this contact is the co-owner / consignee. Read
   // via the service client so all staff see the work; this contact's share £ is
   // only computed/serialised for admin/accountant (showPrices).
-  const { data: consRows } = await svc
-    .from("pieces")
-    .select(
-      "stock_number, title, year, consignment_share_pct, sale_handled_by_jvb, maker:makers ( display_name ), fin:piece_financials ( sold_date, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, vat_treatment, import_type, import_vat_gbp )",
-    )
-    .eq("consignee_contact_id", id);
+  // Queried per stock table rather than through the union view because of the
+  // maker and financials embeds, which PostgREST resolves from foreign keys on
+  // a real table.
+  const CONSIGNMENT_COLUMNS =
+    "stock_number, title, year, consignment_share_pct, sale_handled_by_jvb, maker:makers ( display_name ), fin:piece_financials ( sold_date, sold_price_gbp, purchase_cost_gbp, restoration_cost_gbp, other_costs_gbp, vat_treatment, import_type, import_vat_gbp )";
+  const consResults = await Promise.all(
+    (["pieces", "external_pieces"] as const).map((table) =>
+      svc.from(table).select(CONSIGNMENT_COLUMNS).eq("consignee_contact_id", id),
+    ),
+  );
+  const consRows = consResults.flatMap((r) => r.data ?? []);
   const num0 = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const consignments: Consignment[] = ((consRows ?? []) as unknown as {
     stock_number: string | null;

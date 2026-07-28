@@ -35,11 +35,11 @@ export default async function CategoriesPage({
     .select("id, code, name, is_active")
     .order("name");
 
-  // Works per category, so nothing is deleted or hidden blind.
+  // Works per category across both registers, so nothing is deleted or hidden
+  // blind.
   const { data: counts } = await supabase
-    .from("pieces")
+    .from("vw_pieces_list")
     .select("category_id")
-    .is("deleted_at", null)
     .not("category_id", "is", null);
   const byCategory = new Map<string, number>();
   (counts ?? []).forEach((p) => {
@@ -128,18 +128,19 @@ export default async function CategoriesPage({
     if (!id || id === mergeTo) return;
 
     const { count } = await db
-      .from("pieces")
+      .from("vw_pieces_list")
       .select("id", { count: "exact", head: true })
-      .eq("category_id", id)
-      .is("deleted_at", null);
+      .eq("category_id", id);
 
     if ((count ?? 0) > 0) {
       if (!mergeTo) fail("Choose where to move the works before deleting.");
-      const { error: moveError } = await db
-        .from("pieces")
-        .update({ category_id: mergeTo })
-        .eq("category_id", id);
-      if (moveError) fail(`Could not move the works: ${moveError.message}`);
+      for (const table of (["pieces", "external_pieces"] as const)) {
+        const { error: moveError } = await db
+          .from(table)
+          .update({ category_id: mergeTo })
+          .eq("category_id", id);
+        if (moveError) fail(`Could not move the works: ${moveError.message}`);
+      }
     }
     const { error } = await db.from("categories").delete().eq("id", id);
     if (error) fail(explain(error, ""));

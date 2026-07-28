@@ -6,6 +6,7 @@ import { RecordFiles, type RecordFile } from "@/components/record-files";
 import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { AutosaveForm } from "@/components/autosave-form";
+import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const metadata = { title: "Shipment" };
 
@@ -48,11 +49,17 @@ export default async function ShipmentDetail({
     supabase.from("shipment_documents").select("id, title, storage_path").eq("shipment_id", id).order("created_at"),
     supabase
       .from("piece_shipments")
-      .select("returned_at, closed_reason, piece:pieces ( id, stock_number, title )")
+      .select("returned_at, closed_reason, piece_id")
       .eq("shipment_id", id),
   ]);
   const files = (filesData ?? []) as RecordFile[];
-  const links = ((linkData ?? []) as unknown as LinkRow[]).filter((l) => l.piece);
+  const linkSummaries = await loadPieceSummaries(
+    supabase,
+    ((linkData ?? []) as { piece_id: string }[]).map((l) => l.piece_id),
+  );
+  const links = ((linkData ?? []) as unknown as (Omit<LinkRow, "piece"> & { piece_id: string })[])
+    .map((l) => ({ ...l, piece: linkSummaries.get(l.piece_id) ?? null }))
+    .filter((l) => l.piece) as LinkRow[];
   const attachedIds = new Set(links.map((l) => l.piece!.id));
 
   const addQ = (add ?? "").trim();
@@ -127,12 +134,19 @@ export default async function ShipmentDetail({
     if (!date) return;
     const { data: open } = await db
       .from("piece_shipments")
-      .select("piece_id, piece:pieces ( status )")
+      .select("piece_id")
       .eq("shipment_id", id)
       .eq("kind", "temporary_export")
       .is("returned_at", null)
       .is("closed_reason", null);
-    const rows = (open ?? []) as unknown as { piece_id: string; piece: { status: string } | null }[];
+    const openSummaries = await loadPieceSummaries(
+      db,
+      ((open ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
+    );
+    const rows = ((open ?? []) as { piece_id: string }[]).map((r) => ({
+      piece_id: r.piece_id,
+      piece: openSummaries.get(r.piece_id) ?? null,
+    }));
     if (rows.length === 0) return;
     const ids = rows.map((r) => r.piece_id);
 

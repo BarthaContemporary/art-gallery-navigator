@@ -15,6 +15,13 @@ export type ListRules = {
   status?: string | null;
   category?: string | null;
   location?: string | null;
+  /**
+   * Which register the saved view was built against: "external" for non-JvdB
+   * works, "all" for both, anything else (including absent) for JvdB stock.
+   * Absent on lists saved before the second register existed, which is exactly
+   * the right default for them.
+   */
+  ledger?: string | null;
 };
 
 export type ListLike = {
@@ -28,7 +35,14 @@ type Hit = {
   status: string;
   category_id: string | null;
   location_id: string | null;
+  ledger: string;
 };
+
+/** Resolve a saved view's register rule to a value to match, or null for both. */
+function ledgerOf(rules: ListRules): "jvb" | "external" | null {
+  if (rules.ledger === "all") return null;
+  return rules.ledger === "external" ? "external" : "jvb";
+}
 
 /** Upper bound on a live list's size, matching the list detail page. */
 const LIVE_LIMIT = 500;
@@ -60,6 +74,8 @@ export async function resolveListPieceIds(
     // the hits — the RPC has no facet parameters of its own.
     const { data: hits } = await supabase.rpc("pieces_search", { q });
     let f = (hits ?? []) as Hit[];
+    const led = ledgerOf(rules);
+    if (led) f = f.filter((h) => h.ledger === led);
     if (rules.status) f = f.filter((h) => h.status === rules.status);
     if (rules.category) f = f.filter((h) => h.category_id === rules.category);
     if (rules.location) f = f.filter((h) => h.location_id === rules.location);
@@ -71,6 +87,8 @@ export async function resolveListPieceIds(
     .select("id")
     .order("stock_number", { ascending: false, nullsFirst: false })
     .limit(LIVE_LIMIT);
+  const led = ledgerOf(rules);
+  if (led) query = query.eq("ledger", led);
   if (rules.status) query = query.eq("status", rules.status);
   if (rules.category) query = query.eq("category_id", rules.category);
   if (rules.location) query = query.eq("location_id", rules.location);
@@ -94,6 +112,8 @@ export async function countListMembers(
     return (await resolveListPieceIds(supabase, list)).length;
   }
   let cq = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true });
+  const led = ledgerOf(rules);
+  if (led) cq = cq.eq("ledger", led);
   if (rules.status) cq = cq.eq("status", rules.status);
   if (rules.category) cq = cq.eq("category_id", rules.category);
   if (rules.location) cq = cq.eq("location_id", rules.location);
