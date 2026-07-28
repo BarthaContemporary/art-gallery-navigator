@@ -67,27 +67,51 @@ export function InventoryTable({
   // ---- multi-select (add to list / bulk edit) ----
   // Persisted to sessionStorage so a selection survives paging and sorting
   // within the tab — you can gather works across several pages before acting.
-  const SEL_KEY = "jvb:inventory:selected:v1";
+  // v2 stores { ids, startedAt } rather than a bare array. The selection has no
+  // expiry — gathering works across several pages is the point of persisting it
+  // — but a selection you left behind an hour ago and have forgotten is a real
+  // hazard next to a bulk status change, so the bar says how old it is.
+  const SEL_KEY = "jvb:inventory:selected:v2";
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** When the current selection began; null whenever nothing is selected. */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(SEL_KEY);
-      if (raw) {
-        const ids = JSON.parse(raw) as unknown;
-        if (Array.isArray(ids)) setSelected(new Set(ids.filter((x): x is string => typeof x === "string")));
-      }
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { ids?: unknown; startedAt?: unknown };
+      const ids = Array.isArray(parsed?.ids)
+        ? parsed.ids.filter((x): x is string => typeof x === "string")
+        : [];
+      if (ids.length === 0) return;
+      setSelected(new Set(ids));
+      setStartedAt(typeof parsed?.startedAt === "number" ? parsed.startedAt : Date.now());
     } catch {
-      /* ignore */
+      /* ignore malformed storage */
     }
   }, []);
+
   useEffect(() => {
     try {
-      if (selected.size === 0) sessionStorage.removeItem(SEL_KEY);
-      else sessionStorage.setItem(SEL_KEY, JSON.stringify([...selected]));
+      if (selected.size === 0) {
+        sessionStorage.removeItem(SEL_KEY);
+        return;
+      }
+      // Stamp on the first pick; adding more later doesn't reset the clock,
+      // since the question is "how long ago did I start this?".
+      const started = startedAt ?? Date.now();
+      if (startedAt === null) setStartedAt(started);
+      sessionStorage.setItem(SEL_KEY, JSON.stringify({ ids: [...selected], startedAt: started }));
     } catch {
       /* ignore */
     }
-  }, [selected]);
+  }, [selected, startedAt]);
+
+  // Clear the stamp when the selection empties, so the next one starts fresh.
+  useEffect(() => {
+    if (selected.size === 0 && startedAt !== null) setStartedAt(null);
+  }, [selected, startedAt]);
   const pageIds = rows.map((r) => r.id);
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
   function toggleRow(id: string) {
@@ -348,6 +372,7 @@ export function InventoryTable({
       {selected.size > 0 ? (
         <AddToListBar
           selectedIds={[...selected]}
+          startedAt={startedAt}
           lists={lists}
           locations={locations}
           onClear={() => setSelected(new Set())}
@@ -555,14 +580,27 @@ export function InventoryTable({
   );
 }
 
+/** Show the selection's age once it is older than this. */
+const STALE_AFTER_MS = 60 * 60 * 1000; // 1 hour
+
+/** "2 hours ago" / "1 hour ago" — coarse on purpose; precision isn't the point. */
+function ageLabel(ms: number): string {
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
 function AddToListBar({
   selectedIds,
+  startedAt,
   lists,
   locations,
   onClear,
   onDone,
 }: {
   selectedIds: string[];
+  startedAt: number | null;
   lists: { id: string; name: string }[];
   locations: { id: string; name: string }[];
   onClear: () => void;
@@ -574,6 +612,18 @@ function AddToListBar({
   const [bulkLocation, setBulkLocation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Recomputed on a timer as well as on render, so a bar left open on screen
+  // starts warning without needing a click. Rendered only after mount, so the
+  // server and first client render agree.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const age = now !== null && startedAt !== null ? now - startedAt : 0;
+  const stale = age >= STALE_AFTER_MS;
 
   async function add() {
     if (!listId && !newName.trim()) {
@@ -615,7 +665,14 @@ function AddToListBar({
       bulkStatus ? `status → ${label}` : null,
       bulkLocation ? "a new location" : null,
     ].filter(Boolean);
-    if (!confirm(`Apply ${parts.join(" and ")} to ${count} selected work${count === 1 ? "" : "s"}?`)) {
+    const staleNote = stale
+      ? `\n\nThis selection was started ${ageLabel(age)}. Check it is still what you meant.`
+      : "";
+    if (
+      !confirm(
+        `Apply ${parts.join(" and ")} to ${count} selected work${count === 1 ? "" : "s"}?${staleNote}`,
+      )
+    ) {
       return;
     }
     setBusy(true);
@@ -651,6 +708,14 @@ function AddToListBar({
         <span className="text-[12.5px] font-medium text-ink-body">
           {selectedIds.length} selected
         </span>
+        {stale ? (
+          <span
+            title="This selection was started a while ago — worth checking it is still what you meant."
+            className="rounded-full bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn"
+          >
+            gathered {ageLabel(age)}
+          </span>
+        ) : null}
         <span className="text-[12px] text-ink-soft">→ add to</span>
         <select value={listId} onChange={(e) => setListId(e.target.value)} className={field}>
           <option value="">New list…</option>
