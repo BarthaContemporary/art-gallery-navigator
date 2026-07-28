@@ -33,7 +33,10 @@ const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") :
 export default async function LibraryPage() {
   const supabase = await getSupabase();
   const [lists, shipments, documents, makers, locations, categories] = await Promise.all([
-    supabase.from("piece_lists").select("id, name, piece_list_items(count)").order("name"),
+    supabase
+      .from("piece_lists")
+      .select("id, name, is_dynamic, filter_rules, piece_list_items(count)")
+      .order("name"),
     supabase
       .from("shipments")
       .select("id, kind, shipment_date, reference, piece_shipments(count)")
@@ -60,7 +63,53 @@ export default async function LibraryPage() {
     redirect("/library");
   }
 
-  const listRows = (lists.data ?? []) as { id: string; name: string; piece_list_items: { count: number }[] }[];
+  const rawLists = (lists.data ?? []) as {
+    id: string;
+    name: string;
+    is_dynamic: boolean | null;
+    filter_rules: {
+      q?: string | null;
+      status?: string | null;
+      category?: string | null;
+      location?: string | null;
+    } | null;
+    piece_list_items: { count: number }[];
+  }[];
+
+  // A live list has no rows in piece_list_items — its membership is the saved
+  // filters, re-run on read. Counting the join table therefore reported 0 for
+  // every live list ("Works at auction" showed 0 while holding 65). Re-run the
+  // rules here so the number means the same thing for both kinds of list.
+  const listRows = await Promise.all(
+    rawLists.map(async (l) => {
+      if (!l.is_dynamic) {
+        return { id: l.id, name: l.name, isDynamic: false, count: l.piece_list_items?.[0]?.count ?? 0 };
+      }
+      const rules = l.filter_rules ?? {};
+      const q = (rules.q ?? "").trim();
+      if (q) {
+        // Text rules go through the ranked search RPC, then the facets are
+        // applied to the hits — same as the list detail page does.
+        const { data: hits } = await supabase.rpc("pieces_search", { q });
+        let f = (hits ?? []) as Array<{
+          id: string;
+          status: string;
+          category_id: string | null;
+          location_id: string | null;
+        }>;
+        if (rules.status) f = f.filter((h) => h.status === rules.status);
+        if (rules.category) f = f.filter((h) => h.category_id === rules.category);
+        if (rules.location) f = f.filter((h) => h.location_id === rules.location);
+        return { id: l.id, name: l.name, isDynamic: true, count: f.length };
+      }
+      let cq = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true });
+      if (rules.status) cq = cq.eq("status", rules.status);
+      if (rules.category) cq = cq.eq("category_id", rules.category);
+      if (rules.location) cq = cq.eq("location_id", rules.location);
+      const { count } = await cq;
+      return { id: l.id, name: l.name, isDynamic: true, count: count ?? 0 };
+    }),
+  );
   const shipRows = (shipments.data ?? []) as unknown as {
     id: string; kind: string; shipment_date: string | null; reference: string | null; piece_shipments: { count: number }[];
   }[];
@@ -87,8 +136,17 @@ export default async function LibraryPage() {
             <div>
               {listRows.map((l) => (
                 <div key={l.id} className={rowCls}>
-                  <Link href={`/inventory/lists/${l.id}`} className="min-w-0 truncate text-ink-body hover:text-oranje">{l.name}</Link>
-                  <span className="font-mono text-[12px] text-ink-soft">{l.piece_list_items?.[0]?.count ?? 0}</span>
+                  <Link href={`/inventory/lists/${l.id}`} className="min-w-0 truncate text-ink-body hover:text-oranje">
+                    {l.name}
+                  </Link>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {l.isDynamic ? (
+                      <span className="rounded-full bg-oranje/10 px-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-oranje">
+                        Live
+                      </span>
+                    ) : null}
+                    <span className="font-mono text-[12px] text-ink-soft">{l.count}</span>
+                  </span>
                 </div>
               ))}
             </div>

@@ -8,8 +8,43 @@ export default async function InventoryListsPage() {
   const supabase = await getSupabase();
   const { data: lists } = await supabase
     .from("piece_lists")
-    .select("id, name, description, is_dynamic, piece_list_items(count)")
+    .select("id, name, description, is_dynamic, filter_rules, piece_list_items(count)")
     .order("name");
+
+  // Live lists keep no rows in piece_list_items — membership is the saved
+  // filters, re-run on read — so their real size has to be computed, not
+  // counted from the join table.
+  const counts = new Map<string, number>();
+  await Promise.all(
+    ((lists ?? []) as unknown as {
+      id: string;
+      is_dynamic: boolean | null;
+      filter_rules: { q?: string | null; status?: string | null; category?: string | null; location?: string | null } | null;
+      piece_list_items: { count: number }[];
+    }[]).map(async (l) => {
+      if (!l.is_dynamic) {
+        counts.set(l.id, l.piece_list_items?.[0]?.count ?? 0);
+        return;
+      }
+      const rules = l.filter_rules ?? {};
+      const q = (rules.q ?? "").trim();
+      if (q) {
+        const { data: hits } = await supabase.rpc("pieces_search", { q });
+        let f = (hits ?? []) as Array<{ id: string; status: string; category_id: string | null; location_id: string | null }>;
+        if (rules.status) f = f.filter((h) => h.status === rules.status);
+        if (rules.category) f = f.filter((h) => h.category_id === rules.category);
+        if (rules.location) f = f.filter((h) => h.location_id === rules.location);
+        counts.set(l.id, f.length);
+        return;
+      }
+      let cq = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true });
+      if (rules.status) cq = cq.eq("status", rules.status);
+      if (rules.category) cq = cq.eq("category_id", rules.category);
+      if (rules.location) cq = cq.eq("location_id", rules.location);
+      const { count } = await cq;
+      counts.set(l.id, count ?? 0);
+    }),
+  );
 
   async function addList(formData: FormData) {
     "use server";
@@ -73,9 +108,8 @@ export default async function InventoryListsPage() {
                 <p className="mt-1 text-[12.5px] text-ink-muted">{l.description}</p>
               ) : null}
               <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
-                {l.is_dynamic
-                  ? "Saved view · membership is live"
-                  : `${(l.piece_list_items as unknown as { count: number }[])[0]?.count ?? 0} works`}
+                {counts.get(l.id) ?? 0} work{(counts.get(l.id) ?? 0) === 1 ? "" : "s"}
+                {l.is_dynamic ? " · saved view, membership is live" : ""}
               </p>
             </a>
           </li>
