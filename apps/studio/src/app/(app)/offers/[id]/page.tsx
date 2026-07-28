@@ -8,6 +8,7 @@ import { OfferEmail } from "@jvb/emails";
 import { getSupabase } from "@/lib/supabase";
 import { sanitizeFilterTerm } from "@/lib/search";
 import { OfferItemsEditor } from "@/components/offer-items-editor";
+import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
 
 export const metadata = { title: "Offer" };
 
@@ -114,9 +115,27 @@ export default async function OfferDetail({
     supabase.from("crm_lists").select("id, name").order("name"),
     supabase
       .from("piece_lists")
-      .select("id, name, piece_list_items(count)")
+      .select("id, name, is_dynamic, filter_rules, piece_list_items(count)")
       .order("name"),
   ]);
+
+  // Real sizes for the "add works from a list" picker. Counting
+  // piece_list_items alone showed (0) against every live list, which is also
+  // what made adding one appear to do nothing.
+  const listOptions = await Promise.all(
+    ((pieceLists ?? []) as unknown as {
+      id: string;
+      name: string;
+      is_dynamic: boolean | null;
+      filter_rules: ListRules | null;
+      piece_list_items?: { count: number }[];
+    }[]).map(async (l) => ({
+      id: l.id,
+      name: l.name,
+      isDynamic: Boolean(l.is_dynamic),
+      count: await countListMembers(supabase, l),
+    })),
+  );
 
   const items = (itemsData ?? []) as unknown as Item[];
   const recipients = (recipientsData ?? []) as unknown as Recipient[];
@@ -210,14 +229,20 @@ export default async function OfferDetail({
     let nextSort =
       (existing ?? []).reduce((m, r) => Math.max(m, (r.sort_order as number) ?? -1), -1) + 1;
 
-    const { data: members } = await db
-      .from("piece_list_items")
-      .select("piece_id, sort_order")
-      .eq("list_id", listId)
-      .order("sort_order");
+    // Resolve through the shared helper: reading piece_list_items directly
+    // returned nothing for a live list, because a live list keeps no rows
+    // there — its membership is the saved filters, re-run on read. Adding a
+    // live list to an offer silently added zero works.
+    const { data: listRow } = await db
+      .from("piece_lists")
+      .select("id, is_dynamic, filter_rules")
+      .eq("id", listId)
+      .maybeSingle();
+    if (!listRow) return;
 
-    const rows = (members ?? [])
-      .map((m) => m.piece_id as string)
+    const memberIds = await resolveListPieceIds(db, listRow);
+
+    const rows = memberIds
       .filter((pid) => pid && !have.has(pid))
       .map((pid) => ({ offer_id: id, piece_id: pid, sort_order: nextSort++ }));
 
@@ -562,14 +587,11 @@ export default async function OfferDetail({
               <option value="" disabled>
                 Choose an inventory list…
               </option>
-              {(pieceLists ?? []).map((l) => {
-                const count = (l as { piece_list_items?: { count: number }[] }).piece_list_items?.[0]?.count ?? 0;
-                return (
-                  <option key={(l as { id: string }).id} value={(l as { id: string }).id}>
-                    {(l as { name: string }).name} ({count})
-                  </option>
-                );
-              })}
+              {listOptions.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name} ({l.count}){l.isDynamic ? " · live" : ""}
+                </option>
+              ))}
             </select>
             <button type="submit" className={btnGhost}>
               Add all
