@@ -95,6 +95,46 @@ export default async function InventoryListDetail({
   }
   const existing = new Set(items.map((p) => p.id));
 
+  // Thumbnails for the rows. Resolved from the assembled ids rather than in the
+  // two fetch paths above, so static and live lists behave identically: take
+  // each work's first processed image by sort_order and sign it, exactly as the
+  // inventory table does.
+  const thumbByPiece = new Map<string, string>();
+  if (items.length > 0) {
+    const { data: imgs } = await supabase
+      .from("piece_images")
+      .select("piece_id, storage_path_display, sort_order")
+      .in(
+        "piece_id",
+        items.map((p) => p.id),
+      )
+      .not("storage_path_display", "is", null)
+      .order("sort_order", { ascending: true, nullsFirst: false });
+
+    // First row per piece wins (the query is already in sort order).
+    const firstByPiece = new Map<string, string>();
+    (imgs ?? []).forEach((i) => {
+      const pid = i.piece_id as string;
+      if (pid && !firstByPiece.has(pid)) {
+        firstByPiece.set(pid, i.storage_path_display as string);
+      }
+    });
+
+    const entries = [...firstByPiece.entries()];
+    if (entries.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from("piece-derivatives")
+        .createSignedUrls(
+          entries.map(([, path]) => path),
+          3600,
+        );
+      (signed ?? []).forEach((s, i) => {
+        const pid = entries[i]?.[0];
+        if (pid && s.signedUrl) thumbByPiece.set(pid, s.signedUrl);
+      });
+    }
+  }
+
   // Human-readable rules summary for dynamic lists.
   let rulesSummary: string[] = [];
   if (isDynamic) {
@@ -198,6 +238,7 @@ export default async function InventoryListDetail({
         <table className="w-full min-w-[560px] bg-cell text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
+              <th className="px-3 py-2.5 font-medium" />
               <th className="px-4 py-2.5 font-medium">Stock</th>
               <th className="px-4 py-2.5 font-medium">Title</th>
               <th className="px-4 py-2.5 font-medium" />
@@ -206,6 +247,26 @@ export default async function InventoryListDetail({
           <tbody>
             {items.map((p) => (
               <tr key={p.id} className="border-b border-line-soft last:border-0">
+                <td className="px-3 py-1">
+                  <Link
+                    href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                    className="block"
+                    aria-hidden
+                    tabIndex={-1}
+                  >
+                    {thumbByPiece.get(p.id) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumbByPiece.get(p.id)}
+                        alt=""
+                        loading="lazy"
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    ) : (
+                      <span className="jvb-hatch block h-10 w-10 rounded" />
+                    )}
+                  </Link>
+                </td>
                 <td className="px-4 py-2 font-mono text-[12px] text-ink">
                   <Link
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
@@ -239,7 +300,7 @@ export default async function InventoryListDetail({
             ))}
             {items.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-ink-muted">
+                <td colSpan={4} className="px-4 py-6 text-center text-ink-muted">
                   {isDynamic
                     ? "No works currently match these filters."
                     : "No works yet — search below to add."}

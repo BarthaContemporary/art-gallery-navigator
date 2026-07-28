@@ -1,10 +1,28 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { LocationTableRow, type LocationRow } from "@/components/location-row";
 
 export const metadata = { title: "Locations" };
 
-export default async function LocationsPage() {
+/**
+ * Turn a Postgres error into something a dealer can act on. These writes used
+ * to discard their errors entirely, so a rejected save looked identical to a
+ * successful one — the row simply snapped back. A duplicate code is by far the
+ * most common cause and now says so by name.
+ */
+function explain(error: { code?: string; message: string }, code: string): string {
+  if (error.code === "23505") return `The code “${code}” is already used by another location.`;
+  if (error.code === "23503") return "That location is still referenced elsewhere and can't be removed.";
+  return error.message;
+}
+
+export default async function LocationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await getSupabase();
   const { data: locations } = await supabase
     .from("locations")
@@ -25,13 +43,15 @@ export default async function LocationsPage() {
     "use server";
     const supabase = await getSupabase();
     const code = String(formData.get("code") ?? "").trim();
-    if (!code) return;
-    await supabase.from("locations").insert({
+    if (!code) redirect("/locations?error=" + encodeURIComponent("A code is required."));
+    const { error } = await supabase.from("locations").insert({
       code,
       name: String(formData.get("name") ?? "").trim() || code,
       type: String(formData.get("type") ?? "storage"),
     });
+    if (error) redirect("/locations?error=" + encodeURIComponent(explain(error, code)));
     revalidatePath("/locations");
+    redirect("/locations");
   }
 
   async function updateLocation(formData: FormData) {
@@ -39,8 +59,8 @@ export default async function LocationsPage() {
     const db = await getSupabase();
     const id = String(formData.get("id") ?? "");
     const code = String(formData.get("code") ?? "").trim();
-    if (!id || !code) return;
-    await db
+    if (!id || !code) redirect("/locations?error=" + encodeURIComponent("A code is required."));
+    const { error } = await db
       .from("locations")
       .update({
         code,
@@ -48,7 +68,9 @@ export default async function LocationsPage() {
         type: String(formData.get("type") ?? "storage"),
       })
       .eq("id", id);
+    if (error) redirect("/locations?error=" + encodeURIComponent(explain(error, code)));
     revalidatePath("/locations");
+    redirect("/locations");
   }
 
   // Delete a location. If it still holds pieces the form supplies merge_to and
@@ -66,15 +88,28 @@ export default async function LocationsPage() {
       .select("id", { count: "exact", head: true })
       .eq("location_id", id);
     if ((count ?? 0) > 0) {
-      if (!mergeTo) return; // still occupied and no target chosen — refuse
+      if (!mergeTo) {
+        redirect(
+          "/locations?error=" +
+            encodeURIComponent("Choose where to move the pieces before deleting."),
+        );
+      }
       const { error: moveError } = await db
         .from("pieces")
         .update({ location_id: mergeTo })
         .eq("location_id", id);
-      if (moveError) return; // don't delete if the move failed
+      // Don't delete if the move failed — that would orphan the pieces.
+      if (moveError) {
+        redirect(
+          "/locations?error=" +
+            encodeURIComponent(`Could not move the pieces: ${moveError.message}`),
+        );
+      }
     }
-    await db.from("locations").delete().eq("id", id);
+    const { error } = await db.from("locations").delete().eq("id", id);
+    if (error) redirect("/locations?error=" + encodeURIComponent(explain(error, "")));
     revalidatePath("/locations");
+    redirect("/locations");
   }
 
   const rows: LocationRow[] = (locations ?? []).map((l) => ({
@@ -87,6 +122,11 @@ export default async function LocationsPage() {
 
   return (
     <div>
+      {sp.error ? (
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
+          {sp.error}
+        </p>
+      ) : null}
       <form action={addLocation} className="flex flex-wrap items-end gap-2">
         <label className="block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
           Code

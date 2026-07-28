@@ -1,8 +1,16 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { CategoryTableRow, type CategoryRow } from "@/components/category-row";
 
 export const metadata = { title: "Categories" };
+
+/** Report failures rather than swallowing them — see the Locations page note. */
+function explain(error: { code?: string; message: string }, code: string): string {
+  if (error.code === "23505") return `The code “${code}” is already used by another category.`;
+  return error.message;
+}
+const fail = (msg: string) => redirect("/categories?error=" + encodeURIComponent(msg));
 
 /** Derive a unique-ish code from a name, mirroring the inline add-category API. */
 function codeFromName(name: string): string {
@@ -15,7 +23,12 @@ function codeFromName(name: string): string {
   );
 }
 
-export default async function CategoriesPage() {
+export default async function CategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await getSupabase();
   const { data: categories } = await supabase
     .from("categories")
@@ -69,7 +82,8 @@ export default async function CategoriesPage() {
       code = `${base}-${i}`;
     }
 
-    await db.from("categories").insert({ name, code, is_active: true });
+    const { error } = await db.from("categories").insert({ name, code, is_active: true });
+    if (error) fail(explain(error, code));
     revalidatePath("/categories");
     revalidatePath("/inventory");
   }
@@ -80,8 +94,9 @@ export default async function CategoriesPage() {
     const id = String(formData.get("id") ?? "");
     const name = String(formData.get("name") ?? "").trim();
     const code = String(formData.get("code") ?? "").trim().toUpperCase();
-    if (!id || !name || !code) return;
-    await db.from("categories").update({ name, code }).eq("id", id);
+    if (!id || !name || !code) fail("A name and code are both required.");
+    const { error } = await db.from("categories").update({ name, code }).eq("id", id);
+    if (error) fail(explain(error, code));
     revalidatePath("/categories");
     revalidatePath("/inventory");
   }
@@ -119,14 +134,15 @@ export default async function CategoriesPage() {
       .is("deleted_at", null);
 
     if ((count ?? 0) > 0) {
-      if (!mergeTo) return;
-      const { error } = await db
+      if (!mergeTo) fail("Choose where to move the works before deleting.");
+      const { error: moveError } = await db
         .from("pieces")
         .update({ category_id: mergeTo })
         .eq("category_id", id);
-      if (error) return;
+      if (moveError) fail(`Could not move the works: ${moveError.message}`);
     }
-    await db.from("categories").delete().eq("id", id);
+    const { error } = await db.from("categories").delete().eq("id", id);
+    if (error) fail(explain(error, ""));
     revalidatePath("/categories");
     revalidatePath("/inventory");
   }
@@ -144,6 +160,11 @@ export default async function CategoriesPage() {
 
   return (
     <div>
+      {sp.error ? (
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
+          {sp.error}
+        </p>
+      ) : null}
       <p className="text-[13px] text-ink-muted">
         Categories shown here fill the picker on a work and the Inventory filter.
         <strong className="font-medium text-ink-body"> Hide</strong> takes one out of those
