@@ -27,12 +27,17 @@ export default async function ManageImagesPage({
     .eq("id", ref.id)
     .maybeSingle();
   if (!piece) notFound();
+  // Plain value for the server actions below to close over.
+  const pieceId: string = ref.id;
 
   const { data: images } = await supabase
     .from("piece_images")
     .select("id, role, caption, sort_order, storage_path_display, processing_status, processing_error, legacy_container_filename")
-    .eq("piece_id", piece.id)
-    .order("sort_order");
+    .eq("piece_id", pieceId)
+    // Match the reorder action's ordering exactly, so what you see is what a
+    // move acts on even while sort_order still holds legacy nulls/duplicates.
+    .order("sort_order", { nullsFirst: true })
+    .order("created_at");
 
   const signed = await Promise.all(
     (images ?? []).map(async (img) => {
@@ -52,6 +57,42 @@ export default async function ManageImagesPage({
     const id = String(formData.get("id"));
     const supabase = await getSupabase();
     await supabase.from("piece_images").delete().eq("id", id);
+    revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
+  }
+
+  /**
+   * Move one image earlier or later in the run.
+   *
+   * Renumbers every image in the piece rather than swapping two sort_order
+   * values: the FileMaker import left duplicates and nulls behind, and a swap
+   * between two rows that share a number does nothing visible. Rewriting the
+   * whole sequence makes the order deterministic from the first move onward.
+   * A piece holds a handful of images, so the extra writes are irrelevant.
+   */
+  async function moveImage(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id"));
+    const dir = String(formData.get("dir")) === "up" ? -1 : 1;
+    const supabase = await getSupabase();
+
+    const { data: current } = await supabase
+      .from("piece_images")
+      .select("id, sort_order, created_at")
+      .eq("piece_id", pieceId)
+      .order("sort_order", { nullsFirst: true })
+      .order("created_at");
+    const ordered = ((current ?? []) as { id: string }[]).map((r) => r.id);
+
+    const from = ordered.indexOf(id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= ordered.length) return;   // already at the end
+    ordered.splice(to, 0, ...ordered.splice(from, 1));
+
+    await Promise.all(
+      ordered.map((imgId, i) =>
+        supabase.from("piece_images").update({ sort_order: i }).eq("id", imgId),
+      ),
+    );
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
   }
 
@@ -76,7 +117,7 @@ export default async function ManageImagesPage({
         <ImageUploader pieceId={piece.id} nextSortOrder={(images ?? []).length} />
       </div>
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {signed.map((img) => (
+        {signed.map((img, i) => (
           <div key={img.id} className="rounded-[9px] border border-line bg-cell p-2.5">
             <div className="jvb-hatch relative aspect-square overflow-hidden rounded-lg">
               {img.url ? (
@@ -96,9 +137,40 @@ export default async function ManageImagesPage({
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
               <p className="text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{img.role}</p>
-              {/* Rotate sits above the caption row, per request. Disabled until
-                  there is a processed derivative to turn. */}
-              <RotateImageButton imageId={img.id} disabled={!img.url} />
+              <span className="flex items-center gap-0.5">
+                {/* Buttons rather than drag: this grid is used on an iPad at
+                    fairs, and a drag target that small is a worse tool than a
+                    tap. Also keyboard-reachable for nothing extra. */}
+                <form action={moveImage}>
+                  <input type="hidden" name="id" value={img.id} />
+                  <input type="hidden" name="dir" value="up" />
+                  <button
+                    type="submit"
+                    disabled={i === 0}
+                    aria-label="Move image earlier"
+                    title="Move earlier"
+                    className="min-h-[28px] px-1.5 text-[13px] leading-none text-ink-soft hover:text-ink-strong disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                </form>
+                <form action={moveImage}>
+                  <input type="hidden" name="id" value={img.id} />
+                  <input type="hidden" name="dir" value="down" />
+                  <button
+                    type="submit"
+                    disabled={i === signed.length - 1}
+                    aria-label="Move image later"
+                    title="Move later"
+                    className="min-h-[28px] px-1.5 text-[13px] leading-none text-ink-soft hover:text-ink-strong disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </form>
+                {/* Rotate sits above the caption row, per request. Disabled until
+                    there is a processed derivative to turn. */}
+                <RotateImageButton imageId={img.id} disabled={!img.url} />
+              </span>
             </div>
             <form action={saveCaption} className="mt-1 flex gap-1.5">
               <input type="hidden" name="id" value={img.id} />

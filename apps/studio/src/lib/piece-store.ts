@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { selectInChunks } from "@/lib/chunk";
 
 /*
  * Which stock table holds a given work.
@@ -95,13 +96,12 @@ export async function resolvePieceById(supabase: Db, id: string): Promise<PieceR
 export async function resolvePieces(supabase: Db, ids: string[]): Promise<Map<string, PieceRef>> {
   const out = new Map<string, PieceRef>();
   if (ids.length === 0) return out;
-  const { data } = await supabase
-    .from("vw_pieces_list")
-    .select("id, stock_number, ledger")
-    .in("id", ids);
-  for (const row of (data ?? []) as { id: string; stock_number: string; ledger: Ledger }[]) {
-    out.set(row.id, refFrom(row));
-  }
+  const rows = await selectInChunks<{ id: string; stock_number: string; ledger: Ledger }>(
+    ids,
+    (chunk) =>
+      supabase.from("vw_pieces_list").select("id, stock_number, ledger").in("id", chunk),
+  );
+  for (const row of rows) out.set(row.id, refFrom(row));
   return out;
 }
 
@@ -137,10 +137,16 @@ export async function loadPieceRows<T extends { id: string }>(
   columns: string,
 ): Promise<Map<string, T>> {
   const out = new Map<string, T>();
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (unique.length === 0) return out;
-  const { data } = await supabase.from("vw_pieces_all").select(columns).in("id", unique);
-  for (const row of (data ?? []) as unknown as T[]) out.set(row.id, row);
+  if (ids.length === 0) return out;
+  // Chunked: a single .in() with a few hundred ids exceeds the URL limit and
+  // comes back 414, which used to surface as a silently empty list.
+  const rows = await selectInChunks<T>(ids, (chunk) =>
+    supabase.from("vw_pieces_all").select(columns).in("id", chunk) as unknown as PromiseLike<{
+      data: T[] | null;
+      error: { message: string } | null;
+    }>,
+  );
+  for (const row of rows) out.set(row.id, row);
   return out;
 }
 

@@ -3,6 +3,7 @@ import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
 import { prettyHeader, cellValue, columnWidth, styleSheet } from "@/lib/xlsx-clean";
 import { resolveListPieceIds } from "@/lib/list-members";
+import { selectInChunks } from "@/lib/chunk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,10 +42,11 @@ export async function GET(request: Request) {
 
   let rows: Record<string, unknown>[] = [];
   if (ids.length > 0) {
-    const { data, error } = await supabase.from("vw_pieces_list").select("*").in("id", ids);
-    if (error) return new Response(error.message, { status: 500 });
+    const data = await selectInChunks<Record<string, unknown> & { id: string }>(ids, (chunk) =>
+      supabase.from("vw_pieces_list").select("*").in("id", chunk),
+    );
     // Preserve the list's own order, which .in() does not.
-    const byId = new Map((data ?? []).map((r) => [(r as { id: string }).id, r]));
+    const byId = new Map(data.map((r) => [r.id, r]));
     rows = ids
       .map((id) => byId.get(id))
       .filter(Boolean) as Record<string, unknown>[];

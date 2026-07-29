@@ -616,6 +616,11 @@ function AddToListBar({
   const [bulkLocation, setBulkLocation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Delete is the one action here that cannot be undone by repeating it, so it
+  // gets a panel of its own rather than a browser confirm() that a fast hand
+  // dismisses by reflex.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [countTyped, setCountTyped] = useState("");
 
   // Recomputed on a timer as well as on render, so a bar left open on screen
   // starts warning without needing a click. Rendered only after mount, so the
@@ -703,6 +708,27 @@ function AddToListBar({
     }
   }
 
+  async function deleteSelected() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inventory/bulk-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pieceIds: selectedIds, action: "delete" }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not delete");
+      setConfirmingDelete(false);
+      setCountTyped("");
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const field =
     "rounded-lg border border-line-control bg-control px-2.5 py-1.5 text-[12.5px] text-ink-body";
 
@@ -780,7 +806,72 @@ function AddToListBar({
         >
           {busy ? "Applying…" : "Apply"}
         </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setCountTyped("");
+            setConfirmingDelete((v) => !v);
+          }}
+          className="ml-auto rounded-lg border border-danger/40 px-3 py-1.5 text-[12px] font-semibold text-danger disabled:opacity-50"
+        >
+          Delete…
+        </button>
       </div>
+
+      {confirmingDelete ? (
+        <div className="rounded-lg border border-danger/40 bg-danger/5 p-3">
+          <p className="text-[12.5px] leading-snug text-ink-body">
+            Delete{" "}
+            <strong>
+              {selectedIds.length} work{selectedIds.length === 1 ? "" : "s"}
+            </strong>
+            ? They move to the recycle bin and can be restored from{" "}
+            <a href="/inventory/trash" className="underline">
+              Inventory → Trash
+            </a>{" "}
+            for 30 days, after which they are removed for good.
+          </p>
+          {stale ? (
+            <p className="mt-1.5 text-[12px] text-ink-soft">
+              This selection was started {ageLabel(age)}. Check it is still what you meant.
+            </p>
+          ) : null}
+          {/*
+            Typing the count is the double-check. A second button would be
+            dismissed by the same reflex as the first; a number that has to
+            match forces you to read how many records this actually affects.
+          */}
+          <label className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-ink-body">
+            <span>
+              Type <strong className="font-mono">{selectedIds.length}</strong> to confirm
+            </span>
+            <input
+              value={countTyped}
+              onChange={(e) => setCountTyped(e.target.value)}
+              inputMode="numeric"
+              autoComplete="off"
+              aria-label={`Type ${selectedIds.length} to confirm deletion`}
+              className="w-20 rounded-lg border border-line-control bg-control px-2 py-1 text-[12.5px] text-ink-body"
+            />
+            <button
+              type="button"
+              disabled={busy || countTyped.trim() !== String(selectedIds.length)}
+              onClick={() => void deleteSelected()}
+              className="min-h-[32px] rounded-lg border border-danger bg-danger-soft px-3 text-[12px] font-semibold text-danger disabled:opacity-40"
+            >
+              {busy ? "Deleting…" : "Delete"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              className="text-[12px] font-medium text-ink-mid hover:text-ink-strong"
+            >
+              Cancel
+            </button>
+          </label>
+        </div>
+      ) : null}
 
       {error ? <p className="text-[12px] text-danger">{error}</p> : null}
     </div>

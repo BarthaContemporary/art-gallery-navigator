@@ -1,7 +1,5 @@
 "use client";
 
-import { SaveToDriveLink } from "@/components/save-to-drive";
-
 import { useState } from "react";
 
 // Avery layouts the label generator supports. perPage / size shown so the user
@@ -16,6 +14,11 @@ const AVERY: { code: string; perPage: number; size: string }[] = [
 /**
  * "Labels PDF" control that asks which Avery sheet to target before generating,
  * then downloads the PDF laid out to that template.
+ *
+ * A plain download, not the save-to-drive control the other exports use: labels
+ * exist to go straight into a printer with that sheet loaded. Filing them on
+ * the shared drive and making the user go and find them is the wrong shape for
+ * this one action.
  */
 export function LabelPdfButton({
   listId,
@@ -39,16 +42,17 @@ export function LabelPdfButton({
               Choose Avery layout
             </span>
             {AVERY.map((a) => (
-              <SaveToDriveLink
+              <a
                 key={a.code}
                 href={`/api/export/labels.pdf?list=${encodeURIComponent(listId)}&template=${a.code}`}
+                onClick={() => setOpen(false)}
                 className="block rounded-md px-2 py-1.5 text-[12.5px] text-ink-body hover:bg-control"
               >
                 <span className="font-medium">Avery {a.code}</span>
                 <span className="block text-[11px] text-ink-soft">
                   {a.perPage} per sheet · {a.size}
                 </span>
-              </SaveToDriveLink>
+              </a>
             ))}
           </span>
         </>

@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { createServiceClient } from "@/lib/supabase";
+import { selectInChunks } from "@/lib/chunk";
 
 /**
  * Thumbnails for exports that embed imagery.
@@ -61,16 +62,22 @@ export async function fetchExportThumbnails(
   // Storage has no public policies, so signing needs the service client.
   const admin = createServiceClient();
 
-  const { data: rows } = await admin
-    .from("piece_images")
-    .select("piece_id, storage_path_display, sort_order")
-    .in("piece_id", pieceIds)
-    .not("storage_path_display", "is", null)
-    .order("sort_order", { ascending: true, nullsFirst: false });
+  // Chunked — IMAGE_CAP alone is 300 ids, already past the URL limit that
+  // returns 414 (lib/chunk.ts).
+  const rows = await selectInChunks<{ piece_id: string; storage_path_display: string }>(
+    pieceIds,
+    (chunk) =>
+      admin
+        .from("piece_images")
+        .select("piece_id, storage_path_display, sort_order")
+        .in("piece_id", chunk)
+        .not("storage_path_display", "is", null)
+        .order("sort_order", { ascending: true, nullsFirst: false }),
+  );
 
-  // First image per piece wins; the query is already in sort order.
+  // First image per piece wins; each chunk arrives in sort order.
   const firstByPiece = new Map<string, string>();
-  (rows ?? []).forEach((r) => {
+  rows.forEach((r) => {
     const pid = r.piece_id as string;
     if (pid && !firstByPiece.has(pid)) firstByPiece.set(pid, r.storage_path_display as string);
   });

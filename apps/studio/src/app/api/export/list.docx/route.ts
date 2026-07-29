@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase";
 import { GALLERY_NAME } from "@/lib/document-data";
 import { resolveListPieceIds } from "@/lib/list-members";
 import { fetchExportThumbnails } from "@/lib/export-images";
+import { selectInChunks } from "@/lib/chunk";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,13 +32,14 @@ export async function GET(request: Request) {
 
   let works: ListWork[] = [];
   if (ids.length > 0) {
-    const { data, error } = await supabase
-      .from("vw_pieces_list")
-      .select("id, stock_number, title, maker_name, medium, period, status, location_code")
-      .in("id", ids);
-    if (error) return new Response(error.message, { status: 500 });
+    const data = await selectInChunks<ListWork & { id: string }>(ids, (chunk) =>
+      supabase
+        .from("vw_pieces_list")
+        .select("id, stock_number, title, maker_name, medium, period, status, location_code")
+        .in("id", chunk),
+    );
     // .in() does not preserve the list's order; restore it.
-    const byId = new Map((data ?? []).map((r) => [(r as { id: string }).id, r as ListWork & { id: string }]));
+    const byId = new Map(data.map((r) => [r.id, r]));
     const ordered = ids.map((pid) => byId.get(pid)).filter(Boolean) as (ListWork & { id: string })[];
     const { images } = await fetchExportThumbnails(ordered.map((p) => p.id));
     works = ordered.map((p) => ({ ...p, image: images.get(p.id) ?? null }));

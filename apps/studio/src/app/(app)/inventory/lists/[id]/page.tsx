@@ -2,9 +2,9 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { SaveToDriveLink } from "@/components/save-to-drive";
 import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries } from "@/lib/piece-store";
+import { selectInChunks } from "@/lib/chunk";
 
 export const metadata = { title: "Inventory list" };
 
@@ -110,19 +110,22 @@ export default async function InventoryListDetail({
   // inventory table does.
   const thumbByPiece = new Map<string, string>();
   if (items.length > 0) {
-    const { data: imgs } = await supabase
-      .from("piece_images")
-      .select("piece_id, storage_path_display, sort_order")
-      .in(
-        "piece_id",
-        items.map((p) => p.id),
-      )
-      .not("storage_path_display", "is", null)
-      .order("sort_order", { ascending: true, nullsFirst: false });
+    // Chunked: a list can hold several hundred works, and one .in() that long
+    // exceeds the URL limit and returns 414 (see lib/chunk.ts).
+    const imgs = await selectInChunks<{ piece_id: string; storage_path_display: string }>(
+      items.map((p) => p.id),
+      (chunk) =>
+        supabase
+          .from("piece_images")
+          .select("piece_id, storage_path_display, sort_order")
+          .in("piece_id", chunk)
+          .not("storage_path_display", "is", null)
+          .order("sort_order", { ascending: true, nullsFirst: false }),
+    );
 
     // First row per piece wins (the query is already in sort order).
     const firstByPiece = new Map<string, string>();
-    (imgs ?? []).forEach((i) => {
+    imgs.forEach((i) => {
       const pid = i.piece_id as string;
       if (pid && !firstByPiece.has(pid)) {
         firstByPiece.set(pid, i.storage_path_display as string);
@@ -241,20 +244,54 @@ export default async function InventoryListDetail({
           <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
             {items.length} work{items.length === 1 ? "" : "s"}
           </p>
-          <SaveToDriveLink
-            href={`/api/export/list.xlsx?list=${id}`}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-          >
-            Export XLSX
-          </SaveToDriveLink>
-          <SaveToDriveLink
-            href={`/api/export/list.docx?list=${id}`}
-            className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid"
-          >
-            Export DOCX
-          </SaveToDriveLink>
         </div>
       </div>
+
+      {/* Add works — above the table, because adding is what you come here to
+          do; hunting for the box under a few hundred rows was the complaint. */}
+      {isDynamic ? null : (
+        <div className="mt-4">
+          <form method="get" className="flex items-center gap-2">
+            <input
+              type="search"
+              name="add"
+              defaultValue={addQ}
+              placeholder="Search works to add — stock no., title, maker…"
+              className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
+            />
+            <button type="submit" className={btnGhost}>
+              Search
+            </button>
+          </form>
+          {addQ ? (
+            <div className="mt-2 space-y-1">
+              {results.map((p) => (
+                <form
+                  key={p.id}
+                  action={addItem}
+                  className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
+                >
+                  <input type="hidden" name="piece_id" value={p.id} />
+                  <span className="text-[13px] text-ink-body">
+                    <span className="font-mono text-[12px] text-ink-muted">
+                      {p.stock_number ?? "—"}
+                    </span>{" "}
+                    {p.title ?? "Untitled"}
+                  </span>
+                  <button type="submit" className={btnGhost}>
+                    Add
+                  </button>
+                </form>
+              ))}
+              {results.length === 0 ? (
+                <p className="text-[12.5px] text-ink-muted">
+                  No matches (or already in the list).
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Works in the list */}
       <div className="mt-4 overflow-x-auto rounded-[11px] border border-line">
@@ -344,7 +381,7 @@ export default async function InventoryListDetail({
                 <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
                   {isDynamic
                     ? "No works currently match these filters."
-                    : "No works yet — search below to add."}
+                    : "No works yet — use the search above to add."}
                 </td>
               </tr>
             ) : null}
@@ -361,50 +398,7 @@ export default async function InventoryListDetail({
           </Link>{" "}
           and save a new list.
         </p>
-      ) : (
-        <>
-          {/* Add works */}
-          <form method="get" className="mt-4 flex items-center gap-2">
-            <input
-              type="search"
-              name="add"
-              defaultValue={addQ}
-              placeholder="Search works to add — stock no., title, maker…"
-              className="w-full max-w-md rounded-lg border border-line-control bg-control px-3 py-2 text-[13px]"
-            />
-            <button type="submit" className={btnGhost}>
-              Search
-            </button>
-          </form>
-          {addQ ? (
-            <div className="mt-2 space-y-1">
-              {results.map((p) => (
-                <form
-                  key={p.id}
-                  action={addItem}
-                  className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2"
-                >
-                  <input type="hidden" name="piece_id" value={p.id} />
-                  <span className="text-[13px] text-ink-body">
-                    <span className="font-mono text-[12px] text-ink-muted">
-                      {p.stock_number ?? "—"}
-                    </span>{" "}
-                    {p.title ?? "Untitled"}
-                  </span>
-                  <button type="submit" className={btnGhost}>
-                    Add
-                  </button>
-                </form>
-              ))}
-              {results.length === 0 ? (
-                <p className="text-[12.5px] text-ink-muted">
-                  No matches (or already in the list).
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      )}
+      ) : null}
 
       <form action={deleteList} className="mt-8">
         <button

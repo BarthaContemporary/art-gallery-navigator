@@ -63,6 +63,16 @@ export async function GET(request: Request) {
       };
     });
 
+  // react-pdf throws on a Document with no Page, so an all-unmailable list
+  // would surface as an opaque 500. Say what is actually wrong instead.
+  if (addresses.length === 0) {
+    return new Response(
+      "No mailable addresses in this list — every contact is either marked " +
+        "do-not-mail or has no postal address.",
+      { status: 422 },
+    );
+  }
+
   const buf = await renderToBuffer(MailingLabels({ addresses, template }));
 
   return exportResponse(
