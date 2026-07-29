@@ -44,17 +44,25 @@ export function RegisterMove({
             Move <span className="font-mono">{stockNumber}</span> into the Not-JvdB register. The
             record keeps its images, documents, lists and history, but it is issued a new{" "}
             <span className="font-mono">X-</span> number and{" "}
-            <span className="font-mono">{stockNumber}</span> is retired. It will no longer appear in
-            the stock book.
+            <span className="font-mono">{stockNumber}</span> is set aside. It will no longer appear
+            in the stock book.
           </>
         ) : (
           <>
             Move <span className="font-mono">{stockNumber}</span> into JvdB stock. The record keeps
             everything it has, is issued a regular stock number, and{" "}
-            <span className="font-mono">{stockNumber}</span> is retired. It will start appearing in
-            the stock book.
+            <span className="font-mono">{stockNumber}</span> is set aside. It will start appearing
+            in the stock book.
           </>
         )}
+      </p>
+      {/*
+        Worth saying at the point of decision: the number is set aside rather
+        than burnt, so this is recoverable if it turns out to be the wrong call.
+      */}
+      <p className="mt-1.5 text-[11.5px] leading-snug text-ink-soft">
+        Reversible — moving it back returns the record to{" "}
+        <span className="font-mono">{stockNumber}</span>.
       </p>
       <input
         name="note"
