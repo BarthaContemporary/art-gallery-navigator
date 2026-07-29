@@ -389,6 +389,12 @@ so no container can bind the empty directory underneath.
 
 4. **Reach the GUI over an SSH tunnel.** Never give it a Caddy site — anyone who
    reaches it can rewrite folder paths and add devices.
+
+   (The compose service sets `STGUIADDRESS=0.0.0.0:8384`. Syncthing otherwise
+   binds container-loopback, which Docker cannot publish — the tunnel would
+   reach nothing while the container still reported healthy, because the
+   image's healthcheck runs inside it. The host side of the mapping stays on
+   127.0.0.1, so the GUI is still not public.)
    ```
    ssh -N -L 8384:127.0.0.1:8384 root@<vps>
    ```
