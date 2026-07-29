@@ -412,12 +412,6 @@ services:
       # WebDAV write. Revisit if a non-root deploy user is ever introduced.
       PUID: 0
       PGID: 0
-      # Syncthing's GUI defaults to binding container-loopback, which Docker
-      # cannot publish — the mapping below would silently reach nothing, and
-      # the image's own healthcheck would still pass because it runs inside
-      # the container. Bind all container interfaces instead; the host side of
-      # the mapping is 127.0.0.1, so this is still not exposed publicly.
-      STGUIADDRESS: 0.0.0.0:8384
     ports:
       # GUI: loopback only. Never expose this — it can rewrite folder config.
       - "127.0.0.1:8384:8384"
