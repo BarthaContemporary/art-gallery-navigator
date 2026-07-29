@@ -1,0 +1,60 @@
+// ===========================================================================
+// Syncthing ignore patterns for the shared drive.
+//
+// Install as `.stignore` in the ROOT of the synced folder — on the VPS that is
+// ${WEBDAV_DATA_DIR}/.stignore (i.e. /opt/jvb/webdav-plain/.stignore).
+//
+// Syncthing syncs .stignore between devices only if you ask it to; simplest is
+// to place the same file on the server and on each Mac. See infra/README.md §6f.
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Cryptomator vaults — never synced.
+//
+// A vault is a directory of ciphertext. Syncing it is technically possible, but
+// a vault that is unlocked on two machines at once can be corrupted: both sides
+// write to the same internal files with no coordination, and Cryptomator has no
+// multi-writer locking. Recovering from that means the passphrase no longer
+// opens the vault, which is exactly the material you can least afford to lose.
+//
+// So: keep every vault under a single top-level Vaults/ directory, which lives
+// on the server and is reached over the WebDAV mount only — one machine at a
+// time, deliberately.
+// ---------------------------------------------------------------------------
+/Vaults
+
+// Belt and braces: catch a vault created outside Vaults/ by mistake. These are
+// the two files at a vault's root, so ignoring them stops the vault being
+// reassembled elsewhere even if the rest of its ciphertext were to sync.
+vault.cryptomator
+masterkey.cryptomator
+masterkey.cryptomator.bkup
+
+// ---------------------------------------------------------------------------
+// macOS metadata. Finder writes these constantly; without this they churn in
+// both directions forever. (?d) lets Syncthing delete them when it would
+// otherwise be blocked from removing an empty directory.
+// ---------------------------------------------------------------------------
+(?d).DS_Store
+(?d)._*
+(?d).Spotlight-V100
+(?d).Trashes
+(?d).fseventsd
+(?d).TemporaryItems
+(?d).apdisk
+
+// ---------------------------------------------------------------------------
+// Office lock and scratch files — transient, and syncing them causes conflicts
+// when two people have the same workbook open.
+// ---------------------------------------------------------------------------
+~$*
+.~lock.*#
+*.tmp
+*.crdownload
+*.part
+
+// ---------------------------------------------------------------------------
+// Syncthing's own version history (server side). Never send it to clients — it
+// is the recovery copy, and replicating it would multiply the drive's size.
+// ---------------------------------------------------------------------------
+/.stversions

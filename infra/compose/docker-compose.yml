@@ -388,9 +388,56 @@ services:
       timeout: 5s
       retries: 5
 
+  # -------------------------------------------------------------------------
+  # Syncthing — continuous two-way sync of the shared drive to staff Macs, so
+  # the drive behaves like Dropbox (local copies, offline access) rather than
+  # only as a Finder network mount. Same tree as WebDAV: ${WEBDAV_DATA_DIR},
+  # the gocryptfs-DECRYPTED mount. WebDAV stays as-is for iOS, which has no
+  # sync client. Setup and pairing: infra/README.md §6f.
+  #
+  # Not behind Caddy. The GUI binds to loopback and is reached over an SSH
+  # tunnel; the sync protocol is its own TLS with device-certificate pinning,
+  # so it needs a direct port rather than an HTTP reverse proxy.
+  # -------------------------------------------------------------------------
+  syncthing:
+    container_name: jvb-syncthing
+    image: syncthing/syncthing:2.1.2
+    restart: unless-stopped
+    hostname: jvb-drive              # what staff see when pairing
+    networks:
+      - supabase
+    environment:
+      # The live box runs everything as root and the gocryptfs mount is
+      # root-owned, so Syncthing has to match to read what the studio app and
+      # WebDAV write. Revisit if a non-root deploy user is ever introduced.
+      PUID: 0
+      PGID: 0
+    ports:
+      # GUI: loopback only. Never expose this — it can rewrite folder config.
+      - "127.0.0.1:8384:8384"
+      # Sync protocol. Must be reachable from staff Macs, so this one is
+      # public and needs a UFW rule (§6f). Traffic is TLS between pinned
+      # device certificates; an unpaired device that connects is rejected.
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+      # Local-network discovery broadcast is useless on a VPS — left closed.
+    volumes:
+      # Whole state directory, not a subpath: the image's internal layout has
+      # moved between versions, and its own HOME is /var/syncthing.
+      - syncthing-config:/var/syncthing
+      # The shared tree, at a path of our choosing so it cannot collide with
+      # anything the image puts under its home. This is the folder path to
+      # enter in the GUI.
+      - ${WEBDAV_DATA_DIR:-./webdav/data}:/drive
+    security_opt:
+      - no-new-privileges:true
+    # The image ships its own HEALTHCHECK against the GUI; overriding it here
+    # only risks getting it wrong.
+
 volumes:
   db-data:
   db-config:
+  syncthing-config:
 
 networks:
   supabase:

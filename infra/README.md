@@ -339,6 +339,108 @@ Setup, per device:
 3. Unlock → a normal-looking drive appears; everything written into it is
    encrypted client-side before it reaches the server.
 
+## 6f. Syncthing — the drive as a synced folder on staff Macs
+
+§6c gives Finder a *network mount*: files stay on the server, nothing works
+offline, and Finder's WebDAV client is slow and prone to hanging. Syncthing adds
+continuous two-way sync with real local copies — the Dropbox behaviour — while
+WebDAV stays exactly as it is for iPhone/iPad, which have no sync client.
+
+Both read the same tree (`WEBDAV_DATA_DIR`, the gocryptfs-decrypted mount), so a
+file written by the studio app's export, dropped in Finder, or synced from a Mac
+is the same file. Container start ordering is already handled: the
+`10-webdav-crypt.conf` drop-in makes Docker itself wait for the gocryptfs mount,
+so no container can bind the empty directory underneath.
+
+**Cryptomator vaults are deliberately excluded** — see step 3.
+
+### Server
+
+1. **Open the sync port.** The GUI stays on loopback, but the sync protocol
+   needs a direct route from each Mac:
+   ```
+   ufw allow 22000/tcp comment 'syncthing sync'
+   ufw allow 22000/udp comment 'syncthing sync'
+   ufw status
+   ```
+   This is safe to expose: Syncthing speaks its own TLS between pinned device
+   certificates, and a device you have not paired is refused. It is not an
+   anonymous file service.
+
+2. **Start it.** The compose file pins `syncthing/syncthing:2.1.2`; bump it
+   deliberately per §7 rather than tracking `latest`. Then:
+   ```
+   cd /opt/jvb/infra/compose
+   docker compose up -d syncthing
+   docker compose logs -f syncthing     # first run prints the device ID
+   ```
+
+3. **Install the ignore patterns before pairing anything.** This is what keeps
+   Cryptomator vaults off the Macs, and it must be in place before the first
+   sync or a vault will replicate before you can stop it:
+   ```
+   install -m 644 /opt/jvb/infra/compose/syncthing/stignore.example \
+     /opt/jvb/webdav-plain/.stignore
+   ```
+   Keep every vault under a single top-level `Vaults/` directory — the ignore
+   list excludes that path by name. A vault unlocked on two machines at once can
+   corrupt beyond recovery, which is the whole reason it is excluded rather than
+   synced; reach vaults over the WebDAV mount, one machine at a time.
+
+4. **Reach the GUI over an SSH tunnel.** Never give it a Caddy site — anyone who
+   reaches it can rewrite folder paths and add devices.
+   ```
+   ssh -N -L 8384:127.0.0.1:8384 root@<vps>
+   ```
+   Then open <http://127.0.0.1:8384> locally.
+
+5. **Settings → GUI:** set a username and password (belt and braces behind the
+   tunnel). **Settings → Connections:** turn *off* global discovery, local
+   discovery and relaying — every device connects to this box directly, and
+   leaving them on advertises it to Syncthing's public infrastructure for no
+   benefit.
+
+6. **Add the folder:** path `/drive`, label `JvdB drive`.
+   Under **File Versioning** choose **Staggered**, keep 365 days. This is the
+   safety net that matters: sync propagates deletions, so without versioning one
+   person dragging a folder to the Bin on their Mac removes it for everyone with
+   nothing to restore from. Versions land in `.stversions` on the server, which
+   the ignore list keeps from syncing back out.
+
+### Each Mac
+
+1. Install Syncthing — `brew install --cask syncthing` (or the menu-bar build
+   from syncthing.net). Open its GUI at <http://127.0.0.1:8384>.
+2. **Actions → Show ID**, copy the device ID.
+3. On the server GUI: **Add Remote Device**, paste it, and under *Sharing* tick
+   the `JvdB drive` folder. Under *Advanced* set the address to
+   `tcp://<vps-ip>:22000` rather than `dynamic`, since discovery is off.
+4. Accept the invitation on the Mac and choose a local folder (e.g.
+   `~/JvdB Drive`).
+5. Put the same ignore file on the Mac: in its GUI, folder → **Edit → Ignore
+   Patterns**, and paste the contents of
+   `infra/compose/syncthing/stignore.example`.
+6. Stop Finder writing metadata into the synced tree:
+   ```
+   defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+   ```
+   then log out and back in.
+
+### Worth knowing
+
+- **Deletions propagate.** That is what sync means. Staggered versioning (step 6)
+  is the recovery path — check it is on before staff start using it.
+- **Studio exports land on every synced Mac.** The app writes into `Downloads/`
+  continuously. If that is unwanted on a particular machine, add `/Downloads` to
+  that Mac's ignore patterns only — not the server's, or exports would stop
+  replicating anywhere.
+- **Backups are unaffected.** `backup.sh webdav-sync` still replicates the
+  gocryptfs *ciphertext*, which now simply includes whatever the Macs have
+  synced in. Syncthing is not a backup: it faithfully replicates deletions and
+  corruption, which is precisely what the nightly off-box copy is for.
+- **Conflicts** appear as `…sync-conflict-<date>…` files rather than silent
+  overwrites. Worth telling staff so they do not delete them unread.
+
 ## 7. Upgrade procedure
 
 Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —
