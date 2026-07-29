@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { InventoryTable, type InventoryRow } from "@/components/inventory-table";
+import { NewRecordButton } from "@/components/new-record-button";
 import { InventoryFilters } from "@/components/inventory-filters";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
@@ -298,18 +299,10 @@ export default async function InventoryPage({
           >
             Export XLSX
           </SaveToDriveLink>
-          {/* Whichever register you are looking at is the one a new record
-              lands in — so filing a non-JvdB work is one filter away, not a
-              separate flow to remember. */}
-          <form action={createDraftPiece}>
-            <input type="hidden" name="ledger" value={sp.ledger === "external" ? "external" : "jvb"} />
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-fg"
-            >
-              {sp.ledger === "external" ? "New — not JvdB" : "New record"}
-            </button>
-          </form>
+          {/* One rule wherever this button appears, rather than one that
+              depends on the filter behind it: tap for JvdB stock, hold to
+              switch it to a non-JvdB record. */}
+          <NewRecordButton action={createDraftPiece} />
         </div>
       </div>
 
