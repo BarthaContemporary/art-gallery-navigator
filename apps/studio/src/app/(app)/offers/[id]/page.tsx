@@ -10,6 +10,7 @@ import { sanitizeFilterTerm } from "@/lib/search";
 import { OfferItemsEditor } from "@/components/offer-items-editor";
 import { resolveListPieceIds, countListMembers, type ListRules } from "@/lib/list-members";
 import { loadPieceSummaries } from "@/lib/piece-store";
+import { resolveListContactIds } from "@/lib/crm-list-members";
 
 export const metadata = { title: "Offer" };
 
@@ -315,13 +316,18 @@ export default async function OfferDetail({
     const db = await getSupabase();
     const listId = String(formData.get("list_id") ?? "");
     if (!listId) return;
-    const { data: members } = await db
-      .from("crm_list_members")
-      .select("contact_id")
-      .eq("list_id", listId);
-    const rows = (members ?? []).map((m) => ({
+    const { data: listRow } = await db
+      .from("crm_lists")
+      .select("id, is_dynamic, filter_rules")
+      .eq("id", listId)
+      .maybeSingle();
+    if (!listRow) return;
+    // Via the shared resolver so a dynamic list contributes its live
+    // membership rather than the zero rows it stores.
+    const memberIds = await resolveListContactIds(db, listRow);
+    const rows = memberIds.map((contactId) => ({
       offer_id: id,
-      contact_id: m.contact_id as string,
+      contact_id: contactId,
     }));
     if (rows.length > 0) {
       // Unique (offer_id, contact_id) makes re-adds no-ops.

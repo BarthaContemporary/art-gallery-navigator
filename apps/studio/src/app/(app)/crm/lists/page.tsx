@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LabelPdfButton } from "@/components/label-pdf-button";
+import { countMembersForLists, isDynamic, describeRules } from "@/lib/crm-list-members";
 
 export const metadata = { title: "Contact list" };
 
@@ -12,16 +13,20 @@ type ListRow = {
   id: string;
   name: string;
   description: string | null;
-  crm_list_members: { count: number }[];
+  is_dynamic: boolean | null;
+  filter_rules: unknown;
 };
 
 export default async function ListsPage() {
   const supabase = await getSupabase();
   const { data } = await supabase
     .from("crm_lists")
-    .select("id, name, description, crm_list_members(count)")
+    // Not crm_list_members(count): that embed reports 0 for every dynamic
+    // list, since a dynamic list stores no rows.
+    .select("id, name, description, is_dynamic, filter_rules")
     .order("name");
   const lists = (data ?? []) as unknown as ListRow[];
+  const counts = await countMembersForLists(supabase, lists);
   const custom = lists.filter((l) => l.description !== AUTO);
   const auto = lists.filter((l) => l.description === AUTO);
 
@@ -54,7 +59,7 @@ export default async function ListsPage() {
     revalidatePath("/crm/lists");
   }
 
-  const memberCount = (l: ListRow) => l.crm_list_members?.[0]?.count ?? 0;
+  const memberCount = (l: ListRow) => counts.get(l.id) ?? 0;
 
   return (
     <div>
@@ -95,6 +100,11 @@ export default async function ListsPage() {
               ) : null}
               <p className="mt-2 font-mono text-[11.5px] text-ink-soft">
                 {memberCount(l)} members
+                {isDynamic(l) ? (
+                  <span className="ml-1.5 font-sans normal-case text-ink-faint">
+                    · live ({describeRules(l)})
+                  </span>
+                ) : null}
               </p>
             </a>
             <div className="mt-3 flex flex-wrap items-center gap-3">

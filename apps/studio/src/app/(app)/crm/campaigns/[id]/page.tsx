@@ -16,6 +16,7 @@ import {
   PUBLIC_BASE_URL,
 } from "@/lib/site";
 import { CampaignDesigner } from "@/components/campaign-designer";
+import { loadListContacts, countMembersForLists } from "@/lib/crm-list-members";
 
 export const metadata = { title: "Newsletter" };
 
@@ -32,7 +33,7 @@ type Campaign = {
   sent_at: string | null;
 };
 
-type ListLite = { id: string; name: string; crm_list_members: { count: number }[] };
+type ListLite = { id: string; name: string; is_dynamic: boolean | null; filter_rules: unknown };
 
 type MemberContact = {
   id: string;
@@ -96,7 +97,7 @@ export default async function CampaignDetail({
 
   const { data: listData } = await supabase
     .from("crm_lists")
-    .select("id, name, crm_list_members(count)")
+    .select("id, name, is_dynamic, filter_rules")
     .order("name");
   const lists = (listData ?? []) as unknown as ListLite[];
 
@@ -160,15 +161,19 @@ export default async function CampaignDetail({
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) redirect(`/crm/campaigns/${id}?err=nokey`);
 
-    const { data: members } = await db
-      .from("crm_list_members")
-      .select(
-        "contact:crm_contacts ( id, first_name, salutation, email, marketing_consent, do_not_mail, unsubscribed_at )",
-      )
-      .eq("list_id", cc!.list_id);
-    const contacts = (members ?? [])
-      .map((m) => (m as unknown as { contact: MemberContact | null }).contact)
-      .filter(Boolean) as MemberContact[];
+    const { data: sendList } = await db
+      .from("crm_lists")
+      .select("id, is_dynamic, filter_rules")
+      .eq("id", cc!.list_id)
+      .maybeSingle();
+    if (!sendList) redirect(`/crm/campaigns/${id}?err=nolist`);
+    // Consent is still filtered per recipient below, so a dynamic "everyone"
+    // list cannot mail anyone who has not opted in.
+    const contacts = await loadListContacts<MemberContact & { id: string }>(
+      db,
+      sendList!,
+      "id, first_name, salutation, email, marketing_consent, do_not_mail, unsubscribed_at",
+    );
     const eligible = contacts.filter(
       (c2) => c2.email && c2.marketing_consent && !c2.do_not_mail && !c2.unsubscribed_at,
     );
@@ -331,7 +336,10 @@ export default async function CampaignDetail({
                   : null;
 
   const selectedList = lists.find((l) => l.id === campaign.list_id);
-  const audienceCount = selectedList?.crm_list_members?.[0]?.count ?? 0;
+  // Real counts, not the crm_list_members(count) embed — that returns 0 for a
+  // dynamic list and would understate the audience before a send.
+  const listCounts = await countMembersForLists(supabase, lists);
+  const audienceCount = selectedList ? (listCounts.get(selectedList.id) ?? 0) : 0;
 
   return (
     <div>
@@ -388,7 +396,7 @@ export default async function CampaignDetail({
         lists={lists.map((l) => ({
           id: l.id,
           name: l.name,
-          count: l.crm_list_members?.[0]?.count ?? 0,
+          count: listCounts.get(l.id) ?? 0,
         }))}
         defaultFrom={DEFAULT_FROM}
         galleryName={GALLERY_NAME}

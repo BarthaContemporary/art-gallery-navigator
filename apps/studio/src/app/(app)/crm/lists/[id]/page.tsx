@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { LabelPdfButton } from "@/components/label-pdf-button";
+import { loadListContacts, isDynamic, describeRules } from "@/lib/crm-list-members";
 
 export const metadata = { title: "List" };
 
@@ -23,18 +24,18 @@ export default async function ListDetail({
 
   const { data: list } = await supabase
     .from("crm_lists")
-    .select("id, name, description")
+    .select("id, name, description, is_dynamic, filter_rules")
     .eq("id", id)
     .maybeSingle();
   if (!list) notFound();
 
-  const { data: memberRows } = await supabase
-    .from("crm_list_members")
-    .select("contact:crm_contacts ( id, first_name, last_name, email )")
-    .eq("list_id", id);
-  const members = (memberRows ?? [])
-    .map((m) => (m as unknown as { contact: { id: string; first_name: string | null; last_name: string | null; email: string | null } | null }).contact)
-    .filter(Boolean) as { id: string; first_name: string | null; last_name: string | null; email: string | null }[];
+  const dynamic = isDynamic(list);
+  const members = await loadListContacts<{
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  }>(supabase, list, "id, first_name, last_name, email");
   const memberIds = new Set(members.map((m) => m.id));
 
   const term = (q ?? "").trim();
@@ -52,7 +53,7 @@ export default async function ListDetail({
     "use server";
     const db = await getSupabase();
     const contactId = String(formData.get("contact_id") ?? "");
-    if (!contactId) return;
+    if (!contactId || dynamic) return;
     await db
       .from("crm_list_members")
       .upsert({ list_id: id, contact_id: contactId }, { onConflict: "list_id,contact_id", ignoreDuplicates: true });
@@ -61,6 +62,7 @@ export default async function ListDetail({
 
   async function removeMember(formData: FormData) {
     "use server";
+    if (dynamic) return;
     const db = await getSupabase();
     await db
       .from("crm_list_members")
@@ -124,19 +126,25 @@ export default async function ListDetail({
                 </td>
                 <td className="px-4 py-2 text-ink-muted">{m.email ?? "—"}</td>
                 <td className="px-4 py-2 text-right">
-                  <form action={removeMember}>
-                    <input type="hidden" name="contact_id" value={m.id} />
-                    <button type="submit" className="text-[12px] text-ink-soft hover:text-ink-strong">
-                      Remove
-                    </button>
-                  </form>
+                  {/* Membership is computed on a dynamic list, so there is
+                      nothing to remove — change the rules instead. */}
+                  {dynamic ? null : (
+                    <form action={removeMember}>
+                      <input type="hidden" name="contact_id" value={m.id} />
+                      <button type="submit" className="text-[12px] text-ink-soft hover:text-ink-strong">
+                        Remove
+                      </button>
+                    </form>
+                  )}
                 </td>
               </tr>
             ))}
             {members.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-ink-muted">
-                  No members yet — search below to add contacts.
+                  {dynamic
+                    ? "No contacts match this list's rules."
+                    : "No members yet — search below to add contacts."}
                 </td>
               </tr>
             ) : null}
@@ -144,7 +152,15 @@ export default async function ListDetail({
         </table>
       </div>
 
-      {/* Add members */}
+      {/* Add members — curated lists only. */}
+      {dynamic ? (
+        <p className="mt-4 max-w-prose text-[12.5px] text-ink-muted">
+          This is a live list: it holds <strong>{describeRules(list)}</strong> and updates
+          itself as contacts are added, changed or removed. There is nothing to add or
+          remove by hand.
+        </p>
+      ) : (
+      <>
       <form method="get" className="mt-4 flex items-center gap-2">
         <input
           type="search"
@@ -180,6 +196,8 @@ export default async function ListDetail({
           ) : null}
         </div>
       ) : null}
+      </>
+      )}
 
       <form action={deleteList} className="mt-8">
         <button

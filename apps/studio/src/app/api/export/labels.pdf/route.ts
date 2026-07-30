@@ -2,6 +2,7 @@ import { exportResponse } from "@/lib/shared-drive";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { MailingLabels, type LabelAddress, type AveryTemplate } from "@jvb/documents";
 import { getSupabase } from "@/lib/supabase";
+import { loadListContacts } from "@/lib/crm-list-members";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,17 +38,23 @@ export async function GET(request: Request) {
       ? (templateParam as AveryTemplate)
       : "L7160";
 
-  const { data: rows, error } = await supabase
-    .from("crm_list_members")
-    .select(
-      "contact:crm_contacts(first_name, last_name, address_line1, address_line2, city, postcode, country, do_not_mail, org:crm_organizations(name))",
-    )
-    .eq("list_id", list);
-  if (error) return new Response(error.message, { status: 500 });
+  const { data: listRow } = await supabase
+    .from("crm_lists")
+    .select("id, is_dynamic, filter_rules")
+    .eq("id", list)
+    .maybeSingle();
+  if (!listRow) return new Response("List not found", { status: 404 });
 
-  const contacts = (rows ?? [])
-    .map((r) => (r as unknown as { contact: ContactRow | null }).contact)
-    .filter((c): c is ContactRow => c != null);
+  let contacts: ContactRow[];
+  try {
+    contacts = await loadListContacts<ContactRow & { id: string }>(
+      supabase,
+      listRow,
+      "id, first_name, last_name, address_line1, address_line2, city, postcode, country, do_not_mail, org:crm_organizations(name)",
+    );
+  } catch (e) {
+    return new Response(e instanceof Error ? e.message : "Could not read list", { status: 500 });
+  }
 
   const addresses: LabelAddress[] = contacts
     .filter((c) => !c.do_not_mail && (c.address_line1 || c.city))

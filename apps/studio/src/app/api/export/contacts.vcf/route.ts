@@ -1,5 +1,6 @@
 import { exportResponse } from "@/lib/shared-drive";
 import { getSupabase } from "@/lib/supabase";
+import { loadListContacts } from "@/lib/crm-list-members";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,14 +42,21 @@ export async function GET(request: Request) {
 
   let contacts: ContactRow[];
   if (list) {
-    const { data: rows, error } = await supabase
-      .from("crm_list_members")
-      .select(`contact:crm_contacts(${CONTACT_FIELDS})`)
-      .eq("list_id", list);
-    if (error) return new Response(error.message, { status: 500 });
-    contacts = (rows ?? [])
-      .map((r) => (r as unknown as { contact: ContactRow | null }).contact)
-      .filter((c): c is ContactRow => c != null);
+    const { data: listRow } = await supabase
+      .from("crm_lists")
+      .select("id, is_dynamic, filter_rules")
+      .eq("id", list)
+      .maybeSingle();
+    if (!listRow) return new Response("List not found", { status: 404 });
+    try {
+      contacts = await loadListContacts<ContactRow & { id: string }>(
+        supabase,
+        listRow,
+        CONTACT_FIELDS,
+      );
+    } catch (e) {
+      return new Response(e instanceof Error ? e.message : "Could not read list", { status: 500 });
+    }
   } else {
     const { data: rows, error } = await supabase
       .from("crm_contacts")
