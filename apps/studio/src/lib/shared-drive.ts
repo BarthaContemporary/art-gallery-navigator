@@ -83,7 +83,27 @@ export async function exportResponse(
   folder: DriveFolder,
 ): Promise<Response> {
   const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
-  if (new URL(request.url).searchParams.get("mode") === "drive") {
+  const params = new URL(request.url).searchParams;
+
+  // ?save=1 — file the copy on the drive AND return it to the browser. Labels
+  // want both: one on the drive for the record, one in the printer now. Same
+  // CSRF reasoning as mode=drive below, so the caller must fetch() it rather
+  // than navigate, and the drive path comes back in a header.
+  if (params.get("save") === "1") {
+    if (request.headers.get("x-jvb-drive-save") !== "1")
+      return new Response("Save must be triggered from the app", { status: 403 });
+    // Best-effort: an unreachable drive must not cost the user their document.
+    const saved = config() ? await copyToSharedDrive(folder, filename, bytes, contentType) : false;
+    return new Response(bytes as unknown as BodyInit, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "X-Jvb-Drive-Saved": saved ? `Downloads/${folder}/${filename}` : "",
+      },
+    });
+  }
+
+  if (params.get("mode") === "drive") {
     // mode=drive writes a file to the shared drive — a state change on a GET.
     // CSRF guard: require the custom header the studio's export buttons send.
     // A cross-site attacker can trigger a GET via navigation/img/form (none of

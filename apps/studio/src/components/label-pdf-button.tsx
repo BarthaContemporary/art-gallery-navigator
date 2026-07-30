@@ -12,13 +12,20 @@ const AVERY: { code: string; perPage: number; size: string }[] = [
 ];
 
 /**
- * "Labels PDF" control that asks which Avery sheet to target before generating,
- * then downloads the PDF laid out to that template.
+ * "Labels PDF" — asks which Avery sheet to target, then produces the PDF.
  *
- * A plain download, not the save-to-drive control the other exports use: labels
- * exist to go straight into a printer with that sheet loaded. Filing them on
- * the shared drive and making the user go and find them is the wrong shape for
- * this one action.
+ * One click does both halves of what a label run needs: the file is filed on
+ * the shared drive under Downloads/Docs, and the same bytes download so the
+ * sheet can go straight into the printer. One request, one render.
+ *
+ * It has to be a fetch rather than a link: the drive copy is a write, and the
+ * route requires the x-jvb-drive-save header to prove the request came from our
+ * own JS — a plain navigation cannot set headers. The download is then handed
+ * to the browser from the response blob.
+ *
+ * The drive copy is best-effort server-side. If the drive is unreachable the
+ * PDF still arrives and the confirmation says it was not filed, rather than
+ * claiming it was.
  */
 export function LabelPdfButton({
   listId,
@@ -28,34 +35,87 @@ export function LabelPdfButton({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function make(code: string) {
+    setBusy(code);
+    setNote(null);
+    try {
+      const res = await fetch(
+        `/api/export/labels.pdf?list=${encodeURIComponent(listId)}&template=${code}&save=1`,
+        { headers: { "x-jvb-drive-save": "1" } },
+      );
+      if (!res.ok) {
+        // 422 carries the "nobody in this list is mailable" explanation.
+        throw new Error((await res.text()) || "Could not generate labels");
+      }
+
+      const savedTo = res.headers.get("X-Jvb-Drive-Saved") ?? "";
+      const blob = await res.blob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `labels-${code}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      setNote(
+        savedTo ? `Downloaded · saved to ${savedTo}` : "Downloaded · not filed on the drive",
+      );
+      setOpen(false);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "Could not generate labels");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <span className="relative inline-block">
       <button type="button" onClick={() => setOpen((o) => !o)} className={className}>
         Labels PDF ▾
       </button>
+
       {open ? (
         <>
           <span className="fixed inset-0 z-10" aria-hidden onClick={() => setOpen(false)} />
-          <span className="absolute left-0 z-20 mt-1 w-60 rounded-lg border border-line-control bg-cell p-1 shadow-lg">
+          <span className="absolute left-0 z-20 mt-1 w-64 rounded-lg border border-line-control bg-cell p-1 shadow-lg">
             <span className="block px-2 py-1 text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
               Choose Avery layout
             </span>
             {AVERY.map((a) => (
-              <a
+              <button
                 key={a.code}
-                href={`/api/export/labels.pdf?list=${encodeURIComponent(listId)}&template=${a.code}`}
-                onClick={() => setOpen(false)}
-                className="block rounded-md px-2 py-1.5 text-[12.5px] text-ink-body hover:bg-control"
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void make(a.code)}
+                className="block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] text-ink-body hover:bg-control disabled:opacity-50"
               >
-                <span className="font-medium">Avery {a.code}</span>
+                <span className="font-medium">
+                  Avery {a.code}
+                  {busy === a.code ? " — generating…" : ""}
+                </span>
                 <span className="block text-[11px] text-ink-soft">
                   {a.perPage} per sheet · {a.size}
                 </span>
-              </a>
+              </button>
             ))}
           </span>
         </>
+      ) : null}
+
+      {note ? (
+        <span
+          aria-live="polite"
+          className="ml-2 text-[11px] text-ink-soft"
+          title="Labels are filed under Downloads/Docs on the shared drive"
+        >
+          {note}
+        </span>
       ) : null}
     </span>
   );

@@ -126,11 +126,16 @@ export async function countListMembers(
     )) as { count: number | null };
     return count ?? 0;
   }
-  const { count } = await supabase
-    .from("crm_list_members")
-    .select("contact_id", { count: "exact", head: true })
-    .eq("list_id", list.id);
-  return count ?? 0;
+  // Count contacts that actually resolve, not membership rows.
+  //
+  // crm_list_members.contact_id cascades on delete, so today the two agree.
+  // But counting rows is the same mistake as the inventory list that said 425
+  // and showed nothing: the number comes from one place and the contents from
+  // another, and any divergence is invisible until someone reports it. Deriving
+  // both from the same read means a stale or orphaned row cannot inflate a
+  // count, and a deleted contact leaves a list the moment it is deleted.
+  const rows = await loadListContacts<{ id: string }>(supabase, list, "id");
+  return rows.length;
 }
 
 /** Counts for many lists at once, for index pages. */
