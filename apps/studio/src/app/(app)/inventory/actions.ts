@@ -57,7 +57,8 @@ const pieceSchema = z.object({
   length_cm: num,
   diameter_cm: num,
   weight_g: num,
-  dimensions_display: z.string().trim().max(300).transform((v) => v || null),
+  // dimensions_display is retired — see packages/db/src/dimensions.ts. The
+  // column still holds legacy text but nothing reads or writes it.
   comments: z.string().trim().transform((v) => v || null),
   // Promoted legacy FileMaker fields
   source_note: z.string().trim().transform((v) => v || null),

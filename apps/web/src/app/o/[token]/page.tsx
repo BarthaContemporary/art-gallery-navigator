@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServiceClient } from "@jvb/db/server";
+import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
 import { OfferResponse } from "@/components/offer-response";
 import { OfferGate } from "@/components/offer-gate";
 import { grantCookieName, verifyGrant } from "@/lib/offer-access";
@@ -27,14 +28,13 @@ interface ImageRow {
   processing_status: string | null;
 }
 
-interface PieceRow {
+interface PieceRow extends PieceDimensions {
   id: string;
   stock_number: string | null;
   title: string | null;
   medium: string | null;
   period: string | null;
   origin_region: string | null;
-  dimensions_display: string | null;
   financials: { marked_price_gbp: number | null } | { marked_price_gbp: number | null }[] | null;
   images: ImageRow[] | null;
 }
@@ -148,7 +148,7 @@ export default async function OfferPage({
       const [{ data: works }, { data: fins }, { data: imgs }] = await Promise.all([
         supabase
           .from("vw_pieces_all")
-          .select("id, stock_number, title, medium, period, origin_region, dimensions_display")
+          .select(`id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}`)
           .in("id", pieceIds),
         supabase.from("piece_financials").select("piece_id, marked_price_gbp").in("piece_id", pieceIds),
         supabase
@@ -319,9 +319,9 @@ export default async function OfferPage({
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
-                  {piece.dimensions_display ? (
+                  {formatDimensionsCm(piece) ? (
                     <p className="font-serif text-ui text-ink-50">
-                      {piece.dimensions_display}
+                      {formatDimensionsCm(piece)}
                     </p>
                   ) : null}
                   {item.note ? (

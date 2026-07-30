@@ -109,6 +109,11 @@ export interface Piece {
   length_cm: number | null;
   diameter_cm: number | null;
   weight_g: number | null;
+  /**
+   * @deprecated Retired legacy column — FileMaker's verbatim dimension text.
+   * Nothing reads or writes it; the column is kept only so the imported text
+   * is not destroyed. Use formatDimensionsCm() over the numeric fields above.
+   */
   dimensions_display: string | null;
   status: PieceStatus;
   location_id: string | null;

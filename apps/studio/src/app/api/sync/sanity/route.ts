@@ -1,6 +1,7 @@
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
 import { resolvePieces } from "@/lib/piece-store";
+import { DIMENSION_COLUMNS, formatDimensionsCm } from "@jvb/db";
 
 /**
  * Supabase → Sanity sync. Called by pg_net on outbox insert and by a Vercel
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       .from(ref?.table ?? "pieces")
       .select(
         `id, stock_number, title, medium, period, origin_region, description,
-         dimensions_display, height_cm, width_cm, depth_cm, length_cm, status, web_visible,
+         ${DIMENSION_COLUMNS}, status, web_visible,
          maker:makers(display_name, life_dates)`,
       )
       .eq("id", pieceId)
@@ -71,7 +72,9 @@ export async function POST(request: Request) {
         period: piece.period,
         originRegion: piece.origin_region,
         description: piece.description,
-        dimensionsDisplay: piece.dimensions_display,
+        // Composed from the numeric cm fields — the Sanity field keeps its
+        // name, but the verbatim legacy column no longer feeds it.
+        dimensionsDisplay: formatDimensionsCm(piece),
         available: piece.status === "in_stock",
         priceDisplay: "POA",
         slug: {

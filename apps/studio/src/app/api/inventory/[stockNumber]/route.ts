@@ -170,7 +170,6 @@ export async function PATCH(
       length_cm: numv("length_cm"),
       diameter_cm: numv("diameter_cm"),
       weight_g: numv("weight_g"),
-      dimensions_display: str("dimensions_display"),
       comments: str("comments"),
       source_note: str("source_note"),
       publications: jsonList("publications"),

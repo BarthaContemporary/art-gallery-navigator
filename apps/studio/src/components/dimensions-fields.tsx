@@ -19,7 +19,7 @@ const DIMS = [
 /** Dimension inputs with a live imperial preview under each (inches; lb for weight). */
 export function DimensionsFields({ defaults }: { defaults: Record<string, string> }) {
   const [vals, setVals] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = { dimensions_display: defaults.dimensions_display ?? "" };
+    const init: Record<string, string> = {};
     for (const [k] of DIMS) init[k] = defaults[k] ?? "";
     return init;
   });
@@ -52,15 +52,6 @@ export function DimensionsFields({ defaults }: { defaults: Record<string, string
           </label>
         ))}
       </div>
-      <label className={`${label} mt-3 block`}>
-        Display fallback (verbatim)
-        <input
-          name="dimensions_display"
-          value={vals.dimensions_display}
-          onChange={(e) => set("dimensions_display", e.target.value)}
-          className={field}
-        />
-      </label>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { offerPresentationDocx, type PresentationWork } from "@jvb/documents";
 import { getSupabase, getSession, createServiceClient, canSeeFinancials } from "@/lib/supabase";
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
 import { loadPieceRows } from "@/lib/piece-store";
+import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
   const pieceById = await loadPieceRows<Row["piece"] & { id: string }>(
     supabase,
     ((itemRows ?? []) as { piece_id: string }[]).map((r) => r.piece_id),
-    "id, stock_number, title, medium, period, origin_region, dimensions_display, description, maker_name, maker_life_dates",
+    `id, stock_number, title, medium, period, origin_region, ${DIMENSION_COLUMNS}, description, maker_name, maker_life_dates`,
   );
 
   type Row = {
@@ -57,11 +58,10 @@ export async function GET(request: Request) {
       medium: string | null;
       period: string | null;
       origin_region: string | null;
-      dimensions_display: string | null;
       description: string | null;
       maker_name: string | null;
       maker_life_dates: string | null;
-    } | null;
+    } & PieceDimensions | null;
   };
   const items = ((itemRows ?? []) as unknown as (Omit<Row, "piece"> & { piece_id: string })[])
     .map((r) => ({ ...r, piece: pieceById.get(r.piece_id) ?? null }))
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
       period: p.period,
       originRegion: p.origin_region,
       medium: p.medium,
-      dimensionsDisplay: p.dimensions_display,
+      dimensionsDisplay: formatDimensionsCm(p),
       description: p.description,
       priceDisplay: price != null ? gbp(price) : null,
       note: r.note,

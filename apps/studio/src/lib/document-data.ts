@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
+import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
 
 export interface PieceDoc {
   stockNumber: string;
@@ -25,9 +26,8 @@ type PieceRow = {
   origin_region: string | null;
   description: string | null;
   signature_inscription: string | null;
-  dimensions_display: string | null;
   maker: { display_name: string | null; life_dates: string | null } | null;
-};
+} & PieceDimensions;
 
 /**
  * Assemble the data a fact sheet / certificate needs for one piece, including
@@ -49,7 +49,7 @@ export async function loadPieceDoc(
   const { data } = await supabase
     .from(ref.table)
     .select(
-      "id, stock_number, title, medium, period, origin_region, description, signature_inscription, dimensions_display, maker:makers ( display_name, life_dates )",
+      `id, stock_number, title, medium, period, origin_region, description, signature_inscription, ${DIMENSION_COLUMNS}, maker:makers ( display_name, life_dates )`,
     )
     .eq("id", ref.id)
     .maybeSingle();
@@ -102,7 +102,8 @@ export async function loadPieceDoc(
       period: row.period ?? undefined,
       originRegion: row.origin_region ?? undefined,
       medium: row.medium ?? undefined,
-      dimensionsDisplay: row.dimensions_display ?? undefined,
+      // Composed from the numeric cm fields; the old verbatim column is retired.
+      dimensionsDisplay: formatDimensionsCm(row) ?? undefined,
       signatureInscription: row.signature_inscription ?? undefined,
       description: row.description ?? undefined,
       provenance,

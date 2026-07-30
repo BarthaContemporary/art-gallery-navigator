@@ -109,6 +109,13 @@ async function pushWork(
   const comments = [
     ctx.batch.source_name ? `Purchased from: ${ctx.batch.source_name}` : null,
     work.category?.trim() ? `Category (from capture): ${work.category.trim()}` : null,
+    // Whatever was typed or detected at the fair, kept as a note for whoever
+    // catalogues the record rather than written to a column. Dimensions are
+    // numeric cm fields now, and the capture text is free-form ("approx 20cm
+    // with stand"), so it is not safe to parse into them unattended.
+    work.dimensions_text?.trim()
+      ? `Dimensions (from capture): ${work.dimensions_text.trim()}`
+      : null,
     "Created via Quick Capture — needs completion.",
   ]
     .filter(Boolean)
@@ -126,7 +133,6 @@ async function pushWork(
       medium: work.medium?.trim() || null,
       period: work.period?.trim() || null,
       origin_region: work.origin_region?.trim() || null,
-      dimensions_display: work.dimensions_text?.trim() || null,
       description: work.notes?.trim() || null,
       comments,
       tags: ["capture"],

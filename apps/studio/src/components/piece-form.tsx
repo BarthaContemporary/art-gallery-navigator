@@ -52,7 +52,7 @@ export function PieceFormFields({
     Object.fromEntries(keys.map((k) => [k, String(getter(k) ?? "")]));
 
   const dimDefaults = s(v, [
-    "height_cm", "width_cm", "depth_cm", "length_cm", "diameter_cm", "weight_g", "dimensions_display",
+    "height_cm", "width_cm", "depth_cm", "length_cm", "diameter_cm", "weight_g",
   ]);
   const finDefaults = s(f, [
     "purchase_date", "purchase_cost", "purchase_currency", "purchase_cost_gbp",

@@ -18,6 +18,7 @@ import { RegisterBadge } from "@/components/register-badge";
 import { RegisterMove } from "@/components/register-move";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
+import { formatDimensionsCm } from "@jvb/db";
 import { consignmentSplit } from "@/lib/consignment";
 
 export const metadata = { title: "Piece detail" };
@@ -966,7 +967,6 @@ type Dims = {
   depth_cm: number | null;
   length_cm: number | null;
   diameter_cm: number | null;
-  dimensions_display: string | null;
 };
 
 const DIM_PARTS: [keyof Dims, string][] = [
@@ -978,13 +978,7 @@ const DIM_PARTS: [keyof Dims, string][] = [
 ];
 
 function formatDimensions(piece: Dims): string {
-  const parts: string[] = [];
-  for (const [key, prefix] of DIM_PARTS) {
-    const val = piece[key];
-    if (typeof val === "number" && val) parts.push(`${prefix} ${val}`);
-  }
-  if (parts.length > 0) return `${parts.join(" × ")} cm`;
-  return piece.dimensions_display ?? "—";
+  return formatDimensionsCm(piece) ?? "—";
 }
 
 /** The same numeric dimensions converted to inches (nearest 1/8"), or null. */
