@@ -90,30 +90,11 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Keep the auto interest-lists in sync: add this contact to the list for each
-  // interest they now hold, and remove them from the rest.
-  const { data: areaRows } = await supabase
-    .from("crm_interest_areas")
-    .select("name, list_id")
-    .not("list_id", "is", null);
-  const areas = (areaRows ?? []) as { name: string; list_id: string }[];
-  const addTo = areas.filter((a) => interests.includes(a.name));
-  const removeFrom = areas.filter((a) => !interests.includes(a.name)).map((a) => a.list_id);
-  if (addTo.length) {
-    await supabase
-      .from("crm_list_members")
-      .upsert(
-        addTo.map((a) => ({ list_id: a.list_id, contact_id: id })),
-        { onConflict: "list_id,contact_id", ignoreDuplicates: true },
-      );
-  }
-  if (removeFrom.length) {
-    await supabase
-      .from("crm_list_members")
-      .delete()
-      .eq("contact_id", id)
-      .in("list_id", removeFrom);
-  }
+  // The interest lists derive their membership from custom_fields.interests
+  // (migration 0060), so writing it above is the whole job. This used to also
+  // mirror into crm_list_members, which meant the same fact stored twice and
+  // kept aligned only by this route remembering to — any other path that
+  // touched a contact's interests left the lists wrong.
 
   return NextResponse.json({ ok: true });
 }

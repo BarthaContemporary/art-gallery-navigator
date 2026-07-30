@@ -78,8 +78,8 @@ async function autoAddInterestForPurchase(
 
   const { data: areaRows } = await supabase
     .from("crm_interest_areas")
-    .select("name, list_id");
-  const areas = (areaRows ?? []) as { name: string; list_id: string | null }[];
+    .select("name");
+  const areas = (areaRows ?? []) as { name: string }[];
   const has = (name: string, term: string | null) =>
     term != null && name.toLowerCase().includes(term);
 
@@ -106,14 +106,8 @@ async function autoAddInterestForPurchase(
       .eq("id", contactId);
   }
 
-  const listRows = matched
-    .filter((m) => m.list_id)
-    .map((m) => ({ list_id: m.list_id as string, contact_id: contactId }));
-  if (listRows.length) {
-    await supabase
-      .from("crm_list_members")
-      .upsert(listRows, { onConflict: "list_id,contact_id", ignoreDuplicates: true });
-  }
+  // No list write: the interest lists derive membership from
+  // custom_fields.interests (migration 0060), so merging it above is enough.
 }
 
 export async function PATCH(

@@ -22,6 +22,12 @@ export type CrmFilterRules = {
   country?: string | null;
   /** Narrow to contacts who have (or have not) opted in to marketing. */
   marketing_consent?: boolean | null;
+  /**
+   * An area of interest, matched against the contact's own
+   * custom_fields.interests array — the same array the contact editor writes.
+   * This is what makes the areas-of-interest lists live.
+   */
+  interest?: string | null;
 };
 
 export type CrmListLike = {
@@ -41,14 +47,23 @@ function rulesOf(list: CrmListLike): CrmFilterRules {
  * contact is a member. That is the one shape worth being explicit about,
  * because an accidental `.eq(col, undefined)` would silently return nothing.
  */
-type EqBuilder = { eq: (column: string, value: unknown) => EqBuilder };
+type RuleBuilder = {
+  eq: (column: string, value: unknown) => RuleBuilder;
+  contains: (column: string, value: unknown) => RuleBuilder;
+};
 
 function applyRules(query: unknown, rules: CrmFilterRules): unknown {
-  let q = query as EqBuilder;
+  let q = query as RuleBuilder;
   if (rules.contact_type) q = q.eq("contact_type", rules.contact_type);
   if (rules.country) q = q.eq("country", rules.country);
   if (typeof rules.marketing_consent === "boolean") {
     q = q.eq("marketing_consent", rules.marketing_consent);
+  }
+  if (rules.interest) {
+    // jsonb array containment on the path: custom_fields->interests=cs.["X"].
+    // Verified against the live API before relying on it; backed by the GIN
+    // index added in 0060.
+    q = q.contains("custom_fields->interests", [rules.interest]);
   }
   return q;
 }
@@ -156,6 +171,7 @@ export async function countMembersForLists(
 export function describeRules(list: CrmListLike): string {
   const r = rulesOf(list);
   const parts = [
+    r.interest ? `interested in ${r.interest}` : null,
     r.contact_type ? `type ${r.contact_type}` : null,
     r.country ? `in ${r.country}` : null,
     typeof r.marketing_consent === "boolean"
