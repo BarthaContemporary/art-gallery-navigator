@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { persistOrder } from "@/lib/reorder";
 
 export const metadata = { title: "Inventory lists" };
 
@@ -9,11 +11,21 @@ export default async function InventoryListsPage() {
   const { data: lists } = await supabase
     .from("piece_lists")
     .select("id, name, description, is_dynamic, filter_rules, piece_list_items(count)")
+    // Hand-set order first; name only to break ties, so rows sharing a
+    // sort_order (a new list defaults to 0) stay put between requests.
+    .order("sort_order")
     .order("name");
 
   // Live lists keep no rows in piece_list_items — membership is the saved
   // filters, re-run on read — so their real size has to be computed, not
   // counted from the join table.
+  async function reorderLists(ids: string[]) {
+    "use server";
+    const db = await getSupabase();
+    await persistOrder(db, "piece_lists", ids);
+    revalidatePath("/inventory/lists");
+  }
+
   const counts = new Map<string, number>();
   await Promise.all(
     ((lists ?? []) as unknown as {
@@ -90,9 +102,21 @@ export default async function InventoryListsPage() {
         </button>
       </form>
 
-      <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(lists ?? []).map((l) => (
-          <li key={l.id} className="rounded-[11px] border border-line bg-cell p-4">
+      {(lists ?? []).length === 0 ? (
+        <p className="mt-5 text-[13px] text-ink-muted">
+          No lists yet — create one to group works (fair selections, viewing sets…).
+        </p>
+      ) : (
+      <ReorderGrid
+        order={(lists ?? []).map((l) => l.id as string)}
+        onReorder={reorderLists}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        hint="Drag a grip to reorder these cards."
+        showPosition={false}
+        tiles={Object.fromEntries(
+          (lists ?? []).map((l) => [
+            l.id as string,
+            <div key={l.id as string} className="h-full rounded-[11px] border border-line bg-cell p-4 pl-9">
             <a href={`/inventory/lists/${l.id}`} className="block">
               <div className="flex items-center gap-2">
                 <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
@@ -112,14 +136,11 @@ export default async function InventoryListsPage() {
                 {l.is_dynamic ? " · saved view, membership is live" : ""}
               </p>
             </a>
-          </li>
-        ))}
-        {(lists ?? []).length === 0 ? (
-          <li className="text-[13px] text-ink-muted">
-            No lists yet — create one to group works (fair selections, viewing sets…).
-          </li>
-        ) : null}
-      </ul>
+            </div>,
+          ]),
+        )}
+      />
+      )}
     </div>
   );
 }

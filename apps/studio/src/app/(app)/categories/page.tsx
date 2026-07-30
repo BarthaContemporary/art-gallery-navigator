@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole } from "@/lib/supabase";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { persistOrder } from "@/lib/reorder";
 import { CategoryTableRow, type CategoryRow } from "@/components/category-row";
 
 export const metadata = { title: "Categories" };
@@ -30,9 +32,24 @@ export default async function CategoriesPage({
 }) {
   const sp = await searchParams;
   const supabase = await getSupabase();
+  const session = await getSession();
+  // Reordering is an admin job: it changes what everyone sees in the
+  // cataloguing dropdowns, which is the whole point of it.
+  const isAdmin = session ? hasRole(session.roles, "admin") : false;
+
+  async function reorder(ids: string[]) {
+    "use server";
+    const s2 = await getSession();
+    if (!s2 || !hasRole(s2.roles, "admin")) return;
+    const db = await getSupabase();
+    await persistOrder(db, "categories", ids);
+    revalidatePath("/categories");
+  }
   const { data: categories } = await supabase
     .from("categories")
     .select("id, code, name, is_active")
+    // Hand-set order first, name only to break ties.
+    .order("sort_order")
     .order("name");
 
   // Works per category across both registers, so nothing is deleted or hidden
@@ -221,6 +238,7 @@ export default async function CategoriesPage({
         <table className="w-full min-w-[620px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
+              {isAdmin ? <th className="w-8 px-2 py-2.5" /> : null}
               <th className="px-4 py-2.5 font-medium">Name</th>
               <th className="px-4 py-2.5 font-medium">Code</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
@@ -228,20 +246,27 @@ export default async function CategoriesPage({
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {rows.map((c) => (
-              <CategoryTableRow
-                key={c.id}
-                cat={c}
-                others={rows
-                  .filter((o) => o.id !== c.id)
-                  .map((o) => ({ id: o.id, code: o.code, name: o.name }))}
-                updateAction={updateCategory}
-                toggleAction={toggleCategory}
-                deleteAction={deleteCategory}
-              />
-            ))}
-          </tbody>
+          <ReorderGrid
+            variant="rows"
+            order={rows.map((c) => c.id)}
+            onReorder={reorder}
+            tiles={Object.fromEntries(
+              rows.map((c) => [
+                c.id,
+                <CategoryTableRow
+                  key={c.id}
+                  cat={c}
+                  reorderable={isAdmin}
+                  others={rows
+                    .filter((o) => o.id !== c.id)
+                    .map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                  updateAction={updateCategory}
+                  toggleAction={toggleCategory}
+                  deleteAction={deleteCategory}
+                />,
+              ]),
+            )}
+          />
         </table>
       </div>
     </div>

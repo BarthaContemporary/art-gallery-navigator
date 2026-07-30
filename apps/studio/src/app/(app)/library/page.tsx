@@ -48,8 +48,8 @@ export default async function LibraryPage() {
       .order("doc_date", { ascending: false, nullsFirst: false })
       .limit(50),
     supabase.from("makers").select("id, display_name, life_dates").order("display_name"),
-    supabase.from("locations").select("id, code, name, type").order("code"),
-    supabase.from("categories").select("id, name, code, is_active").order("name"),
+    supabase.from("locations").select("id, code, name, type").order("sort_order").order("code"),
+    supabase.from("categories").select("id, name, code, is_active").order("sort_order").order("name"),
   ]);
 
   async function createShipment(formData: FormData) {

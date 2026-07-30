@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ReorderHandle } from "@/components/reorder-grid";
 
 export type CategoryRow = {
   id: string;
@@ -27,12 +28,15 @@ const cellInput =
  */
 export function CategoryTableRow({
   cat,
+  reorderable = false,
   others,
   updateAction,
   toggleAction,
   deleteAction,
 }: {
   cat: CategoryRow;
+  /** Admin only — shows the drag grip. */
+  reorderable?: boolean;
   others: { id: string; code: string; name: string }[];
   updateAction: (formData: FormData) => Promise<void>;
   toggleAction: (formData: FormData) => Promise<void>;
@@ -45,7 +49,8 @@ export function CategoryTableRow({
   if (editing) {
     return (
       <tr className="border-b border-line-soft bg-band/40 last:border-0">
-        <td colSpan={5} className="px-4 py-2.5">
+        {/* colSpan follows the admin grip column, which only exists for admins. */}
+        <td colSpan={reorderable ? 6 : 5} className="px-4 py-2.5">
           <form action={updateAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="id" value={cat.id} />
             <input
@@ -84,6 +89,12 @@ export function CategoryTableRow({
   return (
     <>
       <tr className={`border-b border-line-soft last:border-0 ${cat.is_active ? "" : "opacity-60"}`}>
+        {/* Grip lives in its own cell — a table row has nowhere to overlay it. */}
+        {reorderable ? (
+          <td className="w-8 px-2 py-2.5">
+            <ReorderHandle id={cat.id} />
+          </td>
+        ) : null}
         <td className="px-4 py-2.5 text-[13.5px] text-ink-body">{cat.name}</td>
         <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted">{cat.code}</td>
         <td className="px-4 py-2.5">
@@ -135,7 +146,7 @@ export function CategoryTableRow({
 
       {confirming ? (
         <tr className="border-b border-line-soft bg-oranje/5 last:border-0">
-          <td colSpan={5} className="px-4 py-3">
+          <td colSpan={reorderable ? 6 : 5} className="px-4 py-3">
             {cat.pieces === 0 ? (
               <form action={deleteAction} className="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="id" value={cat.id} />

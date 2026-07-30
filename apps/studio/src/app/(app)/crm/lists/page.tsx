@@ -4,6 +4,8 @@ import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 import { countMembersForLists, isDynamic, describeRules } from "@/lib/crm-list-members";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { persistOrder } from "@/lib/reorder";
 
 export const metadata = { title: "Contact list" };
 
@@ -23,12 +25,21 @@ export default async function ListsPage() {
     .from("crm_lists")
     // Not crm_list_members(count): that embed reports 0 for every dynamic
     // list, since a dynamic list stores no rows.
-    .select("id, name, description, is_dynamic, filter_rules")
+    .select("id, name, description, is_dynamic, filter_rules, sort_order")
+    // Hand-set order first, name only to break ties.
+    .order("sort_order")
     .order("name");
   const lists = (data ?? []) as unknown as ListRow[];
   const counts = await countMembersForLists(supabase, lists);
   const custom = lists.filter((l) => l.description !== AUTO);
   const auto = lists.filter((l) => l.description === AUTO);
+
+  async function reorderLists(ids: string[]) {
+    "use server";
+    const db = await getSupabase();
+    await persistOrder(db, "crm_lists", ids);
+    revalidatePath("/crm/lists");
+  }
 
   async function addList(formData: FormData) {
     "use server";
@@ -88,9 +99,19 @@ export default async function ListsPage() {
       </form>
 
       {/* Custom lists first */}
-      <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {custom.map((l) => (
-          <li key={l.id} className="rounded-[11px] border border-line bg-cell p-4">
+      {custom.length === 0 ? (
+        <p className="mt-5 text-[13px] text-ink-muted">No custom lists yet — create one above.</p>
+      ) : (
+      <ReorderGrid
+        order={custom.map((l) => l.id)}
+        onReorder={reorderLists}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        hint="Drag a grip to reorder these cards."
+        showPosition={false}
+        tiles={Object.fromEntries(
+          custom.map((l) => [
+            l.id,
+            <div key={l.id} className="h-full rounded-[11px] border border-line bg-cell p-4 pl-9">
             <a href={`/crm/lists/${l.id}`} className="block">
               <h2 className="text-[14.5px] font-semibold text-ink-strong hover:text-oranje">
                 {l.name}
@@ -117,14 +138,11 @@ export default async function ListsPage() {
               </SaveToDriveLink>
               <DeleteListButton action={deleteList} id={l.id} name={l.name} />
             </div>
-          </li>
-        ))}
-        {custom.length === 0 ? (
-          <li className="text-[13px] text-ink-muted">
-            No custom lists yet — create one above.
-          </li>
-        ) : null}
-      </ul>
+            </div>,
+          ]),
+        )}
+      />
+      )}
 
       {/* Areas of interest (auto) — tinted, not deletable */}
       {auto.length ? (

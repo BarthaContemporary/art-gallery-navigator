@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, getSession, hasRole } from "@/lib/supabase";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { persistOrder } from "@/lib/reorder";
 import { LocationTableRow, type LocationRow } from "@/components/location-row";
 
 export const metadata = { title: "Locations" };
@@ -24,9 +26,24 @@ export default async function LocationsPage({
 }) {
   const sp = await searchParams;
   const supabase = await getSupabase();
+  const session = await getSession();
+  // Reordering is an admin job: it changes what everyone sees in the
+  // cataloguing dropdowns, which is the whole point of it.
+  const isAdmin = session ? hasRole(session.roles, "admin") : false;
+
+  async function reorder(ids: string[]) {
+    "use server";
+    const s2 = await getSession();
+    if (!s2 || !hasRole(s2.roles, "admin")) return;
+    const db = await getSupabase();
+    await persistOrder(db, "locations", ids);
+    revalidatePath("/locations");
+  }
   const { data: locations } = await supabase
     .from("locations")
     .select("id, code, name, type, notes")
+    // Hand-set order first, code only to break ties.
+    .order("sort_order")
     .order("code");
 
   // Works per location, across both registers — a non-JvdB work still sits on
@@ -155,6 +172,7 @@ export default async function LocationsPage({
         <table className="w-full min-w-[560px] bg-cell text-left">
           <thead>
             <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.06em] text-ink-faint">
+              {isAdmin ? <th className="w-8 px-2 py-2.5" /> : null}
               <th className="px-4 py-2.5 font-medium">Code</th>
               <th className="px-4 py-2.5 font-medium">Name</th>
               <th className="px-4 py-2.5 font-medium">Type</th>
@@ -162,17 +180,24 @@ export default async function LocationsPage({
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {rows.map((l) => (
-              <LocationTableRow
-                key={l.id}
-                loc={l}
-                others={rows.filter((o) => o.id !== l.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
-                updateAction={updateLocation}
-                deleteAction={deleteLocation}
-              />
-            ))}
-          </tbody>
+          <ReorderGrid
+            variant="rows"
+            order={rows.map((l) => l.id)}
+            onReorder={reorder}
+            tiles={Object.fromEntries(
+              rows.map((l) => [
+                l.id,
+                <LocationTableRow
+                  key={l.id}
+                  loc={l}
+                  reorderable={isAdmin}
+                  others={rows.filter((o) => o.id !== l.id).map((o) => ({ id: o.id, code: o.code, name: o.name }))}
+                  updateAction={updateLocation}
+                  deleteAction={deleteLocation}
+                />,
+              ]),
+            )}
+          />
         </table>
       </div>
     </div>

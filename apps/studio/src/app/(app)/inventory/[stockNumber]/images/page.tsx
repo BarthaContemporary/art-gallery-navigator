@@ -5,7 +5,8 @@ import { getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
 import { ImageUploader } from "@/components/image-uploader";
 import { RotateImageButton } from "@/components/rotate-image-button";
-import { ImageReorderGrid } from "@/components/image-reorder-grid";
+import { ReorderGrid } from "@/components/reorder-grid";
+import { persistOrder } from "@/lib/reorder";
 
 export const metadata = { title: "Manage images" };
 
@@ -77,23 +78,7 @@ export default async function ManageImagesPage({
   async function reorderImages(ids: string[]) {
     "use server";
     const supabase = await getSupabase();
-
-    const { data: current } = await supabase
-      .from("piece_images")
-      .select("id")
-      .eq("piece_id", pieceId);
-    const mine = new Set(((current ?? []) as { id: string }[]).map((r) => r.id));
-
-    const ordered = ids.filter((id) => mine.has(id));
-    // Anything the client omitted keeps its place at the end, so a stale tab
-    // cannot silently drop an image out of the ordering.
-    for (const id of mine) if (!ordered.includes(id)) ordered.push(id);
-
-    await Promise.all(
-      ordered.map((imgId, i) =>
-        supabase.from("piece_images").update({ sort_order: i }).eq("id", imgId),
-      ),
-    );
+    await persistOrder(supabase, "piece_images", ids, { piece_id: pieceId });
     revalidatePath(`/inventory/${encodeURIComponent(stockNumber)}/images`);
   }
 
@@ -125,9 +110,10 @@ export default async function ManageImagesPage({
       {signed.length === 0 ? (
         <p className="mt-6 text-[13px] text-ink-muted">No images yet.</p>
       ) : (
-        <ImageReorderGrid
+        <ReorderGrid
           order={signed.map((img) => img.id)}
           onReorder={reorderImages}
+          hint="Drag a grip to reorder. The first image is the one used as the thumbnail."
           tiles={Object.fromEntries(
             signed.map((img) => [
               img.id,

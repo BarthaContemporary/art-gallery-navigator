@@ -44,8 +44,8 @@ export default async function EditPiecePage({
   const [makers, categories, locations, originRegions, financials, primaryImage, documents, imageCount] =
     await Promise.all([
       supabase.from("makers").select("id, display_name, life_dates").order("display_name"),
-      supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
-      supabase.from("locations").select("id, code").order("code"),
+      supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
+      supabase.from("locations").select("id, code").order("sort_order").order("code"),
       supabase.from("origin_regions").select("name").eq("is_active", true).order("sort_order"),
       showFinancials
         ? supabase.from("piece_financials").select("*").eq("piece_id", piece.id).maybeSingle()
