@@ -60,10 +60,12 @@ function applyRules(query: unknown, rules: CrmFilterRules): unknown {
     q = q.eq("marketing_consent", rules.marketing_consent);
   }
   if (rules.interest) {
-    // jsonb array containment on the path: custom_fields->interests=cs.["X"].
-    // Verified against the live API before relying on it; backed by the GIN
-    // index added in 0060.
-    q = q.contains("custom_fields->interests", [rules.interest]);
+    // JSON string, NOT an array. postgrest-js formats an array argument as a
+    // Postgres array literal — cs.{Japanese lacquer} — which against a jsonb
+    // path fails with 22P02 "invalid input syntax for type json". Passing a
+    // string is emitted verbatim, giving the jsonb form cs.["Japanese lacquer"]
+    // that the GIN index in 0060 serves.
+    q = q.contains("custom_fields->interests", JSON.stringify([rules.interest]));
   }
   return q;
 }
@@ -135,10 +137,13 @@ export async function countListMembers(
   list: CrmListLike,
 ): Promise<number> {
   if (isDynamic(list)) {
-    const { count } = (await applyRules(
+    const { count, error } = (await applyRules(
       supabase.from("crm_contacts").select("id", { count: "exact", head: true }),
       rulesOf(list),
-    )) as { count: number | null };
+    )) as { count: number | null; error: { message: string } | null };
+    // Surfaced, not swallowed. Discarding this is how a filter that errored on
+    // every request still read as "0 members" instead of as broken.
+    if (error) throw new Error(error.message);
     return count ?? 0;
   }
   // Count contacts that actually resolve, not membership rows.

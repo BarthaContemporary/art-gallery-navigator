@@ -31,11 +31,21 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Ensure the area has a real mailing list backing it (auto-created).
+  //
+  // Dynamic, matching this area's name against the contact's own
+  // custom_fields.interests — the same shape migration 0060 gave the existing
+  // areas. A static list here would never gain a member: nothing mirrors
+  // interests into crm_list_members any more, so it would sit at zero forever.
   const area = data as { id: string; name: string; list_id: string | null };
   if (area && !area.list_id) {
     const { data: list } = await supabase
       .from("crm_lists")
-      .insert({ name: area.name, description: "Area of interest (auto)" })
+      .insert({
+        name: area.name,
+        description: "Area of interest (auto)",
+        is_dynamic: true,
+        filter_rules: { interest: area.name },
+      })
       .select("id")
       .single();
     if (list?.id) {
