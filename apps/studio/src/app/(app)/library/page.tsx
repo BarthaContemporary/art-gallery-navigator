@@ -36,6 +36,7 @@ export default async function LibraryPage() {
     supabase
       .from("piece_lists")
       .select("id, name, is_dynamic, filter_rules, piece_list_items(count)")
+      .order("sort_order")
       .order("name"),
     supabase
       .from("shipments")

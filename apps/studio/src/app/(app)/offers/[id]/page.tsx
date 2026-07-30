@@ -118,10 +118,11 @@ export default async function OfferDetail({
       )
       .eq("offer_id", id)
       .order("created_at"),
-    supabase.from("crm_lists").select("id, name").order("name"),
+    supabase.from("crm_lists").select("id, name").order("sort_order").order("name"),
     supabase
       .from("piece_lists")
       .select("id, name, is_dynamic, filter_rules, piece_list_items(count)")
+      .order("sort_order")
       .order("name"),
   ]);
 

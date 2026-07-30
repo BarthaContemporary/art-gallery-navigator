@@ -53,7 +53,7 @@ export default async function InventoryPage({
   const [{ data: categories }, { data: locations }, { data: pieceLists }] = await Promise.all([
     supabase.from("categories").select("id, name").eq("is_active", true).order("sort_order").order("name"),
     supabase.from("locations").select("id, code, name").order("sort_order").order("code"),
-    supabase.from("piece_lists").select("id, name").order("name"),
+    supabase.from("piece_lists").select("id, name").order("sort_order").order("name"),
   ]);
 
   // When filtering by a list, resolve its member piece ids up front. Static

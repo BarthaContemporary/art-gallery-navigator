@@ -98,6 +98,7 @@ export default async function CampaignDetail({
   const { data: listData } = await supabase
     .from("crm_lists")
     .select("id, name, is_dynamic, filter_rules")
+    .order("sort_order")
     .order("name");
   const lists = (listData ?? []) as unknown as ListLite[];
 

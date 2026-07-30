@@ -336,6 +336,7 @@ export default async function PieceDetail({
     .from("piece_lists")
     .select("id, name")
     .eq("is_dynamic", false)
+    .order("sort_order")
     .order("name");
 
   async function addToList(formData: FormData) {
