@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
 import { ImageUploader } from "@/components/image-uploader";
 import { RotateImageButton } from "@/components/rotate-image-button";
+import { ImageReorderGrid } from "@/components/image-reorder-grid";
 
 export const metadata = { title: "Manage images" };
 
@@ -61,32 +62,32 @@ export default async function ManageImagesPage({
   }
 
   /**
-   * Move one image earlier or later in the run.
+   * Persist a new image order.
    *
-   * Renumbers every image in the piece rather than swapping two sort_order
-   * values: the FileMaker import left duplicates and nulls behind, and a swap
-   * between two rows that share a number does nothing visible. Rewriting the
-   * whole sequence makes the order deterministic from the first move onward.
-   * A piece holds a handful of images, so the extra writes are irrelevant.
+   * Renumbers the whole run rather than nudging individual sort_order values:
+   * the FileMaker import left duplicates and nulls behind, so relative moves
+   * between rows sharing a number do nothing visible. Rewriting the sequence
+   * makes the order deterministic from the first drag onward. A piece holds a
+   * handful of images, so the extra writes are irrelevant.
+   *
+   * Ids are checked against this piece before anything is written — the list
+   * arrives from the browser, and a caller must not be able to renumber another
+   * work's images by posting their ids.
    */
-  async function moveImage(formData: FormData) {
+  async function reorderImages(ids: string[]) {
     "use server";
-    const id = String(formData.get("id"));
-    const dir = String(formData.get("dir")) === "up" ? -1 : 1;
     const supabase = await getSupabase();
 
     const { data: current } = await supabase
       .from("piece_images")
-      .select("id, sort_order, created_at")
-      .eq("piece_id", pieceId)
-      .order("sort_order", { nullsFirst: true })
-      .order("created_at");
-    const ordered = ((current ?? []) as { id: string }[]).map((r) => r.id);
+      .select("id")
+      .eq("piece_id", pieceId);
+    const mine = new Set(((current ?? []) as { id: string }[]).map((r) => r.id));
 
-    const from = ordered.indexOf(id);
-    const to = from + dir;
-    if (from < 0 || to < 0 || to >= ordered.length) return;   // already at the end
-    ordered.splice(to, 0, ...ordered.splice(from, 1));
+    const ordered = ids.filter((id) => mine.has(id));
+    // Anything the client omitted keeps its place at the end, so a stale tab
+    // cannot silently drop an image out of the ordering.
+    for (const id of mine) if (!ordered.includes(id)) ordered.push(id);
 
     await Promise.all(
       ordered.map((imgId, i) =>
@@ -116,9 +117,21 @@ export default async function ManageImagesPage({
       <div className="mt-5">
         <ImageUploader pieceId={piece.id} nextSortOrder={(images ?? []).length} />
       </div>
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {signed.map((img, i) => (
-          <div key={img.id} className="rounded-[9px] border border-line bg-cell p-2.5">
+      {/*
+        Tiles are rendered here, on the server, and handed to the grid keyed by
+        id. The client component owns the order and nothing else, so the rotate,
+        caption and delete controls below stay exactly as they were.
+      */}
+      {signed.length === 0 ? (
+        <p className="mt-6 text-[13px] text-ink-muted">No images yet.</p>
+      ) : (
+        <ImageReorderGrid
+          order={signed.map((img) => img.id)}
+          onReorder={reorderImages}
+          tiles={Object.fromEntries(
+            signed.map((img) => [
+              img.id,
+              <div key={img.id} className="rounded-[9px] border border-line bg-cell p-2.5">
             <div className="jvb-hatch relative aspect-square overflow-hidden rounded-lg">
               {img.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -137,40 +150,10 @@ export default async function ManageImagesPage({
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
               <p className="text-[10.5px] uppercase tracking-[0.05em] text-ink-faint">{img.role}</p>
-              <span className="flex items-center gap-0.5">
-                {/* Buttons rather than drag: this grid is used on an iPad at
-                    fairs, and a drag target that small is a worse tool than a
-                    tap. Also keyboard-reachable for nothing extra. */}
-                <form action={moveImage}>
-                  <input type="hidden" name="id" value={img.id} />
-                  <input type="hidden" name="dir" value="up" />
-                  <button
-                    type="submit"
-                    disabled={i === 0}
-                    aria-label="Move image earlier"
-                    title="Move earlier"
-                    className="min-h-[28px] px-1.5 text-[13px] leading-none text-ink-soft hover:text-ink-strong disabled:opacity-30"
-                  >
-                    ‹
-                  </button>
-                </form>
-                <form action={moveImage}>
-                  <input type="hidden" name="id" value={img.id} />
-                  <input type="hidden" name="dir" value="down" />
-                  <button
-                    type="submit"
-                    disabled={i === signed.length - 1}
-                    aria-label="Move image later"
-                    title="Move later"
-                    className="min-h-[28px] px-1.5 text-[13px] leading-none text-ink-soft hover:text-ink-strong disabled:opacity-30"
-                  >
-                    ›
-                  </button>
-                </form>
-                {/* Rotate sits above the caption row, per request. Disabled until
-                    there is a processed derivative to turn. */}
-                <RotateImageButton imageId={img.id} disabled={!img.url} />
-              </span>
+              {/* Rotate sits above the caption row, per request. Disabled until
+                  there is a processed derivative to turn. Ordering is the grip
+                  handle in the corner (ImageReorderGrid). */}
+              <RotateImageButton imageId={img.id} disabled={!img.url} />
             </div>
             <form action={saveCaption} className="mt-1 flex gap-1.5">
               <input type="hidden" name="id" value={img.id} />
@@ -190,12 +173,11 @@ export default async function ManageImagesPage({
                 Delete
               </button>
             </form>
-          </div>
-        ))}
-        {signed.length === 0 ? (
-          <p className="col-span-full text-[13px] text-ink-muted">No images yet.</p>
-        ) : null}
-      </div>
+              </div>,
+            ]),
+          )}
+        />
+      )}
     </div>
   );
 }
