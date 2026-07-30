@@ -34,14 +34,42 @@ export async function PATCH(
 
   const { data: current } = await supabase
     .from("crm_contacts")
-    .select("custom_fields")
+    .select("custom_fields, marketing_consent, consent_date, consent_source")
     .eq("id", id)
     .maybeSingle();
-  const existing =
-    ((current as { custom_fields: Record<string, unknown> | null } | null)
-      ?.custom_fields as Record<string, unknown>) ?? {};
+  const prev = (current ?? {}) as {
+    custom_fields: Record<string, unknown> | null;
+    marketing_consent: boolean | null;
+    consent_date: string | null;
+    consent_source: string | null;
+  };
+  const existing = (prev.custom_fields as Record<string, unknown>) ?? {};
 
   const interests = parseInterests();
+
+  /*
+   * Consent needs provenance, not just a tick.
+   *
+   * UK GDPR Art. 7(1) puts the burden on the controller to demonstrate that
+   * consent was given; a boolean with no date or source demonstrates nothing.
+   * So the first time consent is granted, stamp when and by whom. An existing
+   * date is never overwritten — the original record is the evidence, and a
+   * later save must not quietly re-date it.
+   *
+   * Withdrawal keeps the date and source too: the audit question is often "when
+   * did they consent, and when did that change", and erasing the history to
+   * answer only the second is a poorer record.
+   */
+  const consent = fd.get("marketing_consent") === "on";
+  const granting = consent && !prev.marketing_consent;
+  const consentFields = granting
+    ? {
+        consent_date: prev.consent_date ?? new Date().toISOString(),
+        consent_source:
+          prev.consent_source ??
+          `Recorded in the studio by ${user.email ?? user.id}`,
+      }
+    : {};
 
   const { error } = await supabase
     .from("crm_contacts")
@@ -61,7 +89,8 @@ export async function PATCH(
       whatsapp_number: s("whatsapp_number"),
       line_id: s("line_id"),
       wechat_id: s("wechat_id"),
-      marketing_consent: fd.get("marketing_consent") === "on",
+      marketing_consent: consent,
+      ...consentFields,
       do_not_mail: fd.get("do_not_mail") === "on",
       notes: s("notes"),
       kyc_status: raw("kyc_status") || "not_started",
