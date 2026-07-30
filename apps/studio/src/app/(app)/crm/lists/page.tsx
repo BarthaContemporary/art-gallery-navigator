@@ -32,7 +32,16 @@ export default async function ListsPage() {
   const lists = (data ?? []) as unknown as ListRow[];
   const counts = await countMembersForLists(supabase, lists);
   const custom = lists.filter((l) => l.description !== AUTO);
-  const auto = lists.filter((l) => l.description === AUTO);
+  // Areas of interest are not hand-ordered — there is no grip on these cards.
+  // The busiest interest is the one worth reaching for first, so they sort by
+  // membership, largest first, with an alphabetical tie-break so an equal count
+  // never shuffles between renders.
+  const auto = lists
+    .filter((l) => l.description === AUTO)
+    .sort(
+      (a, b) =>
+        (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0) || a.name.localeCompare(b.name, "en"),
+    );
 
   async function reorderLists(ids: string[]) {
     "use server";
@@ -173,9 +182,9 @@ export default async function ListsPage() {
                   <a href={`/crm/lists/${l.id}`} className="text-[12px] font-medium text-primary">
                     View
                   </a>
-                  <SaveToDriveLink href={`/api/export/labels.pdf?list=${l.id}`} className="text-[12px] font-medium text-primary">
-                    Labels PDF
-                  </SaveToDriveLink>
+                  {/* Same Avery prompt as the custom cards — a plain link would
+                      silently pick a layout for the user. */}
+                  <LabelPdfButton listId={l.id} />
                   <SaveToDriveLink href={`/api/export/contacts.vcf?list=${l.id}`} className="text-[12px] font-medium text-primary">
                     vCards
                   </SaveToDriveLink>
