@@ -447,6 +447,127 @@ so no container can bind the empty directory underneath.
 - **Conflicts** appear as `…sync-conflict-<date>…` files rather than silent
   overwrites. Worth telling staff so they do not delete them unread.
 
+## 6g. Onboarding a staff member to the drive
+
+Three separate things, in this order. `<name>` is their account name — give each
+person their own (`webdav.example.yml` ships a spare `gallery` slot, but a named
+account is what makes access revocable individually). This is drive access only
+and has nothing to do with their studio login.
+
+Only step A needs root on the VPS. Steps B and C are done on their Mac, and the
+one server-side action in B is done by whoever already holds SSH — **a staff
+member never needs a shell on the box to be onboarded.**
+
+### A. WebDAV account (server, ~2 min)
+
+```
+ssh root@104.238.184.145
+cd /opt/jvb/infra/compose/webdav
+
+# Generate the hash. Prompts twice for the password; prints just the $2y$… part.
+docker run --rm -it httpd:2.4-alpine htpasswd -nBC 12 "" | cut -d: -f2
+```
+
+Add the block to `webdav.yml` (alongside `joost`), keeping the `{bcrypt}`
+prefix and the quotes — an unquoted hash containing `$` breaks the parse:
+
+```yaml
+  - username: <name>
+    password: "{bcrypt}$2y$12$…"
+    permissions: CRUD
+```
+
+The file is bind-mounted read-only, so the running process does not re-read it:
+
+```
+cd /opt/jvb/infra/compose
+docker compose restart webdav
+curl -u <name>:<password> -X PROPFIND https://drive.joostvandenbergh.com/ -I   # → 207
+```
+
+A 401 here means the hash or the quoting is wrong, not the password. Note that
+fail2ban (§6d) bans after 5 failures in 10 minutes — if you are testing a
+password repeatedly and it starts timing out, that is your own IP:
+`fail2ban-client set caddy-webdav unbanip <ip>`.
+
+Then, on their Mac: Finder → ⌘K → `https://drive.joostvandenbergh.com` →
+Registered User → the credentials. This mount is what step C needs.
+
+### B. Syncthing
+
+Server side, by whoever has SSH — from **your own machine**, not from a shell on
+the server (an `ssh -L` run on the box tunnels the box to itself):
+
+```
+ssh -N -L 8384:127.0.0.1:8384 root@104.238.184.145
+```
+
+`ssh -N` prints nothing and looks frozen. That is correct. Leave it running and
+open <http://127.0.0.1:8384>.
+
+1. **Add Remote Device** → paste their Mac's device ID (they get it from
+   *Actions → Show ID* on their own Syncthing; it is not a secret).
+2. Under **Sharing**, tick `JvdB drive`.
+3. Leave the address as `dynamic` — the Mac dials the server, not the reverse.
+
+Then on their Mac:
+
+1. `brew install --cask syncthing`, open <http://127.0.0.1:8384>.
+2. **Add Remote Device** → the server's device ID → **Advanced → Addresses**:
+   `tcp://104.238.184.145:22000`.
+
+   This explicit address is not optional. Global and local discovery are both
+   off on the server (§6f step 5), so `dynamic` resolves to nothing and the
+   pairing prompt never appears — the symptom looks like the device ID was
+   wrong.
+3. Accept the folder invitation, choose a local path (e.g. `~/JvdB Drive`), then
+   **pause the folder immediately**.
+4. Folder → **Edit → Ignore Patterns** → paste
+   `infra/compose/syncthing/stignore.example` → save, then resume. Doing this
+   before the first full scan keeps their Finder metadata out of the shared
+   tree from the start.
+5. Stop Finder writing metadata into synced folders:
+   ```
+   defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+   ```
+   then log out and back in.
+
+Tell them two things: **deletions propagate** (staggered versioning on the
+server is the undo, §6f step 6), and **conflicts appear as
+`…sync-conflict-<date>…` files** which should be read, not deleted.
+
+### C. Encrypted folders (Cryptomator vaults)
+
+Vaults are deliberately *not* synced — they live on the server under `Vaults/`
+and are reached over the WebDAV mount from step A, one machine at a time.
+
+1. `brew install --cask cryptomator`.
+2. Confirm the drive is mounted in Finder (step A). If it is not, Cryptomator
+   has nothing to point at.
+3. **Open Existing Vault** → navigate into the mounted drive → `Vaults/<vault>`
+   → select `vault.cryptomator`.
+4. Unlock with the shared vault passphrase — send it out of band (password
+   manager share, not email, and never in the same message as the WebDAV
+   password).
+
+**Never unlock the same vault on two machines at once.** Cryptomator has no
+multi-writer locking; two unlocked copies write the same internal files and can
+corrupt the vault past the point where the passphrase opens it. This is the
+entire reason vaults are excluded from Syncthing rather than synced. Agree a
+convention — announce in the gallery chat before unlocking — or give each person
+their own vault and share only what genuinely needs to be shared.
+
+The gocryptfs layer (§6c) is separate, server-side and transparent; there is
+nothing for a staff member to do about it.
+
+### Revoking someone later
+
+1. Remove their `users:` block from `webdav.yml`, `docker compose restart webdav`.
+2. Syncthing GUI → their device → **Remove**. Their local copy stays on their
+   Mac — collect or wipe the machine if that matters.
+3. Rotate any vault passphrase they held. Removing drive access does not
+   re-encrypt a vault whose passphrase they already know.
+
 ## 7. Upgrade procedure
 
 Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —
