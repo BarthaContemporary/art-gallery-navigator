@@ -477,18 +477,73 @@ prefix and the quotes — an unquoted hash containing `$` breaks the parse:
     permissions: CRUD
 ```
 
+**Check it parses before restarting.** A malformed `webdav.yml` makes the
+container exit on start, which takes the drive down for everyone — including the
+Finder mounts people already have open. Run a throwaway container against the
+file first; it publishes nothing and cannot disturb the live one:
+
+```
+docker run --rm -v /opt/jvb/infra/compose/webdav/webdav.yml:/config/webdav.yml:ro \
+  ghcr.io/hacdias/webdav:v5 --config /config/webdav.yml
+```
+
+`While parsing config: yaml: …` means do not restart yet. If it sits there
+having started a listener, the file is good — `Ctrl-C` and continue.
+
 The file is bind-mounted read-only, so the running process does not re-read it:
 
 ```
 cd /opt/jvb/infra/compose
 docker compose restart webdav
-curl -u <name>:<password> -X PROPFIND https://drive.joostvandenbergh.com/ -I   # → 207
+curl -u <name> -X PROPFIND https://drive.joostvandenbergh.com/ -I   # → 207
 ```
 
-A 401 here means the hash or the quoting is wrong, not the password. Note that
-fail2ban (§6d) bans after 5 failures in 10 minutes — if you are testing a
-password repeatedly and it starts timing out, that is your own IP:
+`curl -u <name>` with no colon prompts for the password, which keeps it out of
+shell history and avoids quoting trouble with symbols.
+
+A 401 here means the hash or the quoting is wrong, not the password. A 502 means
+Caddy is up but the container is not — check `docker compose logs webdav`, and
+see "If the file gets mangled" below. Note that fail2ban (§6d) bans after 5
+failures in 10 minutes — if you are testing a password repeatedly and it starts
+timing out, that is your own IP:
 `fail2ban-client set caddy-webdav unbanip <ip>`.
+
+#### If the file gets mangled
+
+Appending entries by hand is easy to get wrong, and several bad appends leave a
+file that no longer parses (an entry with an empty `username:`, two hashes run
+together on one line, or two top-level keys collapsed onto one line). Rebuild it
+rather than patching, carrying the existing hashes across so nobody's password
+changes.
+
+Read the structure first, with the hashes masked so they can be shared safely
+while debugging:
+
+```
+cd /opt/jvb/infra/compose/webdav
+grep -n 'username\|password\|permissions\|rules\|path' webdav.yml \
+  | sed 's/{bcrypt}[^"]*/{bcrypt}…/'
+```
+
+Then pull each hash out by line number, and **verify every one is exactly 60
+characters** — anything else means that line is damaged and the hash is not
+recoverable, so that account has to be recreated with a new password:
+
+```
+cp webdav.yml webdav.broken.$(date +%s)
+h() { sed -n "${1}p" webdav.yml | sed 's/.*{bcrypt}//; s/".*//'; }
+JOOST=$(h 5); STUDIO=$(h 14)
+for v in "$JOOST" "$STUDIO"; do echo "${#v}"; done
+```
+
+Write a clean file from those variables (unquoted heredoc, so `${JOOST}`
+expands — the inserted hash is not rescanned, so its `$` signs are safe), then
+run the parse check above before restarting.
+
+**Restore `studio`'s scoping when you rebuild.** It is `permissions: none` plus
+a single rule granting CRUD on `/Downloads`, not blanket CRUD. That is what
+stops a leaked Vercel credential reaching client and AML material, and a rebuild
+that "simplifies" it to CRUD silently removes the guard.
 
 Then, on their Mac: Finder → ⌘K → `https://drive.joostvandenbergh.com` →
 Registered User → the credentials. This mount is what step C needs.
