@@ -18,6 +18,7 @@ import { RegisterBadge } from "@/components/register-badge";
 import { RegisterMove } from "@/components/register-move";
 import { ChangeHistory, type HistoryEntry } from "@/components/change-history";
 import { cmToInchesFraction } from "@/lib/measure";
+import { titleWithYear } from "@jvb/db";
 import { formatDimensionsCm } from "@jvb/db";
 import { consignmentSplit } from "@/lib/consignment";
 
@@ -42,11 +43,6 @@ function gbp(n: number | null | undefined) {
     currency: "GBP",
     maximumFractionDigits: 0,
   }).format(n);
-}
-
-/** Work title with its year appended, e.g. "Reclining Figure, 2026". */
-function titleWithYear(title: string | null | undefined, year: number | string | null | undefined) {
-  return [title?.toString().trim() || "Untitled", year ?? null].filter(Boolean).join(", ");
 }
 
 export default async function PieceDetail({

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StatusPill, STATUS_LABELS } from "@/components/status-pill";
 import { RegisterBadge } from "@/components/register-badge";
+import { titleWithYear } from "@jvb/db";
 
 export type InventoryRow = {
   id: string;
   stock_number: string;
   legacy_stock_number: string | null;
   title: string | null;
+  year: number | string | null;
   needs_completion?: boolean;
   maker_name: string | null;
   maker_dates: string | null;
@@ -343,7 +345,7 @@ export function InventoryTable({
                 Finish
               </span>
             ) : null}
-            <span className="truncate">{r.title ?? "Untitled"}</span>
+            <span className="truncate">{titleWithYear(r.title, r.year)}</span>
           </Link>
         );
       case "maker_name":
@@ -455,7 +457,7 @@ export function InventoryTable({
                     ) : null}
                   </span>
                   <span className="mt-0.5 block truncate text-[13.5px] text-ink-body">
-                    {r.title ?? "Untitled"}
+                    {titleWithYear(r.title, r.year)}
                   </span>
                   <span className="mt-0.5 block truncate text-[12px] text-ink-soft">
                     {[r.maker_name, r.category_name, r.location_name].filter(Boolean).join(" · ") ||

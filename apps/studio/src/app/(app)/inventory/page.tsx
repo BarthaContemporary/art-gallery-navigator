@@ -118,6 +118,7 @@ export default async function InventoryPage({
     stock_number: string;
     legacy_stock_number: string | null;
     title: string | null;
+    year: string | null;
     maker_id: string | null;
     maker_name: string | null;
     category_name: string | null;
@@ -383,10 +384,16 @@ export default async function InventoryPage({
         </form>
       ) : null}
 
-      <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
-        {total.toLocaleString("en-GB")} records · page {page} of {pages}
-        {searching ? " · ranked by relevance" : ""}
-      </p>
+      {/* Paging sits above the results as well as below: on a full page of 100
+          records, reaching the bottom pager means scrolling past everything you
+          have already decided you don't want. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint">
+          {total.toLocaleString("en-GB")} records · page {page} of {pages}
+          {searching ? " · ranked by relevance" : ""}
+        </p>
+        <Pager sp={sp} page={page} pages={pages} label="Pagination, top" />
+      </div>
 
       {error ? (
         <p className="mt-4 text-[13px] text-ink-body">Could not load inventory: {error.message}</p>
@@ -399,6 +406,7 @@ export default async function InventoryPage({
                 stock_number: r.stock_number,
                 legacy_stock_number: r.legacy_stock_number,
                 title: r.title,
+                year: r.year ?? null,
                 maker_name: r.maker_name,
                 maker_dates: r.maker_id ? makerDatesById.get(r.maker_id) ?? null : null,
                 category_name: r.category_name,
@@ -417,18 +425,42 @@ export default async function InventoryPage({
         </div>
       )}
 
-      {pages > 1 ? (
-        <nav className="mt-4 flex items-center gap-1.5 font-mono text-[12px] text-ink-muted">
-          <PageLink sp={sp} page={1} disabled={page === 1} label="« First" />
-          <PageLink sp={sp} page={page - 1} disabled={page === 1} label="‹ Prev" />
-          <span className="px-2">
-            {page} / {pages}
-          </span>
-          <PageLink sp={sp} page={page + 1} disabled={page === pages} label="Next ›" />
-          <PageLink sp={sp} page={pages} disabled={page === pages} label="Last »" />
-        </nav>
-      ) : null}
+      <Pager sp={sp} page={page} pages={pages} label="Pagination, bottom" className="mt-4" />
     </div>
+  );
+}
+
+/**
+ * First / prev / next / last, rendered once above the results and once below.
+ * Both carry the current filters and sort; only `page` changes.
+ */
+function Pager({
+  sp,
+  page,
+  pages,
+  label,
+  className = "",
+}: {
+  sp: Search;
+  page: number;
+  pages: number;
+  label: string;
+  className?: string;
+}) {
+  if (pages <= 1) return null;
+  return (
+    <nav
+      aria-label={label}
+      className={`flex items-center gap-1.5 font-mono text-[12px] text-ink-muted ${className}`}
+    >
+      <PageLink sp={sp} page={1} disabled={page === 1} label="« First" />
+      <PageLink sp={sp} page={page - 1} disabled={page === 1} label="‹ Prev" />
+      <span className="px-2">
+        {page} / {pages}
+      </span>
+      <PageLink sp={sp} page={page + 1} disabled={page === pages} label="Next ›" />
+      <PageLink sp={sp} page={pages} disabled={page === pages} label="Last »" />
+    </nav>
   );
 }
 

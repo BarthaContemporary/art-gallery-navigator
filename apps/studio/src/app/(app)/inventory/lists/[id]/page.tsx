@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries } from "@/lib/piece-store";
 import { selectInChunks } from "@/lib/chunk";
+import { titleWithYear } from "@jvb/db";
 
 export const metadata = { title: "Inventory list" };
 
@@ -18,6 +19,7 @@ type PieceLite = {
   medium: string | null;
   period: string | null;
   status: string | null;
+  year: string | null;
 };
 
 type FilterRules = {
@@ -68,7 +70,7 @@ export default async function InventoryListDetail({
       if (ids.length > 0) {
         const { data: viewRows } = await supabase
           .from("vw_pieces_list")
-          .select("id, stock_number, title, medium, period, status")
+          .select("id, stock_number, title, medium, period, status, year")
           .in("id", ids);
         const byId = new Map(
           ((viewRows ?? []) as PieceLite[]).map((r) => [r.id, r]),
@@ -78,7 +80,7 @@ export default async function InventoryListDetail({
     } else {
       let query = supabase
         .from("vw_pieces_list")
-        .select("id, stock_number, title, medium, period, status")
+        .select("id, stock_number, title, medium, period, status, year")
         .order("stock_number", { ascending: false, nullsFirst: false })
         .limit(500);
       if (rules.status) query = query.eq("status", rules.status);
@@ -276,7 +278,7 @@ export default async function InventoryListDetail({
                     <span className="font-mono text-[12px] text-ink-muted">
                       {p.stock_number ?? "—"}
                     </span>{" "}
-                    {p.title ?? "Untitled"}
+                    {titleWithYear(p.title, p.year)}
                   </span>
                   <button type="submit" className={btnGhost}>
                     Add
@@ -344,7 +346,7 @@ export default async function InventoryListDetail({
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
                     className="hover:text-oranje"
                   >
-                    {p.title ?? "Untitled"}
+                    {titleWithYear(p.title, p.year)}
                   </Link>
                   {/* Stock number folds in here once its own column is hidden. */}
                   <span className="mt-0.5 block font-mono text-[11.5px] text-ink-muted sm:hidden">

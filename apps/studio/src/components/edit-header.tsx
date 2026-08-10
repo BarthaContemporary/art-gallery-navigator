@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { RegisterBadge } from "@/components/register-badge";
+import { titleWithYear as formatTitleWithYear } from "@jvb/db";
 
 type Suggestions = {
   hashtags: string[];
@@ -36,7 +37,7 @@ export function EditHeader({
   webVisible: boolean;
   ledger?: "jvb" | "external";
 }) {
-  const titleWithYear = [title?.trim() || "Untitled", year ?? null].filter(Boolean).join(", ");
+  const titleWithYear = formatTitleWithYear(title, year);
   const imagesHref = `/inventory/${encodeURIComponent(stockNumber)}/images`;
 
   // --- website visibility toggle (submits web_visible with the form) ---
