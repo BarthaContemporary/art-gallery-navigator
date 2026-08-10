@@ -3,8 +3,8 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { StatusPill } from "@/components/status-pill";
-import { loadPieceSummaries } from "@/lib/piece-store";
-import { selectInChunks } from "@/lib/chunk";
+import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
+import { loadThumbnails } from "@/lib/thumbnails";
 import { titleWithYear } from "@jvb/db";
 
 export const metadata = { title: "Inventory list" };
@@ -52,6 +52,10 @@ export default async function InventoryListDetail({
 
   // ---- Members -------------------------------------------------------------
   let items: PieceLite[] = [];
+  /** When each work was added to this list, for static lists only. */
+  let addedAt = new Map<string, string>();
+  /** Works edited since they were added — the "already handled" marker. */
+  const editedSinceAdded = new Set<string>();
   if (isDynamic) {
     // Re-run the saved filters live so membership always reflects inventory.
     const q = (rules.q ?? "").trim();
@@ -92,7 +96,7 @@ export default async function InventoryListDetail({
   } else {
     const { data: itemRows } = await supabase
       .from("piece_list_items")
-      .select("sort_order, piece_id")
+      .select("sort_order, piece_id, created_at")
       .eq("list_id", id)
       .order("sort_order", { nullsFirst: true });
     const summaries = await loadPieceSummaries(
@@ -103,51 +107,38 @@ export default async function InventoryListDetail({
     items = ((itemRows ?? []) as { piece_id: string }[])
       .map((r) => summaries.get(r.piece_id))
       .filter(Boolean) as unknown as PieceLite[];
+
+    // Which of these have been worked on since they landed in the list?
+    // A list like "needs cataloguing" is a worklist, and the question it has to
+    // answer at a glance is "which have I already done?". `updated_at` is
+    // stamped by a trigger on every write to the record, so comparing it with
+    // when the work was added to the list answers exactly that — without
+    // storing any new state, and without a "done" flag anyone has to remember
+    // to tick. Dynamic lists have no membership rows, so no anchor and no mark.
+    addedAt = new Map(
+      ((itemRows ?? []) as { piece_id: string; created_at: string }[]).map((r) => [
+        r.piece_id,
+        r.created_at,
+      ]),
+    );
+    const touched = await loadPieceRows<{ id: string; updated_at: string | null }>(
+      supabase,
+      items.map((p) => p.id),
+      "id, updated_at",
+    );
+    for (const p of items) {
+      const added = addedAt.get(p.id);
+      const updated = touched.get(p.id)?.updated_at;
+      if (added && updated && new Date(updated) > new Date(added)) editedSinceAdded.add(p.id);
+    }
   }
   const existing = new Set(items.map((p) => p.id));
 
-  // Thumbnails for the rows. Resolved from the assembled ids rather than in the
-  // two fetch paths above, so static and live lists behave identically: take
-  // each work's first processed image by sort_order and sign it, exactly as the
-  // inventory table does.
-  const thumbByPiece = new Map<string, string>();
-  if (items.length > 0) {
-    // Chunked: a list can hold several hundred works, and one .in() that long
-    // exceeds the URL limit and returns 414 (see lib/chunk.ts).
-    const imgs = await selectInChunks<{ piece_id: string; storage_path_display: string }>(
-      items.map((p) => p.id),
-      (chunk) =>
-        supabase
-          .from("piece_images")
-          .select("piece_id, storage_path_display, sort_order")
-          .in("piece_id", chunk)
-          .not("storage_path_display", "is", null)
-          .order("sort_order", { ascending: true, nullsFirst: false }),
-    );
-
-    // First row per piece wins (the query is already in sort order).
-    const firstByPiece = new Map<string, string>();
-    imgs.forEach((i) => {
-      const pid = i.piece_id as string;
-      if (pid && !firstByPiece.has(pid)) {
-        firstByPiece.set(pid, i.storage_path_display as string);
-      }
-    });
-
-    const entries = [...firstByPiece.entries()];
-    if (entries.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from("piece-derivatives")
-        .createSignedUrls(
-          entries.map(([, path]) => path),
-          3600,
-        );
-      (signed ?? []).forEach((s, i) => {
-        const pid = entries[i]?.[0];
-        if (pid && s.signedUrl) thumbByPiece.set(pid, s.signedUrl);
-      });
-    }
-  }
+  // Thumbnails for the rows, from the same helper the shipment lists use, so a
+  // work shows the same image everywhere. This page used to pick purely by
+  // sort_order and could therefore show a different shot than the inventory
+  // list, which prefers the 'front' role.
+  const thumbByPiece = await loadThumbnails(supabase, items.map((p) => p.id));
 
   // Human-readable rules summary for dynamic lists.
   let rulesSummary: string[] = [];
@@ -246,6 +237,17 @@ export default async function InventoryListDetail({
           <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
             {items.length} work{items.length === 1 ? "" : "s"}
           </p>
+          {/* Says what the dot means, and only appears once there is one. */}
+          {editedSinceAdded.size > 0 ? (
+            <p className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink-faint">
+              <span
+                aria-hidden
+                className="inline-block h-[7px] w-[7px] rounded-full"
+                style={{ background: "var(--jvb-status-green)" }}
+              />
+              {editedSinceAdded.size} edited since added
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -342,6 +344,14 @@ export default async function InventoryListDetail({
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-ink-body">
+                  {editedSinceAdded.has(p.id) ? (
+                    <span
+                      title="Edited since it was added to this list"
+                      aria-label="Edited since it was added to this list"
+                      className="mr-1.5 inline-block h-[7px] w-[7px] rounded-full align-middle"
+                      style={{ background: "var(--jvb-status-green)" }}
+                    />
+                  ) : null}
                   <Link
                     href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
                     className="hover:text-oranje"

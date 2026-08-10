@@ -121,10 +121,12 @@ export type PieceSummary = {
   period: string | null;
   status: string;
   year: string | null;
+  maker_name: string | null;
   ledger: Ledger;
 };
 
-const SUMMARY_COLUMNS = "id, stock_number, title, medium, period, status, year, ledger";
+const SUMMARY_COLUMNS =
+  "id, stock_number, title, medium, period, status, year, maker_name, ledger";
 
 /**
  * Load whichever columns a caller needs for a set of works, from either

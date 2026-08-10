@@ -6,7 +6,9 @@ import { RecordFiles, type RecordFile } from "@/components/record-files";
 import { RecordReturn } from "@/components/record-return";
 import { DeleteListButton } from "@/components/delete-list-button";
 import { AutosaveForm } from "@/components/autosave-form";
-import { loadPieceSummaries } from "@/lib/piece-store";
+import { loadPieceSummaries, type PieceSummary } from "@/lib/piece-store";
+import { loadThumbnails } from "@/lib/thumbnails";
+import { PieceLine } from "@/components/piece-line";
 
 export const metadata = { title: "Shipment" };
 
@@ -21,7 +23,11 @@ const KIND_LABEL: Record<string, string> = {
   temporary_export: "Temporary export",
 };
 
-type PieceLite = { id: string; stock_number: string | null; title: string | null };
+// The attached list and the search results below show the same four things —
+// thumbnail, stock number, title with year, maker — so both run through the
+// shared piece summary rather than whatever columns each query happened to
+// return.
+type PieceLite = PieceSummary;
 type LinkRow = { piece: PieceLite | null; returned_at: string | null; closed_reason: string | null };
 
 const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "—");
@@ -66,8 +72,24 @@ export default async function ShipmentDetail({
   let results: PieceLite[] = [];
   if (addQ) {
     const { data: hits } = await supabase.rpc("pieces_search", { q: addQ });
-    results = ((hits ?? []) as PieceLite[]).filter((h) => !attachedIds.has(h.id)).slice(0, 20);
+    // pieces_search returns raw stock rows; the maker name lives on the union
+    // view, so hydrate the page's worth of ids the same way the attached list
+    // does rather than embedding a second shape here.
+    const hitIds = ((hits ?? []) as { id: string }[])
+      .map((h) => h.id)
+      .filter((hid) => !attachedIds.has(hid))
+      .slice(0, 20);
+    const resultSummaries = await loadPieceSummaries(supabase, hitIds);
+    results = hitIds
+      .map((hid) => resultSummaries.get(hid))
+      .filter((r): r is PieceLite => Boolean(r));
   }
+
+  // One signing call covers the attached works and the search results together.
+  const thumbs = await loadThumbnails(supabase, [
+    ...links.map((l) => l.piece!.id),
+    ...results.map((r) => r.id),
+  ]);
 
   async function addPiece(formData: FormData) {
     "use server";
@@ -249,8 +271,14 @@ export default async function ShipmentDetail({
             const p = l.piece!;
             return (
               <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft px-3 py-2">
-                <Link href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`} className="min-w-0 text-[13px] text-ink-body">
-                  <span className="font-mono text-[12px] text-ink-muted">{p.stock_number ?? "—"}</span> {p.title ?? "Untitled"}
+                <Link href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`} className="min-w-0">
+                  <PieceLine
+                    stockNumber={p.stock_number}
+                    title={p.title}
+                    year={p.year}
+                    makerName={p.maker_name}
+                    thumbUrl={thumbs.get(p.id)}
+                  />
                 </Link>
                 <div className="flex items-center gap-3">
                   {isTemp ? (
@@ -292,9 +320,13 @@ export default async function ShipmentDetail({
             {results.map((w) => (
               <form key={w.id} action={addPiece} className="flex items-center justify-between rounded-lg border border-line-soft px-3 py-2">
                 <input type="hidden" name="piece_id" value={w.id} />
-                <span className="text-[13px] text-ink-body">
-                  <span className="font-mono text-[12px] text-ink-muted">{w.stock_number ?? "—"}</span> {w.title ?? "Untitled"}
-                </span>
+                <PieceLine
+                  stockNumber={w.stock_number}
+                  title={w.title}
+                  year={w.year}
+                  makerName={w.maker_name}
+                  thumbUrl={thumbs.get(w.id)}
+                />
                 <button className={btnGhost}>Attach</button>
               </form>
             ))}
