@@ -38,7 +38,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   const supabase = await getSupabase();
-  const { error } = await supabase.from("makers").update(update).eq("id", id);
+  // Select the updated row back. An update the caller isn't permitted to make
+  // is filtered out by RLS rather than rejected — no error, no rows changed —
+  // and the editor would show "Saved ✓" over an edit that never landed.
+  const { data, error } = await supabase.from("makers").update(update).eq("id", id).select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data?.length)
+    return NextResponse.json({ error: "Maker not found, or not yours to edit" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

@@ -8,9 +8,9 @@ export const metadata = { title: "Makers" };
 export default async function MakersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; error?: string }>;
 }) {
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, error } = await searchParams;
   const q = sanitizeFilterTerm((rawQ ?? "").trim());
   const supabase = await getSupabase();
   let query = supabase
@@ -33,6 +33,11 @@ export default async function MakersPage({
 
   return (
     <div>
+      {error ? (
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
+          {error}
+        </p>
+      ) : null}
       <form action={addMaker} className="flex flex-wrap items-end gap-2">
         {[
           ["display_name", "Name (romanized)", "Kobayashi Shōmin"],
