@@ -25,12 +25,31 @@ export async function POST(req: Request) {
   // than creating a duplicate.
   const { data: existing } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, is_active")
     .ilike("name", name)
     .limit(1)
     .maybeSingle();
   if (existing) {
-    return NextResponse.json({ category: { id: existing.id, label: existing.name } });
+    // 20260713000021 hid every category that came in from FileMaker and
+    // re-activated only six, so a name typed here is often already on file as
+    // a hidden row — Lacquer among them. Handing that row back untouched
+    // looked like nothing happened: no category was created, and the one that
+    // matched stayed out of every picker and filter. Asking for a category by
+    // name is asking for it to be available, so reuse un-hides it.
+    if (existing.is_active === false) {
+      const { data: shown, error: actErr } = await supabase
+        .from("categories")
+        .update({ is_active: true })
+        .eq("id", existing.id)
+        .select("id");
+      if (actErr) return NextResponse.json({ error: actErr.message }, { status: 500 });
+      if (!shown?.length)
+        return NextResponse.json(
+          { error: `“${existing.name}” exists but is hidden, and you don’t have permission to show it.` },
+          { status: 403 },
+        );
+    }
+    return NextResponse.json({ category: { id: existing.id, label: existing.name }, reused: true });
   }
 
   // The categories table requires a unique `code`; derive one from the name.
