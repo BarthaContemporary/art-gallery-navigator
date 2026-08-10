@@ -135,9 +135,6 @@ export default async function ManageImagesPage({
           Images · <span className="font-mono text-[20px]">{piece.stock_number}</span>
         </h1>
         <div className="flex items-center gap-2.5">
-          <span className="hidden font-mono text-[11px] uppercase tracking-[0.06em] text-ink-faint md:inline">
-            ← → between works
-          </span>
           <span className="flex items-center gap-1">
             {prevHref && prevRes.data ? (
               <Link

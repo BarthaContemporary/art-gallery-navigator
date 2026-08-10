@@ -425,7 +425,15 @@ export default async function InventoryPage({
         </div>
       )}
 
-      <Pager sp={sp} page={page} pages={pages} label="Pagination, bottom" className="mt-4" />
+      {/* justify-end so it sits under the top pager, which the count line's
+          justify-between already pushes to the right edge. */}
+      <Pager
+        sp={sp}
+        page={page}
+        pages={pages}
+        label="Pagination, bottom"
+        className="mt-4 justify-end"
+      />
     </div>
   );
 }
