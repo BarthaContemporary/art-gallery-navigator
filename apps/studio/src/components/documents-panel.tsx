@@ -72,11 +72,11 @@ export function DocumentsPanel({
       };
       const { error: insErr } = await supabase.from("piece_documents").insert(row);
       if (insErr) return fail(insErr.message, remaining);
-      // Register the shared link so the doc appears in the Documents registry
-      // and can be linked to further pieces.
-      await supabase
-        .from("document_pieces")
-        .upsert({ document_id: id, piece_id: pieceId }, { onConflict: "document_id,piece_id", ignoreDuplicates: true });
+      // The document_pieces link — which is what actually makes the file show
+      // up on the work — is written by a trigger on piece_documents (migration
+      // 0065). It used to be a second call from here whose error was
+      // discarded, so a failed link left a document that existed, held its
+      // file, and was invisible everywhere.
       setDocs((d) => [{ ...row, created_at: new Date().toISOString() }, ...d]);
       remaining.shift();
     }
@@ -86,7 +86,7 @@ export function DocumentsPanel({
   }
 
   function fail(msg: string, remaining: File[]) {
-    setError(msg);
+    setError(`Upload failed — ${msg}`);
     setStaged(remaining);
     setBusy(false);
   }
@@ -101,8 +101,22 @@ export function DocumentsPanel({
 
   async function remove(doc: Doc) {
     const supabase = createClient();
+    setError(null);
+    // Drop the row first. A delete the session isn't permitted to make is
+    // filtered out by RLS rather than rejected — no error, no rows removed —
+    // so ask for the row back and only then bin the file and the list entry.
+    // Doing it the other way round could destroy the file while the record
+    // stayed behind, pointing at nothing.
+    const { data, error: delErr } = await supabase
+      .from("piece_documents")
+      .delete()
+      .eq("id", doc.id)
+      .select("id");
+    if (delErr) return setError(delErr.message);
+    if (!data?.length)
+      return setError("That document wasn’t removed — you may not have permission.");
+    // document_pieces cascades from piece_documents, so the link goes with it.
     await supabase.storage.from("piece-documents").remove([doc.storage_path]);
-    await supabase.from("piece_documents").delete().eq("id", doc.id);
     setDocs((d) => d.filter((x) => x.id !== doc.id));
   }
 
@@ -211,7 +225,11 @@ export function DocumentsPanel({
               : "Upload"}
         </button>
       </div>
-      {error ? <p className="mt-2 text-[12px] text-ink-body">Upload failed — {error}</p> : null}
+      {error ? (
+        <p className="mt-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }
