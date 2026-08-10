@@ -43,6 +43,7 @@ export function MakerProfileEditor({
 }) {
   const [fields, setFields] = useState<MakerFields>(initialFields);
   const fieldsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<MakerFields>(initialFields);
   const [url, setUrl] = useState(portraitUrl);
   const [phase, setPhase] = useState<"idle" | "uploading" | "processing">("idle");
   const [progress, setProgress] = useState(0);
@@ -98,9 +99,20 @@ export function MakerProfileEditor({
   function setField(key: keyof MakerFields, value: string) {
     const next = { ...fields, [key]: value };
     setFields(next);
+    pending.current = next;
     setStatus("saving");
     if (fieldsTimer.current) clearTimeout(fieldsTimer.current);
     fieldsTimer.current = setTimeout(() => void saveFields(next), 800);
+  }
+
+  // Leaving a detail field commits it straight away. Without this, typing a
+  // name and immediately clicking away — or back to the maker list — dropped
+  // the edit with the debounce still pending.
+  function flushFields() {
+    if (!fieldsTimer.current) return;
+    clearTimeout(fieldsTimer.current);
+    fieldsTimer.current = null;
+    void saveFields(pending.current);
   }
 
   function cmd(command: string, value?: string) {
@@ -230,6 +242,7 @@ export function MakerProfileEditor({
               value={fields[key]}
               placeholder={ph}
               onChange={(e) => setField(key, e.target.value)}
+              onBlur={flushFields}
               className="mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body"
             />
           </label>

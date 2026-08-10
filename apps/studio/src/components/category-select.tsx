@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Option = { id: string; label: string };
 
@@ -25,6 +25,20 @@ export function CategorySelect({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Choosing from the dropdown fires a real change event, but selecting a
+  // freshly added category is a React state write — silent to the wrapping
+  // autosave form. Nudge it whenever the selection changes; a duplicate nudge
+  // after a genuine pick just lands in the same debounce window.
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    selectRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [selected]);
 
   async function add() {
     const n = name.trim();
@@ -61,6 +75,7 @@ export function CategorySelect({
   return (
     <div>
       <select
+        ref={selectRef}
         name="category_id"
         value={selected}
         onChange={(e) => setSelected(e.target.value)}

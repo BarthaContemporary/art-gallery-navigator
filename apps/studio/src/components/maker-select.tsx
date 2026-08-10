@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Option = { id: string; label: string };
 
@@ -32,6 +32,21 @@ export function MakerSelect({
   const [error, setError] = useState<string | null>(null);
 
   const selected = opts.find((o) => o.id === id) ?? null;
+
+  // A hidden input's React value change does not emit a DOM event, so the
+  // wrapping autosave form never hears about a maker being picked or created —
+  // and worse, clicking a result blurs the search box first, which flushes a
+  // save of the *previous* maker and reports "all changes saved". Nudge the
+  // form once the new id is in the DOM, exactly as buyer-select.tsx does.
+  const hiddenRef = useRef<HTMLInputElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    hiddenRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [id]);
 
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -81,7 +96,7 @@ export function MakerSelect({
 
   return (
     <div className="mt-1.5">
-      <input type="hidden" name="maker_id" value={id} />
+      <input ref={hiddenRef} type="hidden" name="maker_id" value={id} />
 
       {id && selected && !searching ? (
         <div className="flex flex-wrap items-center gap-2">

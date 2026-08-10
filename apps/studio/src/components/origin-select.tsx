@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const field =
   "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
@@ -28,6 +28,18 @@ export function OriginSelect({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Selecting a freshly added region is a React state write, which emits no DOM
+  // event for the wrapping autosave form to hear. See category-select.tsx.
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    selectRef.current?.dispatchEvent(new Event("input", { bubbles: true }));
+  }, [selected]);
 
   async function add() {
     const n = name.trim();
@@ -57,6 +69,7 @@ export function OriginSelect({
   return (
     <div>
       <select
+        ref={selectRef}
         name="origin_region"
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
