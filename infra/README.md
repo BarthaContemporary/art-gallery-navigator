@@ -305,13 +305,46 @@ Caddy block; drop it once every device has been repointed).
 ## 6d. fail2ban for the WebDAV endpoint
 
 The Caddy `files.` block logs to `/var/log/caddy/files-access.log`; the jail
-bans an IP after 5 auth failures in 10 min.
+bans an IP after `maxretry` auth failures in 10 min.
 ```
 cp infra/security/fail2ban/filter.d/caddy-webdav.conf /etc/fail2ban/filter.d/
 cp infra/security/fail2ban/jail.d/caddy-webdav.conf   /etc/fail2ban/jail.d/
 systemctl restart fail2ban
 fail2ban-client status caddy-webdav
 ```
+
+**If the drive "stops connecting" for the whole gallery — and studio uploads
+and thumbnails die at the same time while editing still works — suspect this
+jail before anything else.** The mechanics that make one ban look like three
+unrelated outages:
+
+- A ban blocks the office IP from **port 443 of the whole server**, and the
+  drive and the Supabase API share that server. Studio pages come from
+  Vercel, and autosave runs server-side, so the studio *looks* alive — but
+  everything the browser fetches from the API directly (image thumbnails,
+  document/image uploads, the capture app) fails, along with the drive.
+- Every HTTP Basic connection begins with an unauthenticated request that
+  draws a 401 challenge, and the filter counts every 401. The whole office
+  shares one public IP, so each person mounting the drive feeds the same
+  counter — more staff on the drive means innocent traffic alone can trip it.
+- `bantime` is 1 h, but a Mac auto-reconnecting with a stale Keychain
+  password refills the counter forever, so the ban never effectively lifts.
+
+Diagnose and clear (SSH to the VPS):
+```
+fail2ban-client status caddy-webdav              # currently banned IPs
+grep Ban /var/log/fail2ban.log | tail            # ban history — since when
+grep '"status":401' /var/log/caddy/files-access.log | tail -20   # which IP/user keeps failing
+fail2ban-client set caddy-webdav unbanip <ip>
+```
+Quick confirmation from the gallery without SSH: the drive mounts fine from a
+phone hotspot but not from the office WiFi.
+
+Before unbanning, silence whatever is hammering: on each Mac, eject the drive
+mount, then Keychain Access → search "drive" → delete any stale
+`drive.joostvandenbergh.com` entry, and remount with the current password —
+otherwise the ban is back within minutes. Then put the gallery's static IP in
+`ignoreip` in the jail file so office traffic never counts again.
 
 ## 6e. Cryptomator zero-knowledge vaults (free / open source)
 
