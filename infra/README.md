@@ -248,16 +248,35 @@ transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
    # /etc/systemd/system/webdav-crypt.service
    [Unit]
    Description=gocryptfs mount for the WebDAV shared drive
-   After=local-fs.target
+   After=local-fs.target docker.service
    [Service]
-   Type=forking
-   ExecStart=/bin/sh -c 'gocryptfs -passfile /etc/jvb/webdav.pass /opt/jvb/webdav-cipher /opt/jvb/webdav-plain'
+   Type=simple
+   # Clear any stale endpoint left by a crashed mount before mounting again.
+   ExecStartPre=-/bin/umount -l /opt/jvb/webdav-plain
+   # Foreground (-fg), so systemd owns the FUSE process and notices it dying.
+   ExecStart=/usr/bin/gocryptfs -fg -passfile /etc/jvb/webdav.pass /opt/jvb/webdav-cipher /opt/jvb/webdav-plain
+   # The containers bind the mountpoint when they start, so after a remount
+   # they are still holding the dead one — hand them the fresh mount.
+   ExecStartPost=/bin/sh -c 'sleep 2; docker restart jvb-webdav jvb-syncthing || true'
    ExecStop=/bin/fusermount -u /opt/jvb/webdav-plain
-   RemainAfterExit=yes
+   Restart=on-failure
+   RestartSec=5
    [Install]
    WantedBy=multi-user.target
    ```
-   `systemctl enable --now webdav-crypt`. Caveat: a passphrase file on the box
+   `systemctl enable --now webdav-crypt`.
+
+   **If the drive suddenly "won't connect" but passwords are accepted** — the
+   webdav container logs `user authorized` and the Caddy access log then shows
+   `PROPFIND` answered with **405** — this mount has died (OOM or crash). A
+   dead FUSE mount returns "transport endpoint is not connected" to every
+   stat, and the Go WebDAV handler translates that into 405 Method Not
+   Allowed, which macOS reports as a connection failure. Syncthing and the
+   studio's Save-to-Drive write to the same mount, so they fail with it.
+   Confirm with `ls /opt/jvb/webdav-plain`, then remount (the unit above, or
+   by hand) and `docker compose restart webdav syncthing`.
+
+   Caveat: a passphrase file on the box
    protects against **disk theft / decommissioning**, not a live root
    compromise (same as LUKS with a keyfile). For protection even from the
    server itself, use Cryptomator (§6e).
