@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { titleWithYear } from "@jvb/db";
+import { LabelPdfButton } from "@/components/label-pdf-button";
 
 export const metadata = { title: "Inventory list" };
 
@@ -248,6 +249,14 @@ export default async function InventoryListDetail({
               {editedSinceAdded.size} edited since added
             </p>
           ) : null}
+          {/* Object labels for the whole list — same Avery chooser as the
+              contact mailing labels; the PDF carries framed + unframed sizes. */}
+          <LabelPdfButton
+            listId={id}
+            endpoint="/api/export/work-labels.pdf"
+            buttonLabel="Work labels PDF"
+            filePrefix="work-labels"
+          />
         </div>
       </div>
 

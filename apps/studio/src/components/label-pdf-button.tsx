@@ -29,9 +29,16 @@ const AVERY: { code: string; perPage: number; size: string }[] = [
  */
 export function LabelPdfButton({
   listId,
+  endpoint = "/api/export/labels.pdf",
+  buttonLabel = "Labels PDF",
+  filePrefix = "labels",
   className = "text-[12px] font-medium text-primary",
 }: {
   listId: string;
+  /** Which label route to call — mailing labels by default, work labels for inventory lists. */
+  endpoint?: string;
+  buttonLabel?: string;
+  filePrefix?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +50,7 @@ export function LabelPdfButton({
     setNote(null);
     try {
       const res = await fetch(
-        `/api/export/labels.pdf?list=${encodeURIComponent(listId)}&template=${code}&save=1`,
+        `${endpoint}?list=${encodeURIComponent(listId)}&template=${code}&save=1`,
         { headers: { "x-jvb-drive-save": "1" } },
       );
       if (!res.ok) {
@@ -57,7 +64,7 @@ export function LabelPdfButton({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `labels-${code}.pdf`;
+      a.download = `${filePrefix}-${code}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -77,7 +84,7 @@ export function LabelPdfButton({
   return (
     <span className="relative inline-block">
       <button type="button" onClick={() => setOpen((o) => !o)} className={className}>
-        Labels PDF ▾
+        {buttonLabel} ▾
       </button>
 
       {open ? (
