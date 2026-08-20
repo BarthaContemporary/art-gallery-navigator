@@ -10,23 +10,26 @@ const field =
 // The default dimensions. For a framed work these ARE the framed size — what
 // hangs, ships and appears in the catalogue — so the labels say so while the
 // checkbox is ticked.
+// The framed-mode labels drop the unit so the F./U. prefixes don't push them
+// over one line; everything is still centimetres (grams for weight), and the
+// inches preview under each field keeps saying so.
 const DIMS = [
-  ["height_cm", "Height cm", "F. Height cm"],
-  ["width_cm", "Width cm", "F. Width cm"],
-  ["depth_cm", "Depth cm", "F. Depth cm"],
-  ["length_cm", "Length cm", "F. Length cm"],
-  ["diameter_cm", "Diameter cm", "F. Diameter cm"],
-  ["weight_g", "Weight g", "F. Weight g"],
+  ["height_cm", "Height cm", "F. Height"],
+  ["width_cm", "Width cm", "F. Width"],
+  ["depth_cm", "Depth cm", "F. Depth"],
+  ["length_cm", "Length cm", "F. Length"],
+  ["diameter_cm", "Diameter cm", "F. Diameter"],
+  ["weight_g", "Weight g", "F. Weight"],
 ] as const;
 
 // The unframed work itself, recorded alongside the framed size.
 const UNFRAMED_DIMS = [
-  ["unframed_height_cm", "U. Height cm"],
-  ["unframed_width_cm", "U. Width cm"],
-  ["unframed_depth_cm", "U. Depth cm"],
-  ["unframed_length_cm", "U. Length cm"],
-  ["unframed_diameter_cm", "U. Diameter cm"],
-  ["unframed_weight_g", "U. Weight g"],
+  ["unframed_height_cm", "U. Height"],
+  ["unframed_width_cm", "U. Width"],
+  ["unframed_depth_cm", "U. Depth"],
+  ["unframed_length_cm", "U. Length"],
+  ["unframed_diameter_cm", "U. Diameter"],
+  ["unframed_weight_g", "U. Weight"],
 ] as const;
 
 /** Dimension inputs with a live imperial preview under each (inches; lb for weight). */
@@ -94,7 +97,7 @@ export function DimensionsFields({
         Framed
         {framed ? (
           <span className="font-normal text-[11.5px] text-ink-soft">
-            — the dimensions above are the framed size; record the unframed work below
+            — sizes in cm (weight g); the row above is the framed size, record the unframed work below
           </span>
         ) : null}
       </label>

@@ -28,6 +28,7 @@ type FilterRules = {
   status?: string | null;
   category?: string | null;
   location?: string | null;
+  framed?: boolean | null;
 };
 
 export default async function InventoryListDetail({
@@ -67,10 +68,12 @@ export default async function InventoryListDetail({
         status: string;
         category_id: string | null;
         location_id: string | null;
+        framed: boolean | null;
       }>;
       if (rules.status) filtered = filtered.filter((h) => h.status === rules.status);
       if (rules.category) filtered = filtered.filter((h) => h.category_id === rules.category);
       if (rules.location) filtered = filtered.filter((h) => h.location_id === rules.location);
+      if (rules.framed) filtered = filtered.filter((h) => h.framed === true);
       const ids = filtered.slice(0, 500).map((h) => h.id);
       if (ids.length > 0) {
         const { data: viewRows } = await supabase
@@ -91,6 +94,7 @@ export default async function InventoryListDetail({
       if (rules.status) query = query.eq("status", rules.status);
       if (rules.category) query = query.eq("category_id", rules.category);
       if (rules.location) query = query.eq("location_id", rules.location);
+      if (rules.framed) query = query.eq("framed", true);
       const { data } = await query;
       items = (data ?? []) as PieceLite[];
     }
@@ -158,6 +162,7 @@ export default async function InventoryListDetail({
       rulesSummary.push(`category ${cats?.[0]?.name ?? rules.category}`);
     if (rules.location)
       rulesSummary.push(`location ${locs?.[0]?.code ?? rules.location}`);
+    if (rules.framed) rulesSummary.push("framed");
     if (rulesSummary.length === 0) rulesSummary = ["all works"];
   }
 

@@ -22,6 +22,8 @@ export type ListRules = {
    * the right default for them.
    */
   ledger?: string | null;
+  /** true = only works ticked as Framed. Absent/false = no framing filter. */
+  framed?: boolean | null;
 };
 
 export type ListLike = {
@@ -36,6 +38,7 @@ type Hit = {
   category_id: string | null;
   location_id: string | null;
   ledger: string;
+  framed: boolean | null;
 };
 
 /** Resolve a saved view's register rule to a value to match, or null for both. */
@@ -79,6 +82,7 @@ export async function resolveListPieceIds(
     if (rules.status) f = f.filter((h) => h.status === rules.status);
     if (rules.category) f = f.filter((h) => h.category_id === rules.category);
     if (rules.location) f = f.filter((h) => h.location_id === rules.location);
+    if (rules.framed) f = f.filter((h) => h.framed === true);
     return f.slice(0, LIVE_LIMIT).map((h) => h.id);
   }
 
@@ -92,6 +96,7 @@ export async function resolveListPieceIds(
   if (rules.status) query = query.eq("status", rules.status);
   if (rules.category) query = query.eq("category_id", rules.category);
   if (rules.location) query = query.eq("location_id", rules.location);
+  if (rules.framed) query = query.eq("framed", true);
   const { data } = await query;
   return ((data ?? []) as { id: string }[]).map((r) => r.id);
 }
@@ -117,6 +122,7 @@ export async function countListMembers(
   if (rules.status) cq = cq.eq("status", rules.status);
   if (rules.category) cq = cq.eq("category_id", rules.category);
   if (rules.location) cq = cq.eq("location_id", rules.location);
+  if (rules.framed) cq = cq.eq("framed", true);
   const { count } = await cq;
   return count ?? 0;
 }
