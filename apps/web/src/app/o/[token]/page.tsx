@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServiceClient } from "@jvb/db/server";
-import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
+import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 import { OfferResponse } from "@/components/offer-response";
 import { OfferGate } from "@/components/offer-gate";
 import { grantCookieName, verifyGrant } from "@/lib/offer-access";
@@ -319,9 +319,9 @@ export default async function OfferPage({
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
-                  {formatDimensionsCm(piece) ? (
+                  {formatDimensionsFullCm(piece) ? (
                     <p className="font-serif text-ui text-ink-50">
-                      {formatDimensionsCm(piece)}
+                      {formatDimensionsFullCm(piece)}
                     </p>
                   ) : null}
                   {item.note ? (

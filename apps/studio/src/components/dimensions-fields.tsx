@@ -7,23 +7,26 @@ const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-in
 const field =
   "mt-1.5 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[14px] text-ink";
 
+// The default dimensions. For a framed work these ARE the framed size — what
+// hangs, ships and appears in the catalogue — so the labels say so while the
+// checkbox is ticked.
 const DIMS = [
-  ["height_cm", "Height cm"],
-  ["width_cm", "Width cm"],
-  ["depth_cm", "Depth cm"],
-  ["length_cm", "Length cm"],
-  ["diameter_cm", "Diameter cm"],
-  ["weight_g", "Weight g"],
+  ["height_cm", "Height cm", "F. Height cm"],
+  ["width_cm", "Width cm", "F. Width cm"],
+  ["depth_cm", "Depth cm", "F. Depth cm"],
+  ["length_cm", "Length cm", "F. Length cm"],
+  ["diameter_cm", "Diameter cm", "F. Diameter cm"],
+  ["weight_g", "Weight g", "F. Weight g"],
 ] as const;
 
-// The frame mirrors the work's own measurement row, F.-prefixed.
-const FRAME_DIMS = [
-  ["frame_height_cm", "F. Height cm"],
-  ["frame_width_cm", "F. Width cm"],
-  ["frame_depth_cm", "F. Depth cm"],
-  ["frame_length_cm", "F. Length cm"],
-  ["frame_diameter_cm", "F. Diameter cm"],
-  ["frame_weight_g", "F. Weight g"],
+// The unframed work itself, recorded alongside the framed size.
+const UNFRAMED_DIMS = [
+  ["unframed_height_cm", "U. Height cm"],
+  ["unframed_width_cm", "U. Width cm"],
+  ["unframed_depth_cm", "U. Depth cm"],
+  ["unframed_length_cm", "U. Length cm"],
+  ["unframed_diameter_cm", "U. Diameter cm"],
+  ["unframed_weight_g", "U. Weight g"],
 ] as const;
 
 /** Dimension inputs with a live imperial preview under each (inches; lb for weight). */
@@ -36,7 +39,8 @@ export function DimensionsFields({
 }) {
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    for (const [k] of [...DIMS, ...FRAME_DIMS]) init[k] = defaults[k] ?? "";
+    for (const [k] of DIMS) init[k] = defaults[k] ?? "";
+    for (const [k] of UNFRAMED_DIMS) init[k] = defaults[k] ?? "";
     return init;
   });
   const [framed, setFramed] = useState(framedDefault);
@@ -49,35 +53,36 @@ export function DimensionsFields({
     return k.endsWith("_g") ? `${gramsToPounds(n)} lb` : `${cmToInchesFraction(n)} in`;
   };
 
-  const row = (dims: typeof DIMS | typeof FRAME_DIMS) => (
-    <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6">
-      {dims.map(([k, lab]) => (
-        <label key={k} className={label}>
-          {lab}
-          <input
-            name={k}
-            type="number"
-            step="0.1"
-            value={vals[k]}
-            onChange={(e) => set(k, e.target.value)}
-            className={field}
-          />
-          <span className="mt-1 block h-[14px] font-mono text-[11px] text-ink-soft">
-            {preview(k) ?? ""}
-          </span>
-        </label>
-      ))}
-    </div>
+  const input = (k: string) => (
+    <>
+      <input
+        name={k}
+        type="number"
+        step="0.1"
+        value={vals[k]}
+        onChange={(e) => set(k, e.target.value)}
+        className={field}
+      />
+      <span className="mt-1 block h-[14px] font-mono text-[11px] text-ink-soft">
+        {preview(k) ?? ""}
+      </span>
+    </>
   );
 
   return (
     <div>
-      {row(DIMS)}
+      <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6">
+        {DIMS.map(([k, plain, whenFramed]) => (
+          <label key={k} className={label}>
+            {framed ? whenFramed : plain}
+            {input(k)}
+          </label>
+        ))}
+      </div>
 
-      {/* The checkbox is a real form input, so ticking it autosaves like any
-          other field. Unticking hides the frame row; its fields then leave the
-          form entirely and the server clears the stored frame dimensions —
-          an unframed work must not keep phantom frame measurements. */}
+      {/* A real form input, so ticking it autosaves like any other field.
+          Unticking hides the unframed row; its fields leave the form entirely
+          and the server clears the stored unframed measurements. */}
       <label className="mt-4 flex items-center gap-2 text-[12.5px] font-medium text-ink-body">
         <input
           type="checkbox"
@@ -87,9 +92,23 @@ export function DimensionsFields({
           className="h-4 w-4 accent-[var(--jvb-bg-primary)]"
         />
         Framed
+        {framed ? (
+          <span className="font-normal text-[11.5px] text-ink-soft">
+            — the dimensions above are the framed size; record the unframed work below
+          </span>
+        ) : null}
       </label>
 
-      {framed ? row(FRAME_DIMS) : null}
+      {framed ? (
+        <div className="mt-2 grid grid-cols-3 gap-4 sm:grid-cols-6">
+          {UNFRAMED_DIMS.map(([k, lab]) => (
+            <label key={k} className={label}>
+              {lab}
+              {input(k)}
+            </label>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

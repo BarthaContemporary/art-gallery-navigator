@@ -448,24 +448,35 @@ export default async function PieceDetail({
     ["Medium", piece.medium ?? "—"],
     ["Period", piece.period ?? "—"],
     ["Origin", piece.origin_region ?? "—"],
-    ["Dimensions", renderDimensions(piece)],
-    // Framed works measure differently on the wall and in the crate; map the
-    // frame_* columns onto the same keys so every dims formatter is reused.
+    // For a framed work the default dimensions ARE the framed size, so the
+    // label says so; the unframed work itself follows on its own line.
     [
-      "Framed",
-      (() => {
-        if (!piece.framed) return "No";
-        const frame: Dims = {
-          height_cm: piece.frame_height_cm,
-          width_cm: piece.frame_width_cm,
-          depth_cm: piece.frame_depth_cm,
-          length_cm: piece.frame_length_cm,
-          diameter_cm: piece.frame_diameter_cm,
-        };
-        // Framed but not yet measured reads "Yes", not a bare dash.
-        return formatDimensionsCm(frame) ? renderDimensions(frame) : "Yes";
-      })(),
+      piece.framed ? "Dimensions (framed)" : "Dimensions",
+      renderDimensions(piece),
     ],
+    // The Unframed line exists only on framed works — a dash row on every
+    // ceramic and bronze would be noise.
+    ...(piece.framed
+      ? ([
+          [
+            "Unframed",
+            (() => {
+              const unframed: Dims = {
+                height_cm: piece.unframed_height_cm,
+                width_cm: piece.unframed_width_cm,
+                depth_cm: piece.unframed_depth_cm,
+                length_cm: piece.unframed_length_cm,
+                diameter_cm: piece.unframed_diameter_cm,
+              };
+              // Framed but the work itself not yet measured: an explicit
+              // reminder rather than a dash that reads like "does not apply".
+              return formatDimensionsCm(unframed)
+                ? renderDimensions(unframed)
+                : "Not measured";
+            })(),
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
     ["Weight", piece.weight_g ? `${(piece.weight_g / 1000).toFixed(1)} kg` : "—"],
     ["Location", piece.location?.code ?? "—"],
     ["Acquired", fin?.purchase_date ? new Date(fin.purchase_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"],

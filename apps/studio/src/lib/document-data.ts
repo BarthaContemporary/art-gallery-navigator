@@ -1,6 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
 import { resolvePiece } from "@/lib/piece-store";
-import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
+import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 
 export interface PieceDoc {
   stockNumber: string;
@@ -102,8 +102,8 @@ export async function loadPieceDoc(
       period: row.period ?? undefined,
       originRegion: row.origin_region ?? undefined,
       medium: row.medium ?? undefined,
-      // Composed from the numeric cm fields; the old verbatim column is retired.
-      dimensionsDisplay: formatDimensionsCm(row) ?? undefined,
+      // Framed size first (the default), unframed alongside when framed.
+      dimensionsDisplay: formatDimensionsFullCm(row) ?? undefined,
       signatureInscription: row.signature_inscription ?? undefined,
       description: row.description ?? undefined,
       provenance,

@@ -53,8 +53,8 @@ export function PieceFormFields({
 
   const dimDefaults = s(v, [
     "height_cm", "width_cm", "depth_cm", "length_cm", "diameter_cm", "weight_g",
-    "frame_height_cm", "frame_width_cm", "frame_depth_cm",
-    "frame_length_cm", "frame_diameter_cm", "frame_weight_g",
+    "unframed_height_cm", "unframed_width_cm", "unframed_depth_cm",
+    "unframed_length_cm", "unframed_diameter_cm", "unframed_weight_g",
   ]);
   const finDefaults = s(f, [
     "purchase_date", "purchase_cost", "purchase_currency", "purchase_cost_gbp",

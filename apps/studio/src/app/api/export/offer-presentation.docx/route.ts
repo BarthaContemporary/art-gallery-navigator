@@ -3,7 +3,7 @@ import { offerPresentationDocx, type PresentationWork } from "@jvb/documents";
 import { getSupabase, getSession, createServiceClient, canSeeFinancials } from "@/lib/supabase";
 import { GALLERY_NAME, GALLERY_ADDRESS } from "@/lib/site";
 import { loadPieceRows } from "@/lib/piece-store";
-import { DIMENSION_COLUMNS, formatDimensionsCm, type PieceDimensions } from "@jvb/db";
+import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
       period: p.period,
       originRegion: p.origin_region,
       medium: p.medium,
-      dimensionsDisplay: formatDimensionsCm(p),
+      dimensionsDisplay: formatDimensionsFullCm(p),
       description: p.description,
       priceDisplay: price != null ? gbp(price) : null,
       note: r.note,
