@@ -138,13 +138,14 @@ services:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
 
       # Refresh-token rotation stays on, but a replayed already-used token is
-      # tolerated for 24h instead of the 10s default. The gallery's stale tabs
-      # and suspended iPads replay old tokens every day, and each replay
-      # outside the window revokes the whole session family — the audit log
-      # showed revocations at 60-70% of all refreshes, felt as random logouts
-      # (and, before uploads moved to signed URLs, as intermittent upload
-      # failures). Five known users on managed devices; the day-long grace is
-      # the right trade.
+      # tolerated for 24h instead of the 10s default. A stale tab or suspended
+      # iPad waking up and replaying an old token outside the window revokes
+      # the WHOLE session family — felt as everyone-logged-out — and that
+      # revocation leaves no audit trail (RevokeTokenFamily writes no audit
+      # entry; the token_revoked entries the log does show are ordinary
+      # per-refresh rotation, one per swap, and are harmless). Five known
+      # users on managed devices; the day-long grace is a cheap guard against
+      # an invisible failure mode.
       GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
       GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "86400"
 
