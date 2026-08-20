@@ -137,6 +137,17 @@ services:
       GOTRUE_JWT_EXP: ${JWT_EXPIRY}
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
 
+      # Refresh-token rotation stays on, but a replayed already-used token is
+      # tolerated for 24h instead of the 10s default. The gallery's stale tabs
+      # and suspended iPads replay old tokens every day, and each replay
+      # outside the window revokes the whole session family — the audit log
+      # showed revocations at 60-70% of all refreshes, felt as random logouts
+      # (and, before uploads moved to signed URLs, as intermittent upload
+      # failures). Five known users on managed devices; the day-long grace is
+      # the right trade.
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "86400"
+
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
       GOTRUE_MAILER_AUTOCONFIRM: "false"
