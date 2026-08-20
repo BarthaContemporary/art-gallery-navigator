@@ -3,27 +3,30 @@
 import { useState } from "react";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
 
 export type RecordFile = { id: string; title: string; storage_path: string };
 
+/** Which table holds the rows for each scope this component serves. */
+const TABLE: Partial<Record<UploadScope, string>> = {
+  shipment: "shipment_documents",
+};
+
 /**
- * Files attached to a shared record (a shipment or a document). Uploads to the
- * private `piece-documents` bucket under `<prefix>/<recordId>/…` and inserts a
- * row into `table` referencing the record via `fkColumn`.
+ * Files attached to a shared record (a shipment). Uploads run through the
+ * signed-URL flow in lib/upload-signed.ts, so they work whenever autosave
+ * works — independent of the browser client's access token.
  */
 export function RecordFiles({
-  table,
-  fkColumn,
+  scope,
   recordId,
-  prefix,
   initial,
 }: {
-  table: string;
-  fkColumn: string;
+  scope: UploadScope;
   recordId: string;
-  prefix: string;
   initial: RecordFile[];
 }) {
+  const table = TABLE[scope] ?? "shipment_documents";
   const [files, setFiles] = useState<RecordFile[]>(initial);
   const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -39,31 +42,23 @@ export function RecordFiles({
     if (!staged.length) return;
     setBusy(true);
     setError(null);
-    const supabase = createClient();
+    // Signed-URL flow (lib/upload-signed.ts): sign and commit ride the session
+    // cookie like autosave; the file PUT itself carries no token at all. The
+    // browser client's access token — whose intermittent death used to kill
+    // these uploads — is no longer involved.
     const remaining = [...staged];
     for (const file of staged) {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-      const id = crypto.randomUUID();
-      const path = `${prefix}/${recordId}/${id}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("piece-documents")
-        .upload(path, file, { contentType: file.type || undefined });
-      if (upErr) {
-        setError(upErr.message);
+      try {
+        const doc = await uploadDocument(scope, recordId, file);
+        setFiles((f) => [doc, ...f]);
+        remaining.shift();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Upload failed";
+        setError(`${file.name}: ${msg}`);
         setStaged(remaining);
         setBusy(false);
         return;
       }
-      const row = { id, [fkColumn]: recordId, title: file.name, storage_path: path };
-      const { error: insErr } = await supabase.from(table).insert(row);
-      if (insErr) {
-        setError(insErr.message);
-        setStaged(remaining);
-        setBusy(false);
-        return;
-      }
-      setFiles((f) => [{ id, title: file.name, storage_path: path }, ...f]);
-      remaining.shift();
     }
     setStaged([]);
     setBusy(false);
@@ -79,8 +74,18 @@ export function RecordFiles({
 
   async function remove(f: RecordFile) {
     const supabase = createClient();
+    setError(null);
+    // Row first, selected back: an RLS-filtered delete returns no error and
+    // removes nothing, and the old order destroyed the file before checking.
+    const { data, error: delErr } = await supabase
+      .from(table)
+      .delete()
+      .eq("id", f.id)
+      .select("id");
+    if (delErr) return setError(`${f.title}: ${delErr.message}`);
+    if (!data?.length)
+      return setError(`${f.title}: wasn’t removed — reload the page and try again.`);
     await supabase.storage.from("piece-documents").remove([f.storage_path]);
-    await supabase.from(table).delete().eq("id", f.id);
     setFiles((x) => x.filter((y) => y.id !== f.id));
   }
 

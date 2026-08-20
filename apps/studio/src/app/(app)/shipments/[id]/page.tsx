@@ -246,7 +246,7 @@ export default async function ShipmentDetail({
           Upload the paperwork once here — it applies to every item below.
         </p>
         <div className="mt-3">
-          <RecordFiles table="shipment_documents" fkColumn="shipment_id" recordId={id} prefix="shipments" initial={files} />
+          <RecordFiles scope="shipment" recordId={id} initial={files} />
         </div>
       </section>
 

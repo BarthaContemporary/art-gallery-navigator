@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { uploadDocument } from "@/lib/upload-signed";
 
 type Doc = {
   id: string;
@@ -51,34 +52,28 @@ export function DocumentsPanel({
     if (staged.length === 0) return;
     setBusy(true);
     setError(null);
-    const supabase = createClient();
+    // Signed-URL flow (lib/upload-signed.ts): the file PUT carries no token,
+    // and the row is written by a cookie-authed route — same auth path as
+    // autosave, so a dying browser session can no longer fail these uploads.
+    // The document_pieces link comes from the trigger on piece_documents
+    // (migration 0065).
     const remaining = [...staged];
     for (const file of staged) {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-      const id = crypto.randomUUID();
-      const path = `${pieceId}/${id}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("piece-documents")
-        .upload(path, file, { contentType: file.type || undefined });
-      if (upErr) return fail(upErr.message, remaining);
-      const row = {
-        id,
-        piece_id: pieceId,
-        doc_type: docType,
-        // A single title only makes sense for a single file; otherwise keep
-        // each file's own name so a batch stays legible.
-        title: staged.length === 1 && title.trim() ? title.trim() : file.name,
-        storage_path: path,
-      };
-      const { error: insErr } = await supabase.from("piece_documents").insert(row);
-      if (insErr) return fail(insErr.message, remaining);
-      // The document_pieces link — which is what actually makes the file show
-      // up on the work — is written by a trigger on piece_documents (migration
-      // 0065). It used to be a second call from here whose error was
-      // discarded, so a failed link left a document that existed, held its
-      // file, and was invisible everywhere.
-      setDocs((d) => [{ ...row, created_at: new Date().toISOString() }, ...d]);
-      remaining.shift();
+      try {
+        const doc = await uploadDocument("piece", pieceId, file, {
+          docType,
+          // A single title only makes sense for a single file; otherwise keep
+          // each file's own name so a batch stays legible.
+          title: staged.length === 1 && title.trim() ? title.trim() : undefined,
+        });
+        setDocs((d) => [
+          { id: doc.id, doc_type: docType, title: doc.title, storage_path: doc.storage_path, created_at: new Date().toISOString() },
+          ...d,
+        ]);
+        remaining.shift();
+      } catch (e) {
+        return fail(`${file.name}: ${e instanceof Error ? e.message : "upload failed"}`, remaining);
+      }
     }
     setTitle("");
     setStaged([]);

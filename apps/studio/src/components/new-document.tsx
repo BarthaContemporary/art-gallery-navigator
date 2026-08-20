@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { uploadDocument } from "@/lib/upload-signed";
 
 const DOC_TYPES: [string, string][] = [
   ["purchase_invoice", "Purchase invoice"],
@@ -43,25 +43,19 @@ export function NewDocument() {
     }
     setBusy(true);
     setError(null);
-    const supabase = createClient();
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-    const id = crypto.randomUUID();
-    const path = `documents/${id}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from("piece-documents")
-      .upload(path, file, { contentType: file.type || undefined });
-    if (upErr) return fail(upErr.message);
-    const { error: insErr } = await supabase.from("piece_documents").insert({
-      id,
-      piece_id: null,
-      doc_type: docType,
-      title: title.trim() || file.name,
-      reference: reference.trim() || null,
-      doc_date: docDate || null,
-      storage_path: path,
-    });
-    if (insErr) return fail(insErr.message);
-    router.push(`/documents/${id}`);
+    // Signed-URL flow — see lib/upload-signed.ts. The row insert still runs
+    // under the user's own RLS, so staff remain unable to file invoices.
+    try {
+      const doc = await uploadDocument("document", null, file, {
+        title: title.trim() || undefined,
+        docType,
+        reference: reference.trim() || undefined,
+        docDate: docDate || undefined,
+      });
+      router.push(`/documents/${doc.id}`);
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : "Upload failed");
+    }
   }
 
   function fail(msg: string) {
