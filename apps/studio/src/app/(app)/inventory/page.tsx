@@ -8,6 +8,7 @@ import { InventoryFilters } from "@/components/inventory-filters";
 import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
+import { selectInChunks } from "@/lib/chunk";
 
 const PAGE_SIZE = 100;
 
@@ -177,6 +178,39 @@ export default async function InventoryPage({
         .map((id) => byId.get(id))
         .filter((r): r is ListRow => Boolean(r));
     }
+  } else if (listMemberIds) {
+    // Filtering by a list. A single `.in()` with the whole membership lives in
+    // the request URL and 414s somewhere past ~200 ids (see lib/chunk.ts) — a
+    // 500-work list took the whole inventory page down. Fetch the members in
+    // chunks with the facet filters applied, then sort and page here: a list
+    // is capped at 500 live (and rarely more static), so the rows fit
+    // comfortably in one server render.
+    try {
+      const fetched = await selectInChunks<ListRow>([...listMemberIds], (chunk) => {
+        let q = supabase.from("vw_pieces_list").select("*").in("id", chunk);
+        if (ledgerFilter) q = q.eq("ledger", ledgerFilter);
+        if (sp.status) q = q.eq("status", sp.status);
+        if (sp.category) q = q.eq("category_id", sp.category);
+        if (sp.location) q = q.eq("location_id", sp.location);
+        if (sp.loan) q = q.eq("on_temp_export", true);
+        if (sp.needs) q = q.eq("needs_completion", true);
+        return q;
+      });
+      // Mirror the SQL ordering: chosen column, chosen direction, nulls last.
+      const dir = ascending ? 1 : -1;
+      fetched.sort((a, b) => {
+        const av = (a as Record<string, unknown>)[sortCol] ?? null;
+        const bv = (b as Record<string, unknown>)[sortCol] ?? null;
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return av < bv ? -dir : av > bv ? dir : 0;
+      });
+      total = fetched.length;
+      rows = fetched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "Could not load the list" };
+    }
   } else {
     let query = supabase
       .from("vw_pieces_list")
@@ -190,11 +224,6 @@ export default async function InventoryPage({
     if (sp.location) query = query.eq("location_id", sp.location);
     if (sp.loan) query = query.eq("on_temp_export", true);
     if (sp.needs) query = query.eq("needs_completion", true);
-    if (listMemberIds) {
-      const ids = [...listMemberIds];
-      // An empty list must return nothing (a sentinel keeps .in() valid).
-      query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
-    }
 
     const res = await query;
     rows = (res.data ?? []) as ListRow[];
