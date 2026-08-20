@@ -109,6 +109,13 @@ export interface Piece {
   length_cm: number | null;
   diameter_cm: number | null;
   weight_g: number | null;
+  framed: boolean;
+  frame_height_cm: number | null;
+  frame_width_cm: number | null;
+  frame_depth_cm: number | null;
+  frame_length_cm: number | null;
+  frame_diameter_cm: number | null;
+  frame_weight_g: number | null;
   /**
    * @deprecated Retired legacy column — FileMaker's verbatim dimension text.
    * Nothing reads or writes it; the column is kept only so the imported text

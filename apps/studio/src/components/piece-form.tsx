@@ -53,6 +53,8 @@ export function PieceFormFields({
 
   const dimDefaults = s(v, [
     "height_cm", "width_cm", "depth_cm", "length_cm", "diameter_cm", "weight_g",
+    "frame_height_cm", "frame_width_cm", "frame_depth_cm",
+    "frame_length_cm", "frame_diameter_cm", "frame_weight_g",
   ]);
   const finDefaults = s(f, [
     "purchase_date", "purchase_cost", "purchase_currency", "purchase_cost_gbp",
@@ -131,7 +133,7 @@ export function PieceFormFields({
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
         <section className={panel}>
           <h2 className="text-[13px] font-semibold text-ink-strong">Dimensions</h2>
-          <DimensionsFields defaults={dimDefaults} />
+          <DimensionsFields defaults={dimDefaults} framed={piece?.framed === true} />
         </section>
 
         <section className={panel}>

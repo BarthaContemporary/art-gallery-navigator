@@ -449,6 +449,23 @@ export default async function PieceDetail({
     ["Period", piece.period ?? "—"],
     ["Origin", piece.origin_region ?? "—"],
     ["Dimensions", renderDimensions(piece)],
+    // Framed works measure differently on the wall and in the crate; map the
+    // frame_* columns onto the same keys so every dims formatter is reused.
+    [
+      "Framed",
+      (() => {
+        if (!piece.framed) return "No";
+        const frame: Dims = {
+          height_cm: piece.frame_height_cm,
+          width_cm: piece.frame_width_cm,
+          depth_cm: piece.frame_depth_cm,
+          length_cm: piece.frame_length_cm,
+          diameter_cm: piece.frame_diameter_cm,
+        };
+        // Framed but not yet measured reads "Yes", not a bare dash.
+        return formatDimensionsCm(frame) ? renderDimensions(frame) : "Yes";
+      })(),
+    ],
     ["Weight", piece.weight_g ? `${(piece.weight_g / 1000).toFixed(1)} kg` : "—"],
     ["Location", piece.location?.code ?? "—"],
     ["Acquired", fin?.purchase_date ? new Date(fin.purchase_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"],

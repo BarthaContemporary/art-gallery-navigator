@@ -170,6 +170,16 @@ export async function PATCH(
       length_cm: numv("length_cm"),
       diameter_cm: numv("diameter_cm"),
       weight_g: numv("weight_g"),
+      // An unchecked checkbox is simply absent from FormData, so absence means
+      // not framed — and an unframed work keeps no frame measurements (its
+      // hidden fields also leave the form, but clear explicitly regardless).
+      framed: fd.get("framed") === "on",
+      frame_height_cm: fd.get("framed") === "on" ? numv("frame_height_cm") : null,
+      frame_width_cm: fd.get("framed") === "on" ? numv("frame_width_cm") : null,
+      frame_depth_cm: fd.get("framed") === "on" ? numv("frame_depth_cm") : null,
+      frame_length_cm: fd.get("framed") === "on" ? numv("frame_length_cm") : null,
+      frame_diameter_cm: fd.get("framed") === "on" ? numv("frame_diameter_cm") : null,
+      frame_weight_g: fd.get("framed") === "on" ? numv("frame_weight_g") : null,
       comments: str("comments"),
       source_note: str("source_note"),
       publications: jsonList("publications"),

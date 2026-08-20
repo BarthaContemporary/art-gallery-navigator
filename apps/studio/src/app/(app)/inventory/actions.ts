@@ -57,6 +57,13 @@ const pieceSchema = z.object({
   length_cm: num,
   diameter_cm: num,
   weight_g: num,
+  framed: z.preprocess((v) => v === "on" || v === true, z.boolean()),
+  frame_height_cm: num,
+  frame_width_cm: num,
+  frame_depth_cm: num,
+  frame_length_cm: num,
+  frame_diameter_cm: num,
+  frame_weight_g: num,
   // dimensions_display is retired — see packages/db/src/dimensions.ts. The
   // column still holds legacy text but nothing reads or writes it.
   comments: z.string().trim().transform((v) => v || null),
@@ -128,6 +135,15 @@ export async function savePiece(
     redirect(
       `${stockNumber ? `/inventory/${encodeURIComponent(stockNumber)}/edit` : "/inventory/new"}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
     );
+  }
+  // An unframed work keeps no frame measurements. Mirrors the autosave route.
+  if (!parsed.data.framed) {
+    parsed.data.frame_height_cm = null;
+    parsed.data.frame_width_cm = null;
+    parsed.data.frame_depth_cm = null;
+    parsed.data.frame_length_cm = null;
+    parsed.data.frame_diameter_cm = null;
+    parsed.data.frame_weight_g = null;
   }
 
   let targetStockNumber = stockNumber;
