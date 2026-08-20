@@ -332,22 +332,25 @@ systemctl restart fail2ban
 fail2ban-client status caddy-webdav
 ```
 
-**If the drive "stops connecting" for the whole gallery — and studio uploads
-and thumbnails die at the same time while editing still works — suspect this
-jail before anything else.** The mechanics that make one ban look like three
-unrelated outages:
+**If the drive "stops connecting" for someone — and studio uploads and
+thumbnails die for them at the same time while editing still works — suspect
+this jail before anything else.** The mechanics that make one ban look like
+several unrelated outages:
 
-- A ban blocks the office IP from **port 443 of the whole server**, and the
-  drive and the Supabase API share that server. Studio pages come from
-  Vercel, and autosave runs server-side, so the studio *looks* alive — but
-  everything the browser fetches from the API directly (image thumbnails,
-  document/image uploads, the capture app) fails, along with the drive.
-- Every HTTP Basic connection begins with an unauthenticated request that
-  draws a 401 challenge, and the filter counts every 401. The whole office
-  shares one public IP, so each person mounting the drive feeds the same
-  counter — more staff on the drive means innocent traffic alone can trip it.
-- `bantime` is 1 h, but a Mac auto-reconnecting with a stale Keychain
-  password refills the counter forever, so the ban never effectively lifts.
+- A ban blocks the IP from **port 443 of the whole server**, and the drive
+  and the Supabase API share that server. Studio pages come from Vercel, and
+  autosave runs server-side, so the studio *looks* alive — but everything the
+  browser sends to the API directly (document uploads, thumbnails, the
+  capture app) fails, along with the drive. A user on a rotating ISP address
+  sees it "come and go": each fresh IP works until it earns its own ban.
+- The filter must count only 401s that carried credentials (the
+  `"Authorization"` term in failregex). Every legitimate Basic-auth
+  connection begins with a credential-less request that draws a 401
+  challenge, and auto-mounting Macs produce those in bursts all day — a
+  filter that counts bare 401s bans people for using the drive normally.
+- With the credentials-only filter, a ban means one thing: that device is
+  repeatedly sending a **wrong password** (usually a stale Keychain entry).
+  Fix the device, then `fail2ban-client set caddy-webdav unbanip <ip>`.
 
 Diagnose and clear (SSH to the VPS):
 ```
