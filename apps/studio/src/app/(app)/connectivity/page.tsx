@@ -81,13 +81,26 @@ export default function ConnectivityPage() {
     setResults(INITIAL);
     const cleanup: string[] = [];
 
-    // 1. API health — a tiny GET straight to the gallery server.
+    // 1. API health — a tiny GET straight to the gallery server. The gateway
+    // wants an api key; but for CONNECTIVITY any HTTP answer at all proves the
+    // server was reached — only a network-level failure (no response) fails.
     update(1, { state: "running" });
     const api = await timed(async () => {
-      const res = await fetch(`${API}/auth/v1/health`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`server answered ${res.status}`);
+      const res = await fetch(`${API}/auth/v1/health`, {
+        cache: "no-store",
+        headers: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          ? { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
+          : undefined,
+      });
+      if (!res.ok) throw new Error(`reachable — server answered ${res.status}`);
     });
-    update(1, { state: api.ok ? "ok" : "fail", ms: api.ms, note: api.note });
+    update(1, {
+      // A thrown fetch = no response = genuinely unreachable. An HTTP status,
+      // even an unhappy one, means the wire works.
+      state: api.ok || api.note?.startsWith("reachable") ? "ok" : "fail",
+      ms: api.ms,
+      note: api.note,
+    });
 
     // 2 + 3. Uploads — the exact path shipment/document files take.
     for (const [idx, size] of [
