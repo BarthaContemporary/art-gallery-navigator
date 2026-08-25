@@ -9,6 +9,7 @@ import { STATUS_LABELS } from "@/components/status-pill";
 import { createDraftPiece } from "./actions";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
+import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
 
 const PAGE_SIZE = 100;
 
@@ -153,11 +154,11 @@ export default async function InventoryPage({
       ledger: string;
     }>;
     if (ledgerFilter) filtered = filtered.filter((h) => h.ledger === ledgerFilter);
-    if (sp.status) filtered = filtered.filter((h) => h.status === sp.status);
+    if (sp.status) filtered = filtered.filter((h) => facetMatches(sp.status, h.status));
     if (sp.category)
-      filtered = filtered.filter((h) => h.category_id === sp.category);
+      filtered = filtered.filter((h) => facetMatches(sp.category, h.category_id));
     if (sp.location)
-      filtered = filtered.filter((h) => h.location_id === sp.location);
+      filtered = filtered.filter((h) => facetMatches(sp.location, h.location_id));
     if (listMemberIds) filtered = filtered.filter((h) => listMemberIds!.has(h.id));
 
     total = filtered.length;
@@ -189,9 +190,9 @@ export default async function InventoryPage({
       const fetched = await selectInChunks<ListRow>([...listMemberIds], (chunk) => {
         let q = supabase.from("vw_pieces_list").select("*").in("id", chunk);
         if (ledgerFilter) q = q.eq("ledger", ledgerFilter);
-        if (sp.status) q = q.eq("status", sp.status);
-        if (sp.category) q = q.eq("category_id", sp.category);
-        if (sp.location) q = q.eq("location_id", sp.location);
+        q = applyFacet(q, "status", sp.status);
+        q = applyFacet(q, "category_id", sp.category, { nullable: true });
+        q = applyFacet(q, "location_id", sp.location, { nullable: true });
         if (sp.loan) q = q.eq("on_temp_export", true);
         if (sp.needs) q = q.eq("needs_completion", true);
         return q;
@@ -219,9 +220,9 @@ export default async function InventoryPage({
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
     if (ledgerFilter) query = query.eq("ledger", ledgerFilter);
-    if (sp.status) query = query.eq("status", sp.status);
-    if (sp.category) query = query.eq("category_id", sp.category);
-    if (sp.location) query = query.eq("location_id", sp.location);
+    query = applyFacet(query, "status", sp.status);
+    query = applyFacet(query, "category_id", sp.category, { nullable: true });
+    query = applyFacet(query, "location_id", sp.location, { nullable: true });
     if (sp.loan) query = query.eq("on_temp_export", true);
     if (sp.needs) query = query.eq("needs_completion", true);
 
@@ -343,18 +344,26 @@ export default async function InventoryPage({
       />
 
       {(() => {
-        const catName = (categories ?? []).find((c) => c.id === sp.category)?.name;
-        const locMatch = (locations ?? []).find((l) => l.id === sp.location);
+        const fStatus = parseFacet(sp.status);
+        const fCat = parseFacet(sp.category);
+        const fLoc = parseFacet(sp.location);
+        const not = (f: { exclude: boolean } | null, label: string) =>
+          f?.exclude ? `Not ${label}` : label;
+        const catName = (categories ?? []).find((c) => c.id === fCat?.value)?.name;
+        const locMatch = (locations ?? []).find((l) => l.id === fLoc?.value);
         const locName = locMatch?.name ?? locMatch?.code;
         const listName = (pieceLists ?? []).find((l) => l.id === sp.list)?.name;
         const chips: Array<{ key: keyof Search; label: string }> = [];
         if (q) chips.push({ key: "q", label: `“${q}”` });
         if (sp.ledger === "external") chips.push({ key: "ledger", label: "Not JvdB" });
         else if (sp.ledger === "all") chips.push({ key: "ledger", label: "Both registers" });
-        if (sp.status)
-          chips.push({ key: "status", label: STATUS_LABELS[sp.status] ?? sp.status.replace(/_/g, " ") });
-        if (sp.category && catName) chips.push({ key: "category", label: catName });
-        if (sp.location && locName) chips.push({ key: "location", label: locName });
+        if (fStatus)
+          chips.push({
+            key: "status",
+            label: not(fStatus, STATUS_LABELS[fStatus.value] ?? fStatus.value.replace(/_/g, " ")),
+          });
+        if (fCat && catName) chips.push({ key: "category", label: not(fCat, catName) });
+        if (fLoc && locName) chips.push({ key: "location", label: not(fLoc, locName) });
         if (sp.list && listName) chips.push({ key: "list", label: `List: ${listName}` });
         if (chips.length === 0) return null;
         return (

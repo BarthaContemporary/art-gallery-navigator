@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { applyFacet, facetMatches } from "@/lib/facet";
 
 /**
  * Resolving a piece list's membership, in one place.
@@ -99,9 +100,9 @@ export async function resolveListPieceIds(
     let f = (hits ?? []) as Hit[];
     const led = ledgerOf(rules);
     if (led) f = f.filter((h) => h.ledger === led);
-    if (rules.status) f = f.filter((h) => h.status === rules.status);
-    if (rules.category) f = f.filter((h) => h.category_id === rules.category);
-    if (rules.location) f = f.filter((h) => h.location_id === rules.location);
+    if (rules.status) f = f.filter((h) => facetMatches(rules.status, h.status));
+    if (rules.category) f = f.filter((h) => facetMatches(rules.category, h.category_id));
+    if (rules.location) f = f.filter((h) => facetMatches(rules.location, h.location_id));
     if (rules.framed) f = f.filter((h) => h.framed === true);
     if (excluded.size) f = f.filter((h) => !excluded.has(h.id));
     return f.slice(0, LIVE_LIMIT).map((h) => h.id);
@@ -114,9 +115,9 @@ export async function resolveListPieceIds(
     .limit(LIVE_LIMIT);
   const led = ledgerOf(rules);
   if (led) query = query.eq("ledger", led);
-  if (rules.status) query = query.eq("status", rules.status);
-  if (rules.category) query = query.eq("category_id", rules.category);
-  if (rules.location) query = query.eq("location_id", rules.location);
+  query = applyFacet(query, "status", rules.status);
+  query = applyFacet(query, "category_id", rules.category, { nullable: true });
+  query = applyFacet(query, "location_id", rules.location, { nullable: true });
   if (rules.framed) query = query.eq("framed", true);
   const { data } = await query;
   return ((data ?? []) as { id: string }[])
@@ -146,9 +147,9 @@ export async function countListMembers(
   let cq = supabase.from("vw_pieces_list").select("id", { count: "exact", head: true });
   const led = ledgerOf(rules);
   if (led) cq = cq.eq("ledger", led);
-  if (rules.status) cq = cq.eq("status", rules.status);
-  if (rules.category) cq = cq.eq("category_id", rules.category);
-  if (rules.location) cq = cq.eq("location_id", rules.location);
+  cq = applyFacet(cq, "status", rules.status);
+  cq = applyFacet(cq, "category_id", rules.category, { nullable: true });
+  cq = applyFacet(cq, "location_id", rules.location, { nullable: true });
   if (rules.framed) cq = cq.eq("framed", true);
   const { count } = await cq;
   return count ?? 0;

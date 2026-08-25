@@ -47,9 +47,12 @@ function gbp(n: number | null | undefined) {
 
 export default async function PieceDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ stockNumber: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
+  const { error: actionError } = await searchParams;
   const { stockNumber: raw } = await params;
   const stockNumber = decodeURIComponent(raw);
   const supabase = await getSupabase();
@@ -487,6 +490,11 @@ export default async function PieceDetail({
 
   return (
     <div className="jvb-content-enter -mx-4 -my-6 md:-mx-8 md:-my-8">
+      {actionError ? (
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
+          {actionError}
+        </p>
+      ) : null}
       <RecordKeyNav
         prevHref={
           prevRes.data ? `/inventory/${encodeURIComponent(prevRes.data.stock_number)}` : null

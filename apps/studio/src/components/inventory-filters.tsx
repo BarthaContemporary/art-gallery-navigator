@@ -61,6 +61,26 @@ export function InventoryFilters({
     });
   }
 
+  /**
+   * A facet param holds either "value" (include) or "!value" (exclude). The
+   * toggle flips the prefix; changing the value keeps the current mode.
+   */
+  function facetOf(key: string): { value: string; exclude: boolean } {
+    const raw = params.get(key) ?? "";
+    return raw.startsWith("!")
+      ? { value: raw.slice(1), exclude: true }
+      : { value: raw, exclude: false };
+  }
+  function setFacetValue(key: string, value: string) {
+    const { exclude } = facetOf(key);
+    setParam(key, value ? (exclude ? `!${value}` : value) : "");
+  }
+  function toggleFacetMode(key: string) {
+    const { value, exclude } = facetOf(key);
+    if (!value) return;
+    setParam(key, exclude ? value : `!${value}`);
+  }
+
   function onSearchChange(value: string) {
     setQ(value);
     if (debounce.current) clearTimeout(debounce.current);
@@ -74,6 +94,33 @@ export function InventoryFilters({
     if (debounce.current) clearTimeout(debounce.current);
     setParam("q", q.trim());
   }
+
+  /** "is / not" switch beside a facet select; disabled until a value is set. */
+  const modeToggle = (key: string, label: string) => {
+    const { value, exclude } = facetOf(key);
+    return (
+      <button
+        type="button"
+        onClick={() => toggleFacetMode(key)}
+        disabled={!value}
+        aria-label={`${label}: ${exclude ? "excluding" : "including"} — click to switch`}
+        title={
+          value
+            ? exclude
+              ? "Excluding — showing everything except this. Click for include."
+              : "Including — showing only this. Click for exclude."
+            : "Pick a value first, then switch between include and exclude"
+        }
+        className={`rounded-md border px-1.5 py-2 font-mono text-[11px] leading-none ${
+          exclude
+            ? "border-oranje/50 bg-oranje/10 font-semibold text-oranje"
+            : "border-line-control bg-control text-ink-soft"
+        } disabled:opacity-40`}
+      >
+        {exclude ? "not" : "is"}
+      </button>
+    );
+  };
 
   return (
     <form
@@ -100,45 +147,54 @@ export function InventoryFilters({
         <option value="external">Not JvdB</option>
         <option value="all">Both registers</option>
       </select>
-      <select
-        aria-label="Filter by status"
-        value={params.get("status") ?? ""}
-        onChange={(e) => setParam("status", e.target.value)}
-        className={select}
-      >
-        <option value="">All statuses</option>
-        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Filter by category"
-        value={params.get("category") ?? ""}
-        onChange={(e) => setParam("category", e.target.value)}
-        className={select}
-      >
-        <option value="">All categories</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Filter by location"
-        value={params.get("location") ?? ""}
-        onChange={(e) => setParam("location", e.target.value)}
-        className={select}
-      >
-        <option value="">All locations</option>
-        {locations.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.name}
-          </option>
-        ))}
-      </select>
+      <span className="flex items-center gap-1">
+        {modeToggle("status", "Status")}
+        <select
+          aria-label="Filter by status"
+          value={facetOf("status").value}
+          onChange={(e) => setFacetValue("status", e.target.value)}
+          className={select}
+        >
+          <option value="">All statuses</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </span>
+      <span className="flex items-center gap-1">
+        {modeToggle("category", "Category")}
+        <select
+          aria-label="Filter by category"
+          value={facetOf("category").value}
+          onChange={(e) => setFacetValue("category", e.target.value)}
+          className={select}
+        >
+          <option value="">All categories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </span>
+      <span className="flex items-center gap-1">
+        {modeToggle("location", "Location")}
+        <select
+          aria-label="Filter by location"
+          value={facetOf("location").value}
+          onChange={(e) => setFacetValue("location", e.target.value)}
+          className={select}
+        >
+          <option value="">All locations</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </span>
       <select
         aria-label="Filter by list"
         value={params.get("list") ?? ""}

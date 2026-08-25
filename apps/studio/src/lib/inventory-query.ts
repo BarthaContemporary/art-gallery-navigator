@@ -1,3 +1,4 @@
+import { applyFacet } from "@/lib/facet";
 /*
  * The inventory list's filters, applied identically wherever they are honoured.
  *
@@ -35,16 +36,19 @@ export function registerLabel(ledger: unknown): string {
  * includes works the gallery does not own.
  */
 export function applyInventoryFilters<
-  T extends { eq: (column: string, value: unknown) => T },
+  T extends {
+    eq: (column: string, value: unknown) => T;
+    neq: (column: string, value: string) => T;
+    or: (filters: string) => T;
+  },
 >(query: T, params: URLSearchParams): T {
   let q = query;
-  for (const [param, column] of [
-    ["status", "status"],
-    ["category", "category_id"],
-    ["location", "location_id"],
+  for (const [param, column, nullable] of [
+    ["status", "status", false],
+    ["category", "category_id", true],
+    ["location", "location_id", true],
   ] as const) {
-    const v = params.get(param);
-    if (v) q = q.eq(column, v);
+    q = applyFacet(q, column, params.get(param), { nullable });
   }
   if (params.get("loan")) q = q.eq("on_temp_export", true);
   if (params.get("needs")) q = q.eq("needs_completion", true);

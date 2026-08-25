@@ -7,6 +7,7 @@ import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
 import { resolveListPieceIds, listExcludedIds, type ListLike } from "@/lib/list-members";
 import { titleWithYear } from "@jvb/db";
+import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 
 export const metadata = { title: "Inventory list" };
@@ -71,9 +72,9 @@ export default async function InventoryListDetail({
         location_id: string | null;
         framed: boolean | null;
       }>;
-      if (rules.status) filtered = filtered.filter((h) => h.status === rules.status);
-      if (rules.category) filtered = filtered.filter((h) => h.category_id === rules.category);
-      if (rules.location) filtered = filtered.filter((h) => h.location_id === rules.location);
+      if (rules.status) filtered = filtered.filter((h) => facetMatches(rules.status, h.status));
+      if (rules.category) filtered = filtered.filter((h) => facetMatches(rules.category, h.category_id));
+      if (rules.location) filtered = filtered.filter((h) => facetMatches(rules.location, h.location_id));
       if (rules.framed) filtered = filtered.filter((h) => h.framed === true);
       const ids = filtered.slice(0, 500).map((h) => h.id);
       if (ids.length > 0) {
@@ -92,9 +93,9 @@ export default async function InventoryListDetail({
         .select("id, stock_number, title, medium, period, status, year")
         .order("stock_number", { ascending: false, nullsFirst: false })
         .limit(500);
-      if (rules.status) query = query.eq("status", rules.status);
-      if (rules.category) query = query.eq("category_id", rules.category);
-      if (rules.location) query = query.eq("location_id", rules.location);
+      query = applyFacet(query, "status", rules.status);
+      query = applyFacet(query, "category_id", rules.category, { nullable: true });
+      query = applyFacet(query, "location_id", rules.location, { nullable: true });
       if (rules.framed) query = query.eq("framed", true);
       const { data } = await query;
       items = (data ?? []) as PieceLite[];
@@ -168,18 +169,19 @@ export default async function InventoryListDetail({
   if (isDynamic) {
     const [{ data: cats }, { data: locs }] = await Promise.all([
       rules.category
-        ? supabase.from("categories").select("id, name").eq("id", rules.category)
+        ? supabase.from("categories").select("id, name").eq("id", parseFacet(rules.category)?.value ?? "")
         : Promise.resolve({ data: [] as { id: string; name: string }[] }),
       rules.location
-        ? supabase.from("locations").select("id, code").eq("id", rules.location)
+        ? supabase.from("locations").select("id, code").eq("id", parseFacet(rules.location)?.value ?? "")
         : Promise.resolve({ data: [] as { id: string; code: string }[] }),
     ]);
+    const fS = parseFacet(rules.status);
+    const fC = parseFacet(rules.category);
+    const fL = parseFacet(rules.location);
     if (rules.q) rulesSummary.push(`matching “${rules.q}”`);
-    if (rules.status) rulesSummary.push(`status ${rules.status.replace(/_/g, " ")}`);
-    if (rules.category)
-      rulesSummary.push(`category ${cats?.[0]?.name ?? rules.category}`);
-    if (rules.location)
-      rulesSummary.push(`location ${locs?.[0]?.code ?? rules.location}`);
+    if (fS) rulesSummary.push(`status ${fS.exclude ? "not " : ""}${fS.value.replace(/_/g, " ")}`);
+    if (fC) rulesSummary.push(`category ${fC.exclude ? "not " : ""}${cats?.[0]?.name ?? fC.value}`);
+    if (fL) rulesSummary.push(`location ${fL.exclude ? "not " : ""}${locs?.[0]?.code ?? fL.value}`);
     if (rules.framed) rulesSummary.push("framed");
     if (rulesSummary.length === 0) rulesSummary = ["all works"];
   }
