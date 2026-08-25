@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { StatusPill } from "@/components/status-pill";
 import { loadPieceSummaries, loadPieceRows } from "@/lib/piece-store";
 import { loadThumbnails } from "@/lib/thumbnails";
+import { resolveListPieceIds, listExcludedIds, type ListLike } from "@/lib/list-members";
 import { titleWithYear } from "@jvb/db";
 import { LabelPdfButton } from "@/components/label-pdf-button";
 
@@ -103,6 +104,7 @@ export default async function InventoryListDetail({
       .from("piece_list_items")
       .select("sort_order, piece_id, created_at")
       .eq("list_id", id)
+      .eq("excluded", false)
       .order("sort_order", { nullsFirst: true });
     const summaries = await loadPieceSummaries(
       supabase,
@@ -137,6 +139,22 @@ export default async function InventoryListDetail({
       if (added && updated && new Date(updated) > new Date(added)) editedSinceAdded.add(p.id);
     }
   }
+  // Works pinned out of a live list: subtract from the display and show them
+  // in their own section with a Reinstate control. resolveListPieceIds does
+  // the same subtraction for every other consumer (inventory filter, exports,
+  // labels, offers), so the page and the artifacts always agree.
+  let excludedItems: PieceLite[] = [];
+  if (isDynamic) {
+    const excludedIds = await listExcludedIds(supabase, id);
+    if (excludedIds.size > 0) {
+      items = items.filter((p) => !excludedIds.has(p.id));
+      const summaries = await loadPieceSummaries(supabase, [...excludedIds]);
+      excludedItems = [...excludedIds]
+        .map((pid) => summaries.get(pid))
+        .filter(Boolean) as unknown as PieceLite[];
+    }
+  }
+
   const existing = new Set(items.map((p) => p.id));
 
   // Thumbnails for the rows, from the same helper the shipment lists use, so a
@@ -204,6 +222,61 @@ export default async function InventoryListDetail({
     revalidatePath(`/inventory/lists/${id}`);
   }
 
+  async function excludeItem(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    const pieceId = String(formData.get("piece_id") ?? "");
+    if (!pieceId) return;
+    // The exclusion is a pin, not a rule change: the work stays out however
+    // the live filters resolve. sort_order is irrelevant on an exclusion row.
+    await db.from("piece_list_items").upsert(
+      { list_id: id, piece_id: pieceId, excluded: true },
+      { onConflict: "list_id,piece_id" },
+    );
+    revalidatePath(`/inventory/lists/${id}`);
+  }
+
+  async function reinstateItem(formData: FormData) {
+    "use server";
+    const db = await getSupabase();
+    await db
+      .from("piece_list_items")
+      .delete()
+      .eq("list_id", id)
+      .eq("piece_id", String(formData.get("piece_id") ?? ""))
+      .eq("excluded", true);
+    revalidatePath(`/inventory/lists/${id}`);
+  }
+
+  /**
+   * Freeze the live list's current membership (exclusions applied) into a new
+   * static list, open for hand editing. The live list itself is untouched.
+   */
+  async function copyAsStatic() {
+    "use server";
+    const db = await getSupabase();
+    const { data: src } = await db
+      .from("piece_lists")
+      .select("id, name, is_dynamic, filter_rules")
+      .eq("id", id)
+      .maybeSingle();
+    if (!src) redirect(`/inventory/lists/${id}`);
+    const ids = await resolveListPieceIds(db, src as ListLike);
+    const { data: created, error } = await db
+      .from("piece_lists")
+      .insert({ name: `${src.name} (copy)`, is_dynamic: false })
+      .select("id")
+      .single();
+    if (error || !created)
+      redirect(`/inventory/lists/${id}?error=${encodeURIComponent(error?.message ?? "Could not copy")}`);
+    if (ids.length > 0) {
+      await db
+        .from("piece_list_items")
+        .insert(ids.map((pieceId, i) => ({ list_id: created.id, piece_id: pieceId, sort_order: i })));
+    }
+    redirect(`/inventory/lists/${created.id}`);
+  }
+
   async function deleteList() {
     "use server";
     const db = await getSupabase();
@@ -262,6 +335,17 @@ export default async function InventoryListDetail({
             buttonLabel="Work labels PDF"
             filePrefix="work-labels"
           />
+          {isDynamic ? (
+            <form action={copyAsStatic}>
+              <button
+                type="submit"
+                title="Freeze the current membership into a new static list you can edit by hand. This live list is untouched."
+                className="text-[12px] font-medium text-primary"
+              >
+                Save as editable copy
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
 
@@ -388,14 +472,26 @@ export default async function InventoryListDetail({
                   {p.status ? <StatusPill status={p.status} variant="inline" /> : "—"}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  {isDynamic ? null : (
+                  {isDynamic ? (
+                    <form action={excludeItem}>
+                      <input type="hidden" name="piece_id" value={p.id} />
+                      <button
+                        type="submit"
+                        title="Pin this work out of the list. It stays out however the live filters resolve; reinstate it below at any time. The record itself is untouched."
+                        className="text-[12px] text-ink-soft hover:text-ink-strong"
+                      >
+                        Exclude
+                      </button>
+                    </form>
+                  ) : (
                     <form action={removeItem}>
                       <input type="hidden" name="piece_id" value={p.id} />
                       <button
                         type="submit"
+                        title="Takes the work off this list only — the inventory record is untouched."
                         className="text-[12px] text-ink-soft hover:text-ink-strong"
                       >
-                        Remove
+                        Remove from list
                       </button>
                     </form>
                   )}
@@ -414,6 +510,41 @@ export default async function InventoryListDetail({
           </tbody>
         </table>
       </div>
+
+      {/* Works pinned out of this live list. Kept visible so an exclusion is
+          never a silent disappearance, and reversible in one click. */}
+      {excludedItems.length > 0 ? (
+        <div className="mt-5">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint">
+            Excluded from this list ({excludedItems.length})
+          </h2>
+          <div className="mt-2 space-y-1.5">
+            {excludedItems.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-band/40 px-3 py-2"
+              >
+                <Link
+                  href={`/inventory/${encodeURIComponent(p.stock_number ?? "")}`}
+                  className="min-w-0 truncate text-[13px] text-ink-muted hover:text-oranje"
+                >
+                  <span className="font-mono text-[12px]">{p.stock_number ?? "—"}</span>{" "}
+                  {titleWithYear(p.title, p.year)}
+                </Link>
+                <form action={reinstateItem}>
+                  <input type="hidden" name="piece_id" value={p.id} />
+                  <button
+                    type="submit"
+                    className="text-[12px] font-medium text-[var(--jvb-ink-desc)] hover:text-ink-strong"
+                  >
+                    Reinstate
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {isDynamic ? (
         <p className="mt-3 text-[12.5px] text-ink-muted">
