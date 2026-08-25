@@ -61,7 +61,29 @@ async function putFile(signedUrl: string, file: File): Promise<void> {
   }
   if (!res || res.status >= 500) {
     await new Promise((r) => setTimeout(r, 1500));
-    res = await attempt();
+    try {
+      res = await attempt();
+    } catch {
+      res = null;
+    }
+  }
+  if (!res) {
+    // Both attempts failed before any HTTP response existed: this computer
+    // could not reach the storage server at all. Say so in words that
+    // diagnose themselves — the file never left the machine, and the fix is
+    // on the network, not in the studio.
+    const host = (() => {
+      try {
+        return new URL(signedUrl).host;
+      } catch {
+        return "the gallery server";
+      }
+    })();
+    throw new Error(
+      `this computer could not reach ${host} — the file never left the machine. ` +
+        `That is a network problem, not a studio problem: try again on a different ` +
+        `network (e.g. a phone hotspot) and tell the office which one worked.`,
+    );
   }
   if (!res.ok) {
     const text = await res.text().catch(() => "");

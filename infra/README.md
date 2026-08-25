@@ -321,52 +321,32 @@ Caddy block; drop it once every device has been repointed).
 - **iPhone / iPad (Files app):** Browse → ⋯ → Connect to Server →
   `drive.joostvandenbergh.com` → Registered User → credentials.
 
-## 6d. fail2ban for the WebDAV endpoint
+## 6d. fail2ban for the WebDAV endpoint — RETIRED
 
-The Caddy `files.` block logs to `/var/log/caddy/files-access.log`; the jail
-bans an IP after `maxretry` auth failures in 10 min.
+The jail is deliberately disabled (`enabled = false` in
+`infra/security/fail2ban/jail.d/caddy-webdav.conf`; the file says why in
+full). In short: it banned IPs off **port 443 of the whole server** — drive
+and Supabase API together — on a signal that legitimate clients constantly
+produce, and it locked a remote colleague on a rotating consumer ISP out of
+the drive and the studio's uploads on every fresh address. The threat it
+addressed (online password guessing) is already neutralised by per-user
+bcrypt hashes of strong generated passwords over TLS — unlimited guessing
+achieves nothing.
+
+What protects the drive now: TLS in transit, per-user bcrypt auth,
+gocryptfs at rest, Cryptomator for the zero-knowledge vaults (§6e), and
+revocation by deleting a user's line from webdav.yml (§6g).
+
+Forensics on demand — every real failed login with its source IP:
 ```
-cp infra/security/fail2ban/filter.d/caddy-webdav.conf /etc/fail2ban/filter.d/
-cp infra/security/fail2ban/jail.d/caddy-webdav.conf   /etc/fail2ban/jail.d/
-systemctl restart fail2ban
-fail2ban-client status caddy-webdav
+grep '"Authorization"' /var/log/caddy/files-access.log | grep '"status":401'
 ```
 
-**If the drive "stops connecting" for someone — and studio uploads and
-thumbnails die for them at the same time while editing still works — suspect
-this jail before anything else.** The mechanics that make one ban look like
-several unrelated outages:
-
-- A ban blocks the IP from **port 443 of the whole server**, and the drive
-  and the Supabase API share that server. Studio pages come from Vercel, and
-  autosave runs server-side, so the studio *looks* alive — but everything the
-  browser sends to the API directly (document uploads, thumbnails, the
-  capture app) fails, along with the drive. A user on a rotating ISP address
-  sees it "come and go": each fresh IP works until it earns its own ban.
-- The filter must count only 401s that carried credentials (the
-  `"Authorization"` term in failregex). Every legitimate Basic-auth
-  connection begins with a credential-less request that draws a 401
-  challenge, and auto-mounting Macs produce those in bursts all day — a
-  filter that counts bare 401s bans people for using the drive normally.
-- With the credentials-only filter, a ban means one thing: that device is
-  repeatedly sending a **wrong password** (usually a stale Keychain entry).
-  Fix the device, then `fail2ban-client set caddy-webdav unbanip <ip>`.
-
-Diagnose and clear (SSH to the VPS):
-```
-fail2ban-client status caddy-webdav              # currently banned IPs
-grep Ban /var/log/fail2ban.log | tail            # ban history — since when
-grep '"status":401' /var/log/caddy/files-access.log | tail -20   # which IP/user keeps failing
-fail2ban-client set caddy-webdav unbanip <ip>
-```
-Quick confirmation from the gallery without SSH: the drive mounts fine from a
-phone hotspot but not from the office WiFi.
-
-Before unbanning, silence whatever is hammering: on each Mac, eject the drive
-mount, then Keychain Access → search "drive" → delete any stale
-`drive.joostvandenbergh.com` entry, and remount with the current password —
-otherwise the ban is back within minutes. Then put the gallery's static IP in
-`ignoreip` in the jail file so office traffic never counts again.
+**"Someone can't reach the drive AND their studio uploads fail, while
+editing works"** now has one remaining server-side cause to rule out
+(anything left is their local network): run `fail2ban-client status` and
+confirm no jail lists their IP, then have them try a phone hotspot — if the
+hotspot works, it's their ISP or router, not this server.
 
 ## 6e. Cryptomator zero-knowledge vaults (free / open source)
 

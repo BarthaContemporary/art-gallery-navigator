@@ -12,6 +12,19 @@
 #   studio → 127.0.0.1:3000
 # ===========================================================================
 
+# Global options.
+{
+	# TCP only. HTTP/3 (QUIC over UDP) is flaky through consumer and mobile
+	# ISPs, CGNAT and hotel/venue networks: long request bodies stall mid-air
+	# while small requests survive, which presents as "uploads are broken for
+	# one person on one connection" and is close to undiagnosable from logs.
+	# h1 + h2 over TCP work everywhere. Remove this block only with evidence
+	# that h3 helps a workload we actually have.
+	servers {
+		protocols h1 h2
+	}
+}
+
 # Shared security headers.
 (security_headers) {
 	header {
