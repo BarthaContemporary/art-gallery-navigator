@@ -388,7 +388,15 @@ services:
       - "127.0.0.1:8081:8081"
     volumes:
       - ./webdav/webdav.yml:/config/webdav.yml:ro
-      - ${WEBDAV_DATA_DIR:-./webdav/data}:/data
+      # rslave propagation: when gocryptfs (re)mounts on the host, the
+      # container sees the new mount immediately. Without it, a container
+      # started before the mount — or surviving a remount — serves the bare
+      # empty directory underneath: auth works, the drive looks blank.
+      - type: bind
+        source: ${WEBDAV_DATA_DIR:-./webdav/data}
+        target: /data
+        bind:
+          propagation: rslave
     read_only: true
     tmpfs:
       - /tmp
@@ -440,7 +448,12 @@ services:
       # The shared tree, at a path of our choosing so it cannot collide with
       # anything the image puts under its home. This is the folder path to
       # enter in the GUI.
-      - ${WEBDAV_DATA_DIR:-./webdav/data}:/drive
+      # Same rslave rationale as the webdav service above.
+      - type: bind
+        source: ${WEBDAV_DATA_DIR:-./webdav/data}
+        target: /drive
+        bind:
+          propagation: rslave
     security_opt:
       - no-new-privileges:true
     # The image ships its own HEALTHCHECK against the GUI; overriding it here
