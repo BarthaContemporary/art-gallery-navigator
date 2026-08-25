@@ -276,6 +276,34 @@ transit (Caddy), **per-user bcrypt** auth, **gocryptfs** encryption at rest,
    Confirm with `ls /opt/jvb/webdav-plain`, then remount (the unit above, or
    by hand) and `docker compose restart webdav syncthing`.
 
+   **If the unit fails to start**, `journalctl -u webdav-crypt -n 12` names the
+   cause; the two seen in production:
+
+   - `Invalid mountpoint: directory … not empty` — something wrote into the
+     bare directory while the mount was down. In August 2026 it was a single
+     Finder `.DS_Store` dropped into the empty mounted share, which then
+     blocked every remount for five days. Move the strays aside
+     (`mv webdav-plain webdav-plain.stray && install -d -m 700 webdav-plain`),
+     inspect them before deleting (drive uploads made during an outage land
+     there too), and re-set the write canary: `chattr +i /opt/jvb/webdav-plain`
+     makes an unmounted mountpoint refuse writes loudly instead of silently
+     wedging future mounts. The flag does not interfere with mounting.
+     (Also check whether the mount is simply ALREADY up — a unit mid retry
+     loop mounts by itself the moment its blocker clears, and manual attempts
+     then see "not empty" because the mounted tree is showing.)
+   - `Password incorrect` — /etc/jvb/webdav.pass does not match. Test the
+     passphrase interactively first (`gocryptfs /opt/jvb/webdav-cipher
+     /opt/jvb/webdav-plain`); if the typed passphrase fails too, the password
+     manager entry is stale and the offline master key is the recovery: back
+     up the config (`cp webdav-cipher/gocryptfs.conf /root/`), then
+     `gocryptfs -passwd -masterkey=<key> /opt/jvb/webdav-cipher` sets a fresh
+     passphrase (update the password manager AND the passfile — write the
+     passfile with `read -rs` + `printf '%s'` so no stray newline or smart
+     quote sneaks in), then `history -c` since the key touched the command
+     line. Even with both passphrase and master key lost, the Macs hold the
+     full decrypted tree via Syncthing: re-init a new cipher dir and let it
+     repopulate.
+
    Caveat: a passphrase file on the box
    protects against **disk theft / decommissioning**, not a live root
    compromise (same as LUKS with a keyfile). For protection even from the
