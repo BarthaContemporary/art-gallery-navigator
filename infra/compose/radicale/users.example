@@ -1,0 +1,5 @@
+# bcrypt htpasswd users for the calendar server. Copy to `users` on the VPS
+# (gitignored) and generate each line with:
+#   docker run --rm -it httpd:2.4-alpine htpasswd -nBC 12 gallery
+# One shared `gallery` account is the intended setup — see README §6h.
+gallery:$2y$12$REPLACE_WITH_BCRYPT_HASH

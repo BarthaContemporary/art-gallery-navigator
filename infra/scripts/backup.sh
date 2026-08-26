@@ -113,6 +113,16 @@ backup_db() {
   log "uploading to $DEST/$file"
   rclone copyto "$tmp/$file" "$DEST/$file"
 
+  # The shared calendar (Radicale, /opt/jvb/calendar) rides along with the
+  # nightly db backup — it is tiny, and events people create must survive the
+  # box. Guarded so the step is a no-op until the calendar service exists.
+  if [ -d "${CALENDAR_DATA_DIR:-/opt/jvb/calendar}" ]; then
+    local calfile="jvb-calendar-$ts.tar.gz"
+    tar -czf "$tmp/$calfile" -C "${CALENDAR_DATA_DIR:-/opt/jvb/calendar}" .
+    rclone copyto "$tmp/$calfile" "$RCLONE_REMOTE:$BACKUP_BUCKET/backups/calendar/$calfile"
+    log "calendar backup uploaded: $calfile"
+  fi
+
   prune_db_backups
   record_run db "$bytes" "$file"
   ping_healthchecks "$HEALTHCHECKS_URL"

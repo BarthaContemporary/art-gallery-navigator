@@ -26,3 +26,4 @@ apps/web/.sanity/
 # WebDAV shared-drive: real config holds credentials; data is server-only
 infra/compose/webdav/webdav.yml
 infra/compose/webdav/data/
+infra/compose/radicale/users

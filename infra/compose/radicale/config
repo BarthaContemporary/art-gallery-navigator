@@ -1,0 +1,28 @@
+# Radicale (CalDAV) — the gallery's shared calendar server.
+# Mounted read-only into the container at /config/config.
+[server]
+hosts = 0.0.0.0:5232
+
+[auth]
+type = htpasswd
+htpasswd_filename = /config/users
+htpasswd_encryption = bcrypt
+# Apple clients re-authenticate constantly; don't rate-limit them into errors.
+delay = 1
+
+[rights]
+# Each account sees only its own collections. The gallery shares ONE account
+# (see README §6h): Apple Calendar only auto-discovers calendars belonging to
+# the signed-in account, so a shared account is what makes the same calendars
+# appear for everyone with zero per-device fiddling.
+type = owner_only
+
+[storage]
+filesystem_folder = /data
+
+[web]
+# The built-in web UI (used once, to create the first calendar).
+type = internal
+
+[logging]
+level = info

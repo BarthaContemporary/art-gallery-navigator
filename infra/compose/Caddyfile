@@ -84,6 +84,15 @@ studio.example.com {
 }
 
 # ---------------------------------------------------------------------------
+# Shared company calendar (CalDAV / Radicale). Apple Calendar handles
+# /.well-known/caldav itself via Radicale's redirect; just proxy everything.
+# ---------------------------------------------------------------------------
+cal.example.com {
+	import security_headers
+	reverse_proxy 127.0.0.1:5232
+}
+
+# ---------------------------------------------------------------------------
 # WebDAV shared drive — the gallery's self-hosted "Dropbox" (BUILD_PLAN: files
 # on the VPS, in the backup routine). Caddy terminates TLS; the webdav
 # container does per-user bcrypt auth and only listens on 127.0.0.1:8081.

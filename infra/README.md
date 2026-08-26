@@ -686,6 +686,54 @@ nothing for a staff member to do about it.
 3. Rotate any vault passphrase they held. Removing drive access does not
    re-encrypt a vault whose passphrase they already know.
 
+## 6h. Shared company calendar (CalDAV → Apple Calendar)
+
+Radicale on the VPS at `cal.<domain>`; Apple Calendar on every Mac and iPhone
+speaks CalDAV natively, so events sync both ways with no third party. Design
+choice: **one shared `gallery` account** (strong generated password in the
+shared password manager). Apple Calendar only auto-discovers calendars
+belonging to the account that signs in, so a shared account is what makes the
+same "Viewings / Fairs / Shipments" calendars appear identically on every
+device with zero per-device fiddling. Three trusted users; per-person edit
+audit is not worth the discovery pain.
+
+**Bring-up (once):**
+
+1. DNS: add an A record `cal.<domain>` → VPS IP.
+2. Files on the VPS (`/opt/jvb/infra/compose/`): the `radicale/config` from
+   this repo, and `radicale/users` created from `radicale/users.example`:
+   ```
+   docker run --rm -it httpd:2.4-alpine htpasswd -nBC 12 gallery
+   ```
+   Paste the whole output line (username:hash) into `radicale/users`,
+   `chmod 600 radicale/users`.
+3. Data dir: `install -d -m 700 /opt/jvb/calendar` (it rides along with the
+   nightly db backup — see backup.sh).
+4. Caddy: add the `cal.` block from this repo's Caddyfile template to
+   `/etc/caddy/Caddyfile` (with the real domain), `caddy validate`,
+   `systemctl reload caddy`.
+5. `docker compose up -d radicale`, then check
+   `curl -sI https://cal.<domain>/ | head -3` → an HTTP answer (302/401).
+6. Create the calendars: open `https://cal.<domain>/.web/` in a browser, log
+   in as `gallery`, create e.g. "Gallery", "Fairs", "Shipping" (type:
+   calendar). Apple devices then see all of them.
+
+**Adding it on a Mac:** System Settings → Internet Accounts → Add Account →
+Add Other Account… → CalDAV Account. Account type Advanced; username
+`gallery`; password from the manager; Server Address `cal.<domain>`; Server
+Path `/`; Port 443, Use SSL ticked. The calendars appear in Calendar.app
+under a "cal.<domain>" section.
+
+**iPhone / iPad:** Settings → Calendar → Accounts → Add Account → Other →
+Add CalDAV Account. Server `cal.<domain>`, same username/password.
+
+Events created on any device appear on the others (Apple polls CalDAV; the
+default refresh is a few minutes — pull-to-refresh in the app forces it).
+
+**Revocation** = change the `gallery` password (regenerate the htpasswd line,
+`docker compose restart radicale`, update the password manager, re-enter on
+devices that should keep access).
+
 ## 7. Upgrade procedure
 
 Every image in `docker-compose.yml` is pinned (Studio: pin at deploy time —

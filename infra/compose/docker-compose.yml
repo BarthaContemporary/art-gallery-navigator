@@ -409,6 +409,28 @@ services:
       retries: 5
 
   # -------------------------------------------------------------------------
+  # Radicale — CalDAV for the shared company calendar. Apple Calendar (macOS +
+  # iOS) speaks CalDAV natively; Caddy terminates TLS at cal.<domain> and
+  # proxies here. One shared `gallery` account (radicale/users, bcrypt) — see
+  # infra/README.md §6h for why and for the Apple setup steps.
+  # -------------------------------------------------------------------------
+  radicale:
+    container_name: jvb-radicale
+    image: tomsquest/docker-radicale:3.5.4.0
+    restart: unless-stopped
+    networks:
+      - supabase
+    ports:
+      # Loopback only: Caddy on the host proxies cal.<domain> to it.
+      - "127.0.0.1:5232:5232"
+    volumes:
+      - ./radicale/config:/config/config:ro
+      - ./radicale/users:/config/users:ro
+      - ${CALENDAR_DATA_DIR:-/opt/jvb/calendar}:/data
+    security_opt:
+      - no-new-privileges:true
+
+  # -------------------------------------------------------------------------
   # Syncthing — continuous two-way sync of the shared drive to staff Macs, so
   # the drive behaves like Dropbox (local copies, offline access) rather than
   # only as a Finder network mount. Same tree as WebDAV: ${WEBDAV_DATA_DIR},
