@@ -20,6 +20,7 @@ export type CalendarEvent = {
   uid: string;
   title: string;
   location: string | null;
+  description: string | null;
   allDay: boolean;
   start: Date;
   end: Date | null;
@@ -28,6 +29,11 @@ export type CalendarEvent = {
   endDay: string;
   calendarName: string;
   color: string | null;
+  /** CalDAV resource path — the PUT/DELETE target for edits. */
+  href: string;
+  etag: string | null;
+  /** Recurring events are edited in Apple Calendar, not the studio. */
+  recurring: boolean;
 };
 
 export type CalendarFeed =
@@ -210,9 +216,11 @@ function addDaysIso(day: string, delta: number): string {
   return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
 }
 
-function parseIcsEvents(ics: string, cal: CalDavCalendar): CalendarEvent[] {
+type CalResource = { href: string; etag: string | null };
+
+function parseIcsEvents(ics: string, cal: CalDavCalendar, resource: CalResource): CalendarEvent[] {
   const unfolded = ics.replace(/\r?\n[ \t]/g, "");
-  const events: CalendarEvent[] = [];
+  const vevents: Record<string, IcsProp>[] = [];
   let cur: Record<string, IcsProp> | null = null;
   for (const rawLine of unfolded.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -221,10 +229,7 @@ function parseIcsEvents(ics: string, cal: CalDavCalendar): CalendarEvent[] {
       continue;
     }
     if (line === "END:VEVENT") {
-      if (cur) {
-        const ev = buildEvent(cur, cal);
-        if (ev) events.push(ev);
-      }
+      if (cur) vevents.push(cur);
       cur = null;
       continue;
     }
@@ -232,10 +237,25 @@ function parseIcsEvents(ics: string, cal: CalDavCalendar): CalendarEvent[] {
     const prop = parseIcsLine(line);
     if (prop && !(prop.name in cur)) cur[prop.name] = prop;
   }
+  // One resource = one event series. More than one VEVENT means expanded
+  // recurrence instances (or overrides); any RRULE means the same on the
+  // unexpanded fallback path.
+  const recurring =
+    vevents.length > 1 || vevents.some((p) => "RRULE" in p || "RECURRENCE-ID" in p);
+  const events: CalendarEvent[] = [];
+  for (const props of vevents) {
+    const ev = buildEvent(props, cal, resource, recurring);
+    if (ev) events.push(ev);
+  }
   return events;
 }
 
-function buildEvent(props: Record<string, IcsProp>, cal: CalDavCalendar): CalendarEvent | null {
+function buildEvent(
+  props: Record<string, IcsProp>,
+  cal: CalDavCalendar,
+  resource: CalResource,
+  recurring: boolean,
+): CalendarEvent | null {
   const startProp = props["DTSTART"];
   if (!startProp) return null;
   const start = parseIcsDate(startProp);
@@ -258,6 +278,7 @@ function buildEvent(props: Record<string, IcsProp>, cal: CalDavCalendar): Calend
     uid,
     title: props["SUMMARY"] ? unescapeIcsText(props["SUMMARY"].value) : "(untitled)",
     location: props["LOCATION"] ? unescapeIcsText(props["LOCATION"].value) : null,
+    description: props["DESCRIPTION"] ? unescapeIcsText(props["DESCRIPTION"].value) : null,
     allDay: start.allDay,
     start: start.date,
     end: end?.date ?? null,
@@ -265,6 +286,9 @@ function buildEvent(props: Record<string, IcsProp>, cal: CalDavCalendar): Calend
     endDay,
     calendarName: cal.name,
     color: cal.color,
+    href: resource.href,
+    etag: resource.etag,
+    recurring,
   };
 }
 
@@ -272,7 +296,7 @@ function buildEvent(props: Record<string, IcsProp>, cal: CalDavCalendar): Calend
 
 async function davRequest(
   path: string,
-  init: { method: string; depth: string; body: string },
+  init: { method: string; depth?: string; body?: string; headers?: Record<string, string> },
 ): Promise<Response> {
   const cfg = config();
   if (!cfg) throw new Error("CalDAV not configured");
@@ -280,13 +304,33 @@ async function davRequest(
     method: init.method,
     headers: {
       Authorization: `Basic ${Buffer.from(`${cfg.user}:${cfg.password}`).toString("base64")}`,
-      Depth: init.depth,
-      "Content-Type": "application/xml; charset=utf-8",
+      ...(init.depth ? { Depth: init.depth } : {}),
+      ...(init.body !== undefined
+        ? { "Content-Type": "application/xml; charset=utf-8" }
+        : {}),
+      ...init.headers,
     },
     body: init.body,
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
   });
+}
+
+/**
+ * Event/calendar hrefs come back from the browser as form fields, so they are
+ * untrusted: only paths inside the configured account's collection are allowed.
+ */
+function assertSafeHref(href: string): string {
+  const cfg = config();
+  if (!cfg) throw new Error("CalDAV not configured");
+  if (
+    !href.startsWith(`/${cfg.user}/`) ||
+    href.includes("..") ||
+    !/^[A-Za-z0-9/._~@%-]+$/.test(href)
+  ) {
+    throw new Error("invalid calendar path");
+  }
+  return href;
 }
 
 async function listCalendars(): Promise<CalDavCalendar[]> {
@@ -331,6 +375,7 @@ function reportBody(from: Date, to: Date, expand: boolean): string {
   return `<?xml version="1.0" encoding="utf-8"?>
 <C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
   <D:prop>
+    <D:getetag/>
     <C:calendar-data>${expand ? `<C:expand ${range}/>` : ""}</C:calendar-data>
   </D:prop>
   <C:filter>
@@ -366,8 +411,12 @@ async function eventsForCalendar(
   }
   const xml = await res.text();
   const events: CalendarEvent[] = [];
-  for (const data of xmlBlocks(xml, "calendar-data")) {
-    events.push(...parseIcsEvents(unescapeXml(data), cal));
+  for (const block of xmlBlocks(xml, "response")) {
+    const href = xmlText(block, "href");
+    const data = xmlBlocks(block, "calendar-data")[0];
+    if (!href || data === undefined) continue;
+    const etag = xmlText(block, "getetag");
+    events.push(...parseIcsEvents(unescapeXml(data), cal, { href, etag }));
   }
   return events;
 }
@@ -389,12 +438,210 @@ export async function fetchCalendarFeed(from: Date, to: Date): Promise<CalendarF
     });
     return { status: "ok", calendars, events };
   } catch (err) {
-    const message =
-      err instanceof Error && err.name === "TimeoutError"
-        ? "calendar server did not respond"
-        : err instanceof Error
-          ? err.message
-          : "unknown error";
-    return { status: "error", message };
+    return { status: "error", message: errorMessage(err) };
+  }
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error && err.name === "TimeoutError") return "calendar server did not respond";
+  return err instanceof Error ? err.message : "unknown error";
+}
+
+// --- writes (create / update / delete events) -------------------------------
+
+export type EventFields = {
+  title: string;
+  location: string | null;
+  description: string | null;
+  allDay: boolean;
+  /** London wall-clock. endDay is inclusive; times are ignored for all-day. */
+  startDay: string;
+  endDay: string;
+  startTime: string;
+  endTime: string;
+};
+
+export type WriteResult = { ok: true } | { ok: false; message: string };
+
+function escapeIcsText(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+
+/** RFC 5545 §3.1 — fold long lines with CRLF + space, on UTF-8 boundaries. */
+function foldIcsLine(line: string): string {
+  const bytes = Buffer.from(line, "utf8");
+  if (bytes.length <= 74) return line;
+  const parts: string[] = [];
+  let start = 0;
+  while (start < bytes.length) {
+    let len = Math.min(start === 0 ? 74 : 73, bytes.length - start);
+    while (len > 1 && (bytes[start + len] ?? 0) >= 0x80 && (bytes[start + len] ?? 0) < 0xc0) len--;
+    parts.push(bytes.subarray(start, start + len).toString("utf8"));
+    start += len;
+  }
+  return parts.join("\r\n ");
+}
+
+function timeParts(t: string): [number, number] {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  return m ? [Number(m[1]), Number(m[2])] : [0, 0];
+}
+
+function dtLines(f: EventFields): string[] {
+  if (f.allDay) {
+    const endDay = f.endDay >= f.startDay ? f.endDay : f.startDay;
+    return [
+      `DTSTART;VALUE=DATE:${f.startDay.replace(/-/g, "")}`,
+      // DTEND is exclusive for all-day events.
+      `DTEND;VALUE=DATE:${addDaysIso(endDay, 1).replace(/-/g, "")}`,
+    ];
+  }
+  const [sy, sm, sd] = isoDayParts(f.startDay);
+  const [ey, em, ed] = isoDayParts(f.endDay);
+  const [sh, smin] = timeParts(f.startTime);
+  const [eh, emin] = timeParts(f.endTime);
+  const start = zonedToUtc(sy, sm, sd, sh, smin, 0, LONDON);
+  let end = zonedToUtc(ey, em, ed, eh, emin, 0, LONDON);
+  if (end.getTime() <= start.getTime()) end = new Date(start.getTime() + 60 * 60 * 1000);
+  return [`DTSTART:${toIcsUtc(start)}`, `DTEND:${toIcsUtc(end)}`];
+}
+
+function eventPropLines(f: EventFields): string[] {
+  const lines = [...dtLines(f), `SUMMARY:${escapeIcsText(f.title)}`];
+  if (f.location) lines.push(`LOCATION:${escapeIcsText(f.location)}`);
+  if (f.description) lines.push(`DESCRIPTION:${escapeIcsText(f.description)}`);
+  return lines;
+}
+
+const CALENDAR_MIME = "text/calendar; charset=utf-8";
+
+export async function createCalendarEvent(
+  calendarHref: string,
+  f: EventFields,
+): Promise<WriteResult> {
+  try {
+    const href = assertSafeHref(calendarHref);
+    // The target must be one of the account's own calendar collections.
+    const calendars = await listCalendars();
+    if (!calendars.some((c) => c.href === href)) return { ok: false, message: "unknown calendar" };
+    const uid = `${crypto.randomUUID()}@jvb-studio`;
+    const stamp = toIcsUtc(new Date());
+    const ics =
+      [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//JvdB Studio//CalDAV//EN",
+        "BEGIN:VEVENT",
+        `UID:${uid}`,
+        `DTSTAMP:${stamp}`,
+        `CREATED:${stamp}`,
+        `LAST-MODIFIED:${stamp}`,
+        "SEQUENCE:0",
+        ...eventPropLines(f),
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ]
+        .map(foldIcsLine)
+        .join("\r\n") + "\r\n";
+    const res = await davRequest(`${href}${uid}.ics`, {
+      method: "PUT",
+      body: ics,
+      headers: { "Content-Type": CALENDAR_MIME, "If-None-Match": "*" },
+    });
+    if (!res.ok) return { ok: false, message: `save failed (HTTP ${res.status})` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: errorMessage(err) };
+  }
+}
+
+export async function updateCalendarEvent(
+  href: string,
+  etag: string | null,
+  f: EventFields,
+): Promise<WriteResult> {
+  try {
+    const safe = assertSafeHref(href);
+    const got = await davRequest(safe, { method: "GET" });
+    if (!got.ok) return { ok: false, message: `event fetch failed (HTTP ${got.status})` };
+    const raw = await got.text();
+    const lines = raw
+      .replace(/\r?\n[ \t]/g, "")
+      .split(/\r?\n/)
+      .filter((l) => l !== "");
+    if (
+      lines.filter((l) => l === "BEGIN:VEVENT").length !== 1 ||
+      lines.some((l) => /^RRULE[;:]/.test(l))
+    ) {
+      return { ok: false, message: "recurring events are edited in Apple Calendar" };
+    }
+    // Rewrite only the fields the form owns; every other property survives.
+    // RFC 5545 puts event properties before sub-components (VALARM etc.), so
+    // the new lines go right after BEGIN:VEVENT, and dropping only applies at
+    // the event's own level — an alarm's DESCRIPTION is not the event's.
+    const DROP = /^(SUMMARY|LOCATION|DESCRIPTION|DTSTART|DTEND|DURATION|DTSTAMP|LAST-MODIFIED|SEQUENCE)[;:]/;
+    let seq = 0;
+    for (const l of lines) {
+      const m = /^SEQUENCE[^:]*:(\d+)/.exec(l);
+      if (m) seq = Number(m[1]);
+    }
+    const stamp = toIcsUtc(new Date());
+    let inEvent = false;
+    let depth = 0;
+    const out: string[] = [];
+    for (const l of lines) {
+      if (l === "BEGIN:VEVENT") {
+        inEvent = true;
+        depth = 0;
+        out.push(l, `DTSTAMP:${stamp}`, `LAST-MODIFIED:${stamp}`, `SEQUENCE:${seq + 1}`);
+        out.push(...eventPropLines(f));
+        continue;
+      }
+      if (l === "END:VEVENT") {
+        inEvent = false;
+        out.push(l);
+        continue;
+      }
+      if (inEvent && l.startsWith("BEGIN:")) depth++;
+      if (inEvent && l.startsWith("END:")) depth--;
+      if (inEvent && depth === 0 && DROP.test(l)) continue;
+      out.push(l);
+    }
+    const res = await davRequest(safe, {
+      method: "PUT",
+      body: out.map(foldIcsLine).join("\r\n") + "\r\n",
+      headers: { "Content-Type": CALENDAR_MIME, ...(etag ? { "If-Match": etag } : {}) },
+    });
+    if (res.status === 412) {
+      return { ok: false, message: "event changed elsewhere — reload and try again" };
+    }
+    if (!res.ok) return { ok: false, message: `save failed (HTTP ${res.status})` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: errorMessage(err) };
+  }
+}
+
+export async function deleteCalendarEvent(href: string, etag: string | null): Promise<WriteResult> {
+  try {
+    const safe = assertSafeHref(href);
+    const res = await davRequest(safe, {
+      method: "DELETE",
+      headers: etag ? { "If-Match": etag } : {},
+    });
+    if (res.status === 412) {
+      return { ok: false, message: "event changed elsewhere — reload and try again" };
+    }
+    // Already gone is the outcome we wanted.
+    if (!res.ok && res.status !== 404) {
+      return { ok: false, message: `delete failed (HTTP ${res.status})` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: errorMessage(err) };
   }
 }

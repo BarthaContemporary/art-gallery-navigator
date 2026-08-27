@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getSupabase, getSession, hasRole } from "@/lib/supabase";
 import { StatPanel } from "@/components/stat-panel";
 import { WebsitePanel } from "@/components/website-panel";
 import { NationalityPie } from "@/components/nationality-pie";
 import { BackupPanel } from "@/components/backup-panel";
+import { UpcomingEventsPanel } from "@/components/upcoming-events-panel";
 import { CountUp } from "@/components/count-up";
 
 export default async function Dashboard() {
@@ -170,9 +172,26 @@ export default async function Dashboard() {
         </div>
       </div>
 
+      <div
+        style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
+        className="jvb-rise mt-4"
+      >
+        {/* Streams in so a slow calendar server never holds up the dashboard. */}
+        <Suspense
+          fallback={
+            <div className="rounded-[11px] border border-line bg-cell p-4">
+              <h2 className="text-[13px] font-semibold text-ink-strong">Next 10 days</h2>
+              <p className="mt-3 text-[12.5px] text-ink-muted">Loading…</p>
+            </div>
+          }
+        >
+          <UpcomingEventsPanel />
+        </Suspense>
+      </div>
+
       {isAdmin ? (
         <div
-          style={{ "--jvb-stagger": `${base + 320}ms` } as React.CSSProperties}
+          style={{ "--jvb-stagger": `${base + 380}ms` } as React.CSSProperties}
           className="jvb-rise mt-4"
         >
           <BackupPanel />

@@ -1,21 +1,113 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getSupabase } from "@/lib/supabase";
+import { redirect } from "next/navigation";
+import { getSession, getSupabase } from "@/lib/supabase";
 import {
   calendarWebUrl,
+  createCalendarEvent,
+  deleteCalendarEvent,
   fetchCalendarFeed,
   isoDayParts,
   londonDay,
   londonTime,
+  updateCalendarEvent,
   zonedToUtc,
+  type EventFields,
 } from "@/lib/caldav";
 import {
   AppointmentsCalendar,
   buildMonthGrid,
   type CalendarAppointment,
 } from "@/components/appointments-calendar";
+import { EventEditor } from "@/components/event-editor";
 
 export const metadata = { title: "Appointments" };
+
+// --- shared calendar server actions (write to Radicale over CalDAV) ---------
+
+function cleanMonth(formData: FormData): string {
+  const m = String(formData.get("month") ?? "");
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : "";
+}
+
+function backUrl(month: string, err: string | null): string {
+  const params = new URLSearchParams();
+  if (month) params.set("month", month);
+  if (err) params.set("calerr", err);
+  const qs = params.toString();
+  return `/appointments${qs ? `?${qs}` : ""}`;
+}
+
+function fieldsFromForm(formData: FormData): EventFields | { error: string } {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "the event needs a title" };
+  const startDay = String(formData.get("startDay") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDay)) return { error: "invalid start date" };
+  let endDay = String(formData.get("endDay") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDay) || endDay < startDay) endDay = startDay;
+  const time = (name: string, fallback: string) => {
+    const t = String(formData.get(name) ?? "");
+    return /^\d{2}:\d{2}$/.test(t) ? t : fallback;
+  };
+  return {
+    title,
+    location: String(formData.get("location") ?? "").trim() || null,
+    description: String(formData.get("description") ?? "").trim() || null,
+    allDay: formData.get("allDay") === "1",
+    startDay,
+    endDay,
+    startTime: time("startTime", "10:00"),
+    endTime: time("endTime", "11:00"),
+  };
+}
+
+async function createEvent(formData: FormData) {
+  "use server";
+  if (!(await getSession())) redirect("/login");
+  const month = cleanMonth(formData);
+  const fields = fieldsFromForm(formData);
+  let err: string | null = null;
+  if ("error" in fields) {
+    err = fields.error;
+  } else {
+    const res = await createCalendarEvent(String(formData.get("calendar") ?? ""), fields);
+    if (!res.ok) err = res.message;
+  }
+  revalidatePath("/appointments");
+  redirect(backUrl(month, err));
+}
+
+async function updateEvent(formData: FormData) {
+  "use server";
+  if (!(await getSession())) redirect("/login");
+  const month = cleanMonth(formData);
+  const fields = fieldsFromForm(formData);
+  let err: string | null = null;
+  if ("error" in fields) {
+    err = fields.error;
+  } else {
+    const res = await updateCalendarEvent(
+      String(formData.get("href") ?? ""),
+      String(formData.get("etag") ?? "") || null,
+      fields,
+    );
+    if (!res.ok) err = res.message;
+  }
+  revalidatePath("/appointments");
+  redirect(backUrl(month, err));
+}
+
+async function deleteEvent(formData: FormData) {
+  "use server";
+  if (!(await getSession())) redirect("/login");
+  const month = cleanMonth(formData);
+  const res = await deleteCalendarEvent(
+    String(formData.get("href") ?? ""),
+    String(formData.get("etag") ?? "") || null,
+  );
+  revalidatePath("/appointments");
+  redirect(backUrl(month, res.ok ? null : res.message));
+}
 
 const btnGhost =
   "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
@@ -220,7 +312,13 @@ function AppointmentsTable({
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{
+    month?: string;
+    new?: string;
+    day?: string;
+    edit?: string;
+    calerr?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const supabase = await getSupabase();
@@ -279,14 +377,47 @@ export default async function AppointmentsPage({
     };
   });
 
+  let editor: React.ReactNode = null;
+  if (feed.status === "ok" && feed.calendars.length > 0 && (sp.new || sp.edit)) {
+    const mode = sp.edit ? ("edit" as const) : ("new" as const);
+    const event =
+      mode === "edit"
+        ? (feed.events.find((e) => e.uid === sp.edit && !e.recurring) ?? null)
+        : null;
+    if (mode === "new" || event) {
+      const day = sp.day && /^\d{4}-\d{2}-\d{2}$/.test(sp.day) ? sp.day : today;
+      editor = (
+        <EventEditor
+          mode={mode}
+          month={month}
+          day={day}
+          calendars={feed.calendars}
+          event={event}
+          createAction={createEvent}
+          updateAction={updateEvent}
+          deleteAction={deleteEvent}
+        />
+      );
+    }
+  }
+
   return (
     <div className="max-w-[1080px] space-y-8">
+      {sp.calerr ? (
+        <p className="rounded-lg border border-danger-soft bg-danger-soft/40 px-3 py-2 text-[12.5px] text-ink-strong">
+          Calendar: {sp.calerr}.{" "}
+          <Link href={`/appointments?month=${month}`} className="underline">
+            Dismiss
+          </Link>
+        </p>
+      ) : null}
       <AppointmentsCalendar
         month={month}
         today={today}
         feed={feed}
         webUrl={calendarWebUrl()}
         appointments={calendarAppointments}
+        editor={editor}
       />
 
       {appointments.length === 0 ? (

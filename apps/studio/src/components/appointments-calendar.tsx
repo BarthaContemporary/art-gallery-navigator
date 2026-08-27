@@ -59,12 +59,9 @@ export function buildMonthGrid(month: string): MonthGridDay[] {
   return days;
 }
 
-function EventChip({ event }: { event: CalendarEvent }) {
-  return (
-    <div
-      className="flex items-start gap-1.5 rounded-md bg-pill px-1.5 py-1 text-[11px] leading-snug text-ink-body"
-      title={[event.title, event.location].filter(Boolean).join(" — ")}
-    >
+function EventChip({ event, editHref }: { event: CalendarEvent; editHref: string | null }) {
+  const body = (
+    <>
       <span
         aria-hidden
         className="mt-[4px] inline-block h-[6px] w-[6px] shrink-0 rounded-full"
@@ -77,7 +74,27 @@ function EventChip({ event }: { event: CalendarEvent }) {
           </span>
         ) : null}
         <span className="break-words font-medium">{event.title}</span>
+        {event.recurring ? (
+          <span aria-hidden className="text-ink-faint">
+            {" "}
+            ↻
+          </span>
+        ) : null}
       </span>
+    </>
+  );
+  const chip = "flex items-start gap-1.5 rounded-md bg-pill px-1.5 py-1 text-[11px] leading-snug text-ink-body";
+  const hint = [event.title, event.location].filter(Boolean).join(" — ");
+  if (editHref) {
+    return (
+      <Link href={editHref} className={`${chip} hover:bg-control`} title={`${hint} — click to edit`}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <div className={chip} title={event.recurring ? `${hint} — repeats; edit in Apple Calendar` : hint}>
+      {body}
     </div>
   );
 }
@@ -115,13 +132,17 @@ export function AppointmentsCalendar({
   feed,
   webUrl,
   appointments,
+  editor,
 }: {
   month: string;
   today: string;
   feed: CalendarFeed;
   webUrl: string | null;
   appointments: CalendarAppointment[];
+  /** The open ?new/?edit editor panel, rendered between header and grid. */
+  editor?: React.ReactNode;
 }) {
+  const editable = feed.status === "ok" && feed.calendars.length > 0;
   const grid = buildMonthGrid(month);
   const eventsByDay = new Map<string, CalendarEvent[]>();
   const push = <T,>(map: Map<string, T[]>, key: string, item: T) => {
@@ -157,6 +178,11 @@ export function AppointmentsCalendar({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
+          {editable ? (
+            <Link href={`/appointments?month=${month}&new=1`} className={navBtn}>
+              + New event
+            </Link>
+          ) : null}
           {webUrl ? (
             <a href={webUrl} target="_blank" rel="noreferrer" className={navBtn}>
               Open shared calendar ↗
@@ -186,6 +212,8 @@ export function AppointmentsCalendar({
         </p>
       ) : null}
 
+      {editor}
+
       <div className="mt-2 overflow-x-auto rounded-[11px] border border-line">
         <div className="min-w-[880px] bg-cell">
           <div className="grid grid-cols-7 border-b border-line">
@@ -206,11 +234,23 @@ export function AppointmentsCalendar({
               return (
                 <div
                   key={day.iso}
-                  className={`min-h-[104px] border-line-soft p-1.5 ${i % 7 !== 0 ? "border-l" : ""} ${
+                  className={`group min-h-[104px] border-line-soft p-1.5 ${i % 7 !== 0 ? "border-l" : ""} ${
                     i >= 7 ? "border-t" : ""
                   } ${day.inMonth ? "" : "opacity-45"}`}
                 >
-                  <div className="mb-1 flex justify-end">
+                  <div className="mb-1 flex items-center justify-between">
+                    {editable ? (
+                      <Link
+                        href={`/appointments?month=${month}&new=1&day=${day.iso}`}
+                        aria-label={`New event on ${day.iso}`}
+                        title="New event on this day"
+                        className="px-1 text-[12px] leading-none text-ink-faint opacity-0 transition-opacity hover:text-ink-strong group-hover:opacity-100"
+                      >
+                        +
+                      </Link>
+                    ) : (
+                      <span />
+                    )}
                     <span
                       className={
                         isToday
@@ -223,7 +263,15 @@ export function AppointmentsCalendar({
                   </div>
                   <div className="space-y-1">
                     {events.map((ev) => (
-                      <EventChip key={`${ev.uid}:${day.iso}`} event={ev} />
+                      <EventChip
+                        key={`${ev.uid}:${day.iso}`}
+                        event={ev}
+                        editHref={
+                          editable && !ev.recurring
+                            ? `/appointments?month=${month}&edit=${encodeURIComponent(ev.uid)}`
+                            : null
+                        }
+                      />
                     ))}
                     {appts.map((a) => (
                       <AppointmentChip key={a.id} appt={a} />
