@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { CalendarEvent, CalendarFeed } from "@/lib/caldav";
 import { isoDayParts, londonTime } from "@/lib/caldav";
+import {
+  MobileMonthCalendar,
+  type MobileItem,
+} from "@/components/mobile-month-calendar";
 
 export type CalendarAppointment = {
   id: string;
@@ -124,7 +128,7 @@ function AppointmentChip({ appt }: { appt: CalendarAppointment }) {
 }
 
 const navBtn =
-  "rounded-lg border border-line-control bg-control px-2.5 py-1 text-[12px] font-medium text-ink-mid hover:text-ink-strong";
+  "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid transition-transform duration-100 [-webkit-tap-highlight-color:transparent] hover:text-ink-strong active:scale-[0.97]";
 
 export function AppointmentsCalendar({
   month,
@@ -166,6 +170,43 @@ export function AppointmentsCalendar({
     push(apptsByDay, a.day, a);
   }
 
+  // Flattened per-day rows for the phone view (client component needs plain
+  // serialisable data, and must not import the CalDAV module).
+  const editHrefFor = (ev: CalendarEvent) =>
+    editable && !ev.recurring
+      ? `/appointments?month=${month}&edit=${encodeURIComponent(ev.uid)}`
+      : null;
+  const mobileItemsByDay: Record<string, MobileItem[]> = {};
+  for (const day of grid) {
+    const items: MobileItem[] = [];
+    for (const ev of eventsByDay.get(day.iso) ?? []) {
+      items.push({
+        key: `ev:${ev.uid}`,
+        timeLabel:
+          day.iso > ev.startDay ? "→" : ev.allDay ? "all day" : londonTime(ev.start),
+        title: ev.title,
+        sub: ev.location,
+        color: ev.color,
+        kind: "event",
+        href: editHrefFor(ev),
+        recurring: ev.recurring,
+      });
+    }
+    for (const a of apptsByDay.get(day.iso) ?? []) {
+      items.push({
+        key: `ap:${a.id}`,
+        timeLabel: a.time,
+        title: a.label,
+        sub: "Appointment",
+        color: null,
+        kind: "appointment",
+        href: a.contactId ? `/crm/contacts/${a.contactId}` : null,
+        cancelled: a.status === "cancelled" || a.status === "no_show",
+      });
+    }
+    if (items.length > 0) mobileItemsByDay[day.iso] = items;
+  }
+
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -179,12 +220,20 @@ export function AppointmentsCalendar({
         </div>
         <div className="flex items-center gap-1.5">
           {editable ? (
-            <Link href={`/appointments?month=${month}&new=1`} className={navBtn}>
+            <Link
+              href={`/appointments?month=${month}&new=1`}
+              className={`${navBtn} hidden sm:inline-block`}
+            >
               + New event
             </Link>
           ) : null}
           {webUrl ? (
-            <a href={webUrl} target="_blank" rel="noreferrer" className={navBtn}>
+            <a
+              href={webUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={`${navBtn} hidden sm:inline-block`}
+            >
               Open shared calendar ↗
             </a>
           ) : null}
@@ -214,7 +263,19 @@ export function AppointmentsCalendar({
 
       {editor}
 
-      <div className="mt-2 overflow-x-auto rounded-[11px] border border-line">
+      {/* Phone: compact month grid + selected-day agenda (no sideways scroll). */}
+      <div className="mt-2 sm:hidden">
+        <MobileMonthCalendar
+          key={month}
+          month={month}
+          today={today}
+          days={grid}
+          itemsByDay={mobileItemsByDay}
+          editable={editable}
+        />
+      </div>
+
+      <div className="mt-2 hidden overflow-x-auto rounded-[11px] border border-line sm:block">
         <div className="min-w-[880px] bg-cell">
           <div className="grid grid-cols-7 border-b border-line">
             {WEEKDAYS.map((d) => (

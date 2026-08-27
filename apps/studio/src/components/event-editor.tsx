@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { CalDavCalendar, CalendarEvent } from "@/lib/caldav";
 import { londonTime } from "@/lib/caldav";
 
+// 16px on phones — anything smaller makes iOS Safari zoom the page on focus.
 const field =
-  "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[13.5px] text-ink-body";
+  "mt-1 w-full rounded-lg border border-line-control bg-control px-3 py-2 text-[16px] text-ink-body sm:text-[13.5px]";
 const label = "block text-[11px] font-medium uppercase tracking-[0.06em] text-ink-faint";
 
 type Action = (formData: FormData) => Promise<void>;
@@ -189,7 +190,7 @@ export function EventEditor({
           <div className="flex items-center gap-2">
             <button
               type="submit"
-              className="rounded-lg bg-[var(--jvb-ink-label)] px-4 py-2 text-[13px] font-semibold text-cell hover:opacity-90"
+              className="rounded-lg bg-[var(--jvb-ink-label)] px-4 py-2 text-[13px] font-semibold text-cell transition-transform duration-100 [-webkit-tap-highlight-color:transparent] hover:opacity-90 active:scale-[0.97]"
             >
               {mode === "new" ? "Add event" : "Save changes"}
             </button>
