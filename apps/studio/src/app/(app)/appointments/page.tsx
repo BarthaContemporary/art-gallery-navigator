@@ -1,6 +1,19 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
+import {
+  calendarWebUrl,
+  fetchCalendarFeed,
+  isoDayParts,
+  londonDay,
+  londonTime,
+  zonedToUtc,
+} from "@/lib/caldav";
+import {
+  AppointmentsCalendar,
+  buildMonthGrid,
+  type CalendarAppointment,
+} from "@/components/appointments-calendar";
 
 export const metadata = { title: "Appointments" };
 
@@ -204,8 +217,27 @@ function AppointmentsTable({
   );
 }
 
-export default async function AppointmentsPage() {
+export default async function AppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await getSupabase();
+
+  const today = londonDay(new Date());
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.month ?? "") ? sp.month! : today.slice(0, 7);
+
+  // Fetch the shared calendar for the full visible grid (leading/trailing
+  // days of adjacent months included), London midnight to London midnight.
+  const grid = buildMonthGrid(month);
+  const dayStart = (iso: string, plusDays = 0) => {
+    const [y, m, d] = isoDayParts(iso);
+    return zonedToUtc(y, m, d + plusDays, 0, 0, 0, "Europe/London");
+  };
+  const gridFirst = grid[0]?.iso ?? `${month}-01`;
+  const gridLast = grid[grid.length - 1]?.iso ?? `${month}-28`;
+  const feedPromise = fetchCalendarFeed(dayStart(gridFirst), dayStart(gridLast, 1));
 
   const { data } = await supabase
     .from("appointments")
@@ -232,8 +264,31 @@ export default async function AppointmentsPage() {
     .filter((a) => a.status === "cancelled" || new Date(a.starts_at).getTime() < now)
     .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
+  const feed = await feedPromise;
+  const calendarAppointments: CalendarAppointment[] = appointments.map((a) => {
+    const start = new Date(a.starts_at);
+    return {
+      id: a.id,
+      startsAt: a.starts_at,
+      day: londonDay(start),
+      time: londonTime(start),
+      label:
+        (a.contact ? nameOf(a.contact) : (a.name ?? null)) ?? a.type?.name ?? "Appointment",
+      status: a.status,
+      contactId: a.contact_id,
+    };
+  });
+
   return (
-    <div className="max-w-[1080px]">
+    <div className="max-w-[1080px] space-y-8">
+      <AppointmentsCalendar
+        month={month}
+        today={today}
+        feed={feed}
+        webUrl={calendarWebUrl()}
+        appointments={calendarAppointments}
+      />
+
       {appointments.length === 0 ? (
         <p className="text-[13px] text-ink-muted">
           No appointments yet — bookings from the website&rsquo;s Visit page will appear
