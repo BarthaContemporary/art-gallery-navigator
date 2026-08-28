@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { FilePreviewLink } from "@/components/file-preview";
 import { uploadDocument } from "@/lib/upload-signed";
 
 type Doc = {
@@ -140,7 +141,13 @@ export function DocumentsPanel({
             <span className="rounded-[5px] bg-chip px-1.5 py-0.5 text-[10px] uppercase tracking-[0.05em] text-ink-mid">
               {docLabel(d.doc_type)}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[13px] text-ink-body">{d.title}</span>
+            <FilePreviewLink
+              storagePath={d.storage_path}
+              title={d.title}
+              className="min-w-0 flex-1 truncate text-left text-[13px] text-ink-body hover:text-ink-strong hover:underline"
+            >
+              {d.title}
+            </FilePreviewLink>
             <button type="button" onClick={() => download(d)} className="text-[12px] font-medium text-[var(--jvb-ink-desc)]">
               Download
             </button>

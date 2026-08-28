@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSupabase } from "@/lib/supabase";
 import { DeleteListButton } from "@/components/delete-list-button";
+import { FilePreviewLink } from "@/components/file-preview";
 import { loadPieceSummaries } from "@/lib/piece-store";
 
 export const metadata = { title: "Document" };
@@ -153,6 +154,15 @@ export default async function DocumentDetail({
         </label>
         <div className="flex items-center gap-3 sm:col-span-2">
           <button className="rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-fg">Save details</button>
+          {doc.storage_path ? (
+            <FilePreviewLink
+              storagePath={doc.storage_path}
+              title={doc.title ?? "Document"}
+              className="text-[12.5px] font-medium text-[var(--jvb-ink-desc)] hover:underline"
+            >
+              Preview
+            </FilePreviewLink>
+          ) : null}
           {fileUrl ? (
             <a href={fileUrl} target="_blank" className="text-[12.5px] font-medium text-[var(--jvb-ink-desc)]">
               Download file →

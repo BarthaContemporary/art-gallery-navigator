@@ -16,7 +16,7 @@ export default async function Dashboard() {
   // Headline figures are JvdB stock only — reading `pieces` gives that for
   // free, since non-JvdB works live in their own table. The external register
   // gets its own figure rather than being folded into these.
-  const [pieces, inStock, contacts, needs, reserved, onExport, external] = await Promise.all([
+  const [pieces, inStock, contacts, needs, reserved, onExport, external, noPurchase] = await Promise.all([
     supabase.from("pieces").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase
       .from("pieces")
@@ -43,6 +43,13 @@ export default async function Dashboard() {
       .from("external_pieces")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null),
+    // Sold works whose mis-recorded purchase £ was cleared (migration 0066)
+    // and still needs the real figure — the stock book can't show margin or
+    // VAT-due for them until it's entered.
+    supabase
+      .from("vw_pieces_list")
+      .select("id", { count: "exact", head: true })
+      .eq("missing_purchase_gbp", true),
   ]);
 
   const stats = [
@@ -80,6 +87,12 @@ export default async function Dashboard() {
       hint: "Out on loan — track return",
       value: onExport.count ?? 0,
       href: "/inventory?loan=1",
+    },
+    {
+      label: "Needs purchase £",
+      hint: "Sold — enter the real purchase cost",
+      value: noPurchase.count ?? 0,
+      href: "/inventory?nopurchase=1",
     },
   ].filter((t) => t.value > 0);
 

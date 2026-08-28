@@ -33,6 +33,7 @@ type Search = {
   list?: string;
   loan?: string;
   needs?: string;
+  nopurchase?: string;
   page?: string;
   sort?: string;
   dir?: string;
@@ -195,6 +196,7 @@ export default async function InventoryPage({
         q = applyFacet(q, "location_id", sp.location, { nullable: true });
         if (sp.loan) q = q.eq("on_temp_export", true);
         if (sp.needs) q = q.eq("needs_completion", true);
+        if (sp.nopurchase) q = q.eq("missing_purchase_gbp", true);
         return q;
       });
       // Mirror the SQL ordering: chosen column, chosen direction, nulls last.
@@ -225,6 +227,7 @@ export default async function InventoryPage({
     query = applyFacet(query, "location_id", sp.location, { nullable: true });
     if (sp.loan) query = query.eq("on_temp_export", true);
     if (sp.needs) query = query.eq("needs_completion", true);
+    if (sp.nopurchase) query = query.eq("missing_purchase_gbp", true);
 
     const res = await query;
     rows = (res.data ?? []) as ListRow[];
@@ -299,6 +302,16 @@ export default async function InventoryPage({
             }`}
           >
             Needs completion
+          </Link>
+          <Link
+            href={sp.nopurchase ? "/inventory" : "/inventory?nopurchase=1"}
+            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
+              sp.nopurchase
+                ? "border-oranje text-oranje"
+                : "border-line-control bg-control text-ink-mid"
+            }`}
+          >
+            Needs purchase £
           </Link>
           <Link
             href="/inventory/lists"

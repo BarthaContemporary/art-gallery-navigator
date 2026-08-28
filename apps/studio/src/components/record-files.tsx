@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
+import { FilePreviewLink } from "@/components/file-preview";
 import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
 
 export type RecordFile = { id: string; title: string; storage_path: string };
@@ -105,7 +106,13 @@ export function RecordFiles({
       <ul className="divide-y divide-line-soft">
         {files.map((f) => (
           <li key={f.id} className="flex items-center gap-2 py-2 text-[13px]">
-            <span className="min-w-0 flex-1 truncate text-ink-body">{f.title}</span>
+            <FilePreviewLink
+              storagePath={f.storage_path}
+              title={f.title}
+              className="min-w-0 flex-1 truncate text-left text-ink-body hover:text-ink-strong hover:underline"
+            >
+              {f.title}
+            </FilePreviewLink>
             <button type="button" onClick={() => download(f)} className="text-[12px] font-medium text-[var(--jvb-ink-desc)]">
               Download
             </button>
