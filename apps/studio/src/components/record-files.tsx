@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
@@ -26,6 +27,7 @@ export function RecordFiles({
   recordId: string;
   initial: RecordFile[];
 }) {
+  const router = useRouter();
   const table = TABLE[scope] ?? "shipment_documents";
   const [files, setFiles] = useState<RecordFile[]>(initial);
   const [staged, setStaged] = useState<File[]>([]);
@@ -47,21 +49,29 @@ export function RecordFiles({
     // browser client's access token — whose intermittent death used to kill
     // these uploads — is no longer involved.
     const remaining = [...staged];
+    let uploadedAny = false;
     for (const file of staged) {
       try {
         const doc = await uploadDocument(scope, recordId, file);
         setFiles((f) => [doc, ...f]);
         remaining.shift();
+        uploadedAny = true;
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Upload failed";
         setError(`${file.name}: ${msg}`);
         setStaged(remaining);
         setBusy(false);
+        // Files before the failure did save — the cache must not hide them.
+        if (uploadedAny) router.refresh();
         return;
       }
     }
     setStaged([]);
     setBusy(false);
+    // Re-render server data and drop the client router cache, so navigating
+    // back to the shipments list shows the new file count instead of the
+    // cached page from before the upload.
+    router.refresh();
   }
 
   async function download(f: RecordFile) {
@@ -87,6 +97,7 @@ export function RecordFiles({
       return setError(`${f.title}: wasn’t removed — reload the page and try again.`);
     await supabase.storage.from("piece-documents").remove([f.storage_path]);
     setFiles((x) => x.filter((y) => y.id !== f.id));
+    router.refresh();
   }
 
   return (

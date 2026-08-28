@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { uploadDocument } from "@/lib/upload-signed";
@@ -32,6 +33,7 @@ export function DocumentsPanel({
   pieceId: string;
   initial: Doc[];
 }) {
+  const router = useRouter();
   const [docs, setDocs] = useState<Doc[]>(initial);
   const [docType, setDocType] = useState("certificate");
   const [title, setTitle] = useState("");
@@ -72,12 +74,18 @@ export function DocumentsPanel({
         ]);
         remaining.shift();
       } catch (e) {
+        // Files before the failure did save — drop the stale router cache so
+        // lists elsewhere show them.
+        if (remaining.length < staged.length) router.refresh();
         return fail(`${file.name}: ${e instanceof Error ? e.message : "upload failed"}`, remaining);
       }
     }
     setTitle("");
     setStaged([]);
     setBusy(false);
+    // Re-render server data and purge the client router cache, so navigating
+    // back to any list (documents, shipments) shows the new counts.
+    router.refresh();
   }
 
   function fail(msg: string, remaining: File[]) {
@@ -113,6 +121,7 @@ export function DocumentsPanel({
     // document_pieces cascades from piece_documents, so the link goes with it.
     await supabase.storage.from("piece-documents").remove([doc.storage_path]);
     setDocs((d) => d.filter((x) => x.id !== doc.id));
+    router.refresh();
   }
 
   return (

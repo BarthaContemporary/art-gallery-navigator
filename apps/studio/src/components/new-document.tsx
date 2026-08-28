@@ -52,6 +52,9 @@ export function NewDocument() {
         reference: reference.trim() || undefined,
         docDate: docDate || undefined,
       });
+      // Purge the router cache before navigating, so the documents list (and
+      // any other cached list) refetches with the new row when revisited.
+      router.refresh();
       router.push(`/documents/${doc.id}`);
     } catch (e) {
       return fail(e instanceof Error ? e.message : "Upload failed");
