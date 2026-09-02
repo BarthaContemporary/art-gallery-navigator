@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { FilePreviewLink } from "@/components/file-preview";
+import { DOCUMENTS_BUCKET, signDocumentUrl } from "@/lib/document-files";
 import { uploadDocument } from "@/lib/upload-signed";
 
 type Doc = {
@@ -96,11 +97,11 @@ export function DocumentsPanel({
   }
 
   async function download(doc: Doc) {
-    const supabase = createClient();
-    const { data } = await supabase.storage
-      .from("piece-documents")
-      .createSignedUrl(doc.storage_path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    try {
+      window.open(await signDocumentUrl(doc.storage_path, 300), "_blank");
+    } catch {
+      setError(`${doc.title}: could not open — reload the page and try again.`);
+    }
   }
 
   async function remove(doc: Doc) {
@@ -120,7 +121,7 @@ export function DocumentsPanel({
     if (!data?.length)
       return setError("That document wasn’t removed — you may not have permission.");
     // document_pieces cascades from piece_documents, so the link goes with it.
-    await supabase.storage.from("piece-documents").remove([doc.storage_path]);
+    await supabase.storage.from(DOCUMENTS_BUCKET).remove([doc.storage_path]);
     setDocs((d) => d.filter((x) => x.id !== doc.id));
     router.refresh();
   }

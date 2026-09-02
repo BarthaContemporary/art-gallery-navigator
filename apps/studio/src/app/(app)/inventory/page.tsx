@@ -10,6 +10,7 @@ import { createDraftPiece } from "./actions";
 import { resolveListPieceIds, type ListLike } from "@/lib/list-members";
 import { selectInChunks } from "@/lib/chunk";
 import { applyFacet, facetMatches, parseFacet } from "@/lib/facet";
+import { FLAG_FILTERS, activeFlags, applyFlagFilters } from "@/lib/inventory-query";
 
 const PAGE_SIZE = 100;
 
@@ -162,6 +163,22 @@ export default async function InventoryPage({
       filtered = filtered.filter((h) => facetMatches(sp.location, h.location_id));
     if (listMemberIds) filtered = filtered.filter((h) => listMemberIds!.has(h.id));
 
+    // The boolean flags (on loan / needs completion / needs purchase £) live
+    // on the view, not on the search hits, so resolve them through the view
+    // for the matching ids before paging.
+    if (activeFlags(sp).length > 0 && filtered.length > 0) {
+      const flagged = await selectInChunks<{ id: string }>(
+        filtered.map((h) => h.id),
+        (chunk) => {
+          let q = supabase.from("vw_pieces_list").select("id").in("id", chunk);
+          q = applyFlagFilters(q, sp);
+          return q;
+        },
+      );
+      const keep = new Set(flagged.map((r) => r.id));
+      filtered = filtered.filter((h) => keep.has(h.id));
+    }
+
     total = filtered.length;
     const pageIds = filtered
       .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -194,10 +211,7 @@ export default async function InventoryPage({
         q = applyFacet(q, "status", sp.status);
         q = applyFacet(q, "category_id", sp.category, { nullable: true });
         q = applyFacet(q, "location_id", sp.location, { nullable: true });
-        if (sp.loan) q = q.eq("on_temp_export", true);
-        if (sp.needs) q = q.eq("needs_completion", true);
-        if (sp.nopurchase) q = q.eq("missing_purchase_gbp", true);
-        return q;
+        return applyFlagFilters(q, sp);
       });
       // Mirror the SQL ordering: chosen column, chosen direction, nulls last.
       const dir = ascending ? 1 : -1;
@@ -225,9 +239,7 @@ export default async function InventoryPage({
     query = applyFacet(query, "status", sp.status);
     query = applyFacet(query, "category_id", sp.category, { nullable: true });
     query = applyFacet(query, "location_id", sp.location, { nullable: true });
-    if (sp.loan) query = query.eq("on_temp_export", true);
-    if (sp.needs) query = query.eq("needs_completion", true);
-    if (sp.nopurchase) query = query.eq("missing_purchase_gbp", true);
+    query = applyFlagFilters(query, sp);
 
     const res = await query;
     rows = (res.data ?? []) as ListRow[];
@@ -287,32 +299,17 @@ export default async function InventoryPage({
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
-          <Link
-            href={sp.loan ? "/inventory" : "/inventory?loan=1"}
-            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-              sp.loan ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
-            }`}
-          >
-            On temporary export
-          </Link>
-          <Link
-            href={sp.needs ? "/inventory" : "/inventory?needs=1"}
-            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-              sp.needs ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
-            }`}
-          >
-            Needs completion
-          </Link>
-          <Link
-            href={sp.nopurchase ? "/inventory" : "/inventory?nopurchase=1"}
-            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
-              sp.nopurchase
-                ? "border-oranje text-oranje"
-                : "border-line-control bg-control text-ink-mid"
-            }`}
-          >
-            Needs purchase £
-          </Link>
+          {FLAG_FILTERS.map(([param, , label]) => (
+            <Link
+              key={param}
+              href={sp[param] ? "/inventory" : `/inventory?${param}=1`}
+              className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium ${
+                sp[param] ? "border-oranje text-oranje" : "border-line-control bg-control text-ink-mid"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
           <Link
             href="/inventory/lists"
             className="rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12.5px] font-medium text-ink-mid"

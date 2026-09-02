@@ -1,64 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@jvb/db/browser";
+import { useCallback, useEffect, useState } from "react";
+import { previewKind, signDocumentUrl, type PreviewKind } from "@/lib/document-files";
 
 /**
- * In-place preview for uploaded files (piece-documents bucket). Click signs a
- * short-lived URL and opens a full-screen overlay: PDFs render in an iframe,
- * images in an <img>; anything else (docx, tiff…) gets a friendly fallback
- * with open/download links. Esc, the scrim, or ✕ closes it.
+ * In-place preview for uploaded files. Click signs a short-lived URL and
+ * opens a full-screen overlay: PDFs render in an iframe, images through the
+ * storage image transform (a ~1600px JPEG instead of a multi-MB scan; it
+ * also decodes HEIC/TIFF for browsers that can't); anything else (docx…)
+ * gets a friendly fallback. Esc, the scrim, or ✕ closes it.
  */
-
-type PreviewKind = "image" | "pdf" | "other";
-
-function kindOf(path: string): PreviewKind {
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  if (["jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif"].includes(ext)) return "image";
-  if (ext === "pdf") return "pdf";
-  return "other";
-}
 
 const actionBtn =
   "rounded-lg border border-line-control bg-control px-3 py-1.5 text-[12px] font-medium text-ink-mid transition-transform duration-100 hover:text-ink-strong active:scale-[0.97]";
 
-function Overlay({
-  title,
-  url,
-  kind,
-  onClose,
-}: {
-  title: string;
-  url: string;
-  kind: PreviewKind;
-  onClose: () => void;
-}) {
-  // Some formats (HEIC outside Safari, odd TIFFs) fail in <img>; fall back.
+// Long enough that "Open in new tab" still works after a leisurely read.
+const URL_TTL_SECONDS = 1800;
+
+type Signed = { url: string; previewUrl: string; kind: PreviewKind };
+
+function Overlay({ title, file, onClose }: { title: string; file: Signed; onClose: () => void }) {
+  // Some formats still fail in <img> (e.g. an odd TIFF); fall back gracefully.
   const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
+    // Esc reaches this listener while focus is on our own chrome. Once the
+    // user clicks into a cross-origin PDF iframe, key events stay inside it —
+    // the ✕ button and the scrim remain as the ways out.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
-
-  const fallback = (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-[13.5px] text-ink-body">
-        No in-browser preview for this file type.
-      </p>
-      <a href={url} target="_blank" rel="noreferrer" className={actionBtn}>
-        Open in new tab ↗
-      </a>
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`Preview: ${title}`}>
       <div
-        className="jvb-scrim-enter absolute inset-0 bg-black/60"
+        className="jvb-scrim-enter absolute inset-0"
+        style={{ background: "var(--jvb-bg-overlay)", backdropFilter: "blur(2px)" }}
         onClick={onClose}
         aria-hidden
       />
@@ -67,28 +52,36 @@ function Overlay({
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-strong">
             {title}
           </span>
-          <a href={url} target="_blank" rel="noreferrer" className={`${actionBtn} hidden sm:inline-block`}>
+          <a href={file.url} target="_blank" rel="noreferrer" className={actionBtn}>
             Open in new tab ↗
           </a>
-          <button type="button" onClick={onClose} className={actionBtn} aria-label="Close preview">
+          <button
+            type="button"
+            onClick={onClose}
+            className={actionBtn}
+            aria-label="Close preview"
+            autoFocus
+          >
             Close ✕
           </button>
         </div>
         <div className="min-h-0 flex-1 bg-band/40">
-          {kind === "pdf" ? (
-            <iframe src={url} title={title} className="h-full w-full" />
-          ) : kind === "image" && !imgFailed ? (
+          {file.kind === "pdf" ? (
+            <iframe src={file.url} title={title} className="h-full w-full" />
+          ) : file.kind === "image" && !imgFailed ? (
             <div className="flex h-full items-center justify-center p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={url}
+                src={file.previewUrl}
                 alt={title}
                 onError={() => setImgFailed(true)}
                 className="max-h-full max-w-full object-contain"
               />
             </div>
           ) : (
-            fallback
+            <p className="flex h-full items-center justify-center p-6 text-center text-[13.5px] text-ink-body">
+              No in-browser preview for this file type — use “Open in new tab” above.
+            </p>
           )}
         </div>
       </div>
@@ -107,35 +100,42 @@ export function FilePreviewLink({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<Signed | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const close = useCallback(() => setFile(null), []);
 
   async function open() {
-    if (busy) return;
     setBusy(true);
     setError(null);
-    const supabase = createClient();
-    const { data, error: signErr } = await supabase.storage
-      .from("piece-documents")
-      .createSignedUrl(storagePath, 600);
-    setBusy(false);
-    if (signErr || !data?.signedUrl) {
+    try {
+      const kind = previewKind(storagePath);
+      const url = await signDocumentUrl(storagePath, URL_TTL_SECONDS);
+      const previewUrl =
+        kind === "image"
+          ? await signDocumentUrl(storagePath, URL_TTL_SECONDS, { width: 1600, quality: 80 })
+          : url;
+      setFile({ url, previewUrl, kind });
+    } catch {
       setError("Could not open the file — reload the page and try again.");
-      return;
+    } finally {
+      setBusy(false);
     }
-    setUrl(data.signedUrl);
   }
 
   return (
     <>
-      <button type="button" onClick={open} className={className} title="Click to preview">
+      <button
+        type="button"
+        onClick={open}
+        disabled={busy}
+        className={className}
+        title={`${title} — click to preview`}
+      >
         {children}
+        {error ? <span className="block text-[11px] font-normal text-ink-soft">{error}</span> : null}
       </button>
-      {error ? <span className="text-[11.5px] text-ink-soft">{error}</span> : null}
-      {url ? (
-        <Overlay title={title} url={url} kind={kindOf(storagePath)} onClose={() => setUrl(null)} />
-      ) : null}
+      {file ? <Overlay title={title} file={file} onClose={close} /> : null}
     </>
   );
 }

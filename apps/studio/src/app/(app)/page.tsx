@@ -88,12 +88,19 @@ export default async function Dashboard() {
       value: onExport.count ?? 0,
       href: "/inventory?loan=1",
     },
-    {
-      label: "Needs purchase £",
-      hint: "Sold — enter the real purchase cost",
-      value: noPurchase.count ?? 0,
-      href: "/inventory?nopurchase=1",
-    },
+    // Admin only: purchase figures are entered on the financials panel, which
+    // only admins can edit — anyone else would be sent to a list they can't
+    // act on (and under invoker RLS staff see a count of 0 anyway).
+    ...(isAdmin
+      ? [
+          {
+            label: "Needs purchase £",
+            hint: "Sold — enter the real purchase cost",
+            value: noPurchase.count ?? 0,
+            href: "/inventory?nopurchase=1",
+          },
+        ]
+      : []),
   ].filter((t) => t.value > 0);
 
   // One stagger sequence across the whole page: triage cards, then the headline
@@ -112,13 +119,14 @@ export default async function Dashboard() {
               Needs attention
             </h2>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Wrapping flex, not a fixed 3-col grid: three or four cards share the row evenly. */}
+          <div className="flex flex-wrap gap-3">
             {triage.map((t, i) => (
               <Link
                 key={t.label}
                 href={t.href}
                 style={{ "--jvb-stagger": `${i * 60}ms` } as React.CSSProperties}
-                className="jvb-rise jvb-lift group rounded-[11px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
+                className="jvb-rise jvb-lift group min-w-[200px] flex-1 basis-[220px] rounded-[11px] border border-warn-soft bg-warn-soft/40 px-4 py-3.5 transition-colors hover:border-warn"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[12.5px] font-medium text-ink-strong">{t.label}</span>

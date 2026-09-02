@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@jvb/db/browser";
 import { Dropzone } from "@/components/dropzone";
 import { FilePreviewLink } from "@/components/file-preview";
+import { DOCUMENTS_BUCKET, signDocumentUrl } from "@/lib/document-files";
 import { uploadDocument, type UploadScope } from "@/lib/upload-signed";
 
 export type RecordFile = { id: string; title: string; storage_path: string };
@@ -76,11 +77,11 @@ export function RecordFiles({
   }
 
   async function download(f: RecordFile) {
-    const supabase = createClient();
-    const { data } = await supabase.storage
-      .from("piece-documents")
-      .createSignedUrl(f.storage_path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    try {
+      window.open(await signDocumentUrl(f.storage_path, 300), "_blank");
+    } catch {
+      setError(`${f.title}: could not open — reload the page and try again.`);
+    }
   }
 
   async function remove(f: RecordFile) {
@@ -96,7 +97,7 @@ export function RecordFiles({
     if (delErr) return setError(`${f.title}: ${delErr.message}`);
     if (!data?.length)
       return setError(`${f.title}: wasn’t removed — reload the page and try again.`);
-    await supabase.storage.from("piece-documents").remove([f.storage_path]);
+    await supabase.storage.from(DOCUMENTS_BUCKET).remove([f.storage_path]);
     setFiles((x) => x.filter((y) => y.id !== f.id));
     router.refresh();
   }
