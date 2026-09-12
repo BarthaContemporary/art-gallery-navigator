@@ -76,6 +76,7 @@ export default async function PublicationPage({
   const enquiryEmail = settings?.email ?? "";
   const coverSrc = imageUrl(publication.coverImage, { width: 1200 });
   const coverDims = imageDimensions(publication.coverImage);
+  const spreads = publication.spreads ?? [];
   const enquirySubject = encodeURIComponent(
     `Publication enquiry: ${publication.title ?? "Catalogue"}`,
   );
@@ -129,6 +130,12 @@ export default async function PublicationPage({
               {publication.publishedYear ? (
                 <span className="label">{publication.publishedYear}</span>
               ) : null}
+              {publication.pages ? (
+                <span className="label">{publication.pages} pages</span>
+              ) : null}
+              {publication.format ? (
+                <span className="label">{publication.format}</span>
+              ) : null}
               {publication.relatedExhibition?.slug ? (
                 <Link
                   href={`/exhibitions/${publication.relatedExhibition.slug}`}
@@ -172,6 +179,33 @@ export default async function PublicationPage({
           </div>
         </div>
       </div>
+
+      {spreads.length > 0 ? (
+        <section className="mt-[var(--section)]" aria-label="Page spreads">
+          <ul className="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2">
+            {spreads.map((spread) => {
+              const src = imageUrl(spread, { width: 1400 });
+              const dims = imageDimensions(spread);
+              if (!src || !dims) return null;
+              return (
+                <li key={spread._key ?? src}>
+                  <Image
+                    src={src}
+                    alt={spread.caption ?? `${publication.title ?? "Publication"} — page spread`}
+                    width={dims.width}
+                    height={dims.height}
+                    sizes="(min-width: 640px) 50vw, 100vw"
+                    className="h-auto w-full bg-washi-2"
+                  />
+                  {spread.caption ? (
+                    <p className="label mt-2">{spread.caption}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }

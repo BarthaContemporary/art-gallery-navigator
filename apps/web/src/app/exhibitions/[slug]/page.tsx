@@ -14,6 +14,7 @@ import { absoluteUrl, fallbackGalleryName } from "@/lib/site";
 import { JsonLd } from "@/components/json-ld";
 import { PortableText } from "@/components/portable-text";
 import { WorkGrid } from "@/components/work-card";
+import { CatalogueGrid } from "@/components/catalogue-grid";
 import { formatExhibitionDates } from "@/components/exhibition-card";
 
 async function getExhibition(slug: string): Promise<Exhibition | null> {
@@ -82,6 +83,7 @@ export default async function ExhibitionPage({
   const galleryName = settings?.galleryName ?? fallbackGalleryName;
   const dates = formatExhibitionDates(exhibition.startDate, exhibition.endDate);
   const works = (exhibition.works ?? []).filter((w) => w?.slug);
+  const catalogue = (exhibition.catalogue ?? []).filter((e) => e?.image);
   const coverSrc = imageUrl(exhibition.coverImage, { width: 2000 });
   const pageUrl = absoluteUrl(`/exhibitions/${slug}`);
   const venueLine = exhibition.isArtFair
@@ -179,6 +181,22 @@ export default async function ExhibitionPage({
             </div>
             <div className="mt-12">
               <WorkGrid works={works} />
+            </div>
+          </section>
+        ) : null}
+
+        {catalogue.length > 0 ? (
+          <section className="mt-[var(--section)]">
+            <div className="section-head grid12">
+              <span className="label col-span-2 text-oranje md:col-span-1">
+                {works.length > 0 ? "02" : "01"}
+              </span>
+              <h2 className="label col-span-10 text-sumi md:col-span-11">
+                {works.length > 0 ? "Catalogue" : "Works in the exhibition"}
+              </h2>
+            </div>
+            <div className="mt-12">
+              <CatalogueGrid entries={catalogue} />
             </div>
           </section>
         ) : null}

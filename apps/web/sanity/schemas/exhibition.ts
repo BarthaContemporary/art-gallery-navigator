@@ -65,9 +65,40 @@ const exhibition = {
     },
     {
       name: "works",
-      title: "Works shown",
+      title: "Works shown (from the inventory)",
       type: "array",
+      description:
+        "Current stock, synced from the inventory. For past exhibitions use the catalogue below.",
       of: [{ type: "reference", to: [{ type: "work" }] }],
+    },
+    {
+      name: "catalogue",
+      title: "Catalogue",
+      type: "array",
+      description:
+        "Works as they appeared in the exhibition — owned by the website, independent of the inventory. Migrated from the old site; edit freely.",
+      of: [{ type: "catalogueEntry" }],
+    },
+    {
+      name: "hidden",
+      title: "Hidden from the site",
+      type: "boolean",
+      initialValue: false,
+      description: "Keep the record but don't list or serve the page.",
+    },
+    {
+      name: "sortOrder",
+      title: "Sort order",
+      type: "number",
+      description:
+        "Ordering fallback for exhibitions without dates (lower = more recent). Dates win once entered.",
+    },
+    {
+      name: "legacyUrl",
+      title: "Old site URL",
+      type: "string",
+      readOnly: true,
+      description: "Path on the Squarespace site this was migrated from; drives the redirect.",
     },
     {
       name: "seo",

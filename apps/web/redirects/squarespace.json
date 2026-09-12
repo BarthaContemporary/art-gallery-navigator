@@ -1,0 +1,302 @@
+[
+  {
+    "source": "/home",
+    "destination": "/"
+  },
+  {
+    "source": "/all-exhibitions",
+    "destination": "/exhibitions"
+  },
+  {
+    "source": "/all-publications",
+    "destination": "/publications"
+  },
+  {
+    "source": "/new-gallery",
+    "destination": "/exhibitions"
+  },
+  {
+    "source": "/perfect-presence",
+    "destination": "/exhibitions/perfect-presence"
+  },
+  {
+    "source": "/a-concentration-of-power",
+    "destination": "/exhibitions/a-concentration-of-power"
+  },
+  {
+    "source": "/from-bactria-to-kashmir",
+    "destination": "/exhibitions/from-bactria-to-kashmir"
+  },
+  {
+    "source": "/objects-of-worship",
+    "destination": "/exhibitions/objects-of-worship"
+  },
+  {
+    "source": "/tantric-drawings",
+    "destination": "/exhibitions/tantric-drawings"
+  },
+  {
+    "source": "/from-bactria-to-kashmir-cat",
+    "destination": "/publications/from-bactria-to-kashmir"
+  },
+  {
+    "source": "/watanabe-tadashi",
+    "destination": "/exhibitions/watanabe-tadashi"
+  },
+  {
+    "source": "/tantra",
+    "destination": "/exhibitions/tantra"
+  },
+  {
+    "source": "/past-and-present",
+    "destination": "/exhibitions/past-and-present"
+  },
+  {
+    "source": "/magic-markings",
+    "destination": "/exhibitions/magic-markings"
+  },
+  {
+    "source": "/japanese-20th-century-design",
+    "destination": "/exhibitions/japanese-20th-century-design"
+  },
+  {
+    "source": "/objects-of-veneration",
+    "destination": "/exhibitions/objects-of-veneration"
+  },
+  {
+    "source": "/what-goes-here",
+    "destination": "/exhibitions/what-grows-here"
+  },
+  {
+    "source": "/imaginary-cities",
+    "destination": "/exhibitions/imaginary-cities"
+  },
+  {
+    "source": "/imran-channa",
+    "destination": "/exhibitions/imran-channa"
+  },
+  {
+    "source": "/from-the-indus-to-ceylon",
+    "destination": "/exhibitions/from-the-indus-to-ceylon"
+  },
+  {
+    "source": "/indian-bronze",
+    "destination": "/exhibitions/indian-bronze"
+  },
+  {
+    "source": "/japanese-design-of-the-20th-century",
+    "destination": "/exhibitions/japanese-design-of-the-20th-century"
+  },
+  {
+    "source": "/indian-ivory",
+    "destination": "/exhibitions/indian-ivory"
+  },
+  {
+    "source": "/what-grows-here-cat",
+    "destination": "/publications/what-grows-here"
+  },
+  {
+    "source": "/perfect-presence-cat",
+    "destination": "/publications/perfect-presence"
+  },
+  {
+    "source": "/objects-of-veneration-cat",
+    "destination": "/publications/objects-of-veneration"
+  },
+  {
+    "source": "/indian-ivory-cat",
+    "destination": "/publications/indian-ivory"
+  },
+  {
+    "source": "/magic-markings-cat",
+    "destination": "/publications/magic-markings"
+  },
+  {
+    "source": "/objects-of-worship-cat",
+    "destination": "/publications/objects-of-worship"
+  },
+  {
+    "source": "/tantra-cat",
+    "destination": "/publications/tantra"
+  },
+  {
+    "source": "/japanese-design-of-20th-century-cat",
+    "destination": "/publications/japanese-design-of-the-20th-century"
+  },
+  {
+    "source": "/pipe-dreams-cat",
+    "destination": "/publications/pipe-dreams"
+  },
+  {
+    "source": "/watanabe-tadashi-cat",
+    "destination": "/publications/watanabe-tadashi"
+  },
+  {
+    "source": "/past-and-present-cat",
+    "destination": "/publications/past-and-present"
+  },
+  {
+    "source": "/tantric-drawings-cat",
+    "destination": "/publications/tantric-drawings"
+  },
+  {
+    "source": "/modern-tradition-cat",
+    "destination": "/publications/a-modern-tradition"
+  },
+  {
+    "source": "/imaginary-cities-cat",
+    "destination": "/publications/imaginary-cities"
+  },
+  {
+    "source": "/tantric-art-cat",
+    "destination": "/publications/tantric-art"
+  },
+  {
+    "source": "/japanese-20th-c-bronze-design-cat",
+    "destination": "/publications/japanese-20th-century-bronze-design"
+  },
+  {
+    "source": "/representations-in-bronze-cat",
+    "destination": "/publications/representations-in-bronze"
+  },
+  {
+    "source": "/simplicity-in-design-cat",
+    "destination": "/publications/simplicity-in-design"
+  },
+  {
+    "source": "/indian-bronze-cat",
+    "destination": "/publications/indian-bronze"
+  },
+  {
+    "source": "/indian-jewellery-2006-cat",
+    "destination": "/publications/indian-jewellery-2006"
+  },
+  {
+    "source": "/olympia-cat",
+    "destination": "/publications/olympia"
+  },
+  {
+    "source": "/japanese-20th-c-design-cat",
+    "destination": "/publications/japanese-20th-century-design"
+  },
+  {
+    "source": "/indian-tantric-and-western-contemporary-cat",
+    "destination": "/publications/indian-tantric-and-western-contemporary"
+  },
+  {
+    "source": "/indian-jewellery-2004-cat",
+    "destination": "/publications/indian-jewellery-2004"
+  },
+  {
+    "source": "/imran-channa-cat",
+    "destination": "/publications/imran-channa"
+  },
+  {
+    "source": "/from-the-indus-to-ceylon-cat",
+    "destination": "/publications/from-the-indus-to-ceylon"
+  },
+  {
+    "source": "/indian-jewellery-2005-cat",
+    "destination": "/publications/indian-jewellery-2005"
+  },
+  {
+    "source": "/kalu-ram",
+    "destination": "/exhibitions/kalu-ram"
+  },
+  {
+    "source": "/select",
+    "destination": "/exhibitions/select"
+  },
+  {
+    "source": "/double-take",
+    "destination": "/exhibitions/double-take"
+  },
+  {
+    "source": "/shrinathji",
+    "destination": "/exhibitions/shrinathji"
+  },
+  {
+    "source": "/from-bactria-to-kashmir-cat-1",
+    "destination": "/publications/from-bactria-to-kashmir"
+  },
+  {
+    "source": "/india-japan",
+    "destination": "/exhibitions/indian-and-japanese-works"
+  },
+  {
+    "source": "/indian-and-japanese-works-copy",
+    "destination": "/exhibitions/indian-and-japanese-works"
+  },
+  {
+    "source": "/indian-and-japanese-works-copy-1",
+    "destination": "/exhibitions/indian-and-japanese-works"
+  },
+  {
+    "source": "/nicola-durvasula-1",
+    "destination": "/exhibitions/nicola-durvasula"
+  },
+  {
+    "source": "/east",
+    "destination": "/exhibitions/east-tefaf-2023"
+  },
+  {
+    "source": "/select-cat",
+    "destination": "/publications/select"
+  },
+  {
+    "source": "/kalu-ram-cat",
+    "destination": "/publications/kalu-ram"
+  },
+  {
+    "source": "/double-take-cat",
+    "destination": "/publications/double-take"
+  },
+  {
+    "source": "/shrinathji-cat",
+    "destination": "/publications/shrinathji"
+  },
+  {
+    "source": "/indian-and-japanese-works-cat",
+    "destination": "/publications/indian-and-japanese-works"
+  },
+  {
+    "source": "/nicola-durvasula-cat",
+    "destination": "/publications/nicola-durvasula"
+  },
+  {
+    "source": "/east-cat",
+    "destination": "/publications/east-tefaf-2023"
+  },
+  {
+    "source": "/showa",
+    "destination": "/exhibitions/showa-tefaf-2024"
+  },
+  {
+    "source": "/mingei-showa-gutai-tefaf-2025",
+    "destination": "/exhibitions/mingei-showa-gutai-tefaf-2025"
+  },
+  {
+    "source": "/mingei-showa-gutai-tefaf-2025-copy",
+    "destination": "/exhibitions/mingei-showa-gutai-tefaf-2025"
+  },
+  {
+    "source": "/20th-century-japanese-art-tefaf-2026",
+    "destination": "/exhibitions/20th-century-japanese-art-tefaf-2026"
+  },
+  {
+    "source": "/showa-cat",
+    "destination": "/publications/showa-tefaf-2024"
+  },
+  {
+    "source": "/gutai-cat",
+    "destination": "/publications/mingei-showa-gutai-tefaf-2025"
+  },
+  {
+    "source": "/nippon-cat",
+    "destination": "/publications/nippo-japan-nihon"
+  },
+  {
+    "source": "/20th-century-japanese-art-cat",
+    "destination": "/publications/20th-century-japanese-art-tefaf-2026"
+  }
+]

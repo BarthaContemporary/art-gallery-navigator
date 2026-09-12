@@ -1,4 +1,5 @@
 import work from "./schemas/work";
+import catalogueEntry from "./schemas/catalogueEntry";
 import collection from "./schemas/collection";
 import exhibition from "./schemas/exhibition";
 import publication from "./schemas/publication";
@@ -8,6 +9,7 @@ import siteSettings from "./schemas/siteSettings";
 
 export const schemaTypes = [
   work,
+  catalogueEntry,
   collection,
   exhibition,
   publication,

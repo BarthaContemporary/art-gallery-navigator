@@ -154,7 +154,25 @@ export interface Exhibition {
   coverImage: SanityImage | null;
   intro: PortableBlock[] | null;
   works: Work[] | null;
+  catalogue: CatalogueEntry[] | null;
   seo: Seo | null;
+}
+
+/**
+ * A work as it appeared in a past exhibition — CMS-owned, migrated from the
+ * old site. Not a reference to the inventory-synced `work` type.
+ */
+export interface CatalogueEntry {
+  _key: string;
+  image: SanityImage | null;
+  reference: string | null;
+  title: string | null;
+  maker: string | null;
+  makerDates: string | null;
+  medium: string | null;
+  originAndDate: string | null;
+  dimensions: string | null;
+  sold: boolean | null;
 }
 
 /** Lightweight shape returned by the exhibitions index query. */
@@ -170,6 +188,7 @@ export interface ExhibitionListItem {
   fairName: string | null;
   coverImage: SanityImage | null;
   workCount: number | null;
+  catalogueCount: number | null;
 }
 
 /** Lightweight shape returned by the publications index query. */
@@ -188,7 +207,10 @@ export interface Publication {
   slug: string | null;
   coverImage: SanityImage | null;
   description: PortableBlock[] | null;
+  spreads: SanityImage[] | null;
   publishedYear: number | null;
+  pages: number | null;
+  format: string | null;
   externalUrl: string | null;
   relatedExhibition: { title: string | null; slug: string | null } | null;
   seo: Seo | null;
@@ -329,15 +351,35 @@ const exhibitionListFields = /* groq */ `{
   isArtFair,
   fairName,
   coverImage{ asset, caption },
-  "workCount": count(works)
+  "workCount": count(works),
+  "catalogueCount": count(catalogue)
 }`;
 
-/** All exhibitions, most-recently-ending first. Split current/past in the page. */
-export const exhibitionsQuery = groq`*[_type == "exhibition" && defined(slug.current)]
-  | order(coalesce(endDate, startDate, "0000") desc)
+/** Hidden documents are kept in the CMS but neither listed nor served. */
+const visible = /* groq */ `!coalesce(hidden, false)`;
+
+/**
+ * All exhibitions, most-recently-ending first. Migrated shows without dates
+ * fall back to the old site's order (sortOrder) until dates are entered.
+ */
+export const exhibitionsQuery = groq`*[_type == "exhibition" && defined(slug.current) && ${visible}]
+  | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)
   ${exhibitionListFields}`;
 
-export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.current == $slug][0]{
+const catalogueFields = /* groq */ `{
+  _key,
+  image{ asset, caption },
+  reference,
+  title,
+  maker,
+  makerDates,
+  medium,
+  originAndDate,
+  dimensions,
+  sold
+}`;
+
+export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.current == $slug && ${visible}][0]{
   _id,
   title,
   "slug": slug.current,
@@ -350,13 +392,14 @@ export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.curren
   coverImage{ asset, caption },
   intro,
   works[]->${workFields},
+  catalogue[]${catalogueFields},
   seo{ title, description, ogImage{ asset } }
 }`;
 
-export const exhibitionSlugsQuery = groq`*[_type == "exhibition" && defined(slug.current)].slug.current`;
+export const exhibitionSlugsQuery = groq`*[_type == "exhibition" && defined(slug.current) && ${visible}].slug.current`;
 
-export const publicationsQuery = groq`*[_type == "publication" && defined(slug.current)]
-  | order(coalesce(publishedYear, 0) desc, title asc){
+export const publicationsQuery = groq`*[_type == "publication" && defined(slug.current) && ${visible}]
+  | order(coalesce(publishedYear, 0) desc, coalesce(sortOrder, 9999) asc, title asc){
   _id,
   title,
   "slug": slug.current,
@@ -365,19 +408,22 @@ export const publicationsQuery = groq`*[_type == "publication" && defined(slug.c
   externalUrl
 }`;
 
-export const publicationBySlugQuery = groq`*[_type == "publication" && slug.current == $slug][0]{
+export const publicationBySlugQuery = groq`*[_type == "publication" && slug.current == $slug && ${visible}][0]{
   _id,
   title,
   "slug": slug.current,
   coverImage{ asset, caption },
   description,
+  spreads[]{ _key, asset, caption },
   publishedYear,
+  pages,
+  format,
   externalUrl,
   relatedExhibition->{ title, "slug": slug.current },
   seo{ title, description, ogImage{ asset } }
 }`;
 
-export const publicationSlugsQuery = groq`*[_type == "publication" && defined(slug.current)].slug.current`;
+export const publicationSlugsQuery = groq`*[_type == "publication" && defined(slug.current) && ${visible}].slug.current`;
 
 export const journalPostsQuery = groq`*[_type == "journalPost" && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc){
   _id,

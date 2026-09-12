@@ -42,9 +42,47 @@ const publication = {
       to: [{ type: "exhibition" }],
     },
     {
+      name: "spreads",
+      title: "Page spreads",
+      type: "array",
+      description: "Photographs of pages, shown as a gallery under the description.",
+      of: [
+        {
+          type: "image",
+          options: { hotspot: true },
+          fields: [{ name: "caption", title: "Caption", type: "string" }],
+        },
+      ],
+    },
+    {
       name: "publishedYear",
       title: "Published year",
       type: "number",
+    },
+    { name: "pages", title: "Pages", type: "number" },
+    {
+      name: "format",
+      title: "Format",
+      type: "string",
+      description: "e.g. 28 × 23 cm, softcover",
+    },
+    {
+      name: "hidden",
+      title: "Hidden from the site",
+      type: "boolean",
+      initialValue: false,
+    },
+    {
+      name: "sortOrder",
+      title: "Sort order",
+      type: "number",
+      description: "Ordering fallback when the year is missing (lower = more recent).",
+    },
+    {
+      name: "legacyUrl",
+      title: "Old site URL",
+      type: "string",
+      readOnly: true,
     },
     {
       name: "externalUrl",
