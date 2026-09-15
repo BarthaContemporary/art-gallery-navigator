@@ -17,7 +17,7 @@ const structure: StructureResolver = (S) =>
   S.list()
     .title("Content")
     .items([
-      S.documentTypeListItem("exhibition").title("Exhibitions"),
+      S.documentTypeListItem("exhibition").title("Events (exhibitions & fairs)"),
       S.listItem()
         .title("Catalogue (all exhibitions)")
         .id("catalogue-browser")
@@ -28,6 +28,7 @@ const structure: StructureResolver = (S) =>
       S.documentTypeListItem("page").title("Pages"),
       S.divider(),
       S.documentTypeListItem("work").title("Works (from the inventory)"),
+      S.documentTypeListItem("artist").title("Artists (from the inventory)"),
       S.divider(),
       S.listItem()
         .title("Site settings")

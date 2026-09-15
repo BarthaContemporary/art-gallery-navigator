@@ -7,12 +7,12 @@ export const siteUrl = (
 /** Fallback until Sanity siteSettings is populated. */
 export const fallbackGalleryName = "Joost van den Bergh";
 
+/** Four items, identical on every page. Home *is* the Events page. */
 export const navLinks = [
-  { href: "/exhibitions", label: "Exhibitions" },
+  { href: "/", label: "Events" },
+  { href: "/artists", label: "Artists" },
   { href: "/publications", label: "Publications" },
-  { href: "/works", label: "Works" },
   { href: "/about", label: "About" },
-  { href: "/visit", label: "Visit" },
 ] as const;
 
 export function absoluteUrl(path: string): string {

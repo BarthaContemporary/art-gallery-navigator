@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Newsreader, Noto_Sans } from "next/font/google";
+import { Noto_Sans } from "next/font/google";
 import { getSiteSettings } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { SearchOverlay } from "@/components/search-overlay";
 import { JsonLd } from "@/components/json-ld";
 import { Plausible } from "@/components/plausible";
 import { ConsentProvider } from "@/components/consent-provider";
@@ -12,25 +13,14 @@ import { MarketingScripts } from "@/components/marketing-scripts";
 import "./globals.css";
 
 /*
- * Two families, strict division of labour:
- *   Sans = structure (wordmark, nav, headings, labels, buttons).
- *   Serif = voice (gallery texts, catalogue entries, essays).
- * Noto Sans stands in for Helvetica Neue; Newsreader carries the voice —
- * roman only, weights 300 & 400, no italic.
+ * One family: Noto Sans. 300 titles, 400 body/nav, 500 logo & names,
+ * 600 small labels (handoff design tokens).
  */
 const notoSans = Noto_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600"],
   style: ["normal"],
   variable: "--font-noto-sans",
-  display: "swap",
-});
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: ["300", "400"],
-  style: ["normal"],
-  variable: "--font-newsreader",
   display: "swap",
 });
 
@@ -81,13 +71,13 @@ export default async function RootLayout({
   }
   orgJsonLd.potentialAction = {
     "@type": "ReserveAction",
-    target: absoluteUrl("/visit"),
-    name: "Book a private viewing",
+    target: absoluteUrl("/about"),
+    name: "Request an appointment",
   };
 
   return (
-    <html lang="en" className={`${notoSans.variable} ${newsreader.variable}`}>
-      <body className="flex min-h-screen flex-col bg-washi text-ink-70">
+    <html lang="en" className={notoSans.variable}>
+      <body className="flex min-h-screen flex-col bg-page text-body">
         <JsonLd data={orgJsonLd} />
         {/* Everything that can track sits inside the consent provider, so no
             tag can render without first consulting the visitor's decision. */}
@@ -95,6 +85,7 @@ export default async function RootLayout({
           <SiteHeader galleryName={galleryName} />
           <main className="flex-1">{children}</main>
           <SiteFooter settings={settings} galleryName={galleryName} />
+          <SearchOverlay />
           <Plausible />
           {/* Pixel id comes from Sanity site settings so it can be switched on
               without a deploy; FACEBOOK_PIXEL_ID env is a fallback. */}

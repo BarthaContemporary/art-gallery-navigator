@@ -1,7 +1,24 @@
 import Link from "next/link";
 import type { SiteSettings } from "@/lib/sanity";
 import { ConsentReopenLink } from "@/components/consent-reopen-link";
+import { NewsletterForm } from "@/components/newsletter-form";
 
+function InstagramIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.3" cy="6.7" r=".8" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * Footer per handoff 2a: darker orange, white text, two columns — identity
+ * and contact on the left, newsletter on the right. The footer's top edge is
+ * the only dividing line on the site. A small legal line is the one addition:
+ * the privacy, terms and cookie pages must stay reachable from every page.
+ */
 export function SiteFooter({
   settings,
   galleryName,
@@ -9,118 +26,74 @@ export function SiteFooter({
   settings: SiteSettings | null;
   galleryName: string;
 }) {
+  const instagram =
+    settings?.instagram ??
+    settings?.socials?.find((s) => /instagram/i.test(`${s.label ?? ""} ${s.url ?? ""}`))?.url ??
+    null;
+  const addressLines = (settings?.address ?? "St James's, London").split(/\r?\n/).filter(Boolean);
+  const visitNote = settings?.visitNote ?? settings?.openingHours ?? "By appointment only";
+
   return (
-    <footer className="mt-[var(--section)]">
-      <div className="page grid12 py-16">
-        {/* Wordmark + address */}
-        <div className="col-span-12 md:col-span-5">
-          <p className="font-sans text-ui font-medium text-sumi">{galleryName}</p>
-          {settings?.address ? (
-            <address className="mt-4 max-w-[var(--measure)] font-serif text-ui not-italic leading-relaxed text-ink-70 whitespace-pre-line">
-              {settings.address}
-            </address>
+    <footer className="mt-[var(--section)] bg-accent-deep text-white">
+      <div className="page grid grid-cols-1 gap-10 py-14 md:grid-cols-[1.2fr_1fr] md:gap-16 md:py-16">
+        <div className="font-sans text-ui leading-[1.75]">
+          <p className="mb-3 text-[17px] font-medium leading-none md:text-[18px]">{galleryName}</p>
+          {addressLines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          <p>{visitNote}</p>
+          {settings?.phone ? (
+            <p>
+              <a href={`tel:${settings.phone.replace(/[^\d+]/g, "")}`} className="hover:opacity-80">
+                {settings.phone}
+              </a>
+            </p>
           ) : null}
-          {settings?.openingHours ? (
-            <p className="mt-2 font-serif text-ui text-ink-70">
-              {settings.openingHours}
+          {settings?.email ? (
+            <p>
+              <a href={`mailto:${settings.email}`} className="hover:opacity-80">
+                {settings.email}
+              </a>
+            </p>
+          ) : null}
+          {instagram ? (
+            <p className="mt-3">
+              <a
+                href={instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center hover:opacity-80"
+              >
+                <InstagramIcon />
+              </a>
             </p>
           ) : null}
         </div>
 
-        {/* Contact */}
-        <div className="col-span-6 mt-8 md:col-span-3 md:mt-0">
-          <h2 className="label">Contact</h2>
-          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
-            {settings?.email ? (
-              <li>
-                <a className="link-inline" href={`mailto:${settings.email}`}>
-                  {settings.email}
-                </a>
-              </li>
-            ) : null}
-            {settings?.phone ? <li>{settings.phone}</li> : null}
-            <li>
-              <Link className="link-inline" href="/contact">
-                Contact the gallery
-              </Link>
-            </li>
-            {settings?.socials?.map((social) =>
-              social.url ? (
-                <li key={social._key}>
-                  <a
-                    className="link-inline"
-                    href={social.url}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {social.label ?? social.url}
-                  </a>
-                </li>
-              ) : null,
-            )}
-          </ul>
-        </div>
-
-        {/* Visit */}
-        <div className="col-span-6 mt-8 md:col-span-2 md:mt-0">
-          <h2 className="label">Visit</h2>
-          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
-            <li>
-              <Link className="link-inline" href="/visit">
-                Book a viewing
-              </Link>
-            </li>
-            <li>
-              <Link className="link-inline" href="/faq">
-                Collectors&rsquo; FAQ
-              </Link>
-            </li>
-            <li>
-              <Link className="link-inline" href="/glossary">
-                Glossary
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* Legal */}
-        <div className="col-span-12 mt-8 md:col-span-2 md:mt-0">
-          <h2 className="label">Legal</h2>
-          <ul className="mt-3 space-y-1.5 font-sans text-ui text-ink-70">
-            <li>
-              <Link className="link-inline" href="/privacy">
-                Privacy
-              </Link>
-            </li>
-            <li>
-              <Link className="link-inline" href="/terms">
-                Terms
-              </Link>
-            </li>
-            <li>
-              <Link className="link-inline" href="/cookies">
-                Cookies
-              </Link>
-            </li>
-            <li>
-              <Link className="link-inline" href="/aml">
-                Anti-Money-Laundering
-              </Link>
-            </li>
-            <li>
-              <ConsentReopenLink />
-            </li>
-          </ul>
+        <div>
+          <h2 className="font-sans text-[13px] font-semibold">Newsletter</h2>
+          <NewsletterForm />
         </div>
       </div>
 
-      <div>
-        <div className="page flex flex-col gap-1 pb-10 font-sans text-label text-ink-50 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            &copy; {new Date().getFullYear()} {galleryName}. All works subject to
-            availability.
-          </p>
-        </div>
+      <div className="page flex flex-wrap items-center gap-x-5 gap-y-1 pb-8 font-sans text-[12px] text-white/70">
+        <span>&copy; {new Date().getFullYear()} {galleryName}</span>
+        <Link href="/privacy" className="hover:text-white">
+          Privacy
+        </Link>
+        <Link href="/terms" className="hover:text-white">
+          Terms
+        </Link>
+        <Link href="/cookies" className="hover:text-white">
+          Cookies
+        </Link>
+        <Link href="/aml" className="hover:text-white">
+          AML
+        </Link>
+        <span className="[&_button]:hover:text-white">
+          <ConsentReopenLink />
+        </span>
       </div>
     </footer>
   );

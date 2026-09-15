@@ -44,6 +44,39 @@ const exhibition = {
         !parent?.isArtFair,
     },
     {
+      name: "stand",
+      title: "Stand / booth",
+      type: "string",
+      description: "e.g. Stand 262 — shown for fairs.",
+      hidden: ({ parent }: { parent?: { isArtFair?: boolean } }) => !parent?.isArtFair,
+    },
+    {
+      name: "heroImages",
+      title: "Slideshow images (16:9)",
+      type: "array",
+      description: "Top-of-page slideshow. Falls back to the cover image when empty.",
+      of: [
+        {
+          type: "image",
+          options: { hotspot: true },
+          fields: [{ name: "caption", title: "Caption", type: "string" }],
+        },
+      ],
+    },
+    {
+      name: "longText",
+      title: "Read more (longer curatorial text)",
+      type: "array",
+      description: "Revealed inline by “Read more”. The Introduction above stays the plain-language opener.",
+      of: [{ type: "block" }],
+    },
+    {
+      name: "pdf",
+      title: "Catalogue PDF",
+      type: "file",
+      options: { accept: "application/pdf" },
+    },
+    {
       name: "coverImage",
       title: "Cover image",
       type: "image",

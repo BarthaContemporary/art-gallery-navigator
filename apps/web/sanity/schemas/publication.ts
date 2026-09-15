@@ -60,6 +60,24 @@ const publication = {
       type: "number",
     },
     { name: "pages", title: "Pages", type: "number" },
+    { name: "language", title: "Language", type: "string", initialValue: "English" },
+    {
+      name: "availability",
+      title: "Availability",
+      type: "string",
+      initialValue: "available",
+      options: { list: [
+        { title: "Available", value: "available" },
+        { title: "Out of print", value: "outOfPrint" },
+      ], layout: "radio" },
+    },
+    {
+      name: "pdf",
+      title: "PDF",
+      type: "file",
+      options: { accept: "application/pdf" },
+      description: "Offered as “Download PDF” on the page.",
+    },
     {
       name: "format",
       title: "Format",

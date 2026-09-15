@@ -1,80 +1,113 @@
 @import "tailwindcss";
 
 /*
- * Joost van den Bergh — design system.
- * Ma: emptiness is the material. One Dutch-orange accent, rationed.
- * No shadows, no rounded corners, no gradients, no horizontal rules —
- * hierarchy comes from space and type alone.
+ * Joost van den Bergh — design system (handoff turn 2).
+ * Noto Sans only. Orange is a whisper: logo, eyebrows, links, the active
+ * slide marker, the selected tile's top rule, "Enquire". No borders, no
+ * shadows, no radius, no dividing lines except the footer's top edge.
  *
- * Raw tokens live in :root; the ones that back Tailwind utilities are declared
- * in @theme (Tailwind v4 emits them to :root and generates the colour, font and
- * type-size utilities). Layout scalars (measure, gutter, section rhythm) live
- * only in :root and are consumed via var() and arbitrary values.
+ * The older token names (sumi / ink-70 / washi / oranje) are kept as aliases
+ * so pages not yet rebuilt keep rendering; they now resolve to the new values.
  */
 
 :root {
-  /* colour */
-  --washi: #faf9f5; /* page bg — never pure white */
-  --washi-2: #f2f0ea; /* image grounds, raised surfaces */
-  --hairline: #e5e2d9; /* reserved: subtle borders where unavoidable */
-  --sumi: #1b1916; /* text, rules, dark bands */
-  --ink-70: #43413b; /* secondary text */
-  --ink-50: #6e6a61; /* labels, meta */
-  --oranje: #fc6600; /* accent — max one per view */
+  /* colour — handoff values */
+  --ink: #1a1a1a; /* headings, active nav, logo-on-orange text */
+  --body: #444444; /* running text */
+  --meta: #777777; /* meta lines, nav at rest */
+  --light: #999999; /* kanji beside romaji, tertiary */
+  --field: #ebe8e2; /* image placeholder, form fields */
+  --page: #ffffff;
+  --overlay: #faf9f6; /* search overlay, optional fold-out ground */
+  --accent: #e8590c;
+  --accent-deep: #b8430a; /* footer */
+
+  /* aliases for the previous system */
+  --washi: var(--page);
+  --washi-2: var(--field);
+  --hairline: var(--field);
+  --sumi: var(--ink);
+  --ink-70: var(--body);
+  --ink-50: var(--meta);
+  --oranje: var(--accent);
 
   /* layout */
-  --measure: 640px; /* max text width */
-  --gutter: 24px;
-  --page-max: 1520px;
-  --page-pad: 64px; /* 24px below md — handled by utilities */
-  --section: clamp(128px, 12vw, 192px);
+  --measure: 640px;
+  --gutter: 14px; /* image grid gutter */
+  --page-max: 1440px;
+  --page-pad: 40px;
+  --section: clamp(56px, 6vw, 96px);
+  --fold-ms: 350ms;
 }
 
 @theme {
-  /* Remove the framework's default palette so only the system colours exist. */
   --color-*: initial;
 
-  --color-washi: var(--washi);
-  --color-washi-2: var(--washi-2);
-  --color-hairline: var(--hairline);
-  --color-sumi: var(--sumi);
-  --color-ink-70: var(--ink-70);
-  --color-ink-50: var(--ink-50);
-  --color-oranje: var(--oranje);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-meta: var(--meta);
+  --color-light: var(--light);
+  --color-field: var(--field);
+  --color-page: var(--page);
+  --color-overlay: var(--overlay);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+
+  /* aliases */
+  --color-washi: var(--page);
+  --color-washi-2: var(--field);
+  --color-hairline: var(--field);
+  --color-sumi: var(--ink);
+  --color-ink-70: var(--body);
+  --color-ink-50: var(--meta);
+  --color-oranje: var(--accent);
   --color-white: #ffffff;
   --color-black: #000000;
   --color-transparent: transparent;
   --color-current: currentColor;
 
-  /* type families — both via next/font/google */
-  --font-sans: var(--font-noto-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  /* one family; "serif" is an alias so untouched pages don't fall back */
+  --font-sans: var(--font-noto-sans), "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-noto-sans), "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  /* type scale (line-height / tracking companions applied automatically) */
+  /* type scale — wireframe values scaled to the web */
+  --text-eyebrow: 11.5px;
+  --text-eyebrow--line-height: 1.3;
+  --text-eyebrow--letter-spacing: 0.14em;
+
   --text-label: 12px;
   --text-label--line-height: 1.3;
   --text-label--letter-spacing: 0.08em;
 
-  --text-ui: 14px;
-  --text-ui--line-height: 1.4;
+  --text-meta: 13.5px;
+  --text-meta--line-height: 1.5;
 
-  --text-body: 17px;
-  --text-body--line-height: 1.65;
+  --text-ui: 14.5px;
+  --text-ui--line-height: 1.45;
 
-  --text-lead: 22px;
-  --text-lead--line-height: 1.45;
+  --text-body: 16px;
+  --text-body--line-height: 1.7;
 
-  --text-h2: 32px;
-  --text-h2--line-height: 1.15;
-  --text-h2--letter-spacing: -0.01em;
+  --text-lead: 19px;
+  --text-lead--line-height: 1.55;
 
-  --text-h1: 56px;
-  --text-h1--line-height: 1.05;
-  --text-h1--letter-spacing: -0.02em;
+  --text-section: 26px;
+  --text-section--line-height: 1.25;
 
-  --text-display: clamp(48px, 6.6vw, 96px);
-  --text-display--line-height: 1.0;
-  --text-display--letter-spacing: -0.02em;
+  --text-h2: 26px;
+  --text-h2--line-height: 1.25;
+
+  --text-title: clamp(30px, 3.4vw, 44px);
+  --text-title--line-height: 1.12;
+  --text-title--letter-spacing: -0.01em;
+
+  --text-h1: clamp(30px, 3.4vw, 44px);
+  --text-h1--line-height: 1.12;
+  --text-h1--letter-spacing: -0.01em;
+
+  --text-display: clamp(30px, 3.4vw, 44px);
+  --text-display--line-height: 1.12;
+  --text-display--letter-spacing: -0.01em;
 }
 
 @layer base {
@@ -83,19 +116,19 @@
   }
 
   body {
-    background: var(--washi);
-    color: var(--ink-70);
+    background: var(--page);
+    color: var(--body);
     font-family: var(--font-sans);
+    font-weight: 400;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* Square corners everywhere — the system forbids radii. */
+  /* Square corners everywhere. */
   * {
     border-radius: 0 !important;
   }
 
-  /* Native date/time inputs respect their container (mobile grid overflow). */
   input[type="date"],
   input[type="datetime-local"],
   input[type="time"],
@@ -105,20 +138,30 @@
     box-sizing: border-box;
   }
 
-  /* Keyboard focus: 2px oranje. */
   :focus-visible {
-    outline: 2px solid var(--oranje);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--sumi);
-    color: var(--washi);
+    background: var(--ink);
+    color: var(--page);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
-  /* Page container: max 1520px, 64px margins (24 below md). */
+  /* Page container: max 1440px; 24px side padding, 40px from md. */
   .page {
     width: 100%;
     max-width: var(--page-max);
@@ -131,90 +174,187 @@
     }
   }
 
-  /* 12-column grid, 24px gutter. */
+  /* 12-column grid kept for pages not yet rebuilt. */
   .grid12 {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: var(--gutter);
+    gap: 24px;
   }
 
-  /* Uppercase structural label. */
+  /* Image grid: 2 / 3 / 4 per row, 14px gutter, nothing else. */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px var(--gutter);
+  }
+  @media (min-width: 640px) {
+    .tiles {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .tiles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Orange eyebrow: 600, uppercase, wide tracking. */
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: var(--text-eyebrow);
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* Grey label (search result groups, "Shown in"). */
   .label {
     font-family: var(--font-sans);
     font-size: 12px;
     line-height: 1.3;
-    font-weight: 400;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-50);
+    letter-spacing: 0.1em;
+    color: var(--light);
   }
 
-  /* Section header: label-caps title in the rail; separation through
-     whitespace, never rules. */
   .section-head {
-    padding-top: 20px;
+    padding-top: 0;
   }
 
-  /* Buttons — square always. Default outlined; hover inverts. */
+  /* Title (300) and section heading (300). */
+  .t-title {
+    font-weight: 300;
+    font-size: var(--text-title);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .t-section {
+    font-weight: 300;
+    font-size: var(--text-section);
+    line-height: 1.25;
+    color: var(--ink);
+  }
+
+  /* Orange text link — the site's only link style besides nav. */
+  .link-accent {
+    color: var(--accent);
+    font-weight: 500;
+    font-size: var(--text-ui);
+    line-height: 1.45;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+  .link-accent:hover {
+    color: var(--accent-deep);
+  }
+
+  /* Form fields: light grey blocks, no borders. */
+  .field {
+    width: 100%;
+    background: var(--field);
+    border: 0;
+    padding: 12px 14px;
+    font-family: var(--font-sans);
+    font-size: 16px; /* ≥16px: no iOS zoom */
+    line-height: 1.4;
+    color: var(--ink);
+    min-height: 44px;
+  }
+  .field::placeholder {
+    color: var(--light);
+  }
+
+  /* Buttons — square, minimal. */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.75rem;
-    padding: 0.75rem 1.5rem;
-    border: 1px solid var(--sumi);
+    min-height: 44px;
+    padding: 10px 22px;
+    border: 1px solid var(--ink);
     background: transparent;
-    color: var(--sumi);
+    color: var(--ink);
     font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 400;
+    font-size: var(--text-ui);
+    font-weight: 500;
     line-height: 1;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   .btn:hover {
-    background: var(--sumi);
-    color: var(--washi);
+    background: var(--ink);
+    color: var(--page);
   }
-
-  /* Filled oranje — at most one per page. */
+  .btn-dark {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .btn-dark:hover {
+    background: #000;
+  }
   .btn-filled {
-    border-color: var(--oranje);
-    background: var(--oranje);
+    border-color: var(--accent);
+    background: var(--accent);
     color: #fff;
   }
   .btn-filled:hover {
-    background: var(--oranje);
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
     color: #fff;
-    opacity: 0.9;
   }
-
-  /* Inverted outlined button, for dark (sumi) bands. */
   .btn-invert {
-    border-color: var(--washi);
-    color: var(--washi);
+    border-color: #fff;
+    color: #fff;
   }
   .btn-invert:hover {
-    background: var(--washi);
-    color: var(--sumi);
+    background: #fff;
+    color: var(--accent-deep);
   }
 
-  /* Inline link: no underline, hover oranje. */
   .link-inline {
     text-decoration: none;
     transition: color 0.2s ease;
   }
   .link-inline:hover {
-    color: var(--oranje);
+    color: var(--accent);
+  }
+
+  /* Fold-out panel: height animates open/closed, ~350ms ease-out. */
+  .fold {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--fold-ms) ease-out;
+  }
+  .fold[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+  .fold > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Slideshow crossfade. */
+  .slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 900ms ease;
+  }
+  .slide[data-active="true"] {
+    opacity: 1;
   }
 }
 
 /* ---------------------------------------------------------------------------
-   Consent drawer
-   A band along the foot of the page, in the system's own vocabulary: hairline
-   rule, washi ground, square corners, no shadow. It rises once the page has
-   settled — deliberate rather than interruptive.
+   Consent drawer — kept from the previous system, recoloured by the tokens.
    --------------------------------------------------------------------------- */
 .jvb-consent {
   opacity: 0;
@@ -227,22 +367,15 @@
   opacity: 1;
   transform: none;
 }
-
-/* The site's inline links carry no underline — right for body copy, wrong in a
-   legal notice, where the policies must be findable without hovering. Underline
-   them here only. */
 .jvb-consent a {
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
 }
-
-/* Accept and Decline share one class so they cannot drift apart visually —
-   equal weight is a compliance property here, not a style preference. */
 .jvb-consent-btn {
-  border: 1px solid var(--sumi);
+  border: 1px solid var(--ink);
   background: transparent;
-  color: var(--sumi);
+  color: var(--ink);
   padding: 10px 22px;
   font-size: var(--text-ui);
   line-height: 1;
@@ -253,21 +386,6 @@
     color 0.2s ease;
 }
 .jvb-consent-btn:hover {
-  background: var(--sumi);
-  color: var(--washi);
-}
-
-/* The site had no global reduced-motion honour; add it with the first piece of
-   motion that ships here. The drawer appears instantly instead of rising. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    animation-delay: 0ms !important;
-    transition-delay: 0ms !important;
-    scroll-behavior: auto !important;
-  }
+  background: var(--ink);
+  color: var(--page);
 }

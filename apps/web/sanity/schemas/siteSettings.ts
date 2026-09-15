@@ -18,6 +18,49 @@ const siteSettings = {
     { name: "phone", title: "Phone", type: "string" },
     { name: "openingHours", title: "Opening hours", type: "string" },
     {
+      name: "visitNote",
+      title: "Visit note",
+      type: "string",
+      description: "Shown under the address, e.g. “By appointment only”.",
+      initialValue: "By appointment only",
+    },
+    { name: "instagram", title: "Instagram URL", type: "url" },
+    {
+      name: "galleryPhoto",
+      title: "About page photo (16:9)",
+      type: "image",
+      options: { hotspot: true },
+      fields: [{ name: "caption", title: "Caption", type: "string" }],
+    },
+    {
+      name: "statementHeadline",
+      title: "About — headline",
+      type: "string",
+      description: "e.g. “Japanese and Indian works of art, in St James’s since 2004.”",
+    },
+    {
+      name: "statement",
+      title: "About — statement",
+      type: "array",
+      of: [{ type: "block" }],
+    },
+    {
+      name: "pressLinks",
+      title: "Press",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            { name: "title", title: "Title", type: "string" },
+            { name: "source", title: "Publication / date", type: "string" },
+            { name: "url", title: "URL", type: "url" },
+          ],
+          preview: { select: { title: "title", subtitle: "source" } },
+        },
+      ],
+    },
+    {
       name: "socials",
       title: "Social links",
       type: "array",

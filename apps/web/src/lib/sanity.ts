@@ -57,12 +57,13 @@ export interface SanityImage {
   caption?: string | null;
   role?: string | null;
   alt?: string | null;
+  hotspot?: { x?: number; y?: number } | null;
 }
 
 /** Parse `image-{id}-{w}x{h}-{format}` asset refs into a CDN URL. */
 export function imageUrl(
   image: SanityImage | null | undefined,
-  opts: { width?: number; height?: number; quality?: number } = {},
+  opts: { width?: number; height?: number; quality?: number; fit?: "max" | "crop" } = {},
 ): string | null {
   const ref = image?.asset?._ref;
   if (!ref) return null;
@@ -73,8 +74,33 @@ export function imageUrl(
   if (opts.width) search.set("w", String(opts.width));
   if (opts.height) search.set("h", String(opts.height));
   search.set("q", String(opts.quality ?? 80));
-  search.set("fit", "max");
+  if (opts.fit === "crop") {
+    // Fixed-ratio crop honouring the Studio hotspot when one is set.
+    search.set("fit", "crop");
+    const hs = image?.hotspot;
+    if (hs && typeof hs.x === "number" && typeof hs.y === "number") {
+      search.set("crop", "focalpoint");
+      search.set("fp-x", hs.x.toFixed(3));
+      search.set("fp-y", hs.y.toFixed(3));
+    } else {
+      search.set("crop", "center");
+    }
+  } else {
+    search.set("fit", "max");
+  }
   return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}-${dims}.${format}?${search.toString()}`;
+}
+
+/** Ratio helpers for the fixed image formats. */
+export const RATIO = { hero: 16 / 9, work: 3 / 4, portrait: 1, cover: 4 / 5 } as const;
+
+/** Cropped URL for a fixed ratio at a given width. */
+export function ratioUrl(
+  image: SanityImage | null | undefined,
+  ratio: number,
+  width: number,
+): string | null {
+  return imageUrl(image, { width, height: Math.round(width / ratio), fit: "crop" });
 }
 
 /** Intrinsic dimensions encoded in the asset _ref, for next/image. */
@@ -106,6 +132,11 @@ export interface Work {
   title: string | null;
   maker: string | null;
   makerLifeDates: string | null;
+  makerNative?: string | null;
+  artist?: { name: string | null; nameNative: string | null; slug: string | null } | null;
+  year?: string | null;
+  provenance?: string | null;
+  literature?: string | null;
   period: string | null;
   originRegion: string | null;
   medium: string | null;
@@ -151,11 +182,36 @@ export interface Exhibition {
   endDate: string | null;
   isArtFair: boolean | null;
   fairName: string | null;
+  stand: string | null;
   coverImage: SanityImage | null;
+  heroImages: SanityImage[] | null;
   intro: PortableBlock[] | null;
+  longText: PortableBlock[] | null;
+  pdfUrl: string | null;
   works: Work[] | null;
   catalogue: CatalogueEntry[] | null;
   seo: Seo | null;
+  /** Neighbours in the chronological archive, for the ← / → links. */
+  prev: { title: string | null; slug: string | null } | null;
+  next: { title: string | null; slug: string | null } | null;
+  /** Catalogue publication linked to this event, if any. */
+  relatedPublication: { title: string | null; slug: string | null } | null;
+}
+
+export interface Artist {
+  _id: string;
+  name: string | null;
+  nameNative: string | null;
+  slug: string | null;
+  lifeDates: string | null;
+  country: string | null;
+  period: string | null;
+  bioShort: string | null;
+  bioLong: string | null;
+  portrait: SanityImage | null;
+  works?: Work[] | null;
+  shownIn?: { title: string | null; slug: string | null }[] | null;
+  publications?: { title: string | null; slug: string | null }[] | null;
 }
 
 /**
@@ -198,6 +254,7 @@ export interface PublicationListItem {
   slug: string | null;
   coverImage: SanityImage | null;
   publishedYear: number | null;
+  availability: "available" | "outOfPrint" | null;
   externalUrl: string | null;
 }
 
@@ -211,6 +268,9 @@ export interface Publication {
   publishedYear: number | null;
   pages: number | null;
   format: string | null;
+  language: string | null;
+  availability: "available" | "outOfPrint" | null;
+  pdfUrl: string | null;
   externalUrl: string | null;
   relatedExhibition: { title: string | null; slug: string | null } | null;
   seo: Seo | null;
@@ -241,6 +301,12 @@ export interface SiteSettings {
   email: string | null;
   phone: string | null;
   openingHours: string | null;
+  visitNote: string | null;
+  instagram: string | null;
+  galleryPhoto: SanityImage | null;
+  statementHeadline: string | null;
+  statement: PortableBlock[] | null;
+  pressLinks: { _key: string; title: string | null; source: string | null; url: string | null }[] | null;
   socials: { _key: string; label: string | null; url: string | null }[] | null;
   defaultSeo: {
     title: string | null;
@@ -263,6 +329,11 @@ const workFields = /* groq */ `{
   title,
   maker,
   makerLifeDates,
+  makerNative,
+  artist->{ name, nameNative, "slug": slug.current },
+  year,
+  provenance,
+  literature,
   period,
   originRegion,
   medium,
@@ -273,7 +344,7 @@ const workFields = /* groq */ `{
   supabaseId,
   category,
   categorySlug,
-  images[]{ _key, asset, caption, role }
+  images[]{ _key, asset, caption, role, hotspot }
 }`;
 
 export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
@@ -284,6 +355,12 @@ export const siteSettingsQuery = groq`*[_type == "siteSettings"][0]{
   email,
   phone,
   openingHours,
+  visitNote,
+  instagram,
+  galleryPhoto{ asset, caption, hotspot },
+  statementHeadline,
+  statement,
+  pressLinks[]{ _key, title, source, url },
   socials[]{ _key, label, url },
   defaultSeo{ title, description, ogImage{ asset } },
   featuredWorks[]->${workFields},
@@ -350,7 +427,7 @@ const exhibitionListFields = /* groq */ `{
   endDate,
   isArtFair,
   fairName,
-  coverImage{ asset, caption },
+  coverImage{ asset, caption, hotspot },
   "workCount": count(works),
   "catalogueCount": count(catalogue)
 }`;
@@ -379,6 +456,8 @@ const catalogueFields = /* groq */ `{
   sold
 }`;
 
+const eventNeighbour = /* groq */ `{ title, "slug": slug.current }`;
+
 export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.current == $slug && ${visible}][0]{
   _id,
   title,
@@ -389,11 +468,22 @@ export const exhibitionBySlugQuery = groq`*[_type == "exhibition" && slug.curren
   endDate,
   isArtFair,
   fairName,
-  coverImage{ asset, caption },
+  stand,
+  coverImage{ asset, caption, hotspot },
+  heroImages[]{ _key, asset, caption, hotspot },
   intro,
+  longText,
+  "pdfUrl": pdf.asset->url,
   works[]->${workFields},
   catalogue[]${catalogueFields},
-  seo{ title, description, ogImage{ asset } }
+  seo{ title, description, ogImage{ asset } },
+  "relatedPublication": *[_type == "publication" && references(^._id) && !coalesce(hidden, false)][0]${eventNeighbour},
+  "prev": *[_type == "exhibition" && defined(slug.current) && !coalesce(hidden, false)
+    && coalesce(endDate, startDate, "0000") < coalesce(^.endDate, ^.startDate, "0000")]
+    | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)[0]${eventNeighbour},
+  "next": *[_type == "exhibition" && defined(slug.current) && !coalesce(hidden, false)
+    && coalesce(endDate, startDate, "0000") > coalesce(^.endDate, ^.startDate, "0000")]
+    | order(coalesce(endDate, startDate, "0000") asc, coalesce(sortOrder, 9999) desc)[0]${eventNeighbour}
 }`;
 
 export const exhibitionSlugsQuery = groq`*[_type == "exhibition" && defined(slug.current) && ${visible}].slug.current`;
@@ -403,8 +493,9 @@ export const publicationsQuery = groq`*[_type == "publication" && defined(slug.c
   _id,
   title,
   "slug": slug.current,
-  coverImage{ asset, caption },
+  coverImage{ asset, caption, hotspot },
   publishedYear,
+  availability,
   externalUrl
 }`;
 
@@ -412,18 +503,44 @@ export const publicationBySlugQuery = groq`*[_type == "publication" && slug.curr
   _id,
   title,
   "slug": slug.current,
-  coverImage{ asset, caption },
+  coverImage{ asset, caption, hotspot },
   description,
   spreads[]{ _key, asset, caption },
   publishedYear,
   pages,
   format,
+  language,
+  availability,
+  "pdfUrl": pdf.asset->url,
   externalUrl,
   relatedExhibition->{ title, "slug": slug.current },
   seo{ title, description, ogImage{ asset } }
 }`;
 
 export const publicationSlugsQuery = groq`*[_type == "publication" && defined(slug.current) && ${visible}].slug.current`;
+
+/* Artists — synced from the inventory's makers. */
+const artistFields = /* groq */ `{
+  _id, name, nameNative, "slug": slug.current, lifeDates, country, period, bioShort, bioLong,
+  portrait{ asset, caption, hotspot }
+}`;
+
+export const artistsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)]
+  | order(name asc)${artistFields}`;
+
+export const artistBySlugQuery = groq`*[_type == "artist" && slug.current == $slug && !coalesce(hidden, false)][0]{
+  ...${artistFields},
+  "works": *[_type == "work" && references(^._id) && defined(slug.current)] | order(_createdAt desc)${workFields},
+  "shownIn": *[_type == "exhibition" && !coalesce(hidden, false) && defined(slug.current)
+    && (count(works[@->artist._ref == ^.^._id]) > 0 || count(catalogue[maker == ^.^.name]) > 0)]
+    | order(coalesce(endDate, startDate, "0000") desc, coalesce(sortOrder, 9999) asc)${eventNeighbour},
+  "publications": *[_type == "publication" && !coalesce(hidden, false) && defined(slug.current)
+    && relatedExhibition->_id in *[_type == "exhibition"
+      && (count(works[@->artist._ref == ^.^.^._id]) > 0 || count(catalogue[maker == ^.^.^.name]) > 0)]._id]
+    | order(coalesce(publishedYear, 0) desc)${eventNeighbour}
+}`;
+
+export const artistSlugsQuery = groq`*[_type == "artist" && defined(slug.current) && !coalesce(hidden, false)].slug.current`;
 
 export const journalPostsQuery = groq`*[_type == "journalPost" && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc){
   _id,

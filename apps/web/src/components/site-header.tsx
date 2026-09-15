@@ -2,62 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { navLinks } from "@/lib/site";
+import { openSearch } from "@/components/search-overlay";
 
+/** Outlined magnifier at the text's stroke weight — no circle, no box. */
+export function SearchIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="10.5" cy="10.5" r="7" />
+      <path d="M20 20l-4.2-4.2" />
+    </svg>
+  );
+}
+
+/**
+ * Header per handoff 2a/2i: orange sentence-case logo, four nav items and a
+ * search icon. Desktop: nav right-aligned on the logo's line. Below md the
+ * nav sits on its own row under the logo. No burger, no rule beneath.
+ */
 export function SiteHeader({ galleryName }: { galleryName: string }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  // The just-tapped item, shown orange as press feedback until the page loads.
-  const [pending, setPending] = useState<string | null>(null);
-
-  // Close the overlay on navigation.
-  useEffect(() => {
-    setOpen(false);
-    setPending(null);
-  }, [pathname]);
-
-  // Lock body scroll while the overlay is open.
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
-
   const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
-
-  // Wordmark stacks as "Joost / van den Bergh" below md; one line on desktop.
-  const [firstWord, ...restWords] = galleryName.split(" ");
-  const rest = restWords.join(" ");
-  const stacked = rest ? (
-    <>
-      {firstWord}
-      <br />
-      {rest}
-    </>
-  ) : (
-    galleryName
-  );
+    href === "/" ? pathname === "/" || pathname.startsWith("/events") : pathname.startsWith(href);
 
   return (
-    <>
-      <header className="sticky top-0 z-40 bg-[color-mix(in_srgb,var(--washi)_92%,transparent)] backdrop-blur">
-        <div className="page flex items-baseline justify-between gap-6 py-5">
+    <header className="page pt-6 pb-2 md:pt-7 md:pb-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between md:gap-8">
         <Link
           href="/"
-          className="font-sans text-ui font-medium tracking-tight text-sumi"
+          className="font-sans text-[17px] font-medium leading-none text-accent hover:text-accent-deep md:text-[18px]"
         >
-          <span className="hidden md:inline">{galleryName}</span>
-          <span className="leading-tight md:hidden">{stacked}</span>
+          {galleryName}
         </Link>
-
-        {/* Desktop nav */}
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex flex-wrap gap-x-6 gap-y-1 font-sans text-ui">
+        <nav aria-label="Main" className="-ml-2 md:ml-0">
+          <ul className="flex flex-wrap items-center gap-x-1 gap-y-0 font-sans text-ui">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
@@ -65,82 +52,28 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
                   <Link
                     href={link.href}
                     aria-current={active ? "page" : undefined}
-                    className={
-                      active
-                        ? "text-oranje"
-                        : "text-ink-70 transition-colors hover:text-sumi"
-                    }
+                    className={`inline-flex min-h-[44px] items-center px-2 transition-colors md:px-3 ${
+                      active ? "text-ink" : "text-meta hover:text-ink"
+                    }`}
                   >
                     {link.label}
                   </Link>
                 </li>
               );
             })}
+            <li>
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Search"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-ink hover:text-accent md:pl-3 md:pr-0"
+              >
+                <SearchIcon />
+              </button>
+            </li>
           </ul>
         </nav>
-
-        {/* Mobile menu trigger */}
-        <button
-          type="button"
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="font-sans text-ui text-sumi md:hidden"
-        >
-          {open ? "Close" : "Menu"}
-        </button>
-        </div>
-      </header>
-
-      {/* Mobile full-screen overlay menu — rendered as a sibling of <header>
-          (not a child) so its fixed positioning and backdrop-blur resolve
-          against the viewport and blur the page, rather than being trapped in
-          the header's own backdrop-filter context. */}
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 md:hidden"
-          style={{
-            backgroundColor: "rgba(250, 249, 245, 0.3)",
-            backdropFilter: "blur(22px) saturate(1.4)",
-            WebkitBackdropFilter: "blur(22px) saturate(1.4)",
-          }}
-        >
-          <div className="page flex items-baseline justify-between py-5">
-            <span className="font-sans text-ui font-medium leading-tight tracking-tight text-sumi">
-              {stacked}
-            </span>
-            <button
-              type="button"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-              className="font-sans text-ui text-sumi"
-            >
-              Close
-            </button>
-          </div>
-          <nav aria-label="Main" className="page mt-16">
-            <ul className="flex flex-col gap-5">
-              {navLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      onClick={() => setPending(link.href)}
-                      aria-current={active ? "page" : undefined}
-                      className={`font-sans text-[22px] leading-tight tracking-tight transition-colors duration-150 active:text-oranje ${
-                        active || pending === link.href ? "text-oranje" : "text-sumi"
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        </div>
-      ) : null}
-    </>
+      </div>
+    </header>
   );
 }
