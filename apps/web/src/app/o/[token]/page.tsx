@@ -105,7 +105,7 @@ function UnavailableView() {
         would be delighted to show you what is currently available — please get in
         touch and we will send a fresh selection.
       </p>
-      <Link href="/contact" className="btn btn-filled mt-10">
+      <Link href="/about" className="btn btn-filled mt-10">
         Contact the gallery
       </Link>
     </div>

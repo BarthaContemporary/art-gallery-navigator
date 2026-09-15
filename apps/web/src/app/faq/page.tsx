@@ -97,7 +97,7 @@ export default function FaqPage() {
 
           <p className="mt-10 font-serif text-body text-ink-70">
             Something we haven&rsquo;t covered?{" "}
-            <Link href="/contact" className="link-inline">
+            <Link href="/about" className="link-inline">
               Get in touch
             </Link>
             .

@@ -154,7 +154,7 @@ export default function CookiesPage() {
           For how we handle personal data more broadly, including your rights of access and
           erasure, see our <Link href="/privacy">Privacy Notice</Link>. If anything here is
           unclear, or you would like to know what we hold about you, please{" "}
-          <Link href="/contact">get in touch</Link> — we will respond within 30 days.
+          <Link href="/about">get in touch</Link> — we will respond within 30 days.
         </p>
       </LegalSection>
     </LegalDoc>

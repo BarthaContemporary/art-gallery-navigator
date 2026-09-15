@@ -255,11 +255,11 @@ export default async function WorkPage({
                   Enquire about this work
                 </a>
               ) : (
-                <Link href="/contact" className="btn btn-filled">
+                <Link href="/about" className="btn btn-filled">
                   Enquire about this work
                 </Link>
               )}
-              <Link href="/visit" className="btn">
+              <Link href="/about" className="btn">
                 View in person
               </Link>
             </div>
