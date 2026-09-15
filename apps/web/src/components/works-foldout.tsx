@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RatioImage } from "./ratio-image";
 import { EnquiryForm } from "./enquiry-form";
 import { ReadMore } from "./read-more";
-import { RATIO } from "@/lib/sanity";
+import { imageUrl, RATIO } from "@/lib/sanity";
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 
 /**
@@ -185,31 +186,36 @@ function WorkPanel({
   onClose: () => void;
 }) {
   const caption = workCaption(work);
+  // The panel shows the whole photograph, uncropped, on the field ground.
+  const large = imageUrl(work.image, { width: 1200 });
   const more = [work.provenance ? `Provenance: ${work.provenance}` : null, work.literature ? `Literature: ${work.literature}` : null].filter(
     (s): s is string => s !== null,
   );
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:gap-8">
-      <RatioImage
-        image={work.image}
-        ratio={RATIO.work}
-        width={800}
-        alt={caption}
-        sizes="(min-width: 768px) 200px, 100vw"
-        lazy={false}
-      />
+      <div className="relative w-full max-w-[420px] bg-field md:max-w-none" style={{ aspectRatio: String(RATIO.work) }}>
+        {large ? (
+          <Image src={large} alt={caption} fill sizes="(min-width: 768px) 200px, 100vw" className="object-contain" />
+        ) : null}
+      </div>
       <div className="min-w-0">
         <div className="flex items-start justify-between gap-4">
           <p className="font-sans text-body font-medium leading-snug text-ink">
-            {work.artistSlug ? (
-              <Link href={`/artists/${work.artistSlug}`} className="hover:text-accent">
-                {work.artist ?? "Unknown maker"}
-              </Link>
+            {work.artist ? (
+              <>
+                {work.artistSlug ? (
+                  <Link href={`/artists/${work.artistSlug}`} className="hover:text-accent">
+                    {work.artist}
+                  </Link>
+                ) : (
+                  work.artist
+                )}
+                {work.artistNative ? <span className="ml-2 font-normal text-light">{work.artistNative}</span> : null}
+                {work.artistDates ? <span className="ml-2 font-normal text-meta">({work.artistDates})</span> : null}
+              </>
             ) : (
-              work.artist ?? "Unknown maker"
+              caption
             )}
-            {work.artistNative ? <span className="ml-2 font-normal text-light">{work.artistNative}</span> : null}
-            {work.artistDates ? <span className="ml-2 font-normal text-meta">({work.artistDates})</span> : null}
           </p>
           <button
             type="button"
@@ -220,7 +226,7 @@ function WorkPanel({
             ✕
           </button>
         </div>
-        <p className="mt-2 font-sans text-body text-ink">{caption}</p>
+        {work.artist ? <p className="mt-2 font-sans text-body text-ink">{caption}</p> : null}
         {work.origin ? <p className="font-sans text-meta text-meta">{work.origin}</p> : null}
         {work.medium ? <p className="font-sans text-meta text-meta">{work.medium}</p> : null}
         {work.dimensions ? <p className="font-sans text-meta text-meta">{work.dimensions}</p> : null}

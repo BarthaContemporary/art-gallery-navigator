@@ -7,7 +7,7 @@ import { PortableText } from "@/components/portable-text";
 import { RatioImage } from "@/components/ratio-image";
 import { PageFlipReader } from "@/components/page-flip-reader";
 import { InlineEnquiry } from "@/components/inline-enquiry";
-import { availabilityLabel } from "@/components/publication-tile";
+import { availabilityLabel } from "@/lib/publications";
 import { JsonLd } from "@/components/json-ld";
 
 async function getPublication(slug: string): Promise<Publication | null> {

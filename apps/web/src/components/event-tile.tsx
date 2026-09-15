@@ -7,7 +7,10 @@ import { eventPlace, eventYear } from "@/lib/events";
 
 /** 16:9 tile + title + "venue · year" (handoff 2a). */
 export function EventTile({ event, priority = false }: { event: ExhibitionListItem; priority?: boolean }) {
-  const sub = [eventPlace(event), eventYear(event)].filter(Boolean).join(" · ");
+  const place = eventPlace(event);
+  const year = eventYear(event);
+  // "TEFAF Maastricht 2026 · 2026" reads twice; keep the year once.
+  const sub = [place, year && !place?.includes(year) ? year : null].filter(Boolean).join(" · ");
   return (
     <Link href={`/events/${event.slug}`} className="group block">
       <RatioImage

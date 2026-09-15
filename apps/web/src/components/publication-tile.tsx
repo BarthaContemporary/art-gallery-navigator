@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { RatioImage } from "./ratio-image";
 import { RATIO, type PublicationListItem } from "@/lib/sanity";
-
-export function availabilityLabel(a: PublicationListItem["availability"]): string {
-  return a === "outOfPrint" ? "out of print" : "available";
-}
+import { availabilityLabel } from "@/lib/publications";
 
 /** 4:5 cover, title, "year · available" (handoff 2e). */
 export function PublicationTile({ publication, priority = false }: { publication: PublicationListItem; priority?: boolean }) {

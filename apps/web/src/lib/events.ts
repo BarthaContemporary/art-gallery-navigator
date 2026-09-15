@@ -1,5 +1,3 @@
-import { formatExhibitionDates } from "@/components/exhibition-card";
-
 export type EventStatus = "current" | "forthcoming" | "past";
 
 type Dated = { startDate: string | null; endDate: string | null };
@@ -48,4 +46,18 @@ export function eventEyebrow(ev: Dated & { isArtFair: boolean | null; fairName: 
   return [STATUS_LABEL[eventStatus(ev)], eventPlace(ev)].filter(Boolean).join(" · ");
 }
 
-export { formatExhibitionDates as eventDates };
+/** Human date range, e.g. "3 March – 12 April 2026". Collapses a shared year. */
+export function eventDates(start: string | null, end: string | null): string | null {
+  const full = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const noYear = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long" });
+  const s = start ? new Date(start) : null;
+  const e = end ? new Date(end) : null;
+  const valid = (d: Date | null): d is Date => !!d && !Number.isNaN(d.getTime());
+  if (valid(s) && valid(e)) {
+    const sameYear = s.getFullYear() === e.getFullYear();
+    return `${sameYear ? noYear.format(s) : full.format(s)} – ${full.format(e)}`;
+  }
+  if (valid(s)) return full.format(s);
+  if (valid(e)) return full.format(e);
+  return null;
+}
