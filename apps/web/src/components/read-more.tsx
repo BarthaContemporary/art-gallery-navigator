@@ -18,7 +18,7 @@ export function ReadMore({
     <div className={className}>
       <div className="fold" data-open={open}>
         <div id={id} aria-hidden={!open}>
-          <div className="pt-4">{children}</div>
+          <div className="fold-body pt-4">{children}</div>
         </div>
       </div>
       <button

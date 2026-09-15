@@ -1,6 +1,6 @@
 # 003 — Keep the enquiry form mounted while its fold closes
 
-- **Status**: TODO
+- **Status**: DONE (commit follows 653c6ff)
 - **Commit**: 68e18eb
 - **Severity**: MEDIUM
 - **Category**: Interruptibility

@@ -23,12 +23,24 @@ export function InlineEnquiry({
   columns?: 2 | 3;
 }) {
   const [open, setOpen] = useState(false);
+  // The form stays mounted while the fold closes, so the box never shrinks empty.
+  const [mounted, setMounted] = useState(false);
+  const show = () => {
+    setMounted(true);
+    setOpen(true);
+  };
   return (
     <div>
-      <div className="fold" data-open={open}>
+      <div
+        className="fold"
+        data-open={open}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && !open) setMounted(false);
+        }}
+      >
         <div aria-hidden={!open}>
-          <div className="pb-2">
-            {open ? (
+          <div className="fold-body pb-2">
+            {mounted ? (
               <EnquiryForm
                 kind={kind}
                 subject={subject}
@@ -42,7 +54,7 @@ export function InlineEnquiry({
         </div>
       </div>
       {!open ? (
-        <button type="button" className="link-accent min-h-[44px]" onClick={() => setOpen(true)} aria-expanded={false}>
+        <button type="button" className="link-accent min-h-[44px]" onClick={show} aria-expanded={false}>
           {label} ↓
         </button>
       ) : null}

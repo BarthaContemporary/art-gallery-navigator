@@ -38,6 +38,8 @@
   --page-pad: 40px;
   --section: clamp(56px, 6vw, 96px);
   --fold-ms: 350ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out for UI */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
 }
 
 @theme {
@@ -329,6 +331,9 @@
 
   /* Work tile: the only selection mark is the 2px rule on the top edge.
      Keyboard focus shows the same rule instead of a ring on all four sides. */
+  .work-tile {
+    transition: border-top-color 160ms ease;
+  }
   .work-tile:focus-visible {
     outline: none;
     border-top-color: var(--accent);
@@ -338,7 +343,7 @@
   .fold {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows var(--fold-ms) ease-out;
+    transition: grid-template-rows var(--fold-ms) var(--ease-out);
   }
   .fold[data-open="true"] {
     grid-template-rows: 1fr;
@@ -346,6 +351,36 @@
   .fold > * {
     overflow: hidden;
     min-height: 0;
+  }
+  /* The panel's content settles in after the height starts moving. */
+  .fold-body {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 200ms var(--ease-out),
+      transform 200ms var(--ease-out);
+  }
+  .fold[data-open="true"] .fold-body {
+    opacity: 1;
+    transform: none;
+    transition-delay: 80ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fold-body {
+      transform: none; /* opacity feedback stays, movement goes */
+    }
+  }
+  /* Content swap inside an already-open panel (same row, different work). */
+  .panel-swap {
+    animation: panel-swap 180ms var(--ease-out);
+  }
+  @keyframes panel-swap {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   /* Slideshow crossfade. */

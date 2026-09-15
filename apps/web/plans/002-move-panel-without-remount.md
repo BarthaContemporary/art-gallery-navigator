@@ -1,6 +1,6 @@
 # 002 — Move the panel between tiles without collapsing and reopening
 
-- **Status**: TODO
+- **Status**: DONE (commit follows 653c6ff)
 - **Commit**: 68e18eb
 - **Severity**: HIGH
 - **Category**: Interruptibility

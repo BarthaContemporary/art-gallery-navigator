@@ -1,6 +1,6 @@
 # 001 — Strong ease-out token for the fold, content reveal, tile rule transition
 
-- **Status**: TODO
+- **Status**: DONE (commit follows 653c6ff)
 - **Commit**: 68e18eb
 - **Severity**: HIGH
 - **Category**: Easing & duration (+ Physicality, Cohesion)

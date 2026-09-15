@@ -55,6 +55,8 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const tileRefs = useRef(new Map<string, HTMLButtonElement>());
+  // A tile in another row, waiting for the open panel to fold closed first.
+  const pendingRef = useRef<string | null>(null);
 
   const byId = useMemo(() => new Map(works.map((w) => [w.id, w])), [works]);
 
@@ -67,14 +69,28 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
     }
   }, [byId]);
 
+  const rowOf = useCallback(
+    (id: string) => Math.floor(works.findIndex((w) => w.id === id) / cols),
+    [works, cols],
+  );
+
   const select = useCallback(
     (id: string | null) => {
       setEnquiryOpen(false);
+      // Moving to another row: close first, open there once the fold has
+      // finished (see onTransitionEnd). Same row: the panel stays open and
+      // only its content swaps.
+      if (id && rendered && selected !== null && rowOf(id) !== rowOf(rendered)) {
+        pendingRef.current = id;
+        setSelected(null);
+        return;
+      }
+      pendingRef.current = null;
       setSelected(id);
       if (id) setRendered(id);
       writeParam(id);
     },
-    [],
+    [rendered, selected, rowOf],
   );
 
   // Bring the panel's top into view once it starts opening.
@@ -146,23 +162,34 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
               </button>
             </li>,
             i === panelAfter && panelWork ? (
-              <li key={`panel-${panelWork.id}`} className="col-span-full">
+              <li key={`panel-row-${Math.floor(renderedIndex / cols)}`} className="col-span-full">
                 <div
                   className="fold"
                   data-open={selected === panelWork.id}
-                  onTransitionEnd={() => {
-                    if (selected === null) setRendered(null);
+                  onTransitionEnd={(e) => {
+                    if (e.target !== e.currentTarget || selected !== null) return;
+                    const next = pendingRef.current;
+                    if (next) {
+                      pendingRef.current = null;
+                      setSelected(next);
+                      setRendered(next);
+                      writeParam(next);
+                    } else {
+                      setRendered(null);
+                    }
                   }}
                 >
                   <div id={`work-panel-${panelWork.id}`} aria-hidden={selected !== panelWork.id}>
-                    <div ref={panelRef} className="pt-4 pb-6">
-                      <WorkPanel
-                        work={panelWork}
-                        cols={cols}
-                        enquiryOpen={enquiryOpen}
-                        onEnquiry={setEnquiryOpen}
-                        onClose={close}
-                      />
+                    <div ref={panelRef} className="fold-body pt-4 pb-6">
+                      <div key={panelWork.id} className="panel-swap">
+                        <WorkPanel
+                          work={panelWork}
+                          cols={cols}
+                          enquiryOpen={enquiryOpen}
+                          onEnquiry={setEnquiryOpen}
+                          onClose={close}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -190,6 +217,11 @@ function WorkPanel({
   onClose: () => void;
 }) {
   const caption = workCaption(work);
+  // The enquiry form stays mounted while its fold closes (never an empty box).
+  const [enquiryMounted, setEnquiryMounted] = useState(enquiryOpen);
+  useEffect(() => {
+    if (enquiryOpen) setEnquiryMounted(true);
+  }, [enquiryOpen]);
   // The panel shows the whole photograph at its own ratio, two tiles wide,
   // on white — never cropped, never letterboxed on grey.
   const large = imageUrl(work.image, { width: 1600 });
@@ -265,10 +297,16 @@ function WorkPanel({
         ) : null}
 
         <div className="mt-4">
-          <div className="fold" data-open={enquiryOpen}>
+          <div
+            className="fold"
+            data-open={enquiryOpen}
+            onTransitionEnd={(e) => {
+              if (e.target === e.currentTarget && !enquiryOpen) setEnquiryMounted(false);
+            }}
+          >
             <div aria-hidden={!enquiryOpen}>
-              <div className="max-w-[640px] pb-2">
-                {enquiryOpen ? (
+              <div className="fold-body max-w-[640px] pb-2">
+                {enquiryMounted ? (
                   <EnquiryForm
                     kind="work"
                     subject={workSubject(work)}

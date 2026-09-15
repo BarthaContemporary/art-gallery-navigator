@@ -4,9 +4,9 @@ Audit of the fold-out panel (`apps/web/src/components/works-foldout.tsx`, `.fold
 
 | # | Title | Severity | Status |
 | --- | --- | --- | --- |
-| 001 | Strong ease-out token for the fold, content reveal, tile rule transition | HIGH | TODO |
-| 002 | Move the panel between tiles without collapsing and reopening | HIGH | TODO |
-| 003 | Keep the enquiry form mounted while its fold closes | MEDIUM | TODO |
+| 001 | Strong ease-out token for the fold, content reveal, tile rule transition | HIGH | DONE |
+| 002 | Move the panel between tiles without collapsing and reopening | HIGH | DONE |
+| 003 | Keep the enquiry form mounted while its fold closes | MEDIUM | DONE |
 
 ## Order
 
