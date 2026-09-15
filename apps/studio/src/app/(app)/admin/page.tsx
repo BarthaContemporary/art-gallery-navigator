@@ -164,6 +164,69 @@ export default async function AdminPage({
     redirect("/admin");
   }
 
+  /**
+   * Queue every web-visible work for the website and start pushing. The
+   * outbox normally only carries changes, so a fresh or re-pointed Sanity
+   * dataset stays empty until something is edited — this is the backfill.
+   * Pushes for up to ~40 s here; the 10-minute cron finishes the rest.
+   */
+  async function resyncWebsite() {
+    "use server";
+    await assertAdmin();
+    const admin = createServiceClient();
+    const rows: { entity_type: string; entity_id: string; op: string }[] = [];
+    for (const table of ["pieces", "external_pieces"] as const) {
+      const { data, error } = await admin
+        .from(table)
+        .select("id")
+        .eq("web_visible", true)
+        .is("deleted_at", null);
+      if (error) {
+        await flashNotice(`Could not list web-visible works: ${error.message}`);
+        redirect("/admin");
+      }
+      rows.push(...(data ?? []).map((r) => ({ entity_type: "piece", entity_id: r.id, op: "upsert" })));
+    }
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await admin.from("sync_outbox").insert(rows.slice(i, i + 500));
+      if (error) {
+        await flashNotice(`Could not queue works: ${error.message}`);
+        redirect("/admin");
+      }
+    }
+
+    let pushed = 0;
+    let failure: string | null = null;
+    const secret = process.env.SYNC_SHARED_SECRET;
+    if (secret) {
+      const h = await headers();
+      const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+      const started = Date.now();
+      while (Date.now() - started < 40_000) {
+        const res = await fetch(`${origin}/api/sync/sanity`, {
+          method: "POST",
+          headers: { "x-sync-secret": secret },
+          cache: "no-store",
+        });
+        const body = (await res.json().catch(() => ({}))) as { processed?: number; pieces?: number; error?: string; detail?: string };
+        if (!res.ok) {
+          failure = body.detail?.slice(0, 200) ?? body.error ?? `HTTP ${res.status}`;
+          break;
+        }
+        if (!body.processed) break;
+        pushed += body.pieces ?? body.processed;
+      }
+    }
+    const remaining = Math.max(0, rows.length - pushed);
+    await flashNotice(
+      failure
+        ? `Queued ${rows.length} works; pushing stopped on an error (${failure}). The cron will retry.`
+        : `Queued ${rows.length} works for the website; ${pushed} pushed now${remaining ? `, ${remaining} follow via the cron within the hour` : ""}.`,
+    );
+    revalidatePath("/admin");
+    redirect("/admin");
+  }
+
   async function deleteUser(formData: FormData) {
     "use server";
     await assertAdmin();
@@ -368,6 +431,18 @@ export default async function AdminPage({
               {(outbox ?? 0) === 0 ? "No pending" : `${outbox} pending`} outbox entries. Web-visible pieces are pushed to
               Sanity on change; a cron drains any misses every 10 minutes.
             </p>
+            <form action={resyncWebsite} className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                className="rounded-lg border border-line-control bg-control px-3.5 py-2 text-[12.5px] font-semibold text-ink-mid hover:text-ink-strong"
+              >
+                Resync all web-visible works
+              </button>
+              <span className="text-[12px] text-ink-soft">
+                Re-sends every web-visible work to the website — use after pointing the site at a new
+                Sanity dataset. Safe to repeat.
+              </span>
+            </form>
           </section>
 
           <section className="mt-8">
