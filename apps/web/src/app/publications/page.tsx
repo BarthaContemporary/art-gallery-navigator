@@ -1,86 +1,42 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import {
-  imageUrl,
-  publicationsQuery,
-  sanityFetch,
-  type PublicationListItem,
-} from "@/lib/sanity";
+import { publicationsQuery, sanityFetch, type PublicationListItem } from "@/lib/sanity";
+import { PublicationTile } from "@/components/publication-tile";
+import { InfiniteGrid } from "@/components/infinite-grid";
 
 export const metadata: Metadata = {
   title: "Publications",
-  description:
-    "Exhibition catalogues and publications on Indian and Japanese art.",
+  description: "Exhibition catalogues and publications on Japanese and Indian art.",
 };
 
 export default async function PublicationsPage() {
-  const publications = await sanityFetch<PublicationListItem[]>({
-    query: publicationsQuery,
-    tags: ["publication"],
-    fallback: [],
-  });
+  const publications = (
+    await sanityFetch<PublicationListItem[]>({ query: publicationsQuery, tags: ["publication"], fallback: [] })
+  ).filter((p) => p.slug);
 
   return (
-    <div className="page py-16">
-      <header className="grid12">
-        <div className="col-span-12 md:col-span-8">
-          <h1 className="font-sans text-h1 font-medium tracking-tight text-sumi">
-            Publications
-          </h1>
-          <p className="mt-4 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
-            Catalogues and publications accompanying the gallery&rsquo;s
-            exhibitions.
-          </p>
-        </div>
-      </header>
-
+    <div className="page pt-10 pb-20 md:pt-12">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="t-title">Publications</h1>
+        <span className="font-sans text-meta text-meta">
+          {publications.length} {publications.length === 1 ? "title" : "titles"}
+        </span>
+      </div>
+      <p className="mt-3 max-w-[560px] font-sans text-body text-body">
+        Catalogues published to accompany the gallery&rsquo;s exhibitions and fair presentations. Most can be read here in full;
+        printed copies are available to order while stocks last.
+      </p>
       {publications.length === 0 ? (
-        <p className="mt-16 py-12 font-serif text-body text-ink-50">
-          Catalogues will appear here.
-        </p>
+        <p className="mt-8 font-sans text-body text-meta">Catalogues will appear here.</p>
       ) : (
-        <ul className="mt-16 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-          {publications.map((publication) => {
-            const src = imageUrl(publication.coverImage, { width: 800 });
-            return (
-              <li key={publication._id}>
-                <Link
-                  href={`/publications/${publication.slug}`}
-                  className="group block focus-visible:outline-offset-4"
-                >
-                  <div className="relative aspect-[3/4] w-full overflow-hidden bg-washi-2">
-                    {src ? (
-                      <Image
-                        src={src}
-                        alt={
-                          publication.coverImage?.caption ??
-                          publication.title ??
-                          "Publication"
-                        }
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <span className="label absolute inset-0 flex items-center justify-center text-ink-50">
-                        Cover forthcoming
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="mt-4 font-sans text-ui font-medium text-sumi transition-colors group-hover:text-oranje">
-                    {publication.title}
-                  </h2>
-                  {publication.publishedYear ? (
-                    <p className="mt-1 font-serif text-ui text-ink-70">
-                      {publication.publishedYear}
-                    </p>
-                  ) : null}
-                </Link>
+        <div className="mt-8">
+          <InfiniteGrid pageSize={16}>
+            {publications.map((p, i) => (
+              <li key={p._id}>
+                <PublicationTile publication={p} priority={i < 4} />
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </InfiniteGrid>
+        </div>
       )}
     </div>
   );
