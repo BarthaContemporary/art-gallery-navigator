@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RatioImage } from "./ratio-image";
 import { EnquiryForm } from "./enquiry-form";
 import { ReadMore } from "./read-more";
-import { imageUrl, RATIO } from "@/lib/sanity";
+import { imageDimensions, imageUrl, RATIO } from "@/lib/sanity";
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 
 /**
@@ -127,7 +127,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                 onClick={() => select(isSelected ? null : w.id)}
                 aria-expanded={isSelected}
                 aria-controls={`work-panel-${w.id}`}
-                className={`group block w-full border-t-2 text-left ${isSelected ? "border-accent" : "border-transparent"}`}
+                className={`work-tile group block w-full border-t-2 text-left ${isSelected ? "border-t-accent" : "border-t-transparent"}`}
               >
                 <RatioImage
                   image={w.image}
@@ -158,6 +158,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                     <div ref={panelRef} className="pt-4 pb-6">
                       <WorkPanel
                         work={panelWork}
+                        cols={cols}
                         enquiryOpen={enquiryOpen}
                         onEnquiry={setEnquiryOpen}
                         onClose={close}
@@ -176,29 +177,46 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
 
 function WorkPanel({
   work,
+  cols,
   enquiryOpen,
   onEnquiry,
   onClose,
 }: {
   work: GridWork;
+  /** Columns of the tile grid above — the panel aligns to the same grid. */
+  cols: number;
   enquiryOpen: boolean;
   onEnquiry: (open: boolean) => void;
   onClose: () => void;
 }) {
   const caption = workCaption(work);
-  // The panel shows the whole photograph, uncropped, on the field ground.
-  const large = imageUrl(work.image, { width: 1200 });
+  // The panel shows the whole photograph at its own ratio, two tiles wide,
+  // on white — never cropped, never letterboxed on grey.
+  const large = imageUrl(work.image, { width: 1600 });
+  const dims = imageDimensions(work.image);
+  const imageSpan = Math.min(2, cols);
+  const textSpan = cols > 2 ? cols - 2 : cols;
   const more = [work.provenance ? `Provenance: ${work.provenance}` : null, work.literature ? `Literature: ${work.literature}` : null].filter(
     (s): s is string => s !== null,
   );
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:gap-8">
-      <div className="relative w-full max-w-[420px] bg-field md:max-w-none" style={{ aspectRatio: String(RATIO.work) }}>
-        {large ? (
-          <Image src={large} alt={caption} fill sizes="(min-width: 768px) 200px, 100vw" className="object-contain" />
+    <div
+      className="grid gap-y-6"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: "var(--gutter)" }}
+    >
+      <div className="bg-page" style={{ gridColumn: `span ${imageSpan}` }}>
+        {large && dims ? (
+          <Image
+            src={large}
+            alt={caption}
+            width={dims.width}
+            height={dims.height}
+            sizes="(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw"
+            className="h-auto w-full"
+          />
         ) : null}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0" style={{ gridColumn: `span ${textSpan}` }}>
         <div className="flex items-start justify-between gap-4">
           <p className="font-sans text-body font-medium leading-snug text-ink">
             {work.artist ? (

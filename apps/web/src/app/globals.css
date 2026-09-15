@@ -327,6 +327,13 @@
     color: var(--accent);
   }
 
+  /* Work tile: the only selection mark is the 2px rule on the top edge.
+     Keyboard focus shows the same rule instead of a ring on all four sides. */
+  .work-tile:focus-visible {
+    outline: none;
+    border-top-color: var(--accent);
+  }
+
   /* Fold-out panel: height animates open/closed, ~350ms ease-out. */
   .fold {
     display: grid;
