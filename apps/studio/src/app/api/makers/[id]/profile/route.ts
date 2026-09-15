@@ -17,9 +17,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = (await req.json().catch(() => ({}))) as {
     html?: string;
     fields?: Record<string, string>;
+    webVisible?: boolean;
   };
 
-  const update: Record<string, string | null> = {};
+  const update: Record<string, string | boolean | null> = {};
+  if (typeof body.webVisible === "boolean") update.web_visible = body.webVisible;
   if (typeof body.html === "string") {
     if (body.html.length > 200_000)
       return NextResponse.json({ error: "Profile too long" }, { status: 400 });

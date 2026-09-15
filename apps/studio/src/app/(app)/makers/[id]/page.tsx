@@ -15,7 +15,7 @@ export default async function MakerProfilePage({
 
   const { data: maker } = await supabase
     .from("makers")
-    .select("id, display_name, native_name, romanized_name, life_dates, region, school_or_workshop, biography, portrait_path, profile_html")
+    .select("id, display_name, native_name, romanized_name, life_dates, region, school_or_workshop, biography, portrait_path, profile_html, web_visible")
     .eq("id", id)
     .maybeSingle();
   if (!maker) notFound();
@@ -49,6 +49,7 @@ export default async function MakerProfilePage({
           makerId={maker.id}
           initialHtml={(maker.profile_html as string | null) ?? ""}
           portraitUrl={portraitUrl}
+          initialWebVisible={Boolean(maker.web_visible)}
           initialFields={{
             display_name: maker.display_name ?? "",
             native_name: (maker.native_name as string | null) ?? "",

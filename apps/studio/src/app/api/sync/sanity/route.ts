@@ -1,23 +1,39 @@
 import { createServiceClient } from "@jvb/db/server";
 import { safeEqual } from "@/lib/secret";
 import { resolvePieces } from "@/lib/piece-store";
-import { DIMENSION_COLUMNS, formatDimensionsFullCm } from "@jvb/db";
+import { DIMENSION_COLUMNS, formatDimensionsFullCm, type PieceDimensions } from "@jvb/db";
+import {
+  artistDocId,
+  ensureImageAsset,
+  htmlToText,
+  loadAssetCache,
+  sanityEnv,
+  sanityMutate,
+  slugify,
+  workDocId,
+} from "@/lib/sanity-sync";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+/** Outbox rows per run — images make each piece heavier than before. */
+const BATCH = 12;
+/** Images pushed per work: enough for the fold-out panel, not the archive. */
+const IMAGES_PER_WORK = 8;
 
 /**
- * Supabase → Sanity sync. Called by pg_net on outbox insert and by a Vercel
- * cron (fallback drain). Pushes web-visible pieces as read-only `work`
- * documents; unpublishes pieces that are no longer web-visible.
+ * Supabase → Sanity sync (one way). Called by pg_net on outbox insert and by
+ * a Vercel cron (fallback drain). Pushes web-visible pieces as read-only
+ * `work` documents with their display images, and makers as `artist`
+ * documents; unpublishes pieces and makers that are no longer web-visible.
  */
 export async function POST(request: Request) {
   const secret = process.env.SYNC_SHARED_SECRET;
   if (!secret || !safeEqual(request.headers.get("x-sync-secret"), secret)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-
-  const projectId = process.env.SANITY_PROJECT_ID;
-  const dataset = process.env.SANITY_DATASET ?? "production";
-  const token = process.env.SANITY_API_WRITE_TOKEN;
-  if (!projectId || !token) {
+  const env = sanityEnv();
+  if (!env) {
     return Response.json(
       { error: "Sanity env not configured (SANITY_PROJECT_ID / SANITY_API_WRITE_TOKEN)" },
       { status: 503 },
@@ -30,35 +46,180 @@ export async function POST(request: Request) {
     .select("id, entity_type, entity_id, op")
     .is("processed_at", null)
     .order("id")
-    .limit(25);
+    .limit(BATCH);
   if (error) return Response.json({ error: error.message }, { status: 500 });
   if (!outbox || outbox.length === 0) return Response.json({ processed: 0 });
 
-  const mutations: unknown[] = [];
-  const pieceIds = [...new Set(outbox.map((o) => o.entity_id))];
+  const pieceIds = [...new Set(outbox.filter((o) => o.entity_type === "piece").map((o) => o.entity_id as string))];
+  const makerIds = [...new Set(outbox.filter((o) => o.entity_type === "maker").map((o) => o.entity_id as string))];
 
-  // Both registers publish to the site under the same identity, so resolve
-  // which stock table holds each work before reading it.
+  /* ---- pieces ---------------------------------------------------------- */
+  type PieceRow = PieceDimensions & {
+    id: string;
+    stock_number: string;
+    title: string | null;
+    medium: string | null;
+    period: string | null;
+    year: string | null;
+    origin_region: string | null;
+    description: string | null;
+    status: string;
+    web_visible: boolean;
+    maker_id: string | null;
+    maker: { display_name: string; romanized_name: string | null; native_name: string | null; life_dates: string | null; web_visible: boolean } | null;
+  };
   const refs = await resolvePieces(supabase, pieceIds);
-
+  const pieces = new Map<string, PieceRow | null>();
   for (const pieceId of pieceIds) {
     const ref = refs.get(pieceId);
-    const { data: piece } = await supabase
+    const { data } = await supabase
       .from(ref?.table ?? "pieces")
       .select(
-        `id, stock_number, title, medium, period, origin_region, description,
-         ${DIMENSION_COLUMNS}, status, web_visible,
-         maker:makers(display_name, life_dates)`,
+        `id, stock_number, title, medium, period, year, origin_region, description,
+         ${DIMENSION_COLUMNS}, status, web_visible, maker_id,
+         maker:makers(display_name, romanized_name, native_name, life_dates, web_visible)`,
       )
       .eq("id", pieceId)
       .maybeSingle();
+    pieces.set(pieceId, (data as unknown as PieceRow | null) ?? null);
+  }
 
-    const docId = `work-${pieceId}`;
+  const livePieceIds = [...pieces.entries()].filter(([, p]) => p?.web_visible).map(([id]) => id);
+
+  // Provenance: only entries marked public, oldest first, as one line each.
+  const provenanceByPiece = new Map<string, string>();
+  if (livePieceIds.length > 0) {
+    const { data: prov } = await supabase
+      .from("provenance_entries")
+      .select("piece_id, date_text, party, details, sort_order")
+      .in("piece_id", livePieceIds)
+      .eq("is_public", true)
+      .order("sort_order", { ascending: true });
+    for (const row of prov ?? []) {
+      const line = [row.party, row.date_text ? `(${row.date_text})` : null, row.details].filter(Boolean).join(" ");
+      if (!line) continue;
+      const prev = provenanceByPiece.get(row.piece_id);
+      provenanceByPiece.set(row.piece_id, prev ? `${prev}; ${line}` : line);
+    }
+  }
+
+  // Display masters for the live pieces, in sort order.
+  const imagesByPiece = new Map<string, { id: string; path: string; caption: string | null; role: string }[]>();
+  if (livePieceIds.length > 0) {
+    const { data: imgs } = await supabase
+      .from("piece_images")
+      .select("id, piece_id, storage_path_display, caption, role, sort_order")
+      .in("piece_id", livePieceIds)
+      .not("storage_path_display", "is", null)
+      .eq("processing_status", "done")
+      .order("sort_order", { ascending: true });
+    for (const row of imgs ?? []) {
+      const list = imagesByPiece.get(row.piece_id) ?? [];
+      if (list.length < IMAGES_PER_WORK) {
+        list.push({ id: row.id, path: row.storage_path_display, caption: row.caption, role: row.role });
+      }
+      imagesByPiece.set(row.piece_id, list);
+    }
+  }
+
+  /* ---- makers ---------------------------------------------------------- */
+  type MakerRow = {
+    id: string;
+    display_name: string;
+    romanized_name: string | null;
+    native_name: string | null;
+    life_dates: string | null;
+    region: string | null;
+    school_or_workshop: string | null;
+    biography: string | null;
+    profile_html: string | null;
+    portrait_path: string | null;
+    web_visible: boolean;
+  };
+  const makers = new Map<string, MakerRow | null>();
+  if (makerIds.length > 0) {
+    const { data } = await supabase
+      .from("makers")
+      .select("id, display_name, romanized_name, native_name, life_dates, region, school_or_workshop, biography, profile_html, portrait_path, web_visible")
+      .in("id", makerIds);
+    for (const id of makerIds) makers.set(id, ((data ?? []).find((m) => m.id === id) as MakerRow | undefined) ?? null);
+  }
+  // A maker is published when flagged, or when any of its works is on the site.
+  const makersWithLiveWork = new Set<string>();
+  if (makerIds.length > 0) {
+    for (const table of ["pieces", "external_pieces"] as const) {
+      const { data } = await supabase
+        .from(table)
+        .select("maker_id")
+        .in("maker_id", makerIds)
+        .eq("web_visible", true)
+        .is("deleted_at", null);
+      for (const r of data ?? []) if (r.maker_id) makersWithLiveWork.add(r.maker_id);
+    }
+  }
+  const makerPublished = (m: MakerRow | null) => !!m && (m.web_visible || makersWithLiveWork.has(m.id));
+
+  /* ---- assets ---------------------------------------------------------- */
+  const assetKeys = [
+    ...[...imagesByPiece.values()].flat().map((i) => `piece-derivatives/${i.path}`),
+    ...[...makers.values()].filter((m) => makerPublished(m) && m?.portrait_path).map((m) => `maker-portraits/${m!.portrait_path}`),
+  ];
+  const assetCache = await loadAssetCache(supabase, assetKeys);
+
+  const mutations: unknown[] = [];
+
+  // Artists first so the works' references resolve in the same transaction.
+  for (const makerId of makerIds) {
+    const m = makers.get(makerId) ?? null;
+    if (!makerPublished(m)) {
+      mutations.push({ delete: { id: artistDocId(makerId) } });
+      continue;
+    }
+    const name = m!.romanized_name?.trim() || m!.display_name;
+    const portraitAsset = m!.portrait_path
+      ? await ensureImageAsset(supabase, env, "maker-portraits", m!.portrait_path, assetCache)
+      : null;
+    mutations.push({
+      createOrReplace: {
+        _id: artistDocId(makerId),
+        _type: "artist",
+        supabaseId: makerId,
+        name,
+        nameNative: m!.native_name,
+        slug: { _type: "slug", current: slugify(name) || makerId.slice(0, 8) },
+        lifeDates: m!.life_dates,
+        country: m!.region,
+        period: m!.school_or_workshop,
+        bioShort: m!.biography,
+        bioLong: htmlToText(m!.profile_html),
+        portrait: portraitAsset ? { _type: "image", asset: { _type: "reference", _ref: portraitAsset } } : null,
+        hidden: false,
+      },
+    });
+  }
+
+  for (const pieceId of pieceIds) {
+    const piece = pieces.get(pieceId) ?? null;
+    const docId = workDocId(pieceId);
     if (!piece || !piece.web_visible) {
       mutations.push({ delete: { id: docId } });
       continue;
     }
-    const maker = piece.maker as unknown as { display_name: string; life_dates: string | null } | null;
+    const images: unknown[] = [];
+    for (const img of imagesByPiece.get(pieceId) ?? []) {
+      const assetId = await ensureImageAsset(supabase, env, "piece-derivatives", img.path, assetCache);
+      if (!assetId) continue;
+      images.push({
+        _type: "image",
+        _key: img.id.replace(/-/g, "").slice(0, 12),
+        asset: { _type: "reference", _ref: assetId },
+        caption: img.caption,
+        role: img.role,
+      });
+    }
+    const maker = piece.maker;
+    // A live work always makes its maker publishable, so the reference resolves.
+    const artistLinked = !!piece.maker_id && !!maker;
     mutations.push({
       createOrReplace: {
         _id: docId,
@@ -66,54 +227,44 @@ export async function POST(request: Request) {
         supabaseId: piece.id,
         stockNumber: piece.stock_number,
         title: piece.title ?? "Untitled",
-        maker: maker?.display_name ?? null,
+        maker: maker?.romanized_name?.trim() || maker?.display_name || null,
+        makerNative: maker?.native_name ?? null,
         makerLifeDates: maker?.life_dates ?? null,
+        // Weak so an artist page can be withdrawn without the work blocking it.
+        artist: artistLinked ? { _type: "reference", _ref: artistDocId(piece.maker_id!), _weak: true } : null,
+        year: piece.year,
         medium: piece.medium,
         period: piece.period,
         originRegion: piece.origin_region,
         description: piece.description,
+        provenance: provenanceByPiece.get(pieceId) ?? null,
         // Composed from the numeric cm fields — the Sanity field keeps its
         // name, but the verbatim legacy column no longer feeds it.
         dimensionsDisplay: formatDimensionsFullCm(piece),
         available: piece.status === "in_stock",
         priceDisplay: "POA",
+        images,
         slug: {
           _type: "slug",
-          current: `${piece.stock_number.toLowerCase()}-${(piece.title ?? "untitled")
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "")
-            .slice(0, 60)}`,
+          current: `${piece.stock_number.toLowerCase()}-${slugify(piece.title ?? "untitled", 60)}`,
         },
       },
     });
   }
 
-  const res = await fetch(
-    `https://${projectId}.api.sanity.io/v2026-07-01/data/mutate/${dataset}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ mutations }),
-    },
-  );
+  const result = await sanityMutate(env, mutations);
+  const stateRows = [
+    ...pieceIds.map((id) => ({ entity_type: "piece", entity_id: id, sanity_doc_id: workDocId(id) })),
+    ...makerIds.map((id) => ({ entity_type: "maker", entity_id: id, sanity_doc_id: artistDocId(id) })),
+  ];
 
-  if (!res.ok) {
-    const body = await res.text();
-    // record failure against sync state, leave outbox unprocessed for retry
+  if (!result.ok) {
+    // Record the failure, leave the outbox unprocessed for the next run.
     await supabase.from("sanity_sync_state").upsert(
-      pieceIds.map((id) => ({
-        entity_type: "piece",
-        entity_id: id,
-        status: "error",
-        error: body.slice(0, 500),
-      })),
+      stateRows.map((r) => ({ ...r, status: "error", error: result.detail })),
       { onConflict: "entity_type,entity_id" },
     );
-    return Response.json({ error: "sanity mutate failed", detail: body }, { status: 502 });
+    return Response.json({ error: "sanity mutate failed", detail: result.detail }, { status: 502 });
   }
 
   const now = new Date().toISOString();
@@ -122,18 +273,11 @@ export async function POST(request: Request) {
     .update({ processed_at: now })
     .in("id", outbox.map((o) => o.id));
   await supabase.from("sanity_sync_state").upsert(
-    pieceIds.map((id) => ({
-      entity_type: "piece",
-      entity_id: id,
-      sanity_doc_id: `work-${id}`,
-      status: "ok",
-      error: null,
-      last_pushed_at: now,
-    })),
+    stateRows.map((r) => ({ ...r, status: "ok", error: null, last_pushed_at: now })),
     { onConflict: "entity_type,entity_id" },
   );
 
-  return Response.json({ processed: outbox.length, pieces: pieceIds.length });
+  return Response.json({ processed: outbox.length, pieces: pieceIds.length, makers: makerIds.length });
 }
 
 /** Vercel cron entry point — drains any outbox rows pg_net missed. */

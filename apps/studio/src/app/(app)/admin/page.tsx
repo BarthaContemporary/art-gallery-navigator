@@ -187,6 +187,16 @@ export default async function AdminPage({
       }
       rows.push(...(data ?? []).map((r) => ({ entity_type: "piece", entity_id: r.id, op: "upsert" })));
     }
+    // Makers go first so the works' artist references resolve; the route
+    // decides which makers are actually published.
+    {
+      const { data, error } = await admin.from("makers").select("id");
+      if (error) {
+        await flashNotice(`Could not list makers: ${error.message}`);
+        redirect("/admin");
+      }
+      rows.unshift(...(data ?? []).map((r) => ({ entity_type: "maker", entity_id: r.id, op: "upsert" })));
+    }
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await admin.from("sync_outbox").insert(rows.slice(i, i + 500));
       if (error) {
@@ -439,8 +449,8 @@ export default async function AdminPage({
                 Resync all web-visible works
               </button>
               <span className="text-[12px] text-ink-soft">
-                Re-sends every web-visible work to the website — use after pointing the site at a new
-                Sanity dataset. Safe to repeat.
+                Re-sends every web-visible work (with images) and every maker to the website — use
+                after pointing the site at a new Sanity dataset. Safe to repeat.
               </span>
             </form>
           </section>

@@ -35,13 +35,32 @@ export function MakerProfileEditor({
   initialHtml,
   portraitUrl,
   initialFields,
+  initialWebVisible = false,
 }: {
   makerId: string;
   initialHtml: string;
   portraitUrl: string | null;
   initialFields: MakerFields;
+  /** Publish an artist page even with no work currently on the site. */
+  initialWebVisible?: boolean;
 }) {
   const [fields, setFields] = useState<MakerFields>(initialFields);
+  const [webVisible, setWebVisible] = useState(initialWebVisible);
+
+  async function toggleWebVisible(next: boolean) {
+    setWebVisible(next);
+    setStatus("saving");
+    try {
+      const res = await fetch(`/api/makers/${makerId}/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webVisible: next }),
+      });
+      setStatus(res.ok ? "saved" : "error");
+    } catch {
+      setStatus("error");
+    }
+  }
   const fieldsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<MakerFields>(initialFields);
   const [url, setUrl] = useState(portraitUrl);
@@ -247,6 +266,16 @@ export function MakerProfileEditor({
             />
           </label>
         ))}
+        <label className="flex items-center gap-2 self-end pb-2 text-[12.5px] text-ink-body">
+          <input
+            type="checkbox"
+            checked={webVisible}
+            onChange={(e) => void toggleWebVisible(e.target.checked)}
+            className="h-4 w-4 accent-[var(--oranje)]"
+          />
+          Artist page on the website
+          <span className="text-[11px] text-ink-soft">(makers with a work on the site always get one)</span>
+        </label>
       </div>
 
       {/* Image + profile: shared grid rows so headings align and the image
