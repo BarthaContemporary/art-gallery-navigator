@@ -11,7 +11,7 @@ import { schemaTypes } from "./sanity/schema";
 export default defineConfig({
   name: "jvb",
   title: "Joost van den Bergh",
-  projectId: process.env.SANITY_STUDIO_PROJECT_ID || "s1r6wzwb",
+  projectId: process.env.SANITY_STUDIO_PROJECT_ID || "dql8z4kv",
   dataset: process.env.SANITY_STUDIO_DATASET || "production",
   plugins: [structureTool(), visionTool()],
   schema: { types: schemaTypes },

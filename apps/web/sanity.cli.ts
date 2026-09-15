@@ -1,6 +1,6 @@
 import { defineCliConfig } from "sanity/cli";
 
 export default defineCliConfig({
-  api: { projectId: "s1r6wzwb", dataset: "production" },
+  api: { projectId: "dql8z4kv", dataset: "production" },
   studioHost: "jvb-gallery",
 });
