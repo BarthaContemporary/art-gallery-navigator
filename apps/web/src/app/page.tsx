@@ -1,141 +1,71 @@
-import Link from "next/link";
-import groq from "groq";
-import {
-  exhibitionsQuery,
-  getSiteSettings,
-  sanityFetch,
-  type ExhibitionListItem,
-  type Work,
-} from "@/lib/sanity";
-import { fallbackGalleryName } from "@/lib/site";
-import {
-  ExhibitionHero,
-  isCurrentExhibition,
-} from "@/components/exhibition-card";
-import { WorkCard } from "@/components/work-card";
+import { exhibitionsQuery, sanityFetch, type ExhibitionListItem } from "@/lib/sanity";
+import { eventDates, eventEyebrow, eventStatus } from "@/lib/events";
+import { HeroSlideshow, type Slide } from "@/components/hero-slideshow";
+import { EventTile } from "@/components/event-tile";
+import { InfiniteGrid } from "@/components/infinite-grid";
 
-const latestWorksQuery = groq`*[_type == "work" && defined(slug.current)] | order(_createdAt desc)[0...8]{
-  _id, "slug": slug.current, stockNumber, title, maker, makerLifeDates,
-  period, originRegion, medium, dimensionsDisplay, description,
-  priceDisplay, available, supabaseId, category, categorySlug,
-  images[]{ _key, asset, caption, role }
-}`;
+export const revalidate = 3600;
 
+/**
+ * Home is the Events page (handoff 2a): hero slideshow of current and
+ * forthcoming events, then the whole archive newest-first as 16:9 tiles.
+ */
 export default async function HomePage() {
-  const [settings, exhibitions] = await Promise.all([
-    getSiteSettings(),
-    sanityFetch<ExhibitionListItem[]>({
-      query: exhibitionsQuery,
-      tags: ["exhibition"],
-      fallback: [],
-    }),
-  ]);
+  const events = await sanityFetch<ExhibitionListItem[]>({
+    query: exhibitionsQuery,
+    tags: ["exhibition"],
+    fallback: [],
+  });
 
-  let featured = settings?.featuredWorks?.filter((w) => w?.slug) ?? [];
-  if (featured.length === 0) {
-    featured = await sanityFetch<Work[]>({
-      query: latestWorksQuery,
-      tags: ["work"],
-      fallback: [],
-    });
-  }
-  const selected = featured.slice(0, 6);
+  const live = events.filter((e) => eventStatus(e) !== "past");
+  const past = events.filter((e) => eventStatus(e) === "past");
+  // Current shows lead, then forthcoming by opening date; with nothing on,
+  // the most recent events fill the hero.
+  const heroEvents =
+    live.length > 0
+      ? [...live].sort((a, b) => {
+          const sa = eventStatus(a) === "current" ? 0 : 1;
+          const sb = eventStatus(b) === "current" ? 0 : 1;
+          if (sa !== sb) return sa - sb;
+          return (a.startDate ?? "").localeCompare(b.startDate ?? "");
+        })
+      : past.slice(0, 4);
 
-  const galleryName = settings?.galleryName ?? fallbackGalleryName;
-  // Display heading breaks after the first word: "Joost" / "van den Bergh".
-  const [headingFirst, ...headingRest] = galleryName.split(" ");
-  const heading = headingRest.length ? (
-    <>
-      {headingFirst}
-      <br />
-      {headingRest.join(" ")}
-    </>
-  ) : (
-    galleryName
-  );
-  const statement =
-    settings?.aboutTeaser ??
-    "Joost van den Bergh is a St James’s gallery of Indian and Japanese art — tantric drawings, bronzes, Mingei and 20th-century Japanese design. By appointment.";
-
-  // Current first, then most recent past.
-  const current = exhibitions.filter((e) => isCurrentExhibition(e));
-  const heroExhibition =
-    current[0] ??
-    exhibitions.filter((e) => !isCurrentExhibition(e))[0] ??
-    null;
+  const slides: Slide[] = heroEvents
+    .filter((e) => e.slug)
+    .map((e) => ({
+      key: e._id,
+      image: e.hero ?? e.coverImage,
+      eyebrow: eventEyebrow(e),
+      title: e.title ?? "Untitled",
+      meta: [eventDates(e.startDate, e.endDate), e.isArtFair && e.venue ? e.venue : null].filter(Boolean).join(" · ") || null,
+      href: `/events/${e.slug}`,
+    }));
 
   return (
     <>
-      {/* Featured exhibition hero, or a quiet wordmark fallback. */}
-      <section className="page pt-16">
-        {heroExhibition ? (
-          <ExhibitionHero exhibition={heroExhibition} />
+      <HeroSlideshow slides={slides} />
+
+      <section className="page mt-12 pb-20 md:mt-16">
+        <div className="flex items-baseline justify-between">
+          <h2 className="t-section">Recent exhibitions</h2>
+          <span className="font-sans text-meta text-meta">
+            {past.length} {past.length === 1 ? "event" : "events"}
+          </span>
+        </div>
+        {past.length === 0 ? (
+          <p className="mt-8 font-sans text-body text-meta">Past events will appear here.</p>
         ) : (
-          <div className="grid12">
-            <div className="col-span-12 md:col-span-8">
-              <h1 className="font-sans text-display font-medium text-sumi">
-                {heading}
-              </h1>
-              <p className="mt-6 max-w-[var(--measure)] font-serif text-lead font-light text-ink-70">
-                Indian and Japanese art.
-                <br />
-                St James&rsquo;s, by appointment.
-              </p>
-            </div>
+          <div className="mt-6">
+            <InfiniteGrid pageSize={16}>
+              {past.map((e, i) => (
+                <li key={e._id}>
+                  <EventTile event={e} priority={i < 4} />
+                </li>
+              ))}
+            </InfiniteGrid>
           </div>
         )}
-      </section>
-
-      {/* Selected works. */}
-      {selected.length > 0 ? (
-        <section className="page mt-[var(--section)]">
-          <div className="section-head grid12">
-            <span className="label col-span-2 text-oranje md:col-span-1">
-              01
-            </span>
-            <div className="col-span-10 flex items-baseline justify-between md:col-span-11">
-              <h2 className="label text-sumi">Selected works</h2>
-              <Link href="/works" className="link-inline font-sans text-ui text-ink-70">
-                All works
-              </Link>
-            </div>
-          </div>
-          <ul className="mt-12 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-            {selected.map((work) => (
-              <li key={work._id}>
-                <WorkCard work={work} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {/* Gallery statement — serif voice, offset to cols 4–8. */}
-      <section className="page mt-[var(--section)]">
-        <div className="grid12">
-          <p className="col-span-12 max-w-[var(--measure)] font-serif text-[26px] font-light leading-[1.45] text-ink-70 md:col-span-8 md:col-start-4">
-            {statement}
-          </p>
-        </div>
-      </section>
-
-      {/* Dark Visit band — inverted. */}
-      <section className="mt-[var(--section)] bg-sumi text-washi">
-        <div className="page grid12 py-[var(--section)]">
-          <div className="col-span-12 md:col-span-8">
-            <p className="label text-washi/70">Visit</p>
-            <h2 className="mt-4 font-sans text-h1 font-medium tracking-tight text-washi">
-              By appointment, in St James&rsquo;s.
-            </h2>
-            <p className="mt-5 max-w-[var(--measure)] font-serif text-lead font-light text-washi/80">
-              Choose a date and time and we will confirm by email, with a calendar
-              invitation to add in one click.
-            </p>
-            <Link href="/visit" className="btn btn-invert mt-10">
-              Book a private viewing
-            </Link>
-          </div>
-        </div>
       </section>
     </>
   );

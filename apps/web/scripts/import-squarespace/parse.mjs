@@ -458,12 +458,12 @@ async function main() {
   // Redirects for every old URL.
   const redirects = [
     { source: "/home", destination: "/" },
-    { source: "/all-exhibitions", destination: "/exhibitions" },
+    { source: "/all-exhibitions", destination: "/" },
     { source: "/all-publications", destination: "/publications" },
   ];
   const target = (p) => {
     const e = exhibitionsOut.find((x) => x.path === p);
-    if (e) return `/exhibitions/${e.slug}`;
+    if (e) return `/events/${e.slug}`;
     const pub = publicationsOut.find((x) => x.path === p);
     if (pub) return `/publications/${pub.slug}`;
     const dup = duplicates.find((d) => d.path === p);
@@ -473,7 +473,7 @@ async function main() {
   for (const p of [...sitemap.map((s) => s.path), ...emptyPages]) {
     if (redirects.some((r) => r.source === p) || p === "/about" || p === "/") continue;
     const dest = target(p);
-    redirects.push({ source: p, destination: dest ?? (p.endsWith("-cat") ? "/publications" : "/exhibitions") });
+    redirects.push({ source: p, destination: dest ?? (p.endsWith("-cat") ? "/publications" : "/") });
   }
 
   const content = { generatedAt: new Date().toISOString(), exhibitions: exhibitionsOut, publications: publicationsOut, about: aboutOut, duplicates, redirects };

@@ -5,7 +5,7 @@
   },
   {
     "source": "/all-exhibitions",
-    "destination": "/exhibitions"
+    "destination": "/"
   },
   {
     "source": "/all-publications",
@@ -13,27 +13,27 @@
   },
   {
     "source": "/new-gallery",
-    "destination": "/exhibitions"
+    "destination": "/"
   },
   {
     "source": "/perfect-presence",
-    "destination": "/exhibitions/perfect-presence"
+    "destination": "/events/perfect-presence"
   },
   {
     "source": "/a-concentration-of-power",
-    "destination": "/exhibitions/a-concentration-of-power"
+    "destination": "/events/a-concentration-of-power"
   },
   {
     "source": "/from-bactria-to-kashmir",
-    "destination": "/exhibitions/from-bactria-to-kashmir"
+    "destination": "/events/from-bactria-to-kashmir"
   },
   {
     "source": "/objects-of-worship",
-    "destination": "/exhibitions/objects-of-worship"
+    "destination": "/events/objects-of-worship"
   },
   {
     "source": "/tantric-drawings",
-    "destination": "/exhibitions/tantric-drawings"
+    "destination": "/events/tantric-drawings"
   },
   {
     "source": "/from-bactria-to-kashmir-cat",
@@ -41,55 +41,55 @@
   },
   {
     "source": "/watanabe-tadashi",
-    "destination": "/exhibitions/watanabe-tadashi"
+    "destination": "/events/watanabe-tadashi"
   },
   {
     "source": "/tantra",
-    "destination": "/exhibitions/tantra"
+    "destination": "/events/tantra"
   },
   {
     "source": "/past-and-present",
-    "destination": "/exhibitions/past-and-present"
+    "destination": "/events/past-and-present"
   },
   {
     "source": "/magic-markings",
-    "destination": "/exhibitions/magic-markings"
+    "destination": "/events/magic-markings"
   },
   {
     "source": "/japanese-20th-century-design",
-    "destination": "/exhibitions/japanese-20th-century-design"
+    "destination": "/events/japanese-20th-century-design"
   },
   {
     "source": "/objects-of-veneration",
-    "destination": "/exhibitions/objects-of-veneration"
+    "destination": "/events/objects-of-veneration"
   },
   {
     "source": "/what-goes-here",
-    "destination": "/exhibitions/what-grows-here"
+    "destination": "/events/what-grows-here"
   },
   {
     "source": "/imaginary-cities",
-    "destination": "/exhibitions/imaginary-cities"
+    "destination": "/events/imaginary-cities"
   },
   {
     "source": "/imran-channa",
-    "destination": "/exhibitions/imran-channa"
+    "destination": "/events/imran-channa"
   },
   {
     "source": "/from-the-indus-to-ceylon",
-    "destination": "/exhibitions/from-the-indus-to-ceylon"
+    "destination": "/events/from-the-indus-to-ceylon"
   },
   {
     "source": "/indian-bronze",
-    "destination": "/exhibitions/indian-bronze"
+    "destination": "/events/indian-bronze"
   },
   {
     "source": "/japanese-design-of-the-20th-century",
-    "destination": "/exhibitions/japanese-design-of-the-20th-century"
+    "destination": "/events/japanese-design-of-the-20th-century"
   },
   {
     "source": "/indian-ivory",
-    "destination": "/exhibitions/indian-ivory"
+    "destination": "/events/indian-ivory"
   },
   {
     "source": "/what-grows-here-cat",
@@ -201,19 +201,19 @@
   },
   {
     "source": "/kalu-ram",
-    "destination": "/exhibitions/kalu-ram"
+    "destination": "/events/kalu-ram"
   },
   {
     "source": "/select",
-    "destination": "/exhibitions/select"
+    "destination": "/events/select"
   },
   {
     "source": "/double-take",
-    "destination": "/exhibitions/double-take"
+    "destination": "/events/double-take"
   },
   {
     "source": "/shrinathji",
-    "destination": "/exhibitions/shrinathji"
+    "destination": "/events/shrinathji"
   },
   {
     "source": "/from-bactria-to-kashmir-cat-1",
@@ -221,23 +221,23 @@
   },
   {
     "source": "/india-japan",
-    "destination": "/exhibitions/indian-and-japanese-works"
+    "destination": "/events/indian-and-japanese-works"
   },
   {
     "source": "/indian-and-japanese-works-copy",
-    "destination": "/exhibitions/indian-and-japanese-works"
+    "destination": "/events/indian-and-japanese-works"
   },
   {
     "source": "/indian-and-japanese-works-copy-1",
-    "destination": "/exhibitions/indian-and-japanese-works"
+    "destination": "/events/indian-and-japanese-works"
   },
   {
     "source": "/nicola-durvasula-1",
-    "destination": "/exhibitions/nicola-durvasula"
+    "destination": "/events/nicola-durvasula"
   },
   {
     "source": "/east",
-    "destination": "/exhibitions/east-tefaf-2023"
+    "destination": "/events/east-tefaf-2023"
   },
   {
     "source": "/select-cat",
@@ -269,19 +269,19 @@
   },
   {
     "source": "/showa",
-    "destination": "/exhibitions/showa-tefaf-2024"
+    "destination": "/events/showa-tefaf-2024"
   },
   {
     "source": "/mingei-showa-gutai-tefaf-2025",
-    "destination": "/exhibitions/mingei-showa-gutai-tefaf-2025"
+    "destination": "/events/mingei-showa-gutai-tefaf-2025"
   },
   {
     "source": "/mingei-showa-gutai-tefaf-2025-copy",
-    "destination": "/exhibitions/mingei-showa-gutai-tefaf-2025"
+    "destination": "/events/mingei-showa-gutai-tefaf-2025"
   },
   {
     "source": "/20th-century-japanese-art-tefaf-2026",
-    "destination": "/exhibitions/20th-century-japanese-art-tefaf-2026"
+    "destination": "/events/20th-century-japanese-art-tefaf-2026"
   },
   {
     "source": "/showa-cat",

@@ -243,6 +243,8 @@ export interface ExhibitionListItem {
   isArtFair: boolean | null;
   fairName: string | null;
   coverImage: SanityImage | null;
+  /** First 16:9 hero image, falling back to the cover — for the slideshow. */
+  hero: SanityImage | null;
   workCount: number | null;
   catalogueCount: number | null;
 }
@@ -428,6 +430,7 @@ const exhibitionListFields = /* groq */ `{
   isArtFair,
   fairName,
   coverImage{ asset, caption, hotspot },
+  "hero": coalesce(heroImages[0], coverImage){ asset, caption, hotspot },
   "workCount": count(works),
   "catalogueCount": count(catalogue)
 }`;

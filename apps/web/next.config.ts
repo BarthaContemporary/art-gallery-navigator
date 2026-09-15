@@ -35,9 +35,16 @@ const nextConfig: NextConfig = {
     ],
   },
   async redirects() {
-    return squarespaceRedirects()
-      .filter((r) => r.source !== r.destination)
-      .map((r) => ({ source: r.source, destination: r.destination, permanent: true }));
+    return [
+      // The previous information architecture: exhibitions now live under /events.
+      { source: "/exhibitions", destination: "/", permanent: true },
+      { source: "/exhibitions/:slug", destination: "/events/:slug", permanent: true },
+      { source: "/visit", destination: "/about", permanent: true },
+      { source: "/contact", destination: "/about", permanent: true },
+      ...squarespaceRedirects()
+        .filter((r) => r.source !== r.destination)
+        .map((r) => ({ source: r.source, destination: r.destination, permanent: true })),
+    ];
   },
 };
 
