@@ -69,9 +69,11 @@ async function imageRef(img, caption) {
   const file = imageFile(img);
   let source = `file://${file}`;
   try { await fs.access(file); } catch { source = img.imageUrl; } // fall back to remote fetch
+  // `_sanityAsset` sits on the image object itself; the importer swaps it for
+  // the uploaded asset's reference (nesting it under `asset` double-wraps).
   return {
     _type: "image",
-    asset: { _sanityAsset: `image@${source}` },
+    _sanityAsset: `image@${source}`,
     ...(caption ? { caption } : {}),
   };
 }
