@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       }
       if (type) revalidateTag(type);
       else {
-        for (const t of ["work", "exhibition", "publication", "collection", "page", "siteSettings", "journalPost"]) {
+        for (const t of ["work", "artist", "exhibition", "publication", "collection", "page", "siteSettings", "journalPost"]) {
           revalidateTag(t);
         }
       }
