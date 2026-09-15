@@ -113,7 +113,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
         meta: [e.title, c.sold ? "Sold" : null].filter(Boolean).join(" · ") || null,
         href: `/events/${e.slug}?work=${encodeURIComponent(c._key)}`,
         image: c.image,
-        ratio: 3 / 4,
+        ratio: 1,
         haystack: lc(c.title, c.maker, c.reference, c.medium, e.title),
       });
     }
@@ -129,7 +129,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
       meta: w.available === false ? "Sold" : w.available ? "Available" : null,
       href: w.eventSlug ? `/events/${w.eventSlug}?work=${encodeURIComponent(w.slug)}` : `/works/${w.slug}`,
       image: w.image,
-      ratio: 3 / 4,
+      ratio: 1,
       haystack: lc(w.title, w.maker, w.makerNative, w.stockNumber, w.medium),
     });
   }

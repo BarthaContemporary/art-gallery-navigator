@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RatioImage } from "./ratio-image";
 import { EnquiryForm } from "./enquiry-form";
 import { ReadMore } from "./read-more";
+import { Lightbox } from "./lightbox";
 import { imageDimensions, imageUrl, RATIO } from "@/lib/sanity";
 import { workCaption, workSubject, type GridWork } from "@/lib/grid-work";
 
@@ -57,6 +58,8 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
   const tileRefs = useRef(new Map<string, HTMLButtonElement>());
   // A tile in another row, waiting for the open panel to fold closed first.
   const pendingRef = useRef<string | null>(null);
+  // Which way the panel's content slides when it swaps within a row.
+  const prevIndexRef = useRef(-1);
 
   const byId = useMemo(() => new Map(works.map((w) => [w.id, w])), [works]);
 
@@ -116,6 +119,8 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
   }, [selected, select]);
 
   const renderedIndex = rendered ? works.findIndex((w) => w.id === rendered) : -1;
+  const swapDir = prevIndexRef.current >= 0 && renderedIndex >= 0 ? Math.sign(renderedIndex - prevIndexRef.current) : 0;
+  if (renderedIndex >= 0) prevIndexRef.current = renderedIndex;
   const panelAfter = renderedIndex >= 0 ? Math.min(works.length - 1, Math.floor(renderedIndex / cols) * cols + cols - 1) : -1;
   const panelWork = rendered ? byId.get(rendered) ?? null : null;
 
@@ -143,7 +148,8 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                 onClick={() => select(isSelected ? null : w.id)}
                 aria-expanded={isSelected}
                 aria-controls={`work-panel-${w.id}`}
-                className={`work-tile group block w-full border-t-2 text-left ${isSelected ? "border-t-accent" : "border-t-transparent"}`}
+                data-selected={isSelected}
+                className="work-tile group relative block w-full text-left"
               >
                 <RatioImage
                   image={w.image}
@@ -151,7 +157,6 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                   width={800}
                   alt={workCaption(w)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                  className="mt-[-2px]"
                 />
                 <p className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
                   {w.artist ?? workCaption(w)}
@@ -181,7 +186,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                 >
                   <div id={`work-panel-${panelWork.id}`} aria-hidden={selected !== panelWork.id}>
                     <div ref={panelRef} className="fold-body pt-4 pb-6">
-                      <div key={panelWork.id} className="panel-swap">
+                      <div key={panelWork.id} className="panel-swap" style={{ "--swap-x": `${swapDir * 14}px` } as React.CSSProperties}>
                         <WorkPanel
                           work={panelWork}
                           cols={cols}
@@ -222,6 +227,8 @@ function WorkPanel({
   useEffect(() => {
     if (enquiryOpen) setEnquiryMounted(true);
   }, [enquiryOpen]);
+  const [lightbox, setLightbox] = useState(false);
+  const closeLightbox = useCallback(() => setLightbox(false), []);
   // The panel shows the whole photograph at its own ratio, two tiles wide,
   // on white — never cropped, never letterboxed on grey.
   const large = imageUrl(work.image, { width: 1600 });
@@ -236,19 +243,37 @@ function WorkPanel({
       className="grid gap-y-6"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: "var(--gutter)" }}
     >
-      <div className="bg-page" style={{ gridColumn: `span ${imageSpan}` }}>
+      <div className="panel-image self-start bg-page" style={{ gridColumn: `span ${imageSpan}` }}>
         {large && dims ? (
-          <Image
-            src={large}
-            alt={caption}
-            width={dims.width}
-            height={dims.height}
-            sizes="(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw"
-            className="h-auto w-full"
-          />
+          <>
+            <button
+              type="button"
+              onClick={() => setLightbox(true)}
+              aria-label={`View ${caption} full screen`}
+              className="block w-full cursor-zoom-in leading-none"
+            >
+              <Image
+                src={large}
+                alt={caption}
+                width={dims.width}
+                height={dims.height}
+                sizes="(min-width: 1024px) 50vw, (min-width: 640px) 66vw, 100vw"
+                className="h-auto w-full"
+              />
+            </button>
+            {lightbox ? (
+              <Lightbox
+                src={imageUrl(work.image, { width: 2400, quality: 85 }) ?? large}
+                alt={caption}
+                width={dims.width}
+                height={dims.height}
+                onClose={closeLightbox}
+              />
+            ) : null}
+          </>
         ) : null}
       </div>
-      <div className="min-w-0" style={{ gridColumn: `span ${textSpan}` }}>
+      <div className="panel-text min-w-0" style={{ gridColumn: `span ${textSpan}` }}>
         <div className="flex items-start justify-between gap-4">
           <p className="font-sans text-body font-medium leading-snug text-ink">
             {work.artist ? (

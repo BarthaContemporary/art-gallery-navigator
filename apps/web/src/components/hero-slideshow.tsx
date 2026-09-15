@@ -102,13 +102,17 @@ export function HeroSlideshow({
         </div>
       ))}
 
+      {/* The whole slide is the link to the event; the caption sits above it. */}
+      {active.href ? (
+        <Link href={active.href} className="absolute inset-0 z-[1]" aria-label={active.title} />
+      ) : null}
+
       {caption ? (
-        <div className="absolute bottom-0 left-0 max-w-[min(520px,92%)] bg-white/85 px-5 py-4 backdrop-blur-[2px] md:bottom-6 md:left-6 md:px-7 md:py-6">
+        <div className="pointer-events-none absolute bottom-0 left-0 z-[2] max-w-[min(520px,92%)] bg-white/85 px-5 py-4 backdrop-blur-[2px] md:bottom-6 md:left-6 md:px-7 md:py-6">
           <p className="eyebrow">{active.eyebrow}</p>
           <h2 className="mt-1.5 font-sans text-[22px] font-light leading-tight text-ink md:text-[30px]">
             {active.href ? (
-              <Link href={active.href} className="hover:text-accent">
-                <span className="absolute inset-0" aria-hidden />
+              <Link href={active.href} className="pointer-events-auto hover:text-accent">
                 {active.title}
               </Link>
             ) : (
@@ -117,12 +121,10 @@ export function HeroSlideshow({
           </h2>
           {active.meta ? <p className="mt-1.5 font-sans text-meta text-meta">{active.meta}</p> : null}
         </div>
-      ) : active.href ? (
-        <Link href={active.href} className="absolute inset-0" aria-label={active.title} />
       ) : null}
 
       {count > 1 ? (
-        <ol className="absolute right-4 bottom-4 flex gap-1.5 md:right-6 md:bottom-6" aria-label="Slides">
+        <ol className="absolute right-4 bottom-4 z-[3] flex gap-1.5 md:right-6 md:bottom-6" aria-label="Slides">
           {slides.map((s, i) => (
             <li key={s.key}>
               <button

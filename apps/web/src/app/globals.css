@@ -37,9 +37,11 @@
   --page-max: 1440px;
   --page-pad: 40px;
   --section: clamp(56px, 6vw, 96px);
-  --fold-ms: 350ms;
+  --fold-ms: 420ms; /* opening — deliberate */
+  --fold-close-ms: 280ms; /* closing — the system's response snaps */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out for UI */
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* long, settling tail */
 }
 
 @theme {
@@ -329,57 +331,132 @@
     color: var(--accent);
   }
 
-  /* Work tile: the only selection mark is the 2px rule on the top edge.
-     Keyboard focus shows the same rule instead of a ring on all four sides. */
-  .work-tile {
-    transition: border-top-color 160ms ease;
+  /* Work tile: the only selection mark is a 2px rule on the top edge, drawn
+     in from the left. Keyboard focus draws the same rule instead of a ring. */
+  .work-tile::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    transition:
+      transform 360ms var(--ease-drawer),
+      opacity 160ms ease;
+  }
+  .work-tile[data-selected="true"]::before,
+  .work-tile:focus-visible::before {
+    transform: scaleX(1);
+    opacity: 1;
   }
   .work-tile:focus-visible {
     outline: none;
-    border-top-color: var(--accent);
   }
 
-  /* Fold-out panel: height animates open/closed, ~350ms ease-out. */
+  /* Fold-out panel: the height opens with a long settling tail and closes
+     briskly; the content inside arrives a beat later — image first, then
+     the text — and leaves before the box shrinks so nothing is chopped. */
   .fold {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows var(--fold-ms) var(--ease-out);
+    transition: grid-template-rows var(--fold-close-ms) var(--ease-out);
   }
   .fold[data-open="true"] {
     grid-template-rows: 1fr;
+    transition: grid-template-rows var(--fold-ms) var(--ease-drawer);
   }
   .fold > * {
     overflow: hidden;
     min-height: 0;
   }
-  /* The panel's content settles in after the height starts moving. */
   .fold-body {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
     transition:
-      opacity 200ms var(--ease-out),
-      transform 200ms var(--ease-out);
+      opacity 120ms var(--ease-out),
+      transform 120ms var(--ease-out);
   }
   .fold[data-open="true"] .fold-body {
     opacity: 1;
     transform: none;
-    transition-delay: 80ms;
+    transition:
+      opacity 320ms var(--ease-out) 70ms,
+      transform 480ms var(--ease-drawer) 70ms;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .fold-body {
-      transform: none; /* opacity feedback stays, movement goes */
-    }
+  .panel-image {
+    transform: scale(0.985);
+    transform-origin: top left;
+    transition: transform 120ms var(--ease-out);
   }
-  /* Content swap inside an already-open panel (same row, different work). */
+  .fold[data-open="true"] .panel-image {
+    transform: none;
+    transition: transform 560ms var(--ease-drawer) 70ms;
+  }
+  .panel-text {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 120ms var(--ease-out),
+      transform 120ms var(--ease-out);
+  }
+  .fold[data-open="true"] .panel-text {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 300ms var(--ease-out) 160ms,
+      transform 420ms var(--ease-drawer) 160ms;
+  }
+  /* Content swap inside an already-open panel: slides in from the side of
+     the tile that was clicked. */
   .panel-swap {
-    animation: panel-swap 180ms var(--ease-out);
+    animation: panel-swap 260ms var(--ease-out);
   }
   @keyframes panel-swap {
+    from {
+      opacity: 0;
+      transform: translateX(var(--swap-x, 0));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* Full-screen photograph: fades up from the panel image. */
+  .lightbox {
+    animation: lightbox-in 240ms var(--ease-out);
+  }
+  .lightbox-img {
+    animation: lightbox-img 360ms var(--ease-drawer);
+  }
+  @keyframes lightbox-in {
     from {
       opacity: 0;
     }
     to {
       opacity: 1;
+    }
+  }
+  @keyframes lightbox-img {
+    from {
+      transform: scale(0.96);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fold-body,
+    .panel-text,
+    .panel-image,
+    .lightbox-img {
+      transform: none; /* opacity feedback stays, movement goes */
+    }
+    .panel-swap {
+      animation-name: lightbox-in;
     }
   }
 

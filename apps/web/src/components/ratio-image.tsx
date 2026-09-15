@@ -3,7 +3,7 @@ import { ratioUrl, type SanityImage } from "@/lib/sanity";
 
 /**
  * Fixed-ratio image on the #ebe8e2 ground, cropped by the CDN (hotspot-aware).
- * The four site ratios: 16:9 hero/event, 3:4 work, 1:1 portrait, 4:5 cover.
+ * The four site ratios: 16:9 hero/event, 1:1 work and portrait, 4:5 cover.
  * No border, no radius. With no image the ground stays empty — never a
  * broken img.
  */

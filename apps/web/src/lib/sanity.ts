@@ -92,7 +92,8 @@ export function imageUrl(
 }
 
 /** Ratio helpers for the fixed image formats. */
-export const RATIO = { hero: 16 / 9, work: 3 / 4, portrait: 1, cover: 4 / 5 } as const;
+/** Work tiles are square, as on the previous site. */
+export const RATIO = { hero: 16 / 9, work: 1, portrait: 1, cover: 4 / 5 } as const;
 
 /** Cropped URL for a fixed ratio at a given width. */
 export function ratioUrl(
