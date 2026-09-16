@@ -37,7 +37,7 @@ export function SiteFooter({
     <footer className="mt-[var(--section)] bg-accent text-white">
       <div className="page grid grid-cols-1 gap-10 py-14 md:grid-cols-2 md:gap-16 md:py-16">
         <div className="font-sans text-ui leading-[1.75]">
-          <p className="mb-3 text-[19px] font-bold leading-none md:text-[20px]">{galleryName}</p>
+          <p className="mb-4 text-[19px] font-bold leading-none md:text-[20px]">{galleryName}</p>
           {addressLines.map((line) => (
             <p key={line}>{line}</p>
           ))}
@@ -77,7 +77,7 @@ export function SiteFooter({
         </div>
       </div>
 
-      <div className="page flex flex-wrap items-center gap-x-5 gap-y-1 pb-8 font-sans text-[12px] text-white/70">
+      <div className="page flex flex-wrap items-center gap-x-5 gap-y-1 pb-10 font-sans text-[12px] text-white/70">
         <span>&copy; {new Date().getFullYear()} {galleryName}</span>
         <Link href="/privacy" className="hover:text-white">
           Privacy

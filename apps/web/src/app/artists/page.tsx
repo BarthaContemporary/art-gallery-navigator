@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function ArtistsPage() {
   const artists = await sanityFetch<Artist[]>({ query: artistsQuery, tags: ["artist"], fallback: [] });
   return (
-    <div className="page pt-10 pb-20 md:pt-12">
+    <div className="page pt-12 pb-24 md:pt-16">
       <ArtistsGrid artists={artists.filter((a) => a.slug)} />
     </div>
   );

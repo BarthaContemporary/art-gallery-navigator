@@ -77,7 +77,7 @@ function BlockContent({ block }: { block: TextBlock }) {
   switch (block.style) {
     case "h2":
       return (
-        <h2 className="mt-16 font-sans text-h2 font-medium tracking-tight text-sumi">
+        <h2 className="t-section mt-10">
           {children}
         </h2>
       );
@@ -95,13 +95,13 @@ function BlockContent({ block }: { block: TextBlock }) {
       );
     case "blockquote":
       return (
-        <blockquote className="mt-6 border-l border-sumi pl-6 font-serif text-lead font-light text-ink-70">
+        <blockquote className="mt-6 max-w-[56ch] pl-6 font-sans text-lead font-light text-ink-70">
           {children}
         </blockquote>
       );
     default:
       return (
-        <p className="mt-5 font-serif text-body text-ink-70">{children}</p>
+        <p className="mt-5 font-sans text-body text-ink-70 first:mt-0">{children}</p>
       );
   }
 }
@@ -142,7 +142,7 @@ export function PortableText({
   const flushList = () => {
     if (listBuffer.length === 0) return;
     const items = listBuffer.map((item) => (
-      <li key={item._key} className="font-serif text-body text-ink-70">
+      <li key={item._key} className="font-sans text-body text-ink-70">
         {(item.children ?? []).map((span, i) =>
           renderSpan(span, item.markDefs ?? [], i),
         )}

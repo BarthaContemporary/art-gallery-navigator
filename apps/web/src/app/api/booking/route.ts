@@ -30,6 +30,33 @@ const bookingSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
+const LONDON = "Europe/London";
+
+/** Offset of Europe/London from UTC, in minutes, at a given instant. */
+function londonOffsetMinutes(atMs: number): number {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: LONDON, timeZoneName: "shortOffset" }).formatToParts(new Date(atMs));
+  const name = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(name);
+  if (!m) return 0;
+  const sign = m[1] === "-" ? -1 : 1;
+  return sign * (Number(m[2]) * 60 + Number(m[3] ?? 0));
+}
+
+/** "YYYY-MM-DDTHH:MM:SS" on a London clock → UTC epoch ms. */
+function londonWallToUtc(wall: string): number {
+  const naive = Date.parse(`${wall}Z`);
+  if (Number.isNaN(naive)) return NaN;
+  // Two passes: the offset can differ either side of a clock change.
+  let guess = naive - londonOffsetMinutes(naive) * 60_000;
+  guess = naive - londonOffsetMinutes(guess) * 60_000;
+  return guess;
+}
+
+/** UTC epoch ms → "YYYY-MM-DDTHH:MM:SS" on a London clock (for the ICS). */
+function londonWall(ms: number): string {
+  return new Date(ms + londonOffsetMinutes(ms) * 60_000).toISOString().slice(0, 19);
+}
+
 export async function POST(req: NextRequest) {
   let payload: z.infer<typeof bookingSchema>;
   try {
@@ -54,18 +81,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: turnstile.error ?? "Verification failed" }, { status: 400 });
   }
 
-  // Local (gallery-time) start/end; stored verbatim, ICS uses floating time.
+  // The visitor picks a London wall-clock time. The ICS keeps that floating
+  // local time; the database gets the real instant (timestamptz), so the
+  // studio and calendar show 11:00 as 11:00 in summer as well as winter.
   const startLocal = `${payload.date}T${payload.time}:00`;
-  const startMs = Date.parse(`${startLocal}Z`);
+  const startMs = londonWallToUtc(startLocal);
   if (Number.isNaN(startMs)) {
     return NextResponse.json({ error: "Invalid date or time" }, { status: 400 });
   }
   if (startMs < Date.now() - 24 * 60 * 60 * 1000) {
     return NextResponse.json({ error: "Please choose a date in the future" }, { status: 400 });
   }
-  const endLocal = new Date(startMs + DEFAULT_DURATION_MINUTES * 60 * 1000)
-    .toISOString()
-    .slice(0, 19);
+  const endMs = startMs + DEFAULT_DURATION_MINUTES * 60 * 1000;
+  const endLocal = londonWall(endMs);
+  const startsAt = new Date(startMs).toISOString();
+  const endsAt = new Date(endMs).toISOString();
 
   const icsUid = `${randomUUID()}@jvb-booking`;
 
@@ -112,8 +142,8 @@ export async function POST(req: NextRequest) {
     const { error: appointmentError } = await supabase.from("appointments").insert({
       contact_id: contactId,
       appointment_type_id: (typeRow as { id: string } | null)?.id ?? null,
-      starts_at: startLocal,
-      ends_at: endLocal,
+      starts_at: startsAt,
+      ends_at: endsAt,
       status: "requested",
       name: payload.name,
       email: payload.email,

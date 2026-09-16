@@ -14,21 +14,21 @@ export default async function PublicationsPage() {
   ).filter((p) => p.slug);
 
   return (
-    <div className="page pt-10 pb-20 md:pt-12">
+    <div className="page pt-12 pb-24 md:pt-16">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <h1 className="t-title">Publications</h1>
         <span className="font-sans text-small text-meta">
           {publications.length} {publications.length === 1 ? "title" : "titles"}
         </span>
       </div>
-      <p className="mt-3 max-w-[560px] font-sans text-body text-body">
+      <p className="mt-4 max-w-[560px] font-sans text-body text-body">
         Catalogues published to accompany the gallery&rsquo;s exhibitions and fair presentations. Most can be read here in full;
         printed copies are available to order while stocks last.
       </p>
       {publications.length === 0 ? (
         <p className="mt-8 font-sans text-body text-meta">Catalogues will appear here.</p>
       ) : (
-        <div className="mt-8">
+        <div className="mt-10">
           <InfiniteGrid pageSize={16}>
             {publications.map((p, i) => (
               <li key={p._id}>

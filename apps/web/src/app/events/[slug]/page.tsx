@@ -97,13 +97,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       <JsonLd data={jsonLd} />
       {slides.length > 0 ? <HeroSlideshow slides={slides} caption={false} /> : null}
 
-      <div className="page pt-10 pb-20 md:pt-12">
+      <div className="page pt-12 pb-24 md:pt-16">
         <header className="max-w-[380px]">
           <p className="eyebrow">{eventEyebrow(ev)}</p>
-          <h1 className="t-title mt-2">{ev.title}</h1>
-          {ev.subtitle ? <p className="mt-2 font-sans text-body text-body">{ev.subtitle}</p> : null}
+          <h1 className="t-title mt-3">{ev.title}</h1>
+          {ev.subtitle ? <p className="mt-3 font-sans text-body text-body">{ev.subtitle}</p> : null}
           {dates || ev.stand ? (
-            <p className="mt-2 font-sans text-small text-meta">{[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}</p>
+            <p className="mt-3 font-sans text-small text-meta">{[dates, ev.stand ? `Stand ${ev.stand}` : null].filter(Boolean).join(" · ")}</p>
           ) : null}
           {privateViews.length > 0 ? (
             <ul className="mt-2 flex flex-col gap-1 font-sans text-small text-meta">
@@ -119,7 +119,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             </ul>
           ) : null}
           {ev.intro && ev.intro.length > 0 ? (
-            <div className="prose-event mt-5">
+            <div className="prose-event mt-6">
               <PortableText value={ev.intro} />
             </div>
           ) : null}
@@ -146,12 +146,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         </header>
 
         {works.length > 0 ? (
-          <section className="mt-14 md:mt-16">
+          <section className="mt-16 md:mt-20">
             <WorksFoldout works={works} label="Works" />
           </section>
         ) : null}
 
-        <nav aria-label="Other events" className="mt-16 flex flex-wrap items-baseline justify-between gap-4 font-sans text-ui">
+        <nav aria-label="Other events" className="mt-20 flex flex-wrap items-baseline justify-between gap-4 font-sans text-ui">
           {ev.prev?.slug ? (
             <Link href={`/events/${ev.prev.slug}`} className="link-accent inline-flex min-h-[44px] items-center">
               ← {ev.prev.title}

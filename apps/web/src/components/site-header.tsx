@@ -35,7 +35,7 @@ export function SiteHeader({ galleryName }: { galleryName: string }) {
     href === "/" ? pathname === "/" || pathname.startsWith("/events") : pathname.startsWith(href);
 
   return (
-    <header className="page pt-6 pb-2 md:pt-7 md:pb-4">
+    <header className="page pt-6 pb-2 md:pt-8 md:pb-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between md:gap-8">
         <Link
           href="/"

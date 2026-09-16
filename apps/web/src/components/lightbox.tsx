@@ -187,7 +187,7 @@ export function Lightbox({
       >
         ✕
       </button>
-      <div className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 font-sans text-small text-meta">
+      <div className="tabular fixed bottom-4 left-1/2 z-10 -translate-x-1/2 font-sans text-small text-meta">
         {scale > 1.02 ? `${Math.round(scale * 100)}%` : "Scroll or pinch to zoom · double-click for 2.5×"}
       </div>
       <div

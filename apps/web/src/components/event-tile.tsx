@@ -21,10 +21,10 @@ export function EventTile({ event, priority = false }: { event: ExhibitionListIt
         sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
         priority={priority}
       />
-      <h3 className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
+      <h3 className="mt-3 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
         {event.title}
       </h3>
-      {sub ? <p className="mt-0.5 font-sans text-small text-meta">{sub}</p> : null}
+      {sub ? <p className="mt-1 font-sans text-small text-meta">{sub}</p> : null}
     </Link>
   );
 }

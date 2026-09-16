@@ -57,8 +57,8 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
         <p className="mt-8 font-sans text-body text-meta">Artists will appear here.</p>
       ) : (
         groups.map((g) => (
-          <section key={g.key} className="mt-8">
-            {g.label ? <h2 className="label mb-4">{g.label}</h2> : null}
+          <section key={g.key} className="mt-10">
+            {g.label ? <h2 className="label mb-5">{g.label}</h2> : null}
             <ul className="tiles-6">
               {g.items.map((a) => (
                 <li key={a._id}>
@@ -70,11 +70,11 @@ export function ArtistsGrid({ artists }: { artists: Artist[] }) {
                       alt={a.name ?? "Artist"}
                       sizes="(min-width: 640px) 17vw, 33vw"
                     />
-                    <p className="mt-2 font-sans text-small font-medium leading-snug text-ink group-hover:text-accent">
+                    <p className="mt-3 font-sans text-small font-medium leading-snug text-ink group-hover:text-accent">
                       {a.name}
                       {a.nameNative ? <span className="ml-2 font-normal text-light">{a.nameNative}</span> : null}
                     </p>
-                    {a.lifeDates ? <p className="mt-0.5 font-sans text-[12px] text-meta">{a.lifeDates}</p> : null}
+                    {a.lifeDates ? <p className="mt-1 font-sans text-[12px] text-meta">{a.lifeDates}</p> : null}
                   </Link>
                 </li>
               ))}

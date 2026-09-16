@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans } from "next/font/google";
+import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
 import { getSiteSettings } from "@/lib/sanity";
 import { absoluteUrl, fallbackGalleryName, siteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
@@ -22,6 +22,16 @@ const notoSans = Noto_Sans({
   style: ["normal"],
   variable: "--font-noto-sans",
   display: "swap",
+});
+
+/* Japanese glyphs (artist names, titles) fall through to Noto Sans JP, the
+   same design as the Latin, instead of whatever the visitor's system has. */
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-noto-sans-jp",
+  display: "swap",
+  preload: false,
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,7 +86,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="en" className={notoSans.variable}>
+    <html lang="en" className={`${notoSans.variable} ${notoSansJP.variable}`}>
       <body className="flex min-h-screen flex-col bg-page text-body">
         <JsonLd data={orgJsonLd} />
         {/* Everything that can track sits inside the consent provider, so no

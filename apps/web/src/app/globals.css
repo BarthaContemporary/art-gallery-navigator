@@ -38,7 +38,7 @@
   --gutter: 14px; /* image grid gutter */
   --page-max: 1440px;
   --page-pad: 40px;
-  --section: clamp(56px, 6vw, 96px);
+  --section: clamp(64px, 7vw, 112px);
   --fold-ms: 520ms; /* opening — deliberate */
   --fold-close-ms: 280ms; /* closing — the system's response snaps */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out for UI */
@@ -75,8 +75,8 @@
   --color-current: currentColor;
 
   /* one family; "serif" is an alias so untouched pages don't fall back */
-  --font-sans: var(--font-noto-sans), "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-serif: var(--font-noto-sans), "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-noto-sans), "Noto Sans", var(--font-noto-sans-jp), "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-noto-sans), "Noto Sans", var(--font-noto-sans-jp), "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* type scale — wireframe values scaled to the web */
   --text-eyebrow: 11.5px;
@@ -103,13 +103,14 @@
 
   --text-section: 22px;
   --text-section--line-height: 1.25;
+  --text-section--letter-spacing: -0.005em;
 
   --text-h2: 26px;
   --text-h2--line-height: 1.25;
 
   --text-title: clamp(26px, 3.4vw, 40px);
   --text-title--line-height: 1.12;
-  --text-title--letter-spacing: -0.01em;
+  --text-title--letter-spacing: -0.015em;
 
   --text-h1: clamp(30px, 3.4vw, 44px);
   --text-h1--line-height: 1.12;
@@ -132,6 +133,39 @@
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    font-kerning: normal;
+    font-feature-settings: "kern", "liga", "calt";
+    hanging-punctuation: first last;
+  }
+
+  /* Paragraphs avoid orphans; headings balance their lines. */
+  p,
+  li,
+  figcaption {
+    text-wrap: pretty;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* Underlined links sit the rule below the descenders, one pixel thin. */
+  a {
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Figures that line up in columns — dates, dimensions, times, counters. */
+  time,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Bold and semibold are the only emphasis; never italics (design rule). */
+  em,
+  i {
+    font-style: normal;
   }
 
   /* Square corners everywhere. */
@@ -195,7 +229,7 @@
   .tiles {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px var(--gutter);
+    gap: 36px var(--gutter);
   }
   @media (min-width: 640px) {
     .tiles {
@@ -212,7 +246,7 @@
   .tiles-6 {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px var(--gutter);
+    gap: 28px var(--gutter);
   }
   @media (min-width: 640px) {
     .tiles-6 {
@@ -258,13 +292,14 @@
     font-weight: 300;
     font-size: var(--text-title);
     line-height: 1.12;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     color: var(--ink);
   }
   .t-section {
     font-weight: 300;
     font-size: var(--text-section);
     line-height: 1.25;
+    letter-spacing: -0.005em;
     color: var(--ink);
   }
 

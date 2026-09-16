@@ -82,7 +82,7 @@ function Calendar({ value, onChange }: { value: string | null; onChange: (ymd: s
               onClick={() => onChange(key)}
               aria-pressed={selected}
               aria-label={LONG.format(d)}
-              className={`cal-day mx-auto my-0.5 flex h-9 w-9 items-center justify-center font-sans text-small ${
+              className={`cal-day tabular mx-auto my-0.5 flex h-9 w-9 items-center justify-center font-sans text-small ${
                 selected ? "bg-accent text-white" : disabled ? "text-light/60" : "text-ink hover:bg-form-hover"
               } ${isToday && !selected ? "underline decoration-accent underline-offset-4" : ""}`}
             >
@@ -185,7 +185,7 @@ export function AppointmentForm() {
                           type="button"
                           onClick={() => setTime(t)}
                           aria-pressed={time === t}
-                          className={`min-h-[34px] px-2.5 font-sans text-small ${time === t ? "bg-accent text-white" : "bg-form text-ink hover:bg-form-hover"}`}
+                          className={`tabular min-h-[34px] px-2.5 font-sans text-small ${time === t ? "bg-accent text-white" : "bg-form text-ink hover:bg-form-hover"}`}
                         >
                           {t}
                         </button>

@@ -138,7 +138,7 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
           </span>
         </div>
       ) : null}
-      <ul className={`tiles ${label ? "mt-6" : ""}`}>
+      <ul className={`tiles ${label ? "mt-8" : ""}`}>
         {works.map((w, i) => {
           const isSelected = w.id === selected;
           return [
@@ -162,11 +162,11 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
                   alt={workCaption(w)}
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 />
-                <p className="mt-2.5 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
+                <p className="mt-3 font-sans text-ui font-medium leading-snug text-ink group-hover:text-accent">
                   {w.artist ?? workCaption(w)}
                 </p>
                 {w.status ? (
-                  <p className="mt-0.5 font-sans text-small text-meta">{w.status === "sold" ? "Sold" : "Available"}</p>
+                  <p className="mt-1 font-sans text-small text-meta">{w.status === "sold" ? "Sold" : "Available"}</p>
                 ) : null}
               </button>
             </li>,

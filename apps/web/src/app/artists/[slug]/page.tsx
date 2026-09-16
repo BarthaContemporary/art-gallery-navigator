@@ -60,7 +60,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   const bioLong = paragraphs(a.bioLong);
 
   return (
-    <article className="page pt-10 pb-20 md:pt-12">
+    <article className="page pt-12 pb-24 md:pt-16">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -78,9 +78,9 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
             {a.name}
             {a.nameNative ? <span className="ml-3 text-light">{a.nameNative}</span> : null}
           </h1>
-          {meta ? <p className="mt-2 font-sans text-small text-meta">{meta}</p> : null}
+          {meta ? <p className="mt-3 font-sans text-small text-meta">{meta}</p> : null}
           {bioShort.length > 0 ? (
-            <div className="mt-5 flex flex-col gap-4 font-sans text-body text-body">
+            <div className="mt-6 flex flex-col gap-5 font-sans text-body text-body">
               {bioShort.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
@@ -104,13 +104,13 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
       </div>
 
       {works.length > 0 ? (
-        <section className="mt-14 md:mt-16">
+        <section className="mt-16 md:mt-20">
           <WorksFoldout works={works} label="Works" />
         </section>
       ) : null}
 
       {shownIn.length > 0 || publications.length > 0 ? (
-        <div className="mt-14 grid grid-cols-1 gap-10 sm:grid-cols-2 md:mt-16">
+        <div className="mt-16 grid grid-cols-1 gap-10 sm:grid-cols-2 md:mt-20">
           {shownIn.length > 0 ? (
             <section>
               <h2 className="label">Shown in</h2>

@@ -52,13 +52,13 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
   const pdfHref = p.pdfUrl ?? p.externalUrl;
 
   const aside = (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div className="max-w-[260px]">
         <RatioImage image={p.coverImage} ratio={RATIO.cover} width={800} alt={p.coverImage?.caption ?? title} sizes="260px" priority />
       </div>
       <div>
         <h1 className="t-section">{title}</h1>
-        {meta ? <p className="mt-1.5 font-sans text-small text-meta">{meta}</p> : null}
+        {meta ? <p className="mt-2 font-sans text-small text-meta">{meta}</p> : null}
         <p className="mt-1.5 font-sans text-ui text-ink">{availabilityLabel(p.availability) === "available" ? "Available" : "Out of print"}</p>
         {p.relatedExhibition?.slug ? (
           <p className="mt-1.5 font-sans text-small text-meta">
@@ -102,7 +102,7 @@ export default async function PublicationPage({ params }: { params: Promise<{ sl
   );
 
   return (
-    <article className="page pt-10 pb-20 md:pt-12">
+    <article className="page pt-12 pb-24 md:pt-16">
       <JsonLd
         data={{
           "@context": "https://schema.org",

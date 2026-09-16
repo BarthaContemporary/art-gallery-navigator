@@ -39,7 +39,7 @@ export default async function AboutPage() {
 
   return (
     <article>
-      <div className="page pt-10 pb-20 md:pt-12">
+      <div className="page pt-12 pb-24 md:pt-16">
         {/* The heading sits above both columns so Visit aligns with the photo's top edge. */}
         {headline ? <h1 className="t-title">{headline}</h1> : <h1 className="t-title">{galleryName}</h1>}
         <div className="mt-6 grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-16">
@@ -55,11 +55,11 @@ export default async function AboutPage() {
                 className="h-auto w-full bg-field"
               />
             ) : null}
-            <div className="mt-5">
+            <div className="mt-6">
               {statement ? (
                 <PortableText value={statement} />
               ) : (
-                <div className="flex flex-col gap-4 font-sans text-body text-body">
+                <div className="flex flex-col gap-5 font-sans text-body text-body">
                   <p>
                     {settings?.aboutTeaser ??
                       `${galleryName} deals in Japanese and Indian works of art, from tantric drawings and bronzes to Mingei and twentieth-century Japanese design.`}
@@ -73,7 +73,7 @@ export default async function AboutPage() {
             </div>
           </section>
 
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-12">
             <section>
               <h2 className="label">Visit</h2>
               <address className="mt-3 font-sans text-body not-italic text-body">

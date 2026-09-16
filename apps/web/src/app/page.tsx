@@ -46,7 +46,7 @@ export default async function HomePage() {
     <>
       <HeroSlideshow slides={slides} />
 
-      <section className="page mt-12 pb-20 md:mt-16">
+      <section className="page mt-14 pb-24 md:mt-20">
         <div className="flex items-baseline justify-between">
           <h2 className="t-section">Recent exhibitions</h2>
           <span className="font-sans text-small text-meta">
@@ -56,7 +56,7 @@ export default async function HomePage() {
         {past.length === 0 ? (
           <p className="mt-8 font-sans text-body text-meta">Past events will appear here.</p>
         ) : (
-          <div className="mt-6">
+          <div className="mt-8">
             <InfiniteGrid pageSize={16}>
               {past.map((e, i) => (
                 <li key={e._id}>
