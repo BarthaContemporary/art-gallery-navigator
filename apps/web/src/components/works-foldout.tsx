@@ -96,18 +96,22 @@ export function WorksFoldout({ works, label = "Works" }: { works: GridWork[]; la
     [rendered, selected, rowOf],
   );
 
-  // Bring the panel's top into view once it starts opening.
+  // Centre the opened drawer in the viewport. The track is still growing when
+  // this runs, but its top is fixed and the body already has its final height,
+  // so the resting position is known; scroll to it while the drawer settles.
   useEffect(() => {
     if (!selected) return;
     const raf = requestAnimationFrame(() => {
-      const el = panelRef.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      const margin = 96;
-      if (top < margin || top > window.innerHeight * 0.6) {
-        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        window.scrollTo({ top: window.scrollY + top - margin, behavior: reduce ? "auto" : "smooth" });
-      }
+      const body = panelRef.current;
+      const track = body?.closest(".fold");
+      if (!body || !track) return;
+      const top = track.getBoundingClientRect().top;
+      const height = body.getBoundingClientRect().height;
+      const margin = 88;
+      const fits = height + margin * 2 <= window.innerHeight;
+      const target = fits ? top + height / 2 - window.innerHeight / 2 : top - margin;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: window.scrollY + target, behavior: reduce ? "auto" : "smooth" });
     });
     return () => cancelAnimationFrame(raf);
   }, [selected]);
