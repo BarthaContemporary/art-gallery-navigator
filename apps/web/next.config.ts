@@ -41,6 +41,13 @@ const nextConfig: NextConfig = {
       { source: "/exhibitions/:slug", destination: "/events/:slug", permanent: true },
       { source: "/visit", destination: "/about", permanent: true },
       { source: "/contact", destination: "/about", permanent: true },
+      // Sections retired with the redesign; works are reached through events and artists.
+      { source: "/works", destination: "/", permanent: true },
+      { source: "/works/:slug", destination: "/artists", permanent: true },
+      { source: "/collections", destination: "/", permanent: true },
+      { source: "/collections/:slug", destination: "/", permanent: true },
+      { source: "/journal", destination: "/", permanent: true },
+      { source: "/journal/:slug", destination: "/", permanent: true },
       ...squarespaceRedirects()
         .filter((r) => r.source !== r.destination)
         .map((r) => ({ source: r.source, destination: r.destination, permanent: true })),

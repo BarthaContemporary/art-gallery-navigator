@@ -23,8 +23,6 @@ const structure: StructureResolver = (S) =>
         .id("catalogue-browser")
         .child(S.component(CatalogueBrowser).id("catalogue-browser").title("Catalogue")),
       S.documentTypeListItem("publication").title("Publications"),
-      S.documentTypeListItem("collection").title("Collections"),
-      S.documentTypeListItem("journalPost").title("Journal"),
       S.documentTypeListItem("page").title("Pages"),
       S.divider(),
       S.documentTypeListItem("work").title("Works (from the inventory)"),

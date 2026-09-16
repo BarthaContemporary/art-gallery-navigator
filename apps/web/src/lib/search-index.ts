@@ -36,6 +36,7 @@ type IndexDoc = {
   works: {
     _id: string; title: string | null; maker: string | null; makerNative: string | null; stockNumber: string | null;
     medium: string | null; available: boolean | null; slug: string | null; image: SanityImage | null; eventSlug: string | null;
+    artistSlug: string | null;
   }[];
   publications: {
     _id: string; title: string | null; slug: string | null; publishedYear: number | null; availability: string | null; coverImage: SanityImage | null;
@@ -55,7 +56,8 @@ const indexQuery = groq`{
   "works": *[_type == "work" && defined(slug.current)] | order(_createdAt desc){
     _id, title, maker, makerNative, stockNumber, medium, available, "slug": slug.current,
     "image": images[0]{ asset, hotspot },
-    "eventSlug": *[_type == "exhibition" && !coalesce(hidden, false) && references(^._id)][0].slug.current
+    "eventSlug": *[_type == "exhibition" && !coalesce(hidden, false) && references(^._id)][0].slug.current,
+    "artistSlug": artist->slug.current
   },
   "publications": *[_type == "publication" && defined(slug.current) && !coalesce(hidden, false)]
     | order(coalesce(publishedYear, 0) desc){
@@ -120,6 +122,14 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
   }
   for (const w of doc.works) {
     if (!w.slug) continue;
+    // A work is reached through its event or its artist page; with neither
+    // there is nowhere to send the reader, so it stays out of the results.
+    const href = w.eventSlug
+      ? `/events/${w.eventSlug}?work=${encodeURIComponent(w.slug)}`
+      : w.artistSlug
+        ? `/artists/${w.artistSlug}?work=${encodeURIComponent(w.slug)}`
+        : null;
+    if (!href) continue;
     const title = [w.title ?? "Untitled", w.stockNumber].filter(Boolean).join(" | ");
     const who = [w.maker, w.makerNative].filter(Boolean).join(" ");
     hits.push({
@@ -127,7 +137,7 @@ export async function loadSearchIndex(): Promise<SearchHit[]> {
       id: w._id,
       text: who ? `${title} — ${who}` : title,
       meta: w.available === false ? "Sold" : w.available ? "Available" : null,
-      href: w.eventSlug ? `/events/${w.eventSlug}?work=${encodeURIComponent(w.slug)}` : `/works/${w.slug}`,
+      href,
       image: w.image,
       ratio: 1,
       haystack: lc(w.title, w.maker, w.makerNative, w.stockNumber, w.medium),
